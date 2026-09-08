@@ -1,0 +1,84 @@
+package models
+
+import "time"
+
+type Template struct {
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	Body      string    `json:"body"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type Destination struct {
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	TeamID    string    `json:"team_id"`
+	ChannelID string    `json:"channel_id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type Route struct {
+	ID            string            `json:"id"`
+	Name          string            `json:"name"`
+	LabelSelector map[string]string `json:"label_selector"`
+	DestinationID string            `json:"destination_id"`
+	TemplateID    string            `json:"template_id"`
+	IsDefault     bool              `json:"is_default"`
+	Priority      int               `json:"priority"`
+	CreatedAt     time.Time         `json:"created_at"`
+	UpdatedAt     time.Time         `json:"updated_at"`
+}
+
+type ActiveAlert struct {
+	Fingerprint string    `json:"fingerprint"`
+	Status      string    `json:"status"`
+	TeamID      string    `json:"team_id"`
+	ChannelID   string    `json:"channel_id"`
+	MessageID   string    `json:"message_id"`
+	LastUpdate  time.Time `json:"last_update"`
+}
+
+type Alert struct {
+	Source      string            `json:"source"`
+	Status      string            `json:"status"`
+	Labels      map[string]string `json:"labels"`
+	Annotations map[string]string `json:"annotations"`
+	StartsAt    time.Time         `json:"starts_at"`
+	EndsAt      time.Time         `json:"ends_at"`
+	Generator   string            `json:"generator"`
+	Fingerprint string            `json:"fingerprint"`
+}
+
+type AlertmanagerPayload struct {
+	Receiver          string              `json:"receiver"`
+	Status            string              `json:"status"`
+	Alerts            []AlertmanagerAlert `json:"alerts"`
+	GroupLabels       map[string]string   `json:"groupLabels"`
+	CommonLabels      map[string]string   `json:"commonLabels"`
+	CommonAnnotations map[string]string   `json:"commonAnnotations"`
+	ExternalURL       string              `json:"externalURL"`
+	Version           string              `json:"version"`
+	GroupKey          string              `json:"groupKey"`
+}
+
+type AlertmanagerAlert struct {
+	Status       string            `json:"status"`
+	Labels       map[string]string `json:"labels"`
+	Annotations  map[string]string `json:"annotations"`
+	StartsAt     time.Time         `json:"startsAt"`
+	EndsAt       time.Time         `json:"endsAt"`
+	GeneratorURL string            `json:"generatorURL"`
+	Fingerprint  string            `json:"fingerprint"`
+}
+
+type UniversalWebhookPayload struct {
+	Status      string            `json:"status"`
+	Labels      map[string]string `json:"labels"`
+	Annotations map[string]string `json:"annotations"`
+	StartsAt    time.Time         `json:"starts_at"`
+	EndsAt      time.Time         `json:"ends_at"`
+	Generator   string            `json:"generator"`
+	Fingerprint string            `json:"fingerprint"`
+}

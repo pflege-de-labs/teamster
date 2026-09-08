@@ -1,0 +1,19 @@
+server:
+  addr: ":8080"
+
+database:
+  path: "teamster.db"
+
+webhook:
+  token: "replace-with-shared-token"
+
+admin:
+  username: "admin"
+  password: "change-me"
+
+graph:
+  tenant-id: "your-tenant-id"
+  client-id: "your-client-id"
+  client-secret: "your-client-secret"
+  base-url: "https://graph.microsoft.com/v1.0"
+  timeout-sec: 10

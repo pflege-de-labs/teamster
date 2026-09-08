@@ -1,0 +1,141 @@
+package graph
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"html"
+	"io"
+	"net/http"
+	"time"
+
+	"golang.org/x/oauth2/clientcredentials"
+
+	"github.com/pflege-de/teamster/internal/config"
+)
+
+type Client struct {
+	baseURL    string
+	httpClient *http.Client
+}
+
+type MessageResponse struct {
+	ID string `json:"id"`
+}
+
+type ItemBody struct {
+	ContentType string `json:"contentType"`
+	Content     string `json:"content"`
+}
+
+type Attachment struct {
+	ID          string          `json:"id,omitempty"`
+	ContentType string          `json:"contentType"`
+	Content     json.RawMessage `json:"content"`
+}
+
+type MessageRequest struct {
+	Body        ItemBody     `json:"body"`
+	Attachments []Attachment `json:"attachments,omitempty"`
+}
+
+func NewClient(cfg config.GraphConfig) (*Client, error) {
+	oauthCfg := clientcredentials.Config{
+		ClientID:     cfg.ClientID,
+		ClientSecret: cfg.ClientSecret,
+		TokenURL:     fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/token", cfg.TenantID),
+		Scopes:       []string{"https://graph.microsoft.com/.default"},
+	}
+
+	httpClient := oauthCfg.Client(context.Background())
+	httpClient.Timeout = time.Duration(cfg.TimeoutSec) * time.Second
+
+	return &Client{
+		baseURL:    cfg.BaseURL,
+		httpClient: httpClient,
+	}, nil
+}
+
+func (c *Client) PostMessage(teamID, channelID string, card json.RawMessage, summary string) (string, error) {
+	escapedSummary := html.EscapeString(summary)
+	payload := MessageRequest{
+		Body: ItemBody{
+			ContentType: "html",
+			Content:     fmt.Sprintf("<p>%s</p>", escapedSummary),
+		},
+		Attachments: []Attachment{
+			{
+				ID:          "1",
+				ContentType: "application/vnd.microsoft.card.adaptive",
+				Content:     card,
+			},
+		},
+	}
+
+	endpoint := fmt.Sprintf("%s/teams/%s/channels/%s/messages", c.baseURL, teamID, channelID)
+	resBody, err := c.doRequest(http.MethodPost, endpoint, payload)
+	if err != nil {
+		return "", err
+	}
+
+	var res MessageResponse
+	if err := json.Unmarshal(resBody, &res); err != nil {
+		return "", fmt.Errorf("decode post response: %w", err)
+	}
+	if res.ID == "" {
+		return "", fmt.Errorf("graph response missing id")
+	}
+
+	return res.ID, nil
+}
+
+func (c *Client) UpdateMessage(teamID, channelID, messageID string, card json.RawMessage, summary string) error {
+	escapedSummary := html.EscapeString(summary)
+	payload := MessageRequest{
+		Body: ItemBody{
+			ContentType: "html",
+			Content:     fmt.Sprintf("<p>%s</p>", escapedSummary),
+		},
+		Attachments: []Attachment{
+			{
+				ID:          "1",
+				ContentType: "application/vnd.microsoft.card.adaptive",
+				Content:     card,
+			},
+		},
+	}
+
+	endpoint := fmt.Sprintf("%s/teams/%s/channels/%s/messages/%s", c.baseURL, teamID, channelID, messageID)
+	_, err := c.doRequest(http.MethodPatch, endpoint, payload)
+	return err
+}
+
+func (c *Client) doRequest(method, url string, body any) ([]byte, error) {
+	data, err := json.Marshal(body)
+	if err != nil {
+		return nil, fmt.Errorf("encode request: %w", err)
+	}
+
+	req, err := http.NewRequest(method, url, bytes.NewReader(data))
+	if err != nil {
+		return nil, fmt.Errorf("new request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("graph request: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	resBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read response: %w", err)
+	}
+	if resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("graph %s %s failed: %s", method, url, string(resBody))
+	}
+
+	return resBody, nil
+}

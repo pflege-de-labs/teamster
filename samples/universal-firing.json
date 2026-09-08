@@ -1,0 +1,16 @@
+{
+  "status": "firing",
+  "labels": {
+    "alertname": "HighMemory",
+    "severity": "warning",
+    "service": "worker"
+  },
+  "annotations": {
+    "summary": "Memory usage is above 80%",
+    "description": "worker service memory is high"
+  },
+  "starts_at": "2026-02-09T09:00:00Z",
+  "ends_at": "0001-01-01T00:00:00Z",
+  "generator": "custom",
+  "fingerprint": "2a6d3b7f1c"
+}

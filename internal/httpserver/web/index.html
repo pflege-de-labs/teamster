@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Teamster Admin</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">Teamster Admin</div>
+      <div class="subtitle">Templates, routes, and destinations</div>
+    </header>
+
+    <main class="layout">
+      <section class="panel">
+        <h2>Templates</h2>
+        <div class="grid">
+          <div>
+            <form id="template-form">
+              <input type="hidden" id="template-id" />
+              <label>Name</label>
+              <input id="template-name" placeholder="Critical alert" />
+              <label>Body (Adaptive Card JSON template)</label>
+              <textarea id="template-body" rows="12"></textarea>
+              <button type="submit">Save Template</button>
+            </form>
+          </div>
+          <div>
+            <ul id="template-list" class="list"></ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Destinations</h2>
+        <div class="grid">
+          <div>
+            <form id="destination-form">
+              <input type="hidden" id="destination-id" />
+              <label>Name</label>
+              <input id="destination-name" placeholder="Ops channel" />
+              <label>Team ID</label>
+              <input id="destination-team" placeholder="team-id" />
+              <label>Channel ID</label>
+              <input id="destination-channel" placeholder="channel-id" />
+              <button type="submit">Save Destination</button>
+            </form>
+          </div>
+          <div>
+            <ul id="destination-list" class="list"></ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Routes</h2>
+        <div class="grid">
+          <div>
+            <form id="route-form">
+              <input type="hidden" id="route-id" />
+              <label>Name</label>
+              <input id="route-name" placeholder="Critical to ops" />
+              <label>Label selector (JSON)</label>
+              <textarea id="route-selector" rows="4">{"severity":"critical"}</textarea>
+              <label>Destination ID</label>
+              <input id="route-destination" placeholder="destination-id" />
+              <label>Template ID</label>
+              <input id="route-template" placeholder="template-id" />
+              <label>Priority</label>
+              <input id="route-priority" type="number" value="100" />
+              <label>Default route</label>
+              <select id="route-default">
+                <option value="false">No</option>
+                <option value="true">Yes</option>
+              </select>
+              <button type="submit">Save Route</button>
+            </form>
+          </div>
+          <div>
+            <ul id="route-list" class="list"></ul>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

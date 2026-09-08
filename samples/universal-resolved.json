@@ -1,0 +1,16 @@
+{
+  "status": "resolved",
+  "labels": {
+    "alertname": "HighMemory",
+    "severity": "warning",
+    "service": "worker"
+  },
+  "annotations": {
+    "summary": "Memory usage is back to normal",
+    "description": "worker service has recovered"
+  },
+  "starts_at": "2026-02-09T09:00:00Z",
+  "ends_at": "2026-02-09T09:20:00Z",
+  "generator": "custom",
+  "fingerprint": "2a6d3b7f1c"
+}

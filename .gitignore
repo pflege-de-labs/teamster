@@ -1,0 +1,8 @@
+# Local configuration holds real secrets
+config.yaml
+
+bin/
+dist/
+*.db
+coverage.out
+coverage.html

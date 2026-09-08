@@ -1,0 +1,43 @@
+# Teamster is a standalone module; a parent go.work would pull in unrelated modules.
+export GOWORK := off
+
+COVERAGE_MIN ?= 75
+COVERAGE_OUT ?= coverage.out
+BINARY       ?= bin/teamster
+VERSION      ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+
+.PHONY: all build run test coverage coverage-html fmt lint tidy clean
+
+all: lint coverage build
+
+build:
+	go build -ldflags "-X main.version=$(VERSION)" -o $(BINARY) ./cmd/server
+
+run:
+	go run ./cmd/server
+
+test:
+	go test ./...
+
+coverage:
+	go test ./... -covermode=atomic -coverprofile=$(COVERAGE_OUT)
+	@go tool cover -func=$(COVERAGE_OUT) | tail -1
+	@total=$$(go tool cover -func=$(COVERAGE_OUT) | awk '/^total:/ {print $$3}' | tr -d '%'); \
+	awk -v total="$$total" -v min="$(COVERAGE_MIN)" 'BEGIN { \
+		if (total+0 < min+0) { printf "coverage %.1f%% is below the required %s%%\n", total, min; exit 1 } \
+		printf "coverage %.1f%% meets the required %s%%\n", total, min }'
+
+coverage-html: coverage
+	go tool cover -html=$(COVERAGE_OUT) -o coverage.html
+
+fmt:
+	go fmt ./...
+
+lint:
+	golangci-lint run
+
+tidy:
+	go mod tidy
+
+clean:
+	rm -rf bin $(COVERAGE_OUT) coverage.html

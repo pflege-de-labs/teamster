@@ -1,0 +1,135 @@
+:root {
+  --bg: #f1efe8;
+  --panel: #fff9ef;
+  --ink: #1c1c1c;
+  --muted: #6f6a5c;
+  --accent: #f26d21;
+  --accent-dark: #cc5314;
+  --border: #e0d9c8;
+  font-family: "Iowan Old Style", "Palatino", "Garamond", serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: radial-gradient(circle at top, #fff7e7, #efe5d1 60%, #e6d8be 100%);
+  color: var(--ink);
+}
+
+.topbar {
+  padding: 24px 32px;
+  border-bottom: 2px solid var(--border);
+  background: linear-gradient(90deg, #fff7e7, #ffe0c2);
+}
+
+.brand {
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.subtitle {
+  color: var(--muted);
+}
+
+.layout {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px 32px 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+}
+
+label {
+  display: block;
+  font-size: 14px;
+  margin-top: 12px;
+  color: var(--muted);
+}
+
+input,
+textarea,
+select {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  font-family: "Menlo", "Consolas", monospace;
+  font-size: 13px;
+  background: #fff;
+}
+
+button {
+  margin-top: 16px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 999px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+button:hover {
+  background: var(--accent-dark);
+}
+
+.list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.list li {
+  padding: 12px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin-bottom: 12px;
+  background: #fff;
+}
+
+.list li strong {
+  display: block;
+}
+
+.list li small {
+  color: var(--muted);
+}
+
+.list li .actions {
+  margin-top: 8px;
+  display: flex;
+  gap: 8px;
+}
+
+.list li .actions button {
+  margin-top: 0;
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+@media (max-width: 720px) {
+  .layout {
+    padding: 16px;
+  }
+  .topbar {
+    padding: 16px;
+  }
+}
