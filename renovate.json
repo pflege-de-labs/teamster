@@ -14,6 +14,7 @@
     "gomodTidy"
   ],
   "prConcurrentLimit": 5,
+  "rebaseWhen": "behind-base-branch",
   "labels": [
     "dependencies"
   ],
