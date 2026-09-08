@@ -41,6 +41,9 @@ A change is done when all of these hold:
 * Config file locations follow the XDG Base Directory Specification, see
   `internal/config.SearchPaths`. YAML keys must match kong's hyphenated flag names.
 * Flag defaults and help text live in struct tags, not in Go code.
+* Every operation is a kong command in `internal/cli` with a
+  `Run(ctx context.Context, cfg *config.Config) error` method, dispatched by `kong.Context.Run`.
+  Commands take a context and must return promptly once it is cancelled.
 * Code is `gofmt` and `goimports` clean; `golangci-lint run` reports no issues.
 * Tests are table-driven and call `t.Parallel()`. Tests that need `t.Setenv` cannot be parallel —
   keep those cases in their own test function.

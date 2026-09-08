@@ -8,7 +8,8 @@ State lives in a local SQLite file; there are no other runtime dependencies.
 
 | Package | Responsibility |
 | --- | --- |
-| `cmd/server` | Entry point. Builds the kong parser, resolves configuration, opens the store, constructs the Graph client and the HTTP server. |
+| `cmd/server` | Entry point. Installs the signal handler and hands the resulting context to the command tree. |
+| `internal/cli` | kong command tree and its wiring. `ServeCmd` is the default command: it opens the store, constructs the Graph client, serves HTTP and shuts down on cancellation. |
 | `internal/config` | Configuration schema (kong tags), XDG config file search paths, validation. |
 | `internal/httpserver` | HTTP routing, webhook handlers, alert processing, admin JSON API, basic auth and request logging middleware. |
 | `internal/routing` | Selects a route for an alert's labels. |
@@ -23,6 +24,17 @@ Dependencies are injected through constructors — `store.NewSQLiteStore`, `grap
 exercised with a substitute in tests. There is no package-level mutable state. `NewServer` takes
 the unexported `messenger` interface rather than `*graph.Client`, see
 [ADR 0002](adr/0002-messenger-interface.md).
+
+## Process lifecycle
+
+`main` derives a context from `signal.NotifyContext` for SIGINT and SIGTERM, then calls
+`cli.Run`, which parses the arguments and dispatches through `kong.Context.Run`. Commands receive
+that context and the parsed configuration.
+
+`ServeCmd` binds its listener before serving, so a bind failure is reported as an error. On
+cancellation it calls `http.Server.Shutdown` with `server.shutdown-timeout` (default 15s) to drain
+in-flight requests, then closes the store. A second signal kills the process outright. See
+[ADR 0003](adr/0003-kong-commands-and-graceful-shutdown.md).
 
 ## Request flow
 
