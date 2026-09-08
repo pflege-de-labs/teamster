@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -14,7 +15,8 @@ import (
 )
 
 type SQLiteStore struct {
-	db *sql.DB
+	db   *sql.DB
+	path string
 }
 
 func NewSQLiteStore(path string) (*SQLiteStore, error) {
@@ -22,7 +24,7 @@ func NewSQLiteStore(path string) (*SQLiteStore, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite: %w", err)
 	}
-	store := &SQLiteStore{db: db}
+	store := &SQLiteStore{db: db, path: path}
 	if err := store.migrate(); err != nil {
 		_ = db.Close()
 		return nil, err
@@ -40,16 +42,16 @@ CREATE TABLE IF NOT EXISTS templates (
 	id TEXT PRIMARY KEY,
 	name TEXT NOT NULL,
 	body TEXT NOT NULL,
-	created_at TEXT NOT NULL,
-	updated_at TEXT NOT NULL
+	created_at DATETIME NOT NULL,
+	updated_at DATETIME NOT NULL
 );
 CREATE TABLE IF NOT EXISTS destinations (
 	id TEXT PRIMARY KEY,
 	name TEXT NOT NULL,
 	team_id TEXT NOT NULL,
 	channel_id TEXT NOT NULL,
-	created_at TEXT NOT NULL,
-	updated_at TEXT NOT NULL
+	created_at DATETIME NOT NULL,
+	updated_at DATETIME NOT NULL
 );
 CREATE TABLE IF NOT EXISTS routes (
 	id TEXT PRIMARY KEY,
@@ -59,8 +61,8 @@ CREATE TABLE IF NOT EXISTS routes (
 	template_id TEXT NOT NULL,
 	is_default INTEGER NOT NULL,
 	priority INTEGER NOT NULL,
-	created_at TEXT NOT NULL,
-	updated_at TEXT NOT NULL
+	created_at DATETIME NOT NULL,
+	updated_at DATETIME NOT NULL
 );
 CREATE TABLE IF NOT EXISTS active_alerts (
 	fingerprint TEXT PRIMARY KEY,
@@ -68,14 +70,64 @@ CREATE TABLE IF NOT EXISTS active_alerts (
 	team_id TEXT NOT NULL,
 	channel_id TEXT NOT NULL,
 	message_id TEXT NOT NULL,
-	last_update TEXT NOT NULL
+	last_update DATETIME NOT NULL
 );
 `
 	_, err := s.db.Exec(schema)
 	if err != nil {
 		return fmt.Errorf("migrate schema: %w", err)
 	}
+	return s.checkTimestampColumns()
+}
+
+// timestampColumns are read back as time.Time only while they are declared
+// DATETIME; a database written before that fix silently fails every Scan.
+var timestampColumns = map[string][]string{
+	"templates":     {"created_at", "updated_at"},
+	"destinations":  {"created_at", "updated_at"},
+	"routes":        {"created_at", "updated_at"},
+	"active_alerts": {"last_update"},
+}
+
+func (s *SQLiteStore) checkTimestampColumns() error {
+	for table, columns := range timestampColumns {
+		declared, err := s.columnTypes(table)
+		if err != nil {
+			return err
+		}
+		for _, column := range columns {
+			if got := strings.ToUpper(declared[column]); got != "" && got != "DATETIME" {
+				return fmt.Errorf("%s: table %s column %s is declared %s, expected DATETIME; "+
+					"this database was created by an older build and cannot be read, delete it and restart",
+					s.path, table, column, got)
+			}
+		}
+	}
 	return nil
+}
+
+func (s *SQLiteStore) columnTypes(table string) (map[string]string, error) {
+	rows, err := s.db.Query(fmt.Sprintf("PRAGMA table_info(%s)", table))
+	if err != nil {
+		return nil, fmt.Errorf("inspect %s: %w", table, err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	types := map[string]string{}
+	for rows.Next() {
+		var (
+			cid        int
+			name, kind string
+			notNull    int
+			dflt       sql.NullString
+			pk         int
+		)
+		if err := rows.Scan(&cid, &name, &kind, &notNull, &dflt, &pk); err != nil {
+			return nil, fmt.Errorf("scan %s column: %w", table, err)
+		}
+		types[name] = kind
+	}
+	return types, rows.Err()
 }
 
 func (s *SQLiteStore) ListTemplates() ([]models.Template, error) {
