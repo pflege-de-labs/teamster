@@ -84,6 +84,22 @@
         "major"
       ],
       "automerge": false
+    },
+    {
+      "description": "The Go build image only decides how the binary is produced, and the image job fails if a new toolchain breaks it. The runtime base stays manual.",
+      "matchManagers": [
+        "dockerfile"
+      ],
+      "matchDepNames": [
+        "golang"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "digest"
+      ],
+      "groupName": "go toolchain",
+      "automerge": true
     }
   ],
   "vulnerabilityAlerts": {
