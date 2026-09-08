@@ -10,9 +10,9 @@ import (
 	"sort"
 	"time"
 
-	"github.com/pflege-de/teamster/internal/models"
-	"github.com/pflege-de/teamster/internal/store"
-	"github.com/pflege-de/teamster/internal/templates"
+	"github.com/pflege-de-labs/teamster/internal/models"
+	"github.com/pflege-de-labs/teamster/internal/store"
+	"github.com/pflege-de-labs/teamster/internal/templates"
 )
 
 func (s *Server) handleAlertmanager(w http.ResponseWriter, r *http.Request) {

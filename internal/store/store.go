@@ -3,7 +3,7 @@ package store
 import (
 	"errors"
 
-	"github.com/pflege-de/teamster/internal/models"
+	"github.com/pflege-de-labs/teamster/internal/models"
 )
 
 var ErrNotFound = errors.New("not found")

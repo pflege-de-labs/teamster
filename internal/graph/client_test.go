@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pflege-de/teamster/internal/config"
+	"github.com/pflege-de-labs/teamster/internal/config"
 )
 
 // newTestClient points a client at a stub Graph API, bypassing the OAuth2

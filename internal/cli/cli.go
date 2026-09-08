@@ -7,7 +7,7 @@ import (
 	"github.com/alecthomas/kong"
 	kongyaml "github.com/alecthomas/kong-yaml"
 
-	"github.com/pflege-de/teamster/internal/config"
+	"github.com/pflege-de-labs/teamster/internal/config"
 )
 
 // CLI is the command tree. Configuration is embedded at the root so every

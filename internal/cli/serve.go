@@ -8,10 +8,10 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/pflege-de/teamster/internal/config"
-	"github.com/pflege-de/teamster/internal/graph"
-	"github.com/pflege-de/teamster/internal/httpserver"
-	"github.com/pflege-de/teamster/internal/store"
+	"github.com/pflege-de-labs/teamster/internal/config"
+	"github.com/pflege-de-labs/teamster/internal/graph"
+	"github.com/pflege-de-labs/teamster/internal/httpserver"
+	"github.com/pflege-de-labs/teamster/internal/store"
 )
 
 // ServeCmd runs the HTTP server until ctx is cancelled.

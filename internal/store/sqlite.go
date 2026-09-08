@@ -11,7 +11,7 @@ import (
 	"github.com/google/uuid"
 	_ "modernc.org/sqlite"
 
-	"github.com/pflege-de/teamster/internal/models"
+	"github.com/pflege-de-labs/teamster/internal/models"
 )
 
 type SQLiteStore struct {

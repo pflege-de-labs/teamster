@@ -30,4 +30,4 @@ formatters:
   settings:
     goimports:
       local-prefixes:
-        - github.com/pflege-de/teamster
+        - github.com/pflege-de-labs/teamster

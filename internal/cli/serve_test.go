@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pflege-de/teamster/internal/config"
+	"github.com/pflege-de-labs/teamster/internal/config"
 )
 
 func validConfig(t *testing.T) *config.Config {

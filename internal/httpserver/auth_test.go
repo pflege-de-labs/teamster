@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/pflege-de/teamster/internal/config"
+	"github.com/pflege-de-labs/teamster/internal/config"
 )
 
 func TestBasicAuth(t *testing.T) {

@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/pflege-de/teamster/internal/config"
-	"github.com/pflege-de/teamster/internal/routing"
-	"github.com/pflege-de/teamster/internal/store"
+	"github.com/pflege-de-labs/teamster/internal/config"
+	"github.com/pflege-de-labs/teamster/internal/routing"
+	"github.com/pflege-de-labs/teamster/internal/store"
 )
 
 // messenger is the slice of the Graph client the handlers depend on.

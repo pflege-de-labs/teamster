@@ -117,7 +117,7 @@ See the JSON examples in [samples](samples):
 make image                       # builds teamster:<version>
 ```
 
-CI publishes images to `ghcr.io/pflege-de/teamster`:
+CI publishes images to `ghcr.io/pflege-de-labs/teamster`:
 
 | Tag | Points at |
 | --- | --- |
@@ -138,16 +138,16 @@ to distribute:
 
 ```bash
 cosign verify \
-  --certificate-identity-regexp '^https://github.com/pflege-de/teamster/' \
+  --certificate-identity-regexp '^https://github.com/pflege-de-labs/teamster/' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  ghcr.io/pflege-de/teamster:1.2.3
+  ghcr.io/pflege-de-labs/teamster:1.2.3
 ```
 
 The image carries an SPDX SBOM and SLSA provenance as attestations:
 
 ```bash
-docker buildx imagetools inspect ghcr.io/pflege-de/teamster:1.2.3 --format '{{ json .SBOM }}'
-docker buildx imagetools inspect ghcr.io/pflege-de/teamster:1.2.3 --format '{{ json .Provenance }}'
+docker buildx imagetools inspect ghcr.io/pflege-de-labs/teamster:1.2.3 --format '{{ json .SBOM }}'
+docker buildx imagetools inspect ghcr.io/pflege-de-labs/teamster:1.2.3 --format '{{ json .Provenance }}'
 ```
 
 Release binaries come with an SPDX SBOM each and a signed `checksums.txt`, which covers the
@@ -156,7 +156,7 @@ binaries and their SBOMs:
 ```bash
 cosign verify-blob \
   --certificate checksums.txt.pem --signature checksums.txt.sig \
-  --certificate-identity-regexp '^https://github.com/pflege-de/teamster/' \
+  --certificate-identity-regexp '^https://github.com/pflege-de-labs/teamster/' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   checksums.txt
 sha256sum -c checksums.txt
