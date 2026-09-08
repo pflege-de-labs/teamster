@@ -205,6 +205,7 @@ routine ones itself once CI and branch protection allow it.
 ## Documentation
 
 - [Architecture](docs/architecture.md)
+- [Roadmap](docs/roadmap.md)
 - [Architecture Decision Records](docs/adr/)
 - [Contribution rules and definition of done](AGENTS.md)
 - [Security policy](SECURITY.md)
