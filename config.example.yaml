@@ -1,5 +1,6 @@
 server:
   addr: ":8080"
+  shutdown-timeout: "15s"
 
 database:
   path: "teamster.db"

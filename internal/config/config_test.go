@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/alecthomas/kong"
 	kongyaml "github.com/alecthomas/kong-yaml"
@@ -52,7 +53,7 @@ func TestParseExampleConfig(t *testing.T) {
 
 	got := parse(t, nil, "../../config.example.yaml")
 	want := Config{
-		Server:   ServerConfig{Addr: ":8080"},
+		Server:   ServerConfig{Addr: ":8080", ShutdownTimeout: 15 * time.Second},
 		Database: DatabaseConfig{Path: "teamster.db"},
 		Webhook:  WebhookConfig{Token: "replace-with-shared-token"},
 		Admin:    AdminConfig{Username: "admin", Password: "change-me"},
@@ -78,6 +79,9 @@ func TestParseAppliesTagDefaults(t *testing.T) {
 	got := parse(t, nil, writeConfig(t, "webhook:\n  token: t\n"))
 	if got.Server.Addr != ":8080" {
 		t.Errorf("Server.Addr = %q, want %q", got.Server.Addr, ":8080")
+	}
+	if got.Server.ShutdownTimeout != 15*time.Second {
+		t.Errorf("Server.ShutdownTimeout = %s, want 15s", got.Server.ShutdownTimeout)
 	}
 	if got.Database.Path != "teamster.db" {
 		t.Errorf("Database.Path = %q, want %q", got.Database.Path, "teamster.db")
