@@ -21,3 +21,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0004](0004-container-image.md) | Container image built multi-stage onto distroless nonroot | Accepted |
 | [0005](0005-image-tagging-and-promotion.md) | Image tags come from metadata-action, releases promote | Superseded by 0006 |
 | [0006](0006-release-rebuild-sbom-signing.md) | Releases rebuild, carry an SBOM and are signed | Accepted |
+| [0007](0007-renovate-dependency-updates.md) | Dependency updates run through Renovate | Accepted |
