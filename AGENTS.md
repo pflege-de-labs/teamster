@@ -31,6 +31,11 @@ A change is done when all of these hold:
 * Features are developed in branches. Never commit to `main` directly.
 * Branches are merged into `main` via pull request; the PR checklist mirrors the definition of
   done above.
+* Dependency updates arrive as Renovate pull requests. Minor and patch Go bumps and action
+  updates merge themselves once branch protection is satisfied; majors, base images and the Go
+  toolchain are reviewed by hand.
+* Workflow actions are pinned to a commit sha and container bases to a digest, with the readable
+  version in a trailing comment. Never reintroduce a floating tag; Renovate does the updating.
 * Releases are cut from `main` by tagging `vX.Y.Z`, which triggers the release workflow: it
   re-runs lint and tests on the tagged commit, rebuilds the image and binaries, attaches SBOMs
   and signs everything with cosign.

@@ -199,6 +199,9 @@ make build          # builds bin/teamster
 Contributions must meet the definition of done in [AGENTS.md](AGENTS.md): 75% coverage, clean
 lint, and current documentation.
 
+Dependencies are kept current by Renovate, which groups Go and Actions updates and merges the
+routine ones itself once CI and branch protection allow it.
+
 ## Documentation
 
 - [Architecture](docs/architecture.md)

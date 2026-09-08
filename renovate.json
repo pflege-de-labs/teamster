@@ -1,0 +1,98 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard",
+    ":semanticCommits",
+    "helpers:pinGitHubActionDigests"
+  ],
+  "timezone": "Europe/Berlin",
+  "schedule": [
+    "before 6am on monday"
+  ],
+  "postUpdateOptions": [
+    "gomodTidy"
+  ],
+  "prConcurrentLimit": 5,
+  "labels": [
+    "dependencies"
+  ],
+  "platformAutomerge": true,
+  "packageRules": [
+    {
+      "description": "Go minor and patch bumps merge themselves once the branch protection rules are satisfied.",
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "groupName": "go dependencies",
+      "automerge": true
+    },
+    {
+      "description": "A major Go bump can change behaviour, so it waits for a person.",
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "additionalBranchPrefix": "major-",
+      "automerge": false
+    },
+    {
+      "description": "Actions are pinned to a commit sha. Digest and version bumps within a major are covered by the same CI that gates everything else.",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "groupName": "github actions",
+      "automerge": true,
+      "matchUpdateTypes": [
+        "digest",
+        "minor",
+        "patch",
+        "pin"
+      ]
+    },
+    {
+      "description": "Base images are pinned by digest; a rebuild changes what ships in the release image, so it is reviewed by hand.",
+      "matchManagers": [
+        "dockerfile"
+      ],
+      "automerge": false,
+      "pinDigests": true
+    },
+    {
+      "description": "The Go toolchain is a deliberate choice, not a routine bump.",
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchDepTypes": [
+        "golang"
+      ],
+      "automerge": false
+    },
+    {
+      "description": "A major action bump can rename inputs, so it waits for a person.",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "automerge": false
+    }
+  ],
+  "vulnerabilityAlerts": {
+    "labels": [
+      "dependencies",
+      "security"
+    ],
+    "schedule": [
+      "at any time"
+    ],
+    "automerge": true
+  }
+}
