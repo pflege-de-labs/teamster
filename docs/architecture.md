@@ -20,7 +20,9 @@ State lives in a local SQLite file; there are no other runtime dependencies.
 
 Dependencies are injected through constructors — `store.NewSQLiteStore`, `graph.NewClient`,
 `routing.New`, `httpserver.NewServer(cfg, store, graphClient)` — so every component can be
-exercised with a substitute in tests. There is no package-level mutable state.
+exercised with a substitute in tests. There is no package-level mutable state. `NewServer` takes
+the unexported `messenger` interface rather than `*graph.Client`, see
+[ADR 0002](adr/0002-messenger-interface.md).
 
 ## Request flow
 
@@ -61,6 +63,10 @@ be present with the same value. An empty selector never matches. If nothing matc
 route flagged as default wins; with no default configured the alert is an error.
 
 ## Alert lifecycle
+
+Timestamp columns are declared `DATETIME`; the SQLite driver only converts them back to
+`time.Time` for that declared type. `NewSQLiteStore` refuses to open a database whose timestamp
+columns are declared otherwise, since every read from it would fail.
 
 `active_alerts` is keyed by fingerprint and stores the Team, channel and Graph message ID. A
 repeated `firing` alert therefore edits the existing card instead of posting a new one, and a
