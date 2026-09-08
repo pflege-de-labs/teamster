@@ -11,7 +11,7 @@ import (
 	kongyaml "github.com/alecthomas/kong-yaml"
 )
 
-// testCLI mirrors the flag layout of cmd/server so the tests exercise the real
+// testCLI mirrors the flag layout of cmd/teamster so the tests exercise the real
 // kong wiring, including how kong-yaml maps nested YAML onto prefixed flags.
 type testCLI struct {
 	ConfigFile kong.ConfigFlag `name:"config" short:"c"`
