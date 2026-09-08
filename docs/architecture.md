@@ -36,6 +36,14 @@ cancellation it calls `http.Server.Shutdown` with `server.shutdown-timeout` (def
 in-flight requests, then closes the store. A second signal kills the process outright. See
 [ADR 0003](adr/0003-kong-commands-and-graceful-shutdown.md).
 
+## Deployment
+
+The container image is built multi-stage: `golang:1.24` compiles a static binary with
+`CGO_ENABLED=0`, and the runtime stage is `gcr.io/distroless/static-debian12:nonroot` running as
+uid 65532. Configuration is mounted at `/etc/xdg/teamster/config.yaml` — the system-wide XDG path
+the binary already searches — and the SQLite file lives in the `/data` volume. See
+[ADR 0004](adr/0004-container-image.md).
+
 ## Request flow
 
 ```

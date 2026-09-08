@@ -111,6 +111,29 @@ See the JSON examples in [samples](samples):
 - [samples/universal-firing.json](samples/universal-firing.json)
 - [samples/universal-resolved.json](samples/universal-resolved.json)
 
+## Container
+
+```bash
+make image                       # builds teamster:<version>
+```
+
+Run it with the configuration mounted at the system-wide XDG location the binary searches, and
+the database on a volume:
+
+```bash
+docker run --rm -p 8080:8080 \
+  -v "$PWD/config.yaml:/etc/xdg/teamster/config.yaml:ro" \
+  -v teamster-data:/data \
+  teamster:latest
+```
+
+`make image-run` does exactly that. Settings can also come from `TEAMSTER_*` variables instead of
+a mounted file, though a mounted file wins over them.
+
+The image runs as uid 65532 with no shell or package manager, so there is nothing to exec into;
+diagnose through the container logs. `/data` is the only writable path, and
+`TEAMSTER_DATABASE_PATH` already points the database at it.
+
 ## Development
 
 ```bash

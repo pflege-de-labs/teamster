@@ -4,9 +4,11 @@ export GOWORK := off
 COVERAGE_MIN ?= 75
 COVERAGE_OUT ?= coverage.out
 BINARY       ?= bin/teamster
+IMAGE        ?= teamster
+CONTAINER_TOOL ?= $(shell command -v docker >/dev/null 2>&1 && echo docker || echo podman)
 VERSION      ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 
-.PHONY: all build run test coverage coverage-html fmt lint tidy clean
+.PHONY: all build run test coverage coverage-html fmt lint tidy image image-run clean
 
 all: lint coverage build
 
@@ -38,6 +40,16 @@ lint:
 
 tidy:
 	go mod tidy
+
+image:
+	$(CONTAINER_TOOL) build --build-arg VERSION=$(VERSION) -t $(IMAGE):$(VERSION) -t $(IMAGE):latest .
+
+# Mounts ./config.yaml as the system-wide XDG config the container looks for.
+image-run: image
+	$(CONTAINER_TOOL) run --rm -p 8080:8080 \
+		-v $(CURDIR)/config.yaml:/etc/xdg/teamster/config.yaml:ro \
+		-v teamster-data:/data \
+		$(IMAGE):$(VERSION)
 
 clean:
 	rm -rf bin $(COVERAGE_OUT) coverage.html

@@ -18,3 +18,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0001](0001-kong-xdg-configuration.md) | Configuration through kong with XDG file locations | Accepted |
 | [0002](0002-messenger-interface.md) | The HTTP layer depends on a messenger interface | Accepted |
 | [0003](0003-kong-commands-and-graceful-shutdown.md) | Commands run through kong, cancelled by signal | Accepted |
+| [0004](0004-container-image.md) | Container image built multi-stage onto distroless nonroot | Accepted |
