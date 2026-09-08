@@ -174,18 +174,15 @@ jobs:
 
       - uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3
 
+      # A bundle carries the signature and the certificate in one file, and is
+      # what cosign v3 requires of sign-blob. cosign v2 writes it too.
       - name: Sign the checksums
-        run: |
-          cosign sign-blob --yes \
-            --output-signature dist/checksums.txt.sig \
-            --output-certificate dist/checksums.txt.pem \
-            dist/checksums.txt
+        run: cosign sign-blob --yes --bundle dist/checksums.txt.bundle dist/checksums.txt
 
       - name: Verify the signature
         run: |
           cosign verify-blob \
-            --certificate dist/checksums.txt.pem \
-            --signature dist/checksums.txt.sig \
+            --bundle dist/checksums.txt.bundle \
             --certificate-identity-regexp "^https://github.com/${GITHUB_REPOSITORY}/" \
             --certificate-oidc-issuer https://token.actions.githubusercontent.com \
             dist/checksums.txt
