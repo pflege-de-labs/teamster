@@ -10,10 +10,11 @@ import (
 //go:embed web/*
 var embeddedWeb embed.FS
 
-// Go's mime table has no .webmanifest entry, so it would be served as plain
-// text and browsers would ignore the manifest.
+// Both types are pinned because Go falls back to the host's mime table, which
+// has no .webmanifest entry at all and disagrees about .ico between platforms.
 func registerMIMETypes() {
 	_ = mime.AddExtensionType(".webmanifest", "application/manifest+json")
+	_ = mime.AddExtensionType(".ico", "image/x-icon")
 }
 
 func (s *Server) handleAdmin(w http.ResponseWriter, r *http.Request) {
