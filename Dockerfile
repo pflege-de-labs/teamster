@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1
 
-FROM golang:1.24 AS build
+# Building on the native platform and cross-compiling avoids QEMU emulation.
+FROM --platform=$BUILDPLATFORM golang:1.24 AS build
 
 WORKDIR /src
 
@@ -10,9 +11,11 @@ RUN --mount=type=cache,target=/go/pkg/mod go mod download
 COPY . .
 
 ARG VERSION=dev
+ARG TARGETOS
+ARG TARGETARCH
 RUN --mount=type=cache,target=/go/pkg/mod \
-	--mount=type=cache,target=/root/.cache/go-build \
-	CGO_ENABLED=0 go build \
+	--mount=type=cache,target=/root/.cache/go-build,id=go-build-$TARGETOS-$TARGETARCH \
+	CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build \
 	-trimpath \
 	-ldflags "-s -w -X main.version=${VERSION}" \
 	-o /out/teamster ./cmd/server

@@ -44,6 +44,12 @@ uid 65532. Configuration is mounted at `/etc/xdg/teamster/config.yaml` — the s
 the binary already searches — and the SQLite file lives in the `/data` volume. See
 [ADR 0004](adr/0004-container-image.md).
 
+Images are published to `ghcr.io/<owner>/<repo>` for `linux/amd64` and `linux/arm64`. Every build
+is tagged with its short commit sha, branches and pull requests get moving tags, and a release
+retags the existing commit image instead of rebuilding it — same digest, same bytes.
+`:latest` only ever moves forward, to the newest stable release. See
+[ADR 0005](adr/0005-image-tagging-and-promotion.md).
+
 ## Request flow
 
 ```
