@@ -18,7 +18,7 @@ import (
 type ServeCmd struct{}
 
 func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
-	if err := cfg.Validate(); err != nil {
+	if err := config.Validate(*cfg); err != nil {
 		return fmt.Errorf("config validation: %w", err)
 	}
 

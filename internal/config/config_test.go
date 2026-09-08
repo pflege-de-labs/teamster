@@ -68,7 +68,7 @@ func TestParseExampleConfig(t *testing.T) {
 	if got != want {
 		t.Errorf("parsed example config = %+v, want %+v", got, want)
 	}
-	if err := got.Validate(); err != nil {
+	if err := Validate(got); err != nil {
 		t.Errorf("example config must be valid: %v", err)
 	}
 }
@@ -156,7 +156,7 @@ func TestValidate(t *testing.T) {
 			cfg := valid
 			tt.mutate(&cfg)
 
-			err := cfg.Validate()
+			err := Validate(cfg)
 			switch {
 			case tt.wantErr == "" && err != nil:
 				t.Errorf("Validate() = %v, want nil", err)

@@ -39,7 +39,10 @@ type GraphConfig struct {
 	TimeoutSec   int    `help:"Timeout in seconds for Graph API calls." default:"10"`
 }
 
-func (cfg Config) Validate() error {
+// Validate is a function rather than a method on Config: kong calls a
+// Validate() method on any embedded struct during Parse, which would force
+// every command to carry full credentials just to parse its flags.
+func Validate(cfg Config) error {
 	if cfg.Graph.TenantID == "" || cfg.Graph.ClientID == "" || cfg.Graph.ClientSecret == "" {
 		return fmt.Errorf("graph config is required")
 	}
