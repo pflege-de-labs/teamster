@@ -31,9 +31,9 @@ A change is done when all of these hold:
 * Features are developed in branches. Never commit to `main` directly.
 * Branches are merged into `main` via pull request; the PR checklist mirrors the definition of
   done above.
-* Releases are cut from `main` by tagging `vX.Y.Z`, which triggers the release workflow. The
-  release promotes the image already built from that commit; it never rebuilds one, so the tag
-  must point at a commit that was pushed to `main`.
+* Releases are cut from `main` by tagging `vX.Y.Z`, which triggers the release workflow: it
+  re-runs lint and tests on the tagged commit, rebuilds the image and binaries, attaches SBOMs
+  and signs everything with cosign.
 
 ## Go conventions
 

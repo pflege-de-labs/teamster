@@ -1,6 +1,6 @@
 # 0005. Image tags come from metadata-action, releases promote
 
-* Status: Accepted
+* Status: Superseded by [0006](0006-release-rebuild-sbom-signing.md)
 * Date: 2026-09-08
 
 ## Context
