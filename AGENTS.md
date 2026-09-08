@@ -69,6 +69,13 @@ A change is done when all of these hold:
 * No package-level mutable state. Dependencies are injected through constructors, as in
   `httpserver.NewServer(cfg, store, graphClient)`.
 
+## Planned work
+
+Upcoming features and their intended order live in [docs/roadmap.md](docs/roadmap.md). A feature is
+designed before it is implemented: a design note in its pull request, an ADR when it changes how
+components are structured, and one feature per pull request. Update the roadmap when a milestone
+lands or the plan changes.
+
 ## Architecture decisions
 
 Recorded as ADRs in [docs/adr/](docs/adr/), numbered `NNNN-title.md` and copied from
