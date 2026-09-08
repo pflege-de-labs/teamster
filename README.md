@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="images/favicons/logo-teamster-2/favicon-256x256.png" alt="" width="180" />
+</p>
+
 # Teamster
 
 Go service that accepts Alertmanager or universal webhooks, routes alerts to Teams channels, and posts Adaptive Cards through Microsoft Graph.

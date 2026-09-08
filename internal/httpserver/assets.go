@@ -3,11 +3,18 @@ package httpserver
 import (
 	"embed"
 	"io/fs"
+	"mime"
 	"net/http"
 )
 
 //go:embed web/*
 var embeddedWeb embed.FS
+
+// Go's mime table has no .webmanifest entry, so it would be served as plain
+// text and browsers would ignore the manifest.
+func registerMIMETypes() {
+	_ = mime.AddExtensionType(".webmanifest", "application/manifest+json")
+}
 
 func (s *Server) handleAdmin(w http.ResponseWriter, r *http.Request) {
 	sub, err := fs.Sub(embeddedWeb, "web")

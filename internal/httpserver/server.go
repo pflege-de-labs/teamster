@@ -24,6 +24,8 @@ type Server struct {
 }
 
 func NewServer(cfg config.Config, store store.Store, graphClient messenger) *http.Server {
+	registerMIMETypes()
+
 	api := &Server{
 		cfg:    cfg,
 		store:  store,
