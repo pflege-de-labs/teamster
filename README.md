@@ -13,9 +13,17 @@ cp config.example.yaml config.yaml
 2. Start the server:
 
 ```bash
-make run                            # picks up ./config.yaml
-go run ./cmd/server -c /etc/teamster.yaml   # or point at any file
+make run                                     # picks up ./config.yaml
+go run ./cmd/server serve                    # same thing, command named
+go run ./cmd/server -c /etc/teamster.yaml    # or point at any file
 ```
+
+`serve` is the default command, so it runs when no command is given. `teamster --help` lists the
+others.
+
+The server stops on SIGINT or SIGTERM: it stops accepting connections and drains in-flight
+requests for up to `server.shutdown-timeout` (default 15s) before closing the database. A second
+signal kills it immediately.
 
 3. Open the admin UI at `http://localhost:8080/admin` (basic auth from config) and configure:
 
