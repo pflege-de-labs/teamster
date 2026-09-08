@@ -4,8 +4,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/pflege-de/teamster/internal/models"
-	"github.com/pflege-de/teamster/internal/store"
+	"github.com/pflege-de-labs/teamster/internal/models"
+	"github.com/pflege-de-labs/teamster/internal/store"
 )
 
 type stubStore struct {

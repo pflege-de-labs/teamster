@@ -1,4 +1,4 @@
-module github.com/pflege-de/teamster
+module github.com/pflege-de-labs/teamster
 
 go 1.24.0
 

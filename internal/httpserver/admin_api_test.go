@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pflege-de/teamster/internal/config"
-	"github.com/pflege-de/teamster/internal/models"
+	"github.com/pflege-de-labs/teamster/internal/config"
+	"github.com/pflege-de-labs/teamster/internal/models"
 )
 
 func newTestServer(t *testing.T, st *fakeStore, msg *fakeMessenger) *http.Server {

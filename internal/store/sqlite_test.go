@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pflege-de/teamster/internal/models"
+	"github.com/pflege-de-labs/teamster/internal/models"
 )
 
 func newTestStore(t *testing.T) *SQLiteStore {

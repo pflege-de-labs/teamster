@@ -12,7 +12,7 @@ import (
 
 	"golang.org/x/oauth2/clientcredentials"
 
-	"github.com/pflege-de/teamster/internal/config"
+	"github.com/pflege-de-labs/teamster/internal/config"
 )
 
 type Client struct {

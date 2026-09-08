@@ -7,7 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/pflege-de/teamster/internal/cli"
+	"github.com/pflege-de-labs/teamster/internal/cli"
 )
 
 // version is stamped at build time via -ldflags.

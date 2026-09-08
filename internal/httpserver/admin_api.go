@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/pflege-de/teamster/internal/models"
-	"github.com/pflege-de/teamster/internal/store"
+	"github.com/pflege-de-labs/teamster/internal/models"
+	"github.com/pflege-de-labs/teamster/internal/store"
 )
 
 func (s *Server) handleTemplates(w http.ResponseWriter, r *http.Request) {
