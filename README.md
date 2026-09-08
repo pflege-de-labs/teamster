@@ -166,11 +166,14 @@ Run it with the configuration mounted at the system-wide XDG location the binary
 the database on a volume:
 
 ```bash
-docker run --rm -p 8080:8080 \
+docker run --rm -p 8080:8080 --read-only \
   -v "$PWD/config.yaml:/etc/xdg/teamster/config.yaml:ro" \
   -v teamster-data:/data \
   teamster:latest
 ```
+
+`--read-only` works because `/data` is the only path the service writes; see
+[SECURITY.md](SECURITY.md) for the rest of the deployment expectations.
 
 `make image-run` does exactly that. Settings can also come from `TEAMSTER_*` variables instead of
 a mounted file, though a mounted file wins over them.
@@ -197,3 +200,8 @@ lint, and current documentation.
 - [Architecture](docs/architecture.md)
 - [Architecture Decision Records](docs/adr/)
 - [Contribution rules and definition of done](AGENTS.md)
+- [Security policy](SECURITY.md)
+
+## License
+
+[Apache License 2.0](LICENSE).
