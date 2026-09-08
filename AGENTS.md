@@ -29,6 +29,18 @@ A change is done when all of these hold:
   `docs:`, `refactor:`, `test:`, `chore:`, `build:`, `ci:`. Breaking changes carry a `!` before
   the colon or a `BREAKING CHANGE:` footer.
 * Features are developed in branches. Never commit to `main` directly.
+* Check a feature branch out with `git worktree`, rather than switching the branch of an existing
+  clone:
+
+  ```bash
+  git worktree add ../teamster-<topic> -b <branch> origin/main
+  git worktree remove ../teamster-<topic>   # once the branch is merged
+  ```
+
+  Switching in place pulls the ground out from under whatever is using that working tree — a
+  running server, a live-reload watcher, an open editor. Gitignored files stay behind in the clone
+  that created them, so a fresh worktree has no `config.yaml` and no database; copy
+  `config.example.yaml` or point `--config` at an existing file before running the server there.
 * Branches are merged into `main` via pull request; the PR checklist mirrors the definition of
   done above.
 * Dependency updates arrive as Renovate pull requests. Minor and patch Go bumps and action
