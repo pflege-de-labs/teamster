@@ -13,10 +13,10 @@ VERSION      ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo
 all: lint coverage build
 
 build:
-	go build -ldflags "-X main.version=$(VERSION)" -o $(BINARY) ./cmd/server
+	go build -ldflags "-X main.version=$(VERSION)" -o $(BINARY) ./cmd/teamster
 
 run:
-	go run ./cmd/server
+	go run ./cmd/teamster
 
 test:
 	go test ./...

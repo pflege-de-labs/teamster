@@ -8,7 +8,7 @@ State lives in a local SQLite file; there are no other runtime dependencies.
 
 | Package | Responsibility |
 | --- | --- |
-| `cmd/server` | Entry point. Installs the signal handler and hands the resulting context to the command tree. |
+| `cmd/teamster` | Entry point. Installs the signal handler and hands the resulting context to the command tree. |
 | `internal/cli` | kong command tree and its wiring. `ServeCmd` is the default command: it opens the store, constructs the Graph client, serves HTTP and shuts down on cancellation. |
 | `internal/config` | Configuration schema (kong tags), XDG config file search paths, validation. |
 | `internal/httpserver` | HTTP routing, webhook handlers, alert processing, admin JSON API, basic auth and request logging middleware. |

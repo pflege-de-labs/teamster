@@ -18,7 +18,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 	CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build \
 	-trimpath \
 	-ldflags "-s -w -X main.version=${VERSION}" \
-	-o /out/teamster ./cmd/server
+	-o /out/teamster ./cmd/teamster
 
 # The final image has no shell, so the writable data directory is prepared here.
 RUN install -d -m 0755 -o 65532 -g 65532 /out/data

@@ -156,7 +156,7 @@ jobs:
           for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64; do
             GOOS=${target%/*} GOARCH=${target#*/} CGO_ENABLED=0 \
               go build -trimpath -ldflags "-s -w -X main.version=$VERSION" \
-              -o "dist/teamster-${target%/*}-${target#*/}" ./cmd/server
+              -o "dist/teamster-${target%/*}-${target#*/}" ./cmd/teamster
           done
 
       - uses: anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610 # v0

@@ -5,7 +5,7 @@
 
 ## Context
 
-Configuration was loaded twice over. `cmd/server/main.go` pre-scanned `os.Args` by hand to find
+Configuration was loaded twice over. `cmd/teamster/main.go` pre-scanned `os.Args` by hand to find
 `--config` before kong parsed the same arguments, and `internal/config` carried a second,
 unreferenced `Load()` built on `yaml.Unmarshal`. Defaults lived in a third place, an
 `ApplyDefaults` function, so a flag's default was invisible in `--help`.

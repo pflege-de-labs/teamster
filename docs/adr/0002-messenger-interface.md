@@ -26,7 +26,7 @@ type messenger interface {
 }
 ```
 
-`NewServer` takes a `messenger`. `*graph.Client` satisfies it, so `cmd/server` is unchanged. The
+`NewServer` takes a `messenger`. `*graph.Client` satisfies it, so `cmd/teamster` is unchanged. The
 interface is declared by the consumer and stays unexported, so it cannot grow into a public
 abstraction by accident.
 

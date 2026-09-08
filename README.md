@@ -18,8 +18,8 @@ cp config.example.yaml config.yaml
 
 ```bash
 make run                                     # picks up ./config.yaml
-go run ./cmd/server serve                    # same thing, command named
-go run ./cmd/server -c /etc/teamster.yaml    # or point at any file
+go run ./cmd/teamster serve                    # same thing, command named
+go run ./cmd/teamster -c /etc/teamster.yaml    # or point at any file
 ```
 
 `serve` is the default command, so it runs when no command is given. `teamster --help` lists the
