@@ -1,23 +1,29 @@
 package httpserver
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/pflege-de/teamster/internal/config"
-	"github.com/pflege-de/teamster/internal/graph"
 	"github.com/pflege-de/teamster/internal/routing"
 	"github.com/pflege-de/teamster/internal/store"
 )
 
+// messenger is the slice of the Graph client the handlers depend on.
+type messenger interface {
+	PostMessage(teamID, channelID string, card json.RawMessage, summary string) (string, error)
+	UpdateMessage(teamID, channelID, messageID string, card json.RawMessage, summary string) error
+}
+
 type Server struct {
 	cfg        config.Config
 	store      store.Store
-	graph      *graph.Client
+	graph      messenger
 	router     *routing.Router
 	httpServer *http.Server
 }
 
-func NewServer(cfg config.Config, store store.Store, graphClient *graph.Client) *http.Server {
+func NewServer(cfg config.Config, store store.Store, graphClient messenger) *http.Server {
 	api := &Server{
 		cfg:    cfg,
 		store:  store,
