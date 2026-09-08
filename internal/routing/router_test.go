@@ -1,6 +1,7 @@
 package routing
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/pflege-de/teamster/internal/models"
@@ -152,5 +153,80 @@ func TestSelectRoute_NoRoutes(t *testing.T) {
 	_, err := router.SelectRoute(map[string]string{"severity": "critical"})
 	if err == nil {
 		t.Fatal("expected error when no routes configured")
+	}
+}
+
+func TestSelectRoute_StoreError(t *testing.T) {
+	t.Parallel()
+
+	router := New(stubStore{err: errors.New("store down")})
+
+	if _, err := router.SelectRoute(map[string]string{"severity": "critical"}); err == nil {
+		t.Fatal("SelectRoute() = nil error, want the store failure to surface")
+	}
+}
+
+func TestSelectRoute_NoMatchAndNoDefault(t *testing.T) {
+	t.Parallel()
+
+	router := New(stubStore{routes: []models.Route{
+		{ID: "a", Name: "critical", LabelSelector: map[string]string{"severity": "critical"}},
+	}})
+
+	_, err := router.SelectRoute(map[string]string{"severity": "warning"})
+	if err == nil || err.Error() != "no matching route and no default route" {
+		t.Errorf("SelectRoute() = %v, want the no-default error", err)
+	}
+}
+
+func TestSelectRoute_SelectorMatching(t *testing.T) {
+	t.Parallel()
+
+	routes := []models.Route{
+		{ID: "empty-selector", Name: "empty", LabelSelector: map[string]string{}, Priority: 100},
+		{ID: "two-labels", Name: "two", LabelSelector: map[string]string{"severity": "critical", "team": "ops"}, Priority: 50},
+		{ID: "default", Name: "default", IsDefault: true},
+	}
+	router := New(stubStore{routes: routes})
+
+	tests := []struct {
+		name   string
+		labels map[string]string
+		want   string
+	}{
+		{
+			name:   "every selector label must match",
+			labels: map[string]string{"severity": "critical", "team": "ops"},
+			want:   "two-labels",
+		},
+		{
+			name:   "a missing label does not match",
+			labels: map[string]string{"severity": "critical"},
+			want:   "default",
+		},
+		{
+			name:   "a differing value does not match",
+			labels: map[string]string{"severity": "critical", "team": "dev"},
+			want:   "default",
+		},
+		{
+			name:   "an empty selector never matches, even at the highest priority",
+			labels: map[string]string{"severity": "critical", "team": "ops"},
+			want:   "two-labels",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := router.SelectRoute(tt.labels)
+			if err != nil {
+				t.Fatalf("SelectRoute: %v", err)
+			}
+			if got.ID != tt.want {
+				t.Errorf("SelectRoute() = %q, want %q", got.ID, tt.want)
+			}
+		})
 	}
 }
