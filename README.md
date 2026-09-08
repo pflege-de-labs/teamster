@@ -89,6 +89,8 @@ Helper functions:
 ## Notes
 
 - Route selection matches label selectors exactly; highest priority wins.
+- A database file written before the `DATETIME` timestamp fix cannot be read. The server refuses
+  to start against one and names the file; delete it and restart to recreate the schema.
 - A default route is used if no labels match.
 - Active alerts are tracked in SQLite to update or resolve cards.
 

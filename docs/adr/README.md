@@ -16,3 +16,4 @@ Architectural decisions are recorded here, one file per decision, in
 | ADR | Title | Status |
 | --- | --- | --- |
 | [0001](0001-kong-xdg-configuration.md) | Configuration through kong with XDG file locations | Accepted |
+| [0002](0002-messenger-interface.md) | The HTTP layer depends on a messenger interface | Accepted |
