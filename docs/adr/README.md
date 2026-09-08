@@ -19,3 +19,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0002](0002-messenger-interface.md) | The HTTP layer depends on a messenger interface | Accepted |
 | [0003](0003-kong-commands-and-graceful-shutdown.md) | Commands run through kong, cancelled by signal | Accepted |
 | [0004](0004-container-image.md) | Container image built multi-stage onto distroless nonroot | Accepted |
+| [0005](0005-image-tagging-and-promotion.md) | Image tags come from metadata-action, releases promote | Accepted |

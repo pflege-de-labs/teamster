@@ -117,6 +117,19 @@ See the JSON examples in [samples](samples):
 make image                       # builds teamster:<version>
 ```
 
+CI publishes images to `ghcr.io/pflege-de/teamster`:
+
+| Tag | Points at |
+| --- | --- |
+| `latest` | the newest stable release |
+| `1.2.3`, `1.2`, `1` | that release |
+| `<short-sha>` | the build of that commit, never moves |
+| `main` | the newest build of `main` |
+| `pr-<n>` | the newest build of that pull request |
+
+A release retags the image already built from its commit rather than rebuilding, so
+`ghcr.io/pflege-de/teamster:1.2.3` and the matching `<short-sha>` tag are the same digest.
+
 Run it with the configuration mounted at the system-wide XDG location the binary searches, and
 the database on a volume:
 

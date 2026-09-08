@@ -5,11 +5,16 @@ on:
     tags: ["v*"]
 
 permissions:
-  contents: write
+  contents: read
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}
 
 jobs:
-  release:
+  binaries:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -34,3 +39,136 @@ jobs:
         with:
           generate_release_notes: true
           files: dist/*
+
+  # The image is not rebuilt for a release. The one already built from this
+  # commit is retagged, so the release ships the bytes that were tested.
+  image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve the commit being released
+        id: commit
+        run: echo "short_sha=${GITHUB_SHA:0:7}" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for the CI run of this commit
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # The run may not be registered yet, so a failed lookup must not abort.
+          for _ in $(seq 1 60); do
+            status=$(gh run list --workflow CI --commit "$GITHUB_SHA" --json status,conclusion \
+              --jq 'if length == 0 then "missing" else "\(.[0].status) \(.[0].conclusion)" end' \
+              2>/dev/null || echo missing)
+            case "$status" in
+              "completed success")
+                echo "CI for $GITHUB_SHA succeeded"
+                exit 0
+                ;;
+              "completed "*)
+                echo "::error::CI for $GITHUB_SHA finished as ${status#completed }"
+                exit 1
+                ;;
+              *)
+                echo "CI for $GITHUB_SHA is ${status:-not started yet}, waiting"
+                sleep 30
+                ;;
+            esac
+          done
+          echo "::error::timed out waiting for the CI run of $GITHUB_SHA"
+          exit 1
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Wait for the commit image
+        env:
+          SOURCE: ${{ env.IMAGE }}:${{ steps.commit.outputs.short_sha }}
+        run: |
+          for _ in $(seq 1 20); do
+            if docker buildx imagetools inspect "$SOURCE" >/dev/null 2>&1; then
+              echo "found $SOURCE"
+              exit 0
+            fi
+            echo "$SOURCE not in the registry yet, waiting"
+            sleep 15
+          done
+          echo "::error::$SOURCE was never published; was this commit pushed to main?"
+          exit 1
+
+      - name: Collect release metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          # :latest is added below, and only for the newest release.
+          flavor: latest=false
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+
+      # Re-releasing or rebuilding an older tag must not move :latest, so the
+      # tag being released has to be the highest stable one in the repository.
+      - name: Decide whether this release owns :latest
+        id: latest
+        run: |
+          case "$GITHUB_REF_NAME" in
+            *-*)
+              echo "$GITHUB_REF_NAME is a pre-release, leaving :latest alone"
+              echo "owns=false" >> "$GITHUB_OUTPUT"
+              exit 0
+              ;;
+          esac
+          newest=$(git tag --list 'v*' --sort=-v:refname | grep -v -- '-' | head -n 1)
+          if [ "$newest" = "$GITHUB_REF_NAME" ]; then
+            echo "$GITHUB_REF_NAME is the newest stable tag, it owns :latest"
+            echo "owns=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "$newest is newer than $GITHUB_REF_NAME, leaving :latest alone"
+            echo "owns=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Retagging without --annotation keeps the index digest identical, so the
+      # release tags provably point at the bytes CI built and tested. Adding
+      # annotations here would rewrite the index and change that digest.
+      - name: Promote the commit image to the release tags
+        env:
+          SOURCE: ${{ env.IMAGE }}:${{ steps.commit.outputs.short_sha }}
+          TAGS: ${{ steps.meta.outputs.tags }}
+          OWNS_LATEST: ${{ steps.latest.outputs.owns }}
+        run: |
+          args=()
+          while IFS= read -r tag; do
+            [ -n "$tag" ] && args+=(--tag "$tag")
+          done <<< "$TAGS"
+          if [ "$OWNS_LATEST" = "true" ]; then
+            args+=(--tag "$IMAGE:latest")
+          fi
+
+          docker buildx imagetools create "${args[@]}" "$SOURCE"
+
+      - name: Verify the release tag is the promoted image
+        env:
+          SOURCE: ${{ env.IMAGE }}:${{ steps.commit.outputs.short_sha }}
+        run: |
+          released="$IMAGE:${GITHUB_REF_NAME#v}"
+          source_digest=$(docker buildx imagetools inspect "$SOURCE" --format '{{.Manifest.Digest}}')
+          release_digest=$(docker buildx imagetools inspect "$released" --format '{{.Manifest.Digest}}')
+          echo "$SOURCE -> $source_digest"
+          echo "$released -> $release_digest"
+          if [ "$source_digest" != "$release_digest" ]; then
+            echo "::error::$released does not point at the image built from this commit"
+            exit 1
+          fi
