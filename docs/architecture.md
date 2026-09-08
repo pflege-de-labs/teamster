@@ -44,11 +44,15 @@ uid 65532. Configuration is mounted at `/etc/xdg/teamster/config.yaml` — the s
 the binary already searches — and the SQLite file lives in the `/data` volume. See
 [ADR 0004](adr/0004-container-image.md).
 
-Images are published to `ghcr.io/<owner>/<repo>` for `linux/amd64` and `linux/arm64`. Every build
-is tagged with its short commit sha, branches and pull requests get moving tags, and a release
-retags the existing commit image instead of rebuilding it — same digest, same bytes.
-`:latest` only ever moves forward, to the newest stable release. See
-[ADR 0005](adr/0005-image-tagging-and-promotion.md).
+Images are published to `ghcr.io/<owner>/<repo>` for `linux/amd64` and `linux/arm64`. Every CI
+build is tagged with its short commit sha, and branches and pull requests get moving tags
+([ADR 0005](adr/0005-image-tagging-and-promotion.md)).
+
+A release rebuilds from the tag after re-running lint and tests, so the version and labels
+describe the release; all of its tags share that one build's digest. The image carries SPDX SBOM
+and SLSA provenance attestations and is signed with cosign by digest, and the released binaries
+ship per-binary SBOMs under a signed `checksums.txt`. `:latest` only ever moves forward, to the
+newest stable release. See [ADR 0006](adr/0006-release-rebuild-sbom-signing.md).
 
 ## Request flow
 

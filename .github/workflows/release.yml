@@ -11,116 +11,34 @@ env:
   IMAGE: ghcr.io/${{ github.repository }}
 
 jobs:
-  binaries:
+  # The release rebuilds its artifacts, so the tagged commit is gated here
+  # rather than relying on the CI run of whatever was pushed to main.
+  verify:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-
-      - name: Build release binaries
-        env:
-          VERSION: ${{ github.ref_name }}
-        run: |
-          mkdir -p dist
-          for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64; do
-            GOOS=${target%/*} GOARCH=${target#*/} CGO_ENABLED=0 \
-              go build -ldflags "-s -w -X main.version=$VERSION" \
-              -o "dist/teamster-${target%/*}-${target#*/}" ./cmd/server
-          done
-          (cd dist && sha256sum teamster-* > checksums.txt)
-
-      - uses: softprops/action-gh-release@v2
+      - uses: golangci/golangci-lint-action@v6
         with:
-          generate_release_notes: true
-          files: dist/*
+          version: v2.13.2
+      - run: make coverage
 
-  # The image is not rebuilt for a release. The one already built from this
-  # commit is retagged, so the release ships the bytes that were tested.
   image:
+    needs: verify
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-      actions: read
+      id-token: write
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Resolve the commit being released
-        id: commit
-        run: echo "short_sha=${GITHUB_SHA:0:7}" >> "$GITHUB_OUTPUT"
-
-      - name: Wait for the CI run of this commit
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # The run may not be registered yet, so a failed lookup must not abort.
-          for _ in $(seq 1 60); do
-            status=$(gh run list --workflow CI --commit "$GITHUB_SHA" --json status,conclusion \
-              --jq 'if length == 0 then "missing" else "\(.[0].status) \(.[0].conclusion)" end' \
-              2>/dev/null || echo missing)
-            case "$status" in
-              "completed success")
-                echo "CI for $GITHUB_SHA succeeded"
-                exit 0
-                ;;
-              "completed "*)
-                echo "::error::CI for $GITHUB_SHA finished as ${status#completed }"
-                exit 1
-                ;;
-              *)
-                echo "CI for $GITHUB_SHA is ${status:-not started yet}, waiting"
-                sleep 30
-                ;;
-            esac
-          done
-          echo "::error::timed out waiting for the CI run of $GITHUB_SHA"
-          exit 1
-
-      - uses: docker/setup-buildx-action@v3
-
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Wait for the commit image
-        env:
-          SOURCE: ${{ env.IMAGE }}:${{ steps.commit.outputs.short_sha }}
-        run: |
-          for _ in $(seq 1 20); do
-            if docker buildx imagetools inspect "$SOURCE" >/dev/null 2>&1; then
-              echo "found $SOURCE"
-              exit 0
-            fi
-            echo "$SOURCE not in the registry yet, waiting"
-            sleep 15
-          done
-          echo "::error::$SOURCE was never published; was this commit pushed to main?"
-          exit 1
-
-      - name: Collect release metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.IMAGE }}
-          # :latest is added below, and only for the newest release.
-          flavor: latest=false
-          tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
-
-      # Re-releasing or rebuilding an older tag must not move :latest, so the
-      # tag being released has to be the highest stable one in the repository.
+      # Re-releasing an older tag or cutting a pre-release must not move
+      # :latest, so it only follows the highest stable tag in the repository.
       - name: Decide whether this release owns :latest
         id: latest
         run: |
@@ -140,35 +58,139 @@ jobs:
             echo "owns=false" >> "$GITHUB_OUTPUT"
           fi
 
-      # Retagging without --annotation keeps the index digest identical, so the
-      # release tags provably point at the bytes CI built and tested. Adding
-      # annotations here would rewrite the index and change that digest.
-      - name: Promote the commit image to the release tags
-        env:
-          SOURCE: ${{ env.IMAGE }}:${{ steps.commit.outputs.short_sha }}
-          TAGS: ${{ steps.meta.outputs.tags }}
-          OWNS_LATEST: ${{ steps.latest.outputs.owns }}
-        run: |
-          args=()
-          while IFS= read -r tag; do
-            [ -n "$tag" ] && args+=(--tag "$tag")
-          done <<< "$TAGS"
-          if [ "$OWNS_LATEST" = "true" ]; then
-            args+=(--tag "$IMAGE:latest")
-          fi
+      - uses: docker/setup-buildx-action@v3
 
-          docker buildx imagetools create "${args[@]}" "$SOURCE"
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Verify the release tag is the promoted image
+      - name: Collect release metadata
+        id: meta
+        uses: docker/metadata-action@v5
         env:
-          SOURCE: ${{ env.IMAGE }}:${{ steps.commit.outputs.short_sha }}
+          DOCKER_METADATA_ANNOTATIONS_LEVELS: index,manifest
+        with:
+          images: ${{ env.IMAGE }}
+          flavor: latest=${{ steps.latest.outputs.owns }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+
+      # One build feeds every release tag, so they all resolve to this digest.
+      # SBOM and provenance ride along as attestations on the same index.
+      - name: Build and push the release image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          build-args: |
+            VERSION=${{ github.ref_name }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          annotations: ${{ steps.meta.outputs.annotations }}
+          sbom: true
+          provenance: mode=max
+          cache-from: type=gha
+
+      - uses: sigstore/cosign-installer@v3
+
+      # Keyless: the signing identity is this workflow's OIDC token, so there
+      # is no private key to hold. Signing by digest covers every tag at once.
+      - name: Sign the image
+        run: cosign sign --yes "${IMAGE}@${DIGEST}"
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+
+      - name: Verify the signature and the attestations
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
         run: |
-          released="$IMAGE:${GITHUB_REF_NAME#v}"
-          source_digest=$(docker buildx imagetools inspect "$SOURCE" --format '{{.Manifest.Digest}}')
-          release_digest=$(docker buildx imagetools inspect "$released" --format '{{.Manifest.Digest}}')
-          echo "$SOURCE -> $source_digest"
-          echo "$released -> $release_digest"
-          if [ "$source_digest" != "$release_digest" ]; then
-            echo "::error::$released does not point at the image built from this commit"
-            exit 1
-          fi
+          cosign verify \
+            --certificate-identity-regexp "^https://github.com/${GITHUB_REPOSITORY}/" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            "${IMAGE}@${DIGEST}" > /dev/null
+          # buildx attaches SBOM and provenance as in-toto attestations on the
+          # index, so they are asserted here rather than through cosign.
+          for kind in SBOM Provenance; do
+            if ! docker buildx imagetools inspect "${IMAGE}@${DIGEST}" \
+              --format "{{ json .${kind} }}" | grep -q .; then
+              echo "::error::the image carries no ${kind} attestation"
+              exit 1
+            fi
+            echo "${kind} attestation present"
+          done
+          {
+            echo "### Image"
+            echo
+            echo '```'
+            echo "${IMAGE}@${DIGEST}"
+            echo '```'
+            echo
+            echo "Tags: ${{ steps.meta.outputs.tags }}" | tr '\n' ' '
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  binaries:
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build release binaries
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          mkdir -p dist
+          for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64; do
+            GOOS=${target%/*} GOARCH=${target#*/} CGO_ENABLED=0 \
+              go build -trimpath -ldflags "-s -w -X main.version=$VERSION" \
+              -o "dist/teamster-${target%/*}-${target#*/}" ./cmd/server
+          done
+
+      - uses: anchore/sbom-action/download-syft@v0
+
+      - name: Generate an SBOM per binary
+        run: |
+          for binary in dist/teamster-*; do
+            syft scan "file:${binary}" -o spdx-json > "${binary}.spdx.json"
+          done
+
+      # Checksums cover the binaries and their SBOMs, so signing this one file
+      # is enough to authenticate every release asset.
+      - name: Checksum the assets
+        run: (cd dist && sha256sum teamster-* > checksums.txt)
+
+      - uses: sigstore/cosign-installer@v3
+
+      - name: Sign the checksums
+        run: |
+          cosign sign-blob --yes \
+            --output-signature dist/checksums.txt.sig \
+            --output-certificate dist/checksums.txt.pem \
+            dist/checksums.txt
+
+      - name: Verify the signature
+        run: |
+          cosign verify-blob \
+            --certificate dist/checksums.txt.pem \
+            --signature dist/checksums.txt.sig \
+            --certificate-identity-regexp "^https://github.com/${GITHUB_REPOSITORY}/" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            dist/checksums.txt
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: dist/*

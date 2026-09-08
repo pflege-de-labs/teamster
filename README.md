@@ -127,8 +127,40 @@ CI publishes images to `ghcr.io/pflege-de/teamster`:
 | `main` | the newest build of `main` |
 | `pr-<n>` | the newest build of that pull request |
 
-A release retags the image already built from its commit rather than rebuilding, so
-`ghcr.io/pflege-de/teamster:1.2.3` and the matching `<short-sha>` tag are the same digest.
+A release rebuilds from its tag, so the release tags share one digest of their own and the binary
+inside reports the version rather than a commit sha. Use a `<short-sha>` tag to deploy an exact
+CI build.
+
+### Verifying a release
+
+Images are signed with cosign using the release workflow's own identity — there is no public key
+to distribute:
+
+```bash
+cosign verify \
+  --certificate-identity-regexp '^https://github.com/pflege-de/teamster/' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  ghcr.io/pflege-de/teamster:1.2.3
+```
+
+The image carries an SPDX SBOM and SLSA provenance as attestations:
+
+```bash
+docker buildx imagetools inspect ghcr.io/pflege-de/teamster:1.2.3 --format '{{ json .SBOM }}'
+docker buildx imagetools inspect ghcr.io/pflege-de/teamster:1.2.3 --format '{{ json .Provenance }}'
+```
+
+Release binaries come with an SPDX SBOM each and a signed `checksums.txt`, which covers the
+binaries and their SBOMs:
+
+```bash
+cosign verify-blob \
+  --certificate checksums.txt.pem --signature checksums.txt.sig \
+  --certificate-identity-regexp '^https://github.com/pflege-de/teamster/' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  checksums.txt
+sha256sum -c checksums.txt
+```
 
 Run it with the configuration mounted at the system-wide XDG location the binary searches, and
 the database on a volume:
