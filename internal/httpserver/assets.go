@@ -16,9 +16,12 @@ func (s *Server) handleAdmin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fileServer := http.FileServer(http.FS(sub))
+	// Serving index.html by name, rather than rewriting the path, avoids the
+	// FileServer redirect from /index.html back to ./ and the resulting loop.
 	if r.URL.Path == "/admin" || r.URL.Path == "/" {
-		r.URL.Path = "/index.html"
+		http.ServeFileFS(w, r, sub, "index.html")
+		return
 	}
-	fileServer.ServeHTTP(w, r)
+
+	http.FileServerFS(sub).ServeHTTP(w, r)
 }
