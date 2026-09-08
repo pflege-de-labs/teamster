@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"time"
 )
 
 type Config struct {
@@ -13,7 +14,8 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	Addr string `help:"Address the HTTP server listens on." default:":8080"`
+	Addr            string        `help:"Address the HTTP server listens on." default:":8080"`
+	ShutdownTimeout time.Duration `help:"How long to wait for in-flight requests when shutting down." default:"15s"`
 }
 
 type DatabaseConfig struct {
