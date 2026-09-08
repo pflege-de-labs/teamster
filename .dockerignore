@@ -1,0 +1,12 @@
+# Local secrets and state must never reach the build context
+config.yaml
+*.db
+
+.git
+.github
+bin
+dist
+coverage.out
+coverage.html
+docs
+*.md
