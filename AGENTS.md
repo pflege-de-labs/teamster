@@ -4,9 +4,11 @@ Teamster is a Go webhook bridge that routes alerts to Microsoft Teams.
 
 ## Key functionality
 
-* Receives webhooks from Prometheus Alertmanager or a generic universal format via POST /webhook/alertmanager and POST /webhook/universal
+* Receives webhooks from Prometheus Alertmanager or a generic universal format via
+  POST /webhook/alertmanager and POST /webhook/universal
 * Routes alerts using label selectors (highest priority match wins, with a default fallback)
-* Posts to Microsoft Teams by sending Adaptive Cards through the Microsoft Graph API to configured Team channels
+* Posts to Microsoft Teams by sending Adaptive Cards through the Microsoft Graph API to configured
+  Team channels
 * Tracks active alerts in SQLite to update or resolve existing cards when alert state changes
 * Admin UI at /admin for managing:
   * Templates (Adaptive Card JSON with Go templating)
@@ -25,6 +27,8 @@ A change is done when all of these hold:
 
 ## Development workflow
 
+* Install the git hooks once per clone with `make hooks`. They format Go with the settings from
+  `.golangci.yml`, lint Markdown, and reject a commit message that is not a Conventional Commit.
 * Commits follow [Conventional Commits](https://www.conventionalcommits.org): `feat:`, `fix:`,
   `docs:`, `refactor:`, `test:`, `chore:`, `build:`, `ci:`. Breaking changes carry a `!` before
   the colon or a `BREAKING CHANGE:` footer.

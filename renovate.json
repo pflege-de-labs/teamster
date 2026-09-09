@@ -6,6 +6,9 @@
     ":semanticCommits",
     "helpers:pinGitHubActionDigests"
   ],
+  "pre-commit": {
+    "enabled": true
+  },
   "timezone": "Europe/Berlin",
   "schedule": [
     "before 6am on monday"
@@ -100,6 +103,28 @@
       ],
       "groupName": "go toolchain",
       "automerge": true
+    },
+    {
+      "description": "Hook updates are proven by the hooks running against the whole tree in CI-equivalent form; a major can change what a hook rewrites.",
+      "matchManagers": [
+        "pre-commit"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "digest"
+      ],
+      "groupName": "pre-commit hooks",
+      "automerge": true
+    },
+    {
+      "matchManagers": [
+        "pre-commit"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "automerge": false
     }
   ],
   "vulnerabilityAlerts": {

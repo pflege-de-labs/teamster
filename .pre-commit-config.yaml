@@ -1,0 +1,47 @@
+# Install with `make hooks`. CI does not run these; golangci-lint and the
+# tests cover the Go side there, so keep the hooks fast enough to not be
+# skipped.
+default_install_hook_types: [pre-commit, commit-msg]
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: \.golden$
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+        args: [--fix=lf]
+      - id: check-merge-conflict
+      - id: check-added-large-files
+      - id: check-yaml
+      - id: check-json
+
+  # Formats with the gofmt and goimports settings from .golangci.yml, so the
+  # hook and CI cannot disagree about what formatted means.
+  - repo: local
+    hooks:
+      - id: golangci-lint-fmt
+        name: golangci-lint fmt
+        entry: golangci-lint fmt
+        language: system
+        types: [go]
+        pass_filenames: false
+      - id: go-mod-tidy
+        name: go mod tidy
+        entry: go mod tidy
+        language: system
+        files: ^(go\.mod|go\.sum)$
+        pass_filenames: false
+
+  - repo: https://github.com/DavidAnson/markdownlint-cli2
+    rev: v0.23.2
+    hooks:
+      - id: markdownlint-cli2
+        args: [--fix]
+
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v4.4.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
