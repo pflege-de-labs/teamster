@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="images/teamster-header.png" alt="" width="600" />
+  <img src="images/teamster-header.png" alt="" width="500" />
 </p>
 
 # Teamster
