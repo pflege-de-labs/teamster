@@ -8,7 +8,7 @@ IMAGE        ?= teamster
 CONTAINER_TOOL ?= $(shell command -v docker >/dev/null 2>&1 && echo docker || echo podman)
 VERSION      ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 
-.PHONY: all build run test coverage coverage-html fmt lint tidy image image-run clean
+.PHONY: all build run test coverage coverage-html fmt lint tidy hooks image image-run clean
 
 all: lint coverage build
 
@@ -40,6 +40,10 @@ lint:
 
 tidy:
 	go mod tidy
+
+# Installs both the pre-commit and the commit-msg hook.
+hooks:
+	pre-commit install --install-hooks
 
 image:
 	$(CONTAINER_TOOL) build --build-arg VERSION=$(VERSION) -t $(IMAGE):$(VERSION) -t $(IMAGE):latest .

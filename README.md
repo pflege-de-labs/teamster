@@ -4,7 +4,8 @@
 
 # Teamster
 
-Go service that accepts Alertmanager or universal webhooks, routes alerts to Teams channels, and posts Adaptive Cards through Microsoft Graph.
+Go service that accepts Alertmanager or universal webhooks, routes alerts to Teams channels, and
+posts Adaptive Cards through Microsoft Graph.
 
 ## Quick start
 
@@ -189,6 +190,7 @@ diagnose through the container logs. `/data` is the only writable path, and
 ## Development
 
 ```bash
+make hooks          # install the git hooks, once per clone
 make test           # go test ./...
 make coverage       # coverage report, fails below 75%
 make coverage-html  # writes coverage.html
@@ -198,6 +200,10 @@ make build          # builds bin/teamster
 
 Contributions must meet the definition of done in [AGENTS.md](AGENTS.md): 75% coverage, clean
 lint, and current documentation.
+
+The hooks format Go with the same settings CI checks, lint Markdown, and reject commit messages
+that are not [Conventional Commits](https://www.conventionalcommits.org). They need
+[pre-commit](https://pre-commit.com) on your PATH.
 
 Dependencies are kept current by Renovate, which groups Go and Actions updates and merges the
 routine ones itself once CI and branch protection allow it.

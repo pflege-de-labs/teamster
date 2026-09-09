@@ -1,0 +1,20 @@
+# Prose wraps at 100. Tables and code blocks are exempt because breaking them
+# would change what they mean.
+MD013:
+  line_length: 100
+  tables: false
+  code_blocks: false
+
+# The README centres the logo with a <p><img>, which is the only way to do it
+# in GitHub-flavoured Markdown, so the first line is not a heading either.
+MD033: false
+MD041: false
+
+# Go samples in the ADRs are tab-indented; "fixing" tabs inside a fence
+# rewrites the code being documented.
+MD010:
+  code_blocks: false
+
+# The quick start puts code fences between its steps, which splits it into
+# separate lists; renumbering each to 1 would render as 1, 1, 1.
+MD029: false

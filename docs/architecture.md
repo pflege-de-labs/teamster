@@ -56,7 +56,7 @@ newest stable release. See [ADR 0006](adr/0006-release-rebuild-sbom-signing.md).
 
 ## Request flow
 
-```
+```text
 POST /webhook/alertmanager        POST /webhook/universal
             │                                │
             └────────► webhookAuth (X-Teamster-Token) ◄───┘
