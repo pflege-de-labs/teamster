@@ -1,0 +1,6 @@
+@import "tailwindcss";
+
+/* Tailwind only emits the classes it finds, so it must see the templ sources
+   and the generated Go, which carries the class strings after generation. */
+@source "./*.templ";
+@source "./*_templ.go";

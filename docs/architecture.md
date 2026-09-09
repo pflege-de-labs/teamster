@@ -11,13 +11,14 @@ State lives in a local SQLite file; there are no other runtime dependencies.
 | `cmd/teamster` | Entry point. Installs the signal handler and hands the resulting context to the command tree. |
 | `internal/cli` | kong command tree and its wiring. `ServeCmd` is the default command: it opens the store, constructs the Graph client, serves HTTP and shuts down on cancellation. |
 | `internal/config` | Configuration schema (kong tags), XDG config file search paths, validation. |
-| `internal/httpserver` | HTTP routing, webhook handlers, alert processing, admin JSON API, basic auth and request logging middleware. |
+| `internal/httpserver` | HTTP routing, webhook handlers, alert processing, admin JSON API, the server-rendered admin pages, basic auth and request logging middleware. |
+| `internal/httpserver/views` | templ components for the admin UI. The `*_templ.go` files beside them are generated and committed. |
 | `internal/routing` | Selects a route for an alert's labels. |
 | `internal/templates` | Renders an Adaptive Card from a Go template plus alert data. |
 | `internal/graph` | Microsoft Graph client: OAuth2 client credentials, post and update channel messages. |
 | `internal/store` | `Store` interface and its SQLite implementation for templates, destinations, routes and active alerts. |
 | `internal/models` | Shared data types: `Alert`, `Route`, `Template`, `Destination`, `ActiveAlert` and the two webhook payload shapes. |
-| `internal/httpserver/web` | Static assets for the admin UI. |
+| `internal/httpserver/web` | Embedded static assets: icons, the web manifest and the Tailwind stylesheet built from `views/styles.css`. |
 
 Dependencies are injected through constructors — `store.NewSQLiteStore`, `graph.NewClient`,
 `routing.New`, `httpserver.NewServer(cfg, store, graphClient)` — so every component can be
@@ -101,6 +102,18 @@ columns are declared otherwise, since every read from it would fail.
 `active_alerts` is keyed by fingerprint and stores the Team, channel and Graph message ID. A
 repeated `firing` alert therefore edits the existing card instead of posting a new one, and a
 `resolved` alert edits the card one last time before the row is deleted.
+
+## Admin UI
+
+`/admin` is rendered on the server by `internal/httpserver/views`, compiled from templ sources and
+styled with Tailwind. Forms post to `/admin/{templates,destinations,routes}` and their `/delete`
+variants and answer `303 See Other`, so the result is a normal page load. Those endpoints require
+the request to prove its origin, because basic auth credentials travel with a cross-site post and
+there is no session to hold a CSRF token. See
+[ADR 0008](adr/0008-templ-tailwind-admin-ui.md).
+
+Regenerating the UI needs `make generate`, which runs templ and Tailwind. Their output is
+committed, so building the service does not.
 
 ## Admin API
 

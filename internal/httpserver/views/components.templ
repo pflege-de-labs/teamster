@@ -1,0 +1,60 @@
+package views
+
+templ textField(name, label, placeholder, value string) {
+	<label class="block">
+		<span class="text-sm font-medium">{ label }</span>
+		<input
+			type="text"
+			name={ name }
+			value={ value }
+			placeholder={ placeholder }
+			class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-sky-500 focus:outline-none"
+		/>
+	</label>
+}
+
+templ selectField(name, label string, options []option) {
+	<label class="block">
+		<span class="text-sm font-medium">{ label }</span>
+		<select
+			name={ name }
+			class="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-sky-500 focus:outline-none"
+		>
+			if len(options) == 0 {
+				<option value="">— none defined yet —</option>
+			}
+			for _, o := range options {
+				<option value={ o.Value }>{ o.Label }</option>
+			}
+		</select>
+	</label>
+}
+
+templ submit(label string) {
+	<button
+		type="submit"
+		class="rounded-md bg-sky-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
+	>
+		{ label }
+	</button>
+}
+
+// A form rather than a link, because deleting must not be a GET.
+templ deleteButton(action, id, name string) {
+	<form method="post" action={ templ.SafeURL(action) }>
+		<input type="hidden" name="id" value={ id }/>
+		<button
+			type="submit"
+			aria-label={ "Delete " + name }
+			class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:border-red-400 hover:bg-red-50 hover:text-red-700"
+		>
+			Delete
+		</button>
+	</form>
+}
+
+templ empty(message string) {
+	<p class="rounded-md border border-dashed border-slate-300 px-4 py-6 text-center text-sm text-slate-500">
+		{ message }
+	</p>
+}

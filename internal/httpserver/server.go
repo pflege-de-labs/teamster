@@ -44,11 +44,18 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger) *htt
 	adminMux.HandleFunc("/api/destinations/", api.handleDestinationByID)
 	adminMux.HandleFunc("/api/routes", api.handleRoutes)
 	adminMux.HandleFunc("/api/routes/", api.handleRouteByID)
-	adminMux.HandleFunc("/admin", api.handleAdmin)
-	adminMux.HandleFunc("/", api.handleAdmin)
+	adminMux.HandleFunc("/admin", api.handleAdminPage)
+	adminMux.HandleFunc("/admin/templates", api.formPost(api.saveTemplate))
+	adminMux.HandleFunc("/admin/templates/delete", api.formPost(api.deleteTemplate))
+	adminMux.HandleFunc("/admin/destinations", api.formPost(api.saveDestination))
+	adminMux.HandleFunc("/admin/destinations/delete", api.formPost(api.deleteDestination))
+	adminMux.HandleFunc("/admin/routes", api.formPost(api.saveRoute))
+	adminMux.HandleFunc("/admin/routes/delete", api.formPost(api.deleteRoute))
+	adminMux.HandleFunc("/", api.handleAssets)
 
 	mux.Handle("/api/", api.basicAuth(adminMux))
 	mux.Handle("/admin", api.basicAuth(adminMux))
+	mux.Handle("/admin/", api.basicAuth(adminMux))
 	mux.Handle("/", api.basicAuth(adminMux))
 
 	api.httpServer = &http.Server{

@@ -1,0 +1,211 @@
+package httpserver
+
+import (
+	"encoding/json"
+	"log"
+	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
+
+	"github.com/pflege-de-labs/teamster/internal/httpserver/views"
+	"github.com/pflege-de-labs/teamster/internal/models"
+)
+
+// handleAdminPage renders the admin UI. Notices arrive as query parameters
+// because a form post answers with a redirect, which carries no body.
+func (s *Server) handleAdminPage(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.Header().Set("Allow", http.MethodGet)
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	page := views.Page{
+		Notice: r.URL.Query().Get("notice"),
+		Error:  r.URL.Query().Get("error"),
+	}
+
+	var err error
+	if page.Templates, err = s.store.ListTemplates(); err != nil {
+		page.Error = err.Error()
+	}
+	if page.Destinations, err = s.store.ListDestinations(); err != nil {
+		page.Error = err.Error()
+	}
+	if page.Routes, err = s.store.ListRoutes(); err != nil {
+		page.Error = err.Error()
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := views.Admin(page).Render(r.Context(), w); err != nil {
+		log.Printf("render admin page: %v", err)
+	}
+}
+
+// formPost guards the state-changing form endpoints. Basic auth credentials
+// ride along on any cross-site form post, so the request has to prove it came
+// from this origin; there is no session to hang a CSRF token on.
+func (s *Server) formPost(handler func(*http.Request) (string, error)) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.Header().Set("Allow", http.MethodPost)
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		if !sameOrigin(r) {
+			http.Error(w, "cross-origin form post rejected", http.StatusForbidden)
+			return
+		}
+		if err := r.ParseForm(); err != nil {
+			redirectToAdmin(w, r, "", "invalid form submission")
+			return
+		}
+
+		notice, err := handler(r)
+		if err != nil {
+			redirectToAdmin(w, r, "", err.Error())
+			return
+		}
+		redirectToAdmin(w, r, notice, "")
+	}
+}
+
+// sameOrigin accepts a request that the browser reports as same-origin, or
+// whose Origin matches the host it was sent to. A request with neither header
+// is not a browser form post and is left to the auth layer.
+func sameOrigin(r *http.Request) bool {
+	switch r.Header.Get("Sec-Fetch-Site") {
+	case "same-origin", "none":
+		return true
+	case "cross-site", "same-site":
+		return false
+	}
+
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		return true
+	}
+	parsed, err := url.Parse(origin)
+	if err != nil {
+		return false
+	}
+	return parsed.Host == r.Host
+}
+
+func redirectToAdmin(w http.ResponseWriter, r *http.Request, notice, message string) {
+	target := &url.URL{Path: "/admin"}
+	query := target.Query()
+	if notice != "" {
+		query.Set("notice", notice)
+	}
+	if message != "" {
+		query.Set("error", message)
+	}
+	target.RawQuery = query.Encode()
+
+	http.Redirect(w, r, target.String(), http.StatusSeeOther)
+}
+
+func (s *Server) saveTemplate(r *http.Request) (string, error) {
+	template := models.Template{
+		ID:   r.PostFormValue("id"),
+		Name: r.PostFormValue("name"),
+		Body: r.PostFormValue("body"),
+	}
+	if template.ID == "" {
+		if _, err := s.store.CreateTemplate(template); err != nil {
+			return "", err
+		}
+		return "Template created.", nil
+	}
+	if _, err := s.store.UpdateTemplate(template); err != nil {
+		return "", err
+	}
+	return "Template updated.", nil
+}
+
+func (s *Server) saveDestination(r *http.Request) (string, error) {
+	destination := models.Destination{
+		ID:        r.PostFormValue("id"),
+		Name:      r.PostFormValue("name"),
+		TeamID:    r.PostFormValue("team_id"),
+		ChannelID: r.PostFormValue("channel_id"),
+	}
+	if destination.ID == "" {
+		if _, err := s.store.CreateDestination(destination); err != nil {
+			return "", err
+		}
+		return "Destination created.", nil
+	}
+	if _, err := s.store.UpdateDestination(destination); err != nil {
+		return "", err
+	}
+	return "Destination updated.", nil
+}
+
+func (s *Server) saveRoute(r *http.Request) (string, error) {
+	selector, err := parseSelector(r.PostFormValue("label_selector"))
+	if err != nil {
+		return "", err
+	}
+
+	priority := 0
+	if raw := strings.TrimSpace(r.PostFormValue("priority")); raw != "" {
+		if priority, err = strconv.Atoi(raw); err != nil {
+			return "", err
+		}
+	}
+
+	route := models.Route{
+		ID:            r.PostFormValue("id"),
+		Name:          r.PostFormValue("name"),
+		LabelSelector: selector,
+		DestinationID: r.PostFormValue("destination_id"),
+		TemplateID:    r.PostFormValue("template_id"),
+		IsDefault:     r.PostFormValue("is_default") == "true",
+		Priority:      priority,
+	}
+	if route.ID == "" {
+		if _, err := s.store.CreateRoute(route); err != nil {
+			return "", err
+		}
+		return "Route created.", nil
+	}
+	if _, err := s.store.UpdateRoute(route); err != nil {
+		return "", err
+	}
+	return "Route updated.", nil
+}
+
+func parseSelector(raw string) (map[string]string, error) {
+	if strings.TrimSpace(raw) == "" {
+		return map[string]string{}, nil
+	}
+	var selector map[string]string
+	if err := json.Unmarshal([]byte(raw), &selector); err != nil {
+		return nil, err
+	}
+	return selector, nil
+}
+
+func (s *Server) deleteTemplate(r *http.Request) (string, error) {
+	if err := s.store.DeleteTemplate(r.PostFormValue("id")); err != nil {
+		return "", err
+	}
+	return "Template deleted.", nil
+}
+
+func (s *Server) deleteDestination(r *http.Request) (string, error) {
+	if err := s.store.DeleteDestination(r.PostFormValue("id")); err != nil {
+		return "", err
+	}
+	return "Destination deleted.", nil
+}
+
+func (s *Server) deleteRoute(r *http.Request) (string, error) {
+	if err := s.store.DeleteRoute(r.PostFormValue("id")); err != nil {
+		return "", err
+	}
+	return "Route deleted.", nil
+}

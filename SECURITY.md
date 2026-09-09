@@ -37,6 +37,9 @@ token. All three are credentials:
 * The admin UI and the admin API are protected by HTTP basic auth, and the webhook endpoints by a
   shared token in `X-Teamster-Token`. Both send credentials in every request, so **terminate TLS
   in front of Teamster** and never expose it over plain HTTP.
+* The admin form endpoints under `/admin/` additionally require the request to prove it came from
+  this origin, via `Sec-Fetch-Site` or a matching `Origin`. A browser attaches basic auth
+  credentials to a cross-site post, and there is no session to hold a CSRF token.
 * The webhook endpoints are unauthenticated apart from that token. Treat it as a password, give
   each sender its own deployment if you need separate trust boundaries, and rotate it by changing
   the config and restarting.

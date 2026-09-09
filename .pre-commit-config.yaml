@@ -7,9 +7,12 @@ repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
+      # Generated artifacts are excluded: the hook would append a newline that
+      # the generator strips on the next run, and the two would fight forever.
       - id: trailing-whitespace
-        exclude: \.golden$
+        exclude: (\.golden|_templ\.go|web/styles\.css)$
       - id: end-of-file-fixer
+        exclude: (_templ\.go|web/styles\.css)$
       - id: mixed-line-ending
         args: [--fix=lf]
       - id: check-merge-conflict
