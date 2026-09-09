@@ -22,3 +22,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0005](0005-image-tagging-and-promotion.md) | Image tags come from metadata-action, releases promote | Superseded by 0006 |
 | [0006](0006-release-rebuild-sbom-signing.md) | Releases rebuild, carry an SBOM and are signed | Accepted |
 | [0007](0007-renovate-dependency-updates.md) | Dependency updates run through Renovate | Accepted |
+| [0008](0008-templ-tailwind-admin-ui.md) | The admin UI is server-rendered with templ and Tailwind | Accepted |

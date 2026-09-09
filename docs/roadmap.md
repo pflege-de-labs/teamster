@@ -10,9 +10,10 @@ This file records intent, not commitments. It is edited as features land or plan
 
 * The service ships as one static binary with its assets embedded. No CDN at runtime, no separate
   frontend deployment.
-* No JavaScript build step. Third-party libraries are vendored as committed files under
-  `internal/httpserver/web/vendor/`, which keeps the binary self-contained at the cost of manual
-  updates — Renovate cannot see them.
+* No runtime dependency on a CDN. A generator whose output is committed is allowed — templ and
+  Tailwind work that way ([ADR 0008](adr/0008-templ-tailwind-admin-ui.md)) — but a library the
+  browser fetches at page load is not. Vendored files go under
+  `internal/httpserver/web/vendor/`, at the cost of manual updates Renovate cannot see.
 * Logic lives in Go where there is a choice, because that is what the 75% coverage gate measures.
   The browser gets rendering, not decisions.
 * The admin API stays the only way the UI reaches the service, so anything the UI can do is
@@ -23,19 +24,16 @@ This file records intent, not commitments. It is edited as features land or plan
 The current UI works but makes the operator carry identifiers by hand. Everything here is
 low-risk, visible, and needs no new authentication model.
 
-### 1.1 Selectable destinations and templates
+### 1.1 Selectable destinations and templates — done
 
-Routes are created by typing a `destination-id` and a `template-id` into free-text fields. Replace
-both with select elements populated from `/api/destinations` and `/api/templates`, and show the
-resolved names in the route list instead of raw UUIDs.
+Delivered by the move to server rendering: the handler already holds both lists, so the route form
+uses `select` elements and the route list shows resolved names.
 
-Server work: none — the API already returns everything needed.
+### 1.2 Fuller lists — mostly done
 
-### 1.2 Fuller lists
-
-`renderList` shows a name, an id and two buttons for all three entity types. Routes deserve their
-selector, priority and default flag; destinations their team and channel; templates their size and
-last update. Sorting and an empty state that explains what to create first.
+Routes show their selector, priority and default flag; destinations their team and channel;
+templates their size and last update, and each list has an empty state that says what to create
+first. Sorting is still open.
 
 ### 1.3 Teams and channel picker
 
@@ -107,20 +105,23 @@ this service actually uses. The decision gets its own ADR when we get there.
 
 | Order | Item | Depends on | Blocked by |
 | --- | --- | --- | --- |
-| 1 | 1.1 Selectable ids | — | — |
-| 2 | 1.2 Fuller lists | — | — |
-| 3 | 1.4 Template preview | vendored renderer | — |
-| 4 | 1.3 Teams picker | — | Graph permissions and admin consent |
-| 5 | 2 OIDC login | — | IdP client registration |
-| 6 | 3 Routing visualization | vendored D3 | — |
-| 7 | 4 Card editor | 1.4 | decision after 1.4 |
+| — | 1.1 Selectable ids | — | done |
+| — | 1.2 Fuller lists | — | done apart from sorting |
+| 1 | 1.4 Template preview | vendored renderer | — |
+| 2 | 1.3 Teams picker | — | Graph permissions and admin consent |
+| 3 | 2 OIDC login | — | IdP client registration |
+| 4 | 3 Routing visualization | vendored D3 | — |
+| 5 | 4 Card editor | 1.4 | decision after 1.4 |
 
 1.3 sits after 1.4 because it is the only item waiting on someone else to grant a permission.
 
 ## Open questions
 
-* Does the vendored renderer bring the binary size somewhere we are unhappy with? Measure at 1.4
-  and revisit the no-build-step decision if it does.
+* Does the vendored card renderer bring the binary size somewhere we are unhappy with? Measure at
+  1.4.
+* Editing still means retyping: the forms create and update, but the lists have no edit action
+  that loads a record back into the form. Worth closing with 1.4, where a preview wants the same
+  plumbing.
 * Should the admin API accept a token for automation once OIDC lands, or is basic auth the answer
   for scripts? Decide as part of milestone 2.
 * Vendored JavaScript has no update path today. A checksum file and a documented refresh procedure

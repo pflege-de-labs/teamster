@@ -68,6 +68,11 @@ A change is done when all of these hold:
   `Run(ctx context.Context, cfg *config.Config) error` method, dispatched by `kong.Context.Run`.
   Commands take a context and must return promptly once it is cancelled.
 * Code is `gofmt` and `goimports` clean; `golangci-lint run` reports no issues.
+* The admin UI is server-rendered from templ components in `internal/httpserver/views`. Edit the
+  `.templ` sources, never the generated `*_templ.go`, and run `make generate` — the generated Go
+  and the Tailwind stylesheet are committed so that building needs no generators.
+* State-changing form endpoints go through `formPost`, which rejects a request that cannot prove
+  its origin. Basic auth credentials travel with a cross-site post.
 * Tests are table-driven and call `t.Parallel()`. Tests that need `t.Setenv` cannot be parallel —
   keep those cases in their own test function.
 * No package-level mutable state. Dependencies are injected through constructors, as in

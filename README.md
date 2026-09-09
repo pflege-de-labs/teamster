@@ -191,6 +191,7 @@ diagnose through the container logs. `/data` is the only writable path, and
 
 ```bash
 make hooks          # install the git hooks, once per clone
+make generate       # regenerate the templ components and the stylesheet
 make test           # go test ./...
 make coverage       # coverage report, fails below 75%
 make coverage-html  # writes coverage.html
@@ -204,6 +205,13 @@ lint, and current documentation.
 The hooks format Go with the same settings CI checks, lint Markdown, and reject commit messages
 that are not [Conventional Commits](https://www.conventionalcommits.org). They need
 [pre-commit](https://pre-commit.com) on your PATH.
+
+The admin UI is rendered from [templ](https://github.com/a-h/templ) components in
+`internal/httpserver/views`, styled with Tailwind. Both generators run through `make generate`,
+and their output is committed, so building or testing the service needs neither of them —
+only changing the UI does. `make tools` fetches the pinned Tailwind binary; templ comes from
+`go.mod`. `air` runs the generators before each rebuild, so editing a `.templ` file reloads the
+running server.
 
 Dependencies are kept current by Renovate, which groups Go and Actions updates and merges the
 routine ones itself once CI and branch protection allow it.

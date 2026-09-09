@@ -1,0 +1,54 @@
+package views
+
+templ Layout(title string) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<title>{ title }</title>
+			<link rel="icon" href="/favicon.ico" sizes="48x48"/>
+			<link rel="icon" type="image/png" href="/icons/favicon-32x32.png" sizes="32x32"/>
+			<link rel="icon" type="image/png" href="/icons/favicon-16x16.png" sizes="16x16"/>
+			<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png"/>
+			<link rel="manifest" href="/site.webmanifest"/>
+			<meta name="theme-color" content="#79d0fd"/>
+			<link rel="stylesheet" href="/styles.css"/>
+		</head>
+		<body class="min-h-screen bg-slate-50 text-slate-900">
+			<header class="border-b border-slate-200 bg-white">
+				<div class="mx-auto flex max-w-6xl items-center gap-3 px-6 py-4">
+					<img src="/icons/favicon-48x48.png" alt="" width="40" height="40" class="rounded-full"/>
+					<div>
+						<div class="text-xl font-semibold">Teamster Admin</div>
+						<div class="text-sm text-slate-500">Templates, destinations and routes</div>
+					</div>
+				</div>
+			</header>
+			<main class="mx-auto max-w-6xl space-y-8 px-6 py-8">
+				{ children... }
+			</main>
+		</body>
+	</html>
+}
+
+templ notice(page Page) {
+	if page.Error != "" {
+		<div role="alert" class="rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800">
+			{ page.Error }
+		</div>
+	} else if page.Notice != "" {
+		<div role="status" class="rounded-md border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+			{ page.Notice }
+		</div>
+	}
+}
+
+templ panel(title string) {
+	<section class="rounded-lg border border-slate-200 bg-white shadow-sm">
+		<h2 class="border-b border-slate-200 px-6 py-4 text-lg font-semibold">{ title }</h2>
+		<div class="grid gap-8 px-6 py-6 lg:grid-cols-2">
+			{ children... }
+		</div>
+	</section>
+}

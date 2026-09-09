@@ -1,0 +1,134 @@
+package views
+
+import "strconv"
+
+templ Admin(page Page) {
+	@Layout("Teamster Admin") {
+		@notice(page)
+		@templates(page)
+		@destinations(page)
+		@routes(page)
+	}
+}
+
+templ templates(page Page) {
+	@panel("Templates") {
+		<form method="post" action="/admin/templates" class="space-y-3">
+			@textField("name", "Name", "Critical alert", "")
+			<label class="block">
+				<span class="text-sm font-medium">Body (Adaptive Card JSON template)</span>
+				<textarea
+					name="body"
+					rows="12"
+					class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 font-mono text-xs shadow-sm focus:border-sky-500 focus:outline-none"
+				></textarea>
+			</label>
+			@submit("Save template")
+		</form>
+		<div>
+			if len(page.Templates) == 0 {
+				@empty("No templates yet. A route needs one to render a card.")
+			} else {
+				<ul class="divide-y divide-slate-200">
+					for _, t := range page.Templates {
+						<li class="flex items-center justify-between gap-4 py-3">
+							<div class="min-w-0">
+								<div class="truncate font-medium">{ t.Name }</div>
+								<div class="truncate text-xs text-slate-500">
+									{ strconv.Itoa(len(t.Body)) } bytes · updated { t.UpdatedAt.Format("2006-01-02 15:04") }
+								</div>
+							</div>
+							@deleteButton("/admin/templates/delete", t.ID, t.Name)
+						</li>
+					}
+				</ul>
+			}
+		</div>
+	}
+}
+
+templ destinations(page Page) {
+	@panel("Destinations") {
+		<form method="post" action="/admin/destinations" class="space-y-3">
+			@textField("name", "Name", "Ops channel", "")
+			@textField("team_id", "Team ID", "team-id", "")
+			@textField("channel_id", "Channel ID", "channel-id", "")
+			@submit("Save destination")
+		</form>
+		<div>
+			if len(page.Destinations) == 0 {
+				@empty("No destinations yet. Add the Team and channel to post into.")
+			} else {
+				<ul class="divide-y divide-slate-200">
+					for _, d := range page.Destinations {
+						<li class="flex items-center justify-between gap-4 py-3">
+							<div class="min-w-0">
+								<div class="truncate font-medium">{ d.Name }</div>
+								<div class="truncate text-xs text-slate-500">team { d.TeamID } · channel { d.ChannelID }</div>
+							</div>
+							@deleteButton("/admin/destinations/delete", d.ID, d.Name)
+						</li>
+					}
+				</ul>
+			}
+		</div>
+	}
+}
+
+templ routes(page Page) {
+	@panel("Routes") {
+		<form method="post" action="/admin/routes" class="space-y-3">
+			@textField("name", "Name", "Critical to ops", "")
+			<label class="block">
+				<span class="text-sm font-medium">Label selector (JSON)</span>
+				<textarea
+					name="label_selector"
+					rows="3"
+					class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 font-mono text-xs shadow-sm focus:border-sky-500 focus:outline-none"
+				>{ `{"severity":"critical"}` }</textarea>
+			</label>
+			@selectField("destination_id", "Destination", destinationOptions(page))
+			@selectField("template_id", "Template", templateOptions(page))
+			<label class="block">
+				<span class="text-sm font-medium">Priority</span>
+				<input
+					type="number"
+					name="priority"
+					value="100"
+					class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-sky-500 focus:outline-none"
+				/>
+			</label>
+			<label class="flex items-center gap-2">
+				<input type="checkbox" name="is_default" value="true" class="h-4 w-4 rounded border-slate-300"/>
+				<span class="text-sm font-medium">Default route</span>
+			</label>
+			@submit("Save route")
+		</form>
+		<div>
+			if len(page.Routes) == 0 {
+				@empty("No routes yet. Without one, every alert is rejected.")
+			} else {
+				<ul class="divide-y divide-slate-200">
+					for _, r := range page.Routes {
+						<li class="flex items-start justify-between gap-4 py-3">
+							<div class="min-w-0 space-y-1">
+								<div class="flex items-center gap-2">
+									<span class="truncate font-medium">{ r.Name }</span>
+									if r.IsDefault {
+										<span class="rounded bg-sky-100 px-1.5 py-0.5 text-xs font-medium text-sky-800">default</span>
+									}
+									<span class="text-xs text-slate-500">priority { strconv.Itoa(r.Priority) }</span>
+								</div>
+								<div class="truncate text-xs text-slate-500">
+									{ page.destinationName(r.DestinationID) } · { page.templateName(r.TemplateID) }
+								</div>
+								<div class="truncate font-mono text-xs text-slate-500">{ selectorText(r.LabelSelector) }</div>
+							</div>
+							@deleteButton("/admin/routes/delete", r.ID, r.Name)
+						</li>
+					}
+				</ul>
+			}
+		</div>
+	}
+}

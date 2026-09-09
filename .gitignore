@@ -5,6 +5,7 @@ bin/
 dist/
 *.db
 coverage.out
+coverage.out.raw
 coverage.html
 images/logo-teamster-2.png
 images/logo-teamster-1.png
