@@ -10,8 +10,11 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
-	"strings"
+
 	"time"
+
+	"golang.org/x/text/collate"
+	"golang.org/x/text/language"
 
 	"golang.org/x/oauth2/clientcredentials"
 
@@ -179,15 +182,13 @@ func (c *Client) ListChannels(teamID string) ([]Channel, error) {
 
 // doRequest always marshals a body, which Graph rejects on GET.
 // Graph returns teams and channels in no useful order, and these end up in a
-// dropdown someone has to find a name in. Case-insensitive, so "ops" and "Ops"
-// do not end up in separate halves of the list.
+// dropdown someone has to find a name in. Collation rather than byte order,
+// because the latter puts Ärzte and Überwachung behind Zentrale. A collator
+// holds buffers and is not safe for concurrent use, hence one per sort.
 func sortByName[T any](items []T, name func(T) string) {
+	collator := collate.New(language.Und)
 	sort.SliceStable(items, func(i, j int) bool {
-		left, right := strings.ToLower(name(items[i])), strings.ToLower(name(items[j]))
-		if left == right {
-			return name(items[i]) < name(items[j])
-		}
-		return left < right
+		return collator.CompareString(name(items[i]), name(items[j])) < 0
 	})
 }
 
