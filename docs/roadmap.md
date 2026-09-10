@@ -50,7 +50,7 @@ tenant admin consent. Nothing else in this milestone is blocked by it.
 Responses are cached in memory with a short TTL; a tenant's team list is stable and the Graph
 throttles.
 
-### 1.4 Template preview
+### 1.4 Template preview — done
 
 Render a template against a sample alert and show the resulting card.
 
@@ -109,8 +109,8 @@ this service actually uses. The decision gets its own ADR when we get there.
 | --- | --- | --- | --- |
 | — | 1.1 Selectable ids | — | done |
 | — | 1.2 Fuller lists | — | done |
-| 1 | 1.4 Template preview | vendored renderer | — |
-| 2 | 1.3 Teams picker | — | Graph permissions and admin consent |
+| — | 1.4 Template preview | — | done |
+| 1 | 1.3 Teams picker | — | Graph permissions and admin consent |
 | 3 | 2 OIDC login | — | IdP client registration |
 | 4 | 3 Routing visualization | vendored D3 | — |
 | 5 | 4 Card editor | 1.4 | decision after 1.4 |
@@ -119,8 +119,8 @@ this service actually uses. The decision gets its own ADR when we get there.
 
 ## Open questions
 
-* Does the vendored card renderer bring the binary size somewhere we are unhappy with? Measure at
-  1.4.
+* Answered at 1.4: the vendored renderer costs 0.3 MB, taking the binary from 13.9 MB to 14.2 MB.
+  Small enough that the no-CDN rule stands.
 * Should the admin API accept a token for automation once OIDC lands, or is basic auth the answer
   for scripts? Decide as part of milestone 2.
 * Vendored JavaScript has no update path today. A checksum file and a documented refresh procedure

@@ -13,18 +13,35 @@ templ Admin(page Page) {
 
 templ templates(page Page) {
 	@panel("Templates", "templates") {
-		<form method="post" action="/admin/templates" class="space-y-3">
+		<form method="post" action="/admin/templates" id="template-form" class="space-y-3">
 			if page.EditTemplate != nil {
 				<input type="hidden" name="id" value={ page.EditTemplate.ID }/>
 			}
 			@textField("name", "Name", "Critical alert", page.editingTemplate().Name)
 			@textareaField("body", "Body (Adaptive Card JSON template)", page.editingTemplate().Body, "12")
-			<div class="flex items-center gap-2">
+			<div class="flex flex-wrap items-center gap-2">
 				@submit(submitLabel(page.EditTemplate != nil, "template"))
+				<button
+					type="button"
+					id="preview-button"
+					class="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:border-sky-400 hover:bg-sky-50 hover:text-sky-700"
+				>
+					Preview
+				</button>
+				<select
+					id="preview-sample"
+					aria-label="Sample alert"
+					class="rounded-md border border-slate-300 bg-white px-2 py-2 text-sm"
+				>
+					for _, name := range page.PreviewSamples {
+						<option value={ name }>{ name } alert</option>
+					}
+				</select>
 				if page.EditTemplate != nil {
 					@cancelEdit()
 				}
 			</div>
+			<div id="preview-output" class="mt-2 empty:hidden"></div>
 		</form>
 		<div>
 			if len(page.Templates) == 0 {
