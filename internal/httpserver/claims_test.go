@@ -1,10 +1,16 @@
 package httpserver
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"strings"
 	"testing"
+
+	"github.com/coreos/go-oidc/v3/oidc"
+	"golang.org/x/oauth2"
+
+	"github.com/pflege-de-labs/teamster/internal/config"
 )
 
 // The shapes below are what Keycloak actually emits: realm roles nested under
@@ -215,5 +221,52 @@ func TestMatchesAny(t *testing.T) {
 				t.Errorf("matchesAny(%v, %v) = %v, want %v", tt.values, tt.allowed, got, tt.want)
 			}
 		})
+	}
+}
+
+// Roles in the id token are used in preference: the nil provider would panic if
+// the lookup carried on to userinfo or the access token.
+func TestMembershipPrefersTheIDToken(t *testing.T) {
+	t.Parallel()
+
+	server := &Server{cfg: config.Config{Auth: config.AuthConfig{
+		Claim:   "realm_access.roles",
+		Allowed: []string{"admin"},
+	}}}
+
+	claims := map[string]any{
+		"realm_access": map[string]any{"roles": []any{"viewer", "admin"}},
+	}
+
+	values, source := server.membership(context.Background(), nil, &oauth2.Token{}, claims)
+	if source != "the id token" {
+		t.Errorf("source = %q, want the id token", source)
+	}
+	if !matchesAny(values, []string{"admin"}) {
+		t.Errorf("values = %v, want the id token roles", values)
+	}
+}
+
+// With nothing in the id token the lookup falls through, and an access token
+// carrying the role is enough. Keycloak's built-in mappers produce exactly this.
+func TestMembershipFallsBackToTheAccessToken(t *testing.T) {
+	t.Parallel()
+
+	server := &Server{cfg: config.Config{Auth: config.AuthConfig{
+		Claim:   "resource_access.teamster.roles",
+		Allowed: []string{"admin"},
+	}}}
+
+	payload := base64.RawURLEncoding.EncodeToString([]byte(
+		`{"resource_access":{"teamster":{"roles":["admin"]}}}`))
+	token := &oauth2.Token{AccessToken: "header." + payload + ".signature"}
+
+	// An empty provider URL makes the userinfo step fail fast rather than dial.
+	values, source := server.membership(context.Background(), &oidc.Provider{}, token, map[string]any{})
+	if source != "the access token" {
+		t.Errorf("source = %q, want the access token", source)
+	}
+	if !matchesAny(values, []string{"admin"}) {
+		t.Errorf("values = %v, want the access token roles", values)
 	}
 }
