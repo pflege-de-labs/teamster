@@ -9,6 +9,8 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sort"
+	"strings"
 	"time"
 
 	"golang.org/x/oauth2/clientcredentials"
@@ -145,6 +147,7 @@ func (c *Client) ListTeams() ([]Team, error) {
 		teams = append(teams, Team{ID: v.ID, Name: v.DisplayName})
 	}
 
+	sortByName(teams, func(t Team) string { return t.Name })
 	return teams, nil
 }
 
@@ -170,10 +173,24 @@ func (c *Client) ListChannels(teamID string) ([]Channel, error) {
 		channels = append(channels, Channel{ID: v.ID, Name: v.DisplayName})
 	}
 
+	sortByName(channels, func(c Channel) string { return c.Name })
 	return channels, nil
 }
 
 // doRequest always marshals a body, which Graph rejects on GET.
+// Graph returns teams and channels in no useful order, and these end up in a
+// dropdown someone has to find a name in. Case-insensitive, so "ops" and "Ops"
+// do not end up in separate halves of the list.
+func sortByName[T any](items []T, name func(T) string) {
+	sort.SliceStable(items, func(i, j int) bool {
+		left, right := strings.ToLower(name(items[i])), strings.ToLower(name(items[j]))
+		if left == right {
+			return name(items[i]) < name(items[j])
+		}
+		return left < right
+	})
+}
+
 func (c *Client) get(url string) ([]byte, error) {
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
