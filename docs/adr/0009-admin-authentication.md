@@ -26,7 +26,7 @@ Two ways in, both ending in the same session:
 
 * **Keycloak**, via authorization code flow with PKCE. Endpoints come from discovery at the
   configured issuer, so no endpoint is hardcoded and any conformant provider works.
-
+  
   The registered client is **public**: `teamster`, PKCE `S256`, no client secret. The code
   exchange is therefore authenticated by the PKCE verifier alone rather than by a client
   credential. That is the point of PKCE and it removes a secret from the configuration, but it

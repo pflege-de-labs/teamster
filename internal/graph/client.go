@@ -8,6 +8,7 @@ import (
 	"html"
 	"io"
 	"net/http"
+	"net/url"
 	"time"
 
 	"golang.org/x/oauth2/clientcredentials"
@@ -109,6 +110,91 @@ func (c *Client) UpdateMessage(teamID, channelID, messageID string, card json.Ra
 	endpoint := fmt.Sprintf("%s/teams/%s/channels/%s/messages/%s", c.baseURL, teamID, channelID, messageID)
 	_, err := c.doRequest(http.MethodPatch, endpoint, payload)
 	return err
+}
+
+// Team is the subset of a Microsoft Teams team the admin UI needs.
+type Team struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type Channel struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+func (c *Client) ListTeams() ([]Team, error) {
+	endpoint := fmt.Sprintf("%s/teams?$select=id,displayName&$top=999", c.baseURL)
+	resBody, err := c.get(endpoint)
+	if err != nil {
+		return nil, err
+	}
+
+	var res struct {
+		Value []struct {
+			ID          string `json:"id"`
+			DisplayName string `json:"displayName"`
+		} `json:"value"`
+	}
+	if err := json.Unmarshal(resBody, &res); err != nil {
+		return nil, fmt.Errorf("decode teams: %w", err)
+	}
+
+	teams := make([]Team, 0, len(res.Value))
+	for _, v := range res.Value {
+		teams = append(teams, Team{ID: v.ID, Name: v.DisplayName})
+	}
+
+	return teams, nil
+}
+
+func (c *Client) ListChannels(teamID string) ([]Channel, error) {
+	endpoint := fmt.Sprintf("%s/teams/%s/channels?$select=id,displayName", c.baseURL, url.PathEscape(teamID))
+	resBody, err := c.get(endpoint)
+	if err != nil {
+		return nil, err
+	}
+
+	var res struct {
+		Value []struct {
+			ID          string `json:"id"`
+			DisplayName string `json:"displayName"`
+		} `json:"value"`
+	}
+	if err := json.Unmarshal(resBody, &res); err != nil {
+		return nil, fmt.Errorf("decode channels: %w", err)
+	}
+
+	channels := make([]Channel, 0, len(res.Value))
+	for _, v := range res.Value {
+		channels = append(channels, Channel{ID: v.ID, Name: v.DisplayName})
+	}
+
+	return channels, nil
+}
+
+// doRequest always marshals a body, which Graph rejects on GET.
+func (c *Client) get(url string) ([]byte, error) {
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("new request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("graph request: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	resBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read response: %w", err)
+	}
+	if resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("graph GET %s failed: %s", url, string(resBody))
+	}
+
+	return resBody, nil
 }
 
 func (c *Client) doRequest(method, url string, body any) ([]byte, error) {
