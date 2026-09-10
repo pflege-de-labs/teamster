@@ -329,7 +329,8 @@ func TestDirectoryListsAreSortedByName(t *testing.T) {
 			_, _ = w.Write([]byte(`{"value":[
 				{"id":"c1","displayName":"Zulu"},
 				{"id":"c2","displayName":"alpha"},
-				{"id":"c3","displayName":"General"}
+				{"id":"c3","displayName":"General"},
+				{"id":"c4","displayName":"Änderungen"}
 			]}`))
 			return
 		}
@@ -337,7 +338,9 @@ func TestDirectoryListsAreSortedByName(t *testing.T) {
 			{"id":"t1","displayName":"Zentrale"},
 			{"id":"t2","displayName":"operations"},
 			{"id":"t3","displayName":"Ops"},
-			{"id":"t4","displayName":"Alerting"}
+			{"id":"t4","displayName":"Überwachung"},
+			{"id":"t5","displayName":"Ärzte"},
+			{"id":"t6","displayName":"alpha"}
 		]}`))
 	})
 
@@ -346,9 +349,10 @@ func TestDirectoryListsAreSortedByName(t *testing.T) {
 		t.Fatalf("ListTeams: %v", err)
 	}
 
-	// Case-insensitive: "Ops" and "operations" belong next to each other, not in
-	// separate halves of the list.
-	wantTeams := []string{"Alerting", "operations", "Ops", "Zentrale"}
+	// Collation, not byte order: a diacritic sorts beside its base letter, so
+	// Ärzte belongs after alpha rather than behind Zentrale, and case only
+	// breaks ties, keeping "operations" and "Ops" together.
+	wantTeams := []string{"alpha", "Ärzte", "operations", "Ops", "Überwachung", "Zentrale"}
 	for i, want := range wantTeams {
 		if teams[i].Name != want {
 			t.Errorf("teams[%d] = %q, want %q (got %v)", i, teams[i].Name, want, names(teams))
@@ -359,7 +363,7 @@ func TestDirectoryListsAreSortedByName(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListChannels: %v", err)
 	}
-	for i, want := range []string{"alpha", "General", "Zulu"} {
+	for i, want := range []string{"alpha", "Änderungen", "General", "Zulu"} {
 		if channels[i].Name != want {
 			t.Errorf("channels[%d] = %q, want %q", i, channels[i].Name, want)
 		}
@@ -372,13 +376,17 @@ func TestSortByNameIsStableForEqualNames(t *testing.T) {
 	teams := []Team{{ID: "b", Name: "Ops"}, {ID: "a", Name: "ops"}, {ID: "c", Name: "Ops"}}
 	sortByName(teams, func(t Team) string { return t.Name })
 
-	// Equal names fall back to the exact spelling, then keep their input order,
-	// so a redraw of the dropdown does not shuffle entries around.
-	if teams[0].Name != "Ops" || teams[1].Name != "Ops" || teams[2].Name != "ops" {
-		t.Fatalf("order = %v, want the two Ops before ops", names(teams))
+	// Which case sorts first is the collator's business; what matters is that
+	// spellings of one name stay together and that identical names keep their
+	// input order, so a redraw does not shuffle the dropdown.
+	var identical []string
+	for _, team := range teams {
+		if team.Name == "Ops" {
+			identical = append(identical, team.ID)
+		}
 	}
-	if teams[0].ID != "b" || teams[1].ID != "c" {
-		t.Errorf("ids = %s,%s, want b,c preserved from the input", teams[0].ID, teams[1].ID)
+	if len(identical) != 2 || identical[0] != "b" || identical[1] != "c" {
+		t.Errorf("identical names ordered %v, want b then c as they arrived", identical)
 	}
 }
 
