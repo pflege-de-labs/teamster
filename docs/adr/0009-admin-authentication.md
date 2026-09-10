@@ -1,6 +1,6 @@
 # 0009. Admin authentication by Keycloak login or local credentials
 
-* Status: Proposed
+* Status: Accepted
 * Date: 2026-09-10
 
 ## Context
@@ -59,6 +59,11 @@ Authentication is not authorization. A configured claim decides who may administ
   default.
 * `auth-allowed` lists the accepted values. A token carrying none of them is authenticated but
   refused, and the refusal says so rather than looping back to the IdP.
+* The claim is looked for in the ID token, then at the userinfo endpoint, then in the access token,
+  and the first hit wins. Keycloak's built-in role mappers populate the access token and leave the
+  ID token without roles, so reading only the ID token refuses a correctly configured realm. The
+  access token payload is read without verifying its signature: it arrives from the token endpoint
+  over TLS beside an ID token that was verified, and is only read to look up membership.
 * Configuring an issuer without any accepted value refuses to start. Failing closed is the only
   safe reading: the alternative is a deployment that quietly admits everyone the realm will
   authenticate.
@@ -104,6 +109,9 @@ already refuses a request that cannot prove its origin.
 * TLS matters more than before. A session cookie is a bearer token for the admin UI, so the
   existing requirement to terminate TLS in front of Teamster becomes a hard one.
 * Misconfiguring the claim path locks everyone out of a deployment with no local credentials
-  configured. The local login exists so that is recoverable.
+  configured. The local login exists so that is recoverable, and a refusal names the claim, where
+  it looked and the values it found, so the fix does not require reading the provider's logs.
+* [Configuring Keycloak](../keycloak.md) documents the client, the role and the mapper, including
+  that a client role lives at `resource_access.<client>.roles` and never under `realm_access.roles`.
 * `internal/graph` and the Entra registration are untouched. Alert delivery does not depend on
   anyone being logged in.
