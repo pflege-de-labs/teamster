@@ -86,13 +86,74 @@ Needs an ADR: it changes the trust model and adds session state to a service tha
 ## Milestone 3 — Routing visualization
 
 A graph of routes to destinations and templates, so an operator can see which alert reaches which
-channel without reading a table of label selectors. Rendered from the existing three endpoints,
-with a vendored D3 build.
+channel without reading a table of label selectors, plus a check that answers "which route would
+this alert take?".
 
-Includes a "which route would this alert take?" check: paste labels, and the view highlights the
-matching route. That reuses `routing.SelectRoute` through a new endpoint rather than
-reimplementing selector matching in the browser — the routing rules are subtle enough (priority
-order, empty selectors never matching, default fallback) that a second implementation would drift.
+### The page
+
+`/admin/routing`, behind a session like the rest of the admin UI, linked from the header. Its own
+page rather than a fourth panel on `/admin`, which is already long.
+
+### Where the data comes from
+
+`GET /api/routing/graph` returns the graph ready to draw, rather than the browser stitching three
+endpoints together:
+
+```json
+{
+  "nodes": [
+    {"id": "route:abc", "kind": "route", "label": "Critical to ops",
+     "selector": "severity=critical", "priority": 100, "default": false},
+    {"id": "destination:def", "kind": "destination", "label": "Ops channel",
+     "detail": "team … · channel …"},
+    {"id": "template:ghi", "kind": "template", "label": "Critical card"}
+  ],
+  "links": [
+    {"source": "route:abc", "target": "destination:def"},
+    {"source": "route:abc", "target": "template:ghi"}
+  ]
+}
+```
+
+The server resolves names and dangling references — a route pointing at a deleted destination is a
+real state worth seeing, so it becomes a node marked missing rather than a silently absent link.
+
+### The route check
+
+`POST /api/routing/match` takes label pairs and answers with the route that would win and why:
+
+```json
+{"labels": {"severity": "critical"}}
+→ {"route": {"id": "abc", "name": "Critical to ops"}, "reason": "selector"}
+```
+
+`reason` is one of `selector`, `default`, `none` or `no-routes`. Getting that from
+`SelectRoute` alone is not possible: it returns a route without saying whether the selector matched
+or the default caught it. So `internal/routing` gains an exported function that returns the route
+and the reason, and `SelectRoute` becomes a thin wrapper over it. The rules stay in one place —
+priority order, empty selectors never matching, default fallback — because a second implementation
+in the browser would drift from delivery.
+
+The form takes `key=value` lines, which is how operators read Alertmanager labels, and posts them
+as JSON.
+
+### Drawing it
+
+A vendored D3 force layout, per [ADR 0008](adr/0008-templ-tailwind-admin-ui.md)'s rule that
+libraries are committed rather than fetched at page load. The full `d3.min.js` is 280 KB, against
+roughly 36 KB for the four modules actually used (`d3-force`, `d3-selection`, `d3-zoom`,
+`d3-drag`). Start with the full bundle because it certainly works, and revisit if the binary size
+becomes uncomfortable — it is already carrying 335 KB of Adaptive Cards renderer.
+
+Matching a route highlights its node and dims the rest, so the check and the graph are one view
+rather than two.
+
+### Tests
+
+The graph builder and the reason-returning routing function are Go, so the coverage gate covers
+them: the shapes above, a route with a missing destination, an empty configuration, and each of the
+four reasons. The drawing itself is not tested; the page is asserted to render and to reference
+assets that exist.
 
 ## Milestone 4 — Card editor
 
