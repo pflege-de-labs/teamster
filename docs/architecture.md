@@ -103,6 +103,27 @@ columns are declared otherwise, since every read from it would fail.
 repeated `firing` alert therefore edits the existing card instead of posting a new one, and a
 `resolved` alert edits the card one last time before the row is deleted.
 
+## Signing in
+
+`/admin` requires a session. Two ways to get one, both ending in a row in the `sessions` table and
+an opaque id in an `HttpOnly`, `SameSite=Lax` cookie, marked `Secure` when the request arrived over
+TLS or carried `X-Forwarded-Proto: https`:
+
+* An OIDC authorization code flow with PKCE against the configured issuer. `state`, `nonce` and the
+  PKCE verifier live in `login_flows` rather than a cookie, and taking a flow deletes it, so a
+  replayed or forged callback finds nothing. Access is granted by a claim: `auth-claim` is a dotted
+  path, because Keycloak nests roles under `realm_access.roles`, and `auth-allowed` lists the
+  values that grant it.
+* The local username and password, entered at `/admin/login`. This is the bootstrap path and the
+  way back in when the provider is unreachable or the claim is misconfigured.
+
+`/api` keeps HTTP basic auth: automation cannot complete an authorization code flow. Expired
+sessions and abandoned flows are swept hourly, and neither is honoured once expired regardless.
+
+None of this touches `internal/graph`, whose Entra credentials are a machine credential for posting
+cards. Alert delivery does not depend on anyone being signed in. See
+[ADR 0009](adr/0009-admin-authentication.md).
+
 ## Admin UI
 
 `/admin` is rendered on the server by `internal/httpserver/views`, compiled from templ sources and

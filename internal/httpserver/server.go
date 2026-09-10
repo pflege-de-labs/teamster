@@ -24,6 +24,7 @@ type Server struct {
 	graph      messenger
 	router     *routing.Router
 	directory  *directoryCache
+	oidc       *oidcProvider
 	httpServer *http.Server
 }
 
@@ -36,6 +37,7 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger) *htt
 		graph:     graphClient,
 		router:    routing.New(store),
 		directory: newDirectoryCache(directoryTTL),
+		oidc:      &oidcProvider{},
 	}
 
 	mux := http.NewServeMux()
@@ -61,10 +63,19 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger) *htt
 	adminMux.HandleFunc("/admin/routes/delete", api.formPost(api.deleteRoute))
 	adminMux.HandleFunc("/", api.handleAssets)
 
+	authMux := http.NewServeMux()
+	authMux.HandleFunc("/admin/login", api.handleLoginPage)
+	authMux.HandleFunc("/admin/auth/start", api.handleAuthStart)
+	authMux.HandleFunc("/admin/auth/callback", api.handleAuthCallback)
+	authMux.HandleFunc("/admin/logout", api.handleLogout)
+
 	mux.Handle("/api/", api.basicAuth(adminMux))
-	mux.Handle("/admin", api.basicAuth(adminMux))
-	mux.Handle("/admin/", api.basicAuth(adminMux))
-	mux.Handle("/", api.basicAuth(adminMux))
+	mux.Handle("/admin/login", authMux)
+	mux.Handle("/admin/auth/", authMux)
+	mux.Handle("/admin/logout", authMux)
+	mux.Handle("/admin", api.requireSession(adminMux))
+	mux.Handle("/admin/", api.requireSession(adminMux))
+	mux.Handle("/", api.requireSession(adminMux))
 
 	api.httpServer = &http.Server{
 		Addr:    cfg.Server.Addr,

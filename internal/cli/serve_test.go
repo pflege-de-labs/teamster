@@ -76,13 +76,16 @@ func TestServeShutsDownWhenTheContextIsCancelled(t *testing.T) {
 
 	waitForServer(t, cfg.Server.Addr)
 
-	resp, err := http.Get(fmt.Sprintf("http://%s/admin", cfg.Server.Addr))
+	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error {
+		return http.ErrUseLastResponse
+	}}
+	resp, err := client.Get(fmt.Sprintf("http://%s/admin", cfg.Server.Addr))
 	if err != nil {
 		t.Fatalf("GET /admin: %v", err)
 	}
 	_ = resp.Body.Close()
-	if resp.StatusCode != http.StatusUnauthorized {
-		t.Errorf("GET /admin = %d, want 401 from the running server", resp.StatusCode)
+	if resp.StatusCode != http.StatusFound {
+		t.Errorf("GET /admin = %d, want a redirect to the login page", resp.StatusCode)
 	}
 
 	cancel()

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"sync"
+	"time"
 
 	"github.com/pflege-de-labs/teamster/internal/graph"
 	"github.com/pflege-de-labs/teamster/internal/models"
@@ -11,6 +12,8 @@ import (
 )
 
 var errStore = errors.New("store exploded")
+
+const testSessionID = "test-session"
 
 // fakeStore is an in-memory store.Store. Setting failOn to a method name makes
 // that method return errStore, which is how the handler error paths are driven.
@@ -21,6 +24,8 @@ type fakeStore struct {
 	destinations map[string]models.Destination
 	routes       map[string]models.Route
 	activeAlerts map[string]models.ActiveAlert
+	sessions     map[string]models.Session
+	loginFlows   map[string]models.LoginFlow
 
 	failOn map[string]bool
 }
@@ -31,7 +36,16 @@ func newFakeStore() *fakeStore {
 		destinations: map[string]models.Destination{},
 		routes:       map[string]models.Route{},
 		activeAlerts: map[string]models.ActiveAlert{},
-		failOn:       map[string]bool{},
+		sessions: map[string]models.Session{
+			// Seeded so the request helpers can act as a signed-in operator; a
+			// test that cares about being signed out builds its own request.
+			testSessionID: {
+				ID: testSessionID, Subject: "tester", Name: "tester", Source: "local",
+				CreatedAt: time.Now(), ExpiresAt: time.Now().Add(time.Hour),
+			},
+		},
+		loginFlows: map[string]models.LoginFlow{},
+		failOn:     map[string]bool{},
 	}
 }
 
@@ -198,6 +212,55 @@ func (f *fakeStore) GetRoute(id string) (models.Route, error) {
 		return models.Route{}, store.ErrNotFound
 	}
 	return r, nil
+}
+
+func (f *fakeStore) CreateSession(session models.Session) error {
+	if err := f.failing("CreateSession"); err != nil {
+		return err
+	}
+	f.sessions[session.ID] = session
+	return nil
+}
+
+func (f *fakeStore) GetSession(id string) (models.Session, error) {
+	if err := f.failing("GetSession"); err != nil {
+		return models.Session{}, err
+	}
+	session, ok := f.sessions[id]
+	if !ok || !session.ExpiresAt.After(time.Now()) {
+		return models.Session{}, store.ErrNotFound
+	}
+	return session, nil
+}
+
+func (f *fakeStore) DeleteSession(id string) error {
+	if err := f.failing("DeleteSession"); err != nil {
+		return err
+	}
+	delete(f.sessions, id)
+	return nil
+}
+
+func (f *fakeStore) DeleteExpiredSessions() error { return f.failing("DeleteExpiredSessions") }
+
+func (f *fakeStore) CreateLoginFlow(flow models.LoginFlow) error {
+	if err := f.failing("CreateLoginFlow"); err != nil {
+		return err
+	}
+	f.loginFlows[flow.State] = flow
+	return nil
+}
+
+func (f *fakeStore) TakeLoginFlow(state string) (models.LoginFlow, error) {
+	if err := f.failing("TakeLoginFlow"); err != nil {
+		return models.LoginFlow{}, err
+	}
+	flow, ok := f.loginFlows[state]
+	if !ok {
+		return models.LoginFlow{}, store.ErrNotFound
+	}
+	delete(f.loginFlows, state)
+	return flow, nil
 }
 
 func (f *fakeStore) UpsertActiveAlert(a models.ActiveAlert) error {

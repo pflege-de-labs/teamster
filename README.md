@@ -116,6 +116,23 @@ See the JSON examples in [samples](samples):
 - [samples/universal-firing.json](samples/universal-firing.json)
 - [samples/universal-resolved.json](samples/universal-resolved.json)
 
+## Signing in
+
+The admin UI needs a session. Configure either or both:
+
+- **An OIDC provider.** Set `auth.oidc-issuer`, `auth.oidc-client-id` and `auth.oidc-redirect-url`,
+  then name the claim that grants access. For Keycloak that is usually `realm_access.roles` for a
+  realm role, or `resource_access.<client>.roles` for a client role — and `auth.allowed` lists the
+  role names accepted. A public client using PKCE needs no secret.
+- **Local credentials.** `admin.username` and `admin.password` are accepted at `/admin/login`.
+
+Configuring an issuer without `auth.allowed` refuses to start, because the alternative is admitting
+everyone the provider will authenticate. Keep the local credentials configured: they are the way
+back in if the provider is unreachable or the claim is wrong.
+
+`/api` continues to accept those same credentials as HTTP basic auth, so existing automation keeps
+working.
+
 ## Container
 
 ```bash

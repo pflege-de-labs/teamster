@@ -1,0 +1,180 @@
+package httpserver
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"net/http"
+	"sync"
+	"time"
+
+	"github.com/coreos/go-oidc/v3/oidc"
+	"golang.org/x/oauth2"
+
+	"github.com/pflege-de-labs/teamster/internal/models"
+)
+
+const loginFlowTTL = 10 * time.Minute
+
+// oidcProvider is discovered lazily so an unreachable identity provider delays
+// a login rather than preventing the service from starting.
+type oidcProvider struct {
+	mu       sync.Mutex
+	provider *oidc.Provider
+}
+
+func (s *Server) oidcEnabled() bool {
+	return s.cfg.Auth.OIDCIssuer != ""
+}
+
+func (s *Server) discover(ctx context.Context) (*oidc.Provider, error) {
+	s.oidc.mu.Lock()
+	defer s.oidc.mu.Unlock()
+
+	if s.oidc.provider != nil {
+		return s.oidc.provider, nil
+	}
+
+	provider, err := oidc.NewProvider(ctx, s.cfg.Auth.OIDCIssuer)
+	if err != nil {
+		return nil, fmt.Errorf("discover %s: %w", s.cfg.Auth.OIDCIssuer, err)
+	}
+	s.oidc.provider = provider
+	return provider, nil
+}
+
+func (s *Server) oauthConfig(provider *oidc.Provider) oauth2.Config {
+	scopes := append([]string{oidc.ScopeOpenID}, s.cfg.Auth.OIDCScopes...)
+	return oauth2.Config{
+		ClientID:     s.cfg.Auth.OIDCClientID,
+		ClientSecret: s.cfg.Auth.OIDCClientSecret,
+		Endpoint:     provider.Endpoint(),
+		RedirectURL:  s.cfg.Auth.OIDCRedirectURL,
+		Scopes:       scopes,
+	}
+}
+
+func (s *Server) handleAuthStart(w http.ResponseWriter, r *http.Request) {
+	if !s.oidcEnabled() {
+		http.Redirect(w, r, "/admin/login?error=no+identity+provider+configured", http.StatusFound)
+		return
+	}
+
+	provider, err := s.discover(r.Context())
+	if err != nil {
+		logError("oidc discovery", err)
+		http.Redirect(w, r, "/admin/login?error=identity+provider+unreachable", http.StatusFound)
+		return
+	}
+
+	state, err := newToken()
+	if err != nil {
+		http.Redirect(w, r, "/admin/login?error=could+not+start+login", http.StatusFound)
+		return
+	}
+	nonce, err := newToken()
+	if err != nil {
+		http.Redirect(w, r, "/admin/login?error=could+not+start+login", http.StatusFound)
+		return
+	}
+	verifier := oauth2.GenerateVerifier()
+
+	if err := s.store.CreateLoginFlow(models.LoginFlow{
+		State: state, Verifier: verifier, Nonce: nonce,
+		ExpiresAt: time.Now().UTC().Add(loginFlowTTL),
+	}); err != nil {
+		logError("store login flow", err)
+		http.Redirect(w, r, "/admin/login?error=could+not+start+login", http.StatusFound)
+		return
+	}
+
+	config := s.oauthConfig(provider)
+	http.Redirect(w, r, config.AuthCodeURL(state,
+		oidc.Nonce(nonce),
+		oauth2.S256ChallengeOption(verifier),
+	), http.StatusFound)
+}
+
+func (s *Server) handleAuthCallback(w http.ResponseWriter, r *http.Request) {
+	if !s.oidcEnabled() {
+		http.NotFound(w, r)
+		return
+	}
+
+	if authErr := r.URL.Query().Get("error"); authErr != "" {
+		loginFailed(w, r, authErr)
+		return
+	}
+
+	// The flow is redeemed here, so a replayed callback finds nothing.
+	flow, err := s.store.TakeLoginFlow(r.URL.Query().Get("state"))
+	if err != nil {
+		loginFailed(w, r, "this login did not start here, or it expired")
+		return
+	}
+
+	provider, err := s.discover(r.Context())
+	if err != nil {
+		logError("oidc discovery", err)
+		loginFailed(w, r, "identity provider unreachable")
+		return
+	}
+
+	config := s.oauthConfig(provider)
+	token, err := config.Exchange(r.Context(), r.URL.Query().Get("code"), oauth2.VerifierOption(flow.Verifier))
+	if err != nil {
+		logError("oidc exchange", err)
+		loginFailed(w, r, "the identity provider rejected the login")
+		return
+	}
+
+	subject, name, err := s.verifyIDToken(r.Context(), provider, token, flow.Nonce)
+	if err != nil {
+		logError("oidc verify", err)
+		loginFailed(w, r, err.Error())
+		return
+	}
+
+	if err := s.startSession(w, r, subject, name, "oidc"); err != nil {
+		logError("start session", err)
+		loginFailed(w, r, "could not start a session")
+		return
+	}
+
+	http.Redirect(w, r, "/admin", http.StatusFound)
+}
+
+func (s *Server) verifyIDToken(ctx context.Context, provider *oidc.Provider, token *oauth2.Token, nonce string) (string, string, error) {
+	raw, ok := token.Extra("id_token").(string)
+	if !ok {
+		return "", "", errors.New("the identity provider returned no id token")
+	}
+
+	idToken, err := provider.Verifier(&oidc.Config{ClientID: s.cfg.Auth.OIDCClientID}).Verify(ctx, raw)
+	if err != nil {
+		return "", "", fmt.Errorf("id token rejected: %w", err)
+	}
+	if idToken.Nonce != nonce {
+		return "", "", errors.New("id token nonce does not match this login")
+	}
+
+	var claims map[string]any
+	if err := idToken.Claims(&claims); err != nil {
+		return "", "", fmt.Errorf("read claims: %w", err)
+	}
+
+	if !allowedByClaim(claims, s.cfg.Auth.Claim, s.cfg.Auth.Allowed) {
+		// Naming the claim turns a lockout into a configuration fix.
+		return "", "", fmt.Errorf("signed in, but %s carries none of the values that grant access", s.cfg.Auth.Claim)
+	}
+
+	name, _ := claims["preferred_username"].(string)
+	if name == "" {
+		name, _ = claims["name"].(string)
+	}
+	return idToken.Subject, name, nil
+}
+
+func loginFailed(w http.ResponseWriter, r *http.Request, message string) {
+	http.Redirect(w, r, "/admin/login?error="+urlQueryEscape(message), http.StatusFound)
+}

@@ -17,6 +17,7 @@ func postForm(t *testing.T, handler http.Handler, path string, form url.Values, 
 	req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.SetBasicAuth("admin", "pass")
+	req.AddCookie(&http.Cookie{Name: sessionCookie, Value: testSessionID})
 	for key, value := range headers {
 		req.Header.Set(key, value)
 	}

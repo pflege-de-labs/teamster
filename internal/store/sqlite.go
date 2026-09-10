@@ -64,6 +64,20 @@ CREATE TABLE IF NOT EXISTS routes (
 	created_at DATETIME NOT NULL,
 	updated_at DATETIME NOT NULL
 );
+CREATE TABLE IF NOT EXISTS sessions (
+	id TEXT PRIMARY KEY,
+	subject TEXT NOT NULL,
+	name TEXT NOT NULL,
+	source TEXT NOT NULL,
+	created_at DATETIME NOT NULL,
+	expires_at DATETIME NOT NULL
+);
+CREATE TABLE IF NOT EXISTS login_flows (
+	state TEXT PRIMARY KEY,
+	verifier TEXT NOT NULL,
+	nonce TEXT NOT NULL,
+	expires_at DATETIME NOT NULL
+);
 CREATE TABLE IF NOT EXISTS active_alerts (
 	fingerprint TEXT PRIMARY KEY,
 	status TEXT NOT NULL,
@@ -87,6 +101,8 @@ var timestampColumns = map[string][]string{
 	"destinations":  {"created_at", "updated_at"},
 	"routes":        {"created_at", "updated_at"},
 	"active_alerts": {"last_update"},
+	"sessions":      {"created_at", "expires_at"},
+	"login_flows":   {"expires_at"},
 }
 
 func (s *SQLiteStore) checkTimestampColumns() error {
@@ -415,4 +431,76 @@ func parseSelector(raw string) map[string]string {
 		return map[string]string{}
 	}
 	return out
+}
+
+func (s *SQLiteStore) CreateSession(session models.Session) error {
+	_, err := s.db.Exec(`INSERT INTO sessions (id, subject, name, source, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?)`,
+		session.ID, session.Subject, session.Name, session.Source, session.CreatedAt, session.ExpiresAt)
+	if err != nil {
+		return fmt.Errorf("create session: %w", err)
+	}
+	return nil
+}
+
+// An expired session is reported as missing, so a caller cannot accidentally
+// honour one by forgetting to check the time.
+func (s *SQLiteStore) GetSession(id string) (models.Session, error) {
+	var session models.Session
+	err := s.db.QueryRow(`SELECT id, subject, name, source, created_at, expires_at FROM sessions WHERE id = ?`, id).
+		Scan(&session.ID, &session.Subject, &session.Name, &session.Source, &session.CreatedAt, &session.ExpiresAt)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return models.Session{}, ErrNotFound
+		}
+		return models.Session{}, fmt.Errorf("get session: %w", err)
+	}
+	if !session.ExpiresAt.After(time.Now()) {
+		return models.Session{}, ErrNotFound
+	}
+	return session, nil
+}
+
+func (s *SQLiteStore) DeleteSession(id string) error {
+	if _, err := s.db.Exec(`DELETE FROM sessions WHERE id = ?`, id); err != nil {
+		return fmt.Errorf("delete session: %w", err)
+	}
+	return nil
+}
+
+func (s *SQLiteStore) DeleteExpiredSessions() error {
+	now := time.Now()
+	if _, err := s.db.Exec(`DELETE FROM sessions WHERE expires_at <= ?`, now); err != nil {
+		return fmt.Errorf("sweep sessions: %w", err)
+	}
+	if _, err := s.db.Exec(`DELETE FROM login_flows WHERE expires_at <= ?`, now); err != nil {
+		return fmt.Errorf("sweep login flows: %w", err)
+	}
+	return nil
+}
+
+func (s *SQLiteStore) CreateLoginFlow(flow models.LoginFlow) error {
+	_, err := s.db.Exec(`INSERT INTO login_flows (state, verifier, nonce, expires_at) VALUES (?, ?, ?, ?)`,
+		flow.State, flow.Verifier, flow.Nonce, flow.ExpiresAt)
+	if err != nil {
+		return fmt.Errorf("create login flow: %w", err)
+	}
+	return nil
+}
+
+// Taking the flow deletes it: a state may be redeemed once, so a replayed
+// callback finds nothing.
+func (s *SQLiteStore) TakeLoginFlow(state string) (models.LoginFlow, error) {
+	var flow models.LoginFlow
+	err := s.db.QueryRow(`DELETE FROM login_flows WHERE state = ? RETURNING state, verifier, nonce, expires_at`, state).
+		Scan(&flow.State, &flow.Verifier, &flow.Nonce, &flow.ExpiresAt)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return models.LoginFlow{}, ErrNotFound
+		}
+		return models.LoginFlow{}, fmt.Errorf("take login flow: %w", err)
+	}
+	if !flow.ExpiresAt.After(time.Now()) {
+		return models.LoginFlow{}, ErrNotFound
+	}
+	return flow, nil
 }
