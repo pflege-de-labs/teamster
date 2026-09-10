@@ -120,7 +120,8 @@ See the JSON examples in [samples](samples):
 
 The admin UI needs a session. Configure either or both:
 
-- **An OIDC provider.** Set `auth.oidc-issuer`, `auth.oidc-client-id` and `auth.oidc-redirect-url`,
+- **An OIDC provider.** Point `auth.oidc-discovery-url` at the provider's
+  `/.well-known/openid-configuration`, and set `auth.oidc-client-id` and `auth.oidc-redirect-url`,
   then name the claim that grants access. For Keycloak that is usually `realm_access.roles` for a
   realm role, or `resource_access.<client>.roles` for a client role — and `auth.allowed` lists the
   role names accepted. A public client using PKCE needs no secret.
