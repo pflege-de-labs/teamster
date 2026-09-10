@@ -97,6 +97,19 @@ POST /webhook/alertmanager        POST /webhook/universal
 Any other `status` value is rejected. Handler errors map to `400` for malformed JSON, `401` for a
 bad token, and `502` when routing, rendering, the store or Graph fails.
 
+## Routing visualization
+
+`/admin/routing` draws routes against their destinations and templates, and answers which route a
+set of labels would take. `GET /api/routing/graph` builds the graph server-side, resolving the
+identifiers a route stores into labelled nodes; a route pointing at something deleted becomes a
+node marked missing rather than a dropped link, because that broken state is what the view exists
+to show.
+
+`POST /api/routing/match` returns the winning route and **why** it won — `selector`, `default`,
+`none` or `no-routes`. That reason comes from `routing.Match`, which holds the rule in one place;
+`SelectRoute`, used by the delivery path, is a wrapper over it. The browser never re-implements
+selector matching, so the answer cannot drift from what actually delivers alerts.
+
 ## Routing rules
 
 `routing.SelectRoute` sorts routes by descending priority, breaking ties on name, and returns the

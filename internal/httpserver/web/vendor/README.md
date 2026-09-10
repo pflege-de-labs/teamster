@@ -5,6 +5,7 @@ Renovate cannot see these files; refresh them by hand.
 
 | File | Package | Version | License | SHA-256 |
 | --- | --- | --- | --- | --- |
+| `d3.min.js` | [d3](https://www.npmjs.com/package/d3) | 7.9.0 | ISC | `f2094bbf6141b359722c4fe454eb6c4b0f0e42cc10cc7af921fc158fceb86539` |
 | `adaptivecards.min.js` | [adaptivecards](https://www.npmjs.com/package/adaptivecards) | 3.0.6 | MIT | `5e7c13f3300ae7b89b34703501e08d709fbb6635f1c6755b92495577a77344f2` |
 
 Refresh with:

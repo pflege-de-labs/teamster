@@ -140,6 +140,13 @@ back in if the provider is unreachable or the claim is wrong.
 `/api` continues to accept those same credentials as HTTP basic auth, so existing automation keeps
 working.
 
+## Routing visualization
+
+`/admin/routing` shows routes against their destinations and templates, and answers "which route
+would this alert take?" — paste `key=value` labels and the matching route is named, explained and
+highlighted in the graph. A route pointing at a deleted destination or template shows up as a
+missing node rather than disappearing.
+
 ## Container
 
 ```bash

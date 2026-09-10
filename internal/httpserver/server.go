@@ -64,9 +64,12 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger) *htt
 	adminMux.HandleFunc("/api/routes", api.handleRoutes)
 	adminMux.HandleFunc("/api/routes/", api.handleRouteByID)
 	adminMux.HandleFunc("/api/templates/preview", api.handlePreview)
+	adminMux.HandleFunc("/api/routing/graph", api.handleRoutingGraph)
+	adminMux.HandleFunc("/api/routing/match", api.handleRoutingMatch)
 	adminMux.HandleFunc("/api/graph/teams", api.handleGraphTeams)
 	adminMux.HandleFunc("/api/graph/teams/", api.handleGraphChannels)
 	adminMux.HandleFunc("/admin", api.handleAdminPage)
+	adminMux.HandleFunc("/admin/routing", api.handleRoutingPage)
 	adminMux.HandleFunc("/admin/templates", api.formPost(api.saveTemplate))
 	adminMux.HandleFunc("/admin/templates/delete", api.formPost(api.deleteTemplate))
 	adminMux.HandleFunc("/admin/destinations", api.formPost(api.saveDestination))
@@ -85,7 +88,7 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger) *htt
 	// before anyone has a session, and none of them is sensitive.
 	for _, asset := range []string{
 		"/favicon.ico", "/site.webmanifest", "/styles.css",
-		"/preview.js", "/pickers.js", "/icons/", "/vendor/",
+		"/preview.js", "/pickers.js", "/routing.js", "/icons/", "/vendor/",
 	} {
 		mux.HandleFunc(asset, api.handleAssets)
 	}

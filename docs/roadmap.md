@@ -83,7 +83,7 @@ Needs an ADR: it changes the trust model and adds session state to a service tha
 
 **Prerequisite:** a client registration in the IdP with the redirect URL, and a secret to store.
 
-## Milestone 3 — Routing visualization
+## Milestone 3 — Routing visualization — done
 
 A graph of routes to destinations and templates, so an operator can see which alert reaches which
 channel without reading a table of label selectors, plus a check that answers "which route would
@@ -173,7 +173,7 @@ this service actually uses. The decision gets its own ADR when we get there.
 | — | 1.4 Template preview | — | done |
 | — | 1.3 Teams picker | — | done |
 | — | 2 OIDC login | — | done |
-| 4 | 3 Routing visualization | vendored D3 | — |
+| — | 3 Routing visualization | — | done |
 | 5 | 4 Card editor | 1.4 | decision after 1.4 |
 
 1.3 sits after 1.4 because it is the only item waiting on someone else to grant a permission.
