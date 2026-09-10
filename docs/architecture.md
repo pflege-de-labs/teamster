@@ -114,6 +114,11 @@ the request to prove its origin, because basic auth credentials travel with a cr
 there is no session to hold a CSRF token. See
 [ADR 0008](adr/0008-templ-tailwind-admin-ui.md).
 
+`POST /api/templates/preview` renders a template body against a built-in sample alert through the
+same `templates.Render` the delivery path uses, and returns the Adaptive Card JSON. The browser
+draws it with the vendored renderer in `web/vendor`. A template that fails to render comes back as
+an error field with status 200, because a broken template is the answer the operator asked for.
+
 Regenerating the UI needs `make generate`, which runs templ and Tailwind. Their output is
 committed, so building the service does not.
 

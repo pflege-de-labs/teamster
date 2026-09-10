@@ -23,6 +23,9 @@ type Page struct {
 	Notice       string
 	Error        string
 
+	// Sample alerts the preview can render the template against.
+	PreviewSamples []string
+
 	// A nil Edit* means the matching form creates rather than updates.
 	EditTemplate    *models.Template
 	EditDestination *models.Destination

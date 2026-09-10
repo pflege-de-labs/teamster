@@ -44,6 +44,7 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger) *htt
 	adminMux.HandleFunc("/api/destinations/", api.handleDestinationByID)
 	adminMux.HandleFunc("/api/routes", api.handleRoutes)
 	adminMux.HandleFunc("/api/routes/", api.handleRouteByID)
+	adminMux.HandleFunc("/api/templates/preview", api.handlePreview)
 	adminMux.HandleFunc("/admin", api.handleAdminPage)
 	adminMux.HandleFunc("/admin/templates", api.formPost(api.saveTemplate))
 	adminMux.HandleFunc("/admin/templates/delete", api.formPost(api.deleteTemplate))

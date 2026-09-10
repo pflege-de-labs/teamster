@@ -22,8 +22,9 @@ func (s *Server) handleAdminPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	page := views.Page{
-		Notice: r.URL.Query().Get("notice"),
-		Error:  r.URL.Query().Get("error"),
+		Notice:         r.URL.Query().Get("notice"),
+		Error:          r.URL.Query().Get("error"),
+		PreviewSamples: previewSamples(),
 	}
 
 	var err error

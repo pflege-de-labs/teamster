@@ -206,6 +206,11 @@ The hooks format Go with the same settings CI checks, lint Markdown, and reject 
 that are not [Conventional Commits](https://www.conventionalcommits.org). They need
 [pre-commit](https://pre-commit.com) on your PATH.
 
+The template form has a Preview button: the server renders the template against a sample alert and
+the browser draws the resulting Adaptive Card, so a template can be checked before any alert
+arrives. The renderer is vendored in `internal/httpserver/web/vendor`; see the README there to
+refresh it.
+
 The admin UI is rendered from [templ](https://github.com/a-h/templ) components in
 `internal/httpserver/views`, styled with Tailwind. Both generators run through `make generate`,
 and their output is committed, so building or testing the service needs neither of them —

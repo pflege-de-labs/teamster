@@ -10,9 +10,9 @@ repos:
       # Generated artifacts are excluded: the hook would append a newline that
       # the generator strips on the next run, and the two would fight forever.
       - id: trailing-whitespace
-        exclude: (\.golden|_templ\.go|web/styles\.css)$
+        exclude: (\.golden|_templ\.go|web/styles\.css)$|web/vendor/
       - id: end-of-file-fixer
-        exclude: (_templ\.go|web/styles\.css)$
+        exclude: (_templ\.go|web/styles\.css)$|web/vendor/
       - id: mixed-line-ending
         args: [--fix=lf]
       - id: check-merge-conflict
