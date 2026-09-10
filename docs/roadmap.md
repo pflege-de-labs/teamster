@@ -63,7 +63,7 @@ payload choices, and a rendering error is reported in the response rather than s
 This keeps templating in one implementation, which matters because a preview that disagrees with
 what Teams receives is worse than no preview.
 
-## Milestone 2 — OIDC login for the admin UI
+## Milestone 2 — OIDC login for the admin UI — done
 
 Basic auth means one shared password with no attribution: every change in the audit trail is
 `admin`. Replace it with an OIDC authorization code flow with PKCE against any provider that
@@ -111,7 +111,7 @@ this service actually uses. The decision gets its own ADR when we get there.
 | — | 1.2 Fuller lists | — | done |
 | — | 1.4 Template preview | — | done |
 | — | 1.3 Teams picker | — | done |
-| 3 | 2 OIDC login | — | IdP client registration |
+| — | 2 OIDC login | — | done |
 | 4 | 3 Routing visualization | vendored D3 | — |
 | 5 | 4 Card editor | 1.4 | decision after 1.4 |
 

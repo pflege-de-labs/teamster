@@ -23,4 +23,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0006](0006-release-rebuild-sbom-signing.md) | Releases rebuild, carry an SBOM and are signed | Accepted |
 | [0007](0007-renovate-dependency-updates.md) | Dependency updates run through Renovate | Accepted |
 | [0008](0008-templ-tailwind-admin-ui.md) | The admin UI is server-rendered with templ and Tailwind | Accepted |
-| [0009](0009-admin-authentication.md) | Admin authentication by Keycloak login or local credentials | Proposed |
+| [0009](0009-admin-authentication.md) | Admin authentication by Keycloak login or local credentials | Accepted |
