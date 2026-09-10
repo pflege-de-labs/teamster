@@ -246,3 +246,98 @@ func (s stubStore) CreateLoginFlow(models.LoginFlow) error { return store.ErrNot
 func (s stubStore) TakeLoginFlow(string) (models.LoginFlow, error) {
 	return models.LoginFlow{}, store.ErrNotFound
 }
+
+// A route alone does not say why it won, which is the whole point of asking
+// "which route would this alert take?".
+func TestMatchReportsWhy(t *testing.T) {
+	t.Parallel()
+
+	routes := []models.Route{
+		{ID: "critical", Name: "Critical", LabelSelector: map[string]string{"severity": "critical"}, Priority: 100},
+		{ID: "fallback", Name: "Fallback", IsDefault: true, Priority: 1},
+	}
+
+	tests := []struct {
+		name       string
+		routes     []models.Route
+		labels     map[string]string
+		wantReason Reason
+		wantRoute  string
+	}{
+		{
+			name: "a selector matches", routes: routes,
+			labels:     map[string]string{"severity": "critical"},
+			wantReason: ReasonSelector, wantRoute: "critical",
+		},
+		{
+			name: "nothing matches, the default takes it", routes: routes,
+			labels:     map[string]string{"severity": "warning"},
+			wantReason: ReasonDefault, wantRoute: "fallback",
+		},
+		{
+			name:       "nothing matches and there is no default",
+			routes:     routes[:1],
+			labels:     map[string]string{"severity": "warning"},
+			wantReason: ReasonNone,
+		},
+		{
+			name:       "no routes at all",
+			labels:     map[string]string{"severity": "critical"},
+			wantReason: ReasonNoRoutes,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			route, reason, err := New(stubStore{routes: tt.routes}).Match(tt.labels)
+			if err != nil {
+				t.Fatalf("Match: %v", err)
+			}
+			if reason != tt.wantReason {
+				t.Errorf("reason = %q, want %q", reason, tt.wantReason)
+			}
+			if route.ID != tt.wantRoute {
+				t.Errorf("route = %q, want %q", route.ID, tt.wantRoute)
+			}
+		})
+	}
+}
+
+// SelectRoute is now a wrapper, and the delivery path depends on its errors.
+func TestSelectRouteKeepsItsErrors(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		routes  []models.Route
+		wantErr string
+	}{
+		{name: "no routes", wantErr: "no routes configured"},
+		{
+			name:    "no match and no default",
+			routes:  []models.Route{{ID: "a", LabelSelector: map[string]string{"severity": "critical"}}},
+			wantErr: "no matching route and no default route",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := New(stubStore{routes: tt.routes}).SelectRoute(map[string]string{"severity": "warning"})
+			if err == nil || err.Error() != tt.wantErr {
+				t.Errorf("SelectRoute() = %v, want %q", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestMatchReportsStoreFailures(t *testing.T) {
+	t.Parallel()
+
+	if _, _, err := New(stubStore{err: errors.New("store down")}).Match(nil); err == nil {
+		t.Error("Match() = nil error, want the store failure surfaced")
+	}
+}

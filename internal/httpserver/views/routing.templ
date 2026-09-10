@@ -1,0 +1,33 @@
+package views
+
+templ RoutingPage() {
+	@Layout("Routing — Teamster", true) {
+		<section class="rounded-lg border border-slate-200 bg-white shadow-sm">
+			<h2 class="border-b border-slate-200 px-6 py-4 text-lg font-semibold">Which route would an alert take?</h2>
+			<div class="grid gap-8 px-6 py-6 lg:grid-cols-3">
+				<form id="match-form" class="space-y-3 lg:col-span-1">
+					@textareaField("labels", "Labels, one key=value per line", "severity=critical\nalertname=HighCPU", "6")
+					@submit("Check")
+					<div id="match-result" class="empty:hidden"></div>
+				</form>
+				<div class="lg:col-span-2">
+					<div class="mb-3 flex flex-wrap gap-3 text-xs text-slate-600">
+						@legendSwatch("bg-sky-500", "route")
+						@legendSwatch("bg-emerald-500", "destination")
+						@legendSwatch("bg-amber-500", "template")
+						@legendSwatch("bg-red-500", "missing")
+					</div>
+					<div id="routing-graph" class="h-[32rem] w-full rounded-md border border-slate-200 bg-slate-50"></div>
+					<p class="mt-2 text-xs text-slate-500">Drag a node to rearrange it, scroll to zoom.</p>
+				</div>
+			</div>
+		</section>
+	}
+}
+
+templ legendSwatch(colour, label string) {
+	<span class="inline-flex items-center gap-1.5">
+		<span class={ "inline-block h-2.5 w-2.5 rounded-full", colour }></span>
+		{ label }
+	</span>
+}
