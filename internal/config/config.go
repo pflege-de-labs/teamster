@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"time"
 )
 
@@ -75,6 +76,11 @@ func Validate(cfg Config) error {
 		}
 		if cfg.Auth.OIDCRedirectURL == "" {
 			return fmt.Errorf("auth oidc-redirect-url is required when a discovery URL is configured")
+		}
+		// A path alone is sent to the provider verbatim and rejected there, far
+		// from the configuration that caused it.
+		if redirect, err := url.Parse(cfg.Auth.OIDCRedirectURL); err != nil || !redirect.IsAbs() {
+			return fmt.Errorf("auth oidc-redirect-url must be an absolute URL, as registered with the provider, not %q", cfg.Auth.OIDCRedirectURL)
 		}
 		if len(cfg.Auth.Allowed) == 0 {
 			return fmt.Errorf("auth allowed is required when a discovery URL is configured")
