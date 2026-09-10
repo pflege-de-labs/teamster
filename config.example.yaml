@@ -26,7 +26,8 @@ auth:
   oidc-redirect-url: "https://teamster.example/admin/auth/callback"
   oidc-scopes: ["profile", "email", "roles"]
   # Keycloak nests roles: realm roles live here, client roles under
-  # resource_access.<client>.roles.
+  # resource_access.<client>.roles. The claim is read from the id token, then
+  # userinfo, then the access token, so Keycloak's default mappers suffice.
   claim: "realm_access.roles"
   allowed: ["admin"]
   session-ttl: "12h"

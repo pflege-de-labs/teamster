@@ -2,11 +2,13 @@ package httpserver
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -216,9 +218,9 @@ func (s *Server) verifyIDToken(ctx context.Context, provider *oidc.Provider, tok
 		return "", "", fmt.Errorf("read claims: %w", err)
 	}
 
-	if !allowedByClaim(claims, s.cfg.Auth.Claim, s.cfg.Auth.Allowed) {
-		// Naming the claim turns a lockout into a configuration fix.
-		return "", "", fmt.Errorf("signed in, but %s carries none of the values that grant access", s.cfg.Auth.Claim)
+	values, source := s.membership(ctx, provider, token, claims)
+	if !matchesAny(values, s.cfg.Auth.Allowed) {
+		return "", "", membershipError(s.cfg.Auth.Claim, s.cfg.Auth.Allowed, values, source)
 	}
 
 	name, _ := claims["preferred_username"].(string)
@@ -226,6 +228,77 @@ func (s *Server) verifyIDToken(ctx context.Context, provider *oidc.Provider, tok
 		name, _ = claims["name"].(string)
 	}
 	return idToken.Subject, name, nil
+}
+
+// membership looks for the configured claim in the id token, then in userinfo,
+// then in the access token. Keycloak's role mappers add roles to the access
+// token by default and leave the id token without them, so an id-token-only
+// lookup rejects a correctly configured realm.
+func (s *Server) membership(ctx context.Context, provider *oidc.Provider, token *oauth2.Token, claims map[string]any) ([]string, string) {
+	if values := claimValues(claims, s.cfg.Auth.Claim); len(values) > 0 {
+		return values, "the id token"
+	}
+
+	if info, err := provider.UserInfo(ctx, oauth2.StaticTokenSource(token)); err != nil {
+		logError("userinfo", err)
+	} else {
+		var infoClaims map[string]any
+		if err := info.Claims(&infoClaims); err != nil {
+			logError("userinfo claims", err)
+		} else if values := claimValues(infoClaims, s.cfg.Auth.Claim); len(values) > 0 {
+			return values, "userinfo"
+		}
+	}
+
+	if values := claimValues(accessTokenClaims(token.AccessToken), s.cfg.Auth.Claim); len(values) > 0 {
+		return values, "the access token"
+	}
+	return nil, ""
+}
+
+// accessTokenClaims reads the payload without verifying it. The token came
+// straight from the token endpoint over TLS alongside an id token that was
+// verified, and it is only ever read to look up membership.
+func accessTokenClaims(accessToken string) map[string]any {
+	parts := strings.Split(accessToken, ".")
+	if len(parts) != 3 {
+		return nil
+	}
+
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return nil
+	}
+
+	var claims map[string]any
+	if err := json.Unmarshal(payload, &claims); err != nil {
+		return nil
+	}
+	return claims
+}
+
+func matchesAny(values, allowed []string) bool {
+	for _, value := range values {
+		for _, want := range allowed {
+			if value == want {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// The message has to be enough to fix the configuration without reading the
+// provider's logs, so it distinguishes a claim that is missing everywhere from
+// one that is present with the wrong values.
+func membershipError(claim string, allowed, values []string, source string) error {
+	if len(values) == 0 {
+		return fmt.Errorf("signed in, but %s was not in the id token, in userinfo or in the access token. "+
+			"In Keycloak, the role mappers add roles to the access token only unless their id token setting is enabled, "+
+			"and a client role appears under resource_access.<client>.roles rather than realm_access.roles", claim)
+	}
+	return fmt.Errorf("signed in, but %s in %s carries %v, and access needs one of %v",
+		claim, source, values, allowed)
 }
 
 // providerError keeps the description the provider sent. The code alone reads

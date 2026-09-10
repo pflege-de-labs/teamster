@@ -1,7 +1,9 @@
 package httpserver
 
 import (
+	"encoding/base64"
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -91,6 +93,126 @@ func TestAllowedByClaim(t *testing.T) {
 
 			if got := allowedByClaim(claims, tt.path, tt.allowed); got != tt.want {
 				t.Errorf("allowedByClaim(%q, %v) = %v, want %v", tt.path, tt.allowed, got, tt.want)
+			}
+		})
+	}
+}
+
+// Keycloak's role mappers populate the access token by default and leave the id
+// token without roles, so reading only the id token rejects a realm that is
+// configured correctly.
+func TestAccessTokenClaims(t *testing.T) {
+	t.Parallel()
+
+	payload := base64.RawURLEncoding.EncodeToString([]byte(
+		`{"realm_access":{"roles":["admin"]},"resource_access":{"teamster":{"roles":["operator"]}}}`))
+	token := "header." + payload + ".signature"
+
+	tests := []struct {
+		name  string
+		token string
+		path  string
+		want  string
+	}{
+		{name: "realm roles", token: token, path: "realm_access.roles", want: "admin"},
+		{name: "client roles", token: token, path: "resource_access.teamster.roles", want: "operator"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			values := claimValues(accessTokenClaims(tt.token), tt.path)
+			if len(values) != 1 || values[0] != tt.want {
+				t.Errorf("claimValues(accessTokenClaims(...), %q) = %v, want [%s]", tt.path, values, tt.want)
+			}
+		})
+	}
+}
+
+func TestAccessTokenClaimsRejectsRubbish(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		token string
+	}{
+		{name: "empty"},
+		{name: "not a jwt", token: "opaque-access-token"},
+		{name: "wrong segment count", token: "only.two"},
+		{name: "payload is not base64", token: "header.!!!!.signature"},
+		{name: "payload is not json", token: "header." + base64.RawURLEncoding.EncodeToString([]byte("nope")) + ".sig"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := accessTokenClaims(tt.token); got != nil {
+				t.Errorf("accessTokenClaims(%q) = %v, want nil", tt.token, got)
+			}
+		})
+	}
+}
+
+// The refusal has to be enough to fix the configuration without reading the
+// provider's logs.
+func TestMembershipErrorExplainsWhy(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		values []string
+		source string
+		want   []string
+	}{
+		{
+			name: "claim missing everywhere",
+			want: []string{"not in the id token", "userinfo", "access token", "resource_access.<client>.roles"},
+		},
+		{
+			name:   "claim present with other values",
+			values: []string{"viewer", "developer"},
+			source: "the access token",
+			want:   []string{"the access token", "viewer", "developer", "admin"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := membershipError("realm_access.roles", []string{"admin"}, tt.values, tt.source)
+			for _, want := range tt.want {
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("error %q does not mention %q", err, want)
+				}
+			}
+		})
+	}
+}
+
+func TestMatchesAny(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		values  []string
+		allowed []string
+		want    bool
+	}{
+		{name: "one of several", values: []string{"viewer", "admin"}, allowed: []string{"admin"}, want: true},
+		{name: "no overlap", values: []string{"viewer"}, allowed: []string{"admin"}},
+		{name: "nothing configured", values: []string{"admin"}},
+		{name: "nothing carried", allowed: []string{"admin"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := matchesAny(tt.values, tt.allowed); got != tt.want {
+				t.Errorf("matchesAny(%v, %v) = %v, want %v", tt.values, tt.allowed, got, tt.want)
 			}
 		})
 	}
