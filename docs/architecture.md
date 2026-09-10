@@ -37,6 +37,17 @@ cancellation it calls `http.Server.Shutdown` with `server.shutdown-timeout` (def
 in-flight requests, then closes the store. A second signal kills the process outright. See
 [ADR 0003](adr/0003-kong-commands-and-graceful-shutdown.md).
 
+Connections are bounded by `server.read-timeout`, `server.write-timeout` and
+`server.idle-timeout`, with the header deadline capped at ten seconds or the read timeout,
+whichever is shorter. Without them a slow client holds a connection indefinitely. The write timeout
+has to exceed `graph.timeout-sec`, or a handler waiting on Microsoft Graph is cut off before Graph
+itself gives up.
+
+The server deliberately sets no `BaseContext`. The only context worth putting there is the one a
+signal cancels, and that would cancel every in-flight request the moment SIGTERM arrives — exactly
+what the draining shutdown exists to avoid. Request contexts therefore stand alone, and shutdown
+waits for the handlers rather than interrupting them.
+
 ## Deployment
 
 The container image is built multi-stage: `golang:1.24` compiles a static binary with

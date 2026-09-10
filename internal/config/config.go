@@ -18,6 +18,9 @@ type Config struct {
 type ServerConfig struct {
 	Addr            string        `help:"Address the HTTP server listens on." default:":8080"`
 	ShutdownTimeout time.Duration `help:"How long to wait for in-flight requests when shutting down." default:"15s"`
+	ReadTimeout     time.Duration `help:"How long a client may take to send a request, headers and body." default:"15s"`
+	WriteTimeout    time.Duration `help:"How long a handler may take to answer; must exceed graph-timeout-sec." default:"60s"`
+	IdleTimeout     time.Duration `help:"How long an idle keep-alive connection is held open." default:"120s"`
 }
 
 type DatabaseConfig struct {

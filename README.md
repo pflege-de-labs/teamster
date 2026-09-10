@@ -201,6 +201,10 @@ docker run --rm -p 8080:8080 --read-only \
   teamster:latest
 ```
 
+Connections are bounded by `server.read-timeout`, `server.write-timeout` and
+`server.idle-timeout`. If you raise `graph.timeout-sec`, raise the write timeout past it, or a
+handler waiting on Microsoft Graph is cut off first.
+
 `--read-only` works because `/data` is the only path the service writes; see
 [SECURITY.md](SECURITY.md) for the rest of the deployment expectations.
 
