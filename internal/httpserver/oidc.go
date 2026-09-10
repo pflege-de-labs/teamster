@@ -155,7 +155,7 @@ func (s *Server) handleAuthCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if authErr := r.URL.Query().Get("error"); authErr != "" {
-		loginFailed(w, r, authErr)
+		loginFailed(w, r, providerError(authErr, r.URL.Query().Get("error_description")))
 		return
 	}
 
@@ -226,6 +226,16 @@ func (s *Server) verifyIDToken(ctx context.Context, provider *oidc.Provider, tok
 		name, _ = claims["name"].(string)
 	}
 	return idToken.Subject, name, nil
+}
+
+// providerError keeps the description the provider sent. The code alone reads
+// as "access_denied" for anything from a declined consent to a broken upstream
+// federation, and the description is what distinguishes them.
+func providerError(code, description string) string {
+	if description == "" {
+		return code
+	}
+	return code + ": " + description
 }
 
 func loginFailed(w http.ResponseWriter, r *http.Request, message string) {
