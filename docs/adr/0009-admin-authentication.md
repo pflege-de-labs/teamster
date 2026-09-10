@@ -26,6 +26,13 @@ Two ways in, both ending in the same session:
 
 * **Keycloak**, via authorization code flow with PKCE. Endpoints come from discovery at the
   configured issuer, so no endpoint is hardcoded and any conformant provider works.
+
+  The registered client is **public**: `teamster`, PKCE `S256`, no client secret. The code
+  exchange is therefore authenticated by the PKCE verifier alone rather than by a client
+  credential. That is the point of PKCE and it removes a secret from the configuration, but it
+  means the redirect URI registered at the provider is the only thing binding the flow to this
+  service — so it must be registered exactly, not as a wildcard. The client secret setting stays
+  in the configuration as an optional value, because a confidential client is equally valid.
 * **Local username and password**, entered in a login form rather than a browser basic-auth
   dialog. This is the bootstrap path for a deployment with no IdP, and the way back in when
   Keycloak is unreachable. It authenticates against the existing configured credentials.
@@ -50,6 +57,13 @@ Authentication is not authorization. A configured claim decides who may administ
   default.
 * `auth-allowed` lists the accepted values. A token carrying none of them is authenticated but
   refused, and the refusal says so rather than looping back to the IdP.
+* Configuring an issuer without any accepted value refuses to start. Failing closed is the only
+  safe reading: the alternative is a deployment that quietly admits everyone the realm will
+  authenticate.
+
+The realm at `https://login.fsb.p4e.io/auth/realms/internal` publishes both a `groups` and a
+`roles` scope, so either a `groups` claim or `realm_access.roles` can carry membership. Which one
+is used is configuration, not code.
 
 A user who logs in with the local credentials is authorized implicitly; possession of the
 configured password is the check.
@@ -71,7 +85,7 @@ integrations. Replacing it with per-integration API tokens is a reasonable later
 | `POST /admin/login` | Local credential login |
 | `GET /admin/auth/start` | Begins the OIDC flow |
 | `GET /admin/auth/callback` | Registered redirect URI; exchanges the code and creates the session |
-| `POST /admin/logout` | Deletes the session, then redirects to Keycloak's `end_session_endpoint` when one is advertised |
+| `POST /admin/logout` | Deletes the session, then redirects to Keycloak's `end_session_endpoint`, which this realm advertises |
 
 `state`, `nonce` and the PKCE verifier are held server-side in the same table as short-lived
 pre-authentication rows, so a forged callback cannot complete a flow this service did not start.
