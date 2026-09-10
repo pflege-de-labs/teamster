@@ -1,6 +1,12 @@
 server:
   addr: ":8080"
   shutdown-timeout: "15s"
+  # A slow client holds a connection until one of these expires.
+  read-timeout: "15s"
+  # Must exceed graph.timeout-sec below, or a handler waiting on Microsoft
+  # Graph is cut off before Graph itself gives up.
+  write-timeout: "60s"
+  idle-timeout: "120s"
 
 database:
   path: "teamster.db"

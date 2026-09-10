@@ -55,7 +55,13 @@ func TestParseExampleConfig(t *testing.T) {
 
 	got := parse(t, nil, "../../config.example.yaml")
 	want := Config{
-		Server:   ServerConfig{Addr: ":8080", ShutdownTimeout: 15 * time.Second},
+		Server: ServerConfig{
+			Addr:            ":8080",
+			ShutdownTimeout: 15 * time.Second,
+			ReadTimeout:     15 * time.Second,
+			WriteTimeout:    time.Minute,
+			IdleTimeout:     2 * time.Minute,
+		},
 		Database: DatabaseConfig{Path: "teamster.db"},
 		Webhook:  WebhookConfig{Token: "replace-with-shared-token"},
 		Admin:    AdminConfig{Username: "admin", Password: "change-me"},

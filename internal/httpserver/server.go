@@ -3,6 +3,7 @@ package httpserver
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/pflege-de-labs/teamster/internal/config"
 	"github.com/pflege-de-labs/teamster/internal/graph"
@@ -26,6 +27,17 @@ type Server struct {
 	directory  *directoryCache
 	oidc       *oidcProvider
 	httpServer *http.Server
+}
+
+// headerGrace bounds how long a client may dawdle over request headers, which
+// is the cheapest slow-client attack to mount.
+const headerGrace = 10 * time.Second
+
+func readHeaderTimeout(readTimeout time.Duration) time.Duration {
+	if readTimeout > 0 && readTimeout < headerGrace {
+		return readTimeout
+	}
+	return headerGrace
 }
 
 func NewServer(cfg config.Config, store store.Store, graphClient messenger) *http.Server {
@@ -86,9 +98,16 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger) *htt
 	mux.Handle("/admin/", api.requireSession(adminMux))
 	mux.Handle("/", api.requireSession(adminMux))
 
+	// No BaseContext: it would have to be the context that a signal cancels,
+	// and cancelling every in-flight request the moment SIGTERM arrives is the
+	// opposite of the draining shutdown in ADR 0003.
 	api.httpServer = &http.Server{
-		Addr:    cfg.Server.Addr,
-		Handler: api.logging(mux),
+		Addr:              cfg.Server.Addr,
+		Handler:           api.logging(mux),
+		ReadHeaderTimeout: readHeaderTimeout(cfg.Server.ReadTimeout),
+		ReadTimeout:       cfg.Server.ReadTimeout,
+		WriteTimeout:      cfg.Server.WriteTimeout,
+		IdleTimeout:       cfg.Server.IdleTimeout,
 	}
 
 	return api.httpServer
