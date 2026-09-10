@@ -36,7 +36,7 @@ type AdminConfig struct {
 // GraphConfig: that is a machine credential for posting cards, this is how a
 // person signs in.
 type AuthConfig struct {
-	OIDCIssuer       string        `help:"OIDC issuer URL; discovery decides the endpoints." name:"oidc-issuer"`
+	OIDCDiscoveryURL string        `help:"URL of the provider's /.well-known/openid-configuration document." name:"oidc-discovery-url"`
 	OIDCClientID     string        `help:"OIDC client ID." name:"oidc-client-id"`
 	OIDCClientSecret string        `help:"OIDC client secret; omit for a public client using PKCE." name:"oidc-client-secret"`
 	OIDCRedirectURL  string        `help:"Absolute URL of /admin/auth/callback as registered with the provider." name:"oidc-redirect-url"`
@@ -69,18 +69,18 @@ func Validate(cfg Config) error {
 	}
 	// Failing closed: an issuer without accepted values would admit everyone the
 	// provider will authenticate.
-	if cfg.Auth.OIDCIssuer != "" {
+	if cfg.Auth.OIDCDiscoveryURL != "" {
 		if cfg.Auth.OIDCClientID == "" {
-			return fmt.Errorf("auth oidc-client-id is required when an issuer is configured")
+			return fmt.Errorf("auth oidc-client-id is required when a discovery URL is configured")
 		}
 		if cfg.Auth.OIDCRedirectURL == "" {
-			return fmt.Errorf("auth oidc-redirect-url is required when an issuer is configured")
+			return fmt.Errorf("auth oidc-redirect-url is required when a discovery URL is configured")
 		}
 		if len(cfg.Auth.Allowed) == 0 {
-			return fmt.Errorf("auth allowed is required when an issuer is configured")
+			return fmt.Errorf("auth allowed is required when a discovery URL is configured")
 		}
 		if cfg.Auth.Claim == "" {
-			return fmt.Errorf("auth claim is required when an issuer is configured")
+			return fmt.Errorf("auth claim is required when a discovery URL is configured")
 		}
 	}
 	return nil

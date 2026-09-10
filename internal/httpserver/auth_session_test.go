@@ -210,8 +210,8 @@ func TestLoginPageOffersTheConfiguredWaysIn(t *testing.T) {
 		wantNoWays bool
 	}{
 		{name: "local only", local: true, wantForm: true},
-		{name: "oidc only", auth: config.AuthConfig{OIDCIssuer: "https://idp.example"}, wantOIDC: true},
-		{name: "both", auth: config.AuthConfig{OIDCIssuer: "https://idp.example"}, local: true, wantOIDC: true, wantForm: true},
+		{name: "oidc only", auth: config.AuthConfig{OIDCDiscoveryURL: "https://idp.example/.well-known/openid-configuration"}, wantOIDC: true},
+		{name: "both", auth: config.AuthConfig{OIDCDiscoveryURL: "https://idp.example/.well-known/openid-configuration"}, local: true, wantOIDC: true, wantForm: true},
 		{name: "neither", wantNoWays: true},
 	}
 
@@ -271,7 +271,7 @@ func TestAuthCallbackRejectsAnUnknownState(t *testing.T) {
 
 	st := newFakeStore()
 	handler := authServer(t, st, config.AuthConfig{
-		OIDCIssuer: "https://idp.example", OIDCClientID: "teamster",
+		OIDCDiscoveryURL: "https://idp.example/.well-known/openid-configuration", OIDCClientID: "teamster",
 		OIDCRedirectURL: "https://teamster.example/admin/auth/callback",
 		Claim:           "realm_access.roles", Allowed: []string{"admin"},
 	})
@@ -295,7 +295,7 @@ func TestAuthCallbackReportsProviderErrors(t *testing.T) {
 	t.Parallel()
 
 	handler := authServer(t, newFakeStore(), config.AuthConfig{
-		OIDCIssuer: "https://idp.example", OIDCClientID: "teamster",
+		OIDCDiscoveryURL: "https://idp.example/.well-known/openid-configuration", OIDCClientID: "teamster",
 		OIDCRedirectURL: "https://teamster.example/admin/auth/callback",
 		Claim:           "realm_access.roles", Allowed: []string{"admin"},
 	})
@@ -428,5 +428,15 @@ func TestEmptyConfiguredPasswordAdmitsNobody(t *testing.T) {
 				t.Error("the login page offers a password form that cannot succeed")
 			}
 		})
+	}
+}
+
+func authConfigFor(discoveryURL string) config.AuthConfig {
+	return config.AuthConfig{
+		OIDCDiscoveryURL: discoveryURL,
+		OIDCClientID:     "teamster",
+		OIDCRedirectURL:  "https://teamster.example/admin/auth/callback",
+		Claim:            "realm_access.roles",
+		Allowed:          []string{"admin"},
 	}
 }

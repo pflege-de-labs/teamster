@@ -24,8 +24,10 @@ apart.
 
 Two ways in, both ending in the same session:
 
-* **Keycloak**, via authorization code flow with PKCE. Endpoints come from discovery at the
-  configured issuer, so no endpoint is hardcoded and any conformant provider works.
+* **Keycloak**, via authorization code flow with PKCE. The provider is configured by the URL of
+  its `/.well-known/openid-configuration`, not by an issuer from which that location is guessed,
+  because a provider is free to publish the document anywhere. The issuer that ID tokens are
+  verified against is read from that document.
 
   The registered client is **public**: `teamster`, PKCE `S256`, no client secret. The code
   exchange is therefore authenticated by the PKCE verifier alone rather than by a client
@@ -85,7 +87,7 @@ integrations. Replacing it with per-integration API tokens is a reasonable later
 | `POST /admin/login` | Local credential login |
 | `GET /admin/auth/start` | Begins the OIDC flow |
 | `GET /admin/auth/callback` | Registered redirect URI; exchanges the code and creates the session |
-| `POST /admin/logout` | Deletes the session, then redirects to Keycloak's `end_session_endpoint`, which this realm advertises |
+| `POST /admin/logout` | Deletes the session and clears the cookie. It does not yet call the provider's `end_session_endpoint`: that needs a `post_logout_redirect_uri` registered at the provider, so signing out of Teamster leaves the Keycloak session intact for now |
 
 `state`, `nonce` and the PKCE verifier are held server-side in the same table as short-lived
 pre-authentication rows, so a forged callback cannot complete a flow this service did not start.

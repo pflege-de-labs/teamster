@@ -18,8 +18,8 @@ admin:
 # Who may administer the service. Unrelated to the graph section below, which is
 # a machine credential for posting cards.
 auth:
-  # Leave oidc-issuer empty to use the local login only.
-  oidc-issuer: "https://login.example/auth/realms/internal"
+  # Leave oidc-discovery-url empty to use the local login only.
+  oidc-discovery-url: "https://login.example/auth/realms/internal/.well-known/openid-configuration"
   oidc-client-id: "teamster"
   # Omit for a public client using PKCE, which is the recommended setup.
   oidc-client-secret: ""

@@ -109,7 +109,9 @@ repeated `firing` alert therefore edits the existing card instead of posting a n
 an opaque id in an `HttpOnly`, `SameSite=Lax` cookie, marked `Secure` when the request arrived over
 TLS or carried `X-Forwarded-Proto: https`:
 
-* An OIDC authorization code flow with PKCE against the configured issuer. `state`, `nonce` and the
+* An OIDC authorization code flow with PKCE. The provider is configured by the URL of its
+  `/.well-known/openid-configuration`, and the issuer that ID tokens are verified against is read
+  from that document rather than configured separately. `state`, `nonce` and the
   PKCE verifier live in `login_flows` rather than a cookie, and taking a flow deletes it, so a
   replayed or forged callback finds nothing. Access is granted by a claim: `auth-claim` is a dotted
   path, because Keycloak nests roles under `realm_access.roles`, and `auth-allowed` lists the

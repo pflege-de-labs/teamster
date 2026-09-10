@@ -2,8 +2,10 @@ package httpserver
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"sync"
 	"time"
@@ -14,7 +16,12 @@ import (
 	"github.com/pflege-de-labs/teamster/internal/models"
 )
 
-const loginFlowTTL = 10 * time.Minute
+const (
+	loginFlowTTL      = 10 * time.Minute
+	maxDiscoveryBytes = 1 << 20
+)
+
+var discoveryClient = &http.Client{Timeout: 15 * time.Second}
 
 // oidcProvider is discovered lazily so an unreachable identity provider delays
 // a login rather than preventing the service from starting.
@@ -24,7 +31,7 @@ type oidcProvider struct {
 }
 
 func (s *Server) oidcEnabled() bool {
-	return s.cfg.Auth.OIDCIssuer != ""
+	return s.cfg.Auth.OIDCDiscoveryURL != ""
 }
 
 func (s *Server) discover(ctx context.Context) (*oidc.Provider, error) {
@@ -35,12 +42,58 @@ func (s *Server) discover(ctx context.Context) (*oidc.Provider, error) {
 		return s.oidc.provider, nil
 	}
 
-	provider, err := oidc.NewProvider(ctx, s.cfg.Auth.OIDCIssuer)
+	config, err := fetchProviderConfig(ctx, s.cfg.Auth.OIDCDiscoveryURL)
 	if err != nil {
-		return nil, fmt.Errorf("discover %s: %w", s.cfg.Auth.OIDCIssuer, err)
+		return nil, err
 	}
+
+	// The issuer comes from the document rather than from configuration, and id
+	// tokens are then verified against it.
+	provider := config.NewProvider(ctx)
 	s.oidc.provider = provider
 	return provider, nil
+}
+
+// fetchProviderConfig reads the document the operator pointed at, rather than
+// deriving its location from an issuer, because a provider is free to publish
+// it anywhere.
+func fetchProviderConfig(ctx context.Context, discoveryURL string) (*oidc.ProviderConfig, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, discoveryURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("discovery request: %w", err)
+	}
+
+	resp, err := discoveryClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("fetch %s: %w", discoveryURL, err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("fetch %s: %s", discoveryURL, resp.Status)
+	}
+
+	var config oidc.ProviderConfig
+	if err := json.NewDecoder(io.LimitReader(resp.Body, maxDiscoveryBytes)).Decode(&config); err != nil {
+		return nil, fmt.Errorf("decode %s: %w", discoveryURL, err)
+	}
+
+	// Ordered, so a document missing several fields always names the same one.
+	required := []struct {
+		name  string
+		value string
+	}{
+		{"issuer", config.IssuerURL},
+		{"authorization_endpoint", config.AuthURL},
+		{"token_endpoint", config.TokenURL},
+		{"jwks_uri", config.JWKSURL},
+	}
+	for _, field := range required {
+		if field.value == "" {
+			return nil, fmt.Errorf("%s advertises no %s", discoveryURL, field.name)
+		}
+	}
+	return &config, nil
 }
 
 func (s *Server) oauthConfig(provider *oidc.Provider) oauth2.Config {

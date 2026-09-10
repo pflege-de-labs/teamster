@@ -60,13 +60,13 @@ func TestParseExampleConfig(t *testing.T) {
 		Webhook:  WebhookConfig{Token: "replace-with-shared-token"},
 		Admin:    AdminConfig{Username: "admin", Password: "change-me"},
 		Auth: AuthConfig{
-			OIDCIssuer:      "https://login.example/auth/realms/internal",
-			OIDCClientID:    "teamster",
-			OIDCRedirectURL: "https://teamster.example/admin/auth/callback",
-			OIDCScopes:      []string{"profile", "email", "roles"},
-			Claim:           "realm_access.roles",
-			Allowed:         []string{"admin"},
-			SessionTTL:      12 * time.Hour,
+			OIDCDiscoveryURL: "https://login.example/auth/realms/internal/.well-known/openid-configuration",
+			OIDCClientID:     "teamster",
+			OIDCRedirectURL:  "https://teamster.example/admin/auth/callback",
+			OIDCScopes:       []string{"profile", "email", "roles"},
+			Claim:            "realm_access.roles",
+			Allowed:          []string{"admin"},
+			SessionTTL:       12 * time.Hour,
 		},
 		Graph: GraphConfig{
 			TenantID:     "your-tenant-id",
@@ -207,11 +207,11 @@ func TestValidateRefusesIncompleteOIDC(t *testing.T) {
 		Admin:   AdminConfig{Username: "admin", Password: "secret"},
 		Graph:   GraphConfig{TenantID: "tenant", ClientID: "client", ClientSecret: "secret"},
 		Auth: AuthConfig{
-			OIDCIssuer:      "https://login.example/auth/realms/internal",
-			OIDCClientID:    "teamster",
-			OIDCRedirectURL: "https://teamster.example/admin/auth/callback",
-			Claim:           "realm_access.roles",
-			Allowed:         []string{"admin"},
+			OIDCDiscoveryURL: "https://login.example/auth/realms/internal/.well-known/openid-configuration",
+			OIDCClientID:     "teamster",
+			OIDCRedirectURL:  "https://teamster.example/admin/auth/callback",
+			Claim:            "realm_access.roles",
+			Allowed:          []string{"admin"},
 		},
 	}
 
