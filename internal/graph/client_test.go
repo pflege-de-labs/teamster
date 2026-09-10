@@ -318,3 +318,74 @@ func TestListTeamsReturnsEmptyNotNil(t *testing.T) {
 		t.Error("teams is nil, want an empty slice so it encodes as [] rather than null")
 	}
 }
+
+// Graph returns these in no useful order, and they end up in a dropdown someone
+// has to find a name in.
+func TestDirectoryListsAreSortedByName(t *testing.T) {
+	t.Parallel()
+
+	client := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "channels") {
+			_, _ = w.Write([]byte(`{"value":[
+				{"id":"c1","displayName":"Zulu"},
+				{"id":"c2","displayName":"alpha"},
+				{"id":"c3","displayName":"General"}
+			]}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"value":[
+			{"id":"t1","displayName":"Zentrale"},
+			{"id":"t2","displayName":"operations"},
+			{"id":"t3","displayName":"Ops"},
+			{"id":"t4","displayName":"Alerting"}
+		]}`))
+	})
+
+	teams, err := client.ListTeams()
+	if err != nil {
+		t.Fatalf("ListTeams: %v", err)
+	}
+
+	// Case-insensitive: "Ops" and "operations" belong next to each other, not in
+	// separate halves of the list.
+	wantTeams := []string{"Alerting", "operations", "Ops", "Zentrale"}
+	for i, want := range wantTeams {
+		if teams[i].Name != want {
+			t.Errorf("teams[%d] = %q, want %q (got %v)", i, teams[i].Name, want, names(teams))
+		}
+	}
+
+	channels, err := client.ListChannels("t1")
+	if err != nil {
+		t.Fatalf("ListChannels: %v", err)
+	}
+	for i, want := range []string{"alpha", "General", "Zulu"} {
+		if channels[i].Name != want {
+			t.Errorf("channels[%d] = %q, want %q", i, channels[i].Name, want)
+		}
+	}
+}
+
+func TestSortByNameIsStableForEqualNames(t *testing.T) {
+	t.Parallel()
+
+	teams := []Team{{ID: "b", Name: "Ops"}, {ID: "a", Name: "ops"}, {ID: "c", Name: "Ops"}}
+	sortByName(teams, func(t Team) string { return t.Name })
+
+	// Equal names fall back to the exact spelling, then keep their input order,
+	// so a redraw of the dropdown does not shuffle entries around.
+	if teams[0].Name != "Ops" || teams[1].Name != "Ops" || teams[2].Name != "ops" {
+		t.Fatalf("order = %v, want the two Ops before ops", names(teams))
+	}
+	if teams[0].ID != "b" || teams[1].ID != "c" {
+		t.Errorf("ids = %s,%s, want b,c preserved from the input", teams[0].ID, teams[1].ID)
+	}
+}
+
+func names(teams []Team) []string {
+	out := make([]string, 0, len(teams))
+	for _, team := range teams {
+		out = append(out, team.Name)
+	}
+	return out
+}
