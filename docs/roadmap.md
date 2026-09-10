@@ -29,11 +29,13 @@ low-risk, visible, and needs no new authentication model.
 Delivered by the move to server rendering: the handler already holds both lists, so the route form
 uses `select` elements and the route list shows resolved names.
 
-### 1.2 Fuller lists — mostly done
+### 1.2 Fuller lists — done
 
 Routes show their selector, priority and default flag; destinations their team and channel;
 templates their size and last update, and each list has an empty state that says what to create
-first. Sorting is still open.
+first. Each row offers Edit, which reloads `/admin` with that record selected and its form
+prefilled. Sorting was never open: the store orders templates and destinations by name and routes
+by priority then name.
 
 ### 1.3 Teams and channel picker
 
@@ -106,7 +108,7 @@ this service actually uses. The decision gets its own ADR when we get there.
 | Order | Item | Depends on | Blocked by |
 | --- | --- | --- | --- |
 | — | 1.1 Selectable ids | — | done |
-| — | 1.2 Fuller lists | — | done apart from sorting |
+| — | 1.2 Fuller lists | — | done |
 | 1 | 1.4 Template preview | vendored renderer | — |
 | 2 | 1.3 Teams picker | — | Graph permissions and admin consent |
 | 3 | 2 OIDC login | — | IdP client registration |
@@ -119,9 +121,6 @@ this service actually uses. The decision gets its own ADR when we get there.
 
 * Does the vendored card renderer bring the binary size somewhere we are unhappy with? Measure at
   1.4.
-* Editing still means retyping: the forms create and update, but the lists have no edit action
-  that loads a record back into the form. Worth closing with 1.4, where a preview wants the same
-  plumbing.
 * Should the admin API accept a token for automation once OIDC lands, or is basic auth the answer
   for scripts? Decide as part of milestone 2.
 * Vendored JavaScript has no update path today. A checksum file and a documented refresh procedure

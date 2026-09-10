@@ -37,9 +37,47 @@ func (s *Server) handleAdminPage(w http.ResponseWriter, r *http.Request) {
 		page.Error = err.Error()
 	}
 
+	if selected := r.URL.Query().Get("edit"); selected != "" {
+		s.loadForEditing(&page, selected, r.URL.Query().Get("id"))
+	}
+
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := views.Admin(page).Render(r.Context(), w); err != nil {
 		log.Printf("render admin page: %v", err)
+	}
+}
+
+// loadForEditing fills in the record a form should start from. A record that
+// has gone missing is reported on the page, which stays useful, rather than
+// turning the whole request into a 404.
+func (s *Server) loadForEditing(page *views.Page, section, id string) {
+	if id == "" {
+		return
+	}
+
+	var err error
+	switch section {
+	case "templates":
+		var template models.Template
+		if template, err = s.store.GetTemplate(id); err == nil {
+			page.EditTemplate = &template
+		}
+	case "destinations":
+		var destination models.Destination
+		if destination, err = s.store.GetDestination(id); err == nil {
+			page.EditDestination = &destination
+		}
+	case "routes":
+		var route models.Route
+		if route, err = s.store.GetRoute(id); err == nil {
+			page.EditRoute = &route
+		}
+	default:
+		return
+	}
+
+	if err != nil {
+		page.Error = err.Error()
 	}
 }
 
