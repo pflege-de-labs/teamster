@@ -119,6 +119,13 @@ same `templates.Render` the delivery path uses, and returns the Adaptive Card JS
 draws it with the vendored renderer in `web/vendor`. A template that fails to render comes back as
 an error field with status 200, because a broken template is the answer the operator asked for.
 
+`GET /api/graph/teams` and `GET /api/graph/teams/{id}/channels` read the tenant's teams and
+channels through the Graph client, behind a five minute in-memory cache because the Graph throttles
+and those lists barely change. Failures are not cached. The destination form ships its Team and
+Channel fields as ordinary text inputs and a script upgrades them to name-based selects once those
+endpoints answer, so a missing permission, a throttle or an outage costs the convenience rather
+than the ability to configure a destination.
+
 Regenerating the UI needs `make generate`, which runs templ and Tailwind. Their output is
 committed, so building the service does not.
 

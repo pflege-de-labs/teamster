@@ -75,8 +75,8 @@ templ destinations(page Page) {
 				<input type="hidden" name="id" value={ page.EditDestination.ID }/>
 			}
 			@textField("name", "Name", "Ops channel", page.editingDestination().Name)
-			@textField("team_id", "Team ID", "team-id", page.editingDestination().TeamID)
-			@textField("channel_id", "Channel ID", "channel-id", page.editingDestination().ChannelID)
+			@identifiedTextField("destination-team", "team_id", "Team", "team-id", page.editingDestination().TeamID)
+			@identifiedTextField("destination-channel", "channel_id", "Channel", "channel-id", page.editingDestination().ChannelID)
 			<div class="flex items-center gap-2">
 				@submit(submitLabel(page.EditDestination != nil, "destination"))
 				if page.EditDestination != nil {

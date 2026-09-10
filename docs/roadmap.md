@@ -19,7 +19,7 @@ This file records intent, not commitments. It is edited as features land or plan
 * The admin API stays the only way the UI reaches the service, so anything the UI can do is
   scriptable.
 
-## Milestone 1 — Admin UX
+## Milestone 1 — Admin UX — done
 
 The current UI works but makes the operator carry identifiers by hand. Everything here is
 low-risk, visible, and needs no new authentication model.
@@ -37,15 +37,15 @@ first. Each row offers Edit, which reloads `/admin` with that record selected an
 prefilled. Sorting was never open: the store orders templates and destinations by name and routes
 by priority then name.
 
-### 1.3 Teams and channel picker
+### 1.3 Teams and channel picker — done
 
 Destinations are created by pasting a Team ID and a Channel ID out of the Teams client. Add
 `GET /api/graph/teams` and `GET /api/graph/teams/{id}/channels`, backed by new methods on the Graph
 client, and turn both destination fields into pickers.
 
-**Prerequisite:** the app registration currently holds only what is needed to post messages.
-Listing requires the `Team.ReadBasic.All` and `Channel.ReadBasic.All` application permissions and
-tenant admin consent. Nothing else in this milestone is blocked by it.
+`Team.ReadBasic.All` and `Channel.ReadBasic.All` are granted with tenant admin consent. A
+deployment without them still works: the fields ship as text inputs and the picker simply never
+appears.
 
 Responses are cached in memory with a short TTL; a tenant's team list is stable and the Graph
 throttles.
@@ -110,7 +110,7 @@ this service actually uses. The decision gets its own ADR when we get there.
 | — | 1.1 Selectable ids | — | done |
 | — | 1.2 Fuller lists | — | done |
 | — | 1.4 Template preview | — | done |
-| 1 | 1.3 Teams picker | — | Graph permissions and admin consent |
+| — | 1.3 Teams picker | — | done |
 | 3 | 2 OIDC login | — | IdP client registration |
 | 4 | 3 Routing visualization | vendored D3 | — |
 | 5 | 4 Card editor | 1.4 | decision after 1.4 |

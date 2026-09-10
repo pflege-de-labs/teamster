@@ -5,6 +5,7 @@ import (
 	"errors"
 	"sync"
 
+	"github.com/pflege-de-labs/teamster/internal/graph"
 	"github.com/pflege-de-labs/teamster/internal/models"
 	"github.com/pflege-de-labs/teamster/internal/store"
 )
@@ -243,6 +244,12 @@ type fakeMessenger struct {
 	postErr   error
 	updateErr error
 
+	teams        []graph.Team
+	channels     map[string][]graph.Channel
+	directoryErr error
+	teamCalls    int
+	channelCalls int
+
 	posts   []postCall
 	updates []updateCall
 }
@@ -256,6 +263,22 @@ func (f *fakeMessenger) PostMessage(teamID, channelID string, card json.RawMessa
 		return "message-1", nil
 	}
 	return f.messageID, nil
+}
+
+func (f *fakeMessenger) ListTeams() ([]graph.Team, error) {
+	f.teamCalls++
+	if f.directoryErr != nil {
+		return nil, f.directoryErr
+	}
+	return f.teams, nil
+}
+
+func (f *fakeMessenger) ListChannels(teamID string) ([]graph.Channel, error) {
+	f.channelCalls++
+	if f.directoryErr != nil {
+		return nil, f.directoryErr
+	}
+	return f.channels[teamID], nil
 }
 
 func (f *fakeMessenger) UpdateMessage(teamID, channelID, messageID string, card json.RawMessage, summary string) error {

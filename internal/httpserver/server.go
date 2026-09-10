@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/pflege-de-labs/teamster/internal/config"
+	"github.com/pflege-de-labs/teamster/internal/graph"
 	"github.com/pflege-de-labs/teamster/internal/routing"
 	"github.com/pflege-de-labs/teamster/internal/store"
 )
@@ -13,6 +14,8 @@ import (
 type messenger interface {
 	PostMessage(teamID, channelID string, card json.RawMessage, summary string) (string, error)
 	UpdateMessage(teamID, channelID, messageID string, card json.RawMessage, summary string) error
+	ListTeams() ([]graph.Team, error)
+	ListChannels(teamID string) ([]graph.Channel, error)
 }
 
 type Server struct {
@@ -20,6 +23,7 @@ type Server struct {
 	store      store.Store
 	graph      messenger
 	router     *routing.Router
+	directory  *directoryCache
 	httpServer *http.Server
 }
 
@@ -27,10 +31,11 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger) *htt
 	registerMIMETypes()
 
 	api := &Server{
-		cfg:    cfg,
-		store:  store,
-		graph:  graphClient,
-		router: routing.New(store),
+		cfg:       cfg,
+		store:     store,
+		graph:     graphClient,
+		router:    routing.New(store),
+		directory: newDirectoryCache(directoryTTL),
 	}
 
 	mux := http.NewServeMux()
@@ -45,6 +50,8 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger) *htt
 	adminMux.HandleFunc("/api/routes", api.handleRoutes)
 	adminMux.HandleFunc("/api/routes/", api.handleRouteByID)
 	adminMux.HandleFunc("/api/templates/preview", api.handlePreview)
+	adminMux.HandleFunc("/api/graph/teams", api.handleGraphTeams)
+	adminMux.HandleFunc("/api/graph/teams/", api.handleGraphChannels)
 	adminMux.HandleFunc("/admin", api.handleAdminPage)
 	adminMux.HandleFunc("/admin/templates", api.formPost(api.saveTemplate))
 	adminMux.HandleFunc("/admin/templates/delete", api.formPost(api.deleteTemplate))
