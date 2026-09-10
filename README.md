@@ -127,6 +127,10 @@ The admin UI needs a session. Configure either or both:
   role names accepted. A public client using PKCE needs no secret.
 - **Local credentials.** `admin.username` and `admin.password` are accepted at `/admin/login`.
 
+Membership is looked for in the ID token, then at the userinfo endpoint, then in the access token.
+Keycloak's role mappers populate the **access token** by default and leave roles out of the ID
+token, so a realm needs no mapper changes for this to work.
+
 Configuring an issuer without `auth.allowed` refuses to start, because the alternative is admitting
 everyone the provider will authenticate. Keep the local credentials configured: they are the way
 back in if the provider is unreachable or the claim is wrong.

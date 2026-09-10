@@ -115,7 +115,9 @@ TLS or carried `X-Forwarded-Proto: https`:
   PKCE verifier live in `login_flows` rather than a cookie, and taking a flow deletes it, so a
   replayed or forged callback finds nothing. Access is granted by a claim: `auth-claim` is a dotted
   path, because Keycloak nests roles under `realm_access.roles`, and `auth-allowed` lists the
-  values that grant it.
+  values that grant it. The claim is looked for in the ID token, then at the userinfo endpoint,
+  then in the access token, because Keycloak's role mappers populate the access token by default
+  and leave the ID token without roles.
 * The local username and password, entered at `/admin/login`. This is the bootstrap path and the
   way back in when the provider is unreachable or the claim is misconfigured.
 
