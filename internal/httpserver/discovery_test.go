@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 )
@@ -165,5 +166,55 @@ func TestAuthStartStoresTheFlowAndRedirectsWithPKCE(t *testing.T) {
 		if !strings.Contains(location, "state="+flow.State) {
 			t.Error("the redirect carries a different state than the one stored")
 		}
+	}
+}
+
+// The provider's own description is the only thing that distinguishes a
+// declined consent from a broken upstream federation.
+func TestAuthCallbackShowsTheProviderDescription(t *testing.T) {
+	t.Parallel()
+
+	handler := authServer(t, newFakeStore(), authConfigFor("https://idp.example/.well-known/openid-configuration"))
+
+	tests := []struct {
+		name  string
+		query string
+		want  []string
+	}{
+		{
+			name:  "code and description",
+			query: "?error=access_denied&error_description=Unexpected+error+when+authenticating+with+identity+provider",
+			want:  []string{"access_denied", "Unexpected error when authenticating with identity provider"},
+		},
+		{
+			name:  "code alone",
+			query: "?error=temporarily_unavailable",
+			want:  []string{"temporarily_unavailable"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			req := httptest.NewRequest(http.MethodGet, "/admin/auth/callback"+tt.query, nil)
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusFound {
+				t.Fatalf("callback = %d, want a redirect to the login page", rec.Code)
+			}
+
+			location, err := url.Parse(rec.Header().Get("Location"))
+			if err != nil {
+				t.Fatalf("parse Location: %v", err)
+			}
+			shown := location.Query().Get("error")
+			for _, want := range tt.want {
+				if !strings.Contains(shown, want) {
+					t.Errorf("login page would show %q, want it to contain %q", shown, want)
+				}
+			}
+		})
 	}
 }
