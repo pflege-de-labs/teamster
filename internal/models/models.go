@@ -40,6 +40,27 @@ type ActiveAlert struct {
 	LastUpdate  time.Time `json:"last_update"`
 }
 
+// Session is a signed-in administrator. Subject and Name are what the identity
+// provider said; a local login records the configured username.
+type Session struct {
+	ID        string    `json:"id"`
+	Subject   string    `json:"subject"`
+	Name      string    `json:"name"`
+	Source    string    `json:"source"`
+	CreatedAt time.Time `json:"created_at"`
+	ExpiresAt time.Time `json:"expires_at"`
+}
+
+// LoginFlow is an authorization code flow this service started. Holding the
+// verifier and nonce here, rather than in a cookie, is what lets the callback
+// prove the flow is one we began.
+type LoginFlow struct {
+	State     string    `json:"state"`
+	Verifier  string    `json:"verifier"`
+	Nonce     string    `json:"nonce"`
+	ExpiresAt time.Time `json:"expires_at"`
+}
+
 type Alert struct {
 	Source      string            `json:"source"`
 	Status      string            `json:"status"`

@@ -3,7 +3,7 @@ package views
 import "strconv"
 
 templ Admin(page Page) {
-	@Layout("Teamster Admin") {
+	@Layout("Teamster Admin", true) {
 		@notice(page)
 		@templates(page)
 		@destinations(page)

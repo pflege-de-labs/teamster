@@ -1,6 +1,6 @@
 package views
 
-templ Layout(title string) {
+templ Layout(title string, signedIn bool) {
 	<!DOCTYPE html>
 	<html lang="en">
 		<head>
@@ -19,10 +19,20 @@ templ Layout(title string) {
 			<header class="border-b border-slate-200 bg-white">
 				<div class="mx-auto flex max-w-6xl items-center gap-3 px-6 py-4">
 					<img src="/icons/favicon-48x48.png" alt="" width="40" height="40" class="rounded-full"/>
-					<div>
+					<div class="grow">
 						<div class="text-xl font-semibold">Teamster Admin</div>
 						<div class="text-sm text-slate-500">Templates, destinations and routes</div>
 					</div>
+					if signedIn {
+						<form method="post" action="/admin/logout">
+							<button
+								type="submit"
+								class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:border-slate-400 hover:bg-slate-50"
+							>
+								Sign out
+							</button>
+						</form>
+					}
 				</div>
 			</header>
 			<main class="mx-auto max-w-6xl space-y-8 px-6 py-8">

@@ -32,6 +32,7 @@ func do(t *testing.T, handler http.Handler, method, path, body string) *httptest
 	}
 	req := httptest.NewRequest(method, path, reader)
 	req.SetBasicAuth("admin", "pass")
+	req.AddCookie(&http.Cookie{Name: sessionCookie, Value: testSessionID})
 
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)

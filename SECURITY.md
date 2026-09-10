@@ -37,6 +37,10 @@ token. All three are credentials:
 * The admin UI and the admin API are protected by HTTP basic auth, and the webhook endpoints by a
   shared token in `X-Teamster-Token`. Both send credentials in every request, so **terminate TLS
   in front of Teamster** and never expose it over plain HTTP.
+* The admin UI requires a session, obtained by signing in through the configured OIDC provider or
+  with the local credentials. The session cookie is a bearer token for the admin UI: it is
+  `HttpOnly` and `SameSite=Lax`, and marked `Secure` whenever the request arrives over TLS, which
+  is another reason to terminate TLS in front of Teamster.
 * The admin form endpoints under `/admin/` additionally require the request to prove it came from
   this origin, via `Sec-Fetch-Site` or a matching `Origin`. A browser attaches basic auth
   credentials to a cross-site post, and there is no session to hold a CSRF token.

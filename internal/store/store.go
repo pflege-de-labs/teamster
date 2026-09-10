@@ -29,6 +29,14 @@ type Store interface {
 	DeleteRoute(id string) error
 	GetRoute(id string) (models.Route, error)
 
+	CreateSession(s models.Session) error
+	GetSession(id string) (models.Session, error)
+	DeleteSession(id string) error
+	DeleteExpiredSessions() error
+
+	CreateLoginFlow(f models.LoginFlow) error
+	TakeLoginFlow(state string) (models.LoginFlow, error)
+
 	UpsertActiveAlert(a models.ActiveAlert) error
 	GetActiveAlert(fingerprint string) (models.ActiveAlert, error)
 	DeleteActiveAlert(fingerprint string) error

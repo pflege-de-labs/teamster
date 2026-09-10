@@ -4,6 +4,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -57,6 +59,15 @@ func TestParseExampleConfig(t *testing.T) {
 		Database: DatabaseConfig{Path: "teamster.db"},
 		Webhook:  WebhookConfig{Token: "replace-with-shared-token"},
 		Admin:    AdminConfig{Username: "admin", Password: "change-me"},
+		Auth: AuthConfig{
+			OIDCIssuer:      "https://login.example/auth/realms/internal",
+			OIDCClientID:    "teamster",
+			OIDCRedirectURL: "https://teamster.example/admin/auth/callback",
+			OIDCScopes:      []string{"profile", "email", "roles"},
+			Claim:           "realm_access.roles",
+			Allowed:         []string{"admin"},
+			SessionTTL:      12 * time.Hour,
+		},
 		Graph: GraphConfig{
 			TenantID:     "your-tenant-id",
 			ClientID:     "your-client-id",
@@ -65,7 +76,7 @@ func TestParseExampleConfig(t *testing.T) {
 			TimeoutSec:   10,
 		},
 	}
-	if got != want {
+	if !reflect.DeepEqual(got, want) {
 		t.Errorf("parsed example config = %+v, want %+v", got, want)
 	}
 	if err := Validate(got); err != nil {
@@ -183,5 +194,55 @@ func TestParseEnvPrecedence(t *testing.T) {
 	}
 	if got := parse(t, []string{"--server-addr", ":4444"}, file).Server.Addr; got != ":4444" {
 		t.Errorf("command line lost: Server.Addr = %q, want %q", got, ":4444")
+	}
+}
+
+// Failing closed: an issuer without accepted values would admit everyone the
+// provider will authenticate.
+func TestValidateRefusesIncompleteOIDC(t *testing.T) {
+	t.Parallel()
+
+	complete := Config{
+		Webhook: WebhookConfig{Token: "token"},
+		Admin:   AdminConfig{Username: "admin", Password: "secret"},
+		Graph:   GraphConfig{TenantID: "tenant", ClientID: "client", ClientSecret: "secret"},
+		Auth: AuthConfig{
+			OIDCIssuer:      "https://login.example/auth/realms/internal",
+			OIDCClientID:    "teamster",
+			OIDCRedirectURL: "https://teamster.example/admin/auth/callback",
+			Claim:           "realm_access.roles",
+			Allowed:         []string{"admin"},
+		},
+	}
+
+	tests := []struct {
+		name    string
+		mutate  func(*Config)
+		wantErr string
+	}{
+		{name: "complete", mutate: func(*Config) {}},
+		{name: "no issuer means no OIDC, and the rest is ignored", mutate: func(c *Config) { c.Auth = AuthConfig{} }},
+		{name: "issuer without accepted values", mutate: func(c *Config) { c.Auth.Allowed = nil }, wantErr: "auth allowed is required"},
+		{name: "issuer without a claim", mutate: func(c *Config) { c.Auth.Claim = "" }, wantErr: "auth claim is required"},
+		{name: "issuer without a client id", mutate: func(c *Config) { c.Auth.OIDCClientID = "" }, wantErr: "oidc-client-id is required"},
+		{name: "issuer without a redirect url", mutate: func(c *Config) { c.Auth.OIDCRedirectURL = "" }, wantErr: "oidc-redirect-url is required"},
+		{name: "a public client needs no secret", mutate: func(c *Config) { c.Auth.OIDCClientSecret = "" }},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := complete
+			tt.mutate(&cfg)
+
+			err := Validate(cfg)
+			switch {
+			case tt.wantErr == "" && err != nil:
+				t.Errorf("Validate() = %v, want nil", err)
+			case tt.wantErr != "" && (err == nil || !strings.Contains(err.Error(), tt.wantErr)):
+				t.Errorf("Validate() = %v, want it to mention %q", err, tt.wantErr)
+			}
+		})
 	}
 }

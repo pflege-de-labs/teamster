@@ -14,6 +14,14 @@ import (
 	"github.com/pflege-de-labs/teamster/internal/models"
 )
 
+// Login carries what the sign-in page needs: which ways in are configured, and
+// why the last attempt failed.
+type Login struct {
+	Error      string
+	OIDC       bool
+	LocalLogin bool
+}
+
 // Page carries everything the admin page renders. The lists come straight from
 // the store, and Notice reports the outcome of the last form submission.
 type Page struct {

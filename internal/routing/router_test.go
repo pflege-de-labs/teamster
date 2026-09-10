@@ -230,3 +230,19 @@ func TestSelectRoute_SelectorMatching(t *testing.T) {
 		})
 	}
 }
+
+func (s stubStore) CreateSession(models.Session) error { return store.ErrNotFound }
+
+func (s stubStore) GetSession(string) (models.Session, error) {
+	return models.Session{}, store.ErrNotFound
+}
+
+func (s stubStore) DeleteSession(string) error { return store.ErrNotFound }
+
+func (s stubStore) DeleteExpiredSessions() error { return store.ErrNotFound }
+
+func (s stubStore) CreateLoginFlow(models.LoginFlow) error { return store.ErrNotFound }
+
+func (s stubStore) TakeLoginFlow(string) (models.LoginFlow, error) {
+	return models.LoginFlow{}, store.ErrNotFound
+}

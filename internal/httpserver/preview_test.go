@@ -14,6 +14,7 @@ func postPreview(t *testing.T, handler http.Handler, body string) *httptest.Resp
 	req := httptest.NewRequest(http.MethodPost, "/api/templates/preview", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.SetBasicAuth("admin", "pass")
+	req.AddCookie(&http.Cookie{Name: sessionCookie, Value: testSessionID})
 
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)

@@ -431,3 +431,124 @@ func TestNewSQLiteStoreRejectsLegacyTextTimestamps(t *testing.T) {
 		t.Errorf("NewSQLiteStore() = %v, want an error telling the operator to delete the database", err)
 	}
 }
+
+func TestSessionLifecycle(t *testing.T) {
+	t.Parallel()
+
+	s := newTestStore(t)
+	session := models.Session{
+		ID: "sess-1", Subject: "user-1", Name: "Jens", Source: "oidc",
+		CreatedAt: time.Now().UTC(), ExpiresAt: time.Now().UTC().Add(time.Hour),
+	}
+
+	if err := s.CreateSession(session); err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+
+	got, err := s.GetSession("sess-1")
+	if err != nil {
+		t.Fatalf("GetSession: %v", err)
+	}
+	if got.Subject != "user-1" || got.Name != "Jens" || got.Source != "oidc" {
+		t.Errorf("GetSession() = %+v, want the stored identity", got)
+	}
+
+	if err := s.DeleteSession("sess-1"); err != nil {
+		t.Fatalf("DeleteSession: %v", err)
+	}
+	if _, err := s.GetSession("sess-1"); !errors.Is(err, ErrNotFound) {
+		t.Errorf("GetSession() after delete = %v, want ErrNotFound", err)
+	}
+}
+
+// An expired session must be indistinguishable from a missing one, so no caller
+// can honour it by forgetting to compare the time itself.
+func TestExpiredSessionReadsAsMissing(t *testing.T) {
+	t.Parallel()
+
+	s := newTestStore(t)
+	if err := s.CreateSession(models.Session{
+		ID: "stale", Subject: "u", CreatedAt: time.Now().Add(-2 * time.Hour), ExpiresAt: time.Now().Add(-time.Hour),
+	}); err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+
+	if _, err := s.GetSession("stale"); !errors.Is(err, ErrNotFound) {
+		t.Errorf("GetSession() = %v, want an expired session to read as missing", err)
+	}
+}
+
+func TestDeleteExpiredSessionsSweepsBothTables(t *testing.T) {
+	t.Parallel()
+
+	s := newTestStore(t)
+	past, future := time.Now().Add(-time.Hour), time.Now().Add(time.Hour)
+
+	for _, session := range []models.Session{
+		{ID: "old", ExpiresAt: past, CreatedAt: past},
+		{ID: "live", ExpiresAt: future, CreatedAt: time.Now()},
+	} {
+		if err := s.CreateSession(session); err != nil {
+			t.Fatalf("CreateSession: %v", err)
+		}
+	}
+	for _, flow := range []models.LoginFlow{
+		{State: "old", Verifier: "v", Nonce: "n", ExpiresAt: past},
+		{State: "live", Verifier: "v", Nonce: "n", ExpiresAt: future},
+	} {
+		if err := s.CreateLoginFlow(flow); err != nil {
+			t.Fatalf("CreateLoginFlow: %v", err)
+		}
+	}
+
+	if err := s.DeleteExpiredSessions(); err != nil {
+		t.Fatalf("DeleteExpiredSessions: %v", err)
+	}
+
+	if _, err := s.GetSession("live"); err != nil {
+		t.Errorf("the live session was swept: %v", err)
+	}
+	if _, err := s.TakeLoginFlow("live"); err != nil {
+		t.Errorf("the live flow was swept: %v", err)
+	}
+	if _, err := s.TakeLoginFlow("old"); !errors.Is(err, ErrNotFound) {
+		t.Errorf("the expired flow survived: %v", err)
+	}
+}
+
+// A state may be redeemed once, so a replayed callback finds nothing.
+func TestLoginFlowIsSingleUse(t *testing.T) {
+	t.Parallel()
+
+	s := newTestStore(t)
+	flow := models.LoginFlow{State: "state-1", Verifier: "verifier", Nonce: "nonce", ExpiresAt: time.Now().Add(time.Minute)}
+
+	if err := s.CreateLoginFlow(flow); err != nil {
+		t.Fatalf("CreateLoginFlow: %v", err)
+	}
+
+	got, err := s.TakeLoginFlow("state-1")
+	if err != nil {
+		t.Fatalf("TakeLoginFlow: %v", err)
+	}
+	if got.Verifier != "verifier" || got.Nonce != "nonce" {
+		t.Errorf("TakeLoginFlow() = %+v, want the stored verifier and nonce", got)
+	}
+
+	if _, err := s.TakeLoginFlow("state-1"); !errors.Is(err, ErrNotFound) {
+		t.Errorf("a state was redeemable twice: %v", err)
+	}
+}
+
+func TestExpiredLoginFlowIsRefused(t *testing.T) {
+	t.Parallel()
+
+	s := newTestStore(t)
+	if err := s.CreateLoginFlow(models.LoginFlow{State: "stale", Verifier: "v", Nonce: "n", ExpiresAt: time.Now().Add(-time.Minute)}); err != nil {
+		t.Fatalf("CreateLoginFlow: %v", err)
+	}
+
+	if _, err := s.TakeLoginFlow("stale"); !errors.Is(err, ErrNotFound) {
+		t.Errorf("TakeLoginFlow() = %v, want an expired flow refused", err)
+	}
+}

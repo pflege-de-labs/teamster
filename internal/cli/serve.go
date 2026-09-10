@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"time"
 
 	"github.com/pflege-de-labs/teamster/internal/config"
 	"github.com/pflege-de-labs/teamster/internal/graph"
@@ -16,6 +17,24 @@ import (
 
 // ServeCmd runs the HTTP server until ctx is cancelled.
 type ServeCmd struct{}
+
+// sweepSessions clears expired sessions and abandoned login flows. Neither is
+// honoured once expired, so this only keeps the tables from growing.
+func sweepSessions(ctx context.Context, store *store.SQLiteStore) {
+	ticker := time.NewTicker(time.Hour)
+	defer ticker.Stop()
+
+	for {
+		if err := store.DeleteExpiredSessions(); err != nil {
+			log.Printf("sweep sessions: %v", err)
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
+}
 
 func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
 	if err := config.Validate(*cfg); err != nil {
@@ -43,6 +62,8 @@ func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
 	}
 
 	log.Printf("listening on %s", listener.Addr())
+
+	go sweepSessions(ctx, sqlStore)
 
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- srv.Serve(listener) }()

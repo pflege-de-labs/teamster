@@ -8,9 +8,28 @@ database:
 webhook:
   token: "replace-with-shared-token"
 
+# The local login, used at /admin/login and as basic auth for /api. Keep it
+# configured: it is the way back in if the identity provider is unreachable or
+# the claim below is wrong.
 admin:
   username: "admin"
   password: "change-me"
+
+# Who may administer the service. Unrelated to the graph section below, which is
+# a machine credential for posting cards.
+auth:
+  # Leave oidc-issuer empty to use the local login only.
+  oidc-issuer: "https://login.example/auth/realms/internal"
+  oidc-client-id: "teamster"
+  # Omit for a public client using PKCE, which is the recommended setup.
+  oidc-client-secret: ""
+  oidc-redirect-url: "https://teamster.example/admin/auth/callback"
+  oidc-scopes: ["profile", "email", "roles"]
+  # Keycloak nests roles: realm roles live here, client roles under
+  # resource_access.<client>.roles.
+  claim: "realm_access.roles"
+  allowed: ["admin"]
+  session-ttl: "12h"
 
 graph:
   tenant-id: "your-tenant-id"
