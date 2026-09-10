@@ -7,6 +7,7 @@ package views
 //go:generate ../../../bin/tailwindcss --input styles.css --output ../web/styles.css --minify
 
 import (
+	"encoding/json"
 	"sort"
 	"strings"
 
@@ -21,6 +22,58 @@ type Page struct {
 	Routes       []models.Route
 	Notice       string
 	Error        string
+
+	// A nil Edit* means the matching form creates rather than updates.
+	EditTemplate    *models.Template
+	EditDestination *models.Destination
+	EditRoute       *models.Route
+}
+
+// The accessors below let a template read a field of the record under edit
+// without repeating a nil check per field.
+
+func (p Page) editingTemplate() models.Template {
+	if p.EditTemplate == nil {
+		return models.Template{}
+	}
+	return *p.EditTemplate
+}
+
+func (p Page) editingDestination() models.Destination {
+	if p.EditDestination == nil {
+		return models.Destination{}
+	}
+	return *p.EditDestination
+}
+
+func (p Page) editingRoute() models.Route {
+	if p.EditRoute == nil {
+		return models.Route{Priority: 100}
+	}
+	return *p.EditRoute
+}
+
+// selectorJSON renders a selector back into the JSON the form accepts. A new
+// route gets a worked example rather than an empty box.
+func selectorJSON(p Page) string {
+	if p.EditRoute == nil {
+		return `{"severity":"critical"}`
+	}
+	if len(p.EditRoute.LabelSelector) == 0 {
+		return "{}"
+	}
+	encoded, err := json.Marshal(p.EditRoute.LabelSelector)
+	if err != nil {
+		return "{}"
+	}
+	return string(encoded)
+}
+
+func submitLabel(editing bool, noun string) string {
+	if editing {
+		return "Update " + noun
+	}
+	return "Save " + noun
 }
 
 // destinationName resolves a route's destination to something readable, so the

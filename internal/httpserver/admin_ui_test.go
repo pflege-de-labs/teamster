@@ -330,3 +330,164 @@ func TestFormsRejectNonPost(t *testing.T) {
 		}
 	}
 }
+
+func TestAdminPagePrefillsTheFormBeingEdited(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		query    string
+		wantHTML []string
+	}{
+		{
+			name:  "template",
+			query: "/admin?edit=templates&id=tmpl",
+			wantHTML: []string{
+				`<input type="hidden" name="id" value="tmpl">`,
+				`value="Critical card"`,
+				`{&#34;type&#34;:&#34;AdaptiveCard&#34;}`,
+				"Update template",
+			},
+		},
+		{
+			name:  "destination",
+			query: "/admin?edit=destinations&id=dest",
+			wantHTML: []string{
+				`<input type="hidden" name="id" value="dest">`,
+				`value="Ops channel"`,
+				`value="team"`,
+				`value="chan"`,
+				"Update destination",
+			},
+		},
+		{
+			name:  "route",
+			query: "/admin?edit=routes&id=route",
+			wantHTML: []string{
+				`<input type="hidden" name="id" value="route">`,
+				`value="Critical to ops"`,
+				`<option value="dest" selected>`,
+				`<option value="tmpl" selected>`,
+				`value="42"`,
+				"Update route",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			handler := newTestServer(t, seededUIStore(), &fakeMessenger{}).Handler
+			body := do(t, handler, http.MethodGet, tt.query, "").Body.String()
+
+			for _, want := range tt.wantHTML {
+				if !strings.Contains(body, want) {
+					t.Errorf("prefilled page does not contain %q", want)
+				}
+			}
+			if !strings.Contains(body, `href="/admin"`) {
+				t.Error("no cancel link back to the unfiltered page")
+			}
+		})
+	}
+}
+
+func TestAdminPageChecksTheDefaultRouteBox(t *testing.T) {
+	t.Parallel()
+
+	st := seededUIStore()
+	route := st.routes["route"]
+	route.IsDefault = true
+	st.routes["route"] = route
+
+	body := do(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin?edit=routes&id=route", "").Body.String()
+	if !strings.Contains(body, `name="is_default" value="true" checked`) {
+		t.Error("the default flag did not survive into the form")
+	}
+}
+
+func TestAdminPageOffersAnEditLinkPerRow(t *testing.T) {
+	t.Parallel()
+
+	body := do(t, newTestServer(t, seededUIStore(), &fakeMessenger{}).Handler, http.MethodGet, "/admin", "").Body.String()
+
+	for _, want := range []string{
+		`href="/admin?edit=templates&amp;id=tmpl#templates"`,
+		`href="/admin?edit=destinations&amp;id=dest#destinations"`,
+		`href="/admin?edit=routes&amp;id=route#routes"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("list is missing the edit link %q", want)
+		}
+	}
+	// Without a selection every form must still be in create mode, or a visit
+	// to /admin would silently update whichever record came first.
+	for _, want := range []string{"Save template", "Save destination", "Save route"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("form is not in create mode: %q missing", want)
+		}
+	}
+}
+
+func TestAdminPageHandlesBadEditRequests(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		query     string
+		wantError bool
+	}{
+		{name: "unknown id", query: "/admin?edit=templates&id=missing", wantError: true},
+		{name: "unknown section is ignored", query: "/admin?edit=nonsense&id=tmpl"},
+		{name: "section without an id is ignored", query: "/admin?edit=templates"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			rec := do(t, newTestServer(t, seededUIStore(), &fakeMessenger{}).Handler, http.MethodGet, tt.query, "")
+			if rec.Code != http.StatusOK {
+				t.Fatalf("GET %s = %d, want 200", tt.query, rec.Code)
+			}
+
+			body := rec.Body.String()
+			if got := strings.Contains(body, "not found"); got != tt.wantError {
+				t.Errorf("error shown = %v, want %v", got, tt.wantError)
+			}
+			// The delete buttons carry ids of their own, so the submit label is
+			// what distinguishes a prefilled form from an empty one.
+			if strings.Contains(body, "Update template") {
+				t.Error("a form was prefilled for a request that selected nothing")
+			}
+		})
+	}
+}
+
+// The point of the whole feature: what the edit link offers must come back as
+// an update, not a second record.
+func TestEditRoundTripUpdatesInPlace(t *testing.T) {
+	t.Parallel()
+
+	st := seededUIStore()
+	handler := newTestServer(t, st, &fakeMessenger{}).Handler
+
+	if body := do(t, handler, http.MethodGet, "/admin?edit=templates&id=tmpl", "").Body.String(); !strings.Contains(body, `value="tmpl"`) {
+		t.Fatal("the edit page did not offer the id back")
+	}
+
+	rec := postForm(t, handler, "/admin/templates", url.Values{
+		"id": {"tmpl"}, "name": {"Renamed card"}, "body": {"{}"},
+	}, nil)
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("POST = %d, want 303", rec.Code)
+	}
+
+	if len(st.templates) != 1 {
+		t.Errorf("store holds %d templates, want the original updated in place", len(st.templates))
+	}
+	if st.templates["tmpl"].Name != "Renamed card" {
+		t.Errorf("template not updated: %+v", st.templates["tmpl"])
+	}
+}

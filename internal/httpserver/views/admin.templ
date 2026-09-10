@@ -12,18 +12,19 @@ templ Admin(page Page) {
 }
 
 templ templates(page Page) {
-	@panel("Templates") {
+	@panel("Templates", "templates") {
 		<form method="post" action="/admin/templates" class="space-y-3">
-			@textField("name", "Name", "Critical alert", "")
-			<label class="block">
-				<span class="text-sm font-medium">Body (Adaptive Card JSON template)</span>
-				<textarea
-					name="body"
-					rows="12"
-					class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 font-mono text-xs shadow-sm focus:border-sky-500 focus:outline-none"
-				></textarea>
-			</label>
-			@submit("Save template")
+			if page.EditTemplate != nil {
+				<input type="hidden" name="id" value={ page.EditTemplate.ID }/>
+			}
+			@textField("name", "Name", "Critical alert", page.editingTemplate().Name)
+			@textareaField("body", "Body (Adaptive Card JSON template)", page.editingTemplate().Body, "12")
+			<div class="flex items-center gap-2">
+				@submit(submitLabel(page.EditTemplate != nil, "template"))
+				if page.EditTemplate != nil {
+					@cancelEdit()
+				}
+			</div>
 		</form>
 		<div>
 			if len(page.Templates) == 0 {
@@ -38,7 +39,10 @@ templ templates(page Page) {
 									{ strconv.Itoa(len(t.Body)) } bytes · updated { t.UpdatedAt.Format("2006-01-02 15:04") }
 								</div>
 							</div>
-							@deleteButton("/admin/templates/delete", t.ID, t.Name)
+							<div class="flex shrink-0 items-center gap-2">
+								@editLink("templates", t.ID, t.Name)
+								@deleteButton("/admin/templates/delete", t.ID, t.Name)
+							</div>
 						</li>
 					}
 				</ul>
@@ -48,12 +52,20 @@ templ templates(page Page) {
 }
 
 templ destinations(page Page) {
-	@panel("Destinations") {
+	@panel("Destinations", "destinations") {
 		<form method="post" action="/admin/destinations" class="space-y-3">
-			@textField("name", "Name", "Ops channel", "")
-			@textField("team_id", "Team ID", "team-id", "")
-			@textField("channel_id", "Channel ID", "channel-id", "")
-			@submit("Save destination")
+			if page.EditDestination != nil {
+				<input type="hidden" name="id" value={ page.EditDestination.ID }/>
+			}
+			@textField("name", "Name", "Ops channel", page.editingDestination().Name)
+			@textField("team_id", "Team ID", "team-id", page.editingDestination().TeamID)
+			@textField("channel_id", "Channel ID", "channel-id", page.editingDestination().ChannelID)
+			<div class="flex items-center gap-2">
+				@submit(submitLabel(page.EditDestination != nil, "destination"))
+				if page.EditDestination != nil {
+					@cancelEdit()
+				}
+			</div>
 		</form>
 		<div>
 			if len(page.Destinations) == 0 {
@@ -66,7 +78,10 @@ templ destinations(page Page) {
 								<div class="truncate font-medium">{ d.Name }</div>
 								<div class="truncate text-xs text-slate-500">team { d.TeamID } · channel { d.ChannelID }</div>
 							</div>
-							@deleteButton("/admin/destinations/delete", d.ID, d.Name)
+							<div class="flex shrink-0 items-center gap-2">
+								@editLink("destinations", d.ID, d.Name)
+								@deleteButton("/admin/destinations/delete", d.ID, d.Name)
+							</div>
 						</li>
 					}
 				</ul>
@@ -76,33 +91,31 @@ templ destinations(page Page) {
 }
 
 templ routes(page Page) {
-	@panel("Routes") {
+	@panel("Routes", "routes") {
 		<form method="post" action="/admin/routes" class="space-y-3">
-			@textField("name", "Name", "Critical to ops", "")
-			<label class="block">
-				<span class="text-sm font-medium">Label selector (JSON)</span>
-				<textarea
-					name="label_selector"
-					rows="3"
-					class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 font-mono text-xs shadow-sm focus:border-sky-500 focus:outline-none"
-				>{ `{"severity":"critical"}` }</textarea>
-			</label>
-			@selectField("destination_id", "Destination", destinationOptions(page))
-			@selectField("template_id", "Template", templateOptions(page))
+			if page.EditRoute != nil {
+				<input type="hidden" name="id" value={ page.EditRoute.ID }/>
+			}
+			@textField("name", "Name", "Critical to ops", page.editingRoute().Name)
+			@textareaField("label_selector", "Label selector (JSON)", selectorJSON(page), "3")
+			@selectField("destination_id", "Destination", destinationOptions(page), page.editingRoute().DestinationID)
+			@selectField("template_id", "Template", templateOptions(page), page.editingRoute().TemplateID)
 			<label class="block">
 				<span class="text-sm font-medium">Priority</span>
 				<input
 					type="number"
 					name="priority"
-					value="100"
+					value={ strconv.Itoa(page.editingRoute().Priority) }
 					class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-sky-500 focus:outline-none"
 				/>
 			</label>
-			<label class="flex items-center gap-2">
-				<input type="checkbox" name="is_default" value="true" class="h-4 w-4 rounded border-slate-300"/>
-				<span class="text-sm font-medium">Default route</span>
-			</label>
-			@submit("Save route")
+			@checkboxField("is_default", "Default route", page.editingRoute().IsDefault)
+			<div class="flex items-center gap-2">
+				@submit(submitLabel(page.EditRoute != nil, "route"))
+				if page.EditRoute != nil {
+					@cancelEdit()
+				}
+			</div>
 		</form>
 		<div>
 			if len(page.Routes) == 0 {
@@ -124,7 +137,10 @@ templ routes(page Page) {
 								</div>
 								<div class="truncate font-mono text-xs text-slate-500">{ selectorText(r.LabelSelector) }</div>
 							</div>
-							@deleteButton("/admin/routes/delete", r.ID, r.Name)
+							<div class="flex shrink-0 items-center gap-2">
+								@editLink("routes", r.ID, r.Name)
+								@deleteButton("/admin/routes/delete", r.ID, r.Name)
+							</div>
 						</li>
 					}
 				</ul>

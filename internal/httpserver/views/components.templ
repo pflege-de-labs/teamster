@@ -13,7 +13,7 @@ templ textField(name, label, placeholder, value string) {
 	</label>
 }
 
-templ selectField(name, label string, options []option) {
+templ selectField(name, label string, options []option, selected string) {
 	<label class="block">
 		<span class="text-sm font-medium">{ label }</span>
 		<select
@@ -24,10 +24,51 @@ templ selectField(name, label string, options []option) {
 				<option value="">— none defined yet —</option>
 			}
 			for _, o := range options {
-				<option value={ o.Value }>{ o.Label }</option>
+				if o.Value == selected {
+					<option value={ o.Value } selected>{ o.Label }</option>
+				} else {
+					<option value={ o.Value }>{ o.Label }</option>
+				}
 			}
 		</select>
 	</label>
+}
+
+templ textareaField(name, label, value, rows string) {
+	<label class="block">
+		<span class="text-sm font-medium">{ label }</span>
+		<textarea
+			name={ name }
+			rows={ rows }
+			class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 font-mono text-xs shadow-sm focus:border-sky-500 focus:outline-none"
+		>{ value }</textarea>
+	</label>
+}
+
+templ checkboxField(name, label string, checked bool) {
+	<label class="flex items-center gap-2">
+		if checked {
+			<input type="checkbox" name={ name } value="true" checked class="h-4 w-4 rounded border-slate-300"/>
+		} else {
+			<input type="checkbox" name={ name } value="true" class="h-4 w-4 rounded border-slate-300"/>
+		}
+		<span class="text-sm font-medium">{ label }</span>
+	</label>
+}
+
+// The fragment lands the browser on the section whose form was just filled in.
+templ editLink(section, id, name string) {
+	<a
+		href={ templ.SafeURL("/admin?edit=" + section + "&id=" + id + "#" + section) }
+		aria-label={ "Edit " + name }
+		class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:border-sky-400 hover:bg-sky-50 hover:text-sky-700"
+	>
+		Edit
+	</a>
+}
+
+templ cancelEdit() {
+	<a href="/admin" class="px-3 py-2 text-sm text-slate-600 underline hover:text-slate-900">Cancel</a>
 }
 
 templ submit(label string) {

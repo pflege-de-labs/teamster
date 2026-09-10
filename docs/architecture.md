@@ -107,7 +107,9 @@ repeated `firing` alert therefore edits the existing card instead of posting a n
 
 `/admin` is rendered on the server by `internal/httpserver/views`, compiled from templ sources and
 styled with Tailwind. Forms post to `/admin/{templates,destinations,routes}` and their `/delete`
-variants and answer `303 See Other`, so the result is a normal page load. Those endpoints require
+variants and answer `303 See Other`, so the result is a normal page load. `/admin` also takes
+`edit` and `id` query parameters, which load one record into its form so the same endpoint
+updates instead of creating. Those endpoints require
 the request to prove its origin, because basic auth credentials travel with a cross-site post and
 there is no session to hold a CSRF token. See
 [ADR 0008](adr/0008-templ-tailwind-admin-ui.md).
