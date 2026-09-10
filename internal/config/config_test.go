@@ -246,3 +246,49 @@ func TestValidateRefusesIncompleteOIDC(t *testing.T) {
 		})
 	}
 }
+
+// A path alone reaches the provider verbatim and is refused there, far from the
+// configuration that caused it.
+func TestValidateRequiresAnAbsoluteRedirectURL(t *testing.T) {
+	t.Parallel()
+
+	base := Config{
+		Webhook: WebhookConfig{Token: "token"},
+		Admin:   AdminConfig{Username: "admin", Password: "secret"},
+		Graph:   GraphConfig{TenantID: "tenant", ClientID: "client", ClientSecret: "secret"},
+		Auth: AuthConfig{
+			OIDCDiscoveryURL: "https://login.example/auth/realms/internal/.well-known/openid-configuration",
+			OIDCClientID:     "teamster",
+			Claim:            "realm_access.roles",
+			Allowed:          []string{"admin"},
+		},
+	}
+
+	tests := []struct {
+		name     string
+		redirect string
+		wantErr  bool
+	}{
+		{name: "absolute https", redirect: "https://teamster.example/admin/auth/callback"},
+		{name: "absolute http for local development", redirect: "http://localhost:8080/admin/auth/callback"},
+		{name: "a path alone", redirect: "/admin/auth/callback", wantErr: true},
+		{name: "host without a scheme", redirect: "teamster.example/admin/auth/callback", wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := base
+			cfg.Auth.OIDCRedirectURL = tt.redirect
+
+			err := Validate(cfg)
+			if tt.wantErr && err == nil {
+				t.Errorf("Validate() = nil, want %q refused", tt.redirect)
+			}
+			if !tt.wantErr && err != nil {
+				t.Errorf("Validate() = %v, want %q accepted", err, tt.redirect)
+			}
+		})
+	}
+}

@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -438,5 +439,52 @@ func authConfigFor(discoveryURL string) config.AuthConfig {
 		OIDCRedirectURL:  "https://teamster.example/admin/auth/callback",
 		Claim:            "realm_access.roles",
 		Allowed:          []string{"admin"},
+	}
+}
+
+// The login page is rendered to someone with no session, so the stylesheet and
+// icons it references must not themselves require one.
+func TestLoginPageAssetsAreReachableWithoutASession(t *testing.T) {
+	t.Parallel()
+
+	handler := authServer(t, newFakeStore(), config.AuthConfig{})
+
+	page := httptest.NewRecorder()
+	handler.ServeHTTP(page, httptest.NewRequest(http.MethodGet, "/admin/login", nil))
+	if page.Code != http.StatusOK {
+		t.Fatalf("GET /admin/login = %d, want 200", page.Code)
+	}
+
+	refs := regexp.MustCompile(`(?:href|src)="(/[^"]+)"`).FindAllStringSubmatch(page.Body.String(), -1)
+	if len(refs) == 0 {
+		t.Fatal("the login page references no assets, the test would prove nothing")
+	}
+
+	for _, ref := range refs {
+		path := ref[1]
+		if strings.HasPrefix(path, "/admin") {
+			continue
+		}
+
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
+		if rec.Code != http.StatusOK {
+			t.Errorf("the login page references %s, which answers %d without a session", path, rec.Code)
+		}
+	}
+}
+
+// Assets being public must not make the admin pages public with them.
+func TestPublicAssetsDoNotExposeTheAdminPages(t *testing.T) {
+	t.Parallel()
+
+	handler := authServer(t, newFakeStore(), config.AuthConfig{})
+
+	for _, path := range []string{"/admin", "/", "/admin/templates", "/api/templates"} {
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
+		if rec.Code == http.StatusOK {
+			t.Errorf("GET %s = 200 without a session", path)
+		}
 	}
 }

@@ -69,6 +69,15 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger) *htt
 	authMux.HandleFunc("/admin/auth/callback", api.handleAuthCallback)
 	authMux.HandleFunc("/admin/logout", api.handleLogout)
 
+	// The stylesheet, icons and scripts are public: the login page needs them
+	// before anyone has a session, and none of them is sensitive.
+	for _, asset := range []string{
+		"/favicon.ico", "/site.webmanifest", "/styles.css",
+		"/preview.js", "/pickers.js", "/icons/", "/vendor/",
+	} {
+		mux.HandleFunc(asset, api.handleAssets)
+	}
+
 	mux.Handle("/api/", api.basicAuth(adminMux))
 	mux.Handle("/admin/login", authMux)
 	mux.Handle("/admin/auth/", authMux)
