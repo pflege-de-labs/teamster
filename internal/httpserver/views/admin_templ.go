@@ -349,11 +349,11 @@ func destinations(page Page) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = textField("team_id", "Team ID", "team-id", page.editingDestination().TeamID).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = identifiedTextField("destination-team", "team_id", "Team", "team-id", page.editingDestination().TeamID).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = textField("channel_id", "Channel ID", "channel-id", page.editingDestination().ChannelID).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = identifiedTextField("destination-channel", "channel_id", "Channel", "channel-id", page.editingDestination().ChannelID).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

@@ -214,3 +214,107 @@ func TestDoRequestErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestListTeams(t *testing.T) {
+	t.Parallel()
+
+	var gotPath, gotQuery string
+	client := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		gotPath, gotQuery = r.URL.Path, r.URL.RawQuery
+		_, _ = w.Write([]byte(`{"value":[{"id":"t1","displayName":"Operations"},{"id":"t2","displayName":"Platform"}]}`))
+	})
+
+	teams, err := client.ListTeams()
+	if err != nil {
+		t.Fatalf("ListTeams: %v", err)
+	}
+	if len(teams) != 2 || teams[0].ID != "t1" || teams[0].Name != "Operations" {
+		t.Errorf("teams = %+v, want displayName mapped to Name", teams)
+	}
+	if gotPath != "/teams" {
+		t.Errorf("path = %q, want /teams", gotPath)
+	}
+	if !strings.Contains(gotQuery, "select") {
+		t.Errorf("query = %q, want it to select only the fields we use", gotQuery)
+	}
+}
+
+func TestListChannels(t *testing.T) {
+	t.Parallel()
+
+	var gotPath string
+	client := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		// EscapedPath, because r.URL.Path is already decoded and would hide a
+		// missing PathEscape.
+		gotPath = r.URL.EscapedPath()
+		_, _ = w.Write([]byte(`{"value":[{"id":"c1","displayName":"General"}]}`))
+	})
+
+	channels, err := client.ListChannels("team one")
+	if err != nil {
+		t.Fatalf("ListChannels: %v", err)
+	}
+	if len(channels) != 1 || channels[0].Name != "General" {
+		t.Errorf("channels = %+v", channels)
+	}
+	if !strings.Contains(gotPath, "team%20one") {
+		t.Errorf("path = %q, want the team id percent-escaped into it", gotPath)
+	}
+}
+
+func TestDirectoryReadsReportFailures(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		handler http.HandlerFunc
+		wantErr string
+	}{
+		{
+			name: "graph refuses",
+			handler: func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(http.StatusForbidden)
+				_, _ = w.Write([]byte(`{"error":{"code":"Authorization_RequestDenied"}}`))
+			},
+			wantErr: "Authorization_RequestDenied",
+		},
+		{
+			name: "graph answers nonsense",
+			handler: func(w http.ResponseWriter, _ *http.Request) {
+				_, _ = w.Write([]byte("not json"))
+			},
+			wantErr: "decode",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			client := newTestClient(t, tt.handler)
+
+			if _, err := client.ListTeams(); err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+				t.Errorf("ListTeams error = %v, want it to mention %q", err, tt.wantErr)
+			}
+			if _, err := client.ListChannels("t"); err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+				t.Errorf("ListChannels error = %v, want it to mention %q", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestListTeamsReturnsEmptyNotNil(t *testing.T) {
+	t.Parallel()
+
+	client := newTestClient(t, func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"value":[]}`))
+	})
+
+	teams, err := client.ListTeams()
+	if err != nil {
+		t.Fatalf("ListTeams: %v", err)
+	}
+	if teams == nil {
+		t.Error("teams is nil, want an empty slice so it encodes as [] rather than null")
+	}
+}

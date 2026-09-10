@@ -206,6 +206,10 @@ The hooks format Go with the same settings CI checks, lint Markdown, and reject 
 that are not [Conventional Commits](https://www.conventionalcommits.org). They need
 [pre-commit](https://pre-commit.com) on your PATH.
 
+Destinations are configured by picking a Team and a channel by name once Microsoft Graph answers;
+the fields fall back to accepting ids typed by hand. Listing requires the `Team.ReadBasic.All` and
+`Channel.ReadBasic.All` application permissions with tenant admin consent.
+
 The template form has a Preview button: the server renders the template against a sample alert and
 the browser draws the resulting Adaptive Card, so a template can be checked before any alert
 arrives. The renderer is vendored in `internal/httpserver/web/vendor`; see the README there to
