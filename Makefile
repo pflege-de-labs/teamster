@@ -9,7 +9,12 @@ IMAGE        ?= teamster
 CONTAINER_TOOL ?= $(shell command -v docker >/dev/null 2>&1 && echo docker || echo podman)
 VERSION      ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 
-.PHONY: all build run test coverage coverage-html fmt lint tidy hooks tools generate image image-run clean
+.PHONY: all build run test coverage coverage-html fmt lint tidy hooks tools generate icons image image-run clean
+
+# The admin UI wears logo 1; logo 2 is the README header.
+ICON_SOURCE := images/favicons/logo-teamster-1
+SERVED_ICONS := favicon-16x16.png favicon-32x32.png favicon-48x48.png \
+	apple-touch-icon.png icon-192-maskable.png icon-512-maskable.png
 
 all: generate lint coverage build
 
@@ -32,6 +37,13 @@ bin/tailwindcss:
 
 generate: tools
 	go generate ./...
+
+# The icons the binary serves are copies of the generated set under images/.
+# Regenerating the set with scripts/make-favicons.sh does not update them, so
+# this does — and icons_test.go fails when the two drift apart.
+icons:
+	@for icon in $(SERVED_ICONS); do cp $(ICON_SOURCE)/$$icon internal/httpserver/web/icons/$$icon; done
+	cp $(ICON_SOURCE)/favicon.ico internal/httpserver/web/favicon.ico
 
 build:
 	go build -ldflags "-X main.version=$(VERSION)" -o $(BINARY) ./cmd/teamster
