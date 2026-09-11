@@ -141,8 +141,15 @@ config:
       # oidc-redirect-url: https://teamster.example/admin/auth/callback
       # oidc-scopes: [profile, email, roles]
       # claim: realm_access.roles
-      # allowed: [admin]
+      # Roles are read from that claim by name: a provider role called admin,
+      # editor or viewer is that role here. default-role covers a user the
+      # claim names none of them for; empty means no access.
+      # default-role: viewer
       # session-ttl: 12h
+    # The admin UI's text. locale-dir points at catalog files that override the
+    # built-in wording; mount them if you use it.
+    ui:
+      language: en
 
 # Credentials, delivered as TEAMSTER_* environment variables from a Secret.
 #
