@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"slices"
 	"testing"
 
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -74,7 +75,7 @@ func TestClaimValuesWalksDottedPaths(t *testing.T) {
 
 // The claim names the role directly: a provider role called "editor" is the
 // editor role here, with nothing to configure in between.
-func TestRoleFromClaimValues(t *testing.T) {
+func TestRolesFromClaimValues(t *testing.T) {
 	t.Parallel()
 
 	claims := keycloakClaims(t)
@@ -83,30 +84,47 @@ func TestRoleFromClaimValues(t *testing.T) {
 		name        string
 		path        string
 		defaultRole authz.Role
-		want        authz.Role
+		want        []authz.Role
 	}{
-		{name: "a realm role named admin", path: "realm_access.roles", want: authz.RoleAdmin},
 		{
-			// The fixture's client roles are named for this deployment rather
-			// than for Teamster, so none of them is a role here.
-			name: "a client role that is not one of ours", path: "resource_access.teamster.roles",
-			want: authz.RoleNone,
+			// Keycloak's own realm roles ride along beside the one that matters;
+			// they reach the policies, where nothing mentions them.
+			name: "a realm role named admin", path: "realm_access.roles",
+			want: []authz.Role{"default-roles-internal", "offline_access", authz.RoleAdmin},
+		},
+		{
+			// The fixture's client role is named for this deployment rather than
+			// for Teamster; it is still handed to the policies, which is what
+			// lets a deployment write its own rule for it.
+			name: "a client role of the deployment's own", path: "resource_access.teamster.roles",
+			want: []authz.Role{"operator"},
+		},
+		{
+			// "operator" is not a Teamster role, so the default still applies
+			// beside it.
+			name: "a deployment role does not stop the default", path: "resource_access.teamster.roles",
+			defaultRole: authz.RoleViewer, want: []authz.Role{"operator", authz.RoleViewer},
 		},
 		{
 			name: "a claim that does not exist falls back", path: "does.not.exist",
-			defaultRole: authz.RoleViewer, want: authz.RoleViewer,
+			defaultRole: authz.RoleViewer, want: []authz.Role{authz.RoleViewer},
 		},
-		{name: "a claim that does not exist and no default", path: "does.not.exist", want: authz.RoleNone},
-		{name: "values are matched exactly, not by prefix", path: "groups", want: authz.RoleNone},
+		{name: "a claim that does not exist and no default", path: "does.not.exist", want: nil},
+		{
+			// A group is not a role, but it is a claim value: if the claim is
+			// pointed at groups, the group names are what the policies see.
+			name: "whatever the claim carries becomes a role name", path: "groups",
+			want: []authz.Role{"/ops"},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got := authz.RoleFor(claimValues(claims, tt.path), tt.defaultRole)
-			if got != tt.want {
-				t.Errorf("role from %q = %q, want %q", tt.path, got, tt.want)
+			got := authz.RolesFor(claimValues(claims, tt.path), tt.defaultRole)
+			if !slices.Equal(got, tt.want) {
+				t.Errorf("roles from %q = %v, want %v", tt.path, got, tt.want)
 			}
 		})
 	}
@@ -186,7 +204,7 @@ func TestMembershipPrefersTheIDToken(t *testing.T) {
 	if source != "the id token" {
 		t.Errorf("source = %q, want the id token", source)
 	}
-	if authz.RoleFor(values, authz.RoleNone) != authz.RoleAdmin {
+	if !authz.HasBuiltin(authz.RolesFor(values, "")) {
 		t.Errorf("values = %v, want the id token roles", values)
 	}
 }
@@ -209,7 +227,7 @@ func TestMembershipFallsBackToTheAccessToken(t *testing.T) {
 	if source != "the access token" {
 		t.Errorf("source = %q, want the access token", source)
 	}
-	if authz.RoleFor(values, authz.RoleNone) != authz.RoleAdmin {
+	if !authz.HasBuiltin(authz.RolesFor(values, "")) {
 		t.Errorf("values = %v, want the access token roles", values)
 	}
 }

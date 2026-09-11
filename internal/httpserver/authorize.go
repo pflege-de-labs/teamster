@@ -26,38 +26,33 @@ func isPageRequest(r *http.Request) bool {
 
 // withPrincipal carries who is asking into the handlers, so authorization reads
 // it from one place rather than each handler re-deriving it.
-func withPrincipal(ctx context.Context, subject, name string, role authz.Role) context.Context {
+func withPrincipal(ctx context.Context, subject, name string, roles []authz.Role) context.Context {
 	ctx = context.WithValue(ctx, subjectKey, subject)
 	ctx = context.WithValue(ctx, nameKey, name)
-	return context.WithValue(ctx, roleKey, role)
+	return context.WithValue(ctx, roleKey, roles)
 }
 
 // principalSubject is the principal's identifier alone, for the callers that
-// do not need the role beside it.
+// do not need the roles beside it.
 func principalSubject(r *http.Request) string {
 	subject, _ := r.Context().Value(subjectKey).(string)
 	return subject
 }
 
-func principalOf(r *http.Request) (string, authz.Role) {
+func principalOf(r *http.Request) (string, []authz.Role) {
 	subject, _ := r.Context().Value(subjectKey).(string)
-	role, _ := r.Context().Value(roleKey).(authz.Role)
-	return subject, role
+	roles, _ := r.Context().Value(roleKey).([]authz.Role)
+	return subject, roles
 }
 
-// roleOf reads the role a session was created with. A session written before
-// roles existed carries none, and keeps the access it had rather than being
-// silently demoted mid-shift; a role this build does not know is refused
-// everything, because it is either tampering or a downgrade.
-func roleOf(session models.Session) authz.Role {
-	if session.Role == "" {
-		return authz.RoleAdmin
+// rolesOf reads the roles a session was created with. A session written before
+// roles existed carries none at all, and keeps the access it had rather than
+// being silently demoted mid-shift.
+func rolesOf(session models.Session) []authz.Role {
+	if session.Roles == "" {
+		return []authz.Role{authz.RoleAdmin}
 	}
-	role := authz.Role(session.Role)
-	if !authz.Known(role) {
-		return authz.Role("unknown")
-	}
-	return role
+	return authz.Decode(session.Roles)
 }
 
 // authorize is the one place a permission is enforced. The UI hides what a role
@@ -65,18 +60,19 @@ func roleOf(session models.Session) authz.Role {
 // gets a 403 that says what was refused.
 func (s *Server) authorize(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		subject, role := principalOf(r)
+		subject, roles := principalOf(r)
 		action, resource := requestAuthorization(r)
 
-		if s.authz.Allow(subject, role, action, resource) {
+		if s.authz.Allow(subject, roles, action, resource) {
 			next.ServeHTTP(w, r)
 			return
 		}
 
-		// A user the provider named no role for is not looking at a permissions
-		// problem they can read out of a 403 body, so they get a page that says
-		// what to ask for.
-		if role == authz.RoleNone && isPageRequest(r) {
+		// A user the provider named no Teamster role for is not looking at a
+		// permissions problem they can read out of a 403 body, so they get a
+		// page that says what to ask for. Roles a deployment defined itself do
+		// not count here: if its own policies refuse, the refusal is the answer.
+		if !authz.HasBuiltin(roles) && isPageRequest(r) {
 			name, _ := r.Context().Value(nameKey).(string)
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			w.WriteHeader(http.StatusForbidden)
@@ -86,7 +82,7 @@ func (s *Server) authorize(next http.Handler) http.Handler {
 			return
 		}
 
-		refusal := "the " + string(role) + " role may not " + action + " a " + strings.ToLower(resource.Type)
+		refusal := "the " + authz.Encode(roles) + " role may not " + action + " a " + strings.ToLower(resource.Type)
 		if strings.HasPrefix(r.URL.Path, "/api/") {
 			writeJSONError(w, http.StatusForbidden, refusal)
 			return

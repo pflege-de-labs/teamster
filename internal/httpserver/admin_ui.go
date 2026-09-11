@@ -24,13 +24,13 @@ func (s *Server) handleAdminPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, role := principalOf(r)
+	_, roles := principalOf(r)
 	page := views.Page{
 		Notice:         r.URL.Query().Get("notice"),
 		Error:          r.URL.Query().Get("error"),
 		PreviewSamples: previewSamples(),
-		Role:           string(role),
-		CanEdit:        s.authz.Allow(principalSubject(r), role, authz.ActionEdit, authz.Resource{Type: "Template"}),
+		Role:           authz.Encode(roles),
+		CanEdit:        s.authz.Allow(principalSubject(r), roles, authz.ActionEdit, authz.Resource{Type: "Template"}),
 	}
 
 	var err error

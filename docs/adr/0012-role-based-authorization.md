@@ -37,14 +37,22 @@ a resource type by path and to an action by method, with two deliberate exceptio
 `/api/templates/preview` and `/api/routing/match` count as `view`, because they answer a question
 and change nothing. Refusals are `403` naming the role and the resource, not `404`.
 
-**Roles are read from the claim by name.** A provider role called `admin`, `editor` or `viewer` is
-that role here; several named, the most privileged wins. There is no mapping to configure, because a
-mapping between two sets of identical names is a configuration file that can only be wrong.
+**Roles are read from the claim by name, all of them.** A provider role called `admin`, `editor` or
+`viewer` is that role here; one called `auditor` is `auditor`, and every role a user carries becomes
+a parent of the Cedar principal. There is no mapping to configure, because a mapping between two
+sets of identical names is a configuration file that can only be wrong — and passing the unknown
+ones through costs nothing, since a role no policy mentions grants nothing. It buys a deployment the
+ability to define a role and a policy for it without patching the claim handling.
+
+`admin`, `editor` and `viewer` are therefore a floor rather than the whole set: the shipped policies
+define them, the UI asks about them, and `auth.default-role` is one of them.
 
 `auth.allowed` is gone with it. An allow-list for signing in made sense when signing in was the only
 thing to grant; now the role is, and a user the claim names nothing for holds no role and can do
 nothing. `auth.default-role` says what such a user gets: `viewer` to let everyone the provider
-authenticates read the configuration, or empty for no access at all.
+authenticates read the configuration, or empty for no access at all. It fills in for a missing
+**Teamster** role rather than an empty claim, because Keycloak hands `offline_access` to everyone
+and a claim is therefore almost never empty — a default that waited for one would never apply.
 
 This moves a decision to the provider: whether everyone in a realm can reach this client is now the
 client's configuration there, not an allow-list here. That is where it belongs — Keycloak already

@@ -565,9 +565,9 @@ INSERT INTO active_alerts VALUES ('fp', 'firing', 'team', 'channel', 'msg-1', '2
 	}
 }
 
-// A database written before sessions carried a role gains the column, and the
+// A database written before sessions carried roles gains the column, and the
 // sessions already in it keep working.
-func TestNewSQLiteStoreAddsTheSessionRole(t *testing.T) {
+func TestNewSQLiteStoreAddsTheSessionRoles(t *testing.T) {
 	t.Parallel()
 
 	path := filepath.Join(t.TempDir(), "no-role.db")
@@ -601,11 +601,11 @@ INSERT INTO sessions VALUES ('old', 'tester', 'tester', 'oidc', '2026-01-01 00:0
 	if err != nil {
 		t.Fatalf("GetSession: %v", err)
 	}
-	if session.Subject != "tester" || session.Role != "" {
+	if session.Subject != "tester" || session.Roles != "" {
 		t.Errorf("session = %+v, want the stored row with an empty role", session)
 	}
 
-	session.ID, session.Role = "new", "editor"
+	session.ID, session.Roles = "new", "editor"
 	if err := store.CreateSession(session); err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
@@ -613,8 +613,8 @@ INSERT INTO sessions VALUES ('old', 'tester', 'tester', 'oidc', '2026-01-01 00:0
 	if err != nil {
 		t.Fatalf("GetSession after create: %v", err)
 	}
-	if back.Role != "editor" {
-		t.Errorf("role = %q, want it stored", back.Role)
+	if back.Roles != "editor" {
+		t.Errorf("roles = %q, want them stored", back.Roles)
 	}
 }
 

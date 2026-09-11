@@ -61,8 +61,9 @@ type Session struct {
 	Subject string `json:"subject"`
 	Name    string `json:"name"`
 	Source  string `json:"source"`
-	// Role is what this session may do: admin, editor or viewer.
-	Role      string    `json:"role"`
+	// Roles are the role names the provider gave this session, space separated,
+	// or "none" for a user the claim named no role for.
+	Roles     string    `json:"roles"`
 	CreatedAt time.Time `json:"created_at"`
 	ExpiresAt time.Time `json:"expires_at"`
 }

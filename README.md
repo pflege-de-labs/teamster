@@ -182,13 +182,27 @@ Three roles, in order: `admin`, `editor`, `viewer`.
 | `editor` | read the configuration and change it |
 | `viewer` | read it, and nothing else |
 
-The claim names the role directly: a provider role called `admin`, `editor` or `viewer` **is** that
-role here, with nothing to configure in between. Where several are named, the most privileged wins.
+**Every role in the claim is mapped one to one, by name.** A client or realm role called `admin`,
+`editor` or `viewer` **is** that role here, and one called `auditor` arrives as `auditor`. There is
+nothing to configure in between, and a user carrying several holds all of them.
 
-`auth.default-role` is what someone gets when the claim names none of them. Set it to `viewer` and
-everyone the provider authenticates may read the configuration; leave it empty and they sign in with
-no access at all and are shown a page telling them to ask an administrator for a role. The local
-credentials administer, because they are the way back in when the provider is wrong.
+**A role only means something if a policy says so.** The rules are Cedar policies in
+[`internal/authz/policies.cedar`](internal/authz/policies.cedar), embedded in the binary. A role no
+policy mentions grants nothing — which is what makes passing every claim value through safe, and
+what you have to change to make a role of your own useful: define `auditor` in the provider, then add
+a policy for `Role::"auditor"`.
+
+**`admin`, `editor` and `viewer` are the required minimum.** Those three are what the shipped
+policies define, what the admin UI asks about when it decides whether to show a control, and what
+`auth.default-role` may be set to. Removing or renaming them in the policy file breaks the UI;
+adding to them does not.
+
+`auth.default-role` is what someone gets when the claim names none of those three. Set it to
+`viewer` and everyone the provider authenticates may read the configuration; leave it empty and they
+sign in with no access and are shown a page telling them to ask an administrator for a role. Roles
+of your own ride along beside the default either way — holding `auditor` does not count as holding a
+Teamster role. The local credentials administer, because they are the way back in when the provider
+is wrong.
 
 A role is decided at sign-in and travels with the session, so a change at the provider applies the
 next time that person signs in. The admin UI hides the controls a role may not use and says why;

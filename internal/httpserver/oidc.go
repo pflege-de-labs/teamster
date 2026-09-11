@@ -184,14 +184,14 @@ func (s *Server) handleAuthCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	subject, name, role, err := s.verifyIDToken(r.Context(), provider, token, flow.Nonce)
+	subject, name, roles, err := s.verifyIDToken(r.Context(), provider, token, flow.Nonce)
 	if err != nil {
 		logError("oidc verify", err)
 		loginFailed(w, r, err.Error())
 		return
 	}
 
-	if err := s.startSession(w, r, subject, name, "oidc", role); err != nil {
+	if err := s.startSession(w, r, subject, name, "oidc", roles); err != nil {
 		logError("start session", err)
 		loginFailed(w, r, "could not start a session")
 		return
@@ -200,23 +200,23 @@ func (s *Server) handleAuthCallback(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/admin", http.StatusFound)
 }
 
-func (s *Server) verifyIDToken(ctx context.Context, provider *oidc.Provider, token *oauth2.Token, nonce string) (string, string, authz.Role, error) {
+func (s *Server) verifyIDToken(ctx context.Context, provider *oidc.Provider, token *oauth2.Token, nonce string) (string, string, []authz.Role, error) {
 	raw, ok := token.Extra("id_token").(string)
 	if !ok {
-		return "", "", "", errors.New("the identity provider returned no id token")
+		return "", "", nil, errors.New("the identity provider returned no id token")
 	}
 
 	idToken, err := provider.Verifier(&oidc.Config{ClientID: s.cfg.Auth.OIDCClientID}).Verify(ctx, raw)
 	if err != nil {
-		return "", "", "", fmt.Errorf("id token rejected: %w", err)
+		return "", "", nil, fmt.Errorf("id token rejected: %w", err)
 	}
 	if idToken.Nonce != nonce {
-		return "", "", "", errors.New("id token nonce does not match this login")
+		return "", "", nil, errors.New("id token nonce does not match this login")
 	}
 
 	var claims map[string]any
 	if err := idToken.Claims(&claims); err != nil {
-		return "", "", "", fmt.Errorf("read claims: %w", err)
+		return "", "", nil, fmt.Errorf("read claims: %w", err)
 	}
 
 	// Whether the claim names a role decides what this user may do, not whether
@@ -228,13 +228,14 @@ func (s *Server) verifyIDToken(ctx context.Context, provider *oidc.Provider, tok
 	if name == "" {
 		name, _ = claims["name"].(string)
 	}
-	return idToken.Subject, name, s.roleFor(values), nil
+	return idToken.Subject, name, s.rolesFor(values), nil
 }
 
-// roleFor maps the claim onto a role by name — a provider role called "editor"
-// is the editor role here — falling back to the configured default.
-func (s *Server) roleFor(values []string) authz.Role {
-	return authz.RoleFor(values, authz.Role(s.cfg.Auth.DefaultRole))
+// rolesFor maps the claim onto roles by name — a provider role called "editor"
+// is the editor role here, and one this build has never heard of is handed to
+// the policies unchanged — falling back to the configured default.
+func (s *Server) rolesFor(values []string) []authz.Role {
+	return authz.RolesFor(values, authz.Role(s.cfg.Auth.DefaultRole))
 }
 
 // membership looks for the configured claim in the id token, then in userinfo,
