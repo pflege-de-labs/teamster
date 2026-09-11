@@ -1,0 +1,61 @@
+package httpserver
+
+import (
+	"net/http"
+)
+
+// Liveness and readiness are separate questions, and answering both with the
+// same check is how a cluster ends up restarting a process that was only
+// waiting on its database.
+//
+// Neither endpoint authenticates: a probe has no credentials, and the answer
+// says nothing an attacker does not already learn by connecting to the port.
+func (s *Server) handleLive(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		w.Header().Set("Allow", "GET, HEAD")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Liveness asks whether this process should be killed. It answers for the
+	// process alone: a database that has gone away is not something a restart
+	// fixes, and restarting on it turns an outage into a crash loop.
+	writePlain(w, http.StatusOK, "ok")
+}
+
+func (s *Server) handleReady(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		w.Header().Set("Allow", "GET, HEAD")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Shutting down is the first thing readiness reports, so a rolling update
+	// takes this instance out of the load balancer before it stops accepting
+	// the connections that are still being routed to it.
+	if s.draining.Load() {
+		writePlain(w, http.StatusServiceUnavailable, "shutting down")
+		return
+	}
+
+	// The store is the one dependency a request cannot do without. Microsoft
+	// Graph deliberately is not checked: it is somebody else's service, and
+	// taking this instance out of rotation when it is unreachable would stop
+	// the admin UI from working precisely when an operator wants to look at it.
+	if err := s.store.Ping(); err != nil {
+		logError("readiness", err)
+		writePlain(w, http.StatusServiceUnavailable, "database unreachable")
+		return
+	}
+
+	writePlain(w, http.StatusOK, "ok")
+}
+
+// writePlain keeps the body to a word. A probe reads the status code, and
+// anything more detailed here is only useful to somebody who should not be
+// reading it.
+func writePlain(w http.ResponseWriter, status int, body string) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(status)
+	_, _ = w.Write([]byte(body + "\n"))
+}

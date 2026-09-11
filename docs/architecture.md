@@ -205,6 +205,19 @@ its destination and template resolved. `routing.ValidateRoute` and `ValidateDele
 both write paths and keep the tree acyclic, bounded and free of children that could never fire. See
 [ADR 0011](adr/0011-nested-routes.md).
 
+## Probes
+
+`GET /healthz` and `GET /readyz` answer before any authentication, because a kubelet has no
+credentials. They are separate questions: liveness is whether this process should be killed, and it
+therefore checks nothing outside the process; readiness is whether it can serve, and it checks the
+store with `store.Ping` and reports "shutting down" once `http.Server.RegisterOnShutdown` has fired.
+Graph is not checked — an instance whose Graph calls fail is exactly the instance an operator wants
+to reach.
+
+The draining flag is set from a shutdown hook, which net/http runs in its own goroutine; readiness
+therefore flips a moment after `Shutdown` is called rather than during it, which is immaterial
+against a probe interval and is why the test for it waits rather than assuming an order.
+
 ## Alert lifecycle
 
 Timestamp columns are declared `DATETIME`; the SQLite driver only converts them back to

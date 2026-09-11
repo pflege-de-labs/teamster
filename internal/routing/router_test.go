@@ -85,6 +85,8 @@ func (s stubStore) DeleteActiveAlert(fingerprint, teamID, channelID string) erro
 	return store.ErrNotFound
 }
 
+func (s stubStore) Ping() error { return nil }
+
 func (s stubStore) ListGrants() ([]models.Grant, error) { return nil, store.ErrNotFound }
 
 func (s stubStore) CreateGrant(models.Grant) (models.Grant, error) {

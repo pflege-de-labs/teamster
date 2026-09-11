@@ -270,6 +270,8 @@ func activeAlertKey(fingerprint, teamID, channelID string) string {
 	return fingerprint + "\x00" + teamID + "\x00" + channelID
 }
 
+func (f *fakeStore) Ping() error { return f.failing("Ping") }
+
 func (f *fakeStore) ListGrants() ([]models.Grant, error) {
 	if err := f.failing("ListGrants"); err != nil {
 		return nil, err

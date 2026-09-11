@@ -2,6 +2,7 @@ package httpserver
 
 import (
 	"net/http"
+	"sync/atomic"
 	"time"
 
 	"github.com/pflege-de-labs/teamster/internal/authz"
@@ -24,6 +25,7 @@ type Server struct {
 	store      store.Store
 	graph      messenger
 	router     *routing.Router
+	draining   atomic.Bool
 	authz      *authz.Authorizer
 	directory  *directoryCache
 	oidc       *oidcProvider
@@ -63,6 +65,10 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger) (*ht
 	}
 
 	mux := http.NewServeMux()
+	// Probes answer before any authentication: a kubelet carries no credentials,
+	// and a probe that needs them reports the wrong thing when they are wrong.
+	mux.HandleFunc("/healthz", api.handleLive)
+	mux.HandleFunc("/readyz", api.handleReady)
 	mux.HandleFunc("/webhook/alertmanager", api.handleAlertmanager)
 	mux.HandleFunc("/webhook/universal", api.handleUniversal)
 
@@ -127,6 +133,10 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger) (*ht
 		WriteTimeout:      cfg.Server.WriteTimeout,
 		IdleTimeout:       cfg.Server.IdleTimeout,
 	}
+
+	// Shutdown flips readiness before it starts draining, so traffic stops
+	// arriving while the in-flight requests finish.
+	api.httpServer.RegisterOnShutdown(func() { api.draining.Store(true) })
 
 	return api.httpServer, nil
 }

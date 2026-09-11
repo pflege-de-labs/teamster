@@ -340,6 +340,7 @@ func TestStoreErrorsWhenDatabaseIsClosed(t *testing.T) {
 		call func() error
 	}{
 		{"ListTemplates", func() error { _, err := s.ListTemplates(); return err }},
+		{"Ping", func() error { return s.Ping() }},
 		{"ListGrants", func() error { _, err := s.ListGrants(); return err }},
 		{"CreateGrant", func() error { _, err := s.CreateGrant(models.Grant{}); return err }},
 		{"DeleteGrant", func() error { return s.DeleteGrant("id") }},

@@ -10,6 +10,9 @@ var ErrNotFound = errors.New("not found")
 
 type Store interface {
 	Close() error
+	// Ping reports whether the database can still be reached, which is what
+	// readiness turns on.
+	Ping() error
 
 	ListTemplates() ([]models.Template, error)
 	CreateTemplate(t models.Template) (models.Template, error)
