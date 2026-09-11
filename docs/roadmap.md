@@ -174,7 +174,218 @@ unreachable directory falling back to ids, an empty configuration, and each of t
 The drawing itself is not tested; the page is asserted to render and to reference
 assets that exist.
 
-## Milestone 4 — Card editor
+## Milestone 4 — Messages the Teams activity feed can read
+
+A message whose visible content is an attached card previews as `Card` in the activity feed. An
+operator scanning notifications learns nothing without opening each one, which is most of the value
+of a notification.
+
+The summary line the service already sends is hardcoded in Go — `annotations.summary`, then
+`labels.alertname`, then `Alert update` (`webhooks.go`). It is not templatable, so it cannot say
+what a particular deployment wants said.
+
+### The template gains a title, and the card becomes optional
+
+`models.Template` grows two fields beside `Body`:
+
+* `Title` — a Go template rendering to a single line of plain text. It becomes the first line of
+  the message body, which is what the feed previews.
+* `Text` — an optional Go template rendering to formatted text, for a message that needs prose but
+  not a card.
+
+`Body` (the Adaptive Card JSON) becomes optional. A template with a title and text and no card
+sends a plain message; a template with all three sends text with the card below it. A template with
+neither a title nor a card is a validation error.
+
+The Graph payload assembles as `body.contentType: "html"` with the title, the rendered text, and
+`<attachment id="1"></attachment>` where the card goes — referencing the attachment explicitly
+rather than letting Graph append it, so the card's position relative to the text is ours to decide.
+
+### Not letting a template inject markup
+
+`Text` renders to HTML, which makes a template author — and, through `{{ .Alert.Annotations }}`, an
+alert — able to put markup into a Teams message. Rendered output passes an allowlist of the
+formatting tags Teams supports, and everything else is escaped. The title is escaped outright: it
+is one line of text.
+
+### Migration
+
+Existing templates have a body and no title. The store's migration fills `Title` with a template
+reproducing today's fallback chain, so nothing changes for a deployment that never edits its
+templates:
+
+```gotemplate
+{{ default .Alert.Labels.alertname (default "Alert update" .Alert.Annotations.summary) }}
+```
+
+`POST /api/templates/preview` returns the rendered title and text alongside the card, and the
+preview pane shows the feed line above the card — the point of the milestone is the line, so the
+preview has to show it.
+
+Needs an ADR: it changes what this service sends to Teams.
+
+## Milestone 5 — Nested routes
+
+One route matches and one message is delivered. A team that wants an alert in its own channel
+*and* in the platform channel has to duplicate the route and keep both selectors in step.
+
+Alertmanager solved this with a routing tree, and operators already think in those terms, so the
+model is borrowed rather than invented.
+
+### The model
+
+`models.Route` gains:
+
+* `ParentID` — empty for a root route. A child is evaluated only when its parent matched, and its
+  selector refines the parent's rather than replacing it.
+* `Greedy` — a greedy child delivers instead of its parent; a non-greedy child delivers as well as
+  its parent. This is Alertmanager's `continue` seen from the other end, and the UI says which in
+  words rather than in a flag name.
+* `TemplateID` and `DestinationID` become optional on a child: an unset one inherits from the
+  nearest ancestor that sets it. A child that inherits both and only refines the selector is
+  pointless, and validation says so.
+
+The tree is bounded: a parent chain may not cycle, and depth is capped. Both are checked on write,
+because a cycle found at delivery time is an alert that never arrives.
+
+### Selection becomes a plan, not a route
+
+`routing.Match` returns one route today. It becomes:
+
+```go
+type Delivery struct {
+    RouteID, DestinationID, TemplateID string
+    Reason                             Reason
+}
+
+func (r *Router) Plan(labels map[string]string) ([]Delivery, error)
+```
+
+Children are evaluated in priority order. The first matching child wins unless it is marked to let
+its siblings continue, mirroring Alertmanager. A greedy match drops its ancestor's delivery from
+the plan; a non-greedy one leaves it in. `SelectRoute` retires with its last caller.
+
+### State tracking has to fan out too
+
+`active_alerts` is keyed by fingerprint alone and holds one message id. With fan-out an alert has a
+card in several channels, so the key becomes `(fingerprint, team_id, channel_id)` and resolving an
+alert updates every card it posted. That is a real migration of an existing table, not an additive
+column, and it carries the same legacy-schema guard the `DATETIME` fix introduced.
+
+Delivery is best effort per destination: one channel failing must not cost the others their update.
+Because each delivery records its message id, an Alertmanager retry after a partial failure updates
+the cards that made it rather than duplicating them — so a partial failure can still answer `502`
+and let the sender retry.
+
+### The UI
+
+The route form gains a parent selector and the greedy choice, worded as "instead of" versus "as
+well as". The route list becomes a tree, indented by depth, showing inherited destinations and
+templates in a lighter style so inherited and set are distinguishable at a glance.
+
+Needs an ADR: routing stops being "one alert, one message".
+
+## Milestone 6 — Routing visualization, second pass
+
+Milestone 5 changes what there is to draw, and the current picture has a flaw worth fixing at the
+same time: templates are nodes, which makes an edge from a route to a template mean something
+different from an edge to a destination. That is two graphs drawn on top of each other.
+
+* Templates stop being nodes. A route node carries its template as a label, marked as inherited
+  when it comes from an ancestor, which is also how milestone 5 wants to display inheritance.
+* Route nodes nest: webhook → root routes → child routes → destinations. Parent-to-child edges
+  carry the greedy choice, and a non-greedy child keeps its parent's edge to its own destination,
+  so the fan-out is visible as two paths rather than described in a tooltip.
+* The graph is a strict DAG again, with one kind of edge meaning one thing: "an alert can go this
+  way".
+* A second, small graph pairs templates with the routes that use them. It is where a template no
+  route references shows up — the orphan case the template column was carrying.
+* The match highlight follows every path a label set takes, because a match can now end in more
+  than one channel.
+
+Depends on milestone 5. No ADR: it is the same page drawing a changed model.
+
+## Milestone 7 — Fine-grained permissions
+
+Today an authenticated session can do anything. The roles we want are `admin`, `editor` and
+`viewer`, with an admin able to say which Teams and channels an editor — or a group of editors —
+may deliver to, and able to set which teams and channels are visible at all.
+
+### Where the roles come from
+
+The claim that already grants access (`auth.claim`, `auth.allowed`) carries them: the configuration
+maps claim values to the three roles instead of to a single yes. A deployment with one operator
+group maps it to `admin` and nothing else changes.
+
+### Why not write the checks by hand
+
+Per-object grants with group inheritance and a visibility overlay is a relationship model, and
+hand-rolled versions of it grow into exactly the thing [OpenFGA](https://openfga.dev/) already is —
+a Zanzibar-style store with a tested evaluation engine. The model sketches as:
+
+```dsl
+type team
+  relations
+    define visible: [user:*, group#member]
+    define editor: [user, group#member]
+type channel
+  relations
+    define team: [team]
+    define editor: [user, group#member] or editor from team
+    define viewer: [user, group#member] or editor
+```
+
+### The constraint it runs into
+
+The first line of this file says one static binary with no separate deployment. OpenFGA is a Go
+service, so the ADR chooses between embedding its server packages in-process against our SQLite —
+if its storage layer supports that, which has to be checked before anything is promised — running
+it as a sidecar and accepting a second process, or keeping the model and evaluating it ourselves
+over a relation table in SQLite. The third is the fallback if embedding turns out to cost more than
+the problem is worth; the model above is written in OpenFGA's language either way, so the choice
+does not change the data.
+
+### Enforcement
+
+Authorization is checked in the admin API handlers, which is the only way the UI reaches the
+service, so the UI cannot be the place a permission is enforced. The pickers list only visible
+teams and channels, a route may only point at a destination the editor may deliver to, and a viewer
+sees the lists with every mutating control absent. Delivery is unaffected: it is a machine path
+with no user attached.
+
+Needs an ADR, and it supersedes part of [ADR 0009](adr/0009-admin-authentication.md): that one says
+membership grants access, and this one says membership grants a role.
+
+## Milestone 8 — Import and export of configuration
+
+There is no way to move a configuration between installs or to back one up other than copying the
+SQLite file, which carries sessions and alert state along with it.
+
+`GET /api/config/export` returns a bundle — templates, destinations, routes, and the permission
+grants once milestone 7 exists — with a schema version and an export timestamp. Secrets are not in
+it: no webhook token, no client secret, no admin password. Sessions, login flows and active alerts
+are runtime state and are not in it either.
+
+`POST /api/config/import` takes the same document with a mode:
+
+* `merge` upserts by id and leaves anything absent from the bundle alone.
+* `replace` makes the install match the bundle, deleting what the bundle does not mention.
+
+Both validate the whole bundle first — dangling destination and template references, cycles in the
+route tree, unknown schema version — and apply it in one transaction, so a rejected import changes
+nothing. A dry run returns the diff it would apply without applying it.
+
+Ids are preserved, so a bundle re-imported into the install it came from is a no-op. Team and
+channel ids are tenant-specific, though: exporting from one tenant and importing into another
+leaves destinations pointing at ids that do not resolve. The bundle therefore carries the Team and
+channel *names* beside the ids as a hint, and the import reports which destinations no longer
+resolve rather than silently keeping them.
+
+This is also the first thing the CLI does beyond `serve`: `teamster export` and `teamster import`
+are kong commands over the same code the endpoints use, which is what the command structure in
+[ADR 0003](adr/0003-kong-commands-and-shutdown.md) was built for.
+
+## Milestone 9 — Card editor
 
 Deliberately last. Once the preview from 1.4 exists we will know whether editing JSON beside a live
 preview is already enough.
@@ -193,9 +404,20 @@ this service actually uses. The decision gets its own ADR when we get there.
 | — | 1.3 Teams picker | — | done |
 | — | 2 OIDC login | — | done |
 | — | 3 Routing visualization | — | done |
-| 5 | 4 Card editor | 1.4 | decision after 1.4 |
+| 1 | 4 Activity feed messages | — | — |
+| 2 | 5 Nested routes | — | — |
+| 3 | 6 Visualization, second pass | 5 | — |
+| 4 | 7 Fine-grained permissions | 2 | ADR on how OpenFGA is run |
+| 5 | 8 Import and export | 7 for permissions | — |
+| 6 | 9 Card editor | 1.4 | decision after 1.4 |
 
-1.3 sits after 1.4 because it is the only item waiting on someone else to grant a permission.
+1.3 sat after 1.4 because it was the only item waiting on someone else to grant a permission.
+
+Milestone 4 goes first because it is small, changes no schema beyond two template columns, and
+fixes something an operator hits on every single alert. Milestone 5 is the large one and 6 follows
+it immediately, because shipping a picture that disagrees with routing is worse than shipping
+neither. 8 waits on 7 only for the permission part of the bundle; the rest of it could be pulled
+forward if a migration is needed sooner.
 
 ## Open questions
 
@@ -203,5 +425,12 @@ this service actually uses. The decision gets its own ADR when we get there.
   Small enough that the no-CDN rule stands.
 * Should the admin API accept a token for automation once OIDC lands, or is basic auth the answer
   for scripts? Decide as part of milestone 2.
+* Can OpenFGA be embedded in-process against SQLite, or does it require a database we do not ship?
+  This decides whether milestone 7 keeps the single-binary promise, and it is the first thing to
+  check when that milestone starts.
+* Does a non-greedy child deliver to its parent's destination, or to every ancestor's? Alertmanager
+  has no equivalent question because it has no destination inheritance. The former is proposed.
+* Should a message that carries only text still be updated in place when an alert resolves, or is
+  editing a plain message in Teams confusing in a way editing a card is not?
 * Vendored JavaScript has no update path today. A checksum file and a documented refresh procedure
   are the minimum; a `make vendor` target may be worth it.
