@@ -2,11 +2,13 @@ package httpserver
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"github.com/pflege-de-labs/teamster/internal/graph"
 	"github.com/pflege-de-labs/teamster/internal/models"
 )
 
@@ -50,13 +52,17 @@ func graphFrom(t *testing.T, handler http.Handler) (map[string]graphNode, []grap
 func TestRoutingGraph(t *testing.T) {
 	t.Parallel()
 
-	nodes, links := graphFrom(t, newTestServer(t, routingStore(), &fakeMessenger{}).Handler)
+	directory := &fakeMessenger{
+		teams:    []graph.Team{{ID: "team", Name: "Platform"}},
+		channels: map[string][]graph.Channel{"team": {{ID: "chan", Name: "Alerts"}}},
+	}
+	nodes, links := graphFrom(t, newTestServer(t, routingStore(), directory).Handler)
 
 	if got := nodes["route:critical"]; got.Kind != "route" || got.Label != "Critical to ops" || got.Selector != "severity=critical" || got.Priority != 100 {
 		t.Errorf("route node = %+v, want the route resolved with its selector", got)
 	}
-	if got := nodes["destination:dest"]; got.Kind != "destination" || !strings.Contains(got.Detail, "team") {
-		t.Errorf("destination node = %+v, want the team and channel in the detail", got)
+	if got := nodes["destination:dest"]; got.Kind != "destination" || got.Label != "Ops channel" || got.Detail != "Platform › Alerts" {
+		t.Errorf("destination node = %+v, want the destination name and the Team/channel names", got)
 	}
 	if got := nodes["template:tmpl"]; got.Label != "Critical card" {
 		t.Errorf("template node = %+v, want the template name", got)
@@ -65,9 +71,10 @@ func TestRoutingGraph(t *testing.T) {
 		t.Error("the default route is not marked as one")
 	}
 
-	// Two routes, each pointing at a destination and a template.
-	if len(links) != 4 {
-		t.Errorf("links = %d, want 4", len(links))
+	// The webhook source, plus two routes each pointing at a destination and a
+	// template.
+	if len(links) != 6 {
+		t.Errorf("links = %d, want 6", len(links))
 	}
 	for _, link := range links {
 		if _, ok := nodes[link.Target]; !ok {
@@ -108,8 +115,81 @@ func TestRoutingGraphWithNothingConfigured(t *testing.T) {
 	t.Parallel()
 
 	nodes, links := graphFrom(t, newTestServer(t, newFakeStore(), &fakeMessenger{}).Handler)
-	if len(nodes) != 0 || len(links) != 0 {
-		t.Errorf("graph = %v / %v, want both empty rather than null", nodes, links)
+	if len(nodes) != 1 || nodes["source:webhook"].Kind != "source" {
+		t.Errorf("graph = %v, want the webhook source alone", nodes)
+	}
+	if len(links) != 0 {
+		t.Errorf("links = %v, want none rather than null", links)
+	}
+}
+
+// The picture is the flow an alert takes, so it starts where alerts arrive and
+// every route hangs off that one node.
+func TestRoutingGraphFlowsFromTheWebhook(t *testing.T) {
+	t.Parallel()
+
+	nodes, links := graphFrom(t, newTestServer(t, routingStore(), &fakeMessenger{}).Handler)
+
+	source, ok := nodes["source:webhook"]
+	if !ok || source.Kind != "source" {
+		t.Fatalf("nodes = %v, want a webhook source node", nodes)
+	}
+	if !strings.Contains(source.Detail, "/webhook/alertmanager") {
+		t.Errorf("source detail = %q, want the endpoints alerts arrive on", source.Detail)
+	}
+
+	fed := map[string]bool{}
+	for _, link := range links {
+		if link.Source == source.ID {
+			fed[link.Target] = true
+		}
+	}
+	for _, route := range []string{"route:critical", "route:fallback"} {
+		if !fed[route] {
+			t.Errorf("%s is not fed by the webhook, so the flow has no start", route)
+		}
+	}
+}
+
+// Columns left to right: what arrives, what decides, where it lands. The rows
+// follow the order the router evaluates routes in.
+func TestRoutingGraphLaysOutColumns(t *testing.T) {
+	t.Parallel()
+
+	nodes, _ := graphFrom(t, newTestServer(t, routingStore(), &fakeMessenger{}).Handler)
+
+	if x := nodes["source:webhook"].X; x != 0 {
+		t.Errorf("source x = %d, want the leftmost column", x)
+	}
+	if nodes["route:critical"].X <= nodes["source:webhook"].X {
+		t.Error("routes are not to the right of the webhook")
+	}
+	if nodes["destination:dest"].X <= nodes["route:critical"].X {
+		t.Error("destinations are not to the right of the routes")
+	}
+	// The default route is evaluated last, so it is drawn last.
+	if nodes["route:critical"].Y >= nodes["route:fallback"].Y {
+		t.Error("the default route is not below the route that outranks it")
+	}
+	// Templates share the column with the destinations but sit below them.
+	if nodes["template:tmpl"].X != nodes["destination:dest"].X {
+		t.Error("templates are not in the same column as the destinations")
+	}
+	if nodes["template:tmpl"].Y <= nodes["destination:dest"].Y {
+		t.Error("templates are not below the destinations")
+	}
+}
+
+// The directory is a nicety: an unreachable Graph must still leave a drawable
+// picture, with the ids the destination stores.
+func TestRoutingGraphFallsBackToIdentifiers(t *testing.T) {
+	t.Parallel()
+
+	directory := &fakeMessenger{directoryErr: errors.New("graph is down")}
+	nodes, _ := graphFrom(t, newTestServer(t, routingStore(), directory).Handler)
+
+	if got := nodes["destination:dest"].Detail; got != "team › chan" {
+		t.Errorf("destination detail = %q, want the raw ids", got)
 	}
 }
 

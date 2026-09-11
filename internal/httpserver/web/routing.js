@@ -7,10 +7,24 @@
   const form = document.getElementById("match-form");
   const result = document.getElementById("match-result");
 
-  const fills = {
+  // Alerts flow left to right, so the drawing is a layered DAG: the server
+  // places every node, the browser only draws and lets them be dragged.
+  const boxWidth = 220;
+  const boxHeight = 56;
+  const margin = 48;
+
+  const accents = {
+    source: "#64748b",
     route: "#0ea5e9",
     destination: "#10b981",
     template: "#f59e0b",
+  };
+
+  const headings = {
+    source: "Webhook",
+    route: "Routes",
+    destination: "Destinations",
+    template: "Templates",
   };
 
   let groups = null;
@@ -23,17 +37,52 @@
     container.appendChild(p);
   }
 
+  function clip(text, max) {
+    if (!text) return "";
+    return text.length > max ? text.slice(0, max - 1) + "…" : text;
+  }
+
+  // What the node filters for, or why it filters for nothing.
+  function subtitle(node) {
+    if (node.kind === "route") {
+      if (node.selector) return node.selector;
+      return node.default ? "no selector — catches the rest" : "no selector — matches nothing";
+    }
+    return node.detail || "";
+  }
+
   function tooltip(node) {
-    if (node.kind !== "route") return node.detail || "";
-    const parts = [node.selector ? node.selector : "matches nothing on its own"];
-    parts.push("priority " + node.priority);
-    if (node.default) parts.push("default route");
+    const parts = [node.label];
+    const sub = subtitle(node);
+    if (sub) parts.push(sub);
+    if (node.kind === "route") {
+      parts.push("priority " + node.priority);
+      if (node.default) parts.push("default route");
+    }
+    if (node.missing) parts.push("referenced by a route but no longer exists");
     return parts.join("\n");
+  }
+
+  // Column headings sit above the first node of each kind, so the two groups
+  // sharing the right-hand column stay told apart.
+  function columnHeadings(nodes) {
+    const tops = new Map();
+    nodes.forEach((node) => {
+      const seen = tops.get(node.kind);
+      if (!seen || node.y < seen.y) tops.set(node.kind, node);
+    });
+    return Array.from(tops, ([kind, node]) => ({
+      kind: kind,
+      text: headings[kind] || kind,
+      x: node.x,
+      y: node.y - 18,
+    }));
   }
 
   function draw(nodes, links) {
     const width = container.clientWidth;
     const height = container.clientHeight;
+    const byID = new Map(nodes.map((node) => [node.id, node]));
 
     container.replaceChildren();
     const svg = d3
@@ -43,96 +92,153 @@
       .attr("height", "100%")
       .attr("viewBox", [0, 0, width, height]);
 
-    const root = svg.append("g");
-    svg.call(
-      d3.zoom().scaleExtent([0.2, 4]).on("zoom", (event) => {
-        root.attr("transform", event.transform);
-      }),
-    );
+    svg
+      .append("defs")
+      .append("marker")
+      .attr("id", "routing-arrow")
+      .attr("viewBox", "0 0 10 10")
+      .attr("refX", 9)
+      .attr("refY", 5)
+      .attr("markerWidth", 6)
+      .attr("markerHeight", 6)
+      .attr("orient", "auto-start-reverse")
+      .append("path")
+      .attr("d", "M 0 0 L 10 5 L 0 10 z")
+      .attr("fill", "#94a3b8");
 
-    const simulation = d3
-      .forceSimulation(nodes)
-      .force(
-        "link",
-        d3
-          .forceLink(links)
-          .id((d) => d.id)
-          .distance(110),
-      )
-      .force("charge", d3.forceManyBody().strength(-320))
-      .force("center", d3.forceCenter(width / 2, height / 2))
-      .force("collide", d3.forceCollide(28));
+    const root = svg.append("g");
+    const zoom = d3.zoom().scaleExtent([0.2, 4]).on("zoom", (event) => {
+      root.attr("transform", event.transform);
+    });
+    svg.call(zoom);
+
+    // Edges leave the right edge of a node and arrive at the left edge of the
+    // next, which is what makes the direction of the flow visible.
+    function path(link) {
+      const from = byID.get(link.source);
+      const to = byID.get(link.target);
+      if (!from || !to) return "";
+      const x1 = from.x + boxWidth;
+      const y1 = from.y + boxHeight / 2;
+      const x2 = to.x;
+      const y2 = to.y + boxHeight / 2;
+      const bend = Math.max(24, (x2 - x1) / 2);
+      return "M" + x1 + "," + y1 + "C" + (x1 + bend) + "," + y1 + " " + (x2 - bend) + "," + y2 + " " + x2 + "," + y2;
+    }
 
     const link = root
       .append("g")
-      .attr("stroke", "#cbd5e1")
+      .attr("fill", "none")
+      .attr("stroke", "#94a3b8")
       .attr("stroke-width", 1.5)
-      .selectAll("line")
+      .selectAll("path")
       .data(links)
-      .join("line");
+      .join("path")
+      .attr("marker-end", "url(#routing-arrow)")
+      .attr("d", path);
+
+    const heading = root
+      .append("g")
+      .selectAll("text")
+      .data(columnHeadings(nodes))
+      .join("text")
+      .attr("x", (d) => d.x)
+      .attr("y", (d) => d.y)
+      .attr("font-size", 11)
+      .attr("font-weight", 600)
+      .attr("fill", "#64748b")
+      .text((d) => d.text);
 
     const node = root
       .append("g")
       .selectAll("g")
       .data(nodes)
       .join("g")
+      .attr("transform", (d) => "translate(" + d.x + "," + d.y + ")")
       .call(
         d3
           .drag()
-          .on("start", (event, d) => {
-            if (!event.active) simulation.alphaTarget(0.3).restart();
-            d.fx = d.x;
-            d.fy = d.y;
-          })
           .on("drag", (event, d) => {
-            d.fx = event.x;
-            d.fy = event.y;
-          })
-          .on("end", (event, d) => {
-            if (!event.active) simulation.alphaTarget(0);
-            d.fx = null;
-            d.fy = null;
+            d.x = event.x;
+            d.y = event.y;
+            d3.select(event.sourceEvent.currentTarget).attr("transform", "translate(" + d.x + "," + d.y + ")");
+            link.attr("d", path);
           }),
       );
 
     node
-      .append("circle")
-      .attr("r", 10)
-      .attr("fill", (d) => (d.missing ? "#ef4444" : fills[d.kind] || "#64748b"))
-      .attr("stroke", "#ffffff")
-      .attr("stroke-width", 1.5);
+      .append("rect")
+      .attr("width", boxWidth)
+      .attr("height", boxHeight)
+      .attr("rx", 6)
+      .attr("fill", (d) => (d.missing ? "#fef2f2" : "#ffffff"))
+      .attr("stroke", (d) => (d.missing ? "#ef4444" : "#cbd5e1"))
+      .attr("stroke-width", 1);
+
+    // A coloured spine rather than a filled box: the label has to stay readable.
+    node
+      .append("rect")
+      .attr("width", 4)
+      .attr("height", boxHeight)
+      .attr("fill", (d) => (d.missing ? "#ef4444" : accents[d.kind] || "#64748b"));
 
     node
       .append("text")
       .attr("x", 14)
-      .attr("dy", "0.35em")
-      .attr("font-size", 11)
+      .attr("y", 22)
+      .attr("font-size", 12)
+      .attr("font-weight", 600)
       .attr("fill", "#0f172a")
-      .text((d) => d.label);
+      .text((d) => clip(d.label, 28));
+
+    node
+      .append("text")
+      .attr("x", 14)
+      .attr("y", 40)
+      .attr("font-size", 10)
+      .attr("fill", (d) => (d.missing ? "#b91c1c" : "#475569"))
+      .text((d) => clip(subtitle(d), 34));
+
+    node
+      .filter((d) => d.kind === "route")
+      .append("text")
+      .attr("x", boxWidth - 10)
+      .attr("y", 22)
+      .attr("text-anchor", "end")
+      .attr("font-size", 10)
+      .attr("fill", "#64748b")
+      .text((d) => (d.default ? "default" : "p" + d.priority));
 
     node.append("title").text((d) => tooltip(d));
 
-    simulation.on("tick", () => {
-      link
-        .attr("x1", (d) => d.source.x)
-        .attr("y1", (d) => d.source.y)
-        .attr("x2", (d) => d.target.x)
-        .attr("y2", (d) => d.target.y);
-      node.attr("transform", (d) => "translate(" + d.x + "," + d.y + ")");
-    });
-
     groups = node;
+
+    // Open on the whole graph rather than on its top left corner.
+    const minX = d3.min(nodes, (d) => d.x) - margin;
+    const minY = d3.min(nodes, (d) => d.y) - margin;
+    const maxX = d3.max(nodes, (d) => d.x) + boxWidth + margin;
+    const maxY = d3.max(nodes, (d) => d.y) + boxHeight + margin;
+    const scale = Math.min(1, width / (maxX - minX), height / (maxY - minY));
+    svg.call(
+      zoom.transform,
+      d3.zoomIdentity
+        .translate((width - (maxX - minX) * scale) / 2, (height - (maxY - minY) * scale) / 2)
+        .scale(scale)
+        .translate(-minX, -minY),
+    );
+
+    return { link: link, heading: heading };
   }
 
   function highlight(id) {
     if (!groups) return;
     if (!id) {
       groups.attr("opacity", 1);
-      groups.select("circle").attr("stroke-width", 1.5);
+      groups.select("rect").attr("stroke-width", 1);
       return;
     }
     groups.attr("opacity", (d) => (d.id === id ? 1 : 0.25));
-    groups.select("circle").attr("stroke-width", (d) => (d.id === id ? 3.5 : 1.5));
+    groups.select("rect").attr("stroke-width", (d) => (d.id === id ? 2.5 : 1));
   }
 
   function parseLabels(text) {
@@ -194,7 +300,8 @@
     }
 
     const nodes = payload && Array.isArray(payload.nodes) ? payload.nodes : [];
-    if (nodes.length === 0) {
+    // The webhook source is always there, so it alone is not a graph worth drawing.
+    if (nodes.filter((node) => node.kind !== "source").length === 0) {
       empty("Nothing to draw yet. Create a route, a destination and a template first.");
       return;
     }
