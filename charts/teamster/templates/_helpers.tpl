@@ -214,6 +214,11 @@ spec:
       env:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- /* Off unless a deployment asks for it: see the note in values.yaml. */}}
+      {{- with $.Values.startupProbe }}
+      startupProbe:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       {{- with $.Values.livenessProbe }}
       livenessProbe:
         {{- toYaml . | nindent 8 }}

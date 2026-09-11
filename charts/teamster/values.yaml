@@ -197,6 +197,22 @@ readinessProbe:
     port: http
   initialDelaySeconds: 2
   periodSeconds: 10
+
+# Startup is opening the database and running its migrations, which is quick
+# enough that liveness covers it — so there is no startupProbe by default.
+#
+# The case for one is the first start after an upgrade that rebuilds a table:
+# with a large active_alerts, that can outlast the liveness probe's patience,
+# and a liveness failure during startup is a restart loop that never finishes
+# the migration. Uncomment this then, and give failureThreshold × periodSeconds
+# more time than the migration needs.
+#
+# startupProbe:
+#   httpGet:
+#     path: /healthz
+#     port: http
+#   periodSeconds: 5
+#   failureThreshold: 30
 startupProbe: {}
 
 resources: {}
