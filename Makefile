@@ -90,6 +90,7 @@ chart-lint:
 		echo "rendering $$values"; \
 		helm template teamster $(CHART) --values "$$values" > /dev/null; \
 	done
+	@scripts/check-chart-render.sh $(CHART)
 
 image:
 	$(CONTAINER_TOOL) build --build-arg VERSION=$(VERSION) -t $(IMAGE):$(VERSION) -t $(IMAGE):latest .

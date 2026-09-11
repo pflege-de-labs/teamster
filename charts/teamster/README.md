@@ -130,6 +130,18 @@ restarting on an unreachable database turns an outage into a crash loop.
 
 `helm test` asks for `/readyz` through the Service.
 
+There is no `startupProbe` by default: starting is opening the database and
+running its migrations, which liveness covers. `values.yaml` carries one
+commented out for the case that does not — the first start after an upgrade
+that rebuilds a table, where a long migration can outlast the liveness probe
+and turn into a restart loop that never finishes it.
+
+`make chart-lint` renders the chart from each of the `ci/` value sets and
+asserts what comes out: both probes present on whichever workload was asked
+for, the port they name, the config mount and the data volume. A probe dropped
+because a values key was emptied or a helper refactored is the sort of change
+that deploys happily and is noticed at three in the morning.
+
 ## Values
 
 The [values.yaml](values.yaml) comments are the reference. The ones most often changed:
