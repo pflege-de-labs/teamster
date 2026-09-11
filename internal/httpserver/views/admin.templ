@@ -23,6 +23,7 @@ templ templates(page Page) {
 				@textField("name", "Name", "Critical alert", page.editingTemplate().Name)
 				@textField("title", "Activity feed title", "{{ .Alert.Annotations.summary }}", page.editingTemplate().Title)
 				@textareaField("message_text", "Message text (optional, limited HTML)", page.editingTemplate().Text, "4")
+				@cardPalette(page)
 				@textareaField("body", "Adaptive Card JSON (optional)", page.editingTemplate().Body, "12")
 				<div class="flex flex-wrap items-center gap-2">
 					@submit(submitLabel(page.EditTemplate != nil, "template"))
@@ -33,6 +34,10 @@ templ templates(page Page) {
 					>
 						Preview
 					</button>
+					<label class="inline-flex items-center gap-1.5 text-sm text-slate-600">
+						<input type="checkbox" id="preview-live" checked class="rounded border-slate-300"/>
+						as you type
+					</label>
 					<select
 						id="preview-sample"
 						aria-label="Sample alert"
@@ -247,4 +252,32 @@ templ grants(page Page) {
 			</div>
 		}
 	}
+}
+
+// The palette inserts card elements at the cursor. The fragments come from Go,
+// where a test renders every one of them, rather than being typed into the page
+// where nothing would check them.
+templ cardPalette(page Page) {
+	<div class="flex flex-wrap items-center gap-2">
+		<span class="text-sm font-medium text-slate-700">Insert</span>
+		for _, snippet := range page.Snippets {
+			<button
+				type="button"
+				class="snippet rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:border-sky-400 hover:bg-sky-50 hover:text-sky-700"
+				title={ snippet.Help }
+				data-snippet={ snippet.Body }
+			>
+				{ snippet.Label }
+			</button>
+		}
+		<button
+			type="button"
+			id="card-starter"
+			class="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:border-sky-400 hover:bg-sky-50 hover:text-sky-700"
+			title="Replace the card with a complete example to edit down"
+			data-snippet={ page.Starter }
+		>
+			Start from an example
+		</button>
+	</div>
 }

@@ -399,9 +399,18 @@ Destinations are configured by picking a Team and a channel by name once Microso
 the fields fall back to accepting ids typed by hand. Listing requires the `Team.ReadBasic.All` and
 `Channel.ReadBasic.All` application permissions with tenant admin consent.
 
-The template form has a Preview button: the server renders the template against a sample alert and
-the browser draws the resulting Adaptive Card, so a template can be checked before any alert
-arrives. The renderer is vendored in `internal/httpserver/web/vendor`; see the README there to
+The template form has a card palette and a preview. The palette inserts the elements our own
+templates use — text, facts, columns, a link action, all labels, a conditional block — at the cursor,
+and **Start from an example** replaces the card with a complete one to edit down. The preview renders
+on the server against a sample alert and the browser draws the result, as you type or on demand, so
+a template can be checked before any alert arrives.
+
+The fragments are defined in `internal/cards` and rendered by a test against a sample alert and an
+empty one, so the palette cannot offer something the renderer rejects. They also show the quoting
+idiom worth copying: write `{{ toJSON .Alert.Annotations.summary }}` with no surrounding quotes
+rather than `"{{ .Alert.Annotations.summary }}"`, because `toJSON` adds the quotes and escapes what
+is inside them — an alert containing a quotation mark then produces a card instead of broken JSON.
+The renderer is vendored in `internal/httpserver/web/vendor`; see the README there to
 refresh it.
 
 The admin UI is rendered from [templ](https://github.com/a-h/templ) components in

@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/pflege-de-labs/teamster/internal/cards"
 	"github.com/pflege-de-labs/teamster/internal/models"
 )
 
@@ -66,6 +67,10 @@ type Page struct {
 
 	// Sample alerts the preview can render the template against.
 	PreviewSamples []string
+
+	// Snippets and Starter are what the card palette inserts.
+	Snippets []cards.Snippet
+	Starter  string
 
 	// CanEdit hides what this session may not do. Hiding is not enforcing —
 	// the server refuses the post either way — but showing a viewer a Save

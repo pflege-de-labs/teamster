@@ -122,14 +122,16 @@ func funcs() template.FuncMap {
 			}
 			return string(b), nil
 		},
-		// value is any because a missing key of a nil map arrives as an invalid
-		// value, which a string parameter rejects outright — exactly the case a
-		// fallback exists for.
-		"default": func(value any, fallback string) string {
-			text, ok := value.(string)
-			if !ok || text == "" {
-				return fallback
+		// Both parameters are any because a missing key of a nil map arrives as
+		// an invalid value, which a string parameter rejects outright. That is
+		// exactly the case a fallback exists for — and it is just as likely to
+		// be the fallback itself, as in `default .Annotations.summary
+		// .Labels.alertname`.
+		"default": func(value, fallback any) string {
+			if text, ok := value.(string); ok && text != "" {
+				return text
 			}
+			text, _ := fallback.(string)
 			return text
 		},
 	}

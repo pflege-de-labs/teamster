@@ -15,6 +15,28 @@
     output.appendChild(p);
   }
 
+  // Inserting at the cursor rather than appending: an operator adding a fact
+  // to a card wants it where they are looking, not at the end of the file.
+  function insertAtCursor(field, text) {
+    const start = field.selectionStart === null ? field.value.length : field.selectionStart;
+    const end = field.selectionEnd === null ? start : field.selectionEnd;
+
+    // A fragment dropped between two array entries needs the comma that the
+    // person would otherwise have to remember; one dropped into an empty field
+    // does not.
+    const before = field.value.slice(0, start);
+    const after = field.value.slice(end);
+    const needsComma = /[}\]"]\s*$/.test(before) && !/^\s*[,\]}]/.test(after);
+    const fragment = (needsComma ? ",\n" : "") + text;
+
+    field.value = before + fragment + after;
+    const caret = start + fragment.length;
+    field.setSelectionRange(caret, caret);
+    field.focus();
+    // Typing is what the live preview listens for, and this is typing.
+    field.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+
   function valueOf(name) {
     const field = form.querySelector('[name="' + name + '"]');
     return field ? field.value : "";
@@ -48,6 +70,44 @@
       '<!doctype html><meta charset="utf-8"><body style="font: 14px system-ui, sans-serif; margin: 12px">' + text;
     return frame;
   }
+
+  const bodyField = form.querySelector('[name="body"]');
+
+  form.querySelectorAll("button.snippet").forEach((snippet) => {
+    snippet.addEventListener("click", () => {
+      if (bodyField) insertAtCursor(bodyField, snippet.dataset.snippet || "");
+    });
+  });
+
+  const starter = document.getElementById("card-starter");
+  if (starter && bodyField) {
+    starter.addEventListener("click", () => {
+      // Replacing what is there is the point of starting again, but not
+      // silently: a card someone has been working on is worth a question.
+      if (bodyField.value.trim() !== "" && !window.confirm("Replace the card with the example?")) {
+        return;
+      }
+      bodyField.value = starter.dataset.snippet || "";
+      bodyField.dispatchEvent(new Event("input", { bubbles: true }));
+      bodyField.focus();
+    });
+  }
+
+  // Previewing as you type, debounced: the render is a round trip to the
+  // server, and one per keystroke would be a request per keystroke.
+  const live = document.getElementById("preview-live");
+  let pending = null;
+  function schedulePreview() {
+    if (!live || !live.checked) return;
+    window.clearTimeout(pending);
+    pending = window.setTimeout(() => button.click(), 600);
+  }
+
+  ["title", "message_text", "body"].forEach((name) => {
+    const field = form.querySelector('[name="' + name + '"]');
+    if (field) field.addEventListener("input", schedulePreview);
+  });
+  if (sample) sample.addEventListener("change", schedulePreview);
 
   button.addEventListener("click", async () => {
     let payload;

@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pflege-de-labs/teamster/internal/authz"
+	"github.com/pflege-de-labs/teamster/internal/cards"
 	"github.com/pflege-de-labs/teamster/internal/models"
 )
 
@@ -552,5 +554,42 @@ func TestRouteFormRejectsABrokenTree(t *testing.T) {
 	}
 	if len(st.routes) != 1 {
 		t.Errorf("stored %d routes, want the broken one refused", len(st.routes))
+	}
+}
+
+// The palette inserts fragments that a Go test renders, so what the page offers
+// cannot be a card the renderer rejects.
+func TestTemplateFormOffersTheCardPalette(t *testing.T) {
+	t.Parallel()
+
+	st := sessionAs(seededUIStore(), authz.RoleEditor)
+	body := asRole(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin", "").Body.String()
+
+	for _, want := range []string{
+		`class="snippet`, `id="card-starter"`, `id="preview-live"`,
+		"FactSet", "AdaptiveCard",
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the template form is missing %q", want)
+		}
+	}
+
+	// Every snippet the package defines is offered, not a copy of some of them.
+	for _, snippet := range cards.Snippets() {
+		if !strings.Contains(body, snippet.Label) {
+			t.Errorf("the palette does not offer %q", snippet.Label)
+		}
+	}
+}
+
+// A viewer sees no form, so it offers nothing to insert into either.
+func TestTheCardPaletteIsPartOfTheForm(t *testing.T) {
+	t.Parallel()
+
+	st := sessionAs(seededUIStore(), authz.RoleViewer)
+	body := asRole(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin", "").Body.String()
+
+	if strings.Contains(body, `id="card-starter"`) {
+		t.Error("a viewer is offered the card palette")
 	}
 }
