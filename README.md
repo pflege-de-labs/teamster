@@ -381,6 +381,7 @@ diagnose through the container logs. `/data` is the only writable path, and
 ```bash
 make hooks          # install the git hooks, once per clone
 make generate       # regenerate the templ components and the stylesheet
+make icons          # copy the favicon set the binary serves from images/
 make test           # go test ./...
 make coverage       # coverage report, fails below 75%
 make coverage-html  # writes coverage.html
@@ -412,6 +413,13 @@ rather than `"{{ .Alert.Annotations.summary }}"`, because `toJSON` adds the quot
 is inside them — an alert containing a quotation mark then produces a card instead of broken JSON.
 The renderer is vendored in `internal/httpserver/web/vendor`; see the README there to
 refresh it.
+
+The favicon set is generated from a logo with `scripts/make-favicons.sh` into
+`images/favicons/<logo>/`, and the binary serves copies of it under
+`internal/httpserver/web/`, because `go:embed` reads only from its own package directory.
+`make icons` refreshes those copies from `images/favicons/logo-teamster-1` — the admin UI wears logo
+1, the README header logo 2 — and a test fails when the two drift apart, which is how they came to
+be a release behind in the first place.
 
 The admin UI is rendered from [templ](https://github.com/a-h/templ) components in
 `internal/httpserver/views`, styled with Tailwind. Both generators run through `make generate`,
