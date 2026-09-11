@@ -27,3 +27,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0010](0010-message-shape.md) | A template decides the title, text and card of a message | Accepted |
 | [0011](0011-nested-routes.md) | Routes form a tree and an alert can fan out | Accepted |
 | [0012](0012-role-based-authorization.md) | Roles are authorized with Cedar, evaluated in-process | Accepted |
+| [0013](0013-configuration-transfer.md) | Configuration moves as a versioned JSON bundle | Accepted |

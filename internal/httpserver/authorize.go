@@ -116,6 +116,10 @@ func requestAuthorization(r *http.Request) (string, authz.Resource) {
 	// is a different action rather than another thing an editor may edit.
 	case strings.HasPrefix(path, "/api/grants"), strings.HasPrefix(path, "/admin/grants"):
 		return authz.ActionAdminister, authz.Resource{Type: "Grant"}
+	// An export is the whole configuration in one file and an import rewrites
+	// it, including who may deliver where. Both are the admin's.
+	case strings.HasPrefix(path, "/api/config/"):
+		return authz.ActionAdminister, transferResource()
 	case strings.HasPrefix(path, "/api/templates"), strings.HasPrefix(path, "/admin/templates"):
 		resource.Type = "Template"
 	case strings.HasPrefix(path, "/api/destinations"), strings.HasPrefix(path, "/admin/destinations"):

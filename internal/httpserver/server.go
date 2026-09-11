@@ -83,6 +83,8 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger) (*ht
 	adminMux.HandleFunc("/api/routing/graph", api.handleRoutingGraph)
 	adminMux.HandleFunc("/api/routing/templates", api.handleTemplateGraph)
 	adminMux.HandleFunc("/api/routing/match", api.handleRoutingMatch)
+	adminMux.HandleFunc("/api/config/export", api.handleExport)
+	adminMux.HandleFunc("/api/config/import", api.handleImport)
 	adminMux.HandleFunc("/api/grants", api.handleGrants)
 	adminMux.HandleFunc("/api/grants/", api.handleGrantByID)
 	adminMux.HandleFunc("/api/graph/teams", api.handleGraphTeams)

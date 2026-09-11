@@ -14,6 +14,11 @@ type Store interface {
 	// readiness turns on.
 	Ping() error
 
+	// WithTx runs fn against a store bound to one transaction. Everything fn
+	// writes lands together or not at all, which is what an import that may be
+	// rejected half way through needs.
+	WithTx(fn func(Store) error) error
+
 	ListTemplates() ([]models.Template, error)
 	CreateTemplate(t models.Template) (models.Template, error)
 	UpdateTemplate(t models.Template) (models.Template, error)

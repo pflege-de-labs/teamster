@@ -396,7 +396,7 @@ a channel needs to be told that, rather than left to conclude the channel does n
 Needs an ADR, and it supersedes part of [ADR 0009](adr/0009-admin-authentication.md): that one says
 membership grants access, and this one says membership grants a role.
 
-## Milestone 8 — Import and export of configuration
+## Milestone 8 — Import and export of configuration — done
 
 There is no way to move a configuration between installs or to back one up other than copying the
 SQLite file, which carries sessions and alert state along with it.
@@ -508,7 +508,7 @@ Needs an ADR: it changes how every component in the UI is written.
 | — | 5 Nested routes | — | done |
 | — | 6 Visualization, second pass | 5 | done |
 | — | 7 Fine-grained permissions | 2 | done |
-| 5 | 8 Import and export | 7 for permissions | — |
+| — | 8 Import and export | 7 for permissions | done |
 | 6 | 9 Card editor | 1.4 | decision after 1.4 |
 | 7 | 10 Localizable UI | — | — |
 

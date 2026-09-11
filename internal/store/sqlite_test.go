@@ -622,6 +622,55 @@ INSERT INTO sessions VALUES ('old', 'tester', 'tester', 'oidc', '2026-01-01 00:0
 	}
 }
 
+// An import is applied inside one transaction, so a failure part way through
+// has to leave the configuration as it was.
+func TestWithTx(t *testing.T) {
+	t.Parallel()
+
+	s := newTestStore(t)
+
+	if err := s.WithTx(func(tx Store) error {
+		_, err := tx.CreateTemplate(models.Template{ID: "kept", Name: "Kept", Body: "{}"})
+		return err
+	}); err != nil {
+		t.Fatalf("WithTx: %v", err)
+	}
+	if _, err := s.GetTemplate("kept"); err != nil {
+		t.Errorf("GetTemplate after a committed transaction = %v, want the row", err)
+	}
+
+	wanted := errors.New("changed my mind")
+	err := s.WithTx(func(tx Store) error {
+		if _, err := tx.CreateTemplate(models.Template{ID: "rolled-back", Name: "Gone", Body: "{}"}); err != nil {
+			return err
+		}
+		return wanted
+	})
+	if !errors.Is(err, wanted) {
+		t.Errorf("WithTx() = %v, want the callback's error", err)
+	}
+	if _, err := s.GetTemplate("rolled-back"); !errors.Is(err, ErrNotFound) {
+		t.Errorf("GetTemplate after a rollback = %v, want ErrNotFound", err)
+	}
+
+	// Nothing inside a transaction may close the database, ping it, or open a
+	// second one; each would be operating on a handle that is not there.
+	if err := s.WithTx(func(tx Store) error {
+		if err := tx.Ping(); err == nil {
+			t.Error("Ping() inside a transaction = nil, want a refusal")
+		}
+		if err := tx.Close(); err == nil {
+			t.Error("Close() inside a transaction = nil, want a refusal")
+		}
+		if err := tx.WithTx(func(Store) error { return nil }); err == nil {
+			t.Error("a nested WithTx = nil, want a refusal")
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("WithTx: %v", err)
+	}
+}
+
 func TestGrantLifecycle(t *testing.T) {
 	t.Parallel()
 
