@@ -115,3 +115,22 @@ templ empty(message string) {
 		{ message }
 	</p>
 }
+
+// pickerField is a text field the browser may replace with a select once
+// Microsoft Graph answers. The words that select needs travel with the field,
+// because the script that builds it has no catalog and no language.
+templ pickerField(id, name, label, placeholder, value, pickerLabel, pickerPlaceholder string) {
+	<label class="block">
+		<span class="text-sm font-medium">{ label }</span>
+		<input
+			type="text"
+			id={ id }
+			name={ name }
+			value={ value }
+			placeholder={ placeholder }
+			data-picker-label={ pickerLabel }
+			data-picker-placeholder={ pickerPlaceholder }
+			class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-sky-500 focus:outline-none"
+		/>
+	</label>
+}

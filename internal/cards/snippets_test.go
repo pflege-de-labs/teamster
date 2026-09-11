@@ -31,8 +31,10 @@ func TestSnippetsRender(t *testing.T) {
 		t.Run(snippet.Name, func(t *testing.T) {
 			t.Parallel()
 
-			if snippet.Label == "" || snippet.Help == "" {
-				t.Errorf("snippet %q has no label or help", snippet.Name)
+			// The words are catalog keys; i18n's own test checks that every
+			// catalog carries them.
+			if snippet.LabelKey == "" || snippet.HelpKey == "" {
+				t.Errorf("snippet %q names no label or help key", snippet.Name)
 			}
 
 			// A snippet is an element, so it is rendered inside a card to be

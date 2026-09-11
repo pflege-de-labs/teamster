@@ -11,11 +11,15 @@ package cards
 
 // A Snippet is one thing an operator can drop into a template. Body is a card
 // element, not a whole card, except for Starter.
+//
+// LabelKey and HelpKey are catalog keys rather than text: the palette is part
+// of the UI, and the UI is translated. The fragment itself is not — it is JSON
+// and Go template syntax, which do not vary by language.
 type Snippet struct {
-	Name  string `json:"name"`
-	Label string `json:"label"`
-	Help  string `json:"help"`
-	Body  string `json:"body"`
+	Name     string `json:"name"`
+	LabelKey string `json:"label_key"`
+	HelpKey  string `json:"help_key"`
+	Body     string `json:"body"`
 }
 
 // Starter is what a new template begins as: a whole card that renders against
@@ -57,9 +61,9 @@ const Starter = `{
 func Snippets() []Snippet {
 	return []Snippet{
 		{
-			Name:  "text",
-			Label: "Text",
-			Help:  "A line of text, wrapped. toJSON quotes it, so an alert containing a quotation mark is safe.",
+			Name:     "text",
+			LabelKey: "palette.text",
+			HelpKey:  "palette.text_help",
 			Body: `{
   "type": "TextBlock",
   "wrap": true,
@@ -67,9 +71,9 @@ func Snippets() []Snippet {
 }`,
 		},
 		{
-			Name:  "facts",
-			Label: "Facts",
-			Help:  "Label and value pairs, which is what most alert cards are.",
+			Name:     "facts",
+			LabelKey: "palette.facts",
+			HelpKey:  "palette.facts_help",
 			Body: `{
   "type": "FactSet",
   "facts": [
@@ -79,9 +83,9 @@ func Snippets() []Snippet {
 }`,
 		},
 		{
-			Name:  "columns",
-			Label: "Columns",
-			Help:  "Two columns side by side.",
+			Name:     "columns",
+			LabelKey: "palette.columns",
+			HelpKey:  "palette.columns_help",
 			Body: `{
   "type": "ColumnSet",
   "columns": [
@@ -103,9 +107,9 @@ func Snippets() []Snippet {
 }`,
 		},
 		{
-			Name:  "link",
-			Label: "Link button",
-			Help:  "An action that opens a runbook or a dashboard.",
+			Name:     "link",
+			LabelKey: "palette.link",
+			HelpKey:  "palette.link_help",
 			Body: `{
   "type": "ActionSet",
   "actions": [
@@ -118,9 +122,9 @@ func Snippets() []Snippet {
 }`,
 		},
 		{
-			Name:  "labels",
-			Label: "All labels",
-			Help:  "Every label the alert carries. The inner toJSON builds the text, the outer one quotes it.",
+			Name:     "labels",
+			LabelKey: "palette.labels",
+			HelpKey:  "palette.labels_help",
 			Body: `{
   "type": "TextBlock",
   "wrap": true,
@@ -129,9 +133,9 @@ func Snippets() []Snippet {
 }`,
 		},
 		{
-			Name:  "conditional",
-			Label: "Only when firing",
-			Help:  "A block that renders for a firing alert and another for a resolved one.",
+			Name:     "conditional",
+			LabelKey: "palette.conditional",
+			HelpKey:  "palette.conditional_help",
 			Body: `{{ if eq .Alert.Status "firing" }}
 {
   "type": "TextBlock",

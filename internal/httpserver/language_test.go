@@ -136,3 +136,36 @@ func TestASentenceIsNotBuiltByConcatenation(t *testing.T) {
 		t.Errorf("the submit button is not in German word order:\n%s", body)
 	}
 }
+
+// The palette buttons, the sample alerts and the words the Team and channel
+// pickers build themselves with are part of the UI, so they are translated too.
+func TestPaletteSamplesAndPickersAreTranslated(t *testing.T) {
+	t.Parallel()
+
+	st := sessionAs(seededUIStore(), authz.RoleEditor)
+	handler := newTestServer(t, st, &fakeMessenger{}).Handler
+
+	german := pageIn(t, handler, "/admin", "de")
+	for _, want := range []string{
+		"Fakten",                    // a palette button
+		"Nur bei ausgelöstem Alarm", // another, with its own help text
+		"Alarm: ausgelöst",          // a sample alert in the preview selector
+		`data-picker-label="Kanal"`, // what the channel picker will call itself
+		"— Team auswählen —",        // and what it shows before a choice is made
+	} {
+		if !strings.Contains(german, want) {
+			t.Errorf("the German page is missing %q", want)
+		}
+	}
+	// A key that reached the page instead of its text.
+	if strings.Contains(german, "palette.") {
+		t.Error("a catalog key rendered instead of its text")
+	}
+
+	english := pageIn(t, handler, "/admin", "en")
+	for _, want := range []string{"Facts", "firing alert", `data-picker-label="Channel"`, "— choose a team —"} {
+		if !strings.Contains(english, want) {
+			t.Errorf("the English page is missing %q", want)
+		}
+	}
+}
