@@ -1,0 +1,42 @@
+# Default deployment: a StatefulSet with the SQLite file on its own volume.
+credentials:
+  webhookToken: ci-token
+  adminUsername: admin
+  adminPassword: ci-password
+  graphClientSecret: ci-graph-secret
+
+config:
+  settings:
+    graph:
+      tenant-id: ci-tenant
+      client-id: ci-client
+
+ingress:
+  enabled: true
+  hosts:
+    - host: teamster.ci
+      paths:
+        - path: /
+          pathType: Prefix
+
+extraObjects:
+  # Object form: template expressions have to sit inside a quoted scalar, or the
+  # values file is not YAML any more.
+  webhook-url:
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: "{{ include \"teamster.fullname\" . }}-webhook"
+    data:
+      url: "http://{{ include \"teamster.fullname\" . }}:{{ .Values.service.port }}/webhook/alertmanager"
+  # String form: whole blocks can be templated, labels included.
+  extra-secret: |
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: {{ include "teamster.fullname" . }}-extra
+      labels:
+        {{- include "teamster.labels" . | nindent 8 }}
+    type: Opaque
+    stringData:
+      namespace: {{ .Release.Namespace }}

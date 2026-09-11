@@ -1,0 +1,39 @@
+# Deployment mode against a chart-managed claim, exposed through Gateway API,
+# with extraObjects in its list form.
+workload:
+  kind: Deployment
+
+persistence:
+  create: true
+  keepOnUninstall: false
+
+credentials:
+  webhookToken: ci-token
+  adminUsername: admin
+  adminPassword: ci-password
+  graphClientSecret: ci-graph-secret
+
+config:
+  settings:
+    graph:
+      tenant-id: ci-tenant
+      client-id: ci-client
+    auth:
+      oidc-discovery-url: https://login.ci/realms/internal/.well-known/openid-configuration
+      oidc-client-id: teamster
+      oidc-redirect-url: https://teamster.ci/admin/auth/callback
+      claim: realm_access.roles
+      default-role: viewer
+
+httpRoute:
+  enabled: true
+  hostnames:
+    - teamster.ci
+
+extraObjects:
+  - apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: "{{ include \"teamster.fullname\" . }}-extra-list"
+    data:
+      release: "{{ .Release.Name }}"

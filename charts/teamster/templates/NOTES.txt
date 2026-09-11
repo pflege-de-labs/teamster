@@ -1,0 +1,34 @@
+teamster is running as a {{ .Values.workload.kind }}, storing its state in
+{{ if .Values.persistence.enabled }}{{ include "teamster.databasePath" . }} on a persistent volume{{ else }}an emptyDir — EVERY TEMPLATE, DESTINATION AND ROUTE IS LOST WHEN THE POD RESTARTS. Set persistence.enabled=true{{ end }}.
+
+1. Reach the admin UI at /admin:
+{{- if .Values.httpRoute.enabled }}
+{{- range .Values.httpRoute.hostnames }}
+   http://{{ . }}/admin
+{{- end }}
+{{- else if .Values.ingress.enabled }}
+{{- range $host := .Values.ingress.hosts }}
+{{- range .paths }}
+   http{{ if $.Values.ingress.tls }}s{{ end }}://{{ $host.host }}{{ .path }}
+{{- end }}
+{{- end }}
+{{- else }}
+   kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "teamster.fullname" . }} 8080:{{ .Values.service.port }}
+   # then open http://127.0.0.1:8080/admin
+{{- end }}
+
+2. Point Alertmanager at the webhook, with the shared token in the
+   X-Teamster-Token header:
+
+   POST http://{{ include "teamster.fullname" . }}.{{ .Release.Namespace }}.svc:{{ .Values.service.port }}/webhook/alertmanager
+
+   kubectl --namespace {{ .Release.Namespace }} get secret {{ include "teamster.credentialsSecretName" . }} \
+     -o jsonpath='{.data.TEAMSTER_WEBHOOK_TOKEN}' | base64 -d
+{{ if and .Values.credentials.adminPassword (eq .Values.credentials.adminPassword "change-me") }}
+WARNING: credentials.adminPassword is still the example value. The local login
+is a way into the admin UI from anywhere the service is reachable.
+{{ end }}
+{{- if not (dig "auth" "oidc-discovery-url" "" (.Values.config.settings | default dict)) }}
+The local admin login is the only way in: no auth.oidc-discovery-url is
+configured under config.settings.
+{{- end }}

@@ -17,7 +17,9 @@ repos:
         args: [--fix=lf]
       - id: check-merge-conflict
       - id: check-added-large-files
+      # Chart templates are Go templates, not YAML, until helm renders them.
       - id: check-yaml
+        exclude: ^charts/[^/]+/templates/
       - id: check-json
 
   # Formats with the gofmt and goimports settings from .golangci.yml, so the
