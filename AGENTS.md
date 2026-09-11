@@ -38,13 +38,19 @@ A change is done when all of these hold:
 
   ```bash
   git worktree add ../teamster-<topic> -b <branch> origin/main
-  git worktree remove ../teamster-<topic>   # once the branch is merged
+  cp config.yaml ../teamster-<topic>/          # local sessions only, when it exists
+  git worktree remove ../teamster-<topic>      # once the branch is merged
   ```
 
   Switching in place pulls the ground out from under whatever is using that working tree — a
   running server, a live-reload watcher, an open editor. Gitignored files stay behind in the clone
-  that created them, so a fresh worktree has no `config.yaml` and no database; copy
-  `config.example.yaml` or point `--config` at an existing file before running the server there.
+  that created them, so a fresh worktree has no `config.yaml` and no database.
+
+  Copying `config.yaml` across from the main clone is what makes the worktree runnable without
+  rebuilding a configuration by hand. It only applies to a local session: the file holds real
+  credentials, it is never present in a web or cloud session, and nothing there should try to
+  reconstruct one. Without it, copy `config.example.yaml` or point `--config` at an existing file
+  before running the server.
 * Branches are merged into `main` via pull request; the PR checklist mirrors the definition of
   done above.
 * Dependency updates arrive as Renovate pull requests. Minor and patch Go bumps and action
