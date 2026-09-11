@@ -143,10 +143,11 @@ working.
 ## Routing visualization
 
 `/admin/routing` draws the path an alert takes — webhook, then the routes in the order they are
-evaluated, then the destinations and templates they point at — and answers "which route would this
-alert take?": paste `key=value` labels and the matching route is named, explained and highlighted
-in the graph. Route nodes show the labels they filter for; destination nodes name their Team and
-channel, falling back to the stored ids when Graph cannot be reached. A route pointing at a deleted
+evaluated, then the destinations and templates they point at, arrows carrying the direction — and
+answers "which route would this alert take?": paste `key=value` labels and the matching route is
+named, explained, and the path it takes through the graph is picked out in colour while the rest
+dims. Route nodes show the labels they filter for; destination nodes name their Team and channel,
+falling back to the stored ids when Graph cannot be reached. A route pointing at a deleted
 destination or template shows up as a missing node rather than disappearing.
 
 ## Container

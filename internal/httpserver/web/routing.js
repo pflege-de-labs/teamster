@@ -27,7 +27,14 @@
     template: "Templates",
   };
 
+  // Indigo belongs to nothing else on the page, so a highlighted path cannot be
+  // mistaken for a kind of node.
+  const matchColour = "#4f46e5";
+
   let groups = null;
+  let edges = null;
+  let edgeData = [];
+  let sourceID = null;
 
   function empty(message) {
     container.replaceChildren();
@@ -92,19 +99,24 @@
       .attr("height", "100%")
       .attr("viewBox", [0, 0, width, height]);
 
-    svg
-      .append("defs")
-      .append("marker")
-      .attr("id", "routing-arrow")
-      .attr("viewBox", "0 0 10 10")
-      .attr("refX", 9)
-      .attr("refY", 5)
-      .attr("markerWidth", 6)
-      .attr("markerHeight", 6)
-      .attr("orient", "auto-start-reverse")
-      .append("path")
-      .attr("d", "M 0 0 L 10 5 L 0 10 z")
-      .attr("fill", "#94a3b8");
+    const defs = svg.append("defs");
+    [
+      { id: "routing-arrow", fill: "#94a3b8" },
+      { id: "routing-arrow-match", fill: matchColour },
+    ].forEach((arrow) => {
+      defs
+        .append("marker")
+        .attr("id", arrow.id)
+        .attr("viewBox", "0 0 10 10")
+        .attr("refX", 9)
+        .attr("refY", 5)
+        .attr("markerWidth", 8)
+        .attr("markerHeight", 8)
+        .attr("orient", "auto-start-reverse")
+        .append("path")
+        .attr("d", "M 0 0 L 10 5 L 0 10 z")
+        .attr("fill", arrow.fill);
+    });
 
     const root = svg.append("g");
     const zoom = d3.zoom().scaleExtent([0.2, 4]).on("zoom", (event) => {
@@ -212,6 +224,10 @@
     node.append("title").text((d) => tooltip(d));
 
     groups = node;
+    edges = link;
+    edgeData = links;
+    const start = nodes.find((candidate) => candidate.kind === "source");
+    sourceID = start ? start.id : null;
 
     // Open on the whole graph rather than on its top left corner.
     const minX = d3.min(nodes, (d) => d.x) - margin;
@@ -230,15 +246,56 @@
     return { link: link, heading: heading };
   }
 
-  function highlight(id) {
-    if (!groups) return;
-    if (!id) {
+  // A matched route is only half the answer: what an operator wants to see is
+  // where that alert ends up, so the whole path from the webhook to the
+  // destination is drawn in the match colour and the rest is dimmed.
+  function pathOf(routeID) {
+    const nodeIDs = new Set([routeID]);
+    if (sourceID) nodeIDs.add(sourceID);
+
+    const linkIDs = new Set();
+    edgeData.forEach((link) => {
+      if (link.target === routeID && link.source === sourceID) {
+        linkIDs.add(link.source + ">" + link.target);
+      }
+      if (link.source === routeID) {
+        nodeIDs.add(link.target);
+        linkIDs.add(link.source + ">" + link.target);
+      }
+    });
+    return { nodes: nodeIDs, links: linkIDs };
+  }
+
+  function highlight(routeID) {
+    if (!groups || !edges) return;
+
+    if (!routeID) {
       groups.attr("opacity", 1);
-      groups.select("rect").attr("stroke-width", 1);
+      groups.select("rect").attr("stroke", (d) => (d.missing ? "#ef4444" : "#cbd5e1")).attr("stroke-width", 1);
+      edges
+        .attr("opacity", 1)
+        .attr("stroke", "#94a3b8")
+        .attr("stroke-width", 1.5)
+        .attr("marker-end", "url(#routing-arrow)");
       return;
     }
-    groups.attr("opacity", (d) => (d.id === id ? 1 : 0.25));
-    groups.select("rect").attr("stroke-width", (d) => (d.id === id ? 2.5 : 1));
+
+    const taken = pathOf(routeID);
+    groups.attr("opacity", (d) => (taken.nodes.has(d.id) ? 1 : 0.2));
+    groups
+      .select("rect")
+      .attr("stroke", (d) => {
+        if (taken.nodes.has(d.id)) return matchColour;
+        return d.missing ? "#ef4444" : "#cbd5e1";
+      })
+      .attr("stroke-width", (d) => (taken.nodes.has(d.id) ? 2.5 : 1));
+    edges
+      .attr("opacity", (d) => (taken.links.has(d.source + ">" + d.target) ? 1 : 0.15))
+      .attr("stroke", (d) => (taken.links.has(d.source + ">" + d.target) ? matchColour : "#94a3b8"))
+      .attr("stroke-width", (d) => (taken.links.has(d.source + ">" + d.target) ? 2.5 : 1.5))
+      .attr("marker-end", (d) =>
+        taken.links.has(d.source + ">" + d.target) ? "url(#routing-arrow-match)" : "url(#routing-arrow)",
+      );
   }
 
   function parseLabels(text) {

@@ -162,8 +162,9 @@ certainly works, and revisit if the binary size becomes uncomfortable — it is 
 Templates get their own nodes rather than being named inside the route boxes, so a template no
 route uses is visible as an orphan.
 
-Matching a route highlights its node and dims the rest, so the check and the graph are one view
-rather than two.
+Matching a route highlights the whole path it implies — webhook, route, destination, template —
+and dims the rest, so the check and the graph are one view rather than two. Arrowheads carry the
+direction on every edge, including the highlighted ones.
 
 ### Tests
 

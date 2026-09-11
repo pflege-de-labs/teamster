@@ -112,6 +112,10 @@ labels it filters for, a destination node its name together with the Team and ch
 resolved through the same `directoryCache` the pickers use. That lookup is best effort: an
 unreachable Graph falls back to the stored ids rather than failing the request.
 
+Matching a label set highlights the path that alert takes rather than the winning route alone:
+the webhook, the route, its destination and its template are drawn in the match colour and
+everything else dims, so the answer is read off the same picture.
+
 `POST /api/routing/match` returns the winning route and **why** it won — `selector`, `default`,
 `none` or `no-routes`. That reason comes from `routing.Match`, which holds the rule in one place;
 `SelectRoute`, used by the delivery path, is a wrapper over it. The browser never re-implements
