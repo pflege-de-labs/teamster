@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/pflege-de-labs/teamster/internal/authz"
 	"github.com/pflege-de-labs/teamster/internal/httpserver/views"
 	"github.com/pflege-de-labs/teamster/internal/models"
 	"github.com/pflege-de-labs/teamster/internal/routing"
@@ -23,10 +24,13 @@ func (s *Server) handleAdminPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	_, role := principalOf(r)
 	page := views.Page{
 		Notice:         r.URL.Query().Get("notice"),
 		Error:          r.URL.Query().Get("error"),
 		PreviewSamples: previewSamples(),
+		Role:           string(role),
+		CanEdit:        s.authz.Allow(principalSubject(r), role, authz.ActionEdit, authz.Resource{Type: "Template"}),
 	}
 
 	var err error

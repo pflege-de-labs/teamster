@@ -18,7 +18,19 @@ func newTestServer(t *testing.T, st *fakeStore, msg *fakeMessenger) *http.Server
 		Webhook: config.WebhookConfig{Token: "token"},
 		Admin:   config.AdminConfig{Username: "admin", Password: "pass"},
 	}
-	return NewServer(cfg, st, msg)
+	return mustServer(t, cfg, st, msg)
+}
+
+// mustServer fails the test rather than returning an error: a policy file that
+// does not parse is a broken build, not a case under test.
+func mustServer(t *testing.T, cfg config.Config, st *fakeStore, msg *fakeMessenger) *http.Server {
+	t.Helper()
+
+	srv, err := NewServer(cfg, st, msg)
+	if err != nil {
+		t.Fatalf("NewServer: %v", err)
+	}
+	return srv
 }
 
 func do(t *testing.T, handler http.Handler, method, path, body string) *httptest.ResponseRecorder {

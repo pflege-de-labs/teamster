@@ -22,7 +22,7 @@ func TestServerAppliesTheConfiguredTimeouts(t *testing.T) {
 		Webhook: config.WebhookConfig{Token: "token"},
 	}
 
-	srv := NewServer(cfg, newFakeStore(), &fakeMessenger{})
+	srv := mustServer(t, cfg, newFakeStore(), &fakeMessenger{})
 
 	tests := []struct {
 		name string
@@ -78,7 +78,7 @@ func TestReadHeaderTimeoutNeverExceedsTheReadTimeout(t *testing.T) {
 func TestServerHasNoBaseContext(t *testing.T) {
 	t.Parallel()
 
-	srv := NewServer(config.Config{Server: config.ServerConfig{Addr: ":0"}}, newFakeStore(), &fakeMessenger{})
+	srv := mustServer(t, config.Config{Server: config.ServerConfig{Addr: ":0"}}, newFakeStore(), &fakeMessenger{})
 	if srv.BaseContext != nil {
 		t.Error("BaseContext is set; a signal-cancelled context would cut off draining requests")
 	}

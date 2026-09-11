@@ -1,6 +1,6 @@
 # 0009. Admin authentication by Keycloak login or local credentials
 
-* Status: Accepted
+* Status: Accepted, authorization part superseded by [0012](0012-role-based-authorization.md)
 * Date: 2026-09-10
 
 ## Context

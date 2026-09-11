@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/pflege-de-labs/teamster/internal/authz"
 	"github.com/pflege-de-labs/teamster/internal/config"
 	"github.com/pflege-de-labs/teamster/internal/graph"
 	"github.com/pflege-de-labs/teamster/internal/routing"
@@ -23,6 +24,7 @@ type Server struct {
 	store      store.Store
 	graph      messenger
 	router     *routing.Router
+	authz      *authz.Authorizer
 	directory  *directoryCache
 	oidc       *oidcProvider
 	httpServer *http.Server
@@ -39,14 +41,23 @@ func readHeaderTimeout(readTimeout time.Duration) time.Duration {
 	return headerGrace
 }
 
-func NewServer(cfg config.Config, store store.Store, graphClient messenger) *http.Server {
+// NewServer returns an error rather than starting without an authorizer: a
+// policy file that does not parse would otherwise leave every check to fall
+// through to whatever the zero value decides.
+func NewServer(cfg config.Config, store store.Store, graphClient messenger) (*http.Server, error) {
 	registerMIMETypes()
+
+	authorizer, err := authz.New()
+	if err != nil {
+		return nil, err
+	}
 
 	api := &Server{
 		cfg:       cfg,
 		store:     store,
 		graph:     graphClient,
 		router:    routing.New(store),
+		authz:     authorizer,
 		directory: newDirectoryCache(directoryTTL),
 		oidc:      &oidcProvider{},
 	}
@@ -93,13 +104,13 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger) *htt
 		mux.HandleFunc(asset, api.handleAssets)
 	}
 
-	mux.Handle("/api/", api.basicAuth(adminMux))
+	mux.Handle("/api/", api.apiAuth(api.authorize(adminMux)))
 	mux.Handle("/admin/login", authMux)
 	mux.Handle("/admin/auth/", authMux)
 	mux.Handle("/admin/logout", authMux)
-	mux.Handle("/admin", api.requireSession(adminMux))
-	mux.Handle("/admin/", api.requireSession(adminMux))
-	mux.Handle("/", api.requireSession(adminMux))
+	mux.Handle("/admin", api.requireSession(api.authorize(adminMux)))
+	mux.Handle("/admin/", api.requireSession(api.authorize(adminMux)))
+	mux.Handle("/", api.requireSession(api.authorize(adminMux)))
 
 	// No BaseContext: it would have to be the context that a signal cancels,
 	// and cancelling every in-flight request the moment SIGTERM arrives is the
@@ -113,5 +124,5 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger) *htt
 		IdleTimeout:       cfg.Server.IdleTimeout,
 	}
 
-	return api.httpServer
+	return api.httpServer, nil
 }

@@ -53,7 +53,10 @@ func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
 		return fmt.Errorf("graph client: %w", err)
 	}
 
-	srv := httpserver.NewServer(*cfg, sqlStore, graphClient)
+	srv, err := httpserver.NewServer(*cfg, sqlStore, graphClient)
+	if err != nil {
+		return fmt.Errorf("http server: %w", err)
+	}
 
 	// Listening before serving surfaces a bind failure as an error instead of
 	// leaving it to the goroutine below.

@@ -7,8 +7,35 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/pflege-de-labs/teamster/internal/authz"
+
 	"github.com/pflege-de-labs/teamster/internal/config"
 )
+
+// apiAuth accepts either of the two ways in: a session, which is how the admin
+// UI's own fetches arrive, or the local credentials, which is how a script
+// arrives. Before roles existed only the credentials were accepted, which meant
+// a browser signed in through the provider could not load the pickers or the
+// routing graph at all.
+func (s *Server) apiAuth(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		session, ok := s.currentSession(r)
+		if !ok {
+			s.basicAuth(next).ServeHTTP(w, r)
+			return
+		}
+
+		// A cookie travels with a cross-site request, so a state-changing call
+		// authenticated by one has to prove its origin. Basic auth does not
+		// need this: those credentials are sent deliberately.
+		if r.Method != http.MethodGet && r.Method != http.MethodHead && !sameOrigin(r) {
+			http.Error(w, "cross-origin request refused", http.StatusForbidden)
+			return
+		}
+
+		next.ServeHTTP(w, r.WithContext(withPrincipal(r.Context(), session.Subject, roleOf(session))))
+	})
+}
 
 func (s *Server) basicAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -21,7 +48,9 @@ func (s *Server) basicAuth(next http.Handler) http.Handler {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-		next.ServeHTTP(w, r)
+		// The API credentials are the local ones, which administer: scripts
+		// predate roles and there is nowhere to put a role for them.
+		next.ServeHTTP(w, r.WithContext(withPrincipal(r.Context(), user, authz.RoleAdmin)))
 	})
 }
 

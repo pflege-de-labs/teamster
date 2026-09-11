@@ -5,6 +5,7 @@ import "strconv"
 templ Admin(page Page) {
 	@Layout("Teamster Admin", true) {
 		@notice(page)
+		@readOnlyNotice(page)
 		@templates(page)
 		@destinations(page)
 		@routes(page)
@@ -13,38 +14,40 @@ templ Admin(page Page) {
 
 templ templates(page Page) {
 	@panel("Templates", "templates") {
-		<form method="post" action="/admin/templates" id="template-form" class="space-y-3">
-			if page.EditTemplate != nil {
-				<input type="hidden" name="id" value={ page.EditTemplate.ID }/>
-			}
-			@textField("name", "Name", "Critical alert", page.editingTemplate().Name)
-			@textField("title", "Activity feed title", "{{ .Alert.Annotations.summary }}", page.editingTemplate().Title)
-			@textareaField("message_text", "Message text (optional, limited HTML)", page.editingTemplate().Text, "4")
-			@textareaField("body", "Adaptive Card JSON (optional)", page.editingTemplate().Body, "12")
-			<div class="flex flex-wrap items-center gap-2">
-				@submit(submitLabel(page.EditTemplate != nil, "template"))
-				<button
-					type="button"
-					id="preview-button"
-					class="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:border-sky-400 hover:bg-sky-50 hover:text-sky-700"
-				>
-					Preview
-				</button>
-				<select
-					id="preview-sample"
-					aria-label="Sample alert"
-					class="rounded-md border border-slate-300 bg-white px-2 py-2 text-sm"
-				>
-					for _, name := range page.PreviewSamples {
-						<option value={ name }>{ name } alert</option>
-					}
-				</select>
+		if page.CanEdit {
+			<form method="post" action="/admin/templates" id="template-form" class="space-y-3">
 				if page.EditTemplate != nil {
-					@cancelEdit()
+					<input type="hidden" name="id" value={ page.EditTemplate.ID }/>
 				}
-			</div>
-			<div id="preview-output" class="mt-2 empty:hidden"></div>
-		</form>
+				@textField("name", "Name", "Critical alert", page.editingTemplate().Name)
+				@textField("title", "Activity feed title", "{{ .Alert.Annotations.summary }}", page.editingTemplate().Title)
+				@textareaField("message_text", "Message text (optional, limited HTML)", page.editingTemplate().Text, "4")
+				@textareaField("body", "Adaptive Card JSON (optional)", page.editingTemplate().Body, "12")
+				<div class="flex flex-wrap items-center gap-2">
+					@submit(submitLabel(page.EditTemplate != nil, "template"))
+					<button
+						type="button"
+						id="preview-button"
+						class="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:border-sky-400 hover:bg-sky-50 hover:text-sky-700"
+					>
+						Preview
+					</button>
+					<select
+						id="preview-sample"
+						aria-label="Sample alert"
+						class="rounded-md border border-slate-300 bg-white px-2 py-2 text-sm"
+					>
+						for _, name := range page.PreviewSamples {
+							<option value={ name }>{ name } alert</option>
+						}
+					</select>
+					if page.EditTemplate != nil {
+						@cancelEdit()
+					}
+				</div>
+				<div id="preview-output" class="mt-2 empty:hidden"></div>
+			</form>
+		}
 		<div>
 			if len(page.Templates) == 0 {
 				@empty("No templates yet. A route needs one to render its message.")
@@ -59,8 +62,10 @@ templ templates(page Page) {
 								</div>
 							</div>
 							<div class="flex shrink-0 items-center gap-2">
-								@editLink("templates", t.ID, t.Name)
-								@deleteButton("/admin/templates/delete", t.ID, t.Name)
+								if page.CanEdit {
+									@editLink("templates", t.ID, t.Name)
+									@deleteButton("/admin/templates/delete", t.ID, t.Name)
+								}
 							</div>
 						</li>
 					}
@@ -72,20 +77,22 @@ templ templates(page Page) {
 
 templ destinations(page Page) {
 	@panel("Destinations", "destinations") {
-		<form method="post" action="/admin/destinations" class="space-y-3">
-			if page.EditDestination != nil {
-				<input type="hidden" name="id" value={ page.EditDestination.ID }/>
-			}
-			@textField("name", "Name", "Ops channel", page.editingDestination().Name)
-			@identifiedTextField("destination-team", "team_id", "Team", "team-id", page.editingDestination().TeamID)
-			@identifiedTextField("destination-channel", "channel_id", "Channel", "channel-id", page.editingDestination().ChannelID)
-			<div class="flex items-center gap-2">
-				@submit(submitLabel(page.EditDestination != nil, "destination"))
+		if page.CanEdit {
+			<form method="post" action="/admin/destinations" class="space-y-3">
 				if page.EditDestination != nil {
-					@cancelEdit()
+					<input type="hidden" name="id" value={ page.EditDestination.ID }/>
 				}
-			</div>
-		</form>
+				@textField("name", "Name", "Ops channel", page.editingDestination().Name)
+				@identifiedTextField("destination-team", "team_id", "Team", "team-id", page.editingDestination().TeamID)
+				@identifiedTextField("destination-channel", "channel_id", "Channel", "channel-id", page.editingDestination().ChannelID)
+				<div class="flex items-center gap-2">
+					@submit(submitLabel(page.EditDestination != nil, "destination"))
+					if page.EditDestination != nil {
+						@cancelEdit()
+					}
+				</div>
+			</form>
+		}
 		<div>
 			if len(page.Destinations) == 0 {
 				@empty("No destinations yet. Add the Team and channel to post into.")
@@ -98,8 +105,10 @@ templ destinations(page Page) {
 								<div class="truncate text-xs text-slate-500">team { d.TeamID } · channel { d.ChannelID }</div>
 							</div>
 							<div class="flex shrink-0 items-center gap-2">
-								@editLink("destinations", d.ID, d.Name)
-								@deleteButton("/admin/destinations/delete", d.ID, d.Name)
+								if page.CanEdit {
+									@editLink("destinations", d.ID, d.Name)
+									@deleteButton("/admin/destinations/delete", d.ID, d.Name)
+								}
 							</div>
 						</li>
 					}
@@ -111,33 +120,35 @@ templ destinations(page Page) {
 
 templ routes(page Page) {
 	@panel("Routes", "routes") {
-		<form method="post" action="/admin/routes" class="space-y-3">
-			if page.EditRoute != nil {
-				<input type="hidden" name="id" value={ page.EditRoute.ID }/>
-			}
-			@textField("name", "Name", "Critical to ops", page.editingRoute().Name)
-			@selectField("parent_id", "Refines (optional)", parentOptions(page), page.editingRoute().ParentID)
-			@textareaField("label_selector", "Label selector (JSON)", selectorJSON(page), "3")
-			@selectField("destination_id", "Destination", destinationOptions(page), page.editingRoute().DestinationID)
-			@selectField("template_id", "Template", templateOptions(page), page.editingRoute().TemplateID)
-			<label class="block">
-				<span class="text-sm font-medium">Priority</span>
-				<input
-					type="number"
-					name="priority"
-					value={ strconv.Itoa(page.editingRoute().Priority) }
-					class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-sky-500 focus:outline-none"
-				/>
-			</label>
-			@checkboxField("is_default", "Default route", page.editingRoute().IsDefault)
-			@checkboxField("greedy", "Deliver instead of the route it refines, not as well as it", page.editingRoute().Greedy)
-			<div class="flex items-center gap-2">
-				@submit(submitLabel(page.EditRoute != nil, "route"))
+		if page.CanEdit {
+			<form method="post" action="/admin/routes" class="space-y-3">
 				if page.EditRoute != nil {
-					@cancelEdit()
+					<input type="hidden" name="id" value={ page.EditRoute.ID }/>
 				}
-			</div>
-		</form>
+				@textField("name", "Name", "Critical to ops", page.editingRoute().Name)
+				@selectField("parent_id", "Refines (optional)", parentOptions(page), page.editingRoute().ParentID)
+				@textareaField("label_selector", "Label selector (JSON)", selectorJSON(page), "3")
+				@selectField("destination_id", "Destination", destinationOptions(page), page.editingRoute().DestinationID)
+				@selectField("template_id", "Template", templateOptions(page), page.editingRoute().TemplateID)
+				<label class="block">
+					<span class="text-sm font-medium">Priority</span>
+					<input
+						type="number"
+						name="priority"
+						value={ strconv.Itoa(page.editingRoute().Priority) }
+						class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-sky-500 focus:outline-none"
+					/>
+				</label>
+				@checkboxField("is_default", "Default route", page.editingRoute().IsDefault)
+				@checkboxField("greedy", "Deliver instead of the route it refines, not as well as it", page.editingRoute().Greedy)
+				<div class="flex items-center gap-2">
+					@submit(submitLabel(page.EditRoute != nil, "route"))
+					if page.EditRoute != nil {
+						@cancelEdit()
+					}
+				</div>
+			</form>
+		}
 		<div>
 			if len(page.Routes) == 0 {
 				@empty("No routes yet. Without one, every alert is rejected.")
@@ -167,8 +178,10 @@ templ routes(page Page) {
 								<div class="truncate font-mono text-xs text-slate-500">{ selectorText(r.Route.LabelSelector) }</div>
 							</div>
 							<div class="flex shrink-0 items-center gap-2">
-								@editLink("routes", r.Route.ID, r.Route.Name)
-								@deleteButton("/admin/routes/delete", r.Route.ID, r.Route.Name)
+								if page.CanEdit {
+									@editLink("routes", r.Route.ID, r.Route.Name)
+									@deleteButton("/admin/routes/delete", r.Route.ID, r.Route.Name)
+								}
 							</div>
 						</li>
 					}
@@ -185,5 +198,14 @@ templ inheritable(name string, inherited bool) {
 		<span class="italic text-slate-400">{ name } (inherited)</span>
 	} else {
 		<span>{ name }</span>
+	}
+}
+
+// Without this, a viewer sees a page with no buttons and no reason given.
+templ readOnlyNotice(page Page) {
+	if !page.CanEdit {
+		<p class="mb-4 rounded-md border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+			Signed in with the { page.Role } role, which may look but not change anything.
+		</p>
 	}
 }

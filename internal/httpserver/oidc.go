@@ -15,6 +15,7 @@ import (
 	"github.com/coreos/go-oidc/v3/oidc"
 	"golang.org/x/oauth2"
 
+	"github.com/pflege-de-labs/teamster/internal/authz"
 	"github.com/pflege-de-labs/teamster/internal/models"
 )
 
@@ -183,14 +184,14 @@ func (s *Server) handleAuthCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	subject, name, err := s.verifyIDToken(r.Context(), provider, token, flow.Nonce)
+	subject, name, role, err := s.verifyIDToken(r.Context(), provider, token, flow.Nonce)
 	if err != nil {
 		logError("oidc verify", err)
 		loginFailed(w, r, err.Error())
 		return
 	}
 
-	if err := s.startSession(w, r, subject, name, "oidc"); err != nil {
+	if err := s.startSession(w, r, subject, name, "oidc", role); err != nil {
 		logError("start session", err)
 		loginFailed(w, r, "could not start a session")
 		return
@@ -199,35 +200,56 @@ func (s *Server) handleAuthCallback(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/admin", http.StatusFound)
 }
 
-func (s *Server) verifyIDToken(ctx context.Context, provider *oidc.Provider, token *oauth2.Token, nonce string) (string, string, error) {
+func (s *Server) verifyIDToken(ctx context.Context, provider *oidc.Provider, token *oauth2.Token, nonce string) (string, string, authz.Role, error) {
 	raw, ok := token.Extra("id_token").(string)
 	if !ok {
-		return "", "", errors.New("the identity provider returned no id token")
+		return "", "", "", errors.New("the identity provider returned no id token")
 	}
 
 	idToken, err := provider.Verifier(&oidc.Config{ClientID: s.cfg.Auth.OIDCClientID}).Verify(ctx, raw)
 	if err != nil {
-		return "", "", fmt.Errorf("id token rejected: %w", err)
+		return "", "", "", fmt.Errorf("id token rejected: %w", err)
 	}
 	if idToken.Nonce != nonce {
-		return "", "", errors.New("id token nonce does not match this login")
+		return "", "", "", errors.New("id token nonce does not match this login")
 	}
 
 	var claims map[string]any
 	if err := idToken.Claims(&claims); err != nil {
-		return "", "", fmt.Errorf("read claims: %w", err)
+		return "", "", "", fmt.Errorf("read claims: %w", err)
 	}
 
 	values, source := s.membership(ctx, provider, token, claims)
-	if !matchesAny(values, s.cfg.Auth.Allowed) {
-		return "", "", membershipError(s.cfg.Auth.Claim, s.cfg.Auth.Allowed, values, source)
+	if !matchesAny(values, s.signInValues()) {
+		return "", "", "", membershipError(s.cfg.Auth.Claim, s.signInValues(), values, source)
 	}
 
 	name, _ := claims["preferred_username"].(string)
 	if name == "" {
 		name, _ = claims["name"].(string)
 	}
-	return idToken.Subject, name, nil
+	return idToken.Subject, name, s.roleFor(values), nil
+}
+
+// signInValues is every claim value that gets a user through the door: the ones
+// allowed outright, and the ones a role names. Naming a value in a role list
+// without repeating it in auth-allowed would otherwise lock that user out.
+func (s *Server) signInValues() []string {
+	values := append([]string{}, s.cfg.Auth.Allowed...)
+	values = append(values, s.cfg.Auth.AdminValues...)
+	values = append(values, s.cfg.Auth.EditorValues...)
+	values = append(values, s.cfg.Auth.ViewerValues...)
+	return values
+}
+
+// roleFor is the claim-to-role mapping. A deployment that configures no role
+// lists keeps the behaviour it had before roles existed: whoever may sign in
+// administers.
+func (s *Server) roleFor(values []string) authz.Role {
+	if len(s.cfg.Auth.AdminValues) == 0 && len(s.cfg.Auth.EditorValues) == 0 && len(s.cfg.Auth.ViewerValues) == 0 {
+		return authz.RoleAdmin
+	}
+	return authz.RoleFor(values, s.cfg.Auth.AdminValues, s.cfg.Auth.EditorValues, s.cfg.Auth.ViewerValues)
 }
 
 // membership looks for the configured claim in the id token, then in userinfo,

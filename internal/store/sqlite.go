@@ -74,6 +74,7 @@ CREATE TABLE IF NOT EXISTS sessions (
 	subject TEXT NOT NULL,
 	name TEXT NOT NULL,
 	source TEXT NOT NULL,
+	role TEXT NOT NULL DEFAULT '',
 	created_at DATETIME NOT NULL,
 	expires_at DATETIME NOT NULL
 );
@@ -116,6 +117,7 @@ var addedColumns = []struct {
 	{"templates", "message_text", "TEXT NOT NULL DEFAULT ''"},
 	{"routes", "parent_id", "TEXT NOT NULL DEFAULT ''"},
 	{"routes", "greedy", "INTEGER NOT NULL DEFAULT 0"},
+	{"sessions", "role", "TEXT NOT NULL DEFAULT ''"},
 }
 
 // A template written before this migration is card-only, and renders the title
@@ -585,8 +587,8 @@ func parseSelector(raw string) map[string]string {
 }
 
 func (s *SQLiteStore) CreateSession(session models.Session) error {
-	_, err := s.db.Exec(`INSERT INTO sessions (id, subject, name, source, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?)`,
-		session.ID, session.Subject, session.Name, session.Source, session.CreatedAt, session.ExpiresAt)
+	_, err := s.db.Exec(`INSERT INTO sessions (id, subject, name, source, role, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		session.ID, session.Subject, session.Name, session.Source, session.Role, session.CreatedAt, session.ExpiresAt)
 	if err != nil {
 		return fmt.Errorf("create session: %w", err)
 	}
@@ -597,8 +599,8 @@ func (s *SQLiteStore) CreateSession(session models.Session) error {
 // honour one by forgetting to check the time.
 func (s *SQLiteStore) GetSession(id string) (models.Session, error) {
 	var session models.Session
-	err := s.db.QueryRow(`SELECT id, subject, name, source, created_at, expires_at FROM sessions WHERE id = ?`, id).
-		Scan(&session.ID, &session.Subject, &session.Name, &session.Source, &session.CreatedAt, &session.ExpiresAt)
+	err := s.db.QueryRow(`SELECT id, subject, name, source, role, created_at, expires_at FROM sessions WHERE id = ?`, id).
+		Scan(&session.ID, &session.Subject, &session.Name, &session.Source, &session.Role, &session.CreatedAt, &session.ExpiresAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return models.Session{}, ErrNotFound

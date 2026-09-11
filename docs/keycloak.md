@@ -56,6 +56,24 @@ auth:
   allowed: ["admin"]
 ```
 
+## Roles beyond signing in
+
+The same claim decides what a person may do once inside. Make a realm or client role per level and
+name them:
+
+```yaml
+auth:
+  claim: "realm_access.roles"
+  admin-values: ["teamster-admin"]
+  editor-values: ["teamster-editor"]
+  viewer-values: ["teamster-viewer"]
+```
+
+A value named here gets its holder in without being repeated in `allowed`. Configure none of the
+three and every value in `allowed` administers, which is what a realm set up before roles existed
+keeps doing. Someone who signs in without any of these roles is a viewer, so a realm that assigns
+nothing yet reads rather than writes.
+
 ## Where Teamster looks for the claim
 
 In order, first hit wins:
