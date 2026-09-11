@@ -180,12 +180,20 @@ func TestPermissionsPage(t *testing.T) {
 		}
 	}
 
-	// The three built-in roles and any a grant already names, so a deployment
-	// finds the role it invented rather than having to spell it again.
-	for _, role := range []string{"admin", "editor", "viewer", "payments-editors"} {
+	// The scopeable built-in roles and any a grant already names, so a
+	// deployment finds the role it invented rather than having to spell it again.
+	for _, role := range []string{"editor", "viewer", "payments-editors"} {
 		if !strings.Contains(body, `value="`+role+`"`) {
 			t.Errorf("the role list does not offer %q", role)
 		}
+	}
+	// Admin is not offered: the admin policy permits everything, so a scope set
+	// for it would be stored and then ignored.
+	if strings.Contains(body, `value="admin"`) {
+		t.Error("the role list offers admin, which cannot be scoped")
+	}
+	if !strings.Contains(body, "Admins are not listed") {
+		t.Error("the page does not say why admin is absent")
 	}
 }
 
@@ -222,5 +230,18 @@ func TestGrantsAreReadableForTheTree(t *testing.T) {
 	}
 	if len(grants) != 1 || grants[0].ChannelID != "alerts" {
 		t.Errorf("grants = %+v, want the stored scope", grants)
+	}
+}
+
+// A grant naming admin, however it got there, does not make admin scopeable.
+func TestAdminIsNeverOfferedAsAScopeableRole(t *testing.T) {
+	t.Parallel()
+
+	st := sessionAs(seededUIStore(), authz.RoleAdmin)
+	st.grants["legacy"] = models.Grant{ID: "legacy", Role: "admin", TeamID: "platform"}
+
+	body := asRole(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin/permissions", "").Body.String()
+	if strings.Contains(body, `value="admin"`) {
+		t.Error("a stored admin grant put admin back in the list")
 	}
 }

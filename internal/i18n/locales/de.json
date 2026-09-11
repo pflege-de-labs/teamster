@@ -65,6 +65,7 @@
   "permissions.heading": "In welche Teams und Kanäle darf eine Rolle zustellen?",
   "permissions.load_failed": "Microsoft Graph hat nicht geantwortet, daher gibt es nichts auszuwählen. Berechtigungen lassen sich weiterhin über die API setzen.",
   "permissions.loading": "Teams werden geladen …",
+  "permissions.no_admin": "Administratoren stehen nicht zur Auswahl: Sie erreichen ohnehin alles, eine Einschränkung für sie würde gespeichert und dann ignoriert.",
   "permissions.role": "Rolle",
   "permissions.save": "Speichern",
   "permissions.save_failed": "Speichern fehlgeschlagen: {0}",

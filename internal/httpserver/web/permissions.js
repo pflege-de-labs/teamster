@@ -69,7 +69,7 @@
 
     if (!team.channels) {
       const note = document.createElement("p");
-      note.className = "px-4 py-2 text-xs text-amber-700";
+      note.className = "py-2 pl-3 pr-4 text-xs text-amber-700";
       note.textContent = words.channelsFailed || "";
       container.appendChild(note);
       return;
@@ -77,7 +77,7 @@
 
     team.channels.forEach((channel) => {
       const label = document.createElement("label");
-      label.className = "flex items-center gap-2 px-4 py-1.5 text-sm";
+      label.className = "flex items-center gap-2 py-1.5 pl-3 pr-4 text-sm";
 
       const box = document.createElement("input");
       box.type = "checkbox";
@@ -148,8 +148,11 @@
     summary.append(box, name);
     details.appendChild(summary);
 
+    // Indented past the Team's own checkbox, with a rule down the left, so a
+    // channel reads as belonging to the Team above it rather than as another
+    // row in a flat list.
     const channels = document.createElement("div");
-    channels.className = "pb-2 pl-6";
+    channels.className = "ml-9 border-l border-slate-200 pb-2";
     details.appendChild(channels);
 
     details.addEventListener("toggle", () => {
