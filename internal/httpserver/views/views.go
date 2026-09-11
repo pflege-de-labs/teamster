@@ -40,6 +40,94 @@ type Page struct {
 	EditRoute       *models.Route
 }
 
+// A routeRow is a route as the list draws it: its place in the tree, and where
+// its destination and template came from.
+type routeRow struct {
+	Route       models.Route
+	Depth       int
+	Destination inheritedRef
+	Template    inheritedRef
+}
+
+type inheritedRef struct {
+	ID        string
+	Inherited bool
+}
+
+// routeTree walks the routes depth first, so a child is drawn under the route it
+// refines rather than wherever its priority puts it in a flat list.
+func (p Page) routeTree() []routeRow {
+	children := map[string][]models.Route{}
+	var roots []models.Route
+	known := map[string]bool{}
+	for _, route := range p.Routes {
+		known[route.ID] = true
+	}
+	for _, route := range p.Routes {
+		if route.ParentID != "" && known[route.ParentID] {
+			children[route.ParentID] = append(children[route.ParentID], route)
+			continue
+		}
+		roots = append(roots, route)
+	}
+
+	var rows []routeRow
+	var walk func(route models.Route, depth int, destination, template inheritedRef)
+	walk = func(route models.Route, depth int, destination, template inheritedRef) {
+		if route.DestinationID != "" {
+			destination = inheritedRef{ID: route.DestinationID}
+		} else {
+			destination.Inherited = destination.ID != ""
+		}
+		if route.TemplateID != "" {
+			template = inheritedRef{ID: route.TemplateID}
+		} else {
+			template.Inherited = template.ID != ""
+		}
+
+		rows = append(rows, routeRow{Route: route, Depth: depth, Destination: destination, Template: template})
+		for _, child := range children[route.ID] {
+			walk(child, depth+1, destination, template)
+		}
+	}
+	for _, root := range roots {
+		walk(root, 0, inheritedRef{}, inheritedRef{})
+	}
+	return rows
+}
+
+// Depth as a left margin. The classes are literal so that Tailwind can see them.
+func indent(depth int) string {
+	switch depth {
+	case 0:
+		return ""
+	case 1:
+		return "ml-6"
+	case 2:
+		return "ml-12"
+	case 3:
+		return "ml-16"
+	case 4:
+		return "ml-20"
+	default:
+		return "ml-24"
+	}
+}
+
+// parentOptions offers every route a new one could refine. A route cannot refine
+// itself, and the empty option is what makes it a root.
+func parentOptions(p Page) []option {
+	out := make([]option, 0, len(p.Routes)+1)
+	out = append(out, option{Value: "", Label: "— nothing, this is a root route —"})
+	for _, route := range p.Routes {
+		if p.EditRoute != nil && route.ID == p.EditRoute.ID {
+			continue
+		}
+		out = append(out, option{Value: route.ID, Label: route.Name})
+	}
+	return out
+}
+
 // templateShape says what a template sends, which matters more in a list than
 // how many bytes of card JSON it holds.
 func templateShape(t models.Template) string {

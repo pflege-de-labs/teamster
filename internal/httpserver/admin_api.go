@@ -172,6 +172,10 @@ func (s *Server) handleRoutes(w http.ResponseWriter, r *http.Request) {
 			writeJSONError(w, http.StatusBadRequest, "invalid JSON")
 			return
 		}
+		if err := s.validateRoute(rt); err != nil {
+			writeJSONError(w, http.StatusBadRequest, err.Error())
+			return
+		}
 		created, err := s.store.CreateRoute(rt)
 		if err != nil {
 			writeJSONError(w, http.StatusInternalServerError, err.Error())
@@ -209,6 +213,10 @@ func (s *Server) handleRouteByID(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		rt.ID = id
+		if err := s.validateRoute(rt); err != nil {
+			writeJSONError(w, http.StatusBadRequest, err.Error())
+			return
+		}
 		updated, err := s.store.UpdateRoute(rt)
 		if err != nil {
 			writeJSONError(w, http.StatusInternalServerError, err.Error())
@@ -216,6 +224,10 @@ func (s *Server) handleRouteByID(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, http.StatusOK, updated)
 	case http.MethodDelete:
+		if err := s.validateRouteDelete(id); err != nil {
+			writeJSONError(w, http.StatusBadRequest, err.Error())
+			return
+		}
 		if err := s.store.DeleteRoute(id); err != nil {
 			writeJSONError(w, http.StatusInternalServerError, err.Error())
 			return

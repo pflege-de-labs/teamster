@@ -22,6 +22,7 @@ type graphNode struct {
 	Selector string `json:"selector,omitempty"`
 	Priority int    `json:"priority,omitempty"`
 	Default  bool   `json:"default,omitempty"`
+	Greedy   bool   `json:"greedy,omitempty"`
 	Missing  bool   `json:"missing,omitempty"`
 	X        int    `json:"x"`
 	Y        int    `json:"y"`
@@ -106,7 +107,23 @@ func buildGraph(routes []models.Route, destinations []models.Destination, templa
 		return ordered[i].Name < ordered[j].Name
 	})
 
-	for row, route := range ordered {
+	known := map[string]bool{}
+	for _, route := range ordered {
+		known[route.ID] = true
+	}
+
+	// A child sits one column right of its parent, so depth in the tree reads as
+	// distance from the webhook.
+	depths := routeDepths(ordered)
+	rows := map[int]int{}
+	maxDepth := 0
+
+	for _, route := range ordered {
+		depth := depths[route.ID]
+		if depth > maxDepth {
+			maxDepth = depth
+		}
+
 		routeID := "route:" + route.ID
 		add(graphNode{
 			ID:       routeID,
@@ -115,19 +132,29 @@ func buildGraph(routes []models.Route, destinations []models.Destination, templa
 			Selector: selectorSummary(route.LabelSelector),
 			Priority: route.Priority,
 			Default:  route.IsDefault,
-			X:        columnGap,
-			Y:        row * rowGap,
+			Greedy:   route.Greedy,
+			X:        (1 + depth) * columnGap,
+			Y:        rows[depth] * rowGap,
 		})
+		rows[depth]++
+
+		// A child hangs off its parent, because that is the order it is
+		// evaluated in; only a root is reached straight from the webhook.
+		if route.ParentID != "" && known[route.ParentID] {
+			links = append(links, graphLink{Source: "route:" + route.ParentID, Target: routeID})
+			continue
+		}
 		links = append(links, graphLink{Source: sourceID, Target: routeID})
 	}
 
+	sinkColumn := (2 + maxDepth) * columnGap
 	for row, destination := range destinations {
 		add(graphNode{
 			ID:     "destination:" + destination.ID,
 			Kind:   "destination",
 			Label:  destination.Name,
 			Detail: channelName(destination.TeamID, destination.ChannelID),
-			X:      2 * columnGap,
+			X:      sinkColumn,
 			Y:      row * rowGap,
 		})
 	}
@@ -140,18 +167,22 @@ func buildGraph(routes []models.Route, destinations []models.Destination, templa
 			ID:    "template:" + template.ID,
 			Kind:  "template",
 			Label: template.Name,
-			X:     2 * columnGap,
+			X:     sinkColumn,
 			Y:     templateTop + row*rowGap,
 		})
 	}
+
+	// An unset destination or template is the ancestor's, so the picture draws
+	// the edge the alert will actually take rather than none at all.
+	effective := inheritedTargets(ordered)
 
 	for _, route := range ordered {
 		for _, ref := range []struct {
 			kind string
 			id   string
 		}{
-			{"destination", route.DestinationID},
-			{"template", route.TemplateID},
+			{"destination", effective[route.ID].destinationID},
+			{"template", effective[route.ID].templateID},
 		} {
 			if ref.id == "" {
 				continue
@@ -165,7 +196,7 @@ func buildGraph(routes []models.Route, destinations []models.Destination, templa
 					Label:   "missing " + ref.kind,
 					Detail:  ref.id,
 					Missing: true,
-					X:       2 * columnGap,
+					X:       sinkColumn,
 					Y:       missingTop + missing*rowGap,
 				})
 				missing++
@@ -221,6 +252,60 @@ func (s *Server) channelNamer(destinations []models.Destination) func(teamID, ch
 	}
 }
 
+// routeDepths counts how far each route sits below a root, stopping at MaxDepth
+// so a tree broken by a cycle still produces a drawing.
+func routeDepths(routes []models.Route) map[string]int {
+	byID := map[string]models.Route{}
+	for _, route := range routes {
+		byID[route.ID] = route
+	}
+
+	depths := map[string]int{}
+	for _, route := range routes {
+		depth := 0
+		for parent, ok := byID[route.ParentID]; ok && depth < routing.MaxDepth; parent, ok = byID[parent.ParentID] {
+			depth++
+		}
+		depths[route.ID] = depth
+	}
+	return depths
+}
+
+type routeTargets struct {
+	destinationID string
+	templateID    string
+}
+
+// inheritedTargets resolves every route's destination and template through its
+// ancestors, stopping at a parent that is missing or at MaxDepth so a broken
+// tree cannot loop here.
+func inheritedTargets(routes []models.Route) map[string]routeTargets {
+	byID := map[string]models.Route{}
+	for _, route := range routes {
+		byID[route.ID] = route
+	}
+
+	effective := map[string]routeTargets{}
+	for _, route := range routes {
+		targets := routeTargets{destinationID: route.DestinationID, templateID: route.TemplateID}
+		parent, ok := byID[route.ParentID]
+		for depth := 0; ok && depth < routing.MaxDepth; depth++ {
+			if targets.destinationID == "" {
+				targets.destinationID = parent.DestinationID
+			}
+			if targets.templateID == "" {
+				targets.templateID = parent.TemplateID
+			}
+			if targets.destinationID != "" && targets.templateID != "" {
+				break
+			}
+			parent, ok = byID[parent.ParentID]
+		}
+		effective[route.ID] = targets
+	}
+	return effective
+}
+
 // selectorSummary renders a selector the way an operator writes it. Unlike the
 // views version it leaves an empty selector empty, because a graph node shows
 // nothing rather than prose about matching nothing.
@@ -259,34 +344,103 @@ func (s *Server) handleRoutingMatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	route, reason, err := s.router.Match(req.Labels)
+	result, err := s.router.Plan(req.Labels)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	answer := map[string]any{"reason": reason, "explanation": explainReason(reason, route)}
-	if reason == routing.ReasonSelector || reason == routing.ReasonDefault {
-		answer["route"] = map[string]any{
-			"id":       route.ID,
-			"name":     route.Name,
-			"node":     "route:" + route.ID,
-			"selector": selectorSummary(route.LabelSelector),
-			"priority": route.Priority,
-		}
+	routes, err := s.store.ListRoutes()
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	byID := map[string]models.Route{}
+	for _, route := range routes {
+		byID[route.ID] = route
+	}
+
+	answer := map[string]any{
+		"reason":      result.Reason,
+		"explanation": explainResult(result, byID),
+		"deliveries":  deliveryAnswers(result, byID),
+		"nodes":       matchedNodes(result),
+	}
+	// The route that matched first, kept for a caller that wants one answer —
+	// even when a greedy child took the delivery away from it.
+	if root, ok := byID[result.RootID]; ok {
+		answer["route"] = routeAnswer(root)
 	}
 	writeJSON(w, http.StatusOK, answer)
 }
 
-func explainReason(reason routing.Reason, route models.Route) string {
-	switch reason {
+func routeAnswer(route models.Route) map[string]any {
+	return map[string]any{
+		"id":       route.ID,
+		"name":     route.Name,
+		"node":     "route:" + route.ID,
+		"selector": selectorSummary(route.LabelSelector),
+		"priority": route.Priority,
+	}
+}
+
+func deliveryAnswers(result routing.Result, byID map[string]models.Route) []map[string]any {
+	answers := make([]map[string]any, 0, len(result.Deliveries))
+	for _, delivery := range result.Deliveries {
+		answer := map[string]any{
+			"route":          routeAnswer(byID[delivery.RouteID]),
+			"destination_id": delivery.DestinationID,
+			"template_id":    delivery.TemplateID,
+			"reason":         delivery.Reason,
+		}
+		answers = append(answers, answer)
+	}
+	return answers
+}
+
+// Every node on the path an alert takes, so the picture can highlight the whole
+// fan-out rather than one route of it.
+func matchedNodes(result routing.Result) []string {
+	nodes := make([]string, 0, len(result.Deliveries)*2)
+	for _, delivery := range result.Deliveries {
+		nodes = append(nodes, "route:"+delivery.RouteID)
+		if delivery.DestinationID != "" {
+			nodes = append(nodes, "destination:"+delivery.DestinationID)
+		}
+	}
+	return nodes
+}
+
+func explainResult(result routing.Result, byID map[string]models.Route) string {
+	root := byID[result.RootID]
+
+	var opening string
+	switch result.Reason {
 	case routing.ReasonSelector:
-		return fmt.Sprintf("%q matched on %s, at priority %d", route.Name, selectorSummary(route.LabelSelector), route.Priority)
+		opening = fmt.Sprintf("%q matched on %s, at priority %d", root.Name, selectorSummary(root.LabelSelector), root.Priority)
 	case routing.ReasonDefault:
-		return fmt.Sprintf("no selector matched, so the default route %q takes it", route.Name)
+		opening = fmt.Sprintf("no selector matched, so the default route %q takes it", root.Name)
 	case routing.ReasonNoRoutes:
 		return "no routes are configured, so this alert would be rejected"
 	default:
 		return "no selector matched and no default route exists, so this alert would be rejected"
+	}
+
+	names := make([]string, 0, len(result.Deliveries))
+	rootDelivers := false
+	for _, delivery := range result.Deliveries {
+		names = append(names, fmt.Sprintf("%q", delivery.RouteName))
+		if delivery.RouteID == result.RootID {
+			rootDelivers = true
+		}
+	}
+
+	switch {
+	case len(result.Deliveries) == 1 && rootDelivers:
+		return opening
+	case rootDelivers:
+		return fmt.Sprintf("%s, and %d messages go out — from %s", opening, len(result.Deliveries), strings.Join(names, ", "))
+	default:
+		return fmt.Sprintf("%s, but a child route delivers instead of it — from %s", opening, strings.Join(names, ", "))
 	}
 }

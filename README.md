@@ -123,10 +123,17 @@ Helper functions:
 ## Notes
 
 - Route selection matches label selectors exactly; highest priority wins.
+- Routes nest. A child refines its parent's match and sends the alert somewhere else — *as well as*
+  its parent, or *instead of* it when marked greedy. A child that names no destination or template
+  inherits the nearest ancestor's, so "the same card, one more channel" is a one-field route.
+- A route with children cannot be deleted; remove or reparent them first, because an orphan becomes
+  a root that matches alerts its parent used to filter out.
 - A database file written before the `DATETIME` timestamp fix cannot be read. The server refuses
   to start against one and names the file; delete it and restart to recreate the schema.
 - A default route is used if no labels match.
-- Active alerts are tracked in SQLite to update or resolve cards.
+- Active alerts are tracked in SQLite per channel, so an alert that fans out updates and resolves
+  every card it posted. One channel failing does not stop the others; the response is a `502` and
+  the sender's retry updates what already landed rather than duplicating it.
 - A database written before templates had a title gains the columns on the next start; nothing
   needs to be deleted.
 

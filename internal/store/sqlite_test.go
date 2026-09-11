@@ -266,7 +266,7 @@ func TestActiveAlertLifecycle(t *testing.T) {
 	s := newTestStore(t)
 	firstUpdate := time.Date(2026, 9, 8, 10, 0, 0, 0, time.UTC)
 
-	if _, err := s.GetActiveAlert("unknown"); !errors.Is(err, ErrNotFound) {
+	if _, err := s.GetActiveAlert("unknown", "team", "channel"); !errors.Is(err, ErrNotFound) {
 		t.Errorf("GetActiveAlert() for an unknown fingerprint = %v, want ErrNotFound", err)
 	}
 
@@ -282,7 +282,7 @@ func TestActiveAlertLifecycle(t *testing.T) {
 		t.Fatalf("UpsertActiveAlert: %v", err)
 	}
 
-	got, err := s.GetActiveAlert("fp")
+	got, err := s.GetActiveAlert("fp", "team", "channel")
 	if err != nil {
 		t.Fatalf("GetActiveAlert: %v", err)
 	}
@@ -296,7 +296,7 @@ func TestActiveAlertLifecycle(t *testing.T) {
 		t.Fatalf("UpsertActiveAlert (conflict): %v", err)
 	}
 
-	got, err = s.GetActiveAlert("fp")
+	got, err = s.GetActiveAlert("fp", "team", "channel")
 	if err != nil {
 		t.Fatalf("GetActiveAlert after upsert: %v", err)
 	}
@@ -304,11 +304,29 @@ func TestActiveAlertLifecycle(t *testing.T) {
 		t.Errorf("GetActiveAlert().MessageID = %q after upsert, want msg-2", got.MessageID)
 	}
 
-	if err := s.DeleteActiveAlert("fp"); err != nil {
+	// The same alert in a second channel is a second card, not an overwrite.
+	second := alert
+	second.ChannelID = "other-channel"
+	second.MessageID = "msg-3"
+	if err := s.UpsertActiveAlert(second); err != nil {
+		t.Fatalf("UpsertActiveAlert (second channel): %v", err)
+	}
+	cards, err := s.ListActiveAlerts("fp")
+	if err != nil {
+		t.Fatalf("ListActiveAlerts: %v", err)
+	}
+	if len(cards) != 2 {
+		t.Fatalf("ListActiveAlerts() = %+v, want one card per channel", cards)
+	}
+
+	if err := s.DeleteActiveAlert("fp", "team", "channel"); err != nil {
 		t.Fatalf("DeleteActiveAlert: %v", err)
 	}
-	if _, err := s.GetActiveAlert("fp"); !errors.Is(err, ErrNotFound) {
+	if _, err := s.GetActiveAlert("fp", "team", "channel"); !errors.Is(err, ErrNotFound) {
 		t.Errorf("GetActiveAlert() after delete = %v, want ErrNotFound", err)
+	}
+	if _, err := s.GetActiveAlert("fp", "team", "other-channel"); err != nil {
+		t.Errorf("the other channel's card = %v, want it untouched", err)
 	}
 }
 
@@ -337,8 +355,8 @@ func TestStoreErrorsWhenDatabaseIsClosed(t *testing.T) {
 		{"DeleteRoute", func() error { return s.DeleteRoute("id") }},
 		{"GetRoute", func() error { _, err := s.GetRoute("id"); return err }},
 		{"UpsertActiveAlert", func() error { return s.UpsertActiveAlert(models.ActiveAlert{}) }},
-		{"GetActiveAlert", func() error { _, err := s.GetActiveAlert("fp"); return err }},
-		{"DeleteActiveAlert", func() error { return s.DeleteActiveAlert("fp") }},
+		{"GetActiveAlert", func() error { _, err := s.GetActiveAlert("fp", "team", "channel"); return err }},
+		{"DeleteActiveAlert", func() error { return s.DeleteActiveAlert("fp", "team", "channel") }},
 	}
 
 	for _, tt := range tests {
@@ -487,6 +505,63 @@ VALUES ('old', 'Card', '{"type":"AdaptiveCard"}', '2026-01-01 00:00:00+00:00', '
 	}
 	if back.Title != got.Title || back.Text != got.Text {
 		t.Errorf("template = %+v, want the title and text stored", back)
+	}
+}
+
+// An alert used to have one card, so active_alerts was keyed by fingerprint
+// alone. Fan-out needs the channel in the key, which SQLite can only do by
+// rebuilding the table — the cards already posted have to survive it.
+func TestNewSQLiteStoreRekeysActiveAlerts(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), "old-key.db")
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatalf("open old db: %v", err)
+	}
+	_, err = db.Exec(`CREATE TABLE active_alerts (
+	fingerprint TEXT PRIMARY KEY,
+	status TEXT NOT NULL,
+	team_id TEXT NOT NULL,
+	channel_id TEXT NOT NULL,
+	message_id TEXT NOT NULL,
+	last_update DATETIME NOT NULL
+);
+INSERT INTO active_alerts VALUES ('fp', 'firing', 'team', 'channel', 'msg-1', '2026-01-01 00:00:00+00:00')`)
+	if err != nil {
+		t.Fatalf("seed old db: %v", err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatalf("close old db: %v", err)
+	}
+
+	store, err := NewSQLiteStore(path)
+	if err != nil {
+		t.Fatalf("NewSQLiteStore: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+
+	got, err := store.GetActiveAlert("fp", "team", "channel")
+	if err != nil {
+		t.Fatalf("GetActiveAlert: %v", err)
+	}
+	if got.MessageID != "msg-1" {
+		t.Errorf("card = %+v, want the one that was already posted", got)
+	}
+
+	// The point of the rebuild: a second channel is a second card.
+	second := got
+	second.ChannelID = "other"
+	second.MessageID = "msg-2"
+	if err := store.UpsertActiveAlert(second); err != nil {
+		t.Fatalf("UpsertActiveAlert: %v", err)
+	}
+	cards, err := store.ListActiveAlerts("fp")
+	if err != nil {
+		t.Fatalf("ListActiveAlerts: %v", err)
+	}
+	if len(cards) != 2 {
+		t.Errorf("cards = %+v, want one per channel", cards)
 	}
 }
 

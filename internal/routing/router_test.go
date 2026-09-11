@@ -2,7 +2,9 @@ package routing
 
 import (
 	"errors"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/pflege-de-labs/teamster/internal/models"
 	"github.com/pflege-de-labs/teamster/internal/store"
@@ -71,164 +73,16 @@ func (s stubStore) GetRoute(id string) (models.Route, error) {
 
 func (s stubStore) UpsertActiveAlert(a models.ActiveAlert) error { return store.ErrNotFound }
 
-func (s stubStore) GetActiveAlert(fingerprint string) (models.ActiveAlert, error) {
+func (s stubStore) ListActiveAlerts(fingerprint string) ([]models.ActiveAlert, error) {
+	return nil, store.ErrNotFound
+}
+
+func (s stubStore) GetActiveAlert(fingerprint, teamID, channelID string) (models.ActiveAlert, error) {
 	return models.ActiveAlert{}, store.ErrNotFound
 }
 
-func (s stubStore) DeleteActiveAlert(fingerprint string) error { return store.ErrNotFound }
-
-func TestSelectRoute_MatchPriority(t *testing.T) {
-	routes := []models.Route{
-		{
-			ID:            "r1",
-			Name:          "default",
-			IsDefault:     true,
-			DestinationID: "d1",
-			TemplateID:    "t1",
-			Priority:      1,
-		},
-		{
-			ID:            "r2",
-			Name:          "critical",
-			LabelSelector: map[string]string{"severity": "critical"},
-			DestinationID: "d2",
-			TemplateID:    "t2",
-			Priority:      50,
-		},
-		{
-			ID:            "r3",
-			Name:          "critical-high",
-			LabelSelector: map[string]string{"severity": "critical", "tier": "gold"},
-			DestinationID: "d3",
-			TemplateID:    "t3",
-			Priority:      100,
-		},
-	}
-
-	router := New(stubStore{routes: routes})
-
-	selected, err := router.SelectRoute(map[string]string{"severity": "critical", "tier": "gold"})
-	if err != nil {
-		t.Fatalf("SelectRoute returned error: %v", err)
-	}
-	if selected.ID != "r3" {
-		t.Fatalf("expected r3, got %s", selected.ID)
-	}
-}
-
-func TestSelectRoute_DefaultFallback(t *testing.T) {
-	routes := []models.Route{
-		{
-			ID:            "r1",
-			Name:          "default",
-			IsDefault:     true,
-			DestinationID: "d1",
-			TemplateID:    "t1",
-			Priority:      1,
-		},
-		{
-			ID:            "r2",
-			Name:          "critical",
-			LabelSelector: map[string]string{"severity": "critical"},
-			DestinationID: "d2",
-			TemplateID:    "t2",
-			Priority:      50,
-		},
-	}
-
-	router := New(stubStore{routes: routes})
-
-	selected, err := router.SelectRoute(map[string]string{"severity": "warning"})
-	if err != nil {
-		t.Fatalf("SelectRoute returned error: %v", err)
-	}
-	if selected.ID != "r1" {
-		t.Fatalf("expected r1, got %s", selected.ID)
-	}
-}
-
-func TestSelectRoute_NoRoutes(t *testing.T) {
-	router := New(stubStore{routes: nil})
-
-	_, err := router.SelectRoute(map[string]string{"severity": "critical"})
-	if err == nil {
-		t.Fatal("expected error when no routes configured")
-	}
-}
-
-func TestSelectRoute_StoreError(t *testing.T) {
-	t.Parallel()
-
-	router := New(stubStore{err: errors.New("store down")})
-
-	if _, err := router.SelectRoute(map[string]string{"severity": "critical"}); err == nil {
-		t.Fatal("SelectRoute() = nil error, want the store failure to surface")
-	}
-}
-
-func TestSelectRoute_NoMatchAndNoDefault(t *testing.T) {
-	t.Parallel()
-
-	router := New(stubStore{routes: []models.Route{
-		{ID: "a", Name: "critical", LabelSelector: map[string]string{"severity": "critical"}},
-	}})
-
-	_, err := router.SelectRoute(map[string]string{"severity": "warning"})
-	if err == nil || err.Error() != "no matching route and no default route" {
-		t.Errorf("SelectRoute() = %v, want the no-default error", err)
-	}
-}
-
-func TestSelectRoute_SelectorMatching(t *testing.T) {
-	t.Parallel()
-
-	routes := []models.Route{
-		{ID: "empty-selector", Name: "empty", LabelSelector: map[string]string{}, Priority: 100},
-		{ID: "two-labels", Name: "two", LabelSelector: map[string]string{"severity": "critical", "team": "ops"}, Priority: 50},
-		{ID: "default", Name: "default", IsDefault: true},
-	}
-	router := New(stubStore{routes: routes})
-
-	tests := []struct {
-		name   string
-		labels map[string]string
-		want   string
-	}{
-		{
-			name:   "every selector label must match",
-			labels: map[string]string{"severity": "critical", "team": "ops"},
-			want:   "two-labels",
-		},
-		{
-			name:   "a missing label does not match",
-			labels: map[string]string{"severity": "critical"},
-			want:   "default",
-		},
-		{
-			name:   "a differing value does not match",
-			labels: map[string]string{"severity": "critical", "team": "dev"},
-			want:   "default",
-		},
-		{
-			name:   "an empty selector never matches, even at the highest priority",
-			labels: map[string]string{"severity": "critical", "team": "ops"},
-			want:   "two-labels",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			got, err := router.SelectRoute(tt.labels)
-			if err != nil {
-				t.Fatalf("SelectRoute: %v", err)
-			}
-			if got.ID != tt.want {
-				t.Errorf("SelectRoute() = %q, want %q", got.ID, tt.want)
-			}
-		})
-	}
+func (s stubStore) DeleteActiveAlert(fingerprint, teamID, channelID string) error {
+	return store.ErrNotFound
 }
 
 func (s stubStore) CreateSession(models.Session) error { return store.ErrNotFound }
@@ -247,14 +101,34 @@ func (s stubStore) TakeLoginFlow(string) (models.LoginFlow, error) {
 	return models.LoginFlow{}, store.ErrNotFound
 }
 
-// A route alone does not say why it won, which is the whole point of asking
-// "which route would this alert take?".
-func TestMatchReportsWhy(t *testing.T) {
+func planOf(t *testing.T, routes []models.Route, labels map[string]string) Result {
+	t.Helper()
+
+	result, err := New(stubStore{routes: routes}).Plan(labels)
+	if err != nil {
+		t.Fatalf("Plan: %v", err)
+	}
+	return result
+}
+
+func deliveredBy(result Result) []string {
+	out := make([]string, 0, len(result.Deliveries))
+	for _, delivery := range result.Deliveries {
+		out = append(out, delivery.RouteID)
+	}
+	return out
+}
+
+// Root selection is unchanged by nesting: highest priority first, ties by name,
+// the default last.
+func TestPlanPicksTheRoot(t *testing.T) {
 	t.Parallel()
 
 	routes := []models.Route{
-		{ID: "critical", Name: "Critical", LabelSelector: map[string]string{"severity": "critical"}, Priority: 100},
-		{ID: "fallback", Name: "Fallback", IsDefault: true, Priority: 1},
+		{ID: "default", Name: "default", IsDefault: true, DestinationID: "d1", TemplateID: "t1", Priority: 1},
+		{ID: "critical", Name: "critical", LabelSelector: map[string]string{"severity": "critical"}, DestinationID: "d2", TemplateID: "t2", Priority: 50},
+		{ID: "critical-gold", Name: "critical-gold", LabelSelector: map[string]string{"severity": "critical", "tier": "gold"}, DestinationID: "d3", TemplateID: "t3", Priority: 100},
+		{ID: "empty", Name: "empty", LabelSelector: map[string]string{}, Priority: 200},
 	}
 
 	tests := []struct {
@@ -262,21 +136,25 @@ func TestMatchReportsWhy(t *testing.T) {
 		routes     []models.Route
 		labels     map[string]string
 		wantReason Reason
-		wantRoute  string
+		wantRoutes []string
 	}{
 		{
-			name: "a selector matches", routes: routes,
+			name: "the highest priority selector wins", routes: routes,
+			labels:     map[string]string{"severity": "critical", "tier": "gold"},
+			wantReason: ReasonSelector, wantRoutes: []string{"critical-gold"},
+		},
+		{
+			name: "every selector label must match", routes: routes,
 			labels:     map[string]string{"severity": "critical"},
-			wantReason: ReasonSelector, wantRoute: "critical",
+			wantReason: ReasonSelector, wantRoutes: []string{"critical"},
 		},
 		{
-			name: "nothing matches, the default takes it", routes: routes,
-			labels:     map[string]string{"severity": "warning"},
-			wantReason: ReasonDefault, wantRoute: "fallback",
+			name: "an empty selector never matches, even at the highest priority", routes: routes,
+			labels:     map[string]string{"anything": "at-all"},
+			wantReason: ReasonDefault, wantRoutes: []string{"default"},
 		},
 		{
-			name:       "nothing matches and there is no default",
-			routes:     routes[:1],
+			name: "nothing matches and there is no default", routes: routes[1:2],
 			labels:     map[string]string{"severity": "warning"},
 			wantReason: ReasonNone,
 		},
@@ -291,34 +169,101 @@ func TestMatchReportsWhy(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			route, reason, err := New(stubStore{routes: tt.routes}).Match(tt.labels)
-			if err != nil {
-				t.Fatalf("Match: %v", err)
+			result := planOf(t, tt.routes, tt.labels)
+			if result.Reason != tt.wantReason {
+				t.Errorf("reason = %q, want %q", result.Reason, tt.wantReason)
 			}
-			if reason != tt.wantReason {
-				t.Errorf("reason = %q, want %q", reason, tt.wantReason)
-			}
-			if route.ID != tt.wantRoute {
-				t.Errorf("route = %q, want %q", route.ID, tt.wantRoute)
+			if got := deliveredBy(result); !equalStrings(got, tt.wantRoutes) {
+				t.Errorf("deliveries = %v, want %v", got, tt.wantRoutes)
 			}
 		})
 	}
 }
 
-// SelectRoute is now a wrapper, and the delivery path depends on its errors.
-func TestSelectRouteKeepsItsErrors(t *testing.T) {
+// The point of the tree: a child sends the alert somewhere else, either as well
+// as its parent or instead of it.
+func TestPlanNesting(t *testing.T) {
 	t.Parallel()
 
+	parent := models.Route{ID: "parent", Name: "parent", LabelSelector: map[string]string{"severity": "critical"}, DestinationID: "ops", TemplateID: "card", Priority: 100}
+
 	tests := []struct {
-		name    string
-		routes  []models.Route
-		wantErr string
+		name       string
+		routes     []models.Route
+		labels     map[string]string
+		wantRoutes []string
 	}{
-		{name: "no routes", wantErr: "no routes configured"},
 		{
-			name:    "no match and no default",
-			routes:  []models.Route{{ID: "a", LabelSelector: map[string]string{"severity": "critical"}}},
-			wantErr: "no matching route and no default route",
+			name: "a non-greedy child delivers as well as its parent",
+			routes: []models.Route{parent,
+				{ID: "child", Name: "child", ParentID: "parent", LabelSelector: map[string]string{"team": "payments"}, DestinationID: "payments"},
+			},
+			labels:     map[string]string{"severity": "critical", "team": "payments"},
+			wantRoutes: []string{"parent", "child"},
+		},
+		{
+			name: "a greedy child delivers instead of its parent",
+			routes: []models.Route{parent,
+				{ID: "child", Name: "child", ParentID: "parent", Greedy: true, LabelSelector: map[string]string{"team": "payments"}, DestinationID: "payments"},
+			},
+			labels:     map[string]string{"severity": "critical", "team": "payments"},
+			wantRoutes: []string{"child"},
+		},
+		{
+			name: "a child whose selector does not match leaves the parent alone",
+			routes: []models.Route{parent,
+				{ID: "child", Name: "child", ParentID: "parent", Greedy: true, LabelSelector: map[string]string{"team": "payments"}, DestinationID: "payments"},
+			},
+			labels:     map[string]string{"severity": "critical", "team": "search"},
+			wantRoutes: []string{"parent"},
+		},
+		{
+			name: "every matching child delivers",
+			routes: []models.Route{parent,
+				{ID: "a", Name: "a", ParentID: "parent", LabelSelector: map[string]string{"team": "payments"}, DestinationID: "payments", Priority: 10},
+				{ID: "b", Name: "b", ParentID: "parent", LabelSelector: map[string]string{"tier": "gold"}, DestinationID: "gold", Priority: 5},
+			},
+			labels:     map[string]string{"severity": "critical", "team": "payments", "tier": "gold"},
+			wantRoutes: []string{"parent", "a", "b"},
+		},
+		{
+			// One greedy child is enough to take the delivery off the parent; the
+			// other children still deliver.
+			name: "one greedy child among several suppresses the parent",
+			routes: []models.Route{parent,
+				{ID: "a", Name: "a", ParentID: "parent", Greedy: true, LabelSelector: map[string]string{"team": "payments"}, DestinationID: "payments", Priority: 10},
+				{ID: "b", Name: "b", ParentID: "parent", LabelSelector: map[string]string{"tier": "gold"}, DestinationID: "gold", Priority: 5},
+			},
+			labels:     map[string]string{"severity": "critical", "team": "payments", "tier": "gold"},
+			wantRoutes: []string{"a", "b"},
+		},
+		{
+			name: "a grandchild refines a child",
+			routes: []models.Route{parent,
+				{ID: "child", Name: "child", ParentID: "parent", LabelSelector: map[string]string{"team": "payments"}, DestinationID: "payments"},
+				{ID: "grandchild", Name: "grandchild", ParentID: "child", LabelSelector: map[string]string{"tier": "gold"}, DestinationID: "gold"},
+			},
+			labels:     map[string]string{"severity": "critical", "team": "payments", "tier": "gold"},
+			wantRoutes: []string{"parent", "child", "grandchild"},
+		},
+		{
+			// Its parent never matched, so the child is never reached.
+			name: "a child of a parent that did not match stays out of it",
+			routes: []models.Route{parent,
+				{ID: "other", Name: "other", IsDefault: true, DestinationID: "ops", TemplateID: "card"},
+				{ID: "child", Name: "child", ParentID: "parent", LabelSelector: map[string]string{"team": "payments"}, DestinationID: "payments"},
+			},
+			labels:     map[string]string{"team": "payments"},
+			wantRoutes: []string{"other"},
+		},
+		{
+			// Dropping it would make the route unreachable without saying so.
+			name: "a child whose parent was deleted is treated as a root",
+			routes: []models.Route{
+				{ID: "orphan", Name: "orphan", ParentID: "gone", LabelSelector: map[string]string{"severity": "critical"}, DestinationID: "ops", TemplateID: "card"},
+			},
+			labels:     map[string]string{"severity": "critical"},
+			wantRoutes: []string{"orphan"},
 		},
 	}
 
@@ -326,18 +271,193 @@ func TestSelectRouteKeepsItsErrors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			_, err := New(stubStore{routes: tt.routes}).SelectRoute(map[string]string{"severity": "warning"})
-			if err == nil || err.Error() != tt.wantErr {
-				t.Errorf("SelectRoute() = %v, want %q", err, tt.wantErr)
+			if got := deliveredBy(planOf(t, tt.routes, tt.labels)); !equalStrings(got, tt.wantRoutes) {
+				t.Errorf("deliveries = %v, want %v", got, tt.wantRoutes)
 			}
 		})
 	}
 }
 
-func TestMatchReportsStoreFailures(t *testing.T) {
+// A child that sets only a destination still renders with its parent's template,
+// which is what makes "same card, another channel" a one-field route.
+func TestPlanInheritsDestinationAndTemplate(t *testing.T) {
 	t.Parallel()
 
-	if _, _, err := New(stubStore{err: errors.New("store down")}).Match(nil); err == nil {
-		t.Error("Match() = nil error, want the store failure surfaced")
+	routes := []models.Route{
+		{ID: "parent", Name: "parent", LabelSelector: map[string]string{"severity": "critical"}, DestinationID: "ops", TemplateID: "card", Priority: 100},
+		{ID: "channel-only", Name: "channel-only", ParentID: "parent", LabelSelector: map[string]string{"team": "payments"}, DestinationID: "payments"},
+		{ID: "template-only", Name: "template-only", ParentID: "channel-only", LabelSelector: map[string]string{"tier": "gold"}, TemplateID: "gold-card"},
 	}
+
+	result := planOf(t, routes, map[string]string{"severity": "critical", "team": "payments", "tier": "gold"})
+
+	want := map[string][2]string{
+		"parent":        {"ops", "card"},
+		"channel-only":  {"payments", "card"},
+		"template-only": {"payments", "gold-card"},
+	}
+	if len(result.Deliveries) != len(want) {
+		t.Fatalf("deliveries = %v, want %d of them", deliveredBy(result), len(want))
+	}
+	for _, delivery := range result.Deliveries {
+		if got := [2]string{delivery.DestinationID, delivery.TemplateID}; got != want[delivery.RouteID] {
+			t.Errorf("%s delivers to %v, want %v", delivery.RouteID, got, want[delivery.RouteID])
+		}
+	}
+}
+
+// A child delivery says it refined a parent rather than that it matched on its
+// own, because that is what the explanation has to say.
+func TestPlanReportsWhyEachDeliveryHappened(t *testing.T) {
+	t.Parallel()
+
+	result := planOf(t, []models.Route{
+		{ID: "parent", Name: "parent", LabelSelector: map[string]string{"severity": "critical"}, DestinationID: "ops", TemplateID: "card"},
+		{ID: "child", Name: "child", ParentID: "parent", LabelSelector: map[string]string{"team": "payments"}, DestinationID: "payments"},
+	}, map[string]string{"severity": "critical", "team": "payments"})
+
+	if result.RootID != "parent" || result.RootName != "parent" {
+		t.Errorf("root = %q/%q, want the route that matched first", result.RootID, result.RootName)
+	}
+	if result.Deliveries[0].Reason != ReasonSelector {
+		t.Errorf("parent reason = %q, want %q", result.Deliveries[0].Reason, ReasonSelector)
+	}
+	if result.Deliveries[1].Reason != ReasonRefined {
+		t.Errorf("child reason = %q, want %q", result.Deliveries[1].Reason, ReasonRefined)
+	}
+}
+
+// A tree broken into a cycle must not take delivery with it.
+func TestPlanStopsAtMaxDepth(t *testing.T) {
+	t.Parallel()
+
+	routes := []models.Route{
+		{ID: "a", Name: "a", ParentID: "b", LabelSelector: map[string]string{"severity": "critical"}, DestinationID: "one", TemplateID: "card"},
+		{ID: "b", Name: "b", ParentID: "a", LabelSelector: map[string]string{"severity": "critical"}, DestinationID: "two", TemplateID: "card"},
+	}
+
+	done := make(chan Result, 1)
+	go func() {
+		result, err := New(stubStore{routes: routes}).Plan(map[string]string{"severity": "critical"})
+		if err != nil {
+			t.Errorf("Plan: %v", err)
+		}
+		done <- result
+	}()
+
+	select {
+	case result := <-done:
+		if len(result.Deliveries) > MaxDepth+1 {
+			t.Errorf("deliveries = %v, want the walk to stop at MaxDepth", deliveredBy(result))
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("Plan did not return, so a cycle in the tree hangs delivery")
+	}
+}
+
+func TestPlanReportsStoreFailures(t *testing.T) {
+	t.Parallel()
+
+	if _, err := New(stubStore{err: errors.New("store down")}).Plan(map[string]string{"severity": "critical"}); err == nil {
+		t.Fatal("Plan() = nil error, want the store failure to surface")
+	}
+}
+
+func TestValidateRoute(t *testing.T) {
+	t.Parallel()
+
+	existing := []models.Route{
+		{ID: "root", Name: "root", DestinationID: "ops", TemplateID: "card"},
+		{ID: "child", Name: "child", ParentID: "root", LabelSelector: map[string]string{"team": "payments"}, DestinationID: "payments"},
+		{ID: "grandchild", Name: "grandchild", ParentID: "child", LabelSelector: map[string]string{"tier": "gold"}, DestinationID: "gold"},
+	}
+
+	tests := []struct {
+		name      string
+		candidate models.Route
+		wantErr   string
+	}{
+		{
+			name:      "a root route is unconstrained",
+			candidate: models.Route{ID: "new", Name: "new"},
+		},
+		{
+			name:      "a child refining its parent is fine",
+			candidate: models.Route{ID: "new", Name: "new", ParentID: "root", LabelSelector: map[string]string{"team": "search"}, DestinationID: "search"},
+		},
+		{
+			name:      "the parent has to exist",
+			candidate: models.Route{ID: "new", Name: "new", ParentID: "gone", LabelSelector: map[string]string{"team": "search"}, DestinationID: "search"},
+			wantErr:   "does not exist",
+		},
+		{
+			name:      "a route cannot be its own parent",
+			candidate: models.Route{ID: "root", Name: "root", ParentID: "root", LabelSelector: map[string]string{"team": "search"}, DestinationID: "search"},
+			wantErr:   "its own parent",
+		},
+		{
+			name:      "a cycle is refused",
+			candidate: models.Route{ID: "root", Name: "root", ParentID: "grandchild", LabelSelector: map[string]string{"team": "search"}, DestinationID: "search"},
+			wantErr:   "cycle",
+		},
+		{
+			name:      "a child without a selector could never fire",
+			candidate: models.Route{ID: "new", Name: "new", ParentID: "root", DestinationID: "search"},
+			wantErr:   "needs a label selector",
+		},
+		{
+			name:      "a child that inherits everything changes nothing",
+			candidate: models.Route{ID: "new", Name: "new", ParentID: "root", LabelSelector: map[string]string{"team": "search"}},
+			wantErr:   "changes nothing",
+		},
+		{
+			name:      "only a root can be the default",
+			candidate: models.Route{ID: "new", Name: "new", ParentID: "root", IsDefault: true, LabelSelector: map[string]string{"team": "search"}, DestinationID: "search"},
+			wantErr:   "only a root route",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := ValidateRoute(tt.candidate, existing)
+			switch {
+			case tt.wantErr == "" && err != nil:
+				t.Errorf("ValidateRoute() = %v, want it accepted", err)
+			case tt.wantErr != "" && (err == nil || !strings.Contains(err.Error(), tt.wantErr)):
+				t.Errorf("ValidateRoute() = %v, want an error containing %q", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+// Deleting a parent would promote its children to roots, where their selectors
+// match alerts their parent used to filter out.
+func TestValidateDelete(t *testing.T) {
+	t.Parallel()
+
+	existing := []models.Route{
+		{ID: "root", Name: "root"},
+		{ID: "child", Name: "child", ParentID: "root"},
+	}
+
+	if err := ValidateDelete("root", existing); err == nil {
+		t.Error("ValidateDelete() = nil, want a refusal while the route has children")
+	}
+	if err := ValidateDelete("child", existing); err != nil {
+		t.Errorf("ValidateDelete() = %v, want a leaf to be deletable", err)
+	}
+}
+
+func equalStrings(got, want []string) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	for i := range got {
+		if got[i] != want[i] {
+			return false
+		}
+	}
+	return true
 }

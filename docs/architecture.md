@@ -136,10 +136,21 @@ with an explicit `<attachment id="1">` where the card goes. See
 
 ## Routing rules
 
-`routing.SelectRoute` sorts routes by descending priority, breaking ties on name, and returns the
-first non-default route whose label selector matches the alert exactly — every selector key must
-be present with the same value. An empty selector never matches. If nothing matches, the first
-route flagged as default wins; with no default configured the alert is an error.
+Routes form a tree. `routing.Plan` picks a **root** the way routing always worked — descending
+priority, ties on name, the first non-default route whose selector matches the alert exactly, every
+selector key present with the same value, an empty selector never matching, the default last — and
+then walks that root's children.
+
+A child is evaluated only once its parent matched, and applies when its own selector matches. Every
+matching child delivers; a greedy one delivers *instead of* its parent, a non-greedy one *as well
+as* it. An unset destination or template is inherited from the nearest ancestor that sets one, so
+"the same card, one more channel" is a route with a single field. The walk stops at
+`routing.MaxDepth`.
+
+`Plan` returns a `Result`: the reason, the root that matched, and one `Delivery` per message with
+its destination and template resolved. `routing.ValidateRoute` and `ValidateDelete` are called from
+both write paths and keep the tree acyclic, bounded and free of children that could never fire. See
+[ADR 0011](adr/0011-nested-routes.md).
 
 ## Alert lifecycle
 
@@ -147,9 +158,19 @@ Timestamp columns are declared `DATETIME`; the SQLite driver only converts them 
 `time.Time` for that declared type. `NewSQLiteStore` refuses to open a database whose timestamp
 columns are declared otherwise, since every read from it would fail.
 
-`active_alerts` is keyed by fingerprint and stores the Team, channel and Graph message ID. A
-repeated `firing` alert therefore edits the existing card instead of posting a new one, and a
-`resolved` alert edits the card one last time before the row is deleted.
+`active_alerts` is keyed by `(fingerprint, team_id, channel_id)` and stores the Graph message ID, so
+an alert that fans out has one row per channel. A repeated `firing` alert edits the existing card in
+each channel instead of posting a new one, and a `resolved` alert edits each card one last time
+before its row is deleted.
+
+Delivery is best effort per destination: one channel failing does not cost the others their message,
+and the failures are reported together as a `502`. That is safe because each delivery records its
+own message id, so a retry updates the cards that made it rather than duplicating them. Resolution
+walks the stored cards rather than the plan, so a card in a channel the routes no longer name still
+stops claiming the alert is firing.
+
+A database whose `active_alerts` is keyed by fingerprint alone is rebuilt on the next start; SQLite
+cannot change a primary key in place. The rows survive.
 
 ## Signing in
 

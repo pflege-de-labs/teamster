@@ -127,7 +127,7 @@ func TestUniversalWebhookPostsANewCard(t *testing.T) {
 		t.Errorf("card = %s, want the rendered template", msg.posts[0].msg.Card)
 	}
 
-	active, ok := st.activeAlerts["fp-1"]
+	active, ok := st.activeAlerts[activeAlertKey("fp-1", "team", "channel")]
 	if !ok {
 		t.Fatal("no active alert stored")
 	}
@@ -141,7 +141,7 @@ func TestRepeatedFiringAlertUpdatesTheCard(t *testing.T) {
 
 	msg := &fakeMessenger{}
 	st, handler := seededServer(t, msg)
-	st.activeAlerts["fp-1"] = models.ActiveAlert{
+	st.activeAlerts[activeAlertKey("fp-1", "team", "channel")] = models.ActiveAlert{
 		Fingerprint: "fp-1",
 		Status:      "firing",
 		TeamID:      "team",
@@ -159,7 +159,7 @@ func TestRepeatedFiringAlertUpdatesTheCard(t *testing.T) {
 	if len(msg.updates) != 1 || msg.updates[0].messageID != "graph-1" {
 		t.Errorf("updates = %+v, want one update of graph-1", msg.updates)
 	}
-	if _, ok := st.activeAlerts["fp-1"]; !ok {
+	if _, ok := st.activeAlerts[activeAlertKey("fp-1", "team", "channel")]; !ok {
 		t.Error("active alert was removed, want it kept while firing")
 	}
 }
@@ -169,7 +169,9 @@ func TestResolvedAlertUpdatesAndClearsTheCard(t *testing.T) {
 
 	msg := &fakeMessenger{}
 	st, handler := seededServer(t, msg)
-	st.activeAlerts["fp-1"] = models.ActiveAlert{Fingerprint: "fp-1", MessageID: "graph-1"}
+	st.activeAlerts[activeAlertKey("fp-1", "team", "channel")] = models.ActiveAlert{
+		Fingerprint: "fp-1", TeamID: "team", ChannelID: "channel", MessageID: "graph-1",
+	}
 
 	rec := postWebhook(t, handler, "/webhook/universal", "token", `{"status":"resolved","labels":{},"fingerprint":"fp-1"}`)
 	if rec.Code != http.StatusOK {
@@ -178,7 +180,7 @@ func TestResolvedAlertUpdatesAndClearsTheCard(t *testing.T) {
 	if len(msg.updates) != 1 {
 		t.Fatalf("updates = %d, want 1", len(msg.updates))
 	}
-	if _, ok := st.activeAlerts["fp-1"]; ok {
+	if _, ok := st.activeAlerts[activeAlertKey("fp-1", "team", "channel")]; ok {
 		t.Error("active alert still stored, want it deleted once resolved")
 	}
 }
@@ -286,9 +288,9 @@ func TestAlertWithoutFingerprintGetsAHashedOne(t *testing.T) {
 	if len(st.activeAlerts) != 1 {
 		t.Fatalf("stored %d active alerts, want 1", len(st.activeAlerts))
 	}
-	for fingerprint := range st.activeAlerts {
-		if len(fingerprint) != 64 {
-			t.Errorf("fingerprint = %q, want a SHA-256 hex digest", fingerprint)
+	for _, active := range st.activeAlerts {
+		if len(active.Fingerprint) != 64 {
+			t.Errorf("fingerprint = %q, want a SHA-256 hex digest", active.Fingerprint)
 		}
 	}
 }
@@ -343,7 +345,9 @@ func TestProcessAlertFailures(t *testing.T) {
 			name: "graph rejects the update",
 			body: `{"status":"firing","labels":{},"fingerprint":"fp"}`,
 			setup: func(st *fakeStore, msg *fakeMessenger) {
-				st.activeAlerts["fp"] = models.ActiveAlert{Fingerprint: "fp", MessageID: "graph-1"}
+				st.activeAlerts[activeAlertKey("fp", "team", "channel")] = models.ActiveAlert{
+					Fingerprint: "fp", TeamID: "team", ChannelID: "channel", MessageID: "graph-1",
+				}
 				msg.updateErr = errors.New("graph down")
 			},
 			wantErr: "graph update:",
@@ -352,7 +356,9 @@ func TestProcessAlertFailures(t *testing.T) {
 			name: "graph rejects the resolve update",
 			body: `{"status":"resolved","labels":{},"fingerprint":"fp"}`,
 			setup: func(st *fakeStore, msg *fakeMessenger) {
-				st.activeAlerts["fp"] = models.ActiveAlert{Fingerprint: "fp", MessageID: "graph-1"}
+				st.activeAlerts[activeAlertKey("fp", "team", "channel")] = models.ActiveAlert{
+					Fingerprint: "fp", TeamID: "team", ChannelID: "channel", MessageID: "graph-1",
+				}
 				msg.updateErr = errors.New("graph down")
 			},
 			wantErr: "graph update:",
@@ -366,7 +372,7 @@ func TestProcessAlertFailures(t *testing.T) {
 		{
 			name:    "active alert lookup fails while resolving",
 			body:    `{"status":"resolved","labels":{},"fingerprint":"fp"}`,
-			setup:   func(st *fakeStore, _ *fakeMessenger) { st.fail("GetActiveAlert") },
+			setup:   func(st *fakeStore, _ *fakeMessenger) { st.fail("ListActiveAlerts") },
 			wantErr: "active alert lookup:",
 		},
 	}
@@ -389,5 +395,125 @@ func TestProcessAlertFailures(t *testing.T) {
 				t.Errorf("body = %s, want it to contain %q", rec.Body.String(), tt.wantErr)
 			}
 		})
+	}
+}
+
+// nestedServer seeds a parent route with a child that sends the same alert to a
+// second channel, which is the whole point of the tree.
+func nestedServer(t *testing.T, msg *fakeMessenger, greedy bool) (*fakeStore, http.Handler) {
+	t.Helper()
+
+	st, handler := seededServer(t, msg)
+	st.routes["parent"] = models.Route{
+		ID: "parent", Name: "parent", TemplateID: "tmpl", DestinationID: "dest",
+		LabelSelector: map[string]string{"severity": "critical"}, Priority: 100,
+	}
+	st.destinations["escalation"] = models.Destination{ID: "escalation", TeamID: "team", ChannelID: "escalation-channel"}
+	st.routes["child"] = models.Route{
+		ID: "child", Name: "child", ParentID: "parent", Greedy: greedy,
+		LabelSelector: map[string]string{"team": "payments"}, DestinationID: "escalation",
+	}
+	return st, handler
+}
+
+func TestNestedRoutesFanOut(t *testing.T) {
+	t.Parallel()
+
+	msg := &fakeMessenger{}
+	st, handler := nestedServer(t, msg, false)
+
+	postWebhook(t, handler, "/webhook/universal", "token",
+		`{"status":"firing","labels":{"severity":"critical","team":"payments"},"fingerprint":"fp"}`)
+
+	if len(msg.posts) != 2 {
+		t.Fatalf("posted %d messages, want one per channel: %+v", len(msg.posts), msg.posts)
+	}
+	channels := map[string]bool{}
+	for _, post := range msg.posts {
+		channels[post.channelID] = true
+	}
+	if !channels["channel"] || !channels["escalation-channel"] {
+		t.Errorf("channels = %v, want the parent's and the child's", channels)
+	}
+	// One card per channel, so resolving later can update both.
+	if len(st.activeAlerts) != 2 {
+		t.Errorf("stored %d cards, want one per channel", len(st.activeAlerts))
+	}
+}
+
+func TestGreedyChildTakesDeliveryFromItsParent(t *testing.T) {
+	t.Parallel()
+
+	msg := &fakeMessenger{}
+	_, handler := nestedServer(t, msg, true)
+
+	postWebhook(t, handler, "/webhook/universal", "token",
+		`{"status":"firing","labels":{"severity":"critical","team":"payments"},"fingerprint":"fp"}`)
+
+	if len(msg.posts) != 1 {
+		t.Fatalf("posted %d messages, want only the child's: %+v", len(msg.posts), msg.posts)
+	}
+	if msg.posts[0].channelID != "escalation-channel" {
+		t.Errorf("channel = %q, want the child's", msg.posts[0].channelID)
+	}
+}
+
+// A child that only names a destination renders with its parent's template.
+func TestChildInheritsTheParentTemplate(t *testing.T) {
+	t.Parallel()
+
+	msg := &fakeMessenger{}
+	_, handler := nestedServer(t, msg, false)
+
+	postWebhook(t, handler, "/webhook/universal", "token",
+		`{"status":"firing","labels":{"severity":"critical","team":"payments"},"fingerprint":"fp"}`)
+
+	for _, post := range msg.posts {
+		if string(post.msg.Card) != `{"text":"firing"}` {
+			t.Errorf("card in %s = %s, want the inherited template's", post.channelID, post.msg.Card)
+		}
+	}
+}
+
+func TestResolvingClearsEveryCard(t *testing.T) {
+	t.Parallel()
+
+	msg := &fakeMessenger{}
+	st, handler := nestedServer(t, msg, false)
+
+	firing := `{"status":"firing","labels":{"severity":"critical","team":"payments"},"fingerprint":"fp"}`
+	postWebhook(t, handler, "/webhook/universal", "token", firing)
+	postWebhook(t, handler, "/webhook/universal", "token",
+		`{"status":"resolved","labels":{"severity":"critical","team":"payments"},"fingerprint":"fp"}`)
+
+	if len(msg.updates) != 2 {
+		t.Fatalf("updated %d cards, want both: %+v", len(msg.updates), msg.updates)
+	}
+	if len(st.activeAlerts) != 0 {
+		t.Errorf("cards still stored = %+v, want all of them cleared", st.activeAlerts)
+	}
+}
+
+// One channel refusing the message must not cost the other one its card, and
+// the failure still has to be reported.
+func TestOneFailedDeliveryDoesNotStopTheOthers(t *testing.T) {
+	t.Parallel()
+
+	msg := &fakeMessenger{postErrFor: "escalation-channel", postErr: errors.New("graph down")}
+	st, handler := nestedServer(t, msg, false)
+
+	rec := postWebhook(t, handler, "/webhook/universal", "token",
+		`{"status":"firing","labels":{"severity":"critical","team":"payments"},"fingerprint":"fp"}`)
+
+	if rec.Code != http.StatusBadGateway {
+		t.Errorf("POST = %d, want 502 so the sender retries", rec.Code)
+	}
+	if len(st.activeAlerts) != 1 {
+		t.Fatalf("stored %d cards, want the one that was posted", len(st.activeAlerts))
+	}
+	for _, card := range st.activeAlerts {
+		if card.ChannelID != "channel" {
+			t.Errorf("stored card is for %q, want the channel that accepted it", card.ChannelID)
+		}
 	}
 }

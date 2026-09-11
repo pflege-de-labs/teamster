@@ -247,29 +247,38 @@
   }
 
   // A matched route is only half the answer: what an operator wants to see is
-  // where that alert ends up, so the whole path from the webhook to the
-  // destination is drawn in the match colour and the rest is dimmed.
-  function pathOf(routeID) {
-    const nodeIDs = new Set([routeID]);
+  // where that alert ends up. An alert can now fan out across a tree of routes,
+  // so the path is every node the server says it reaches, plus the edges
+  // between them.
+  function pathOf(matched) {
+    const nodeIDs = new Set(matched);
     if (sourceID) nodeIDs.add(sourceID);
+
+    // A child is reached through its parent, so the ancestors are on the path
+    // even when they deliver nothing themselves.
+    const parents = new Map();
+    edgeData.forEach((link) => parents.set(link.target, link.source));
+    matched.forEach((id) => {
+      let walked = 0;
+      for (let at = parents.get(id); at && walked < 16; at = parents.get(at)) {
+        nodeIDs.add(at);
+        walked += 1;
+      }
+    });
 
     const linkIDs = new Set();
     edgeData.forEach((link) => {
-      if (link.target === routeID && link.source === sourceID) {
-        linkIDs.add(link.source + ">" + link.target);
-      }
-      if (link.source === routeID) {
-        nodeIDs.add(link.target);
+      if (nodeIDs.has(link.source) && nodeIDs.has(link.target)) {
         linkIDs.add(link.source + ">" + link.target);
       }
     });
     return { nodes: nodeIDs, links: linkIDs };
   }
 
-  function highlight(routeID) {
+  function highlight(matched) {
     if (!groups || !edges) return;
 
-    if (!routeID) {
+    if (!matched || matched.length === 0) {
       groups.attr("opacity", 1);
       groups.select("rect").attr("stroke", (d) => (d.missing ? "#ef4444" : "#cbd5e1")).attr("stroke-width", 1);
       edges
@@ -280,7 +289,7 @@
       return;
     }
 
-    const taken = pathOf(routeID);
+    const taken = pathOf(matched);
     groups.attr("opacity", (d) => (taken.nodes.has(d.id) ? 1 : 0.2));
     groups
       .select("rect")
@@ -339,9 +348,9 @@
         return;
       }
 
-      const route = payload ? payload.route : null;
-      report(payload && payload.explanation ? payload.explanation : "No explanation came back.", !!route);
-      highlight(route ? route.node : null);
+      const matched = payload && Array.isArray(payload.nodes) ? payload.nodes : [];
+      report(payload && payload.explanation ? payload.explanation : "No explanation came back.", matched.length > 0);
+      highlight(matched);
     });
   }
 
