@@ -235,8 +235,9 @@ func TestGrantsPanelIsAdminOnly(t *testing.T) {
 	admin := sessionAs(seededUIStore(), authz.RoleAdmin)
 	admin.grants["g1"] = models.Grant{ID: "g1", Role: "editor", TeamID: "platform"}
 	page := asRole(t, newTestServer(t, admin, &fakeMessenger{}).Handler, http.MethodGet, "/admin", "").Body.String()
-	if !strings.Contains(page, "Delivery permissions") || !strings.Contains(page, "team platform") {
-		t.Error("an admin is not shown the grants")
+	// The panel is now the way to the page that holds the tree.
+	if !strings.Contains(page, "Delivery permissions") || !strings.Contains(page, `href="/admin/permissions"`) {
+		t.Error("an admin is not offered the permissions page")
 	}
 
 	editor := sessionAs(seededUIStore(), authz.RoleEditor)

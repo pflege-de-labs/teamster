@@ -259,8 +259,8 @@ func TestT(t *testing.T) {
 	if got := T(ctx, "nav.configuration"); got != "Konfiguration" {
 		t.Errorf("T() = %q, want the German text", got)
 	}
-	if got := T(ctx, "grants.scope_channel", "platform", "alerts"); got != "Team platform · Kanal alerts" {
-		t.Errorf("T() = %q, want both values substituted", got)
+	if got := T(ctx, "permissions.save_failed", "Graph antwortet nicht"); got != "Speichern fehlgeschlagen: Graph antwortet nicht" {
+		t.Errorf("T() = %q, want the value substituted", got)
 	}
 	if got := LanguageOf(ctx); got != "de" {
 		t.Errorf("LanguageOf() = %q, want de", got)

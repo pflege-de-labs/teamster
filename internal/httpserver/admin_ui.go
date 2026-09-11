@@ -32,7 +32,7 @@ func (s *Server) handleAdminPage(w http.ResponseWriter, r *http.Request) {
 		PreviewSamples: previewSamples(),
 		Snippets:       cards.Snippets(),
 		Starter:        cards.Starter,
-		Viewer:         viewerOf(r),
+		Viewer:         s.viewerFor(r),
 		CanEdit:        s.authz.Allow(principalSubject(r), roles, authz.ActionEdit, authz.Resource{Type: "Template"}),
 		CanManage:      s.authz.Allow(principalSubject(r), roles, authz.ActionAdminister, authz.Resource{Type: "Grant"}),
 	}
@@ -50,11 +50,6 @@ func (s *Server) handleAdminPage(w http.ResponseWriter, r *http.Request) {
 	}
 	if page.Routes, err = s.store.ListRoutes(); err != nil {
 		page.Error = err.Error()
-	}
-	if page.CanManage {
-		if page.Grants, err = s.store.ListGrants(); err != nil {
-			page.Error = err.Error()
-		}
 	}
 
 	if selected := r.URL.Query().Get("edit"); selected != "" {

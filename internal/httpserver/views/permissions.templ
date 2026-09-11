@@ -1,0 +1,61 @@
+package views
+
+import "github.com/pflege-de-labs/teamster/internal/i18n"
+
+// Permissions is the tree page: who is looking, and the roles that can be
+// granted something.
+type Permissions struct {
+	Viewer Viewer
+	Roles  []string
+}
+
+templ PermissionsPage(page Permissions) {
+	@Layout(i18n.T(ctx, "page.permissions"), &page.Viewer) {
+		<section class="rounded-lg border border-slate-200 bg-white shadow-sm">
+			<h2 class="border-b border-slate-200 px-6 py-4 text-lg font-semibold">
+				{ i18n.T(ctx, "permissions.heading") }
+			</h2>
+			<div class="space-y-4 px-6 py-6">
+				<p class="text-sm text-slate-600">{ i18n.T(ctx, "permissions.explainer") }</p>
+				<div class="flex flex-wrap items-end gap-3">
+					<label class="block">
+						<span class="text-sm font-medium">{ i18n.T(ctx, "permissions.role") }</span>
+						<select
+							id="permissions-role"
+							class="mt-1 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
+						>
+							for _, role := range page.Roles {
+								<option value={ role }>{ role }</option>
+							}
+						</select>
+					</label>
+					<button
+						type="button"
+						id="permissions-save"
+						class="rounded-md bg-sky-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-sky-700"
+					>
+						{ i18n.T(ctx, "permissions.save") }
+					</button>
+					<span id="permissions-status" class="text-sm text-slate-600"></span>
+				</div>
+				<div class="rounded-md border border-slate-200">
+					<label class="flex items-center gap-2 border-b border-slate-200 px-4 py-3 text-sm font-medium">
+						<input type="checkbox" id="permissions-all" class="rounded border-slate-300"/>
+						{ i18n.T(ctx, "permissions.all_teams") }
+					</label>
+					<div
+						id="permissions-tree"
+						class="divide-y divide-slate-100"
+						data-saved={ i18n.T(ctx, "permissions.saved") }
+						data-save-failed={ i18n.T(ctx, "permissions.save_failed") }
+						data-load-failed={ i18n.T(ctx, "permissions.load_failed") }
+						data-channels-failed={ i18n.T(ctx, "permissions.channels_failed") }
+					>
+						<p class="px-4 py-6 text-sm text-slate-500">{ i18n.T(ctx, "permissions.loading") }</p>
+					</div>
+				</div>
+				<p class="text-xs text-slate-500">{ i18n.T(ctx, "permissions.unrestricted_note") }</p>
+			</div>
+		</section>
+	}
+}

@@ -108,6 +108,83 @@ func (s *Server) handleGrants(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// handleRoleGrants replaces everything granted to one role. The permissions
+// page edits a whole tree of Teams and channels at once, and sending that as a
+// list of creates and deletes would leave a half-applied scope on any failure.
+func (s *Server) handleRoleGrants(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPut {
+		w.Header().Set("Allow", http.MethodPut)
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		Role   string `json:"role"`
+		Scopes []struct {
+			TeamID    string `json:"team_id"`
+			ChannelID string `json:"channel_id"`
+		} `json:"scopes"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxScopeBytes)).Decode(&req); err != nil {
+		writeJSONError(w, http.StatusBadRequest, "invalid JSON")
+		return
+	}
+
+	role := strings.TrimSpace(req.Role)
+	if role == "" {
+		writeJSONError(w, http.StatusBadRequest, "a role is required")
+		return
+	}
+
+	wanted := make([]models.Grant, 0, len(req.Scopes))
+	for _, scope := range req.Scopes {
+		grant := models.Grant{
+			Role:      role,
+			TeamID:    strings.TrimSpace(scope.TeamID),
+			ChannelID: strings.TrimSpace(scope.ChannelID),
+		}
+		if err := validateGrant(grant); err != nil {
+			writeJSONError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		wanted = append(wanted, grant)
+	}
+
+	if err := s.replaceRoleGrants(role, wanted); err != nil {
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"role": role, "granted": len(wanted)})
+}
+
+// maxScopeBytes bounds the tree a page can post. A tenant with thousands of
+// channels is still far inside this.
+const maxScopeBytes = 1 << 20
+
+func (s *Server) replaceRoleGrants(role string, wanted []models.Grant) error {
+	return s.store.WithTx(func(tx store.Store) error {
+		existing, err := tx.ListGrants()
+		if err != nil {
+			return err
+		}
+		for _, grant := range existing {
+			if grant.Role != role {
+				continue
+			}
+			if err := tx.DeleteGrant(grant.ID); err != nil {
+				return err
+			}
+		}
+		for _, grant := range wanted {
+			if _, err := tx.CreateGrant(grant); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
 func (s *Server) handleGrantByID(w http.ResponseWriter, r *http.Request) {
 	id := strings.TrimPrefix(r.URL.Path, "/api/grants/")
 	if id == "" {

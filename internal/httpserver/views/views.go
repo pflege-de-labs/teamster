@@ -23,6 +23,9 @@ import (
 type Viewer struct {
 	Name  string
 	Roles []string
+	// CanManage decides whether the permissions tab is offered. The page
+	// refuses the request either way; this is what keeps it out of the nav.
+	CanManage bool
 }
 
 // roleLabel reads the roles the way an operator would say them, and says so
@@ -73,8 +76,7 @@ type Page struct {
 	// Viewer is who the page is being rendered for, shown in the header.
 	Viewer Viewer
 
-	// Grants scope roles to Teams and channels. Only an admin sees or sets them.
-	Grants    []models.Grant
+	// CanManage decides whether the way to the permissions page is offered.
 	CanManage bool
 
 	// A nil Edit* means the matching form creates rather than updates.
@@ -169,15 +171,6 @@ func parentOptions(ctx context.Context, p Page) []option {
 		out = append(out, option{Value: route.ID, Label: route.Name})
 	}
 	return out
-}
-
-// grantScope reads a grant back the way it was written: a Team, or one channel
-// of it.
-func grantScope(ctx context.Context, grant models.Grant) string {
-	if grant.ChannelID == "" {
-		return i18n.T(ctx, "grants.scope_team", grant.TeamID)
-	}
-	return i18n.T(ctx, "grants.scope_channel", grant.TeamID, grant.ChannelID)
 }
 
 // templateShape says what a template sends, which matters more in a list than

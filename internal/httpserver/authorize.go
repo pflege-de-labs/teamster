@@ -45,6 +45,15 @@ func viewerOf(r *http.Request) views.Viewer {
 	return views.Viewer{Name: name, Roles: named}
 }
 
+// viewerFor is viewerOf plus what the nav needs, which only a handler holding
+// the authorizer can answer.
+func (s *Server) viewerFor(r *http.Request) views.Viewer {
+	viewer := viewerOf(r)
+	subject, roles := principalOf(r)
+	viewer.CanManage = s.authz.Allow(subject, roles, authz.ActionAdminister, authz.Resource{Type: "Grant"})
+	return viewer
+}
+
 // principalSubject is the principal's identifier alone, for the callers that
 // do not need the roles beside it.
 func principalSubject(r *http.Request) string {
@@ -114,7 +123,9 @@ func requestAuthorization(r *http.Request) (string, authz.Resource) {
 	switch {
 	// Deciding who may deliver where is the admin's, not the editor's, so it
 	// is a different action rather than another thing an editor may edit.
-	case strings.HasPrefix(path, "/api/grants"), strings.HasPrefix(path, "/admin/grants"):
+	case strings.HasPrefix(path, "/api/grants"),
+		strings.HasPrefix(path, "/admin/grants"),
+		strings.HasPrefix(path, "/admin/permissions"):
 		return authz.ActionAdminister, authz.Resource{Type: "Grant"}
 	// An export is the whole configuration in one file and an import rewrites
 	// it, including who may deliver where. Both are the admin's.

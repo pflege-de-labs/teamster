@@ -199,8 +199,13 @@ adding to them does not.
 
 ### Limiting a role to Teams and channels
 
-An admin can narrow where a role may deliver, in **Delivery permissions** on `/admin` or through
-`/api/grants`. A grant names a role and a Team, optionally one channel of it:
+An admin can narrow where a role may deliver on **Permissions** (`/admin/permissions`): pick a role,
+then tick Teams and channels in a collapsible tree, with one toggle at the top for all of them.
+Ticking a Team grants its channels, including ones added later; ticking channels individually grants
+only those. Saving replaces what that role had, in one transaction.
+
+`/api/grants` still works for scripts, and `PUT /api/grants/role` is what the page posts. A grant
+names a role and a Team, optionally one channel of it:
 
 | Grant | Reaches |
 | --- | --- |
