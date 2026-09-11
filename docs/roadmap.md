@@ -404,6 +404,66 @@ If an editor is still wanted, the options are Microsoft's Adaptive Cards Designe
 and does not round-trip Go template syntax cleanly, or a form-based editor over the card elements
 this service actually uses. The decision gets its own ADR when we get there.
 
+## Milestone 10 — A localizable UI
+
+Every string the admin UI shows is written into the templ component that shows it. Changing the
+wording of one sentence means finding the component that holds it, and there is no way to offer the
+UI in another language at all — the strings and the markup are the same file.
+
+Two problems, one fix: get the text out of the templates and into a catalog.
+
+### Where the strings live
+
+A message catalog per language, keyed by a short identifier, with the English catalog as the
+source. Components ask for a key and never hold a sentence. Tooling extracts the keys and reports
+the ones a catalog is missing, so a translator works from a list rather than by reading the markup.
+
+`golang.org/x/text/message` and `golang.org/x/text/language` are the obvious starting point: already
+in the module graph, they handle plural forms and locale-aware number and date formatting, and
+`x/text/cmd/gotext` extracts and merges catalogs. The alternative is a third-party library with a
+friendlier file format — `go-i18n` and its TOML catalogs read better for a non-programmer — which is
+the trade the ADR has to make.
+
+### Reaching the printer from a component
+
+templ components take a `context.Context`, so the negotiated printer travels in it and a component
+calls a small `T(ctx, key, args...)` helper. Passing it through `Page` instead would mean every
+component that renders a string needs it in its parameters, which is the sort of change that gets
+half-done.
+
+### Which language
+
+`Accept-Language`, matched against the languages this build actually carries with
+`language.NewMatcher`, with a configured default for when the header says nothing useful. A
+per-session preference — an explicit choice that outlives one request — is the obvious follow-up
+once there is more than one language to choose.
+
+### Editable without a release
+
+Catalogs are embedded, so the binary stays self-contained. Beyond that, an operator who wants to
+retune wording without waiting for a release could drop a catalog file in the XDG config directory
+and have it override the embedded one at startup. That is the part of this milestone that makes the
+text genuinely editable rather than merely centralised, and it is also the part that can be left out
+of the first pass.
+
+### What is not localized
+
+Webhook payloads, API errors and log lines stay English: they are read by machines, and by whoever
+is reading a log at three in the morning, and a translated error is harder to search for.
+
+Alert templates are already the operator's own text, in whatever language they wrote them. The one
+string this service still supplies for an alert — `templates.DefaultTitle`, the fallback summary
+line — is a template and can be overridden per template, so it needs nothing new here.
+
+### Testing the catalogs
+
+A test that every catalog carries every key the source catalog does; a table over
+`Accept-Language` headers and the language each should select, including a header naming a language
+this build does not carry; and a missing key falling back to the source string rather than rendering
+an empty element or panicking.
+
+Needs an ADR: it changes how every component in the UI is written.
+
 ## Sequencing
 
 | Order | Item | Depends on | Blocked by |
@@ -420,6 +480,7 @@ this service actually uses. The decision gets its own ADR when we get there.
 | 4 | 7 Fine-grained permissions | 2 | ADR on how OpenFGA is run |
 | 5 | 8 Import and export | 7 for permissions | — |
 | 6 | 9 Card editor | 1.4 | decision after 1.4 |
+| 7 | 10 Localizable UI | — | — |
 
 1.3 sat after 1.4 because it was the only item waiting on someone else to grant a permission.
 
@@ -428,6 +489,11 @@ fixes something an operator hits on every single alert. Milestone 5 is the large
 it immediately, because shipping a picture that disagrees with routing is worse than shipping
 neither. 8 waits on 7 only for the permission part of the bundle; the rest of it could be pulled
 forward if a migration is needed sooner.
+
+10 sits last because 7 and 9 both add screens, and extracting strings from a UI that is still
+growing means doing it twice. The counter-argument is real though: everything built before it adds
+more strings to extract later, so if a second language is actually wanted, pull it forward ahead of
+7 and let the new screens be written against the catalog from the start.
 
 ## Open questions
 
