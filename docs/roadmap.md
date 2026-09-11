@@ -329,31 +329,45 @@ group maps it to `admin` and nothing else changes.
 
 ### Why not write the checks by hand
 
-Per-object grants with group inheritance and a visibility overlay is a relationship model, and
-hand-rolled versions of it grow into exactly the thing [OpenFGA](https://openfga.dev/) already is —
-a Zanzibar-style store with a tested evaluation engine. The model sketches as:
+Per-object grants with group inheritance and a visibility overlay is a policy model, and hand-rolled
+versions of it grow into a small, untested authorization engine scattered across handlers. Use one
+that already exists.
 
-```dsl
-type team
-  relations
-    define visible: [user:*, group#member]
-    define editor: [user, group#member]
-type channel
-  relations
-    define team: [team]
-    define editor: [user, group#member] or editor from team
-    define viewer: [user, group#member] or editor
+### Cedar, embedded
+
+**[`cedar-policy/cedar-go`](https://github.com/cedar-policy/cedar-go).** Cedar is a policy language
+with an authorizer that runs in-process: policies are `permit`/`forbid` over a principal, an action
+and a resource, with conditions and an entity graph that carries group membership as parent
+relationships. It is a library, not a service, so it costs this project no second process and no
+second database — which is what the first constraint in this file demands.
+
+Policies read close to how an admin would say the rule out loud:
+
+```cedar
+permit (
+  principal in Group::"payments-editors",
+  action in [Action::"deliver", Action::"edit"],
+  resource in Team::"platform"
+);
+
+forbid (principal, action == Action::"edit", resource)
+unless { principal in Group::"editors" };
 ```
 
-### The constraint it runs into
+Entities come from what this service already knows: the session gives the principal and the claim
+values give its groups, while teams, channels and destinations are the resources — with a channel's
+team as its parent, so a grant on a Team reaches the channels in it.
 
-The first line of this file says one static binary with no separate deployment. OpenFGA is a Go
-service, so the ADR chooses between embedding its server packages in-process against our SQLite —
-if its storage layer supports that, which has to be checked before anything is promised — running
-it as a sidecar and accepting a second process, or keeping the model and evaluating it ourselves
-over a relation table in SQLite. The third is the fallback if embedding turns out to cost more than
-the problem is worth; the model above is written in OpenFGA's language either way, so the choice
-does not change the data.
+[OpenFGA](https://openfga.dev/) was the first candidate and is the rejected alternative: a
+Zanzibar-style model fits the shape of the problem just as well, but it is a service whose storage
+engine would have to run alongside the binary, or be embedded against a database it may not support.
+Cedar answers that by being a library in the first place.
+
+Open for the ADR: where policies live — embedded defaults derived from the three roles, an operator
+file in the XDG config directory, a table in SQLite edited through the admin UI, or some combination
+— and how much of Cedar's schema validation the Go implementation offers, which decides whether a
+bad policy is caught on write or only at evaluation. The library's API surface gets read before any
+of that is promised.
 
 ### Enforcement
 
@@ -362,6 +376,9 @@ service, so the UI cannot be the place a permission is enforced. The pickers lis
 teams and channels, a route may only point at a destination the editor may deliver to, and a viewer
 sees the lists with every mutating control absent. Delivery is unaffected: it is a machine path
 with no user attached.
+
+A denied check is a `403` that names what was refused, not a `404`: an editor who cannot deliver to
+a channel needs to be told that, rather than left to conclude the channel does not exist.
 
 Needs an ADR, and it supersedes part of [ADR 0009](adr/0009-admin-authentication.md): that one says
 membership grants access, and this one says membership grants a role.
@@ -477,7 +494,7 @@ Needs an ADR: it changes how every component in the UI is written.
 | — | 4 Activity feed messages | — | done |
 | — | 5 Nested routes | — | done |
 | — | 6 Visualization, second pass | 5 | done |
-| 4 | 7 Fine-grained permissions | 2 | ADR on how OpenFGA is run |
+| 4 | 7 Fine-grained permissions | 2 | ADR on where Cedar policies live |
 | 5 | 8 Import and export | 7 for permissions | — |
 | 6 | 9 Card editor | 1.4 | decision after 1.4 |
 | 7 | 10 Localizable UI | — | — |
@@ -501,9 +518,9 @@ more strings to extract later, so if a second language is actually wanted, pull 
   Small enough that the no-CDN rule stands.
 * Should the admin API accept a token for automation once OIDC lands, or is basic auth the answer
   for scripts? Decide as part of milestone 2.
-* Can OpenFGA be embedded in-process against SQLite, or does it require a database we do not ship?
-  This decides whether milestone 7 keeps the single-binary promise, and it is the first thing to
-  check when that milestone starts.
+* Answered before milestone 7 started: authorization uses `cedar-policy/cedar-go`, which is a
+  library rather than a service, so the single-binary promise holds without embedding somebody
+  else's server. What stays open is where the policies are stored and edited.
 * Answered at milestone 5: a route's delivery is its own, resolved by inheriting the nearest
   ancestor's destination and template. Suppression is likewise local — a greedy child drops its
   parent's delivery, not its grandparent's.
