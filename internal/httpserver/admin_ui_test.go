@@ -245,7 +245,7 @@ func TestFormsReportErrors(t *testing.T) {
 		{
 			name:    "the store rejects the template",
 			path:    "/admin/templates",
-			form:    url.Values{"name": {"Card"}},
+			form:    url.Values{"name": {"Card"}, "body": {"{}"}},
 			failOn:  "CreateTemplate",
 			wantErr: errStore.Error(),
 		},

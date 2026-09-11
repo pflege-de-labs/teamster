@@ -121,6 +121,19 @@ everything else dims, so the answer is read off the same picture.
 `SelectRoute`, used by the delivery path, is a wrapper over it. The browser never re-implements
 selector matching, so the answer cannot drift from what actually delivers alerts.
 
+## Messages
+
+A template renders into a title, formatted text and an Adaptive Card, each optional and at least
+one required. `templates.RenderMessage` renders all three; the title is collapsed to one line
+because that is what the Teams activity feed previews, and an untitled card falls back to
+`templates.DefaultTitle`, the summary line this service sent before templates could name their own.
+
+Rendered text is sanitized in `templates.Sanitize` — parsed with `golang.org/x/net/html` and
+written back through an allowlist — before it reaches the Graph client, so every caller gets the
+same guarantee. `graph.Message` carries the three parts, and the Graph client assembles the body
+with an explicit `<attachment id="1">` where the card goes. See
+[ADR 0010](adr/0010-message-shape.md).
+
 ## Routing rules
 
 `routing.SelectRoute` sorts routes by descending priority, breaking ties on name, and returns the

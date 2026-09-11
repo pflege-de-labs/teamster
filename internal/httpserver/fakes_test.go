@@ -1,7 +1,6 @@
 package httpserver
 
 import (
-	"encoding/json"
 	"errors"
 	"sync"
 	"time"
@@ -293,8 +292,7 @@ func (f *fakeStore) DeleteActiveAlert(fingerprint string) error {
 type postCall struct {
 	teamID    string
 	channelID string
-	card      json.RawMessage
-	summary   string
+	msg       graph.Message
 }
 
 type updateCall struct {
@@ -317,8 +315,8 @@ type fakeMessenger struct {
 	updates []updateCall
 }
 
-func (f *fakeMessenger) PostMessage(teamID, channelID string, card json.RawMessage, summary string) (string, error) {
-	f.posts = append(f.posts, postCall{teamID: teamID, channelID: channelID, card: card, summary: summary})
+func (f *fakeMessenger) PostMessage(teamID, channelID string, msg graph.Message) (string, error) {
+	f.posts = append(f.posts, postCall{teamID: teamID, channelID: channelID, msg: msg})
 	if f.postErr != nil {
 		return "", f.postErr
 	}
@@ -344,9 +342,9 @@ func (f *fakeMessenger) ListChannels(teamID string) ([]graph.Channel, error) {
 	return f.channels[teamID], nil
 }
 
-func (f *fakeMessenger) UpdateMessage(teamID, channelID, messageID string, card json.RawMessage, summary string) error {
+func (f *fakeMessenger) UpdateMessage(teamID, channelID, messageID string, msg graph.Message) error {
 	f.updates = append(f.updates, updateCall{
-		postCall:  postCall{teamID: teamID, channelID: channelID, card: card, summary: summary},
+		postCall:  postCall{teamID: teamID, channelID: channelID, msg: msg},
 		messageID: messageID,
 	})
 	return f.updateErr

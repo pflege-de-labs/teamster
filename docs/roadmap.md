@@ -174,7 +174,7 @@ unreachable directory falling back to ids, an empty configuration, and each of t
 The drawing itself is not tested; the page is asserted to render and to reference
 assets that exist.
 
-## Milestone 4 — Messages the Teams activity feed can read
+## Milestone 4 — Messages the Teams activity feed can read — done
 
 A message whose visible content is an attached card previews as `Card` in the activity feed. An
 operator scanning notifications learns nothing without opening each one, which is most of the value
@@ -215,8 +215,12 @@ reproducing today's fallback chain, so nothing changes for a deployment that nev
 templates:
 
 ```gotemplate
-{{ default .Alert.Labels.alertname (default "Alert update" .Alert.Annotations.summary) }}
+{{ default .Alert.Annotations.summary (default .Alert.Labels.alertname "Alert update") }}
 ```
+
+Shipped as `templates.DefaultTitle`, applied when a template has a card and no title, so no data
+migration was needed — only the two columns. `default` was widened to take `any`, because a missing
+key of a nil map arrives as an invalid value that a `string` parameter rejects.
 
 `POST /api/templates/preview` returns the rendered title and text alongside the card, and the
 preview pane shows the feed line above the card — the point of the milestone is the line, so the
@@ -404,7 +408,7 @@ this service actually uses. The decision gets its own ADR when we get there.
 | — | 1.3 Teams picker | — | done |
 | — | 2 OIDC login | — | done |
 | — | 3 Routing visualization | — | done |
-| 1 | 4 Activity feed messages | — | — |
+| — | 4 Activity feed messages | — | done |
 | 2 | 5 Nested routes | — | — |
 | 3 | 6 Visualization, second pass | 5 | — |
 | 4 | 7 Fine-grained permissions | 2 | ADR on how OpenFGA is run |

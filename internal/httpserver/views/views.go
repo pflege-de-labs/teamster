@@ -40,6 +40,25 @@ type Page struct {
 	EditRoute       *models.Route
 }
 
+// templateShape says what a template sends, which matters more in a list than
+// how many bytes of card JSON it holds.
+func templateShape(t models.Template) string {
+	parts := []string{}
+	if t.Title != "" {
+		parts = append(parts, "title")
+	}
+	if t.Text != "" {
+		parts = append(parts, "text")
+	}
+	if t.Body != "" {
+		parts = append(parts, "card")
+	}
+	if len(parts) == 0 {
+		return "empty"
+	}
+	return strings.Join(parts, " + ")
+}
+
 // The accessors below let a template read a field of the record under edit
 // without repeating a nil check per field.
 

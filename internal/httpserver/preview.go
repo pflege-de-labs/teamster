@@ -22,6 +22,8 @@ func (s *Server) handlePreview(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, maxPreviewBytes)
 
 	var req struct {
+		Title  string `json:"title"`
+		Text   string `json:"text"`
 		Body   string `json:"body"`
 		Sample string `json:"sample"`
 	}
@@ -36,7 +38,13 @@ func (s *Server) handlePreview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	card, err := templates.Render(req.Body, templates.RenderData{
+	// The whole message, not the card alone: the feed line is the point of
+	// having a title at all, so the preview has to show it.
+	msg, err := templates.RenderMessage(models.Template{
+		Title: req.Title,
+		Text:  req.Text,
+		Body:  req.Body,
+	}, templates.RenderData{
 		Alert: previewAlert(req.Sample),
 		Now:   time.Now().UTC().Format(time.RFC3339),
 	})
@@ -46,7 +54,9 @@ func (s *Server) handlePreview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{"card": card})
+	// templates.Message omits the parts a template does not have, so the browser
+	// can tell "no card" from "an empty card".
+	writeJSON(w, http.StatusOK, msg)
 }
 
 func previewSamples() []string {

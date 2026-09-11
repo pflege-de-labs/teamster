@@ -432,6 +432,64 @@ func TestNewSQLiteStoreRejectsLegacyTextTimestamps(t *testing.T) {
 	}
 }
 
+// A database written before templates could carry a title must keep working:
+// the columns are added and the rows already in it are still readable.
+func TestNewSQLiteStoreAddsTemplateMessageColumns(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), "old.db")
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatalf("open old db: %v", err)
+	}
+	_, err = db.Exec(`CREATE TABLE templates (
+	id TEXT PRIMARY KEY,
+	name TEXT NOT NULL,
+	body TEXT NOT NULL,
+	created_at DATETIME NOT NULL,
+	updated_at DATETIME NOT NULL
+);
+INSERT INTO templates (id, name, body, created_at, updated_at)
+VALUES ('old', 'Card', '{"type":"AdaptiveCard"}', '2026-01-01 00:00:00+00:00', '2026-01-01 00:00:00+00:00')`)
+	if err != nil {
+		t.Fatalf("seed old db: %v", err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatalf("close old db: %v", err)
+	}
+
+	store, err := NewSQLiteStore(path)
+	if err != nil {
+		t.Fatalf("NewSQLiteStore: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+
+	got, err := store.GetTemplate("old")
+	if err != nil {
+		t.Fatalf("GetTemplate: %v", err)
+	}
+	if got.Name != "Card" || got.Body != `{"type":"AdaptiveCard"}` {
+		t.Errorf("template = %+v, want the row that was already there", got)
+	}
+	if got.Title != "" || got.Text != "" {
+		t.Errorf("template = %+v, want the new columns empty", got)
+	}
+
+	// Writing through the new columns has to work against the altered table.
+	got.Title = "{{ .Alert.Status }}"
+	got.Text = "<p>hi</p>"
+	if _, err := store.UpdateTemplate(got); err != nil {
+		t.Fatalf("UpdateTemplate: %v", err)
+	}
+	back, err := store.GetTemplate("old")
+	if err != nil {
+		t.Fatalf("GetTemplate after update: %v", err)
+	}
+	if back.Title != got.Title || back.Text != got.Text {
+		t.Errorf("template = %+v, want the title and text stored", back)
+	}
+}
+
 func TestSessionLifecycle(t *testing.T) {
 	t.Parallel()
 

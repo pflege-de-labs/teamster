@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
+	"strings"
 
 	"time"
 
@@ -46,6 +47,42 @@ type MessageRequest struct {
 	Attachments []Attachment `json:"attachments,omitempty"`
 }
 
+// Message is a rendered template on its way to a channel. Title is the line the
+// Teams activity feed previews, so a message without one previews as "Card" and
+// tells a reader nothing. Text is HTML and must already be sanitized by the
+// caller; Title is escaped here because it is one line of plain text.
+type Message struct {
+	Title string
+	Text  string
+	Card  json.RawMessage
+}
+
+const cardAttachmentID = "1"
+
+// The attachment is referenced from the body rather than left for Graph to
+// append, so the card sits below the text instead of above it.
+func (m Message) request() MessageRequest {
+	var content strings.Builder
+	if m.Title != "" {
+		content.WriteString("<p><b>")
+		content.WriteString(html.EscapeString(m.Title))
+		content.WriteString("</b></p>")
+	}
+	content.WriteString(m.Text)
+
+	req := MessageRequest{Body: ItemBody{ContentType: "html", Content: content.String()}}
+	if len(m.Card) > 0 {
+		content.WriteString(`<attachment id="` + cardAttachmentID + `"></attachment>`)
+		req.Body.Content = content.String()
+		req.Attachments = []Attachment{{
+			ID:          cardAttachmentID,
+			ContentType: "application/vnd.microsoft.card.adaptive",
+			Content:     m.Card,
+		}}
+	}
+	return req
+}
+
 func NewClient(cfg config.GraphConfig) (*Client, error) {
 	oauthCfg := clientcredentials.Config{
 		ClientID:     cfg.ClientID,
@@ -63,21 +100,8 @@ func NewClient(cfg config.GraphConfig) (*Client, error) {
 	}, nil
 }
 
-func (c *Client) PostMessage(teamID, channelID string, card json.RawMessage, summary string) (string, error) {
-	escapedSummary := html.EscapeString(summary)
-	payload := MessageRequest{
-		Body: ItemBody{
-			ContentType: "html",
-			Content:     fmt.Sprintf("<p>%s</p>", escapedSummary),
-		},
-		Attachments: []Attachment{
-			{
-				ID:          "1",
-				ContentType: "application/vnd.microsoft.card.adaptive",
-				Content:     card,
-			},
-		},
-	}
+func (c *Client) PostMessage(teamID, channelID string, msg Message) (string, error) {
+	payload := msg.request()
 
 	endpoint := fmt.Sprintf("%s/teams/%s/channels/%s/messages", c.baseURL, teamID, channelID)
 	resBody, err := c.doRequest(http.MethodPost, endpoint, payload)
@@ -96,21 +120,8 @@ func (c *Client) PostMessage(teamID, channelID string, card json.RawMessage, sum
 	return res.ID, nil
 }
 
-func (c *Client) UpdateMessage(teamID, channelID, messageID string, card json.RawMessage, summary string) error {
-	escapedSummary := html.EscapeString(summary)
-	payload := MessageRequest{
-		Body: ItemBody{
-			ContentType: "html",
-			Content:     fmt.Sprintf("<p>%s</p>", escapedSummary),
-		},
-		Attachments: []Attachment{
-			{
-				ID:          "1",
-				ContentType: "application/vnd.microsoft.card.adaptive",
-				Content:     card,
-			},
-		},
-	}
+func (c *Client) UpdateMessage(teamID, channelID, messageID string, msg Message) error {
+	payload := msg.request()
 
 	endpoint := fmt.Sprintf("%s/teams/%s/channels/%s/messages/%s", c.baseURL, teamID, channelID, messageID)
 	_, err := c.doRequest(http.MethodPatch, endpoint, payload)

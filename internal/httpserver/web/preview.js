@@ -1,5 +1,5 @@
 // Renders a template against a sample alert. The template is Go text/template,
-// so the server does the templating and the browser only draws the card.
+// so the server does the templating and the browser only draws the result.
 (function () {
   const form = document.getElementById("template-form");
   const button = document.getElementById("preview-button");
@@ -15,16 +15,52 @@
     output.appendChild(p);
   }
 
-  button.addEventListener("click", async () => {
-    const field = form.querySelector('[name="body"]');
-    const body = field ? field.value : "";
+  function valueOf(name) {
+    const field = form.querySelector('[name="' + name + '"]');
+    return field ? field.value : "";
+  }
 
+  // The feed line is the reason a title exists, so the preview leads with it.
+  function feedLine(title) {
+    const wrapper = document.createElement("div");
+    wrapper.className = "rounded-md border border-slate-200 bg-slate-50 px-4 py-3";
+
+    const caption = document.createElement("p");
+    caption.className = "text-xs font-medium uppercase tracking-wide text-slate-500";
+    caption.textContent = "Teams activity feed";
+    wrapper.appendChild(caption);
+
+    const line = document.createElement("p");
+    line.className = "mt-1 truncate text-sm font-semibold text-slate-900";
+    line.textContent = title;
+    wrapper.appendChild(line);
+    return wrapper;
+  }
+
+  // The server sanitizes the text to an allowlist; the sandboxed frame is the
+  // second lock, so a gap in the first one still cannot run anything here.
+  function textFrame(text) {
+    const frame = document.createElement("iframe");
+    frame.setAttribute("sandbox", "");
+    frame.setAttribute("title", "Message text");
+    frame.className = "mt-2 h-32 w-full rounded-md border border-slate-200 bg-white";
+    frame.srcdoc =
+      '<!doctype html><meta charset="utf-8"><body style="font: 14px system-ui, sans-serif; margin: 12px">' + text;
+    return frame;
+  }
+
+  button.addEventListener("click", async () => {
     let payload;
     try {
       const res = await fetch("/api/templates/preview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ body: body, sample: sample ? sample.value : "firing" }),
+        body: JSON.stringify({
+          title: valueOf("title"),
+          text: valueOf("message_text"),
+          body: valueOf("body"),
+          sample: sample ? sample.value : "firing",
+        }),
       });
       payload = await res.json();
     } catch (err) {
@@ -37,13 +73,25 @@
       return;
     }
 
-    try {
-      const card = new AdaptiveCards.AdaptiveCard();
-      card.parse(payload.card);
-      const rendered = card.render();
-      output.replaceChildren(rendered);
-    } catch (err) {
-      report("The card rendered to JSON but the renderer rejected it: " + err.message);
+    const parts = [];
+    if (payload.title) parts.push(feedLine(payload.title));
+    if (payload.text) parts.push(textFrame(payload.text));
+
+    if (payload.card) {
+      try {
+        const card = new AdaptiveCards.AdaptiveCard();
+        card.parse(payload.card);
+        parts.push(card.render());
+      } catch (err) {
+        report("The card rendered to JSON but the renderer rejected it: " + err.message);
+        return;
+      }
     }
+
+    if (parts.length === 0) {
+      report("This template renders to nothing. Give it a title, text or a card.");
+      return;
+    }
+    output.replaceChildren(...parts);
   });
 })();

@@ -8,6 +8,7 @@ import (
 
 	"github.com/pflege-de-labs/teamster/internal/models"
 	"github.com/pflege-de-labs/teamster/internal/store"
+	"github.com/pflege-de-labs/teamster/internal/templates"
 )
 
 func (s *Server) handleTemplates(w http.ResponseWriter, r *http.Request) {
@@ -23,6 +24,10 @@ func (s *Server) handleTemplates(w http.ResponseWriter, r *http.Request) {
 		var t models.Template
 		if err := json.NewDecoder(r.Body).Decode(&t); err != nil {
 			writeJSONError(w, http.StatusBadRequest, "invalid JSON")
+			return
+		}
+		if err := templates.Validate(t); err != nil {
+			writeJSONError(w, http.StatusBadRequest, err.Error())
 			return
 		}
 		created, err := s.store.CreateTemplate(t)
@@ -62,6 +67,10 @@ func (s *Server) handleTemplateByID(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		t.ID = id
+		if err := templates.Validate(t); err != nil {
+			writeJSONError(w, http.StatusBadRequest, err.Error())
+			return
+		}
 		updated, err := s.store.UpdateTemplate(t)
 		if err != nil {
 			writeJSONError(w, http.StatusInternalServerError, err.Error())

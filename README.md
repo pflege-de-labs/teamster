@@ -87,6 +87,27 @@ Payload shape:
 }
 ```
 
+## Templates
+
+A template is three optional parts, and needs at least one of them:
+
+| Part | What it is | Where it shows |
+| --- | --- | --- |
+| Title | A template rendering to one line of plain text | The Teams activity feed preview |
+| Message text | A template rendering to formatted text | The message body |
+| Adaptive Card JSON | The card, as before | Below the text |
+
+A message that is only a card previews in the activity feed as `Card`, which is why the title
+exists. A card without a title keeps the summary line this service always sent —
+`annotations.summary`, then `labels.alertname`, then `Alert update` — so existing templates are
+unaffected. Text without a title is left alone: the feed previews the text itself.
+
+Message text is HTML, and it is sanitized before it is sent: `p`, `br`, `b`, `strong`, `i`, `em`,
+`u`, `s`, `code`, `pre`, `blockquote`, `ul`, `ol`, `li`, `h1`–`h3` and `a` survive, `script` and
+`style` are dropped with their contents, anything else is unwrapped to its text, and a link keeps
+its `href` only for `http`, `https` and `mailto`. An alert annotation ends up in that text, so it
+cannot be trusted to be markup-free.
+
 ## Template data
 
 Templates receive:
@@ -97,7 +118,7 @@ Templates receive:
 Helper functions:
 
 - `toJSON` to JSON-encode structures
-- `default` to provide fallbacks
+- `default` to provide fallbacks, including for a key an alert did not set
 
 ## Notes
 
@@ -106,6 +127,8 @@ Helper functions:
   to start against one and names the file; delete it and restart to recreate the schema.
 - A default route is used if no labels match.
 - Active alerts are tracked in SQLite to update or resolve cards.
+- A database written before templates had a title gains the columns on the next start; nothing
+  needs to be deleted.
 
 ## Sample payloads
 

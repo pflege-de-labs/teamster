@@ -1,7 +1,6 @@
 package httpserver
 
 import (
-	"encoding/json"
 	"net/http"
 	"time"
 
@@ -13,8 +12,8 @@ import (
 
 // messenger is the slice of the Graph client the handlers depend on.
 type messenger interface {
-	PostMessage(teamID, channelID string, card json.RawMessage, summary string) (string, error)
-	UpdateMessage(teamID, channelID, messageID string, card json.RawMessage, summary string) error
+	PostMessage(teamID, channelID string, msg graph.Message) (string, error)
+	UpdateMessage(teamID, channelID, messageID string, msg graph.Message) error
 	ListTeams() ([]graph.Team, error)
 	ListChannels(teamID string) ([]graph.Channel, error)
 }
