@@ -14,6 +14,39 @@ import (
 	"github.com/pflege-de-labs/teamster/internal/models"
 )
 
+// A Viewer is who is looking at a page: the name the provider gave them and the
+// roles they hold. The header shows both, so a missing control has a visible
+// reason.
+type Viewer struct {
+	Name  string
+	Roles []string
+}
+
+// displayName falls back to something rather than rendering an empty header: a
+// provider that sends no name still signed somebody in.
+func (v Viewer) displayName() string {
+	if v.Name == "" {
+		return "Signed in"
+	}
+	return v.Name
+}
+
+// roleLabel reads the roles the way an operator would say them, and says so
+// plainly when there are none — that is the case where the page is empty and
+// the reason needs to be in front of them.
+func (v Viewer) roleLabel() string {
+	named := make([]string, 0, len(v.Roles))
+	for _, role := range v.Roles {
+		if role != "" && role != "none" {
+			named = append(named, role)
+		}
+	}
+	if len(named) == 0 {
+		return "no role"
+	}
+	return strings.Join(named, ", ")
+}
+
 // Login carries what the sign-in page needs: which ways in are configured, and
 // why the last attempt failed.
 type Login struct {
@@ -39,8 +72,8 @@ type Page struct {
 	// button they cannot use is its own kind of broken.
 	CanEdit bool
 
-	// Role is shown in the header, so it is obvious why the controls are gone.
-	Role string
+	// Viewer is who the page is being rendered for, shown in the header.
+	Viewer Viewer
 
 	// Grants scope roles to Teams and channels. Only an admin sees or sets them.
 	Grants    []models.Grant

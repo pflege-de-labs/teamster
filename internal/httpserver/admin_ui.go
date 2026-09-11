@@ -29,7 +29,7 @@ func (s *Server) handleAdminPage(w http.ResponseWriter, r *http.Request) {
 		Notice:         r.URL.Query().Get("notice"),
 		Error:          r.URL.Query().Get("error"),
 		PreviewSamples: previewSamples(),
-		Role:           authz.Encode(roles),
+		Viewer:         viewerOf(r),
 		CanEdit:        s.authz.Allow(principalSubject(r), roles, authz.ActionEdit, authz.Resource{Type: "Template"}),
 		CanManage:      s.authz.Allow(principalSubject(r), roles, authz.ActionAdminister, authz.Resource{Type: "Grant"}),
 	}

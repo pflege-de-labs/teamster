@@ -1,7 +1,7 @@
 package views
 
-templ RoutingPage() {
-	@Layout("Routing — Teamster", true) {
+templ RoutingPage(viewer Viewer) {
+	@Layout("Routing — Teamster", &viewer) {
 		<section class="rounded-lg border border-slate-200 bg-white shadow-sm">
 			<h2 class="border-b border-slate-200 px-6 py-4 text-lg font-semibold">Which route would an alert take?</h2>
 			<div class="grid gap-8 px-6 py-6 lg:grid-cols-3">
