@@ -313,6 +313,29 @@ Connections are bounded by `server.read-timeout`, `server.write-timeout` and
 `server.idle-timeout`. If you raise `graph.timeout-sec`, raise the write timeout past it, or a
 handler waiting on Microsoft Graph is cut off first.
 
+### Probes
+
+| Path | Answers |
+| --- | --- |
+| `GET /healthz` | the process is running |
+| `GET /readyz` | it can serve: not shutting down, and the database answers |
+
+Both are unauthenticated, because a probe carries no credentials, and both answer `HEAD` as well as
+`GET`. Liveness deliberately ignores the database: restarting the process does not bring one back,
+it only turns an outage into a crash loop. Readiness deliberately ignores Microsoft Graph, which is
+somebody else's service — taking the instance out of rotation when Graph is unreachable would close
+the admin UI exactly when an operator wants to see why delivery is failing.
+
+Readiness starts failing as soon as a shutdown begins, so a rolling update stops traffic arriving
+before the process stops accepting it.
+
+```yaml
+livenessProbe:
+  httpGet: { path: /healthz, port: http }
+readinessProbe:
+  httpGet: { path: /readyz, port: http }
+```
+
 `--read-only` works because `/data` is the only path the service writes; see
 [SECURITY.md](SECURITY.md) for the rest of the deployment expectations.
 

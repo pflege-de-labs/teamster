@@ -37,6 +37,16 @@ func (s *SQLiteStore) Close() error {
 	return s.db.Close()
 }
 
+// Ping is a round trip to the database rather than a look at a connection
+// struct: a file that has been deleted or a disk that has gone read-only shows
+// up here and nowhere else.
+func (s *SQLiteStore) Ping() error {
+	if err := s.db.Ping(); err != nil {
+		return fmt.Errorf("ping database: %w", err)
+	}
+	return nil
+}
+
 func (s *SQLiteStore) migrate() error {
 	schema := `
 CREATE TABLE IF NOT EXISTS templates (
