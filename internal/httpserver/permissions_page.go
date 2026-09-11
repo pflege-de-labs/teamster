@@ -25,12 +25,17 @@ func (s *Server) handlePermissionsPage(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// knownRoles are the three this build defines plus any a grant already names,
-// so a deployment that invented "payments-editors" finds it in the list rather
-// than having to remember how it spelled it.
+// knownRoles are the roles a scope can be set for: the ones this build defines
+// plus any a grant already names, so a deployment that invented
+// "payments-editors" finds it in the list rather than having to remember how it
+// spelled it.
+//
+// Admin is not among them. The admin policy permits every action on every
+// resource, so a grant naming that role would be stored, shown, and then
+// ignored by the authorizer — a control that does nothing is worse than no
+// control.
 func (s *Server) knownRoles() []string {
 	roles := map[string]bool{
-		string(authz.RoleAdmin):  true,
 		string(authz.RoleEditor): true,
 		string(authz.RoleViewer): true,
 	}
@@ -40,6 +45,7 @@ func (s *Server) knownRoles() []string {
 			roles[grant.Role] = true
 		}
 	}
+	delete(roles, string(authz.RoleAdmin))
 
 	out := make([]string, 0, len(roles))
 	for role := range roles {

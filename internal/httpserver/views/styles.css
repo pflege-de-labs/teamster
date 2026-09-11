@@ -4,3 +4,8 @@
    and the generated Go, which carries the class strings after generation. */
 @source "./*.templ";
 @source "./*_templ.go";
+
+/* The scripts build elements too — the routing graph, the pickers, the
+   permissions tree — and a class only they mention would otherwise never be
+   emitted, so the markup would render unstyled with nothing to show for it. */
+@source "../web/*.js";

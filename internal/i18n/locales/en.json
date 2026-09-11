@@ -65,6 +65,7 @@
   "permissions.heading": "Which Teams and channels may a role deliver to?",
   "permissions.load_failed": "Microsoft Graph did not answer, so there is nothing to tick. Permissions can still be set through the API.",
   "permissions.loading": "Loading Teams…",
+  "permissions.no_admin": "Admins are not listed: they reach everything by definition, so a scope set for them would be stored and then ignored.",
   "permissions.role": "Role",
   "permissions.save": "Save",
   "permissions.save_failed": "Could not save: {0}",

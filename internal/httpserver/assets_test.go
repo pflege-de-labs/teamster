@@ -1,7 +1,9 @@
 package httpserver
 
 import (
+	"bytes"
 	"net/http"
+	"os"
 	"regexp"
 	"strings"
 	"testing"
@@ -116,4 +118,33 @@ func TestRenderedPageReferencesOnlyExistingAssets(t *testing.T) {
 			t.Errorf("the page references %s, which returns %d", path, rec.Code)
 		}
 	}
+}
+
+// Tailwind emits only the classes it finds. The scripts build elements of their
+// own — the routing graph, the pickers, the permissions tree — so the stylesheet
+// has to be generated from them as well, or that markup renders unstyled and
+// nothing says why.
+func TestTheStylesheetCoversClassesOnlyTheScriptsUse(t *testing.T) {
+	t.Parallel()
+
+	stylesheet, err := os.ReadFile("web/styles.css")
+	if err != nil {
+		t.Fatalf("read stylesheet: %v", err)
+	}
+
+	// Each of these appears in a .js file and in no template.
+	for _, class := range []string{
+		`ml-9`,    // the permissions tree indents channels under their Team
+		`h-32`,    // the preview's sandboxed text frame
+		`gap-1.5`, // the routing legend swatches
+	} {
+		if !bytes.Contains(stylesheet, []byte(escapeClass(class))) {
+			t.Errorf("the stylesheet has no rule for %q, which a script applies", class)
+		}
+	}
+}
+
+// Tailwind escapes the dot in a class like gap-1.5 when it writes the selector.
+func escapeClass(class string) string {
+	return strings.ReplaceAll(class, ".", `\.`)
 }
