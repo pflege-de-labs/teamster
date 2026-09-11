@@ -38,6 +38,7 @@ type Store interface {
 	TakeLoginFlow(state string) (models.LoginFlow, error)
 
 	UpsertActiveAlert(a models.ActiveAlert) error
-	GetActiveAlert(fingerprint string) (models.ActiveAlert, error)
-	DeleteActiveAlert(fingerprint string) error
+	ListActiveAlerts(fingerprint string) ([]models.ActiveAlert, error)
+	GetActiveAlert(fingerprint, teamID, channelID string) (models.ActiveAlert, error)
+	DeleteActiveAlert(fingerprint, teamID, channelID string) error
 }

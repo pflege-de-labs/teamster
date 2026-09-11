@@ -24,18 +24,27 @@ type Destination struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+// A Route decides where an alert goes. Routes form a tree: a child refines its
+// parent's match, and delivers instead of its parent when Greedy, as well as it
+// when not. A child leaves DestinationID or TemplateID empty to inherit the
+// nearest ancestor's.
 type Route struct {
 	ID            string            `json:"id"`
 	Name          string            `json:"name"`
+	ParentID      string            `json:"parent_id"`
 	LabelSelector map[string]string `json:"label_selector"`
 	DestinationID string            `json:"destination_id"`
 	TemplateID    string            `json:"template_id"`
 	IsDefault     bool              `json:"is_default"`
+	Greedy        bool              `json:"greedy"`
 	Priority      int               `json:"priority"`
 	CreatedAt     time.Time         `json:"created_at"`
 	UpdatedAt     time.Time         `json:"updated_at"`
 }
 
+// An ActiveAlert is one card this service posted. An alert that fans out to
+// several channels has one of these per channel, which is why the key is the
+// fingerprint together with the Team and channel.
 type ActiveAlert struct {
 	Fingerprint string    `json:"fingerprint"`
 	Status      string    `json:"status"`

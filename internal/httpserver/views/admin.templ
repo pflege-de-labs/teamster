@@ -116,6 +116,7 @@ templ routes(page Page) {
 				<input type="hidden" name="id" value={ page.EditRoute.ID }/>
 			}
 			@textField("name", "Name", "Critical to ops", page.editingRoute().Name)
+			@selectField("parent_id", "Refines (optional)", parentOptions(page), page.editingRoute().ParentID)
 			@textareaField("label_selector", "Label selector (JSON)", selectorJSON(page), "3")
 			@selectField("destination_id", "Destination", destinationOptions(page), page.editingRoute().DestinationID)
 			@selectField("template_id", "Template", templateOptions(page), page.editingRoute().TemplateID)
@@ -129,6 +130,7 @@ templ routes(page Page) {
 				/>
 			</label>
 			@checkboxField("is_default", "Default route", page.editingRoute().IsDefault)
+			@checkboxField("greedy", "Deliver instead of the route it refines, not as well as it", page.editingRoute().Greedy)
 			<div class="flex items-center gap-2">
 				@submit(submitLabel(page.EditRoute != nil, "route"))
 				if page.EditRoute != nil {
@@ -141,29 +143,47 @@ templ routes(page Page) {
 				@empty("No routes yet. Without one, every alert is rejected.")
 			} else {
 				<ul class="divide-y divide-slate-200">
-					for _, r := range page.Routes {
-						<li class="flex items-start justify-between gap-4 py-3">
+					for _, r := range page.routeTree() {
+						<li class={ "flex items-start justify-between gap-4 py-3", indent(r.Depth) }>
 							<div class="min-w-0 space-y-1">
 								<div class="flex items-center gap-2">
-									<span class="truncate font-medium">{ r.Name }</span>
-									if r.IsDefault {
+									<span class="truncate font-medium">{ r.Route.Name }</span>
+									if r.Route.IsDefault {
 										<span class="rounded bg-sky-100 px-1.5 py-0.5 text-xs font-medium text-sky-800">default</span>
 									}
-									<span class="text-xs text-slate-500">priority { strconv.Itoa(r.Priority) }</span>
+									if r.Depth > 0 && r.Route.Greedy {
+										<span class="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800">instead of parent</span>
+									}
+									if r.Depth > 0 && !r.Route.Greedy {
+										<span class="rounded bg-emerald-100 px-1.5 py-0.5 text-xs font-medium text-emerald-800">as well as parent</span>
+									}
+									<span class="text-xs text-slate-500">priority { strconv.Itoa(r.Route.Priority) }</span>
 								</div>
 								<div class="truncate text-xs text-slate-500">
-									{ page.destinationName(r.DestinationID) } · { page.templateName(r.TemplateID) }
+									@inheritable(page.destinationName(r.Destination.ID), r.Destination.Inherited)
+									<span>·</span>
+									@inheritable(page.templateName(r.Template.ID), r.Template.Inherited)
 								</div>
-								<div class="truncate font-mono text-xs text-slate-500">{ selectorText(r.LabelSelector) }</div>
+								<div class="truncate font-mono text-xs text-slate-500">{ selectorText(r.Route.LabelSelector) }</div>
 							</div>
 							<div class="flex shrink-0 items-center gap-2">
-								@editLink("routes", r.ID, r.Name)
-								@deleteButton("/admin/routes/delete", r.ID, r.Name)
+								@editLink("routes", r.Route.ID, r.Route.Name)
+								@deleteButton("/admin/routes/delete", r.Route.ID, r.Route.Name)
 							</div>
 						</li>
 					}
 				</ul>
 			}
 		</div>
+	}
+}
+
+// An inherited destination or template is shown in a lighter style, so what a
+// route sets and what it takes from its parent are told apart at a glance.
+templ inheritable(name string, inherited bool) {
+	if inherited {
+		<span class="italic text-slate-400">{ name } (inherited)</span>
+	} else {
+		<span>{ name }</span>
 	}
 }

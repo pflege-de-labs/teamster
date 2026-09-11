@@ -179,3 +179,74 @@ func TestUpdateOverwritesIDFromPath(t *testing.T) {
 		t.Errorf("template not updated: %+v", st.templates["known"])
 	}
 }
+
+// The tree rules belong to routing, and both write paths have to enforce them —
+// a cycle found at delivery time is an alert that never arrives.
+func TestRouteTreeValidationOnTheAPI(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		method     string
+		path       string
+		body       string
+		wantStatus int
+	}{
+		{
+			name: "a child refining a known parent", method: http.MethodPost, path: "/api/routes",
+			body:       `{"name":"child","parent_id":"known","label_selector":{"team":"payments"},"destination_id":"d"}`,
+			wantStatus: http.StatusCreated,
+		},
+		{
+			name: "a parent that does not exist", method: http.MethodPost, path: "/api/routes",
+			body:       `{"name":"child","parent_id":"gone","label_selector":{"team":"payments"},"destination_id":"d"}`,
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name: "a child with nothing to refine", method: http.MethodPost, path: "/api/routes",
+			body:       `{"name":"child","parent_id":"known","destination_id":"d"}`,
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name: "a child that inherits everything", method: http.MethodPost, path: "/api/routes",
+			body:       `{"name":"child","parent_id":"known","label_selector":{"team":"payments"}}`,
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name: "a route made its own parent", method: http.MethodPut, path: "/api/routes/known",
+			body:       `{"name":"known","parent_id":"known","label_selector":{"team":"payments"},"destination_id":"d"}`,
+			wantStatus: http.StatusBadRequest,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			st := newFakeStore()
+			st.routes["known"] = models.Route{ID: "known", Name: "known"}
+			rec := do(t, newTestServer(t, st, &fakeMessenger{}).Handler, tt.method, tt.path, tt.body)
+			if rec.Code != tt.wantStatus {
+				t.Errorf("%s %s = %d, want %d (%s)", tt.method, tt.path, rec.Code, tt.wantStatus, rec.Body.String())
+			}
+		})
+	}
+}
+
+// Deleting a parent would promote its children to roots, where their selectors
+// match alerts the parent used to filter out.
+func TestDeletingARouteWithChildrenIsRefused(t *testing.T) {
+	t.Parallel()
+
+	st := newFakeStore()
+	st.routes["parent"] = models.Route{ID: "parent", Name: "parent"}
+	st.routes["child"] = models.Route{ID: "child", Name: "child", ParentID: "parent"}
+	handler := newTestServer(t, st, &fakeMessenger{}).Handler
+
+	if rec := do(t, handler, http.MethodDelete, "/api/routes/parent", ""); rec.Code != http.StatusBadRequest {
+		t.Errorf("DELETE parent = %d, want 400 (%s)", rec.Code, rec.Body.String())
+	}
+	if rec := do(t, handler, http.MethodDelete, "/api/routes/child", ""); rec.Code != http.StatusOK {
+		t.Errorf("DELETE child = %d, want 200 (%s)", rec.Code, rec.Body.String())
+	}
+}

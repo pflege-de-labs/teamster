@@ -228,7 +228,7 @@ preview has to show it.
 
 Needs an ADR: it changes what this service sends to Teams.
 
-## Milestone 5 — Nested routes
+## Milestone 5 — Nested routes — done
 
 One route matches and one message is delivered. A team that wants an alert in its own channel
 *and* in the platform channel has to duplicate the route and keep both selectors in step.
@@ -265,9 +265,15 @@ type Delivery struct {
 func (r *Router) Plan(labels map[string]string) ([]Delivery, error)
 ```
 
-Children are evaluated in priority order. The first matching child wins unless it is marked to let
-its siblings continue, mirroring Alertmanager. A greedy match drops its ancestor's delivery from
-the plan; a non-greedy one leaves it in. `SelectRoute` retires with its last caller.
+Children are evaluated in priority order. A greedy match drops its ancestor's delivery from the
+plan; a non-greedy one leaves it in. `SelectRoute` retired with its last caller.
+
+**Shipped differently:** every matching child delivers, rather than the first one winning as
+sketched here. With a single flag the inverse default is the coherent one — the feature exists to
+send an alert to more places than one — and a sibling-suppressing flag can be added later without
+taking fan-out away. `Plan` returns a `Result` carrying the reason and the matched root beside the
+deliveries, because the explanation of a fan-out has to name where it started. See
+[ADR 0011](adr/0011-nested-routes.md).
 
 ### State tracking has to fan out too
 
@@ -409,7 +415,7 @@ this service actually uses. The decision gets its own ADR when we get there.
 | — | 2 OIDC login | — | done |
 | — | 3 Routing visualization | — | done |
 | — | 4 Activity feed messages | — | done |
-| 2 | 5 Nested routes | — | — |
+| — | 5 Nested routes | — | done |
 | 3 | 6 Visualization, second pass | 5 | — |
 | 4 | 7 Fine-grained permissions | 2 | ADR on how OpenFGA is run |
 | 5 | 8 Import and export | 7 for permissions | — |
@@ -432,8 +438,9 @@ forward if a migration is needed sooner.
 * Can OpenFGA be embedded in-process against SQLite, or does it require a database we do not ship?
   This decides whether milestone 7 keeps the single-binary promise, and it is the first thing to
   check when that milestone starts.
-* Does a non-greedy child deliver to its parent's destination, or to every ancestor's? Alertmanager
-  has no equivalent question because it has no destination inheritance. The former is proposed.
+* Answered at milestone 5: a route's delivery is its own, resolved by inheriting the nearest
+  ancestor's destination and template. Suppression is likewise local — a greedy child drops its
+  parent's delivery, not its grandparent's.
 * Should a message that carries only text still be updated in place when an alert resolves, or is
   editing a plain message in Teams confusing in a way editing a card is not?
 * Vendored JavaScript has no update path today. A checksum file and a documented refresh procedure

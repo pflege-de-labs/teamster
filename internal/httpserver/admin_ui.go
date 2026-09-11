@@ -10,6 +10,7 @@ import (
 
 	"github.com/pflege-de-labs/teamster/internal/httpserver/views"
 	"github.com/pflege-de-labs/teamster/internal/models"
+	"github.com/pflege-de-labs/teamster/internal/routing"
 	"github.com/pflege-de-labs/teamster/internal/templates"
 )
 
@@ -205,11 +206,16 @@ func (s *Server) saveRoute(r *http.Request) (string, error) {
 	route := models.Route{
 		ID:            r.PostFormValue("id"),
 		Name:          r.PostFormValue("name"),
+		ParentID:      r.PostFormValue("parent_id"),
 		LabelSelector: selector,
 		DestinationID: r.PostFormValue("destination_id"),
 		TemplateID:    r.PostFormValue("template_id"),
 		IsDefault:     r.PostFormValue("is_default") == "true",
+		Greedy:        r.PostFormValue("greedy") == "true",
 		Priority:      priority,
+	}
+	if err := s.validateRoute(route); err != nil {
+		return "", err
 	}
 	if route.ID == "" {
 		if _, err := s.store.CreateRoute(route); err != nil {
@@ -248,7 +254,28 @@ func (s *Server) deleteDestination(r *http.Request) (string, error) {
 	return "Destination deleted.", nil
 }
 
+// Both write paths validate the same way, because the tree rules are routing's
+// and neither the form nor the API may be the only place they hold.
+func (s *Server) validateRoute(route models.Route) error {
+	existing, err := s.store.ListRoutes()
+	if err != nil {
+		return err
+	}
+	return routing.ValidateRoute(route, existing)
+}
+
+func (s *Server) validateRouteDelete(id string) error {
+	existing, err := s.store.ListRoutes()
+	if err != nil {
+		return err
+	}
+	return routing.ValidateDelete(id, existing)
+}
+
 func (s *Server) deleteRoute(r *http.Request) (string, error) {
+	if err := s.validateRouteDelete(r.PostFormValue("id")); err != nil {
+		return "", err
+	}
 	if err := s.store.DeleteRoute(r.PostFormValue("id")); err != nil {
 		return "", err
 	}

@@ -2,6 +2,7 @@ package httpserver
 
 import (
 	"errors"
+	"sort"
 	"sync"
 	"time"
 
@@ -262,30 +263,54 @@ func (f *fakeStore) TakeLoginFlow(state string) (models.LoginFlow, error) {
 	return flow, nil
 }
 
+// Keyed like the real store: one card per alert per channel.
+func activeAlertKey(fingerprint, teamID, channelID string) string {
+	return fingerprint + "\x00" + teamID + "\x00" + channelID
+}
+
 func (f *fakeStore) UpsertActiveAlert(a models.ActiveAlert) error {
 	if err := f.failing("UpsertActiveAlert"); err != nil {
 		return err
 	}
-	f.activeAlerts[a.Fingerprint] = a
+	f.activeAlerts[activeAlertKey(a.Fingerprint, a.TeamID, a.ChannelID)] = a
 	return nil
 }
 
-func (f *fakeStore) GetActiveAlert(fingerprint string) (models.ActiveAlert, error) {
+func (f *fakeStore) ListActiveAlerts(fingerprint string) ([]models.ActiveAlert, error) {
+	if err := f.failing("ListActiveAlerts"); err != nil {
+		return nil, err
+	}
+	var out []models.ActiveAlert
+	for _, a := range f.activeAlerts {
+		if a.Fingerprint == fingerprint {
+			out = append(out, a)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].TeamID == out[j].TeamID {
+			return out[i].ChannelID < out[j].ChannelID
+		}
+		return out[i].TeamID < out[j].TeamID
+	})
+	return out, nil
+}
+
+func (f *fakeStore) GetActiveAlert(fingerprint, teamID, channelID string) (models.ActiveAlert, error) {
 	if err := f.failing("GetActiveAlert"); err != nil {
 		return models.ActiveAlert{}, err
 	}
-	a, ok := f.activeAlerts[fingerprint]
+	a, ok := f.activeAlerts[activeAlertKey(fingerprint, teamID, channelID)]
 	if !ok {
 		return models.ActiveAlert{}, store.ErrNotFound
 	}
 	return a, nil
 }
 
-func (f *fakeStore) DeleteActiveAlert(fingerprint string) error {
+func (f *fakeStore) DeleteActiveAlert(fingerprint, teamID, channelID string) error {
 	if err := f.failing("DeleteActiveAlert"); err != nil {
 		return err
 	}
-	delete(f.activeAlerts, fingerprint)
+	delete(f.activeAlerts, activeAlertKey(fingerprint, teamID, channelID))
 	return nil
 }
 
@@ -303,7 +328,10 @@ type updateCall struct {
 type fakeMessenger struct {
 	messageID string
 	postErr   error
-	updateErr error
+	// postErrFor limits postErr to one channel, which is how a partial fan-out
+	// failure is staged.
+	postErrFor string
+	updateErr  error
 
 	teams        []graph.Team
 	channels     map[string][]graph.Channel
@@ -317,7 +345,7 @@ type fakeMessenger struct {
 
 func (f *fakeMessenger) PostMessage(teamID, channelID string, msg graph.Message) (string, error) {
 	f.posts = append(f.posts, postCall{teamID: teamID, channelID: channelID, msg: msg})
-	if f.postErr != nil {
+	if f.postErr != nil && (f.postErrFor == "" || f.postErrFor == channelID) {
 		return "", f.postErr
 	}
 	if f.messageID == "" {

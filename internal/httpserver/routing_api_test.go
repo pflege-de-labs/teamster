@@ -5,11 +5,13 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/pflege-de-labs/teamster/internal/graph"
 	"github.com/pflege-de-labs/teamster/internal/models"
+	"github.com/pflege-de-labs/teamster/internal/routing"
 )
 
 func routingStore() *fakeStore {
@@ -345,4 +347,133 @@ func postJSON(t *testing.T, handler http.Handler, path, body string) *httptest.R
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 	return rec
+}
+
+// nestedRoutingStore is the tree the graph and the match probe have to describe:
+// a parent, a child refining it, and a default.
+func nestedRoutingStore() *fakeStore {
+	st := routingStore()
+	st.destinations["escalation"] = models.Destination{ID: "escalation", Name: "Escalation", TeamID: "team", ChannelID: "escalation-channel"}
+	st.routes["child"] = models.Route{
+		ID: "child", Name: "Payments escalation", ParentID: "critical",
+		LabelSelector: map[string]string{"team": "payments"}, DestinationID: "escalation",
+	}
+	return st
+}
+
+// A child hangs off the route it refines, not off the webhook, because that is
+// the order the router reaches it in.
+func TestRoutingGraphNestsChildRoutes(t *testing.T) {
+	t.Parallel()
+
+	nodes, links := graphFrom(t, newTestServer(t, nestedRoutingStore(), &fakeMessenger{}).Handler)
+
+	parents := map[string]string{}
+	for _, link := range links {
+		if strings.HasPrefix(link.Target, "route:") {
+			parents[link.Target] = link.Source
+		}
+	}
+	if got := parents["route:child"]; got != "route:critical" {
+		t.Errorf("child is fed by %q, want its parent route", got)
+	}
+	if got := parents["route:critical"]; got != "source:webhook" {
+		t.Errorf("root is fed by %q, want the webhook", got)
+	}
+	if nodes["route:child"].X <= nodes["route:critical"].X {
+		t.Error("the child is not drawn to the right of its parent")
+	}
+}
+
+// The child sets no template, so the picture has to draw the one it inherits
+// rather than leaving the alert going nowhere.
+func TestRoutingGraphDrawsInheritedTargets(t *testing.T) {
+	t.Parallel()
+
+	_, links := graphFrom(t, newTestServer(t, nestedRoutingStore(), &fakeMessenger{}).Handler)
+
+	targets := map[string]bool{}
+	for _, link := range links {
+		if link.Source == "route:child" {
+			targets[link.Target] = true
+		}
+	}
+	if !targets["destination:escalation"] {
+		t.Error("the child does not reach its own destination")
+	}
+	if !targets["template:tmpl"] {
+		t.Error("the child does not reach the template it inherits")
+	}
+}
+
+func TestRoutingMatchAnswersWithThePlan(t *testing.T) {
+	t.Parallel()
+
+	handler := newTestServer(t, nestedRoutingStore(), &fakeMessenger{}).Handler
+	rec := do(t, handler, http.MethodPost, "/api/routing/match", `{"labels":{"severity":"critical","team":"payments"}}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("match = %d, want 200 (%s)", rec.Code, rec.Body.String())
+	}
+
+	var payload struct {
+		Reason      string   `json:"reason"`
+		Explanation string   `json:"explanation"`
+		Nodes       []string `json:"nodes"`
+		Deliveries  []struct {
+			Route         map[string]any `json:"route"`
+			DestinationID string         `json:"destination_id"`
+			TemplateID    string         `json:"template_id"`
+			Reason        string         `json:"reason"`
+		} `json:"deliveries"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode match: %v", err)
+	}
+
+	if len(payload.Deliveries) != 2 {
+		t.Fatalf("deliveries = %+v, want the parent and the child", payload.Deliveries)
+	}
+	if payload.Deliveries[1].Reason != string(routing.ReasonRefined) {
+		t.Errorf("child reason = %q, want %q", payload.Deliveries[1].Reason, routing.ReasonRefined)
+	}
+	if payload.Deliveries[1].TemplateID != "tmpl" {
+		t.Errorf("child template = %q, want the inherited one", payload.Deliveries[1].TemplateID)
+	}
+	if !strings.Contains(payload.Explanation, "2 messages") {
+		t.Errorf("explanation = %q, want it to say how many messages go out", payload.Explanation)
+	}
+	// The highlight follows every node on the path, not just the first route.
+	for _, want := range []string{"route:critical", "route:child", "destination:dest", "destination:escalation"} {
+		if !slices.Contains(payload.Nodes, want) {
+			t.Errorf("nodes = %v, want %q among them", payload.Nodes, want)
+		}
+	}
+}
+
+// A greedy child means the route that matched first does not deliver, and the
+// explanation has to say so rather than naming it as the destination.
+func TestRoutingMatchExplainsAGreedyChild(t *testing.T) {
+	t.Parallel()
+
+	st := nestedRoutingStore()
+	child := st.routes["child"]
+	child.Greedy = true
+	st.routes["child"] = child
+
+	rec := do(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodPost, "/api/routing/match",
+		`{"labels":{"severity":"critical","team":"payments"}}`)
+
+	var payload struct {
+		Explanation string `json:"explanation"`
+		Deliveries  []any  `json:"deliveries"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode match: %v", err)
+	}
+	if len(payload.Deliveries) != 1 {
+		t.Fatalf("deliveries = %d, want only the child's", len(payload.Deliveries))
+	}
+	if !strings.Contains(payload.Explanation, "instead of it") {
+		t.Errorf("explanation = %q, want it to say the child delivers instead of its parent", payload.Explanation)
+	}
 }

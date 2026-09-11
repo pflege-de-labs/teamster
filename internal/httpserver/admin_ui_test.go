@@ -492,3 +492,65 @@ func TestEditRoundTripUpdatesInPlace(t *testing.T) {
 		t.Errorf("template not updated: %+v", st.templates["tmpl"])
 	}
 }
+
+// The list is a tree: a child is drawn under the route it refines, with what it
+// inherits marked as inherited rather than looking like its own setting.
+func TestAdminPageDrawsTheRouteTree(t *testing.T) {
+	t.Parallel()
+
+	st := seededUIStore()
+	st.destinations["escalation"] = models.Destination{ID: "escalation", Name: "Escalation", TeamID: "team", ChannelID: "esc"}
+	st.routes["child"] = models.Route{
+		ID: "child", Name: "Payments escalation", ParentID: "route",
+		LabelSelector: map[string]string{"team": "payments"}, DestinationID: "escalation",
+	}
+
+	body := do(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin", "").Body.String()
+
+	parent := strings.Index(body, "Critical to ops")
+	child := strings.Index(body, "Payments escalation")
+	if parent < 0 || child < 0 {
+		t.Fatal("the list does not show both routes")
+	}
+	if child < parent {
+		t.Error("the child is drawn above the route it refines")
+	}
+	if !strings.Contains(body, "ml-6") {
+		t.Error("the child is not indented, so the tree reads as a flat list")
+	}
+	if !strings.Contains(body, "Critical card (inherited)") {
+		t.Error("the inherited template is not marked as inherited")
+	}
+	if !strings.Contains(body, "as well as parent") {
+		t.Error("the list does not say whether the child delivers as well as its parent")
+	}
+
+	// The form has to offer the tree, or a child can only be made through the API.
+	if !strings.Contains(body, `name="parent_id"`) || !strings.Contains(body, `name="greedy"`) {
+		t.Error("the route form offers no way to nest a route")
+	}
+}
+
+func TestRouteFormRejectsABrokenTree(t *testing.T) {
+	t.Parallel()
+
+	st := seededUIStore()
+	handler := newTestServer(t, st, &fakeMessenger{}).Handler
+
+	rec := postForm(t, handler, "/admin/routes", url.Values{
+		"name": {"orphan"}, "parent_id": {"gone"}, "label_selector": {`{"team":"payments"}`}, "destination_id": {"dest"},
+	}, nil)
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("POST = %d, want 303 back to the page", rec.Code)
+	}
+	location, err := url.Parse(rec.Header().Get("Location"))
+	if err != nil {
+		t.Fatalf("parse Location: %v", err)
+	}
+	if got := location.Query().Get("error"); !strings.Contains(got, "does not exist") {
+		t.Errorf("error = %q, want it to say the parent is unknown", got)
+	}
+	if len(st.routes) != 1 {
+		t.Errorf("stored %d routes, want the broken one refused", len(st.routes))
+	}
+}
