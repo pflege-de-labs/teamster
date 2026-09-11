@@ -99,8 +99,12 @@ bad token, and `502` when routing, rendering, the store or Graph fails.
 
 ## Authorization
 
-A session carries a role — `admin`, `editor` or `viewer` — decided at sign-in from the same claim
-that grants access. `internal/authz` holds the rules as Cedar policies embedded in the binary and
+A session carries a role — `admin`, `editor`, `viewer`, or none — decided at sign-in by reading the
+configured claim and matching its values against the role names. `auth.default-role` covers a user
+the claim names no role for; without one they hold no role, and every request answers `403` — as a
+page that says to ask an administrator when a browser asked for one.
+
+`internal/authz` holds the rules as Cedar policies embedded in the binary and
 evaluates them in-process with `cedar-policy/cedar-go`; roles nest through Cedar entity parents, so
 an admin is an editor and an editor is a viewer.
 
@@ -211,9 +215,9 @@ TLS or carried `X-Forwarded-Proto: https`:
   `/.well-known/openid-configuration`, and the issuer that ID tokens are verified against is read
   from that document rather than configured separately. `state`, `nonce` and the
   PKCE verifier live in `login_flows` rather than a cookie, and taking a flow deletes it, so a
-  replayed or forged callback finds nothing. Access is granted by a claim: `auth-claim` is a dotted
-  path, because Keycloak nests roles under `realm_access.roles`, and `auth-allowed` lists the
-  values that grant it. The claim is looked for in the ID token, then at the userinfo endpoint,
+  replayed or forged callback finds nothing. What a user may do comes from a claim: `auth-claim`
+  is a dotted path, because Keycloak nests roles under `realm_access.roles`, and its values are
+  matched against the role names. The claim is looked for in the ID token, then at the userinfo endpoint,
   then in the access token, first hit winning, because Keycloak's built-in role mappers populate
   the access token and leave the ID token without roles. See
   [Configuring Keycloak](keycloak.md).

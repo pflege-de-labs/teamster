@@ -323,9 +323,10 @@ may deliver to, and able to set which teams and channels are visible at all.
 
 ### Where the roles come from
 
-The claim that already grants access (`auth.claim`, `auth.allowed`) carries them: the configuration
-maps claim values to the three roles instead of to a single yes. A deployment with one operator
-group maps it to `admin` and nothing else changes.
+The claim that already carries membership carries them, matched by name: a provider role called
+`admin`, `editor` or `viewer` is that role here, with nothing in between to configure.
+`auth.default-role` covers a user the claim names no role for, and leaving it empty means they sign
+in with no access and are told to ask an administrator for one.
 
 ### Why not write the checks by hand
 

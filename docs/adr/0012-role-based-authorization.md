@@ -37,13 +37,27 @@ a resource type by path and to an action by method, with two deliberate exceptio
 `/api/templates/preview` and `/api/routing/match` count as `view`, because they answer a question
 and change nothing. Refusals are `403` naming the role and the resource, not `404`.
 
-Roles come from the same claim the sign-in check reads. `auth.admin-values`, `auth.editor-values`
-and `auth.viewer-values` map claim values to roles, most privileged first, and a value named in any
-of them may sign in whether or not `auth.allowed` repeats it. **A deployment that configures none of
-them keeps what it had: whoever may sign in administers.** A user who is allowed in but named by no
-role list gets `viewer` — least privilege, not most. The local credentials administer: they are the
-way back in when the provider is wrong, and a bootstrap login that could not fix the configuration
-would be useless.
+**Roles are read from the claim by name.** A provider role called `admin`, `editor` or `viewer` is
+that role here; several named, the most privileged wins. There is no mapping to configure, because a
+mapping between two sets of identical names is a configuration file that can only be wrong.
+
+`auth.allowed` is gone with it. An allow-list for signing in made sense when signing in was the only
+thing to grant; now the role is, and a user the claim names nothing for holds no role and can do
+nothing. `auth.default-role` says what such a user gets: `viewer` to let everyone the provider
+authenticates read the configuration, or empty for no access at all.
+
+This moves a decision to the provider: whether everyone in a realm can reach this client is now the
+client's configuration there, not an allow-list here. That is where it belongs — Keycloak already
+has the concept — but it is a change in where a deployment is locked down, and empty is the safe
+`default-role` when the client is open to the realm.
+
+A user with no role signs in and **is told so**, on a page naming the roles to ask an administrator
+for. The alternative — failing the login — reports a permissions problem as an authentication
+problem, which sends the operator to the wrong place. `RoleNone` is therefore a role rather than an
+empty string: "no permissions" is a state the UI can explain.
+
+The local credentials administer: they are the way back in when the provider is wrong, and a
+bootstrap login that could not fix the configuration would be useless.
 
 The session carries its role, so a role change at the provider takes effect at the next sign-in
 rather than mid-session. A session written before this change carries no role and is read as an

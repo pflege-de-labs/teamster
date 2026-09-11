@@ -23,6 +23,10 @@ const (
 	RoleAdmin  Role = "admin"
 	RoleEditor Role = "editor"
 	RoleViewer Role = "viewer"
+	// RoleNone is a signed-in user the claim said nothing about. It is a role
+	// rather than an empty string so that "no permissions" is a state the UI can
+	// explain, rather than a session that looks unauthenticated.
+	RoleNone Role = "none"
 )
 
 // Actions. View is every read, Edit every write; Administer is reserved for the
@@ -102,29 +106,32 @@ func (a *Authorizer) Allow(subject string, role Role, action string, resource Re
 	return decision == cedar.Allow
 }
 
-// RoleFor maps the claim values a provider sent onto a role, most privileged
-// first. A user who is allowed in but named by no role list gets the least
-// privilege rather than the most.
-func RoleFor(values []string, admin, editor, viewer []string) Role {
-	for _, candidate := range []struct {
-		role   Role
-		values []string
-	}{
-		{RoleAdmin, admin},
-		{RoleEditor, editor},
-		{RoleViewer, viewer},
-	} {
-		for _, value := range candidate.values {
-			if slices.Contains(values, value) {
-				return candidate.role
-			}
+// RoleFor maps claim values onto a role by name: a provider role called "admin"
+// is the admin role here, and nothing has to be configured to say so. The most
+// privileged name wins, and a user named by none of them gets the configured
+// default — which may be no role at all.
+func RoleFor(values []string, defaultRole Role) Role {
+	for _, role := range []Role{RoleAdmin, RoleEditor, RoleViewer} {
+		if slices.Contains(values, string(role)) {
+			return role
 		}
 	}
-	return RoleViewer
+	if Valid(defaultRole) {
+		return defaultRole
+	}
+	return RoleNone
 }
 
-// Valid reports whether a stored role is one this build knows. A session
-// written by a later version, or edited by hand, must not be read as an admin.
+// Valid reports whether a role is one a user may hold as a grant. RoleNone is
+// not one: it is the absence of a grant, not something to configure as a
+// default.
 func Valid(role Role) bool {
 	return role == RoleAdmin || role == RoleEditor || role == RoleViewer
+}
+
+// Known reports whether a stored role is one this build understands at all. A
+// session written by a later version, or edited by hand, must not be read as
+// an admin.
+func Known(role Role) bool {
+	return Valid(role) || role == RoleNone
 }

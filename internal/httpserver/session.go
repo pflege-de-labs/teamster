@@ -109,7 +109,7 @@ func isNotFound(err error) bool {
 func (s *Server) requireSession(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if session, ok := s.currentSession(r); ok {
-			next.ServeHTTP(w, r.WithContext(withPrincipal(r.Context(), session.Subject, roleOf(session))))
+			next.ServeHTTP(w, r.WithContext(withPrincipal(r.Context(), session.Subject, session.Name, roleOf(session))))
 			return
 		}
 		http.Redirect(w, r, "/admin/login", http.StatusFound)
@@ -147,16 +147,4 @@ func claimValues(claims map[string]any, path string) []string {
 	default:
 		return nil
 	}
-}
-
-func allowedByClaim(claims map[string]any, path string, allowed []string) bool {
-	values := claimValues(claims, path)
-	for _, value := range values {
-		for _, want := range allowed {
-			if value == want {
-				return true
-			}
-		}
-	}
-	return false
 }

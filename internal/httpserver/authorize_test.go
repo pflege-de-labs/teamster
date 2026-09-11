@@ -288,3 +288,44 @@ func TestAPIWithoutAnyCredentials(t *testing.T) {
 		t.Error("the 401 does not say how to authenticate")
 	}
 }
+
+// A user the provider named no role for is signed in and has no access. A bare
+// 403 would read as a broken deployment, so the page says what to ask for.
+func TestNoRoleGetsAPageExplainingWhy(t *testing.T) {
+	t.Parallel()
+
+	st := sessionAs(seededUIStore(), authz.RoleNone)
+	handler := newTestServer(t, st, &fakeMessenger{}).Handler
+
+	page := asRole(t, handler, http.MethodGet, "/admin", "")
+	if page.Code != http.StatusForbidden {
+		t.Fatalf("GET /admin with no role = %d, want 403", page.Code)
+	}
+	body := page.Body.String()
+	for _, want := range []string{"no permissions", "Ask an administrator", "viewer"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the page does not mention %q", want)
+		}
+	}
+	// It is a page, not a bare message: the operator can still sign out from it.
+	if !strings.Contains(body, `action="/admin/logout"`) {
+		t.Error("the page offers no way to sign out and try another account")
+	}
+	// And it shows none of the configuration.
+	if strings.Contains(body, "Critical to ops") {
+		t.Error("the page leaks the configuration to someone with no role")
+	}
+}
+
+func TestNoRoleGetsNoDataFromTheAPI(t *testing.T) {
+	t.Parallel()
+
+	st := sessionAs(newFakeStore(), authz.RoleNone)
+	rec := asRole(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/api/templates", "")
+	if rec.Code != http.StatusForbidden {
+		t.Errorf("GET /api/templates with no role = %d, want 403", rec.Code)
+	}
+	if strings.Contains(rec.Body.String(), "Ask an administrator") {
+		t.Error("a JSON caller got the HTML page")
+	}
+}
