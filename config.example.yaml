@@ -35,14 +35,13 @@ auth:
   # resource_access.<client>.roles. The claim is read from the id token, then
   # userinfo, then the access token, so Keycloak's default mappers suffice.
   claim: "realm_access.roles"
-  allowed: ["admin"]
-  # Which claim values get which role. A value named here may sign in even if it
-  # is not in allowed above. Leave all three empty and everyone who may sign in
-  # administers, which is how this behaved before roles existed.
-  admin-values: ["teamster-admins"]
-  editor-values: ["teamster-editors"]
-  # A viewer sees the configuration and can change none of it.
-  viewer-values: ["teamster-viewers"]
+  # Roles are read from that claim by name: a provider role called admin, editor
+  # or viewer is that role here, and nothing maps them.
+  #
+  # default-role is what someone gets when the claim names none of them. Leave
+  # it empty and they sign in with no access at all, and are told to ask an
+  # administrator for a role.
+  default-role: "viewer"
   session-ttl: "12h"
 
 graph:

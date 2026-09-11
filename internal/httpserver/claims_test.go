@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"strings"
 	"testing"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"golang.org/x/oauth2"
 
+	"github.com/pflege-de-labs/teamster/internal/authz"
 	"github.com/pflege-de-labs/teamster/internal/config"
 )
 
@@ -72,33 +72,41 @@ func TestClaimValuesWalksDottedPaths(t *testing.T) {
 	}
 }
 
-func TestAllowedByClaim(t *testing.T) {
+// The claim names the role directly: a provider role called "editor" is the
+// editor role here, with nothing to configure in between.
+func TestRoleFromClaimValues(t *testing.T) {
 	t.Parallel()
 
 	claims := keycloakClaims(t)
 
 	tests := []struct {
-		name    string
-		path    string
-		allowed []string
-		want    bool
+		name        string
+		path        string
+		defaultRole authz.Role
+		want        authz.Role
 	}{
-		{name: "the realm role we grant on", path: "realm_access.roles", allowed: []string{"admin"}, want: true},
-		{name: "one of several accepted values", path: "realm_access.roles", allowed: []string{"nope", "admin"}, want: true},
-		{name: "a client role at its own path", path: "resource_access.teamster.roles", allowed: []string{"operator"}, want: true},
-		{name: "a client role is not a realm role", path: "realm_access.roles", allowed: []string{"operator"}},
-		{name: "authenticated but unauthorised", path: "realm_access.roles", allowed: []string{"superuser"}},
-		{name: "no accepted values at all", path: "realm_access.roles"},
-		{name: "claim that does not exist", path: "does.not.exist", allowed: []string{"admin"}},
-		{name: "values are matched exactly, not by prefix", path: "groups", allowed: []string{"ops"}},
+		{name: "a realm role named admin", path: "realm_access.roles", want: authz.RoleAdmin},
+		{
+			// The fixture's client roles are named for this deployment rather
+			// than for Teamster, so none of them is a role here.
+			name: "a client role that is not one of ours", path: "resource_access.teamster.roles",
+			want: authz.RoleNone,
+		},
+		{
+			name: "a claim that does not exist falls back", path: "does.not.exist",
+			defaultRole: authz.RoleViewer, want: authz.RoleViewer,
+		},
+		{name: "a claim that does not exist and no default", path: "does.not.exist", want: authz.RoleNone},
+		{name: "values are matched exactly, not by prefix", path: "groups", want: authz.RoleNone},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			if got := allowedByClaim(claims, tt.path, tt.allowed); got != tt.want {
-				t.Errorf("allowedByClaim(%q, %v) = %v, want %v", tt.path, tt.allowed, got, tt.want)
+			got := authz.RoleFor(claimValues(claims, tt.path), tt.defaultRole)
+			if got != tt.want {
+				t.Errorf("role from %q = %q, want %q", tt.path, got, tt.want)
 			}
 		})
 	}
@@ -161,77 +169,13 @@ func TestAccessTokenClaimsRejectsRubbish(t *testing.T) {
 	}
 }
 
-// The refusal has to be enough to fix the configuration without reading the
-// provider's logs.
-func TestMembershipErrorExplainsWhy(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name   string
-		values []string
-		source string
-		want   []string
-	}{
-		{
-			name: "claim missing everywhere",
-			want: []string{"not in the id token", "userinfo", "access token", "resource_access.<client>.roles"},
-		},
-		{
-			name:   "claim present with other values",
-			values: []string{"viewer", "developer"},
-			source: "the access token",
-			want:   []string{"the access token", "viewer", "developer", "admin"},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			err := membershipError("realm_access.roles", []string{"admin"}, tt.values, tt.source)
-			for _, want := range tt.want {
-				if !strings.Contains(err.Error(), want) {
-					t.Errorf("error %q does not mention %q", err, want)
-				}
-			}
-		})
-	}
-}
-
-func TestMatchesAny(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name    string
-		values  []string
-		allowed []string
-		want    bool
-	}{
-		{name: "one of several", values: []string{"viewer", "admin"}, allowed: []string{"admin"}, want: true},
-		{name: "no overlap", values: []string{"viewer"}, allowed: []string{"admin"}},
-		{name: "nothing configured", values: []string{"admin"}},
-		{name: "nothing carried", allowed: []string{"admin"}},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			if got := matchesAny(tt.values, tt.allowed); got != tt.want {
-				t.Errorf("matchesAny(%v, %v) = %v, want %v", tt.values, tt.allowed, got, tt.want)
-			}
-		})
-	}
-}
-
 // Roles in the id token are used in preference: the nil provider would panic if
 // the lookup carried on to userinfo or the access token.
 func TestMembershipPrefersTheIDToken(t *testing.T) {
 	t.Parallel()
 
 	server := &Server{cfg: config.Config{Auth: config.AuthConfig{
-		Claim:   "realm_access.roles",
-		Allowed: []string{"admin"},
+		Claim: "realm_access.roles",
 	}}}
 
 	claims := map[string]any{
@@ -242,7 +186,7 @@ func TestMembershipPrefersTheIDToken(t *testing.T) {
 	if source != "the id token" {
 		t.Errorf("source = %q, want the id token", source)
 	}
-	if !matchesAny(values, []string{"admin"}) {
+	if authz.RoleFor(values, authz.RoleNone) != authz.RoleAdmin {
 		t.Errorf("values = %v, want the id token roles", values)
 	}
 }
@@ -253,8 +197,7 @@ func TestMembershipFallsBackToTheAccessToken(t *testing.T) {
 	t.Parallel()
 
 	server := &Server{cfg: config.Config{Auth: config.AuthConfig{
-		Claim:   "resource_access.teamster.roles",
-		Allowed: []string{"admin"},
+		Claim: "resource_access.teamster.roles",
 	}}}
 
 	payload := base64.RawURLEncoding.EncodeToString([]byte(
@@ -266,7 +209,7 @@ func TestMembershipFallsBackToTheAccessToken(t *testing.T) {
 	if source != "the access token" {
 		t.Errorf("source = %q, want the access token", source)
 	}
-	if !matchesAny(values, []string{"admin"}) {
+	if authz.RoleFor(values, authz.RoleNone) != authz.RoleAdmin {
 		t.Errorf("values = %v, want the access token roles", values)
 	}
 }

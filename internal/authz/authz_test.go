@@ -49,21 +49,31 @@ func TestAllow(t *testing.T) {
 func TestRoleFor(t *testing.T) {
 	t.Parallel()
 
-	admin := []string{"teamster-admins"}
-	editor := []string{"teamster-editors", "oncall"}
-	viewer := []string{"everyone"}
-
 	tests := []struct {
-		name   string
-		values []string
-		want   Role
+		name        string
+		values      []string
+		defaultRole Role
+		want        Role
 	}{
-		{name: "an admin value wins", values: []string{"everyone", "teamster-admins"}, want: RoleAdmin},
-		{name: "an editor value beats a viewer one", values: []string{"everyone", "oncall"}, want: RoleEditor},
-		{name: "a viewer value", values: []string{"everyone"}, want: RoleViewer},
+		// The provider's role names are the roles here, with nothing to map.
+		{name: "admin by name", values: []string{"admin"}, want: RoleAdmin},
+		{name: "editor by name", values: []string{"editor"}, want: RoleEditor},
+		{name: "viewer by name", values: []string{"viewer"}, want: RoleViewer},
+		{name: "the most privileged name wins", values: []string{"viewer", "admin"}, want: RoleAdmin},
+		{name: "unrelated roles are ignored", values: []string{"offline_access", "editor"}, want: RoleEditor},
 		{
-			// Signed in but named by no list: least privilege, not most.
-			name: "no value at all", values: []string{"unrelated"}, want: RoleViewer,
+			name: "no role named falls back to the default", values: []string{"offline_access"},
+			defaultRole: RoleViewer, want: RoleViewer,
+		},
+		{
+			// Without a default, a user the claim says nothing about gets
+			// nothing — and is told so rather than silently admitted.
+			name: "no role and no default", values: []string{"offline_access"}, want: RoleNone,
+		},
+		{name: "no claim values at all", want: RoleNone},
+		{
+			name: "a nonsense default is not honoured", values: []string{"offline_access"},
+			defaultRole: Role("superuser"), want: RoleNone,
 		},
 	}
 
@@ -71,10 +81,23 @@ func TestRoleFor(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			if got := RoleFor(tt.values, admin, editor, viewer); got != tt.want {
-				t.Errorf("RoleFor(%v) = %q, want %q", tt.values, got, tt.want)
+			if got := RoleFor(tt.values, tt.defaultRole); got != tt.want {
+				t.Errorf("RoleFor(%v, %q) = %q, want %q", tt.values, tt.defaultRole, got, tt.want)
 			}
 		})
+	}
+}
+
+// RoleNone is a role, but it is not a valid one to hold: nothing permits it.
+func TestNoRoleIsPermittedNothing(t *testing.T) {
+	t.Parallel()
+
+	authorizer, err := New()
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	if authorizer.Allow("subject", RoleNone, ActionView, Resource{Type: "Template"}) {
+		t.Error("a user with no role may view; want nothing permitted")
 	}
 }
 

@@ -274,7 +274,7 @@ func TestAuthCallbackRejectsAnUnknownState(t *testing.T) {
 	handler := authServer(t, st, config.AuthConfig{
 		OIDCDiscoveryURL: "https://idp.example/.well-known/openid-configuration", OIDCClientID: "teamster",
 		OIDCRedirectURL: "https://teamster.example/admin/auth/callback",
-		Claim:           "realm_access.roles", Allowed: []string{"admin"},
+		Claim:           "realm_access.roles",
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/admin/auth/callback?state=forged&code=whatever", nil)
@@ -298,7 +298,7 @@ func TestAuthCallbackReportsProviderErrors(t *testing.T) {
 	handler := authServer(t, newFakeStore(), config.AuthConfig{
 		OIDCDiscoveryURL: "https://idp.example/.well-known/openid-configuration", OIDCClientID: "teamster",
 		OIDCRedirectURL: "https://teamster.example/admin/auth/callback",
-		Claim:           "realm_access.roles", Allowed: []string{"admin"},
+		Claim:           "realm_access.roles",
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/admin/auth/callback?error=access_denied", nil)
@@ -438,7 +438,6 @@ func authConfigFor(discoveryURL string) config.AuthConfig {
 		OIDCClientID:     "teamster",
 		OIDCRedirectURL:  "https://teamster.example/admin/auth/callback",
 		Claim:            "realm_access.roles",
-		Allowed:          []string{"admin"},
 	}
 }
 

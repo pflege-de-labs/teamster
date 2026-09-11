@@ -34,10 +34,9 @@ https://<host>/realms/<realm>/.well-known/openid-configuration
 Older Keycloak deployments serve it under `/auth/realms/<realm>/...`. Teamster fetches whatever URL
 you configure rather than deriving it, so either works.
 
-## The role that grants access
+## Where the roles live
 
-Access needs a claim carrying a value from `auth.allowed`. Two shapes, and they live in different
-places:
+Teamster reads roles from a claim. Two shapes, and they live in different places:
 
 | Role kind | Claim path |
 | --- | --- |
@@ -53,26 +52,22 @@ Assign the role to the operators who should administer the service, and set:
 ```yaml
 auth:
   claim: "realm_access.roles"      # or resource_access.teamster.roles
-  allowed: ["admin"]
 ```
 
 ## Roles beyond signing in
 
-The same claim decides what a person may do once inside. Make a realm or client role per level and
-name them:
+Name the roles in Keycloak exactly `admin`, `editor` and `viewer` — as realm roles, or as client
+roles on the `teamster` client — and assign them. Teamster reads them by name:
 
 ```yaml
 auth:
-  claim: "realm_access.roles"
-  admin-values: ["teamster-admin"]
-  editor-values: ["teamster-editor"]
-  viewer-values: ["teamster-viewer"]
+  claim: "realm_access.roles"      # or resource_access.teamster.roles
+  default-role: "viewer"           # or leave empty for no access
 ```
 
-A value named here gets its holder in without being repeated in `allowed`. Configure none of the
-three and every value in `allowed` administers, which is what a realm set up before roles existed
-keeps doing. Someone who signs in without any of these roles is a viewer, so a realm that assigns
-nothing yet reads rather than writes.
+A user carrying several gets the most privileged. A user carrying none gets `default-role`, and if
+that is empty they sign in with no access and are told to ask an administrator for a role — which is
+the setting to use when everyone in the realm can reach the client.
 
 ## Where Teamster looks for the claim
 

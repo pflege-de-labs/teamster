@@ -219,10 +219,10 @@ func (s *Server) verifyIDToken(ctx context.Context, provider *oidc.Provider, tok
 		return "", "", "", fmt.Errorf("read claims: %w", err)
 	}
 
-	values, source := s.membership(ctx, provider, token, claims)
-	if !matchesAny(values, s.signInValues()) {
-		return "", "", "", membershipError(s.cfg.Auth.Claim, s.signInValues(), values, source)
-	}
+	// Whether the claim names a role decides what this user may do, not whether
+	// they may sign in: a user with no role signs in and is told so, which is a
+	// better answer than a login that fails for reasons they cannot see.
+	values, _ := s.membership(ctx, provider, token, claims)
 
 	name, _ := claims["preferred_username"].(string)
 	if name == "" {
@@ -231,25 +231,10 @@ func (s *Server) verifyIDToken(ctx context.Context, provider *oidc.Provider, tok
 	return idToken.Subject, name, s.roleFor(values), nil
 }
 
-// signInValues is every claim value that gets a user through the door: the ones
-// allowed outright, and the ones a role names. Naming a value in a role list
-// without repeating it in auth-allowed would otherwise lock that user out.
-func (s *Server) signInValues() []string {
-	values := append([]string{}, s.cfg.Auth.Allowed...)
-	values = append(values, s.cfg.Auth.AdminValues...)
-	values = append(values, s.cfg.Auth.EditorValues...)
-	values = append(values, s.cfg.Auth.ViewerValues...)
-	return values
-}
-
-// roleFor is the claim-to-role mapping. A deployment that configures no role
-// lists keeps the behaviour it had before roles existed: whoever may sign in
-// administers.
+// roleFor maps the claim onto a role by name — a provider role called "editor"
+// is the editor role here — falling back to the configured default.
 func (s *Server) roleFor(values []string) authz.Role {
-	if len(s.cfg.Auth.AdminValues) == 0 && len(s.cfg.Auth.EditorValues) == 0 && len(s.cfg.Auth.ViewerValues) == 0 {
-		return authz.RoleAdmin
-	}
-	return authz.RoleFor(values, s.cfg.Auth.AdminValues, s.cfg.Auth.EditorValues, s.cfg.Auth.ViewerValues)
+	return authz.RoleFor(values, authz.Role(s.cfg.Auth.DefaultRole))
 }
 
 // membership looks for the configured claim in the id token, then in userinfo,
@@ -297,30 +282,6 @@ func accessTokenClaims(accessToken string) map[string]any {
 		return nil
 	}
 	return claims
-}
-
-func matchesAny(values, allowed []string) bool {
-	for _, value := range values {
-		for _, want := range allowed {
-			if value == want {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-// The message has to be enough to fix the configuration without reading the
-// provider's logs, so it distinguishes a claim that is missing everywhere from
-// one that is present with the wrong values.
-func membershipError(claim string, allowed, values []string, source string) error {
-	if len(values) == 0 {
-		return fmt.Errorf("signed in, but %s was not in the id token, in userinfo or in the access token. "+
-			"In Keycloak, the role mappers add roles to the access token only unless their id token setting is enabled, "+
-			"and a client role appears under resource_access.<client>.roles rather than realm_access.roles", claim)
-	}
-	return fmt.Errorf("signed in, but %s in %s carries %v, and access needs one of %v",
-		claim, source, values, allowed)
 }
 
 // providerError keeps the description the provider sent. The code alone reads

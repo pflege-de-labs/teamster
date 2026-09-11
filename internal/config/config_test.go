@@ -71,10 +71,7 @@ func TestParseExampleConfig(t *testing.T) {
 			OIDCRedirectURL:  "https://teamster.example/admin/auth/callback",
 			OIDCScopes:       []string{"profile", "email", "roles"},
 			Claim:            "realm_access.roles",
-			Allowed:          []string{"admin"},
-			AdminValues:      []string{"teamster-admins"},
-			EditorValues:     []string{"teamster-editors"},
-			ViewerValues:     []string{"teamster-viewers"},
+			DefaultRole:      "viewer",
 			SessionTTL:       12 * time.Hour,
 		},
 		Graph: GraphConfig{
@@ -220,7 +217,6 @@ func TestValidateRefusesIncompleteOIDC(t *testing.T) {
 			OIDCClientID:     "teamster",
 			OIDCRedirectURL:  "https://teamster.example/admin/auth/callback",
 			Claim:            "realm_access.roles",
-			Allowed:          []string{"admin"},
 		},
 	}
 
@@ -231,11 +227,16 @@ func TestValidateRefusesIncompleteOIDC(t *testing.T) {
 	}{
 		{name: "complete", mutate: func(*Config) {}},
 		{name: "no issuer means no OIDC, and the rest is ignored", mutate: func(c *Config) { c.Auth = AuthConfig{} }},
-		{name: "issuer without accepted values", mutate: func(c *Config) { c.Auth.Allowed = nil }, wantErr: "auth allowed, or one of the role value lists, is required"},
 		{
-			// A role list names who may sign in just as much as auth-allowed does.
-			name:   "a role list stands in for auth-allowed",
-			mutate: func(c *Config) { c.Auth.Allowed, c.Auth.EditorValues = nil, []string{"teamster-editors"} },
+			// No default role is a deployment where only the claim decides, and
+			// a user it says nothing about gets nothing.
+			name:   "no default role is allowed",
+			mutate: func(c *Config) { c.Auth.DefaultRole = "" },
+		},
+		{
+			name:    "a default role that is not a role",
+			mutate:  func(c *Config) { c.Auth.DefaultRole = "superuser" },
+			wantErr: "auth default-role must be admin, editor, viewer or empty",
 		},
 		{name: "issuer without a claim", mutate: func(c *Config) { c.Auth.Claim = "" }, wantErr: "auth claim is required"},
 		{name: "issuer without a client id", mutate: func(c *Config) { c.Auth.OIDCClientID = "" }, wantErr: "oidc-client-id is required"},
@@ -274,7 +275,6 @@ func TestValidateRequiresAnAbsoluteRedirectURL(t *testing.T) {
 			OIDCDiscoveryURL: "https://login.example/auth/realms/internal/.well-known/openid-configuration",
 			OIDCClientID:     "teamster",
 			Claim:            "realm_access.roles",
-			Allowed:          []string{"admin"},
 		},
 	}
 

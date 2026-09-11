@@ -46,10 +46,7 @@ type AuthConfig struct {
 	OIDCRedirectURL  string        `help:"Absolute URL of /admin/auth/callback as registered with the provider." name:"oidc-redirect-url"`
 	OIDCScopes       []string      `help:"Extra scopes to request beyond openid." name:"oidc-scopes" default:"profile,email,roles"`
 	Claim            string        `help:"Dotted path of the claim carrying membership, e.g. realm_access.roles." default:"realm_access.roles"`
-	Allowed          []string      `help:"Claim values allowed to sign in; required when an issuer is set."`
-	AdminValues      []string      `help:"Claim values granted the admin role." name:"admin-values"`
-	EditorValues     []string      `help:"Claim values granted the editor role." name:"editor-values"`
-	ViewerValues     []string      `help:"Claim values granted the viewer role, which is read-only." name:"viewer-values"`
+	DefaultRole      string        `help:"Role for a user whose claim names none: admin, editor, viewer, or empty for no access." name:"default-role" enum:"admin,editor,viewer," default:""`
 	SessionTTL       time.Duration `help:"How long a login lasts." default:"12h"`
 }
 
@@ -88,11 +85,13 @@ func Validate(cfg Config) error {
 		if redirect, err := url.Parse(cfg.Auth.OIDCRedirectURL); err != nil || !redirect.IsAbs() {
 			return fmt.Errorf("auth oidc-redirect-url must be an absolute URL, as registered with the provider, not %q", cfg.Auth.OIDCRedirectURL)
 		}
-		// A role list gets a user in as surely as auth-allowed does, so any of
-		// them satisfies this; none of them still admits everyone the provider
-		// will authenticate.
-		if len(cfg.Auth.Allowed)+len(cfg.Auth.AdminValues)+len(cfg.Auth.EditorValues)+len(cfg.Auth.ViewerValues) == 0 {
-			return fmt.Errorf("auth allowed, or one of the role value lists, is required when a discovery URL is configured")
+		// Roles are named by the claim, so there is no list to require here. A
+		// default role is optional on purpose: leaving it empty means a user the
+		// claim says nothing about gets nothing.
+		switch cfg.Auth.DefaultRole {
+		case "", "admin", "editor", "viewer":
+		default:
+			return fmt.Errorf("auth default-role must be admin, editor, viewer or empty, not %q", cfg.Auth.DefaultRole)
 		}
 		if cfg.Auth.Claim == "" {
 			return fmt.Errorf("auth claim is required when a discovery URL is configured")

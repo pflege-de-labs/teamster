@@ -152,19 +152,21 @@ The admin UI needs a session. Configure either or both:
 
 - **An OIDC provider.** Point `auth.oidc-discovery-url` at the provider's
   `/.well-known/openid-configuration`, and set `auth.oidc-client-id` and `auth.oidc-redirect-url`,
-  then name the claim that grants access. For Keycloak that is usually `realm_access.roles` for a
-  realm role, or `resource_access.<client>.roles` for a client role — and `auth.allowed` lists the
-  role names accepted. A public client using PKCE needs no secret.
+  then name the claim that carries the roles. For Keycloak that is usually `realm_access.roles` for
+  a realm role, or `resource_access.<client>.roles` for a client role. A public client using PKCE
+  needs no secret.
 - **Local credentials.** `admin.username` and `admin.password` are accepted at `/admin/login`.
 
-Membership is looked for in the ID token, then at the userinfo endpoint, then in the access token,
+The claim is looked for in the ID token, then at the userinfo endpoint, then in the access token,
 and the first hit wins. Keycloak's built-in role mappers populate the **access token** and leave
 roles out of the ID token, so a realm needs no mapper changes — and if you would rather the roles
 travel in the ID token, they are used in preference. [Configuring Keycloak](docs/keycloak.md) covers
 the client, the role and the mapper.
 
-Configuring an issuer without `auth.allowed` refuses to start, because the alternative is admitting
-everyone the provider will authenticate. Keep the local credentials configured: they are the way
+Signing in is no longer the place access is decided — the role is, and a user whose claim names none
+gets `auth.default-role` or, with none configured, nothing at all. Whether everyone in the realm can
+reach this client is therefore the provider's decision to make; leaving `auth.default-role` empty is
+the safe setting when they can. Keep the local credentials configured either way: they are the way
 back in if the provider is unreachable or the claim is wrong.
 
 `/api` accepts either a session or those same credentials as HTTP basic auth, so existing automation
@@ -180,11 +182,13 @@ Three roles, in order: `admin`, `editor`, `viewer`.
 | `editor` | read the configuration and change it |
 | `viewer` | read it, and nothing else |
 
-`auth.admin-values`, `auth.editor-values` and `auth.viewer-values` map claim values to roles, most
-privileged first. A value named in any of them may sign in even when `auth.allowed` does not repeat
-it. **Configure none of them and nothing changes: whoever may sign in administers.** Someone allowed
-in but named by no role list is a viewer — the least privilege, not the most. The local credentials
-administer, because they are the way back in when the provider is wrong.
+The claim names the role directly: a provider role called `admin`, `editor` or `viewer` **is** that
+role here, with nothing to configure in between. Where several are named, the most privileged wins.
+
+`auth.default-role` is what someone gets when the claim names none of them. Set it to `viewer` and
+everyone the provider authenticates may read the configuration; leave it empty and they sign in with
+no access at all and are shown a page telling them to ask an administrator for a role. The local
+credentials administer, because they are the way back in when the provider is wrong.
 
 A role is decided at sign-in and travels with the session, so a change at the provider applies the
 next time that person signs in. The admin UI hides the controls a role may not use and says why;

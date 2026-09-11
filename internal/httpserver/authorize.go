@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/pflege-de-labs/teamster/internal/authz"
+	"github.com/pflege-de-labs/teamster/internal/httpserver/views"
 	"github.com/pflege-de-labs/teamster/internal/models"
 )
 
@@ -14,12 +15,21 @@ type contextKey string
 const (
 	roleKey    contextKey = "role"
 	subjectKey contextKey = "subject"
+	nameKey    contextKey = "name"
 )
+
+// isPageRequest says whether a browser is asking for something to look at, as
+// opposed to a script asking for JSON or a form being posted.
+func isPageRequest(r *http.Request) bool {
+	return r.Method == http.MethodGet && !strings.HasPrefix(r.URL.Path, "/api/")
+}
 
 // withPrincipal carries who is asking into the handlers, so authorization reads
 // it from one place rather than each handler re-deriving it.
-func withPrincipal(ctx context.Context, subject string, role authz.Role) context.Context {
-	return context.WithValue(context.WithValue(ctx, subjectKey, subject), roleKey, role)
+func withPrincipal(ctx context.Context, subject, name string, role authz.Role) context.Context {
+	ctx = context.WithValue(ctx, subjectKey, subject)
+	ctx = context.WithValue(ctx, nameKey, name)
+	return context.WithValue(ctx, roleKey, role)
 }
 
 // principalSubject is the principal's identifier alone, for the callers that
@@ -44,7 +54,7 @@ func roleOf(session models.Session) authz.Role {
 		return authz.RoleAdmin
 	}
 	role := authz.Role(session.Role)
-	if !authz.Valid(role) {
+	if !authz.Known(role) {
 		return authz.Role("unknown")
 	}
 	return role
@@ -60,6 +70,19 @@ func (s *Server) authorize(next http.Handler) http.Handler {
 
 		if s.authz.Allow(subject, role, action, resource) {
 			next.ServeHTTP(w, r)
+			return
+		}
+
+		// A user the provider named no role for is not looking at a permissions
+		// problem they can read out of a 403 body, so they get a page that says
+		// what to ask for.
+		if role == authz.RoleNone && isPageRequest(r) {
+			name, _ := r.Context().Value(nameKey).(string)
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.WriteHeader(http.StatusForbidden)
+			if err := views.NoAccess(name).Render(r.Context(), w); err != nil {
+				logError("render no-access page", err)
+			}
 			return
 		}
 
