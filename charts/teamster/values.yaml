@@ -1,0 +1,302 @@
+# Default values for teamster.
+# This is a YAML-formatted file.
+
+# SQLite takes a single writer, so this is 1 and the chart refuses anything
+# higher. A second replica would open a database of its own.
+replicaCount: 1
+
+image:
+  repository: ghcr.io/pflege-de-labs/teamster
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# How the pod is managed.
+#
+#   StatefulSet — the default. The SQLite file lives on a volume the chart
+#     requests through a volumeClaimTemplate, and it survives a rescheduled pod.
+#   Deployment — for a cluster that manages its storage separately. Needs
+#     persistence.existingClaim, or persistence.create=true. The update strategy
+#     is Recreate either way, because a ReadWriteOnce volume admits one pod.
+#
+# There is no Deployment-with-a-remote-database mode: teamster stores its state
+# in SQLite only. See charts/teamster/README.md.
+workload:
+  kind: StatefulSet
+  annotations: {}
+  # StatefulSet only.
+  updateStrategy:
+    type: RollingUpdate
+
+# Which store teamster runs against. "sqlite" is the only implemented driver;
+# "postgres" is rejected with a message rather than silently ignored.
+database:
+  driver: sqlite
+  sqlite:
+    # File name below persistence.mountPath. The full path is written into the
+    # rendered config as database.path.
+    fileName: teamster.db
+
+# The volume carrying the SQLite file.
+#
+# Turning this off runs on an emptyDir: every template, destination, route and
+# active alert is lost when the pod restarts. Useful for a demo, nothing else.
+persistence:
+  enabled: true
+  mountPath: /data
+  # Use a claim you manage instead of one from this chart.
+  existingClaim: ""
+  # Deployment mode only: render a PersistentVolumeClaim. StatefulSet mode
+  # always uses a volumeClaimTemplate.
+  create: false
+  # Deployment mode only: keep the claim when the release is uninstalled.
+  keepOnUninstall: true
+  accessModes:
+    - ReadWriteOnce
+  size: 1Gi
+  storageClass: ""
+  annotations: {}
+  labels: {}
+  # StatefulSet only, requires Kubernetes 1.27+.
+  retentionPolicy: {}
+    # whenDeleted: Retain
+    # whenScaled: Retain
+
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  # If not set and create is true, a name is generated using the fullname template.
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+# The image runs as uid 65532 (distroless nonroot). fsGroup lets that user write
+# to the mounted volume whatever the storage class hands out.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  fsGroup: 65532
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+# Must exceed config.settings.server.shutdown-timeout, or the drain is cut off
+# by the kubelet before teamster finishes it.
+terminationGracePeriodSeconds: 30
+
+service:
+  type: ClusterIP
+  port: 8080
+  # Only used when type is NodePort.
+  nodePort: ""
+  annotations: {}
+
+# The config file, mounted at /etc/xdg/teamster/config.yaml — the system-wide
+# XDG location teamster searches on startup.
+config:
+  # Mount a Secret you manage instead. It must carry a config.yaml key.
+  existingSecret: ""
+  # Written verbatim into config.yaml, so the keys are teamster's own
+  # hyphenated flag names (see config.example.yaml in the repository).
+  #
+  # database.path is owned by the chart: it has to agree with the volume mount.
+  #
+  # Do NOT put the webhook token, admin password, Graph client secret or OIDC
+  # client secret here. They belong in `credentials` below, which reaches the
+  # process as environment variables — and an environment variable is read only
+  # when no config file sets that key, so a value here would win over the one
+  # from the secret.
+  settings:
+    server:
+      addr: ":8080"
+      shutdown-timeout: 15s
+      read-timeout: 15s
+      # Must exceed graph.timeout-sec, or a handler waiting on Microsoft Graph
+      # is cut off before Graph itself gives up.
+      write-timeout: 60s
+      idle-timeout: 120s
+    graph:
+      tenant-id: ""
+      client-id: ""
+      base-url: https://graph.microsoft.com/v1.0
+      timeout-sec: 10
+    # Who may administer the service. Leave oidc-discovery-url empty to use the
+    # local login only.
+    auth: {}
+      # oidc-discovery-url: https://login.example/auth/realms/internal/.well-known/openid-configuration
+      # oidc-client-id: teamster
+      # oidc-redirect-url: https://teamster.example/admin/auth/callback
+      # oidc-scopes: [profile, email, roles]
+      # claim: realm_access.roles
+      # allowed: [admin]
+      # session-ttl: 12h
+
+# Credentials, delivered as TEAMSTER_* environment variables from a Secret.
+#
+# Point `existingSecret` at a secret you manage — sealed, external-secrets,
+# whatever — and the chart creates none. That secret must use these key names:
+#
+#   TEAMSTER_WEBHOOK_TOKEN
+#   TEAMSTER_ADMIN_USERNAME
+#   TEAMSTER_ADMIN_PASSWORD
+#   TEAMSTER_GRAPH_CLIENT_SECRET
+#   TEAMSTER_AUTH_OIDC_CLIENT_SECRET   (optional)
+credentials:
+  existingSecret: ""
+  # Shared secret expected in the X-Teamster-Token header.
+  webhookToken: ""
+  # The local login, used at /admin/login and as basic auth for /api. Keep it
+  # configured: it is the way back in if the identity provider is unreachable.
+  adminUsername: admin
+  adminPassword: ""
+  # Microsoft Entra client secret for posting cards.
+  graphClientSecret: ""
+  # Omit for a public OIDC client using PKCE, which is the recommended setup.
+  oidcClientSecret: ""
+  # Further TEAMSTER_* variables, added to the same secret.
+  extra: {}
+
+# Extra arguments appended after the `serve` command.
+extraArgs: []
+
+# Extra environment variables for the container.
+env: []
+  # - name: TZ
+  #   value: Europe/Berlin
+
+# Extra envFrom sources, e.g. a secret holding TEAMSTER_* overrides.
+envFrom: []
+
+# /healthz reports that the process runs, /readyz that it can serve — the store
+# answers and no shutdown has begun. Both are unauthenticated.
+#
+# Liveness must not check the database: restarting the process does not bring
+# one back, it only turns an outage into a crash loop.
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 20
+readinessProbe:
+  httpGet:
+    path: /readyz
+    port: http
+  initialDelaySeconds: 2
+  periodSeconds: 10
+startupProbe: {}
+
+resources: {}
+  # limits:
+  #   memory: 256Mi
+  # requests:
+  #   cpu: 50m
+  #   memory: 128Mi
+
+# Ingress for the admin UI and the webhook endpoints.
+# https://kubernetes.io/docs/concepts/services-networking/ingress/
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+    # cert-manager.io/cluster-issuer: letsencrypt
+  hosts:
+    - host: teamster.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+    # - secretName: teamster-tls
+    #   hosts:
+    #     - teamster.local
+
+# Gateway API HTTPRoute, as an alternative to the Ingress above. Requires the
+# Gateway API CRDs and a controller (https://gateway-api.sigs.k8s.io/guides/).
+httpRoute:
+  enabled: false
+  annotations: {}
+  # Which Gateways this route attaches to.
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: gateway
+      sectionName: http
+      # namespace: default
+  hostnames:
+    - teamster.local
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      # filters:
+      #   - type: RequestHeaderModifier
+      #     requestHeaderModifier:
+      #       set:
+      #         - name: X-Forwarded-Proto
+      #           value: https
+
+# Additional volumes and mounts on the pod.
+volumes: []
+volumeMounts: []
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+topologySpreadConstraints: []
+priorityClassName: ""
+
+# Image used by `helm test`.
+tests:
+  image:
+    repository: busybox
+    tag: "1.37"
+    pullSecrets: []
+
+# ---------------------------------------------------------------------------
+# extraObjects: deploy arbitrary additional Kubernetes resources alongside the
+# chart.
+#
+# Two accepted forms:
+#   * MAP (recommended) — keyed by an arbitrary name. Maps deep-merge across
+#     multiple `-f values.yaml` files, so entries from different files combine
+#     instead of replacing each other.
+#   * LIST — a plain YAML list. Simpler, but Helm REPLACES lists across values
+#     files (the last `-f` wins), so cross-file merging is NOT possible.
+#
+# Each entry may be a plain YAML object OR a (multi-line) string. Both are run
+# through `tpl`, so you can embed `{{ ... }}` template expressions while still
+# writing plain YAML.
+# In object form a template expression has to sit inside a quoted scalar, or the
+# values file stops being YAML. Use the string form to template whole blocks.
+extraObjects: {}
+  # alertmanager-webhook:                  # <- merge key (map form)
+  #   apiVersion: v1
+  #   kind: ConfigMap
+  #   metadata:
+  #     name: "{{ include \"teamster.fullname\" . }}-alertmanager"
+  #   data:
+  #     url: "http://{{ include \"teamster.fullname\" . }}:{{ .Values.service.port }}/webhook/alertmanager"
+  # alertmanager-secret: |                 # <- string form
+  #   apiVersion: v1
+  #   kind: Secret
+  #   metadata:
+  #     name: {{ include "teamster.fullname" . }}-alertmanager
+  #     labels:
+  #       {{- include "teamster.labels" . | nindent 8 }}
+  #   type: Opaque
+  #   stringData:
+  #     token: {{ .Values.credentials.webhookToken | quote }}

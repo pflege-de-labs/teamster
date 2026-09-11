@@ -37,6 +37,37 @@ jobs:
           name: coverage
           path: coverage.out
 
+  chart:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      # helm ships on the runner image, so there is no action to pin here.
+      - name: Lint the chart
+        run: helm lint charts/teamster --values charts/teamster/ci/statefulset-values.yaml
+
+      # Both deployment shapes are rendered: the templates they share are the
+      # ones a bad edit breaks silently in only one of them.
+      - name: Render every deployment shape
+        run: |
+          for values in charts/teamster/ci/*-values.yaml; do
+            echo "::group::$values"
+            helm template teamster charts/teamster --values "$values"
+            echo "::endgroup::"
+          done
+
+      # The chart refuses what the application cannot do; a rendering run that
+      # succeeds here means the guard is gone.
+      - name: Reject the unsupported combinations
+        run: |
+          for args in "--set database.driver=postgres" "--set replicaCount=2" "--set workload.kind=Deployment"; do
+            if helm template teamster charts/teamster \
+              --values charts/teamster/ci/statefulset-values.yaml $args >/dev/null 2>&1; then
+              echo "chart accepted $args, which it must reject" >&2
+              exit 1
+            fi
+          done
+
   image:
     runs-on: ubuntu-latest
     permissions:

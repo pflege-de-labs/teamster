@@ -1,0 +1,17 @@
+apiVersion: v2
+name: teamster
+description: Webhook bridge that routes Alertmanager and universal alerts to Microsoft Teams
+type: application
+home: https://github.com/pflege-de-labs/teamster
+icon: https://raw.githubusercontent.com/pflege-de-labs/teamster/main/images/teamster-header.png
+sources:
+  - https://github.com/pflege-de-labs/teamster
+keywords:
+  - alertmanager
+  - alerting
+  - microsoft-teams
+  - webhook
+# The chart is versioned independently of the application; appVersion tracks the
+# teamster release whose image the defaults point at.
+version: 0.1.0
+appVersion: "0.1.0"

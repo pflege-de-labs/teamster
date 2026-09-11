@@ -715,6 +715,12 @@ more strings to extract later, so if a second language is actually wanted, pull 
   parent's delivery, not its grandparent's.
 * Should a message that carries only text still be updated in place when an alert resolves, or is
   editing a plain message in Teams confusing in a way editing a card is not?
+* Should teamster grow a second store implementation? The Helm chart
+  ([ADR 0016](adr/0016-helm-chart.md)) deploys one pod because SQLite takes one writer, and it
+  rejects `database.driver=postgres` rather than pretending. A remote database would buy several
+  replicas and a backup story the cluster already has, at the cost of a schema, a migration path
+  and a second dialect in `internal/store`. That is now milestone 12, which is where the answer
+  belongs; what is still open is whether anybody wants it enough to build it.
 * Which identity should an alert in a chat come from — the person receiving it, or a bot? Route A
   makes the alert look like something the recipient wrote to themselves, which is the cheapest to
   build and the strangest to read. Decide before milestone 13 starts.

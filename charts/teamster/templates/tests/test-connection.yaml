@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "teamster.fullname" . }}-test-connection"
+  labels:
+    {{- include "teamster.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+spec:
+  {{- with .Values.tests.image.pullSecrets }}
+  imagePullSecrets:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  containers:
+    {{- /* /readyz needs no credential and fails when the store does not
+           answer, so it tests more than the connection. */}}
+    - name: wget
+      image: {{ .Values.tests.image.repository }}:{{ .Values.tests.image.tag }}
+      command: ['wget']
+      args:
+        - '--spider'
+        - '-S'
+        - 'http://{{ include "teamster.fullname" . }}:{{ .Values.service.port }}/readyz'
+  restartPolicy: Never

@@ -6,10 +6,11 @@ TAILWIND_VERSION ?= v4.3.3
 COVERAGE_OUT ?= coverage.out
 BINARY       ?= bin/teamster
 IMAGE        ?= teamster
+CHART        ?= charts/teamster
 CONTAINER_TOOL ?= $(shell command -v docker >/dev/null 2>&1 && echo docker || echo podman)
 VERSION      ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 
-.PHONY: all build run test coverage coverage-html fmt lint tidy hooks tools generate icons image image-run clean
+.PHONY: all build run test coverage coverage-html fmt lint tidy hooks tools generate icons image image-run chart-lint clean
 
 # The admin UI wears logo 1; logo 2 is the README header.
 ICON_SOURCE := images/favicons/logo-teamster-1
@@ -81,6 +82,14 @@ tidy:
 # Installs both the pre-commit and the commit-msg hook.
 hooks:
 	pre-commit install --install-hooks
+
+# Mirrors the chart job in CI: lint, then render every deployment shape.
+chart-lint:
+	helm lint $(CHART) --values $(CHART)/ci/statefulset-values.yaml
+	@for values in $(CHART)/ci/*-values.yaml; do \
+		echo "rendering $$values"; \
+		helm template teamster $(CHART) --values "$$values" > /dev/null; \
+	done
 
 image:
 	$(CONTAINER_TOOL) build --build-arg VERSION=$(VERSION) -t $(IMAGE):$(VERSION) -t $(IMAGE):latest .

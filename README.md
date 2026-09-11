@@ -381,6 +381,29 @@ The image runs as uid 65532 with no shell or package manager, so there is nothin
 diagnose through the container logs. `/data` is the only writable path, and
 `TEAMSTER_DATABASE_PATH` already points the database at it.
 
+## Kubernetes
+
+The [Helm chart](charts/teamster) deploys the image, published as an OCI artifact:
+
+```bash
+helm install teamster oci://ghcr.io/pflege-de-labs/charts/teamster \
+  --namespace monitoring --create-namespace \
+  --set credentials.webhookToken=... \
+  --set credentials.adminPassword=... \
+  --set credentials.graphClientSecret=... \
+  --set config.settings.graph.tenant-id=... \
+  --set config.settings.graph.client-id=...
+```
+
+It runs a single-replica StatefulSet with the SQLite file on its own volume, mounts the config as
+a Secret at `/etc/xdg/teamster/config.yaml` and injects the credentials as `TEAMSTER_*` variables
+from a second secret — `credentials.existingSecret` points at one the cluster manages instead.
+`ingress.enabled` and `httpRoute.enabled` publish the service through an Ingress or a Gateway API
+HTTPRoute, and `extraObjects` carries arbitrary resources alongside the release.
+
+There is no multi-replica mode: teamster keeps its state in SQLite, which takes a single writer.
+See the [chart README](charts/teamster/README.md) for the full set of values.
+
 ## Development
 
 ```bash
@@ -460,6 +483,7 @@ machines, and by whoever is reading a log at three in the morning.
 ## Documentation
 
 - [Architecture](docs/architecture.md)
+- [Helm chart](charts/teamster/README.md)
 - [Configuring Keycloak for the admin login](docs/keycloak.md)
 - [Roadmap](docs/roadmap.md)
 - [Architecture Decision Records](docs/adr/)

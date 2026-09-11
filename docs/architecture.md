@@ -66,6 +66,24 @@ and SLSA provenance attestations and is signed with cosign by digest, and the re
 ship per-binary SBOMs under a signed `checksums.txt`. `:latest` only ever moves forward, to the
 newest stable release. See [ADR 0006](adr/0006-release-rebuild-sbom-signing.md).
 
+### Kubernetes
+
+The Helm chart in [charts/teamster](../charts/teamster) deploys the image, and it is published as
+an OCI artifact to `ghcr.io/pflege-de-labs/charts`. It runs one pod: SQLite takes a single writer,
+so the chart rejects a `replicaCount` above 1 and rejects `database.driver=postgres`, which no
+store implements. The default workload is a StatefulSet whose `volumeClaimTemplate` carries
+`/data`; a Deployment against an existing claim is offered for clusters that provision storage
+separately, and rolls with `Recreate` because a `ReadWriteOnce` volume admits one pod.
+
+Configuration follows the precedence the binary implements. The config file is rendered into a
+Secret and mounted at `/etc/xdg/teamster/config.yaml`, while the webhook token, the admin login and
+the Graph and OIDC client secrets arrive as `TEAMSTER_*` environment variables from a second
+secret — which works only because an environment variable is honoured when no config file sets that
+key, so those four stay out of the file. Both secrets are hashed into pod annotations, so a changed
+value rolls the pod. The service is published through an Ingress or a Gateway API `HTTPRoute`, and
+`extraObjects` carries whatever else a deployment needs. See
+[ADR 0016](adr/0016-helm-chart.md).
+
 ## Request flow
 
 ```text

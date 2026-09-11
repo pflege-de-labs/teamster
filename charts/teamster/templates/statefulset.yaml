@@ -1,0 +1,58 @@
+{{- include "teamster.validate" . -}}
+{{- if eq .Values.workload.kind "StatefulSet" -}}
+{{- $claim := "" -}}
+{{- if not .Values.persistence.enabled -}}
+{{- $claim = dict "name" "data" "emptyDir" (dict) -}}
+{{- else if .Values.persistence.existingClaim -}}
+{{- $claim = dict "name" "data" "persistentVolumeClaim" (dict "claimName" .Values.persistence.existingClaim) -}}
+{{- end -}}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "teamster.fullname" . }}
+  labels:
+    {{- include "teamster.labels" . | nindent 4 }}
+  {{- with .Values.workload.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  serviceName: {{ include "teamster.fullname" . }}-headless
+  selector:
+    matchLabels:
+      {{- include "teamster.selectorLabels" . | nindent 6 }}
+  {{- with .Values.workload.updateStrategy }}
+  updateStrategy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- if and .Values.persistence.enabled (not .Values.persistence.existingClaim) }}
+  {{- with .Values.persistence.retentionPolicy }}
+  persistentVolumeClaimRetentionPolicy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels:
+          {{- include "teamster.labels" . | nindent 10 }}
+          {{- with .Values.persistence.labels }}
+          {{- toYaml . | nindent 10 }}
+          {{- end }}
+        {{- with .Values.persistence.annotations }}
+        annotations:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+      spec:
+        accessModes:
+          {{- toYaml .Values.persistence.accessModes | nindent 10 }}
+        resources:
+          requests:
+            storage: {{ .Values.persistence.size | quote }}
+        {{- if .Values.persistence.storageClass }}
+        storageClassName: {{ .Values.persistence.storageClass | quote }}
+        {{- end }}
+  {{- end }}
+  template:
+    {{- include "teamster.podTemplate" (dict "root" . "dataVolume" $claim) | nindent 4 }}
+{{- end }}
