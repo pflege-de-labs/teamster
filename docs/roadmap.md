@@ -425,14 +425,25 @@ This is also the first thing the CLI does beyond `serve`: `teamster export` and 
 are kong commands over the same code the endpoints use, which is what the command structure in
 [ADR 0003](adr/0003-kong-commands-and-shutdown.md) was built for.
 
-## Milestone 9 — Card editor
+## Milestone 9 — Card editor — done, as something smaller
 
-Deliberately last. Once the preview from 1.4 exists we will know whether editing JSON beside a live
-preview is already enough.
+The question this was left open for has an answer: with the preview in hand, the JSON is not the
+awkward part. The awkward parts were an empty textarea with no hint of what an alert offers, typing
+a FactSet from memory, clicking Preview after every change, and a quotation mark in an alert summary
+breaking a card invisibly.
 
-If an editor is still wanted, the options are Microsoft's Adaptive Cards Designer, which is large
-and does not round-trip Go template syntax cleanly, or a form-based editor over the card elements
-this service actually uses. The decision gets its own ADR when we get there.
+So: no visual designer and no form editor — a template is a Go template that renders *into* a card,
+and `{{ if eq .Alert.Status "firing" }}` is not JSON, so a WYSIWYG editor would either refuse half
+the templates this service runs or discard their templating on save.
+
+What shipped instead: a palette of the elements our own templates use, inserted at the cursor with
+the comma when one is needed; a starter card so a new template begins as a working example; and
+preview as you type, debounced, with the render still on the server. The fragments live in
+`internal/cards` where a test renders every one of them against a sample alert and an empty one,
+because a palette that inserts a card the renderer rejects is worse than no palette.
+
+See [ADR 0014](adr/0014-card-editor.md). A visual designer is still not built; if it is what people
+ask for, that ADR is where the reasons to supersede are written down.
 
 ## Milestone 10 — A localizable UI
 
@@ -582,7 +593,7 @@ Needs an ADR, and probably a second one for how migrations are sequenced.
 | — | 6 Visualization, second pass | 5 | done |
 | — | 7 Fine-grained permissions | 2 | done |
 | — | 8 Import and export | 7 for permissions | done |
-| 6 | 9 Card editor | 1.4 | decision after 1.4 |
+| — | 9 Card editor | 1.4 | done |
 | 7 | 10 Localizable UI | — | — |
 | 8 | 11 Metrics | — | ADR on OTEL versus Prometheus directly |
 | 9 | 12 More than one instance | 11 helps | ADR, and a second backend |

@@ -125,6 +125,56 @@ func TestRenderMessageReportsWhichPartBroke(t *testing.T) {
 	}
 }
 
+// The fallback is as likely to come from the alert as the value is, and an
+// alert that carries neither must still render.
+func TestDefaultAcceptsAMissingFallback(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		body  string
+		alert models.Alert
+		want  string
+	}{
+		{
+			name:  "the value wins when it is there",
+			body:  `{"text":"{{ default .Alert.Annotations.summary .Alert.Labels.alertname }}"}`,
+			alert: sampleAlert(),
+			want:  `{"text":"CPU spiking"}`,
+		},
+		{
+			name:  "the fallback comes from the alert too",
+			body:  `{"text":"{{ default .Alert.Annotations.missing .Alert.Labels.alertname }}"}`,
+			alert: sampleAlert(),
+			want:  `{"text":"HighCPU"}`,
+		},
+		{
+			name: "neither is there",
+			body: `{"text":"{{ default .Alert.Annotations.summary .Alert.Labels.alertname }}"}`,
+			want: `{"text":""}`,
+		},
+		{
+			name: "chained to a literal",
+			body: `{"text":"{{ default .Alert.Annotations.summary (default .Alert.Labels.alertname "nothing") }}"}`,
+			want: `{"text":"nothing"}`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			card, err := Render(tt.body, RenderData{Alert: tt.alert})
+			if err != nil {
+				t.Fatalf("Render: %v", err)
+			}
+			if string(card) != tt.want {
+				t.Errorf("card = %s, want %s", card, tt.want)
+			}
+		})
+	}
+}
+
 func TestValidate(t *testing.T) {
 	t.Parallel()
 
