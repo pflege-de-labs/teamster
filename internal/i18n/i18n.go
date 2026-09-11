@@ -277,3 +277,25 @@ func Parse(value string) language.Tag {
 	}
 	return tag
 }
+
+// Carries reports whether this build can render a language.
+func (b *Bundle) Carries(tag language.Tag) bool {
+	if b == nil {
+		return tag == Source
+	}
+	_, ok := b.catalogs[tag]
+	return ok
+}
+
+// Supported parses a name the way a choice has to be parsed: strictly. Parse is
+// forgiving because a typo in a configuration file should not stop the service,
+// but a language picked in the UI has a fixed list to come from, and accepting
+// nonsense there would store a cookie that matches nothing on every later
+// request.
+func (b *Bundle) Supported(name string) (language.Tag, bool) {
+	tag, err := language.Parse(name)
+	if err != nil {
+		return Source, false
+	}
+	return tag, b.Carries(tag)
+}

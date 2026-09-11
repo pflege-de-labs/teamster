@@ -92,8 +92,9 @@ templ destinations(page Page) {
 					<input type="hidden" name="id" value={ page.EditDestination.ID }/>
 				}
 				@textField("name", i18n.T(ctx, "templates.name"), i18n.T(ctx, "destinations.name_placeholder"), page.editingDestination().Name)
-				@pickerField("destination-team", "team_id", i18n.T(ctx, "destinations.team"), "team-id", page.editingDestination().TeamID, i18n.T(ctx, "picker.team"), i18n.T(ctx, "picker.team_choose"))
-				@pickerField("destination-channel", "channel_id", i18n.T(ctx, "destinations.channel"), "channel-id", page.editingDestination().ChannelID, i18n.T(ctx, "picker.channel"), i18n.T(ctx, "picker.channel_choose"))
+				@pickerField("destination-team", "team_id", i18n.T(ctx, "destinations.team"), "team-id", page.editingDestination().TeamID, i18n.T(ctx, "picker.team"), i18n.T(ctx, "picker.team_choose"), "")
+				@pickerField("destination-channel", "channel_id", i18n.T(ctx, "destinations.channel"), "channel-id", page.editingDestination().ChannelID, i18n.T(ctx, "picker.channel"), i18n.T(ctx, "picker.channel_choose"), i18n.T(ctx, "picker.channel_needs_team"))
+				<p id="destination-channel-hint" hidden class="text-xs text-slate-500">{ i18n.T(ctx, "picker.channel_needs_team") }</p>
 				<div class="flex items-center gap-2">
 					@submit(submitLabel(ctx, page.EditDestination != nil, "noun.destination"))
 					if page.EditDestination != nil {

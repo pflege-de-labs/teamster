@@ -114,12 +114,15 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger) (*ht
 	authMux.HandleFunc("/admin/auth/start", api.handleAuthStart)
 	authMux.HandleFunc("/admin/auth/callback", api.handleAuthCallback)
 	authMux.HandleFunc("/admin/logout", api.handleLogout)
+	// Choosing a language needs no session: the login page is the first thing
+	// somebody reads in the wrong one.
+	authMux.HandleFunc("/admin/language", api.handleLanguage)
 
 	// The stylesheet, icons and scripts are public: the login page needs them
 	// before anyone has a session, and none of them is sensitive.
 	for _, asset := range []string{
 		"/favicon.ico", "/site.webmanifest", "/styles.css",
-		"/preview.js", "/pickers.js", "/routing.js", "/icons/", "/vendor/",
+		"/preview.js", "/pickers.js", "/routing.js", "/language.js", "/icons/", "/vendor/",
 	} {
 		mux.HandleFunc(asset, api.handleAssets)
 	}
@@ -128,6 +131,7 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger) (*ht
 	mux.Handle("/admin/login", authMux)
 	mux.Handle("/admin/auth/", authMux)
 	mux.Handle("/admin/logout", authMux)
+	mux.Handle("/admin/language", authMux)
 	mux.Handle("/admin", api.requireSession(api.authorize(adminMux)))
 	mux.Handle("/admin/", api.requireSession(api.authorize(adminMux)))
 	mux.Handle("/", api.requireSession(api.authorize(adminMux)))
