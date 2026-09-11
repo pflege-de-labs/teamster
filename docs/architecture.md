@@ -104,17 +104,29 @@ bad token, and `502` when routing, rendering, the store or Graph fails.
 into labelled nodes; a route pointing at something deleted becomes a node marked missing rather
 than a dropped link, because that broken state is what the view exists to show.
 
-The graph is a directed acyclic graph read left to right: one webhook source node, then the routes
-in the order the router evaluates them, then the destinations and — below them, in the same column
-— the templates. Each node carries the position it is drawn at, so the layout is decided in Go
-where the tests can see it and the browser only draws, zooms and drags. A route node shows the
-labels it filters for, a destination node its name together with the Team and channel **names**,
-resolved through the same `directoryCache` the pickers use. That lookup is best effort: an
-unreachable Graph falls back to the stored ids rather than failing the request.
+The graph is a directed acyclic graph read left to right: one webhook source node, the root routes,
+a column per level of nesting below them, and the destinations last. Every edge means "an alert can
+go this way" and says which step it is — `enters`, `refines` or `delivers` — so a dashed
+refinement edge can be labelled *as well as* or *instead of* according to the child's greedy flag.
+A non-greedy child leaves its parent's delivery edge in place, which is what makes a fan-out
+visible as two paths.
 
-Matching a label set highlights the path that alert takes rather than the winning route alone:
-the webhook, the route, its destination and its template are drawn in the match colour and
-everything else dims, so the answer is read off the same picture.
+A template is **not** a node here: rendering is not a step towards a channel, and drawing it as one
+made a single arrow mean two things. A route node carries the template it renders with as a label,
+marked inherited when it comes from an ancestor. `GET /api/routing/templates` answers the second,
+smaller graph — templates against the routes that use them — which is where a template nothing
+references shows up as an orphan.
+
+Each node carries the position it is drawn at, so the layout is decided in Go where the tests can
+see it and the browser only draws, zooms and drags. A route node shows the labels it filters for, a
+destination node its name together with the Team and channel **names**, resolved through the same
+`directoryCache` the pickers use. That lookup is best effort: an unreachable Graph falls back to the
+stored ids rather than failing the request.
+
+Matching a label set highlights every path that alert takes rather than the winning route alone:
+the webhook, each route that delivers, the routes they were reached through, and the channels they
+land in are drawn in the match colour while everything else dims — so a fan-out is read off the same
+picture.
 
 `POST /api/routing/match` returns the winning route and **why** it won — `selector`, `default`,
 `none` or `no-routes`. That reason comes from `routing.Match`, which holds the rule in one place;

@@ -24,8 +24,15 @@ type graphNode struct {
 	Default  bool   `json:"default,omitempty"`
 	Greedy   bool   `json:"greedy,omitempty"`
 	Missing  bool   `json:"missing,omitempty"`
-	X        int    `json:"x"`
-	Y        int    `json:"y"`
+
+	// A route renders with a template, but a template is not somewhere an alert
+	// goes, so it is a label on the route rather than a node of its own.
+	Template          string `json:"template,omitempty"`
+	TemplateInherited bool   `json:"template_inherited,omitempty"`
+	TemplateMissing   bool   `json:"template_missing,omitempty"`
+
+	X int `json:"x"`
+	Y int `json:"y"`
 }
 
 // Alerts flow left to right: what arrives, what decides, where it lands. The
@@ -37,9 +44,20 @@ const (
 	groupGap  = 64
 )
 
+// Every edge means "an alert can go this way". The kind says which step it is,
+// so the drawing can say whether a child delivers as well as its parent or
+// instead of it.
+const (
+	linkEnters   = "enters"
+	linkRefines  = "refines"
+	linkDelivers = "delivers"
+)
+
 type graphLink struct {
 	Source string `json:"source"`
 	Target string `json:"target"`
+	Kind   string `json:"kind"`
+	Greedy bool   `json:"greedy,omitempty"`
 }
 
 func (s *Server) handleRoutingGraph(w http.ResponseWriter, r *http.Request) {
@@ -49,19 +67,8 @@ func (s *Server) handleRoutingGraph(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	routes, err := s.store.ListRoutes()
+	routes, destinations, templates, err := s.routingConfiguration(w)
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	destinations, err := s.store.ListDestinations()
-	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	templates, err := s.store.ListTemplates()
-	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -69,17 +76,60 @@ func (s *Server) handleRoutingGraph(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"nodes": nodes, "links": links})
 }
 
-// buildGraph resolves the identifiers a route stores into nodes. A route
-// pointing at something deleted becomes a node marked missing rather than a
-// dropped link: that broken state is exactly what the view exists to show.
+// handleTemplateGraph answers the second, smaller picture: which routes render
+// with which template. It is a separate graph because "renders with" is not a
+// step an alert takes, and drawing it over the flow made one arrow mean two
+// things.
+func (s *Server) handleTemplateGraph(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.Header().Set("Allow", http.MethodGet)
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	routes, _, templates, err := s.routingConfiguration(w)
+	if err != nil {
+		return
+	}
+
+	nodes, links := buildTemplateGraph(routes, templates)
+	writeJSON(w, http.StatusOK, map[string]any{"nodes": nodes, "links": links})
+}
+
+// routingConfiguration reads what both pictures are drawn from, reporting the
+// failure itself so each handler stays about its own graph.
+func (s *Server) routingConfiguration(w http.ResponseWriter) ([]models.Route, []models.Destination, []models.Template, error) {
+	routes, err := s.store.ListRoutes()
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return nil, nil, nil, err
+	}
+	destinations, err := s.store.ListDestinations()
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return nil, nil, nil, err
+	}
+	templates, err := s.store.ListTemplates()
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return nil, nil, nil, err
+	}
+	return routes, destinations, templates, nil
+}
+
+// buildGraph draws the path an alert can take: the webhook, the routes in
+// evaluation order with children hanging off their parents, and the channels
+// they deliver to. A route pointing at something deleted becomes a node marked
+// missing rather than a dropped link, because that broken state is exactly what
+// the view exists to show.
 func buildGraph(routes []models.Route, destinations []models.Destination, templates []models.Template, channelName func(teamID, channelID string) string) ([]graphNode, []graphLink) {
 	nodes := []graphNode{}
 	links := []graphLink{}
-	index := map[string]int{}
+	index := map[string]bool{}
 
 	add := func(node graphNode) {
-		if _, seen := index[node.ID]; !seen {
-			index[node.ID] = len(nodes)
+		if !index[node.ID] {
+			index[node.ID] = true
 			nodes = append(nodes, node)
 		}
 	}
@@ -94,27 +144,21 @@ func buildGraph(routes []models.Route, destinations []models.Destination, templa
 		Detail: "POST /webhook/alertmanager · /webhook/universal",
 	})
 
-	// Routes in the order they are evaluated, so the picture reads the way the
-	// router works: highest priority first, the default last.
-	ordered := append([]models.Route(nil), routes...)
-	sort.SliceStable(ordered, func(i, j int) bool {
-		if ordered[i].IsDefault != ordered[j].IsDefault {
-			return !ordered[i].IsDefault
-		}
-		if ordered[i].Priority != ordered[j].Priority {
-			return ordered[i].Priority > ordered[j].Priority
-		}
-		return ordered[i].Name < ordered[j].Name
-	})
-
+	ordered := evaluationOrder(routes)
 	known := map[string]bool{}
 	for _, route := range ordered {
 		known[route.ID] = true
 	}
 
+	templateNames := map[string]string{}
+	for _, template := range templates {
+		templateNames[template.ID] = template.Name
+	}
+
 	// A child sits one column right of its parent, so depth in the tree reads as
 	// distance from the webhook.
 	depths := routeDepths(ordered)
+	effective := inheritedTargets(ordered)
 	rows := map[int]int{}
 	maxDepth := 0
 
@@ -124,9 +168,9 @@ func buildGraph(routes []models.Route, destinations []models.Destination, templa
 			maxDepth = depth
 		}
 
-		routeID := "route:" + route.ID
-		add(graphNode{
-			ID:       routeID,
+		targets := effective[route.ID]
+		node := graphNode{
+			ID:       "route:" + route.ID,
 			Kind:     "route",
 			Label:    route.Name,
 			Selector: selectorSummary(route.LabelSelector),
@@ -135,16 +179,31 @@ func buildGraph(routes []models.Route, destinations []models.Destination, templa
 			Greedy:   route.Greedy,
 			X:        (1 + depth) * columnGap,
 			Y:        rows[depth] * rowGap,
-		})
+		}
+		if targets.templateID != "" {
+			node.TemplateInherited = route.TemplateID == ""
+			if name, ok := templateNames[targets.templateID]; ok {
+				node.Template = name
+			} else {
+				node.Template = targets.templateID
+				node.TemplateMissing = true
+			}
+		}
+		add(node)
 		rows[depth]++
 
 		// A child hangs off its parent, because that is the order it is
 		// evaluated in; only a root is reached straight from the webhook.
 		if route.ParentID != "" && known[route.ParentID] {
-			links = append(links, graphLink{Source: "route:" + route.ParentID, Target: routeID})
+			links = append(links, graphLink{
+				Source: "route:" + route.ParentID,
+				Target: "route:" + route.ID,
+				Kind:   linkRefines,
+				Greedy: route.Greedy,
+			})
 			continue
 		}
-		links = append(links, graphLink{Source: sourceID, Target: routeID})
+		links = append(links, graphLink{Source: sourceID, Target: "route:" + route.ID, Kind: linkEnters})
 	}
 
 	sinkColumn := (2 + maxDepth) * columnGap
@@ -159,53 +218,133 @@ func buildGraph(routes []models.Route, destinations []models.Destination, templa
 		})
 	}
 
-	templateTop := len(destinations)*rowGap + groupGap
-	missingTop := templateTop + len(templates)*rowGap + groupGap
+	missingTop := len(destinations)*rowGap + groupGap
 	missing := 0
-	for row, template := range templates {
-		add(graphNode{
-			ID:    "template:" + template.ID,
-			Kind:  "template",
-			Label: template.Name,
-			X:     sinkColumn,
-			Y:     templateTop + row*rowGap,
-		})
+	for _, route := range ordered {
+		target := effective[route.ID].destinationID
+		if target == "" {
+			continue
+		}
+
+		nodeID := "destination:" + target
+		if !index[nodeID] {
+			add(graphNode{
+				ID:      nodeID,
+				Kind:    "destination",
+				Label:   "missing destination",
+				Detail:  target,
+				Missing: true,
+				X:       sinkColumn,
+				Y:       missingTop + missing*rowGap,
+			})
+			missing++
+		}
+		links = append(links, graphLink{Source: "route:" + route.ID, Target: nodeID, Kind: linkDelivers})
 	}
 
-	// An unset destination or template is the ancestor's, so the picture draws
-	// the edge the alert will actually take rather than none at all.
+	return nodes, links
+}
+
+// buildTemplateGraph pairs each template with the routes that render with it.
+// A template no route references has no edges, which is how an orphan shows up
+// now that templates are not nodes in the flow.
+func buildTemplateGraph(routes []models.Route, templates []models.Template) ([]graphNode, []graphLink) {
+	nodes := []graphNode{}
+	links := []graphLink{}
+	index := map[string]bool{}
+
+	add := func(node graphNode) {
+		if !index[node.ID] {
+			index[node.ID] = true
+			nodes = append(nodes, node)
+		}
+	}
+
+	ordered := evaluationOrder(routes)
 	effective := inheritedTargets(ordered)
 
+	users := map[string][]models.Route{}
 	for _, route := range ordered {
-		for _, ref := range []struct {
-			kind string
-			id   string
-		}{
-			{"destination", effective[route.ID].destinationID},
-			{"template", effective[route.ID].templateID},
-		} {
-			if ref.id == "" {
-				continue
-			}
+		if target := effective[route.ID].templateID; target != "" {
+			users[target] = append(users[target], route)
+		}
+	}
 
-			target := ref.kind + ":" + ref.id
-			if _, known := index[target]; !known {
-				add(graphNode{
-					ID:      target,
-					Kind:    ref.kind,
-					Label:   "missing " + ref.kind,
-					Detail:  ref.id,
-					Missing: true,
-					X:       sinkColumn,
-					Y:       missingTop + missing*rowGap,
-				})
-				missing++
+	known := map[string]bool{}
+	for _, template := range templates {
+		known[template.ID] = true
+	}
+
+	row := 0
+	drawTemplate := func(id, label string, isMissing bool) {
+		add(graphNode{
+			ID:      "template:" + id,
+			Kind:    "template",
+			Label:   label,
+			Missing: isMissing,
+			X:       0,
+			Y:       row * rowGap,
+		})
+
+		for _, route := range users[id] {
+			add(graphNode{
+				ID:       "route:" + route.ID,
+				Kind:     "route",
+				Label:    route.Name,
+				Selector: selectorSummary(route.LabelSelector),
+				Priority: route.Priority,
+				Default:  route.IsDefault,
+				X:        columnGap,
+				Y:        row * rowGap,
+			})
+			links = append(links, graphLink{Source: "template:" + id, Target: "route:" + route.ID, Kind: "renders"})
+			row++
+		}
+		if len(users[id]) == 0 {
+			row++
+		}
+	}
+
+	for _, template := range templates {
+		detail := "no route renders with it"
+		if len(users[template.ID]) > 0 {
+			detail = ""
+		}
+		drawTemplate(template.ID, template.Name, false)
+		if detail != "" {
+			for i := range nodes {
+				if nodes[i].ID == "template:"+template.ID {
+					nodes[i].Detail = detail
+				}
 			}
-			links = append(links, graphLink{Source: "route:" + route.ID, Target: target})
+		}
+	}
+
+	// A route rendering with a template that was deleted belongs here too: the
+	// flow graph shows it delivering, and this one shows what it renders with.
+	for id := range users {
+		if !known[id] {
+			drawTemplate(id, "missing template", true)
 		}
 	}
 
 	return nodes, links
+}
+
+// evaluationOrder is the order the router reads routes in, so both pictures list
+// them the way they are tried: highest priority first, the default last.
+func evaluationOrder(routes []models.Route) []models.Route {
+	ordered := append([]models.Route(nil), routes...)
+	sort.SliceStable(ordered, func(i, j int) bool {
+		if ordered[i].IsDefault != ordered[j].IsDefault {
+			return !ordered[i].IsDefault
+		}
+		if ordered[i].Priority != ordered[j].Priority {
+			return ordered[i].Priority > ordered[j].Priority
+		}
+		return ordered[i].Name < ordered[j].Name
+	})
+	return ordered
 }
 
 // channelNamer resolves the ids a destination stores into the names an
