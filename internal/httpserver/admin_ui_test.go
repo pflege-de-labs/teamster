@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"html"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -575,9 +576,11 @@ func TestTemplateFormOffersTheCardPalette(t *testing.T) {
 	}
 
 	// Every snippet the package defines is offered, not a copy of some of them.
+	// The button carries the fragment, which is the part that has to match; its
+	// label is a catalog key and is checked where the catalogs are.
 	for _, snippet := range cards.Snippets() {
-		if !strings.Contains(body, snippet.Label) {
-			t.Errorf("the palette does not offer %q", snippet.Label)
+		if !strings.Contains(body, html.EscapeString(snippet.Body[:40])) {
+			t.Errorf("the palette does not offer the %q fragment", snippet.Name)
 		}
 	}
 }

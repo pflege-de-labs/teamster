@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"golang.org/x/text/language"
+
+	"github.com/pflege-de-labs/teamster/internal/cards"
 )
 
 func bundle(t *testing.T, overrideDir string, fallback language.Tag) *Bundle {
@@ -89,6 +91,32 @@ func stringsContains(haystack, needle string) bool {
 		}
 	}
 	return false
+}
+
+// The palette names its buttons with catalog keys, so a snippet added without
+// its text would render as "palette.whatever" in every language.
+func TestTheCatalogsCarryThePaletteAndTheSamples(t *testing.T) {
+	t.Parallel()
+
+	catalogs, err := loadEmbedded()
+	if err != nil {
+		t.Fatalf("loadEmbedded: %v", err)
+	}
+
+	var keys []string
+	for _, snippet := range cards.Snippets() {
+		keys = append(keys, snippet.LabelKey, snippet.HelpKey)
+	}
+	// The sample alerts the preview offers are named in the catalogs too.
+	keys = append(keys, "sample.firing", "sample.resolved")
+
+	for tag, catalog := range catalogs {
+		for _, key := range keys {
+			if value, ok := catalog[key]; !ok || value == "" {
+				t.Errorf("the %s catalog has nothing for %q", tag, key)
+			}
+		}
+	}
 }
 
 func TestMatch(t *testing.T) {

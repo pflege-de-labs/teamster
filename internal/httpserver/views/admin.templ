@@ -47,7 +47,7 @@ templ templates(page Page) {
 						class="rounded-md border border-slate-300 bg-white px-2 py-2 text-sm"
 					>
 						for _, name := range page.PreviewSamples {
-							<option value={ name }>{ i18n.T(ctx, "templates.sample_option", name) }</option>
+							<option value={ name }>{ i18n.T(ctx, "sample."+name) }</option>
 						}
 					</select>
 					if page.EditTemplate != nil {
@@ -92,8 +92,8 @@ templ destinations(page Page) {
 					<input type="hidden" name="id" value={ page.EditDestination.ID }/>
 				}
 				@textField("name", i18n.T(ctx, "templates.name"), i18n.T(ctx, "destinations.name_placeholder"), page.editingDestination().Name)
-				@identifiedTextField("destination-team", "team_id", i18n.T(ctx, "destinations.team"), "team-id", page.editingDestination().TeamID)
-				@identifiedTextField("destination-channel", "channel_id", i18n.T(ctx, "destinations.channel"), "channel-id", page.editingDestination().ChannelID)
+				@pickerField("destination-team", "team_id", i18n.T(ctx, "destinations.team"), "team-id", page.editingDestination().TeamID, i18n.T(ctx, "picker.team"), i18n.T(ctx, "picker.team_choose"))
+				@pickerField("destination-channel", "channel_id", i18n.T(ctx, "destinations.channel"), "channel-id", page.editingDestination().ChannelID, i18n.T(ctx, "picker.channel"), i18n.T(ctx, "picker.channel_choose"))
 				<div class="flex items-center gap-2">
 					@submit(submitLabel(ctx, page.EditDestination != nil, "noun.destination"))
 					if page.EditDestination != nil {
@@ -267,10 +267,10 @@ templ cardPalette(page Page) {
 			<button
 				type="button"
 				class="snippet rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:border-sky-400 hover:bg-sky-50 hover:text-sky-700"
-				title={ snippet.Help }
+				title={ i18n.T(ctx, snippet.HelpKey) }
 				data-snippet={ snippet.Body }
 			>
-				{ snippet.Label }
+				{ i18n.T(ctx, snippet.LabelKey) }
 			</button>
 		}
 		<button

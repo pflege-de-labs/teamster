@@ -5,6 +5,16 @@
   const channelInput = document.getElementById("destination-channel");
   if (!teamInput || !channelInput) return;
 
+  // The words come from the field the server rendered, which knows the
+  // language; this script does not, and a catalog shipped to the browser would
+  // be a second place for the text to live.
+  function wordsOf(input) {
+    return {
+      label: input.dataset.pickerLabel || "",
+      placeholder: input.dataset.pickerPlaceholder || "",
+    };
+  }
+
   function buildSelect(id, label, placeholder, items, current, input) {
     const select = document.createElement("select");
     select.id = id;
@@ -56,8 +66,8 @@
 
     const select = buildSelect(
       "destination-channel-select",
-      "Channel",
-      "— choose a channel —",
+      wordsOf(channelInput).label,
+      wordsOf(channelInput).placeholder,
       channels,
       channelInput.value,
       channelInput,
@@ -78,8 +88,8 @@
 
     const select = buildSelect(
       "destination-team-select",
-      "Team",
-      "— choose a team —",
+      wordsOf(teamInput).label,
+      wordsOf(teamInput).placeholder,
       teams,
       teamInput.value,
       teamInput,

@@ -48,6 +48,12 @@ than by `language.Parse` alone, which reads `not-a-language` as a valid tag with
 English is the source. German ships with it, so the second language is real rather than theoretical,
 and a test asserts that every catalog carries every source key and keeps every placeholder.
 
+The card palette names its buttons with catalog keys rather than text, so
+`internal/cards` describes the fragments and the catalogs say what to call them. The words the Team
+and channel pickers build themselves with travel to the browser as data attributes on the fields the
+server rendered: that script has no catalog and no language, and shipping it one would be a second
+place for the text to live.
+
 **What is not translated:** webhook responses, API errors and log lines. They are read by machines,
 and by whoever is reading a log at three in the morning; a translated error is harder to search for.
 Alert templates are the operator's own text already.
