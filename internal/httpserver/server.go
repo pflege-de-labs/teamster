@@ -8,6 +8,7 @@ import (
 	"github.com/pflege-de-labs/teamster/internal/authz"
 	"github.com/pflege-de-labs/teamster/internal/config"
 	"github.com/pflege-de-labs/teamster/internal/graph"
+	"github.com/pflege-de-labs/teamster/internal/i18n"
 	"github.com/pflege-de-labs/teamster/internal/routing"
 	"github.com/pflege-de-labs/teamster/internal/store"
 )
@@ -27,6 +28,7 @@ type Server struct {
 	router     *routing.Router
 	draining   atomic.Bool
 	authz      *authz.Authorizer
+	text       *i18n.Bundle
 	directory  *directoryCache
 	oidc       *oidcProvider
 	httpServer *http.Server
@@ -54,12 +56,18 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger) (*ht
 		return nil, err
 	}
 
+	text, err := i18n.New(cfg.UI.LocaleDir, i18n.Parse(cfg.UI.Language))
+	if err != nil {
+		return nil, err
+	}
+
 	api := &Server{
 		cfg:       cfg,
 		store:     store,
 		graph:     graphClient,
 		router:    routing.New(store),
 		authz:     authorizer,
+		text:      text,
 		directory: newDirectoryCache(directoryTTL),
 		oidc:      &oidcProvider{},
 	}
@@ -129,7 +137,7 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger) (*ht
 	// opposite of the draining shutdown in ADR 0003.
 	api.httpServer = &http.Server{
 		Addr:              cfg.Server.Addr,
-		Handler:           api.logging(mux),
+		Handler:           api.logging(api.localized(mux)),
 		ReadHeaderTimeout: readHeaderTimeout(cfg.Server.ReadTimeout),
 		ReadTimeout:       cfg.Server.ReadTimeout,
 		WriteTimeout:      cfg.Server.WriteTimeout,

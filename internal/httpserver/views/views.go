@@ -7,11 +7,13 @@ package views
 //go:generate ../../../bin/tailwindcss --input styles.css --output ../web/styles.css --minify
 
 import (
+	"context"
 	"encoding/json"
 	"sort"
 	"strings"
 
 	"github.com/pflege-de-labs/teamster/internal/cards"
+	"github.com/pflege-de-labs/teamster/internal/i18n"
 	"github.com/pflege-de-labs/teamster/internal/models"
 )
 
@@ -23,19 +25,10 @@ type Viewer struct {
 	Roles []string
 }
 
-// displayName falls back to something rather than rendering an empty header: a
-// provider that sends no name still signed somebody in.
-func (v Viewer) displayName() string {
-	if v.Name == "" {
-		return "Signed in"
-	}
-	return v.Name
-}
-
 // roleLabel reads the roles the way an operator would say them, and says so
 // plainly when there are none — that is the case where the page is empty and
 // the reason needs to be in front of them.
-func (v Viewer) roleLabel() string {
+func (v Viewer) roleLabel(ctx context.Context) string {
 	named := make([]string, 0, len(v.Roles))
 	for _, role := range v.Roles {
 		if role != "" && role != "none" {
@@ -43,7 +36,7 @@ func (v Viewer) roleLabel() string {
 		}
 	}
 	if len(named) == 0 {
-		return "no role"
+		return i18n.T(ctx, "header.no_role")
 	}
 	return strings.Join(named, ", ")
 }
@@ -166,9 +159,9 @@ func indent(depth int) string {
 
 // parentOptions offers every route a new one could refine. A route cannot refine
 // itself, and the empty option is what makes it a root.
-func parentOptions(p Page) []option {
+func parentOptions(ctx context.Context, p Page) []option {
 	out := make([]option, 0, len(p.Routes)+1)
-	out = append(out, option{Value: "", Label: "— nothing, this is a root route —"})
+	out = append(out, option{Value: "", Label: i18n.T(ctx, "routes.parent_none")})
 	for _, route := range p.Routes {
 		if p.EditRoute != nil && route.ID == p.EditRoute.ID {
 			continue
@@ -180,16 +173,16 @@ func parentOptions(p Page) []option {
 
 // grantScope reads a grant back the way it was written: a Team, or one channel
 // of it.
-func grantScope(grant models.Grant) string {
+func grantScope(ctx context.Context, grant models.Grant) string {
 	if grant.ChannelID == "" {
-		return "team " + grant.TeamID + " (all channels)"
+		return i18n.T(ctx, "grants.scope_team", grant.TeamID)
 	}
-	return "team " + grant.TeamID + " · channel " + grant.ChannelID
+	return i18n.T(ctx, "grants.scope_channel", grant.TeamID, grant.ChannelID)
 }
 
 // templateShape says what a template sends, which matters more in a list than
 // how many bytes of card JSON it holds.
-func templateShape(t models.Template) string {
+func templateShape(ctx context.Context, t models.Template) string {
 	parts := []string{}
 	if t.Title != "" {
 		parts = append(parts, "title")
@@ -201,7 +194,7 @@ func templateShape(t models.Template) string {
 		parts = append(parts, "card")
 	}
 	if len(parts) == 0 {
-		return "empty"
+		return i18n.T(ctx, "templates.shape_empty")
 	}
 	return strings.Join(parts, " + ")
 }
@@ -246,11 +239,15 @@ func selectorJSON(p Page) string {
 	return string(encoded)
 }
 
-func submitLabel(editing bool, noun string) string {
+// submitLabel builds "Save a template" from two catalog entries rather than by
+// concatenation: the noun does not always follow the verb, and in German it
+// does not.
+func submitLabel(ctx context.Context, editing bool, nounKey string) string {
+	noun := i18n.T(ctx, nounKey)
 	if editing {
-		return "Update " + noun
+		return i18n.T(ctx, "action.update", noun)
 	}
-	return "Save " + noun
+	return i18n.T(ctx, "action.save", noun)
 }
 
 // destinationName resolves a route's destination to something readable, so the
@@ -296,9 +293,9 @@ func templateOptions(p Page) []option {
 }
 
 // selectorText renders a label selector the way an operator writes it.
-func selectorText(selector map[string]string) string {
+func selectorText(ctx context.Context, selector map[string]string) string {
 	if len(selector) == 0 {
-		return "matches nothing on its own"
+		return i18n.T(ctx, "routes.selector_none")
 	}
 
 	keys := make([]string, 0, len(selector))

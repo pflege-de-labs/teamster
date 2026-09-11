@@ -22,6 +22,11 @@ linters:
       - path: _test\.go
         linters:
           - errcheck
+      # misspell reads every string as English. The translations and the tests
+      # that assert them are deliberately not.
+      - path: internal/i18n/
+        linters:
+          - misspell
 
 formatters:
   enable:

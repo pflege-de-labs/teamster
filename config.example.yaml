@@ -14,6 +14,15 @@ database:
 webhook:
   token: "replace-with-shared-token"
 
+# The admin UI's text. Roles, dates and the alert payloads are unaffected; this
+# is only what the pages say.
+ui:
+  # Used when a browser's Accept-Language names nothing this build carries.
+  language: "en"
+  # Optional: JSON files named after a language (de.json) whose entries override
+  # the built-in text, so wording can be changed without waiting for a release.
+  locale-dir: ""
+
 # The local login, used at /admin/login and as basic auth for /api. Keep it
 # configured: it is the way back in if the identity provider is unreachable or
 # the claim below is wrong.

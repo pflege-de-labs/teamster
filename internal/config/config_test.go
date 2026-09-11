@@ -62,6 +62,7 @@ func TestParseExampleConfig(t *testing.T) {
 			WriteTimeout:    time.Minute,
 			IdleTimeout:     2 * time.Minute,
 		},
+		UI:       UIConfig{Language: "en"},
 		Database: DatabaseConfig{Path: "teamster.db"},
 		Webhook:  WebhookConfig{Token: "replace-with-shared-token"},
 		Admin:    AdminConfig{Username: "admin", Password: "change-me"},

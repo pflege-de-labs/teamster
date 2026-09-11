@@ -29,3 +29,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0012](0012-role-based-authorization.md) | Roles are authorized with Cedar, evaluated in-process | Accepted |
 | [0013](0013-configuration-transfer.md) | Configuration moves as a versioned JSON bundle | Accepted |
 | [0014](0014-card-editor.md) | Better JSON editing instead of a card designer | Accepted |
+| [0015](0015-localizable-ui.md) | The UI's text lives in per-language catalogs | Accepted |
