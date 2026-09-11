@@ -1,8 +1,10 @@
 package views
 
+import "github.com/pflege-de-labs/teamster/internal/i18n"
+
 templ Layout(title string, viewer *Viewer) {
 	<!DOCTYPE html>
-	<html lang="en">
+	<html lang={ i18n.LanguageOf(ctx) }>
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
@@ -20,13 +22,13 @@ templ Layout(title string, viewer *Viewer) {
 				<div class="mx-auto flex max-w-6xl items-center gap-3 px-6 py-4">
 					<img src="/icons/favicon-48x48.png" alt="" width="40" height="40" class="rounded-full"/>
 					<div class="grow">
-						<div class="text-xl font-semibold">Teamster Admin</div>
-						<div class="text-sm text-slate-500">Templates, destinations and routes</div>
+						<div class="text-xl font-semibold">{ i18n.T(ctx, "app.title") }</div>
+						<div class="text-sm text-slate-500">{ i18n.T(ctx, "app.subtitle") }</div>
 					</div>
 					if viewer != nil {
 						<nav class="flex items-center gap-4 text-sm">
-							<a href="/admin" class="text-slate-600 hover:text-slate-900">Configuration</a>
-							<a href="/admin/routing" class="text-slate-600 hover:text-slate-900">Routing</a>
+							<a href="/admin" class="text-slate-600 hover:text-slate-900">{ i18n.T(ctx, "nav.configuration") }</a>
+							<a href="/admin/routing" class="text-slate-600 hover:text-slate-900">{ i18n.T(ctx, "nav.routing") }</a>
 						</nav>
 						@identity(*viewer)
 					}

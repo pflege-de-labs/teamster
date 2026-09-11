@@ -1,9 +1,12 @@
 package views
 
-import "strconv"
+import (
+	"strconv"
+	"github.com/pflege-de-labs/teamster/internal/i18n"
+)
 
 templ Admin(page Page) {
-	@Layout("Teamster Admin", &page.Viewer) {
+	@Layout(i18n.T(ctx, "page.admin"), &page.Viewer) {
 		@notice(page)
 		@readOnlyNotice(page)
 		@templates(page)
@@ -14,37 +17,37 @@ templ Admin(page Page) {
 }
 
 templ templates(page Page) {
-	@panel("Templates", "templates") {
+	@panel(i18n.T(ctx, "templates.panel"), "templates") {
 		if page.CanEdit {
 			<form method="post" action="/admin/templates" id="template-form" class="space-y-3">
 				if page.EditTemplate != nil {
 					<input type="hidden" name="id" value={ page.EditTemplate.ID }/>
 				}
-				@textField("name", "Name", "Critical alert", page.editingTemplate().Name)
-				@textField("title", "Activity feed title", "{{ .Alert.Annotations.summary }}", page.editingTemplate().Title)
-				@textareaField("message_text", "Message text (optional, limited HTML)", page.editingTemplate().Text, "4")
+				@textField("name", i18n.T(ctx, "templates.name"), i18n.T(ctx, "templates.name_placeholder"), page.editingTemplate().Name)
+				@textField("title", i18n.T(ctx, "templates.title_field"), "{{ .Alert.Annotations.summary }}", page.editingTemplate().Title)
+				@textareaField("message_text", i18n.T(ctx, "templates.text_field"), page.editingTemplate().Text, "4")
 				@cardPalette(page)
-				@textareaField("body", "Adaptive Card JSON (optional)", page.editingTemplate().Body, "12")
+				@textareaField("body", i18n.T(ctx, "templates.body_field"), page.editingTemplate().Body, "12")
 				<div class="flex flex-wrap items-center gap-2">
-					@submit(submitLabel(page.EditTemplate != nil, "template"))
+					@submit(submitLabel(ctx, page.EditTemplate != nil, "noun.template"))
 					<button
 						type="button"
 						id="preview-button"
 						class="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:border-sky-400 hover:bg-sky-50 hover:text-sky-700"
 					>
-						Preview
+						{ i18n.T(ctx, "preview.button") }
 					</button>
 					<label class="inline-flex items-center gap-1.5 text-sm text-slate-600">
 						<input type="checkbox" id="preview-live" checked class="rounded border-slate-300"/>
-						as you type
+						{ i18n.T(ctx, "preview.live") }
 					</label>
 					<select
 						id="preview-sample"
-						aria-label="Sample alert"
+						aria-label={ i18n.T(ctx, "templates.sample_alert") }
 						class="rounded-md border border-slate-300 bg-white px-2 py-2 text-sm"
 					>
 						for _, name := range page.PreviewSamples {
-							<option value={ name }>{ name } alert</option>
+							<option value={ name }>{ i18n.T(ctx, "templates.sample_option", name) }</option>
 						}
 					</select>
 					if page.EditTemplate != nil {
@@ -56,7 +59,7 @@ templ templates(page Page) {
 		}
 		<div>
 			if len(page.Templates) == 0 {
-				@empty("No templates yet. A route needs one to render its message.")
+				@empty(i18n.T(ctx, "templates.empty"))
 			} else {
 				<ul class="divide-y divide-slate-200">
 					for _, t := range page.Templates {
@@ -64,7 +67,7 @@ templ templates(page Page) {
 							<div class="min-w-0">
 								<div class="truncate font-medium">{ t.Name }</div>
 								<div class="truncate text-xs text-slate-500">
-									{ templateShape(t) } · updated { t.UpdatedAt.Format("2006-01-02 15:04") }
+									{ templateShape(ctx, t) } · { i18n.T(ctx, "templates.updated", t.UpdatedAt.Format("2006-01-02 15:04")) }
 								</div>
 							</div>
 							<div class="flex shrink-0 items-center gap-2">
@@ -82,17 +85,17 @@ templ templates(page Page) {
 }
 
 templ destinations(page Page) {
-	@panel("Destinations", "destinations") {
+	@panel(i18n.T(ctx, "destinations.panel"), "destinations") {
 		if page.CanEdit {
 			<form method="post" action="/admin/destinations" class="space-y-3">
 				if page.EditDestination != nil {
 					<input type="hidden" name="id" value={ page.EditDestination.ID }/>
 				}
-				@textField("name", "Name", "Ops channel", page.editingDestination().Name)
-				@identifiedTextField("destination-team", "team_id", "Team", "team-id", page.editingDestination().TeamID)
-				@identifiedTextField("destination-channel", "channel_id", "Channel", "channel-id", page.editingDestination().ChannelID)
+				@textField("name", i18n.T(ctx, "templates.name"), i18n.T(ctx, "destinations.name_placeholder"), page.editingDestination().Name)
+				@identifiedTextField("destination-team", "team_id", i18n.T(ctx, "destinations.team"), "team-id", page.editingDestination().TeamID)
+				@identifiedTextField("destination-channel", "channel_id", i18n.T(ctx, "destinations.channel"), "channel-id", page.editingDestination().ChannelID)
 				<div class="flex items-center gap-2">
-					@submit(submitLabel(page.EditDestination != nil, "destination"))
+					@submit(submitLabel(ctx, page.EditDestination != nil, "noun.destination"))
 					if page.EditDestination != nil {
 						@cancelEdit()
 					}
@@ -101,7 +104,7 @@ templ destinations(page Page) {
 		}
 		<div>
 			if len(page.Destinations) == 0 {
-				@empty("No destinations yet. Add the Team and channel to post into.")
+				@empty(i18n.T(ctx, "destinations.empty"))
 			} else {
 				<ul class="divide-y divide-slate-200">
 					for _, d := range page.Destinations {
@@ -125,19 +128,19 @@ templ destinations(page Page) {
 }
 
 templ routes(page Page) {
-	@panel("Routes", "routes") {
+	@panel(i18n.T(ctx, "routes.panel"), "routes") {
 		if page.CanEdit {
 			<form method="post" action="/admin/routes" class="space-y-3">
 				if page.EditRoute != nil {
 					<input type="hidden" name="id" value={ page.EditRoute.ID }/>
 				}
-				@textField("name", "Name", "Critical to ops", page.editingRoute().Name)
-				@selectField("parent_id", "Refines (optional)", parentOptions(page), page.editingRoute().ParentID)
-				@textareaField("label_selector", "Label selector (JSON)", selectorJSON(page), "3")
-				@selectField("destination_id", "Destination", destinationOptions(page), page.editingRoute().DestinationID)
-				@selectField("template_id", "Template", templateOptions(page), page.editingRoute().TemplateID)
+				@textField("name", i18n.T(ctx, "templates.name"), i18n.T(ctx, "routes.name_placeholder"), page.editingRoute().Name)
+				@selectField("parent_id", i18n.T(ctx, "routes.parent"), parentOptions(ctx, page), page.editingRoute().ParentID)
+				@textareaField("label_selector", i18n.T(ctx, "routes.selector"), selectorJSON(page), "3")
+				@selectField("destination_id", i18n.T(ctx, "routes.destination"), destinationOptions(page), page.editingRoute().DestinationID)
+				@selectField("template_id", i18n.T(ctx, "routes.template"), templateOptions(page), page.editingRoute().TemplateID)
 				<label class="block">
-					<span class="text-sm font-medium">Priority</span>
+					<span class="text-sm font-medium">{ i18n.T(ctx, "routes.priority") }</span>
 					<input
 						type="number"
 						name="priority"
@@ -145,10 +148,10 @@ templ routes(page Page) {
 						class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-sky-500 focus:outline-none"
 					/>
 				</label>
-				@checkboxField("is_default", "Default route", page.editingRoute().IsDefault)
-				@checkboxField("greedy", "Deliver instead of the route it refines, not as well as it", page.editingRoute().Greedy)
+				@checkboxField("is_default", i18n.T(ctx, "routes.default"), page.editingRoute().IsDefault)
+				@checkboxField("greedy", i18n.T(ctx, "routes.greedy"), page.editingRoute().Greedy)
 				<div class="flex items-center gap-2">
-					@submit(submitLabel(page.EditRoute != nil, "route"))
+					@submit(submitLabel(ctx, page.EditRoute != nil, "noun.route"))
 					if page.EditRoute != nil {
 						@cancelEdit()
 					}
@@ -157,7 +160,7 @@ templ routes(page Page) {
 		}
 		<div>
 			if len(page.Routes) == 0 {
-				@empty("No routes yet. Without one, every alert is rejected.")
+				@empty(i18n.T(ctx, "routes.empty"))
 			} else {
 				<ul class="divide-y divide-slate-200">
 					for _, r := range page.routeTree() {
@@ -166,22 +169,22 @@ templ routes(page Page) {
 								<div class="flex items-center gap-2">
 									<span class="truncate font-medium">{ r.Route.Name }</span>
 									if r.Route.IsDefault {
-										<span class="rounded bg-sky-100 px-1.5 py-0.5 text-xs font-medium text-sky-800">default</span>
+										<span class="rounded bg-sky-100 px-1.5 py-0.5 text-xs font-medium text-sky-800">{ i18n.T(ctx, "routes.badge_default") }</span>
 									}
 									if r.Depth > 0 && r.Route.Greedy {
-										<span class="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800">instead of parent</span>
+										<span class="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800">{ i18n.T(ctx, "routes.badge_instead") }</span>
 									}
 									if r.Depth > 0 && !r.Route.Greedy {
-										<span class="rounded bg-emerald-100 px-1.5 py-0.5 text-xs font-medium text-emerald-800">as well as parent</span>
+										<span class="rounded bg-emerald-100 px-1.5 py-0.5 text-xs font-medium text-emerald-800">{ i18n.T(ctx, "routes.badge_as_well") }</span>
 									}
-									<span class="text-xs text-slate-500">priority { strconv.Itoa(r.Route.Priority) }</span>
+									<span class="text-xs text-slate-500">{ i18n.T(ctx, "routes.priority_badge", r.Route.Priority) }</span>
 								</div>
 								<div class="truncate text-xs text-slate-500">
 									@inheritable(page.destinationName(r.Destination.ID), r.Destination.Inherited)
 									<span>·</span>
 									@inheritable(page.templateName(r.Template.ID), r.Template.Inherited)
 								</div>
-								<div class="truncate font-mono text-xs text-slate-500">{ selectorText(r.Route.LabelSelector) }</div>
+								<div class="truncate font-mono text-xs text-slate-500">{ selectorText(ctx, r.Route.LabelSelector) }</div>
 							</div>
 							<div class="flex shrink-0 items-center gap-2">
 								if page.CanEdit {
@@ -201,7 +204,7 @@ templ routes(page Page) {
 // route sets and what it takes from its parent are told apart at a glance.
 templ inheritable(name string, inherited bool) {
 	if inherited {
-		<span class="italic text-slate-400">{ name } (inherited)</span>
+		<span class="italic text-slate-400">{ i18n.T(ctx, "routes.inherited", name) }</span>
 	} else {
 		<span>{ name }</span>
 	}
@@ -211,7 +214,7 @@ templ inheritable(name string, inherited bool) {
 templ readOnlyNotice(page Page) {
 	if !page.CanEdit {
 		<p class="mb-4 rounded-md border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-			Signed in with the { page.Viewer.roleLabel() } role, which may look but not change anything.
+			{ i18n.T(ctx, "admin.read_only", page.Viewer.roleLabel(ctx)) }
 		</p>
 	}
 }
@@ -220,27 +223,27 @@ templ readOnlyNotice(page Page) {
 // something an editor should be able to widen for themselves.
 templ grants(page Page) {
 	if page.CanManage {
-		@panel("Delivery permissions", "grants") {
+		@panel(i18n.T(ctx, "grants.panel"), "grants") {
 			<p class="mb-4 text-sm text-slate-600">
 				A role with no grant reaches every Team and channel. Once a grant names a role, that role
 				reaches what its grants name and nothing else. Admins are never limited.
 			</p>
 			<form method="post" action="/admin/grants" class="space-y-3">
-				@textField("role", "Role", "editor", "")
-				@textField("team_id", "Team ID", "19:abc...@thread.tacv2", "")
-				@textField("channel_id", "Channel ID (optional, empty grants the whole Team)", "19:def...@thread.tacv2", "")
-				@submit("Add grant")
+				@textField("role", i18n.T(ctx, "grants.role"), "editor", "")
+				@textField("team_id", i18n.T(ctx, "grants.team"), "19:abc...@thread.tacv2", "")
+				@textField("channel_id", i18n.T(ctx, "grants.channel"), "19:def...@thread.tacv2", "")
+				@submit(i18n.T(ctx, "grants.add"))
 			</form>
 			<div>
 				if len(page.Grants) == 0 {
-					@empty("No grants yet, so every role reaches every Team and channel.")
+					@empty(i18n.T(ctx, "grants.empty"))
 				} else {
 					<ul class="divide-y divide-slate-200">
 						for _, g := range page.Grants {
 							<li class="flex items-center justify-between gap-4 py-3">
 								<div class="min-w-0">
 									<div class="truncate font-medium">{ g.Role }</div>
-									<div class="truncate font-mono text-xs text-slate-500">{ grantScope(g) }</div>
+									<div class="truncate font-mono text-xs text-slate-500">{ grantScope(ctx, g) }</div>
 								</div>
 								<div class="flex shrink-0 items-center gap-2">
 									@deleteButton("/admin/grants/delete", g.ID, g.Role)
@@ -259,7 +262,7 @@ templ grants(page Page) {
 // where nothing would check them.
 templ cardPalette(page Page) {
 	<div class="flex flex-wrap items-center gap-2">
-		<span class="text-sm font-medium text-slate-700">Insert</span>
+		<span class="text-sm font-medium text-slate-700">{ i18n.T(ctx, "palette.insert") }</span>
 		for _, snippet := range page.Snippets {
 			<button
 				type="button"
@@ -274,10 +277,10 @@ templ cardPalette(page Page) {
 			type="button"
 			id="card-starter"
 			class="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:border-sky-400 hover:bg-sky-50 hover:text-sky-700"
-			title="Replace the card with a complete example to edit down"
+			title={ i18n.T(ctx, "palette.starter_help") }
 			data-snippet={ page.Starter }
 		>
-			Start from an example
+			{ i18n.T(ctx, "palette.starter") }
 		</button>
 	</div>
 }

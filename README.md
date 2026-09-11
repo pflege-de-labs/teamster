@@ -423,6 +423,24 @@ running server.
 Dependencies are kept current by Renovate, which groups Go and Actions updates and merges the
 routine ones itself once CI and branch protection allow it.
 
+## Language
+
+The admin UI reads its text from catalogs rather than from the components, and ships English and
+German. A browser's `Accept-Language` picks between them; `ui.language` says what to use when it
+names neither.
+
+`ui.locale-dir` points at a directory of JSON files named for their language — `de.json`,
+`pt-BR.json` — whose entries override the built-in text, entry by entry. That is how to retune
+wording, or add a language, without waiting for a release:
+
+```json
+{ "nav.routing": "Wegefindung" }
+```
+
+A key no catalog carries renders as the key itself, which is a visible fault rather than an empty
+space. Webhook responses, API errors and log lines are deliberately not translated: they are read by
+machines, and by whoever is reading a log at three in the morning.
+
 ## Documentation
 
 - [Architecture](docs/architecture.md)

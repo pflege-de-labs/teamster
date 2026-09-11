@@ -2,6 +2,8 @@ package httpserver
 
 import (
 	"net/http"
+
+	"github.com/pflege-de-labs/teamster/internal/i18n"
 )
 
 // Liveness and readiness are separate questions, and answering both with the
@@ -58,4 +60,15 @@ func writePlain(w http.ResponseWriter, status int, body string) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(status)
 	_, _ = w.Write([]byte(body + "\n"))
+}
+
+// localized decides which language a page renders in, once per request, and
+// carries it in the context — which is what the templ components read. It wraps
+// everything rather than only the pages: a handler that renders nothing simply
+// never asks.
+func (s *Server) localized(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tag := s.text.Match(r.Header.Get("Accept-Language"))
+		next.ServeHTTP(w, r.WithContext(i18n.WithLanguage(r.Context(), s.text, tag)))
+	})
 }

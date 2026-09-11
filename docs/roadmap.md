@@ -445,7 +445,7 @@ because a palette that inserts a card the renderer rejects is worse than no pale
 See [ADR 0014](adr/0014-card-editor.md). A visual designer is still not built; if it is what people
 ask for, that ADR is where the reasons to supersede are written down.
 
-## Milestone 10 — A localizable UI
+## Milestone 10 — A localizable UI — done
 
 Every string the admin UI shows is written into the templ component that shows it. Changing the
 wording of one sentence means finding the component that holds it, and there is no way to offer the
@@ -459,11 +459,11 @@ A message catalog per language, keyed by a short identifier, with the English ca
 source. Components ask for a key and never hold a sentence. Tooling extracts the keys and reports
 the ones a catalog is missing, so a translator works from a list rather than by reading the markup.
 
-`golang.org/x/text/message` and `golang.org/x/text/language` are the obvious starting point: already
-in the module graph, they handle plural forms and locale-aware number and date formatting, and
-`x/text/cmd/gotext` extracts and merges catalogs. The alternative is a third-party library with a
-friendlier file format — `go-i18n` and its TOML catalogs read better for a non-programmer — which is
-the trade the ADR has to make.
+**Shipped as:** `x/text/language` for negotiation and plain JSON catalogs read by a twenty-line
+lookup. `x/text/message` with `gotext` was not used — its extraction pipeline wants Go source as the
+target and a generated catalog as the output, which fits a program printing to a terminal better than
+templ components, and JSON files an operator can edit are the artefact we wanted. See
+[ADR 0015](adr/0015-localizable-ui.md).
 
 ### Reaching the printer from a component
 
@@ -481,11 +481,9 @@ once there is more than one language to choose.
 
 ### Editable without a release
 
-Catalogs are embedded, so the binary stays self-contained. Beyond that, an operator who wants to
-retune wording without waiting for a release could drop a catalog file in the XDG config directory
-and have it override the embedded one at startup. That is the part of this milestone that makes the
-text genuinely editable rather than merely centralised, and it is also the part that can be left out
-of the first pass.
+Shipped in the first pass after all: `ui.locale-dir` is read after the embedded catalogs and wins
+entry by entry, so an operator can retune a sentence — or add a language this build has never
+carried — without waiting for a release.
 
 ### What is not localized
 
@@ -498,7 +496,8 @@ line — is a template and can be overridden per template, so it needs nothing n
 
 ### Testing the catalogs
 
-A test that every catalog carries every key the source catalog does; a table over
+German ships beside English, so the second language is real rather than theoretical. A test that
+every catalog carries every key the source catalog does and keeps every placeholder; a table over
 `Accept-Language` headers and the language each should select, including a header naming a language
 this build does not carry; and a missing key falling back to the source string rather than rendering
 an empty element or panicking.
@@ -594,7 +593,7 @@ Needs an ADR, and probably a second one for how migrations are sequenced.
 | — | 7 Fine-grained permissions | 2 | done |
 | — | 8 Import and export | 7 for permissions | done |
 | — | 9 Card editor | 1.4 | done |
-| 7 | 10 Localizable UI | — | — |
+| — | 10 Localizable UI | — | done |
 | 8 | 11 Metrics | — | ADR on OTEL versus Prometheus directly |
 | 9 | 12 More than one instance | 11 helps | ADR, and a second backend |
 

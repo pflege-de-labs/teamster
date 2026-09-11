@@ -1,5 +1,7 @@
 package views
 
+import "github.com/pflege-de-labs/teamster/internal/i18n"
+
 templ textField(name, label, placeholder, value string) {
 	<label class="block">
 		<span class="text-sm font-medium">{ label }</span>
@@ -74,15 +76,15 @@ templ checkboxField(name, label string, checked bool) {
 templ editLink(section, id, name string) {
 	<a
 		href={ templ.SafeURL("/admin?edit=" + section + "&id=" + id + "#" + section) }
-		aria-label={ "Edit " + name }
+		aria-label={ i18n.T(ctx, "action.edit") + " " + name }
 		class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:border-sky-400 hover:bg-sky-50 hover:text-sky-700"
 	>
-		Edit
+		{ i18n.T(ctx, "action.edit") }
 	</a>
 }
 
 templ cancelEdit() {
-	<a href="/admin" class="px-3 py-2 text-sm text-slate-600 underline hover:text-slate-900">Cancel</a>
+	<a href="/admin" class="px-3 py-2 text-sm text-slate-600 underline hover:text-slate-900">{ i18n.T(ctx, "action.cancel") }</a>
 }
 
 templ submit(label string) {
@@ -100,10 +102,10 @@ templ deleteButton(action, id, name string) {
 		<input type="hidden" name="id" value={ id }/>
 		<button
 			type="submit"
-			aria-label={ "Delete " + name }
+			aria-label={ i18n.T(ctx, "action.delete") + " " + name }
 			class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:border-red-400 hover:bg-red-50 hover:text-red-700"
 		>
-			Delete
+			{ i18n.T(ctx, "action.delete") }
 		</button>
 	</form>
 }

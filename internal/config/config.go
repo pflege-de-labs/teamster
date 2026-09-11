@@ -8,6 +8,7 @@ import (
 
 type Config struct {
 	Server   ServerConfig   `embed:"" prefix:"server-"`
+	UI       UIConfig       `embed:"" prefix:"ui-"`
 	Database DatabaseConfig `embed:"" prefix:"database-"`
 	Webhook  WebhookConfig  `embed:"" prefix:"webhook-"`
 	Admin    AdminConfig    `embed:"" prefix:"admin-"`
@@ -21,6 +22,12 @@ type ServerConfig struct {
 	ReadTimeout     time.Duration `help:"How long a client may take to send a request, headers and body." default:"15s"`
 	WriteTimeout    time.Duration `help:"How long a handler may take to answer; must exceed graph-timeout-sec." default:"60s"`
 	IdleTimeout     time.Duration `help:"How long an idle keep-alive connection is held open." default:"120s"`
+}
+
+// UIConfig is about the admin UI's text, not its behaviour.
+type UIConfig struct {
+	Language  string `help:"Language to use when a browser asks for none this build carries." default:"en"`
+	LocaleDir string `help:"Directory of catalog files that override the built-in text." name:"locale-dir"`
 }
 
 type DatabaseConfig struct {
