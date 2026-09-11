@@ -3,7 +3,7 @@ package views
 import "strconv"
 
 templ Admin(page Page) {
-	@Layout("Teamster Admin", true) {
+	@Layout("Teamster Admin", &page.Viewer) {
 		@notice(page)
 		@readOnlyNotice(page)
 		@templates(page)
@@ -206,7 +206,7 @@ templ inheritable(name string, inherited bool) {
 templ readOnlyNotice(page Page) {
 	if !page.CanEdit {
 		<p class="mb-4 rounded-md border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-			Signed in with the { page.Role } role, which may look but not change anything.
+			Signed in with the { page.Viewer.roleLabel() } role, which may look but not change anything.
 		</p>
 	}
 }

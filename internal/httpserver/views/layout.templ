@@ -1,6 +1,6 @@
 package views
 
-templ Layout(title string, signedIn bool) {
+templ Layout(title string, viewer *Viewer) {
 	<!DOCTYPE html>
 	<html lang="en">
 		<head>
@@ -23,19 +23,12 @@ templ Layout(title string, signedIn bool) {
 						<div class="text-xl font-semibold">Teamster Admin</div>
 						<div class="text-sm text-slate-500">Templates, destinations and routes</div>
 					</div>
-					if signedIn {
+					if viewer != nil {
 						<nav class="flex items-center gap-4 text-sm">
 							<a href="/admin" class="text-slate-600 hover:text-slate-900">Configuration</a>
 							<a href="/admin/routing" class="text-slate-600 hover:text-slate-900">Routing</a>
 						</nav>
-						<form method="post" action="/admin/logout">
-							<button
-								type="submit"
-								class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:border-slate-400 hover:bg-slate-50"
-							>
-								Sign out
-							</button>
-						</form>
+						@identity(*viewer)
 					}
 				</div>
 			</header>

@@ -227,7 +227,8 @@ Teamster role. The local credentials administer, because they are the way back i
 is wrong.
 
 A role is decided at sign-in and travels with the session, so a change at the provider applies the
-next time that person signs in. The admin UI hides the controls a role may not use and says why;
+next time that person signs in. The header names who is signed in and the roles they hold, so a
+missing control has a visible reason. The admin UI hides the controls a role may not use and says why;
 the server refuses the request either way. A refusal is a `403` naming the role and the resource.
 
 The rules are three policies in

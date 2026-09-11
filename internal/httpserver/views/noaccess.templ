@@ -3,14 +3,14 @@ package views
 // NoAccess is what a signed-in user sees when their claim named no role. The
 // sign-in worked; it is the permissions that are missing, and saying so is the
 // difference between "ask your administrator" and "this thing is broken".
-templ NoAccess(name string) {
-	@Layout("No access — Teamster", true) {
+templ NoAccess(viewer Viewer) {
+	@Layout("No access — Teamster", &viewer) {
 		<section class="mx-auto max-w-2xl rounded-lg border border-slate-200 bg-white p-8 shadow-sm">
 			<h2 class="text-lg font-semibold">You are signed in, but have no permissions</h2>
-			if name != "" {
+			if viewer.Name != "" {
 				<p class="mt-3 text-sm text-slate-600">
-					Signed in as { name }. Your account carries no Teamster role, so there is nothing here you
-					may see or change yet.
+					Signed in as { viewer.Name }. Your account carries no Teamster role, so there is nothing here
+					you may see or change yet.
 				</p>
 			} else {
 				<p class="mt-3 text-sm text-slate-600">

@@ -1,0 +1,22 @@
+package views
+
+// The header says who is signed in and what they may do, because "why is the
+// button missing?" is otherwise a question only the server can answer. Sign out
+// sits beside it rather than behind a menu: it is one control, and hiding it
+// behind JavaScript would make signing out depend on a script loading.
+templ identity(viewer Viewer) {
+	<div class="flex items-center gap-3 border-l border-slate-200 pl-3">
+		<div class="text-right leading-tight">
+			<div class="text-sm font-medium text-slate-900">{ viewer.displayName() }</div>
+			<div class="text-xs text-slate-500">{ viewer.roleLabel() }</div>
+		</div>
+		<form method="post" action="/admin/logout">
+			<button
+				type="submit"
+				class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:border-slate-400 hover:bg-slate-50"
+			>
+				Sign out
+			</button>
+		</form>
+	</div>
+}

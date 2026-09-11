@@ -14,7 +14,7 @@ func (s *Server) handleRoutingPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := views.RoutingPage().Render(r.Context(), w); err != nil {
+	if err := views.RoutingPage(viewerOf(r)).Render(r.Context(), w); err != nil {
 		logError("render routing page", err)
 	}
 }

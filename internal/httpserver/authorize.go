@@ -32,6 +32,19 @@ func withPrincipal(ctx context.Context, subject, name string, roles []authz.Role
 	return context.WithValue(ctx, roleKey, roles)
 }
 
+// viewerOf is who the page is being rendered for. Name comes from the provider
+// and may be empty; the roles are what the header shows beside it.
+func viewerOf(r *http.Request) views.Viewer {
+	name, _ := r.Context().Value(nameKey).(string)
+	_, roles := principalOf(r)
+
+	named := make([]string, 0, len(roles))
+	for _, role := range roles {
+		named = append(named, string(role))
+	}
+	return views.Viewer{Name: name, Roles: named}
+}
+
 // principalSubject is the principal's identifier alone, for the callers that
 // do not need the roles beside it.
 func principalSubject(r *http.Request) string {
@@ -73,10 +86,9 @@ func (s *Server) authorize(next http.Handler) http.Handler {
 		// page that says what to ask for. Roles a deployment defined itself do
 		// not count here: if its own policies refuse, the refusal is the answer.
 		if !authz.HasBuiltin(roles) && isPageRequest(r) {
-			name, _ := r.Context().Value(nameKey).(string)
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			w.WriteHeader(http.StatusForbidden)
-			if err := views.NoAccess(name).Render(r.Context(), w); err != nil {
+			if err := views.NoAccess(viewerOf(r)).Render(r.Context(), w); err != nil {
 				logError("render no-access page", err)
 			}
 			return
