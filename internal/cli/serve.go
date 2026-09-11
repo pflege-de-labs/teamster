@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/pflege-de-labs/teamster/internal/config"
@@ -61,7 +62,8 @@ func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
 		return fmt.Errorf("listen on %s: %w", cfg.Server.Addr, err)
 	}
 
-	log.Printf("listening on %s", listener.Addr())
+	url := url.URL{Scheme: "http", Host: listener.Addr().String()}
+	log.Printf("listening on %s", url.String())
 
 	go sweepSessions(ctx, sqlStore)
 
