@@ -30,6 +30,9 @@ templ Layout(title string, viewer *Viewer) {
 						<nav class="flex items-center gap-4 text-sm">
 							<a href="/admin" class="text-slate-600 hover:text-slate-900">{ i18n.T(ctx, "nav.configuration") }</a>
 							<a href="/admin/routing" class="text-slate-600 hover:text-slate-900">{ i18n.T(ctx, "nav.routing") }</a>
+							if viewer.CanManage {
+								<a href="/admin/permissions" class="text-slate-600 hover:text-slate-900">{ i18n.T(ctx, "nav.permissions") }</a>
+							}
 						</nav>
 						@identity(*viewer)
 					}
@@ -44,6 +47,7 @@ templ Layout(title string, viewer *Viewer) {
 			<script src="/vendor/d3.min.js"></script>
 			<script src="/routing.js"></script>
 			<script src="/language.js"></script>
+			<script src="/permissions.js"></script>
 		</body>
 	</html>
 }

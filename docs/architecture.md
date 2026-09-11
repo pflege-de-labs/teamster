@@ -134,6 +134,11 @@ Three actions are scoped rather than blanket: `deliver`, `viewChannel` and `view
 separate from `view` and `edit` is what lets a policy narrow the directory without narrowing
 everything else a role may do. Admins are covered by the blanket admin policy and are never scoped.
 
+`/admin/permissions` is where an admin sets them: a tree built in the browser from the same pickers
+the destination form uses, with `PUT /api/grants/role` replacing everything one role reaches in a
+single transaction. The tree is edited as a whole, and sending it as a list of creates and deletes
+would leave a half-applied scope behind on any failure.
+
 Enforcement is at the writes — creating or moving a destination, and pointing a route at one — and
 the reads that list the directory. `internal/httpserver/grants.go` holds both, and reads the scope
 once per response rather than once per entry.

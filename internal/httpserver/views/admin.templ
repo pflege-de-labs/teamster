@@ -220,40 +220,19 @@ templ readOnlyNotice(page Page) {
 	}
 }
 
-// Grants are the admin's alone: they decide who may deliver where, which is not
-// something an editor should be able to widen for themselves.
+// The grants panel moved to its own page: the tree of Teams and channels is as
+// long as the tenant is, and /admin was already long. What is left here is the
+// way to it.
 templ grants(page Page) {
 	if page.CanManage {
 		@panel(i18n.T(ctx, "grants.panel"), "grants") {
-			<p class="mb-4 text-sm text-slate-600">
-				A role with no grant reaches every Team and channel. Once a grant names a role, that role
-				reaches what its grants name and nothing else. Admins are never limited.
-			</p>
-			<form method="post" action="/admin/grants" class="space-y-3">
-				@textField("role", i18n.T(ctx, "grants.role"), "editor", "")
-				@textField("team_id", i18n.T(ctx, "grants.team"), "19:abc...@thread.tacv2", "")
-				@textField("channel_id", i18n.T(ctx, "grants.channel"), "19:def...@thread.tacv2", "")
-				@submit(i18n.T(ctx, "grants.add"))
-			</form>
-			<div>
-				if len(page.Grants) == 0 {
-					@empty(i18n.T(ctx, "grants.empty"))
-				} else {
-					<ul class="divide-y divide-slate-200">
-						for _, g := range page.Grants {
-							<li class="flex items-center justify-between gap-4 py-3">
-								<div class="min-w-0">
-									<div class="truncate font-medium">{ g.Role }</div>
-									<div class="truncate font-mono text-xs text-slate-500">{ grantScope(ctx, g) }</div>
-								</div>
-								<div class="flex shrink-0 items-center gap-2">
-									@deleteButton("/admin/grants/delete", g.ID, g.Role)
-								</div>
-							</li>
-						}
-					</ul>
-				}
-			</div>
+			<p class="text-sm text-slate-600">{ i18n.T(ctx, "grants.moved") }</p>
+			<a
+				href="/admin/permissions"
+				class="mt-3 inline-block rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:border-sky-400 hover:bg-sky-50 hover:text-sky-700"
+			>
+				{ i18n.T(ctx, "nav.permissions") }
+			</a>
 		}
 	}
 }

@@ -2,6 +2,7 @@ package httpserver
 
 import (
 	"errors"
+	"fmt"
 	"maps"
 	"sort"
 	"sync"
@@ -323,7 +324,9 @@ func (f *fakeStore) CreateGrant(g models.Grant) (models.Grant, error) {
 		return models.Grant{}, err
 	}
 	if g.ID == "" {
-		g.ID = "generated"
+		// Unique, like the real store's uuid: one id for every grant, or a
+		// second channel would quietly replace the first.
+		g.ID = fmt.Sprintf("generated-%d", len(f.grants)+1)
 	}
 	f.grants[g.ID] = g
 	return g, nil

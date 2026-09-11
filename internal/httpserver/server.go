@@ -94,11 +94,13 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger) (*ht
 	adminMux.HandleFunc("/api/config/export", api.handleExport)
 	adminMux.HandleFunc("/api/config/import", api.handleImport)
 	adminMux.HandleFunc("/api/grants", api.handleGrants)
+	adminMux.HandleFunc("/api/grants/role", api.handleRoleGrants)
 	adminMux.HandleFunc("/api/grants/", api.handleGrantByID)
 	adminMux.HandleFunc("/api/graph/teams", api.handleGraphTeams)
 	adminMux.HandleFunc("/api/graph/teams/", api.handleGraphChannels)
 	adminMux.HandleFunc("/admin", api.handleAdminPage)
 	adminMux.HandleFunc("/admin/routing", api.handleRoutingPage)
+	adminMux.HandleFunc("/admin/permissions", api.handlePermissionsPage)
 	adminMux.HandleFunc("/admin/templates", api.formPost(api.saveTemplate))
 	adminMux.HandleFunc("/admin/templates/delete", api.formPost(api.deleteTemplate))
 	adminMux.HandleFunc("/admin/destinations", api.formPost(api.saveDestination))
@@ -122,7 +124,7 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger) (*ht
 	// before anyone has a session, and none of them is sensitive.
 	for _, asset := range []string{
 		"/favicon.ico", "/site.webmanifest", "/styles.css",
-		"/preview.js", "/pickers.js", "/routing.js", "/language.js", "/icons/", "/vendor/",
+		"/preview.js", "/pickers.js", "/routing.js", "/language.js", "/permissions.js", "/icons/", "/vendor/",
 	} {
 		mux.HandleFunc(asset, api.handleAssets)
 	}
