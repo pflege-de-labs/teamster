@@ -57,6 +57,10 @@ func RoutingPage() templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
+			templ_7745c5c3_Err = legendSwatch("bg-slate-500", "webhook").Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
 			templ_7745c5c3_Err = legendSwatch("bg-sky-500", "route").Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -73,7 +77,7 @@ func RoutingPage() templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</div><div id=\"routing-graph\" class=\"h-[32rem] w-full rounded-md border border-slate-200 bg-slate-50\"></div><p class=\"mt-2 text-xs text-slate-500\">Drag a node to rearrange it, scroll to zoom.</p></div></div></section>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</div><div id=\"routing-graph\" class=\"h-[32rem] w-full rounded-md border border-slate-200 bg-slate-50\"></div><p class=\"mt-2 text-xs text-slate-500\">Alerts flow left to right, from the webhook through the routes that match them. Drag a node to rearrange it, scroll to zoom.</p></div></div></section>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -137,7 +141,7 @@ func legendSwatch(colour, label string) templ.Component {
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `routing.templ`, Line: 31, Col: 9}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `routing.templ`, Line: 32, Col: 9}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 		if templ_7745c5c3_Err != nil {

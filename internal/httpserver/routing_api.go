@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/pflege-de-labs/teamster/internal/graph"
 	"github.com/pflege-de-labs/teamster/internal/models"
 	"github.com/pflege-de-labs/teamster/internal/routing"
 )
@@ -22,7 +23,18 @@ type graphNode struct {
 	Priority int    `json:"priority,omitempty"`
 	Default  bool   `json:"default,omitempty"`
 	Missing  bool   `json:"missing,omitempty"`
+	X        int    `json:"x"`
+	Y        int    `json:"y"`
 }
+
+// Alerts flow left to right: what arrives, what decides, where it lands. The
+// layout is computed here so it is deterministic and the tests can see it,
+// leaving the browser to draw and to handle dragging.
+const (
+	columnGap = 300
+	rowGap    = 104
+	groupGap  = 64
+)
 
 type graphLink struct {
 	Source string `json:"source"`
@@ -52,38 +64,49 @@ func (s *Server) handleRoutingGraph(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	nodes, links := buildGraph(routes, destinations, templates)
+	nodes, links := buildGraph(routes, destinations, templates, s.channelNamer(destinations))
 	writeJSON(w, http.StatusOK, map[string]any{"nodes": nodes, "links": links})
 }
 
 // buildGraph resolves the identifiers a route stores into nodes. A route
 // pointing at something deleted becomes a node marked missing rather than a
 // dropped link: that broken state is exactly what the view exists to show.
-func buildGraph(routes []models.Route, destinations []models.Destination, templates []models.Template) ([]graphNode, []graphLink) {
+func buildGraph(routes []models.Route, destinations []models.Destination, templates []models.Template, channelName func(teamID, channelID string) string) ([]graphNode, []graphLink) {
 	nodes := []graphNode{}
 	links := []graphLink{}
-	seen := map[string]bool{}
+	index := map[string]int{}
 
 	add := func(node graphNode) {
-		if !seen[node.ID] {
-			seen[node.ID] = true
+		if _, seen := index[node.ID]; !seen {
+			index[node.ID] = len(nodes)
 			nodes = append(nodes, node)
 		}
 	}
 
-	for _, destination := range destinations {
-		add(graphNode{
-			ID:     "destination:" + destination.ID,
-			Kind:   "destination",
-			Label:  destination.Name,
-			Detail: "team " + destination.TeamID + " · channel " + destination.ChannelID,
-		})
-	}
-	for _, template := range templates {
-		add(graphNode{ID: "template:" + template.ID, Kind: "template", Label: template.Name})
-	}
+	// Every alert enters the same router, so the flow starts from one node
+	// rather than from each webhook endpoint.
+	const sourceID = "source:webhook"
+	add(graphNode{
+		ID:     sourceID,
+		Kind:   "source",
+		Label:  "Incoming alerts",
+		Detail: "POST /webhook/alertmanager · /webhook/universal",
+	})
 
-	for _, route := range routes {
+	// Routes in the order they are evaluated, so the picture reads the way the
+	// router works: highest priority first, the default last.
+	ordered := append([]models.Route(nil), routes...)
+	sort.SliceStable(ordered, func(i, j int) bool {
+		if ordered[i].IsDefault != ordered[j].IsDefault {
+			return !ordered[i].IsDefault
+		}
+		if ordered[i].Priority != ordered[j].Priority {
+			return ordered[i].Priority > ordered[j].Priority
+		}
+		return ordered[i].Name < ordered[j].Name
+	})
+
+	for row, route := range ordered {
 		routeID := "route:" + route.ID
 		add(graphNode{
 			ID:       routeID,
@@ -92,8 +115,37 @@ func buildGraph(routes []models.Route, destinations []models.Destination, templa
 			Selector: selectorSummary(route.LabelSelector),
 			Priority: route.Priority,
 			Default:  route.IsDefault,
+			X:        columnGap,
+			Y:        row * rowGap,
 		})
+		links = append(links, graphLink{Source: sourceID, Target: routeID})
+	}
 
+	for row, destination := range destinations {
+		add(graphNode{
+			ID:     "destination:" + destination.ID,
+			Kind:   "destination",
+			Label:  destination.Name,
+			Detail: channelName(destination.TeamID, destination.ChannelID),
+			X:      2 * columnGap,
+			Y:      row * rowGap,
+		})
+	}
+
+	templateTop := len(destinations)*rowGap + groupGap
+	missingTop := templateTop + len(templates)*rowGap + groupGap
+	missing := 0
+	for row, template := range templates {
+		add(graphNode{
+			ID:    "template:" + template.ID,
+			Kind:  "template",
+			Label: template.Name,
+			X:     2 * columnGap,
+			Y:     templateTop + row*rowGap,
+		})
+	}
+
+	for _, route := range ordered {
 		for _, ref := range []struct {
 			kind string
 			id   string
@@ -106,20 +158,67 @@ func buildGraph(routes []models.Route, destinations []models.Destination, templa
 			}
 
 			target := ref.kind + ":" + ref.id
-			if !seen[target] {
+			if _, known := index[target]; !known {
 				add(graphNode{
 					ID:      target,
 					Kind:    ref.kind,
 					Label:   "missing " + ref.kind,
 					Detail:  ref.id,
 					Missing: true,
+					X:       2 * columnGap,
+					Y:       missingTop + missing*rowGap,
 				})
+				missing++
 			}
-			links = append(links, graphLink{Source: routeID, Target: target})
+			links = append(links, graphLink{Source: "route:" + route.ID, Target: target})
 		}
 	}
 
 	return nodes, links
+}
+
+// channelNamer resolves the ids a destination stores into the names an
+// operator recognises. Graph is best effort here: the picture is still worth
+// drawing when the directory is unreachable, so a failed lookup falls back to
+// the raw ids rather than failing the request.
+func (s *Server) channelNamer(destinations []models.Destination) func(teamID, channelID string) string {
+	teamNames := map[string]string{}
+	if teams, err := s.directory.Teams(s.graph.ListTeams); err == nil {
+		for _, team := range teams {
+			teamNames[team.ID] = team.Name
+		}
+	}
+
+	channelNames := map[string]string{}
+	fetched := map[string]bool{}
+	for _, destination := range destinations {
+		if destination.TeamID == "" || fetched[destination.TeamID] {
+			continue
+		}
+		fetched[destination.TeamID] = true
+
+		channels, err := s.directory.Channels(destination.TeamID, func() ([]graph.Channel, error) {
+			return s.graph.ListChannels(destination.TeamID)
+		})
+		if err != nil {
+			continue
+		}
+		for _, channel := range channels {
+			channelNames[destination.TeamID+"/"+channel.ID] = channel.Name
+		}
+	}
+
+	return func(teamID, channelID string) string {
+		team := teamNames[teamID]
+		if team == "" {
+			team = teamID
+		}
+		channel := channelNames[teamID+"/"+channelID]
+		if channel == "" {
+			channel = channelID
+		}
+		return team + " › " + channel
+	}
 }
 
 // selectorSummary renders a selector the way an operator writes it. Unlike the

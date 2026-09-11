@@ -102,13 +102,16 @@ endpoints together:
 ```json
 {
   "nodes": [
+    {"id": "source:webhook", "kind": "source", "label": "Incoming alerts",
+     "detail": "POST /webhook/alertmanager · /webhook/universal", "x": 0, "y": 0},
     {"id": "route:abc", "kind": "route", "label": "Critical to ops",
-     "selector": "severity=critical", "priority": 100, "default": false},
+     "selector": "severity=critical", "priority": 100, "default": false, "x": 300, "y": 0},
     {"id": "destination:def", "kind": "destination", "label": "Ops channel",
-     "detail": "team … · channel …"},
-    {"id": "template:ghi", "kind": "template", "label": "Critical card"}
+     "detail": "Platform › Alerts", "x": 600, "y": 0},
+    {"id": "template:ghi", "kind": "template", "label": "Critical card", "x": 600, "y": 168}
   ],
   "links": [
+    {"source": "source:webhook", "target": "route:abc"},
     {"source": "route:abc", "target": "destination:def"},
     {"source": "route:abc", "target": "template:ghi"}
   ]
@@ -117,6 +120,9 @@ endpoints together:
 
 The server resolves names and dangling references — a route pointing at a deleted destination is a
 real state worth seeing, so it becomes a node marked missing rather than a silently absent link.
+Destination details are Team and channel **names**, read through the `directoryCache` the pickers
+already use, and fall back to the stored ids when Graph is unreachable: the picture is still worth
+drawing without the directory.
 
 ### The route check
 
@@ -139,11 +145,22 @@ as JSON.
 
 ### Drawing it
 
-A vendored D3 force layout, per [ADR 0008](adr/0008-templ-tailwind-admin-ui.md)'s rule that
-libraries are committed rather than fetched at page load. The full `d3.min.js` is 280 KB, against
-roughly 36 KB for the four modules actually used (`d3-force`, `d3-selection`, `d3-zoom`,
-`d3-drag`). Start with the full bundle because it certainly works, and revisit if the binary size
-becomes uncomfortable — it is already carrying 335 KB of Adaptive Cards renderer.
+Alerts travel from a webhook to a channel, so the picture is a directed acyclic graph read left to
+right rather than a force-directed cloud: webhook, routes in evaluation order, then destinations
+with the templates below them in the same column. A force layout arranges by repulsion, which puts
+the start of the flow wherever the physics lands it — the one thing the view must not leave to
+chance.
+
+Positions are therefore computed in `buildGraph` and shipped on each node, where the Go tests can
+assert the columns. D3 stays for interaction: zoom, pan and dragging a node out of an overlap,
+per [ADR 0008](adr/0008-templ-tailwind-admin-ui.md)'s rule that libraries are committed rather than
+fetched at page load. The full `d3.min.js` is 280 KB, against roughly 36 KB for the three modules
+actually used (`d3-selection`, `d3-zoom`, `d3-drag`). Start with the full bundle because it
+certainly works, and revisit if the binary size becomes uncomfortable — it is already carrying
+335 KB of Adaptive Cards renderer.
+
+Templates get their own nodes rather than being named inside the route boxes, so a template no
+route uses is visible as an orphan.
 
 Matching a route highlights its node and dims the rest, so the check and the graph are one view
 rather than two.
@@ -151,8 +168,9 @@ rather than two.
 ### Tests
 
 The graph builder and the reason-returning routing function are Go, so the coverage gate covers
-them: the shapes above, a route with a missing destination, an empty configuration, and each of the
-four reasons. The drawing itself is not tested; the page is asserted to render and to reference
+them: the shapes above, the columns the layout assigns, a route with a missing destination, an
+unreachable directory falling back to ids, an empty configuration, and each of the four reasons.
+The drawing itself is not tested; the page is asserted to render and to reference
 assets that exist.
 
 ## Milestone 4 — Card editor

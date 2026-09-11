@@ -99,11 +99,18 @@ bad token, and `502` when routing, rendering, the store or Graph fails.
 
 ## Routing visualization
 
-`/admin/routing` draws routes against their destinations and templates, and answers which route a
-set of labels would take. `GET /api/routing/graph` builds the graph server-side, resolving the
-identifiers a route stores into labelled nodes; a route pointing at something deleted becomes a
-node marked missing rather than a dropped link, because that broken state is what the view exists
-to show.
+`/admin/routing` draws the path an alert takes and answers which route a set of labels would take.
+`GET /api/routing/graph` builds the graph server-side, resolving the identifiers a route stores
+into labelled nodes; a route pointing at something deleted becomes a node marked missing rather
+than a dropped link, because that broken state is what the view exists to show.
+
+The graph is a directed acyclic graph read left to right: one webhook source node, then the routes
+in the order the router evaluates them, then the destinations and — below them, in the same column
+— the templates. Each node carries the position it is drawn at, so the layout is decided in Go
+where the tests can see it and the browser only draws, zooms and drags. A route node shows the
+labels it filters for, a destination node its name together with the Team and channel **names**,
+resolved through the same `directoryCache` the pickers use. That lookup is best effort: an
+unreachable Graph falls back to the stored ids rather than failing the request.
 
 `POST /api/routing/match` returns the winning route and **why** it won — `selector`, `default`,
 `none` or `no-routes`. That reason comes from `routing.Match`, which holds the rule in one place;

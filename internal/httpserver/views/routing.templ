@@ -12,13 +12,14 @@ templ RoutingPage() {
 				</form>
 				<div class="lg:col-span-2">
 					<div class="mb-3 flex flex-wrap gap-3 text-xs text-slate-600">
+						@legendSwatch("bg-slate-500", "webhook")
 						@legendSwatch("bg-sky-500", "route")
 						@legendSwatch("bg-emerald-500", "destination")
 						@legendSwatch("bg-amber-500", "template")
 						@legendSwatch("bg-red-500", "missing")
 					</div>
 					<div id="routing-graph" class="h-[32rem] w-full rounded-md border border-slate-200 bg-slate-50"></div>
-					<p class="mt-2 text-xs text-slate-500">Drag a node to rearrange it, scroll to zoom.</p>
+					<p class="mt-2 text-xs text-slate-500">Alerts flow left to right, from the webhook through the routes that match them. Drag a node to rearrange it, scroll to zoom.</p>
 				</div>
 			</div>
 		</section>
