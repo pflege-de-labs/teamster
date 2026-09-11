@@ -5,6 +5,11 @@
   const channelInput = document.getElementById("destination-channel");
   if (!teamInput || !channelInput) return;
 
+  // The label wrapping the channel input, so the field can be hidden whole
+  // rather than leaving a label above nothing.
+  const channelField = channelInput.closest("label");
+  const channelHint = document.getElementById("destination-channel-hint");
+
   // The words come from the field the server rendered, which knows the
   // language; this script does not, and a catalog shipped to the browser would
   // be a second place for the text to live.
@@ -43,6 +48,26 @@
     input.type = "text";
   }
 
+  // A channel belongs to a Team, so asking for one before a Team is chosen is
+  // asking a question with no answers. The whole field goes away rather than
+  // falling back to a text input nobody can fill in usefully.
+  function hideChannelField(reason) {
+    const existing = document.getElementById("destination-channel-select");
+    if (existing) existing.remove();
+    channelInput.type = "hidden";
+    channelInput.value = "";
+    if (channelField) channelField.hidden = true;
+    if (channelHint) {
+      channelHint.textContent = reason || "";
+      channelHint.hidden = reason === "";
+    }
+  }
+
+  function showChannelField() {
+    if (channelField) channelField.hidden = false;
+    if (channelHint) channelHint.hidden = true;
+  }
+
   async function load(url, key) {
     let payload;
     try {
@@ -60,9 +85,13 @@
   async function loadChannels(teamID) {
     const channels = await load("/api/graph/teams/" + encodeURIComponent(teamID) + "/channels", "channels");
     if (!channels) {
+      // Graph could not list them, so typing an id is the way through again.
+      showChannelField();
       showInput(channelInput, "destination-channel-select");
       return;
     }
+
+    showChannelField();
 
     const select = buildSelect(
       "destination-channel-select",
@@ -97,7 +126,7 @@
     select.addEventListener("change", () => {
       teamInput.value = select.value;
       if (!select.value) {
-        showInput(channelInput, "destination-channel-select");
+        hideChannelField(channelInput.dataset.pickerRequiresTeam || "");
         return;
       }
       loadChannels(select.value);
@@ -109,6 +138,9 @@
     if (select.value) {
       teamInput.value = select.value;
       await loadChannels(select.value);
+      return;
     }
+    // Nothing chosen yet, so there is no channel to choose from.
+    hideChannelField(channelInput.dataset.pickerRequiresTeam || "");
   })();
 })();

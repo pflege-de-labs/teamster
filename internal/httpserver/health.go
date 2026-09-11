@@ -3,6 +3,7 @@ package httpserver
 import (
 	"net/http"
 
+	"github.com/pflege-de-labs/teamster/internal/httpserver/views"
 	"github.com/pflege-de-labs/teamster/internal/i18n"
 )
 
@@ -68,7 +69,16 @@ func writePlain(w http.ResponseWriter, status int, body string) {
 // never asks.
 func (s *Server) localized(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		tag := s.text.Match(r.Header.Get("Accept-Language"))
-		next.ServeHTTP(w, r.WithContext(i18n.WithLanguage(r.Context(), s.text, tag)))
+		chosen, fromCookie := s.languagePreference(r)
+		tag := i18n.Parse(chosen)
+
+		ctx := i18n.WithLanguage(r.Context(), s.text, tag)
+		ctx = views.WithLanguageChoice(ctx, views.LanguageChoice{
+			Languages: s.languageTags(),
+			Current:   tag.String(),
+			Chosen:    fromCookie,
+			Return:    r.URL.RequestURI(),
+		})
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

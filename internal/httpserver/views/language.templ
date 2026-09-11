@@ -1,0 +1,36 @@
+package views
+
+import "github.com/pflege-de-labs/teamster/internal/i18n"
+
+// The language picker sits in the header of every page, including the login
+// page: somebody reading that one in a language they do not speak has nowhere
+// else to change it.
+//
+// It is a form rather than a link, because it changes something. The button
+// submits it without JavaScript; language.js hides the button and submits on
+// change, which is nicer and not required.
+templ languagePicker(page LanguageChoice) {
+	<form method="post" action="/admin/language" id="language-picker" class="flex items-center gap-1.5">
+		<input type="hidden" name="return" value={ page.Return }/>
+		<label class="sr-only" for="language-select">{ i18n.T(ctx, "language.label") }</label>
+		<select
+			id="language-select"
+			name="language"
+			class="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-700"
+		>
+			<option value="" selected?={ !page.Chosen }>{ i18n.T(ctx, "language.browser") }</option>
+			for _, tag := range page.Languages {
+				<option value={ tag } selected?={ page.Chosen && page.Current == tag }>
+					{ i18n.T(ctx, "language.name_"+tag) }
+				</option>
+			}
+		</select>
+		<button
+			type="submit"
+			id="language-apply"
+			class="rounded-md border border-slate-300 px-2 py-1.5 text-sm text-slate-700 hover:border-slate-400 hover:bg-slate-50"
+		>
+			{ i18n.T(ctx, "language.apply") }
+		</button>
+	</form>
+}

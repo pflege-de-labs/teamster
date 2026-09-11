@@ -310,3 +310,26 @@ func selectorText(ctx context.Context, selector map[string]string) string {
 	}
 	return strings.Join(pairs, ", ")
 }
+
+// A LanguageChoice is what the picker in the header needs: the languages this
+// build carries, which one is showing, whether that was chosen or merely
+// negotiated, and where to come back to.
+type LanguageChoice struct {
+	Languages []string
+	Current   string
+	Chosen    bool
+	Return    string
+}
+
+type languageContextKey struct{}
+
+// WithLanguageChoice carries it in the context, because Layout renders on every
+// page and threading it through each one's parameters would touch them all.
+func WithLanguageChoice(ctx context.Context, choice LanguageChoice) context.Context {
+	return context.WithValue(ctx, languageContextKey{}, choice)
+}
+
+func languageOf(ctx context.Context) LanguageChoice {
+	choice, _ := ctx.Value(languageContextKey{}).(LanguageChoice)
+	return choice
+}

@@ -25,6 +25,7 @@ templ Layout(title string, viewer *Viewer) {
 						<div class="text-xl font-semibold">{ i18n.T(ctx, "app.title") }</div>
 						<div class="text-sm text-slate-500">{ i18n.T(ctx, "app.subtitle") }</div>
 					</div>
+					@languagePicker(languageOf(ctx))
 					if viewer != nil {
 						<nav class="flex items-center gap-4 text-sm">
 							<a href="/admin" class="text-slate-600 hover:text-slate-900">{ i18n.T(ctx, "nav.configuration") }</a>
@@ -42,6 +43,7 @@ templ Layout(title string, viewer *Viewer) {
 			<script src="/pickers.js"></script>
 			<script src="/vendor/d3.min.js"></script>
 			<script src="/routing.js"></script>
+			<script src="/language.js"></script>
 		</body>
 	</html>
 }
