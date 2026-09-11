@@ -494,6 +494,79 @@ an empty element or panicking.
 
 Needs an ADR: it changes how every component in the UI is written.
 
+## Milestone 11 — Metrics worth alerting on
+
+The service that routes alerts produces none of its own. Whether deliveries are failing, how long
+Graph is taking, how many alerts are in flight — none of it leaves the process except as log lines,
+which nobody aggregates until the day they need them.
+
+### What to measure
+
+Counters and histograms about the work, not about the runtime:
+
+* deliveries by outcome — posted, updated, refused by Graph — and by route, because "delivery is
+  broken" and "one channel is broken" want different responses
+* webhook receipts by source and status, including the ones rejected for a bad token
+* Graph call duration and failures, which is the dependency most likely to be the problem
+* rendering failures by template, which today surface only as a `502` to Alertmanager
+* active alerts currently tracked, so a leak in the state table is visible before it is a problem
+
+The Go runtime collector comes free with either client library and is worth having, but it is not
+the point.
+
+### Prometheus and OTEL, without choosing
+
+`GET /metrics` in the Prometheus text format is what most deployments will scrape, and the rest
+export OTLP to a collector. Both are wanted. The way not to write everything twice is to instrument
+once against OpenTelemetry's metric API and attach two readers: the Prometheus exporter from
+`go.opentelemetry.io/otel/exporters/prometheus` serving `/metrics`, and an OTLP exporter when one is
+configured. That keeps a single set of instruments in the code and makes the choice a matter of
+configuration.
+
+The alternative — `prometheus/client_golang` directly, with OTLP bridged from it — is fewer
+dependencies for the common case and more work for the other one. The ADR picks, against the actual
+size the two pull in.
+
+### Where it is exposed
+
+`/metrics` is unauthenticated like the probes, or behind the same basic auth as `/api` — an
+operator's answer depends on whether their network already isolates it. Configuration decides, and
+the default should be off, because the metrics name templates, routes and channels.
+
+Needs an ADR: it adds an export surface and a dependency that will be in every build.
+
+## Milestone 12 — More than one instance, more than SQLite
+
+SQLite takes one writer, and the store runs its migrations at startup. Two replicas would race on
+both, so a deployment is one pod, `ReadWriteOnce`, and a restart is a gap in alert delivery.
+
+For most installations that is fine. For one where an alert that does not arrive is a real problem,
+it is not.
+
+### What actually blocks it
+
+* **The store.** `store.Store` is an interface and `httpserver.NewServer` takes it, so a second
+  implementation is a new type and a driver setting rather than a refactor. What is SQLite-shaped is
+  the migration code — `PRAGMA table_info`, and the `active_alerts` rebuild that exists because
+  SQLite cannot alter a primary key — the `DATETIME` declared-type guard, and `?` placeholders.
+* **Migrations on start.** Two instances starting together must not both migrate. An advisory lock
+  in the database, or a migration that runs as its own step, rather than every process racing.
+* **Alert state.** `active_alerts` is how a repeated `firing` finds its card instead of posting a
+  second one. Two instances handling the same alert concurrently need that to be atomic — a unique
+  key and an upsert that returns what it did, rather than the read-then-write there is today.
+* **The session and login-flow tables**, which are already shared state and would simply work.
+* **The directory cache**, which is per-process and would merely be warmed twice.
+
+Postgres is the obvious second backend: it is what the deployments that want two replicas already
+run.
+
+### What it is not
+
+Not a queue, not leader election, not sharding. Two or three instances behind a service, each able
+to take any request, sharing one database. Anything more is a different service.
+
+Needs an ADR, and probably a second one for how migrations are sequenced.
+
 ## Sequencing
 
 | Order | Item | Depends on | Blocked by |
@@ -511,6 +584,8 @@ Needs an ADR: it changes how every component in the UI is written.
 | — | 8 Import and export | 7 for permissions | done |
 | 6 | 9 Card editor | 1.4 | decision after 1.4 |
 | 7 | 10 Localizable UI | — | — |
+| 8 | 11 Metrics | — | ADR on OTEL versus Prometheus directly |
+| 9 | 12 More than one instance | 11 helps | ADR, and a second backend |
 
 1.3 sat after 1.4 because it was the only item waiting on someone else to grant a permission.
 
@@ -520,8 +595,14 @@ it immediately, because shipping a picture that disagrees with routing is worse 
 neither. 8 waits on 7 only for the permission part of the bundle; the rest of it could be pulled
 forward if a migration is needed sooner.
 
-10 sits last because 7 and 9 both add screens, and extracting strings from a UI that is still
-growing means doing it twice. The counter-argument is real though: everything built before it adds
+11 and 12 sit after the feature work because both are about running the service rather than using
+it, and 12 in particular is worth doing when somebody actually needs a second replica: the single
+instance is a real constraint but not yet a real problem. 11 comes first of the two because knowing
+what the service is doing is most of what makes an HA deployment reviewable.
+
+10 sits last of the feature work because 7 and 9 both add screens, and extracting strings from a UI
+that is still growing means doing it twice. The counter-argument is real though: everything built
+before it adds
 more strings to extract later, so if a second language is actually wanted, pull it forward ahead of
 7 and let the new screens be written against the catalog from the start.
 
