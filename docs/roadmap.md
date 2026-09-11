@@ -295,7 +295,7 @@ templates in a lighter style so inherited and set are distinguishable at a glanc
 
 Needs an ADR: routing stops being "one alert, one message".
 
-## Milestone 6 — Routing visualization, second pass
+## Milestone 6 — Routing visualization, second pass — done
 
 Milestone 5 changes what there is to draw, and the current picture has a flaw worth fixing at the
 same time: templates are nodes, which makes an edge from a route to a template mean something
@@ -416,7 +416,7 @@ this service actually uses. The decision gets its own ADR when we get there.
 | — | 3 Routing visualization | — | done |
 | — | 4 Activity feed messages | — | done |
 | — | 5 Nested routes | — | done |
-| 3 | 6 Visualization, second pass | 5 | — |
+| — | 6 Visualization, second pass | 5 | done |
 | 4 | 7 Fine-grained permissions | 2 | ADR on how OpenFGA is run |
 | 5 | 8 Import and export | 7 for permissions | — |
 | 6 | 9 Card editor | 1.4 | decision after 1.4 |

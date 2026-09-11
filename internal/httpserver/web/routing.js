@@ -1,16 +1,17 @@
 // Draws the routing graph and explains a match. Routing priority is hard to read
 // from three separate tables, so the picture and the probe live on one page.
 (function () {
-  const container = document.getElementById("routing-graph");
-  if (!container) return;
+  const flowContainer = document.getElementById("routing-graph");
+  if (!flowContainer) return;
 
+  const templateContainer = document.getElementById("template-graph");
   const form = document.getElementById("match-form");
   const result = document.getElementById("match-result");
 
   // Alerts flow left to right, so the drawing is a layered DAG: the server
   // places every node, the browser only draws and lets them be dragged.
   const boxWidth = 220;
-  const boxHeight = 56;
+  const boxHeight = 64;
   const margin = 48;
 
   const accents = {
@@ -31,12 +32,11 @@
   // mistaken for a kind of node.
   const matchColour = "#4f46e5";
 
-  let groups = null;
-  let edges = null;
-  let edgeData = [];
-  let sourceID = null;
+  // The flow graph is the one the match probe highlights; the template graph is
+  // only ever drawn.
+  let flow = null;
 
-  function empty(message) {
+  function empty(container, message) {
     container.replaceChildren();
     const p = document.createElement("p");
     p.className = "flex h-full items-center justify-center text-sm text-slate-500";
@@ -58,35 +58,52 @@
     return node.detail || "";
   }
 
+  // The template a route renders with is a label, not a node: rendering is not
+  // a step the alert takes towards a channel.
+  function templateLine(node) {
+    if (node.kind !== "route" || !node.template) return "";
+    if (node.template_missing) return "renders with a deleted template";
+    return "renders with " + node.template + (node.template_inherited ? " (inherited)" : "");
+  }
+
   function tooltip(node) {
     const parts = [node.label];
     const sub = subtitle(node);
     if (sub) parts.push(sub);
+    const template = templateLine(node);
+    if (template) parts.push(template);
     if (node.kind === "route") {
       parts.push("priority " + node.priority);
       if (node.default) parts.push("default route");
+      if (node.greedy) parts.push("delivers instead of the route it refines");
     }
     if (node.missing) parts.push("referenced by a route but no longer exists");
     return parts.join("\n");
   }
 
-  // Column headings sit above the first node of each kind, so the two groups
-  // sharing the right-hand column stay told apart.
+  // What an edge means, spelled out rather than left to the reader.
+  function edgeLabel(link) {
+    if (link.kind !== "refines") return "";
+    return link.greedy ? "instead of" : "as well as";
+  }
+
+  // Column headings sit above the first node of each kind, and each column of
+  // routes gets one, because a child column is a different step.
   function columnHeadings(nodes) {
     const tops = new Map();
     nodes.forEach((node) => {
-      const seen = tops.get(node.kind);
-      if (!seen || node.y < seen.y) tops.set(node.kind, node);
+      const key = node.kind + ":" + node.x;
+      const seen = tops.get(key);
+      if (!seen || node.y < seen.y) tops.set(key, node);
     });
-    return Array.from(tops, ([kind, node]) => ({
-      kind: kind,
-      text: headings[kind] || kind,
+    return Array.from(tops.values(), (node) => ({
+      text: headings[node.kind] || node.kind,
       x: node.x,
       y: node.y - 18,
     }));
   }
 
-  function draw(nodes, links) {
+  function drawGraph(container, nodes, links) {
     const width = container.clientWidth;
     const height = container.clientHeight;
     const byID = new Map(nodes.map((node) => [node.id, node]));
@@ -99,10 +116,11 @@
       .attr("height", "100%")
       .attr("viewBox", [0, 0, width, height]);
 
+    const idPrefix = container.id + "-";
     const defs = svg.append("defs");
     [
-      { id: "routing-arrow", fill: "#94a3b8" },
-      { id: "routing-arrow-match", fill: matchColour },
+      { id: idPrefix + "arrow", fill: "#94a3b8" },
+      { id: idPrefix + "arrow-match", fill: matchColour },
     ].forEach((arrow) => {
       defs
         .append("marker")
@@ -138,6 +156,16 @@
       return "M" + x1 + "," + y1 + "C" + (x1 + bend) + "," + y1 + " " + (x2 - bend) + "," + y2 + " " + x2 + "," + y2;
     }
 
+    function midpoint(link) {
+      const from = byID.get(link.source);
+      const to = byID.get(link.target);
+      if (!from || !to) return { x: 0, y: 0 };
+      return {
+        x: (from.x + boxWidth + to.x) / 2,
+        y: (from.y + to.y) / 2 + boxHeight / 2 - 6,
+      };
+    }
+
     const link = root
       .append("g")
       .attr("fill", "none")
@@ -146,10 +174,25 @@
       .selectAll("path")
       .data(links)
       .join("path")
-      .attr("marker-end", "url(#routing-arrow)")
+      // A refinement is a step between two routes rather than a delivery, so it
+      // is drawn differently as well as labelled.
+      .attr("stroke-dasharray", (d) => (d.kind === "refines" ? "5 4" : null))
+      .attr("marker-end", "url(#" + idPrefix + "arrow)")
       .attr("d", path);
 
-    const heading = root
+    const edgeText = root
+      .append("g")
+      .selectAll("text")
+      .data(links.filter((candidate) => edgeLabel(candidate) !== ""))
+      .join("text")
+      .attr("x", (d) => midpoint(d).x)
+      .attr("y", (d) => midpoint(d).y)
+      .attr("text-anchor", "middle")
+      .attr("font-size", 10)
+      .attr("fill", "#64748b")
+      .text((d) => edgeLabel(d));
+
+    root
       .append("g")
       .selectAll("text")
       .data(columnHeadings(nodes))
@@ -168,14 +211,13 @@
       .join("g")
       .attr("transform", (d) => "translate(" + d.x + "," + d.y + ")")
       .call(
-        d3
-          .drag()
-          .on("drag", (event, d) => {
-            d.x = event.x;
-            d.y = event.y;
-            d3.select(event.sourceEvent.currentTarget).attr("transform", "translate(" + d.x + "," + d.y + ")");
-            link.attr("d", path);
-          }),
+        d3.drag().on("drag", (event, d) => {
+          d.x = event.x;
+          d.y = event.y;
+          d3.select(event.sourceEvent.currentTarget).attr("transform", "translate(" + d.x + "," + d.y + ")");
+          link.attr("d", path);
+          edgeText.attr("x", (each) => midpoint(each).x).attr("y", (each) => midpoint(each).y);
+        }),
       );
 
     node
@@ -197,7 +239,7 @@
     node
       .append("text")
       .attr("x", 14)
-      .attr("y", 22)
+      .attr("y", 20)
       .attr("font-size", 12)
       .attr("font-weight", 600)
       .attr("fill", "#0f172a")
@@ -206,28 +248,31 @@
     node
       .append("text")
       .attr("x", 14)
-      .attr("y", 40)
+      .attr("y", 37)
       .attr("font-size", 10)
       .attr("fill", (d) => (d.missing ? "#b91c1c" : "#475569"))
       .text((d) => clip(subtitle(d), 34));
 
     node
+      .append("text")
+      .attr("x", 14)
+      .attr("y", 53)
+      .attr("font-size", 10)
+      .attr("font-style", "italic")
+      .attr("fill", (d) => (d.template_missing ? "#b91c1c" : "#94a3b8"))
+      .text((d) => clip(templateLine(d), 34));
+
+    node
       .filter((d) => d.kind === "route")
       .append("text")
       .attr("x", boxWidth - 10)
-      .attr("y", 22)
+      .attr("y", 20)
       .attr("text-anchor", "end")
       .attr("font-size", 10)
       .attr("fill", "#64748b")
       .text((d) => (d.default ? "default" : "p" + d.priority));
 
     node.append("title").text((d) => tooltip(d));
-
-    groups = node;
-    edges = link;
-    edgeData = links;
-    const start = nodes.find((candidate) => candidate.kind === "source");
-    sourceID = start ? start.id : null;
 
     // Open on the whole graph rather than on its top left corner.
     const minX = d3.min(nodes, (d) => d.x) - margin;
@@ -243,21 +288,28 @@
         .translate(-minX, -minY),
     );
 
-    return { link: link, heading: heading };
+    const start = nodes.find((candidate) => candidate.kind === "source");
+    return {
+      nodes: node,
+      edges: link,
+      edgeData: links,
+      sourceID: start ? start.id : null,
+      arrows: { rest: "url(#" + idPrefix + "arrow)", match: "url(#" + idPrefix + "arrow-match)" },
+    };
   }
 
   // A matched route is only half the answer: what an operator wants to see is
-  // where that alert ends up. An alert can now fan out across a tree of routes,
-  // so the path is every node the server says it reaches, plus the edges
-  // between them.
+  // where that alert ends up. An alert can fan out across a tree of routes, so
+  // the path is every node the server says it reaches, plus the edges between
+  // them and the ancestors they were reached through.
   function pathOf(matched) {
     const nodeIDs = new Set(matched);
-    if (sourceID) nodeIDs.add(sourceID);
+    if (flow.sourceID) nodeIDs.add(flow.sourceID);
 
-    // A child is reached through its parent, so the ancestors are on the path
-    // even when they deliver nothing themselves.
     const parents = new Map();
-    edgeData.forEach((link) => parents.set(link.target, link.source));
+    flow.edgeData.forEach((link) => {
+      if (link.kind !== "delivers") parents.set(link.target, link.source);
+    });
     matched.forEach((id) => {
       let walked = 0;
       for (let at = parents.get(id); at && walked < 16; at = parents.get(at)) {
@@ -267,7 +319,7 @@
     });
 
     const linkIDs = new Set();
-    edgeData.forEach((link) => {
+    flow.edgeData.forEach((link) => {
       if (nodeIDs.has(link.source) && nodeIDs.has(link.target)) {
         linkIDs.add(link.source + ">" + link.target);
       }
@@ -276,35 +328,35 @@
   }
 
   function highlight(matched) {
-    if (!groups || !edges) return;
+    if (!flow) return;
 
     if (!matched || matched.length === 0) {
-      groups.attr("opacity", 1);
-      groups.select("rect").attr("stroke", (d) => (d.missing ? "#ef4444" : "#cbd5e1")).attr("stroke-width", 1);
-      edges
+      flow.nodes.attr("opacity", 1);
+      flow.nodes.select("rect").attr("stroke", (d) => (d.missing ? "#ef4444" : "#cbd5e1")).attr("stroke-width", 1);
+      flow.edges
         .attr("opacity", 1)
         .attr("stroke", "#94a3b8")
         .attr("stroke-width", 1.5)
-        .attr("marker-end", "url(#routing-arrow)");
+        .attr("marker-end", flow.arrows.rest);
       return;
     }
 
     const taken = pathOf(matched);
-    groups.attr("opacity", (d) => (taken.nodes.has(d.id) ? 1 : 0.2));
-    groups
+    const onPath = (d) => taken.links.has(d.source + ">" + d.target);
+
+    flow.nodes.attr("opacity", (d) => (taken.nodes.has(d.id) ? 1 : 0.2));
+    flow.nodes
       .select("rect")
       .attr("stroke", (d) => {
         if (taken.nodes.has(d.id)) return matchColour;
         return d.missing ? "#ef4444" : "#cbd5e1";
       })
       .attr("stroke-width", (d) => (taken.nodes.has(d.id) ? 2.5 : 1));
-    edges
-      .attr("opacity", (d) => (taken.links.has(d.source + ">" + d.target) ? 1 : 0.15))
-      .attr("stroke", (d) => (taken.links.has(d.source + ">" + d.target) ? matchColour : "#94a3b8"))
-      .attr("stroke-width", (d) => (taken.links.has(d.source + ">" + d.target) ? 2.5 : 1.5))
-      .attr("marker-end", (d) =>
-        taken.links.has(d.source + ">" + d.target) ? "url(#routing-arrow-match)" : "url(#routing-arrow)",
-      );
+    flow.edges
+      .attr("opacity", (d) => (onPath(d) ? 1 : 0.15))
+      .attr("stroke", (d) => (onPath(d) ? matchColour : "#94a3b8"))
+      .attr("stroke-width", (d) => (onPath(d) ? 2.5 : 1.5))
+      .attr("marker-end", (d) => (onPath(d) ? flow.arrows.match : flow.arrows.rest));
   }
 
   function parseLabels(text) {
@@ -354,25 +406,42 @@
     });
   }
 
+  async function load(endpoint) {
+    const res = await fetch(endpoint);
+    if (!res.ok) throw new Error("status " + res.status);
+    const payload = await res.json();
+    return {
+      nodes: payload && Array.isArray(payload.nodes) ? payload.nodes : [],
+      links: payload && Array.isArray(payload.links) ? payload.links : [],
+    };
+  }
+
   (async () => {
-    let payload;
+    let graph;
     try {
-      const res = await fetch("/api/routing/graph");
-      if (!res.ok) throw new Error("status " + res.status);
-      payload = await res.json();
+      graph = await load("/api/routing/graph");
     } catch (err) {
-      empty("Nothing to draw yet. Create a route, a destination and a template first.");
+      empty(flowContainer, "Nothing to draw yet. Create a route, a destination and a template first.");
       return;
     }
 
-    const nodes = payload && Array.isArray(payload.nodes) ? payload.nodes : [];
     // The webhook source is always there, so it alone is not a graph worth drawing.
-    if (nodes.filter((node) => node.kind !== "source").length === 0) {
-      empty("Nothing to draw yet. Create a route, a destination and a template first.");
-      return;
+    if (graph.nodes.filter((node) => node.kind !== "source").length === 0) {
+      empty(flowContainer, "Nothing to draw yet. Create a route, a destination and a template first.");
+    } else {
+      flow = drawGraph(flowContainer, graph.nodes, graph.links);
     }
 
-    const links = payload && Array.isArray(payload.links) ? payload.links : [];
-    draw(nodes, links);
+    if (!templateContainer) return;
+    try {
+      const templates = await load("/api/routing/templates");
+      if (templates.nodes.length === 0) {
+        empty(templateContainer, "No templates yet.");
+        return;
+      }
+      drawGraph(templateContainer, templates.nodes, templates.links);
+    } catch (err) {
+      empty(templateContainer, "The template graph could not be loaded.");
+    }
   })();
 })();

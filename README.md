@@ -172,13 +172,16 @@ working.
 
 ## Routing visualization
 
-`/admin/routing` draws the path an alert takes — webhook, then the routes in the order they are
-evaluated, then the destinations and templates they point at, arrows carrying the direction — and
-answers "which route would this alert take?": paste `key=value` labels and the matching route is
-named, explained, and the path it takes through the graph is picked out in colour while the rest
-dims. Route nodes show the labels they filter for; destination nodes name their Team and channel,
-falling back to the stored ids when Graph cannot be reached. A route pointing at a deleted
-destination or template shows up as a missing node rather than disappearing.
+`/admin/routing` draws the path an alert takes — webhook, the routes in the order they are
+evaluated with child routes hanging off their parents, then the channels they deliver to — and
+answers "which route would this alert take?": paste `key=value` labels and every route that
+delivers is named, explained, and the paths are picked out in colour while the rest dims.
+
+Route nodes show the labels they filter for and name the template they render with, marked when it
+is inherited. A dashed arrow between two routes is a refinement, labelled *as well as* or *instead
+of* depending on whether the child is greedy. A second graph below pairs templates with the routes
+that use them; a template with nothing beside it is used by no route. A route pointing at a deleted
+destination shows up as a missing node rather than disappearing.
 
 ## Container
 

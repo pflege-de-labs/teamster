@@ -66,17 +66,21 @@ func TestRoutingGraph(t *testing.T) {
 	if got := nodes["destination:dest"]; got.Kind != "destination" || got.Label != "Ops channel" || got.Detail != "Platform › Alerts" {
 		t.Errorf("destination node = %+v, want the destination name and the Team/channel names", got)
 	}
-	if got := nodes["template:tmpl"]; got.Label != "Critical card" {
-		t.Errorf("template node = %+v, want the template name", got)
+	// A template is not a place an alert goes, so it is a label on the route
+	// rather than a node in the flow.
+	if got := nodes["route:critical"]; got.Template != "Critical card" || got.TemplateInherited {
+		t.Errorf("route node = %+v, want the template it renders with as its own", got)
+	}
+	if _, ok := nodes["template:tmpl"]; ok {
+		t.Error("the flow still has a template node, so an edge means two things")
 	}
 	if !nodes["route:fallback"].Default {
 		t.Error("the default route is not marked as one")
 	}
 
-	// The webhook source, plus two routes each pointing at a destination and a
-	// template.
-	if len(links) != 6 {
-		t.Errorf("links = %d, want 6", len(links))
+	// The webhook into each of two routes, and each route into a destination.
+	if len(links) != 4 {
+		t.Errorf("links = %d, want 4", len(links))
 	}
 	for _, link := range links {
 		if _, ok := nodes[link.Target]; !ok {
@@ -172,13 +176,6 @@ func TestRoutingGraphLaysOutColumns(t *testing.T) {
 	// The default route is evaluated last, so it is drawn last.
 	if nodes["route:critical"].Y >= nodes["route:fallback"].Y {
 		t.Error("the default route is not below the route that outranks it")
-	}
-	// Templates share the column with the destinations but sit below them.
-	if nodes["template:tmpl"].X != nodes["destination:dest"].X {
-		t.Error("templates are not in the same column as the destinations")
-	}
-	if nodes["template:tmpl"].Y <= nodes["destination:dest"].Y {
-		t.Error("templates are not below the destinations")
 	}
 }
 
@@ -313,7 +310,7 @@ func TestRoutingPageRenders(t *testing.T) {
 
 	body := rec.Body.String()
 	for _, want := range []string{
-		`id="routing-graph"`, `id="match-form"`, `id="match-result"`,
+		`id="routing-graph"`, `id="template-graph"`, `id="match-form"`, `id="match-result"`,
 		`name="labels"`, `src="/vendor/d3.min.js"`, `src="/routing.js"`,
 		`href="/admin/routing"`,
 	} {
@@ -385,12 +382,12 @@ func TestRoutingGraphNestsChildRoutes(t *testing.T) {
 	}
 }
 
-// The child sets no template, so the picture has to draw the one it inherits
-// rather than leaving the alert going nowhere.
+// The child sets no template, so the picture has to name the one it inherits
+// and say that it is inherited.
 func TestRoutingGraphDrawsInheritedTargets(t *testing.T) {
 	t.Parallel()
 
-	_, links := graphFrom(t, newTestServer(t, nestedRoutingStore(), &fakeMessenger{}).Handler)
+	nodes, links := graphFrom(t, newTestServer(t, nestedRoutingStore(), &fakeMessenger{}).Handler)
 
 	targets := map[string]bool{}
 	for _, link := range links {
@@ -401,8 +398,138 @@ func TestRoutingGraphDrawsInheritedTargets(t *testing.T) {
 	if !targets["destination:escalation"] {
 		t.Error("the child does not reach its own destination")
 	}
-	if !targets["template:tmpl"] {
-		t.Error("the child does not reach the template it inherits")
+
+	child := nodes["route:child"]
+	if child.Template != "Critical card" || !child.TemplateInherited {
+		t.Errorf("child node = %+v, want the inherited template named and marked", child)
+	}
+}
+
+// One kind of edge means one thing. Which step it is has to be readable, or the
+// drawing cannot say whether a child delivers as well as its parent.
+func TestRoutingGraphLabelsItsEdges(t *testing.T) {
+	t.Parallel()
+
+	st := nestedRoutingStore()
+	greedy := st.routes["child"]
+	greedy.Greedy = true
+	st.routes["child"] = greedy
+
+	_, links := graphFrom(t, newTestServer(t, st, &fakeMessenger{}).Handler)
+
+	kinds := map[string]graphLink{}
+	for _, link := range links {
+		kinds[link.Source+">"+link.Target] = link
+	}
+
+	if got := kinds["source:webhook>route:critical"]; got.Kind != "enters" {
+		t.Errorf("webhook edge = %+v, want it marked as entering", got)
+	}
+	if got := kinds["route:critical>route:child"]; got.Kind != "refines" || !got.Greedy {
+		t.Errorf("parent edge = %+v, want it marked as a greedy refinement", got)
+	}
+	if got := kinds["route:child>destination:escalation"]; got.Kind != "delivers" {
+		t.Errorf("destination edge = %+v, want it marked as delivering", got)
+	}
+	// A greedy child does not stop its parent from being drawn as delivering
+	// when another alert does not match the child.
+	if got := kinds["route:critical>destination:dest"]; got.Kind != "delivers" {
+		t.Errorf("parent delivery edge = %+v, want it kept", got)
+	}
+}
+
+func templateGraphFrom(t *testing.T, handler http.Handler) (map[string]graphNode, []graphLink) {
+	t.Helper()
+
+	rec := do(t, handler, http.MethodGet, "/api/routing/templates", "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET template graph = %d, want 200 (%s)", rec.Code, rec.Body.String())
+	}
+
+	var payload struct {
+		Nodes []graphNode `json:"nodes"`
+		Links []graphLink `json:"links"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode template graph: %v", err)
+	}
+
+	byID := map[string]graphNode{}
+	for _, node := range payload.Nodes {
+		byID[node.ID] = node
+	}
+	return byID, payload.Links
+}
+
+// "Renders with" is not a step an alert takes, so it gets its own picture — and
+// that picture is where a template nothing uses becomes visible.
+func TestTemplateGraph(t *testing.T) {
+	t.Parallel()
+
+	st := nestedRoutingStore()
+	st.templates["unused"] = models.Template{ID: "unused", Name: "Unused card"}
+
+	nodes, links := templateGraphFrom(t, newTestServer(t, st, &fakeMessenger{}).Handler)
+
+	used := map[string][]string{}
+	for _, link := range links {
+		if link.Kind != "renders" {
+			t.Errorf("link %+v, want every edge to mean rendering", link)
+		}
+		used[link.Source] = append(used[link.Source], link.Target)
+	}
+
+	if len(used["template:tmpl"]) != 3 {
+		t.Errorf("template:tmpl is used by %v, want all three routes including the one that inherits it", used["template:tmpl"])
+	}
+	if len(used["template:unused"]) != 0 {
+		t.Errorf("template:unused is used by %v, want nothing", used["template:unused"])
+	}
+	if got := nodes["template:unused"]; got.Detail == "" {
+		t.Errorf("unused template = %+v, want it to say no route renders with it", got)
+	}
+	if nodes["template:tmpl"].X >= nodes["route:critical"].X {
+		t.Error("templates are not drawn left of the routes that use them")
+	}
+}
+
+// A route rendering with a deleted template shows up here, since the flow graph
+// no longer has a node for it.
+func TestTemplateGraphMarksAMissingTemplate(t *testing.T) {
+	t.Parallel()
+
+	st := routingStore()
+	delete(st.templates, "tmpl")
+
+	nodes, links := templateGraphFrom(t, newTestServer(t, st, &fakeMessenger{}).Handler)
+
+	missing, ok := nodes["template:tmpl"]
+	if !ok || !missing.Missing {
+		t.Fatalf("nodes = %v, want the deleted template marked missing", nodes)
+	}
+	if len(links) == 0 {
+		t.Error("the routes rendering with the deleted template lost their edges")
+	}
+}
+
+func TestTemplateGraphRejectsOtherMethods(t *testing.T) {
+	t.Parallel()
+
+	handler := newTestServer(t, routingStore(), &fakeMessenger{}).Handler
+	if rec := do(t, handler, http.MethodPost, "/api/routing/templates", ""); rec.Code != http.StatusMethodNotAllowed {
+		t.Errorf("POST template graph = %d, want 405", rec.Code)
+	}
+}
+
+func TestTemplateGraphReportsStoreFailures(t *testing.T) {
+	t.Parallel()
+
+	for _, method := range []string{"ListRoutes", "ListTemplates"} {
+		st := routingStore().fail(method)
+		rec := do(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/api/routing/templates", "")
+		if rec.Code != http.StatusInternalServerError {
+			t.Errorf("with %s failing, template graph = %d, want 500", method, rec.Code)
+		}
 	}
 }
 

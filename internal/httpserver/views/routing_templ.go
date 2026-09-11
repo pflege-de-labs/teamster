@@ -69,10 +69,6 @@ func RoutingPage() templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = legendSwatch("bg-amber-500", "template").Render(ctx, templ_7745c5c3_Buffer)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
 			templ_7745c5c3_Err = legendSwatch("bg-red-500", "missing").Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -81,7 +77,7 @@ func RoutingPage() templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</div><div id=\"routing-graph\" class=\"h-[32rem] w-full rounded-md border border-slate-200 bg-slate-50\"></div><p class=\"mt-2 text-xs text-slate-500\">Arrows follow an alert from the webhook through the route that matches it. Check a label set to highlight the path it takes. Drag a node to rearrange it, scroll to zoom.</p></div></div></section>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</div><div id=\"routing-graph\" class=\"h-[32rem] w-full rounded-md border border-slate-200 bg-slate-50\"></div><p class=\"mt-2 text-xs text-slate-500\">Arrows follow an alert from the webhook through the routes that match it to the channels it lands in. A dashed arrow is a child route refining its parent, labelled with whether it delivers as well as its parent or instead of it. Check a label set to highlight every path it takes. Drag a node to rearrange it, scroll to zoom.</p></div></div></section><section class=\"mt-8 rounded-lg border border-slate-200 bg-white shadow-sm\"><h2 class=\"border-b border-slate-200 px-6 py-4 text-lg font-semibold\">Which routes render with which template?</h2><div class=\"px-6 py-6\"><p class=\"mb-3 text-xs text-slate-500\">Rendering is not a step an alert takes, so it has its own picture. A template with no route beside it is used by nothing.</p><div id=\"template-graph\" class=\"h-80 w-full rounded-md border border-slate-200 bg-slate-50\"></div></div></section>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -145,7 +141,7 @@ func legendSwatch(colour, label string) templ.Component {
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `routing.templ`, Line: 33, Col: 9}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `routing.templ`, Line: 47, Col: 9}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 		if templ_7745c5c3_Err != nil {
