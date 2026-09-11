@@ -10,6 +10,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/pflege-de-labs/teamster/internal/graph"
 	"github.com/pflege-de-labs/teamster/internal/models"
 	"github.com/pflege-de-labs/teamster/internal/store"
 	"github.com/pflege-de-labs/teamster/internal/templates"
@@ -104,7 +105,7 @@ func (s *Server) processAlert(alert models.Alert) error {
 		return fmt.Errorf("destination: %w", err)
 	}
 
-	card, err := templates.Render(template.Body, templates.RenderData{
+	rendered, err := templates.RenderMessage(template, templates.RenderData{
 		Alert: alert,
 		Now:   time.Now().UTC().Format(time.RFC3339),
 	})
@@ -112,19 +113,15 @@ func (s *Server) processAlert(alert models.Alert) error {
 		return fmt.Errorf("render: %w", err)
 	}
 
-	summary := alert.Annotations["summary"]
-	if summary == "" {
-		summary = alert.Labels["alertname"]
-	}
-	if summary == "" {
-		summary = "Alert update"
-	}
+	// The summary line is the template's to decide now; templates.RenderMessage
+	// falls back to the one this service used to hardcode.
+	msg := graph.Message{Title: rendered.Title, Text: rendered.Text, Card: rendered.Card}
 
 	switch alert.Status {
 	case "firing":
 		active, err := s.store.GetActiveAlert(alert.Fingerprint)
 		if err == nil {
-			if err := s.graph.UpdateMessage(active.TeamID, active.ChannelID, active.MessageID, card, summary); err != nil {
+			if err := s.graph.UpdateMessage(active.TeamID, active.ChannelID, active.MessageID, msg); err != nil {
 				return fmt.Errorf("graph update: %w", err)
 			}
 			active.Status = alert.Status
@@ -135,7 +132,7 @@ func (s *Server) processAlert(alert models.Alert) error {
 			return fmt.Errorf("active alert lookup: %w", err)
 		}
 
-		messageID, err := s.graph.PostMessage(destination.TeamID, destination.ChannelID, card, summary)
+		messageID, err := s.graph.PostMessage(destination.TeamID, destination.ChannelID, msg)
 		if err != nil {
 			return fmt.Errorf("graph post: %w", err)
 		}
@@ -151,7 +148,7 @@ func (s *Server) processAlert(alert models.Alert) error {
 	case "resolved":
 		active, err := s.store.GetActiveAlert(alert.Fingerprint)
 		if err == nil {
-			if err := s.graph.UpdateMessage(active.TeamID, active.ChannelID, active.MessageID, card, summary); err != nil {
+			if err := s.graph.UpdateMessage(active.TeamID, active.ChannelID, active.MessageID, msg); err != nil {
 				return fmt.Errorf("graph update: %w", err)
 			}
 			return s.store.DeleteActiveAlert(alert.Fingerprint)

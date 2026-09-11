@@ -41,7 +41,9 @@ func (s *SQLiteStore) migrate() error {
 CREATE TABLE IF NOT EXISTS templates (
 	id TEXT PRIMARY KEY,
 	name TEXT NOT NULL,
-	body TEXT NOT NULL,
+	title TEXT NOT NULL DEFAULT '',
+	message_text TEXT NOT NULL DEFAULT '',
+	body TEXT NOT NULL DEFAULT '',
 	created_at DATETIME NOT NULL,
 	updated_at DATETIME NOT NULL
 );
@@ -91,7 +93,38 @@ CREATE TABLE IF NOT EXISTS active_alerts (
 	if err != nil {
 		return fmt.Errorf("migrate schema: %w", err)
 	}
+	if err := s.addMissingColumns(); err != nil {
+		return err
+	}
 	return s.checkTimestampColumns()
+}
+
+// addedColumns are columns a later release introduced. CREATE TABLE IF NOT
+// EXISTS leaves an existing table alone, so a database created before them
+// needs them added rather than the whole schema replayed.
+var addedColumns = []struct {
+	table, column, definition string
+}{
+	{"templates", "title", "TEXT NOT NULL DEFAULT ''"},
+	{"templates", "message_text", "TEXT NOT NULL DEFAULT ''"},
+}
+
+// A template written before this migration is card-only, and renders the title
+// it always had: templates.DefaultTitle fills in for an empty one.
+func (s *SQLiteStore) addMissingColumns() error {
+	for _, add := range addedColumns {
+		declared, err := s.columnTypes(add.table)
+		if err != nil {
+			return err
+		}
+		if _, ok := declared[add.column]; ok {
+			continue
+		}
+		if _, err := s.db.Exec(fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", add.table, add.column, add.definition)); err != nil {
+			return fmt.Errorf("add %s.%s: %w", add.table, add.column, err)
+		}
+	}
+	return nil
 }
 
 // timestampColumns are read back as time.Time only while they are declared
@@ -147,7 +180,7 @@ func (s *SQLiteStore) columnTypes(table string) (map[string]string, error) {
 }
 
 func (s *SQLiteStore) ListTemplates() ([]models.Template, error) {
-	rows, err := s.db.Query(`SELECT id, name, body, created_at, updated_at FROM templates ORDER BY name`)
+	rows, err := s.db.Query(`SELECT id, name, title, message_text, body, created_at, updated_at FROM templates ORDER BY name`)
 	if err != nil {
 		return nil, fmt.Errorf("list templates: %w", err)
 	}
@@ -156,7 +189,7 @@ func (s *SQLiteStore) ListTemplates() ([]models.Template, error) {
 	var out []models.Template
 	for rows.Next() {
 		var t models.Template
-		if err := rows.Scan(&t.ID, &t.Name, &t.Body, &t.CreatedAt, &t.UpdatedAt); err != nil {
+		if err := rows.Scan(&t.ID, &t.Name, &t.Title, &t.Text, &t.Body, &t.CreatedAt, &t.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan template: %w", err)
 		}
 		out = append(out, t)
@@ -172,8 +205,8 @@ func (s *SQLiteStore) CreateTemplate(t models.Template) (models.Template, error)
 	t.CreatedAt = now
 	t.UpdatedAt = now
 
-	_, err := s.db.Exec(`INSERT INTO templates (id, name, body, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`,
-		t.ID, t.Name, t.Body, t.CreatedAt, t.UpdatedAt)
+	_, err := s.db.Exec(`INSERT INTO templates (id, name, title, message_text, body, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		t.ID, t.Name, t.Title, t.Text, t.Body, t.CreatedAt, t.UpdatedAt)
 	if err != nil {
 		return models.Template{}, fmt.Errorf("create template: %w", err)
 	}
@@ -186,8 +219,8 @@ func (s *SQLiteStore) UpdateTemplate(t models.Template) (models.Template, error)
 	}
 	t.UpdatedAt = time.Now().UTC()
 
-	_, err := s.db.Exec(`UPDATE templates SET name = ?, body = ?, updated_at = ? WHERE id = ?`,
-		t.Name, t.Body, t.UpdatedAt, t.ID)
+	_, err := s.db.Exec(`UPDATE templates SET name = ?, title = ?, message_text = ?, body = ?, updated_at = ? WHERE id = ?`,
+		t.Name, t.Title, t.Text, t.Body, t.UpdatedAt, t.ID)
 	if err != nil {
 		return models.Template{}, fmt.Errorf("update template: %w", err)
 	}
@@ -204,8 +237,8 @@ func (s *SQLiteStore) DeleteTemplate(id string) error {
 
 func (s *SQLiteStore) GetTemplate(id string) (models.Template, error) {
 	var t models.Template
-	err := s.db.QueryRow(`SELECT id, name, body, created_at, updated_at FROM templates WHERE id = ?`, id).
-		Scan(&t.ID, &t.Name, &t.Body, &t.CreatedAt, &t.UpdatedAt)
+	err := s.db.QueryRow(`SELECT id, name, title, message_text, body, created_at, updated_at FROM templates WHERE id = ?`, id).
+		Scan(&t.ID, &t.Name, &t.Title, &t.Text, &t.Body, &t.CreatedAt, &t.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return models.Template{}, ErrNotFound

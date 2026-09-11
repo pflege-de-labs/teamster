@@ -120,11 +120,11 @@ func TestUniversalWebhookPostsANewCard(t *testing.T) {
 	if msg.posts[0].teamID != "team" || msg.posts[0].channelID != "channel" {
 		t.Errorf("posted to %s/%s, want team/channel", msg.posts[0].teamID, msg.posts[0].channelID)
 	}
-	if msg.posts[0].summary != "CPU spiking" {
-		t.Errorf("summary = %q, want the annotation", msg.posts[0].summary)
+	if msg.posts[0].msg.Title != "CPU spiking" {
+		t.Errorf("title = %q, want the annotation", msg.posts[0].msg.Title)
 	}
-	if string(msg.posts[0].card) != `{"text":"firing"}` {
-		t.Errorf("card = %s, want the rendered template", msg.posts[0].card)
+	if string(msg.posts[0].msg.Card) != `{"text":"firing"}` {
+		t.Errorf("card = %s, want the rendered template", msg.posts[0].msg.Card)
 	}
 
 	active, ok := st.activeAlerts["fp-1"]
@@ -226,7 +226,7 @@ func TestAlertmanagerAlertWithoutAnnotationsUsesTheAlertname(t *testing.T) {
 	postWebhook(t, handler, "/webhook/alertmanager", "token",
 		`{"alerts":[{"status":"firing","labels":{"alertname":"HighCPU"},"fingerprint":"fp"}]}`)
 
-	if len(msg.posts) != 1 || msg.posts[0].summary != "HighCPU" {
+	if len(msg.posts) != 1 || msg.posts[0].msg.Title != "HighCPU" {
 		t.Errorf("summary = %+v, want it to fall back to the alertname", msg.posts)
 	}
 }
@@ -239,8 +239,39 @@ func TestAlertWithoutSummaryOrAlertnameGetsAGenericSummary(t *testing.T) {
 
 	postWebhook(t, handler, "/webhook/universal", "token", `{"status":"firing","labels":{},"fingerprint":"fp"}`)
 
-	if len(msg.posts) != 1 || msg.posts[0].summary != "Alert update" {
+	if len(msg.posts) != 1 || msg.posts[0].msg.Title != "Alert update" {
 		t.Errorf("summary = %+v, want the generic fallback", msg.posts)
+	}
+}
+
+// A template is free to send a titled text message and no card at all, which is
+// the case the Teams activity feed reads best.
+func TestTemplateWithoutACardPostsTextOnly(t *testing.T) {
+	t.Parallel()
+
+	msg := &fakeMessenger{}
+	st, handler := seededServer(t, msg)
+	st.templates["tmpl"] = models.Template{
+		ID:    "tmpl",
+		Title: "{{ .Alert.Labels.alertname }} {{ .Alert.Status }}",
+		Text:  "<p>{{ .Alert.Annotations.summary }}</p><script>steal()</script>",
+	}
+
+	postWebhook(t, handler, "/webhook/universal", "token",
+		`{"status":"firing","labels":{"alertname":"HighCPU"},"annotations":{"summary":"CPU spiking"},"fingerprint":"fp"}`)
+
+	if len(msg.posts) != 1 {
+		t.Fatalf("posted %d messages, want 1", len(msg.posts))
+	}
+	posted := msg.posts[0].msg
+	if posted.Title != "HighCPU firing" {
+		t.Errorf("title = %q, want the rendered template", posted.Title)
+	}
+	if posted.Text != "<p>CPU spiking</p>" {
+		t.Errorf("text = %q, want it sanitized before it leaves the service", posted.Text)
+	}
+	if posted.Card != nil {
+		t.Errorf("card = %s, want none", posted.Card)
 	}
 }
 

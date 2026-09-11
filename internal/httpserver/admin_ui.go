@@ -10,6 +10,7 @@ import (
 
 	"github.com/pflege-de-labs/teamster/internal/httpserver/views"
 	"github.com/pflege-de-labs/teamster/internal/models"
+	"github.com/pflege-de-labs/teamster/internal/templates"
 )
 
 // handleAdminPage renders the admin UI. Notices arrive as query parameters
@@ -148,9 +149,14 @@ func redirectToAdmin(w http.ResponseWriter, r *http.Request, notice, message str
 
 func (s *Server) saveTemplate(r *http.Request) (string, error) {
 	template := models.Template{
-		ID:   r.PostFormValue("id"),
-		Name: r.PostFormValue("name"),
-		Body: r.PostFormValue("body"),
+		ID:    r.PostFormValue("id"),
+		Name:  r.PostFormValue("name"),
+		Title: r.PostFormValue("title"),
+		Text:  r.PostFormValue("message_text"),
+		Body:  r.PostFormValue("body"),
+	}
+	if err := templates.Validate(template); err != nil {
+		return "", err
 	}
 	if template.ID == "" {
 		if _, err := s.store.CreateTemplate(template); err != nil {

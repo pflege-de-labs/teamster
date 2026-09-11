@@ -31,6 +31,54 @@ func decodePreview(t *testing.T, rec *httptest.ResponseRecorder) map[string]json
 	return payload
 }
 
+// The feed line is the point of the milestone, so the preview has to return it
+// alongside the card — and the text it returns has already been sanitized.
+func decodeString(t *testing.T, raw json.RawMessage) string {
+	t.Helper()
+
+	var out string
+	if err := json.Unmarshal(raw, &out); err != nil {
+		t.Fatalf("decode %s: %v", raw, err)
+	}
+	return out
+}
+
+func TestPreviewRendersTheWholeMessage(t *testing.T) {
+	t.Parallel()
+
+	handler := newTestServer(t, newFakeStore(), &fakeMessenger{}).Handler
+	rec := postPreview(t, handler, `{"title":"{{ .Alert.Labels.alertname }} is {{ .Alert.Status }}","text":"<p>{{ .Alert.Annotations.summary }}</p><script>steal()</script>","sample":"firing"}`)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("preview = %d, want 200 (%s)", rec.Code, rec.Body.String())
+	}
+
+	payload := decodePreview(t, rec)
+	if got := decodeString(t, payload["title"]); got != "HighMemory is firing" {
+		t.Errorf("title = %q, want the rendered feed line", got)
+	}
+	if got := decodeString(t, payload["text"]); got != "<p>Memory usage is above 80%</p>" {
+		t.Errorf("text = %q, want the sanitized text without the script", got)
+	}
+	if _, ok := payload["card"]; ok {
+		t.Errorf("card = %s, want none for a template without one", payload["card"])
+	}
+}
+
+func TestPreviewReportsATemplateThatSendsNothing(t *testing.T) {
+	t.Parallel()
+
+	handler := newTestServer(t, newFakeStore(), &fakeMessenger{}).Handler
+	rec := postPreview(t, handler, `{"sample":"firing"}`)
+
+	payload := decodePreview(t, rec)
+	for _, key := range []string{"title", "text", "card"} {
+		if _, ok := payload[key]; ok {
+			t.Errorf("%s = %s, want an empty message rather than an invented one", key, payload[key])
+		}
+	}
+}
+
 func TestPreviewRendersTheTemplate(t *testing.T) {
 	t.Parallel()
 

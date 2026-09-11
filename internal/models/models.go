@@ -2,9 +2,14 @@ package models
 
 import "time"
 
+// A Template renders into a Teams message. Title is the line the activity feed
+// previews, Text optional formatted prose, Body the Adaptive Card JSON — and a
+// template needs only one of the three.
 type Template struct {
 	ID        string    `json:"id"`
 	Name      string    `json:"name"`
+	Title     string    `json:"title"`
+	Text      string    `json:"text"`
 	Body      string    `json:"body"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`

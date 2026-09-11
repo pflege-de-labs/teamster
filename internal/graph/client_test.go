@@ -62,7 +62,11 @@ func TestPostMessage(t *testing.T) {
 		_, _ = w.Write([]byte(`{"id":"message-1"}`))
 	})
 
-	id, err := client.PostMessage("team-1", "channel-1", json.RawMessage(`{"type":"AdaptiveCard"}`), "CPU <spiking>")
+	id, err := client.PostMessage("team-1", "channel-1", Message{
+		Title: "CPU <spiking>",
+		Text:  "<p>worker is hot</p>",
+		Card:  json.RawMessage(`{"type":"AdaptiveCard"}`),
+	})
 	if err != nil {
 		t.Fatalf("PostMessage: %v", err)
 	}
@@ -75,11 +79,36 @@ func TestPostMessage(t *testing.T) {
 	if want := "/teams/team-1/channels/channel-1/messages"; gotPath != want {
 		t.Errorf("path = %q, want %q", gotPath, want)
 	}
-	if want := "<p>CPU &lt;spiking&gt;</p>"; gotBody.Body.Content != want {
-		t.Errorf("summary = %q, want it HTML-escaped as %q", gotBody.Body.Content, want)
+	want := `<p><b>CPU &lt;spiking&gt;</b></p><p>worker is hot</p><attachment id="1"></attachment>`
+	if gotBody.Body.Content != want {
+		t.Errorf("body = %q, want %q", gotBody.Body.Content, want)
 	}
 	if len(gotBody.Attachments) != 1 || gotBody.Attachments[0].ContentType != "application/vnd.microsoft.card.adaptive" {
 		t.Errorf("attachments = %+v, want a single adaptive card", gotBody.Attachments)
+	}
+}
+
+// A template that sends text alone has no attachment, and the body must not
+// reference one that is not there.
+func TestPostMessageWithoutACard(t *testing.T) {
+	t.Parallel()
+
+	var gotBody MessageRequest
+	client := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		_ = json.Unmarshal(body, &gotBody)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":"message-1"}`))
+	})
+
+	if _, err := client.PostMessage("team-1", "channel-1", Message{Title: "Disk filling", Text: "<p>92% used</p>"}); err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	if want := "<p><b>Disk filling</b></p><p>92% used</p>"; gotBody.Body.Content != want {
+		t.Errorf("body = %q, want %q", gotBody.Body.Content, want)
+	}
+	if len(gotBody.Attachments) != 0 {
+		t.Errorf("attachments = %+v, want none", gotBody.Attachments)
 	}
 }
 
@@ -121,7 +150,7 @@ func TestPostMessageErrors(t *testing.T) {
 
 			client := newTestClient(t, tt.handler)
 
-			_, err := client.PostMessage("team", "channel", json.RawMessage(`{}`), "summary")
+			_, err := client.PostMessage("team", "channel", Message{Title: "summary", Card: json.RawMessage(`{}`)})
 			if err == nil {
 				t.Fatalf("PostMessage() = nil error, want %q", tt.wantErr)
 			}
@@ -142,7 +171,7 @@ func TestUpdateMessage(t *testing.T) {
 		w.WriteHeader(http.StatusNoContent)
 	})
 
-	if err := client.UpdateMessage("team-1", "channel-1", "message-1", json.RawMessage(`{}`), "summary"); err != nil {
+	if err := client.UpdateMessage("team-1", "channel-1", "message-1", Message{Title: "summary", Card: json.RawMessage(`{}`)}); err != nil {
 		t.Fatalf("UpdateMessage: %v", err)
 	}
 	if gotMethod != http.MethodPatch {
@@ -161,7 +190,7 @@ func TestUpdateMessageError(t *testing.T) {
 		_, _ = w.Write([]byte("message gone"))
 	})
 
-	err := client.UpdateMessage("team", "channel", "missing", json.RawMessage(`{}`), "summary")
+	err := client.UpdateMessage("team", "channel", "missing", Message{Title: "summary", Card: json.RawMessage(`{}`)})
 	if err == nil || !strings.Contains(err.Error(), "message gone") {
 		t.Errorf("UpdateMessage() = %v, want the Graph error body to be surfaced", err)
 	}

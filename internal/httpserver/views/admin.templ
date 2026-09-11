@@ -18,7 +18,9 @@ templ templates(page Page) {
 				<input type="hidden" name="id" value={ page.EditTemplate.ID }/>
 			}
 			@textField("name", "Name", "Critical alert", page.editingTemplate().Name)
-			@textareaField("body", "Body (Adaptive Card JSON template)", page.editingTemplate().Body, "12")
+			@textField("title", "Activity feed title", "{{ .Alert.Annotations.summary }}", page.editingTemplate().Title)
+			@textareaField("message_text", "Message text (optional, limited HTML)", page.editingTemplate().Text, "4")
+			@textareaField("body", "Adaptive Card JSON (optional)", page.editingTemplate().Body, "12")
 			<div class="flex flex-wrap items-center gap-2">
 				@submit(submitLabel(page.EditTemplate != nil, "template"))
 				<button
@@ -45,7 +47,7 @@ templ templates(page Page) {
 		</form>
 		<div>
 			if len(page.Templates) == 0 {
-				@empty("No templates yet. A route needs one to render a card.")
+				@empty("No templates yet. A route needs one to render its message.")
 			} else {
 				<ul class="divide-y divide-slate-200">
 					for _, t := range page.Templates {
@@ -53,7 +55,7 @@ templ templates(page Page) {
 							<div class="min-w-0">
 								<div class="truncate font-medium">{ t.Name }</div>
 								<div class="truncate text-xs text-slate-500">
-									{ strconv.Itoa(len(t.Body)) } bytes · updated { t.UpdatedAt.Format("2006-01-02 15:04") }
+									{ templateShape(t) } · updated { t.UpdatedAt.Format("2006-01-02 15:04") }
 								</div>
 							</div>
 							<div class="flex shrink-0 items-center gap-2">

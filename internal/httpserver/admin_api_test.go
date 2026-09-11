@@ -52,9 +52,11 @@ func TestAdminCollectionEndpoints(t *testing.T) {
 	}{
 		{name: "list templates", method: http.MethodGet, path: "/api/templates", wantStatus: http.StatusOK},
 		{name: "list templates fails", method: http.MethodGet, path: "/api/templates", failOn: "ListTemplates", wantStatus: http.StatusInternalServerError},
-		{name: "create template", method: http.MethodPost, path: "/api/templates", body: `{"name":"card"}`, wantStatus: http.StatusCreated},
+		{name: "create template", method: http.MethodPost, path: "/api/templates", body: `{"name":"card","body":"{}"}`, wantStatus: http.StatusCreated},
+		{name: "create text-only template", method: http.MethodPost, path: "/api/templates", body: `{"name":"note","title":"{{ .Alert.Status }}"}`, wantStatus: http.StatusCreated},
+		{name: "create template with nothing to send", method: http.MethodPost, path: "/api/templates", body: `{"name":"empty"}`, wantStatus: http.StatusBadRequest},
 		{name: "create template invalid JSON", method: http.MethodPost, path: "/api/templates", body: `{`, wantStatus: http.StatusBadRequest},
-		{name: "create template fails", method: http.MethodPost, path: "/api/templates", body: `{}`, failOn: "CreateTemplate", wantStatus: http.StatusInternalServerError},
+		{name: "create template fails", method: http.MethodPost, path: "/api/templates", body: `{"body":"{}"}`, failOn: "CreateTemplate", wantStatus: http.StatusInternalServerError},
 		{name: "templates reject PATCH", method: http.MethodPatch, path: "/api/templates", wantStatus: http.StatusMethodNotAllowed},
 
 		{name: "list destinations", method: http.MethodGet, path: "/api/destinations", wantStatus: http.StatusOK},
@@ -111,9 +113,10 @@ func TestAdminItemEndpoints(t *testing.T) {
 		{name: "get template", method: http.MethodGet, path: "/api/templates/known", wantStatus: http.StatusOK},
 		{name: "get unknown template", method: http.MethodGet, path: "/api/templates/missing", wantStatus: http.StatusNotFound},
 		{name: "get template fails", method: http.MethodGet, path: "/api/templates/known", failOn: "GetTemplate", wantStatus: http.StatusInternalServerError},
-		{name: "update template", method: http.MethodPut, path: "/api/templates/known", body: `{"name":"new"}`, wantStatus: http.StatusOK},
+		{name: "update template", method: http.MethodPut, path: "/api/templates/known", body: `{"name":"new","body":"{}"}`, wantStatus: http.StatusOK},
+		{name: "update template with nothing to send", method: http.MethodPut, path: "/api/templates/known", body: `{"name":"new"}`, wantStatus: http.StatusBadRequest},
 		{name: "update template invalid JSON", method: http.MethodPut, path: "/api/templates/known", body: `{`, wantStatus: http.StatusBadRequest},
-		{name: "update template fails", method: http.MethodPut, path: "/api/templates/known", body: `{}`, failOn: "UpdateTemplate", wantStatus: http.StatusInternalServerError},
+		{name: "update template fails", method: http.MethodPut, path: "/api/templates/known", body: `{"body":"{}"}`, failOn: "UpdateTemplate", wantStatus: http.StatusInternalServerError},
 		{name: "delete template", method: http.MethodDelete, path: "/api/templates/known", wantStatus: http.StatusOK},
 		{name: "delete template fails", method: http.MethodDelete, path: "/api/templates/known", failOn: "DeleteTemplate", wantStatus: http.StatusInternalServerError},
 		{name: "template id required", method: http.MethodGet, path: "/api/templates/", wantStatus: http.StatusNotFound},
@@ -165,7 +168,7 @@ func TestUpdateOverwritesIDFromPath(t *testing.T) {
 	st := newFakeStore()
 	st.templates["known"] = models.Template{ID: "known"}
 
-	rec := do(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodPut, "/api/templates/known", `{"id":"spoofed","name":"card"}`)
+	rec := do(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodPut, "/api/templates/known", `{"id":"spoofed","name":"card","body":"{}"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("PUT = %d, want 200", rec.Code)
 	}
