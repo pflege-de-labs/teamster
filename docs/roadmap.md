@@ -577,6 +577,85 @@ to take any request, sharing one database. Anything more is a different service.
 
 Needs an ADR, and probably a second one for how migrations are sequenced.
 
+## Milestone 13 — Alerts in a person's chat
+
+An alert reaches a channel. Somebody on call at three in the morning is not reading a channel; they
+want the thing in front of them. The ask is an opt-in: a person says "send my alerts to me" and they
+arrive as a chat rather than only in Teams they happen to watch.
+
+### Why this is not another endpoint on the Graph client
+
+Teamster authenticates to Microsoft with **client credentials** — an application identity, no user.
+That is what lets it post to a channel unattended, and it is precisely what cannot post to a chat:
+sending a `chatMessage` has required a **delegated** permission, a token obtained on behalf of a
+signed-in user. Application permissions cover the migration path (`Teamwork.Migrate.All`, for
+backfilling history in import mode) and not this.
+
+So the question is not which endpoint to call. It is **whose identity the message is sent under**,
+and each answer is a different integration.
+
+### Three routes, and what each costs
+
+**A. Delegated token per user.** A second authorization-code flow, against Microsoft this time, with
+each person consenting once; Teamster keeps a refresh token and uses it when an alert fires.
+
+The message is then sent **as that person**. An alert delivered this way is not a message from
+Teamster to Alice — it is a message Alice appears to have written, to herself. That is workable as a
+notification and strange as a conversation, and it is the thing to decide before any of the rest
+matters.
+
+It also changes what the database is. Today it holds no credentials at all, which is why a
+configuration bundle can be kept in a repository ([ADR 0013](adr/0013-configuration-transfer.md)).
+Refresh tokens are credentials: they need encrypting at rest, they must never reach an export, and
+losing the database becomes an incident rather than an inconvenience. Consent is also revocable and
+conditional access can invalidate a token at any time, so delivery has to degrade when a token stops
+working rather than dropping the alert.
+
+**B. A Teams app with a bot.** Proactive messaging through the Bot Framework: the message comes from
+a bot, which is what a person expects an alert to look like. The bot must be installed for each
+recipient, and Teamster stores a conversation reference per person rather than a credential.
+
+This is the right shape and the largest one: a Teams app package, a bot registration, an endpoint
+Microsoft can call, and an install story. It is a second service-facing integration, not an addition
+to the Graph client.
+
+**C. An activity feed notification.** `POST /users/{id}/teamwork/sendActivityNotification` with the
+`TeamsActivity.Send` application permission — the credential model Teamster already has. It puts an
+entry in the person's Activity feed, linking somewhere, rather than a message in a chat. It needs a
+Teams app registered and installed for the user, but no per-user token and no per-user secret.
+
+Cheapest by a distance, and honestly less than what was asked for: a notification, not a message.
+
+### One app registration or two
+
+A single Entra registration can hold both application and delegated permissions — they are separate
+lists, and the token type decides which apply. It would work.
+
+Two registrations is the better answer anyway, and is what this milestone proposes if route A is
+taken: the channel-posting identity keeps its narrow application permissions and its existing
+secret, and the chat identity is consented to separately, revoked separately, and absent entirely
+from a deployment that does not want the feature. A permission that only some installations use
+should not be on the credential every installation runs.
+
+### What it would look like in the product
+
+Opt-in per person, in the admin UI, under their own account rather than something an admin sets for
+them: consent is theirs to give. A route gains "and to whoever asked for it", which means the
+delivery plan grows a second kind of destination — `routing.Delivery` currently resolves to a Team
+and a channel, and a person is neither.
+
+Needs an ADR, and the decision it records is A, B or C rather than the details of any of them.
+
+**Prerequisite:** whichever route, a Teams app registration in the tenant, and for A or B the
+agreement that Teamster may hold something per person — a token or a conversation reference.
+
+### Worth checking before starting
+
+The permissions around chat messages have moved more than once: application-permission channel
+posting was gated behind a Microsoft approval process for a while, and resource-specific consent
+(`ChatMessage.Send.Chat`) added a fourth shape for apps installed in a chat. The *Send chatMessage*
+permissions table is the first thing to read when this milestone starts, not the last.
+
 ## Sequencing
 
 | Order | Item | Depends on | Blocked by |
@@ -596,6 +675,7 @@ Needs an ADR, and probably a second one for how migrations are sequenced.
 | — | 10 Localizable UI | — | done |
 | 8 | 11 Metrics | — | ADR on OTEL versus Prometheus directly |
 | 9 | 12 More than one instance | 11 helps | ADR, and a second backend |
+| 10 | 13 Alerts in a person's chat | — | ADR choosing the route; a Teams app registration |
 
 1.3 sat after 1.4 because it was the only item waiting on someone else to grant a permission.
 
@@ -604,6 +684,11 @@ fixes something an operator hits on every single alert. Milestone 5 is the large
 it immediately, because shipping a picture that disagrees with routing is worse than shipping
 neither. 8 waits on 7 only for the permission part of the bundle; the rest of it could be pulled
 forward if a migration is needed sooner.
+
+13 sits last because it is the only item that would make Teamster hold something per person — a
+token or a conversation reference — and that is worth wanting badly before taking it on. The
+activity-feed route (C) is the exception: it needs no such thing and could be pulled forward on its
+own if a notification is enough.
 
 11 and 12 sit after the feature work because both are about running the service rather than using
 it, and 12 in particular is worth doing when somebody actually needs a second replica: the single
@@ -630,5 +715,8 @@ more strings to extract later, so if a second language is actually wanted, pull 
   parent's delivery, not its grandparent's.
 * Should a message that carries only text still be updated in place when an alert resolves, or is
   editing a plain message in Teams confusing in a way editing a card is not?
+* Which identity should an alert in a chat come from — the person receiving it, or a bot? Route A
+  makes the alert look like something the recipient wrote to themselves, which is the cheapest to
+  build and the strangest to read. Decide before milestone 13 starts.
 * Vendored JavaScript has no update path today. A checksum file and a documented refresh procedure
   are the minimum; a `make vendor` target may be worth it.
