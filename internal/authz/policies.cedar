@@ -33,3 +33,28 @@ permit (
   action == Action::"view",
   resource
 );
+
+// Where a role may deliver, and what it may see of the directory.
+//
+// A role with no grant is unrestricted: an installation nobody has narrowed
+// behaves as it did before grants existed. Once a grant names a role, that role
+// reaches what its grants name and nothing else. Admins are covered by the
+// policy at the top of this file and are never scoped.
+
+permit (
+  principal in Role::"editor",
+  action == Action::"deliver",
+  resource
+) when { principal.unrestricted || resource in principal.scopes };
+
+permit (
+  principal in Role::"viewer",
+  action == Action::"viewChannel",
+  resource
+) when { principal.unrestricted || resource in principal.scopes };
+
+permit (
+  principal in Role::"viewer",
+  action == Action::"viewTeam",
+  resource
+) when { principal.unrestricted || resource in principal.teams };

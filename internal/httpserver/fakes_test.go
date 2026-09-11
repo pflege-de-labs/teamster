@@ -24,6 +24,7 @@ type fakeStore struct {
 	destinations map[string]models.Destination
 	routes       map[string]models.Route
 	activeAlerts map[string]models.ActiveAlert
+	grants       map[string]models.Grant
 	sessions     map[string]models.Session
 	loginFlows   map[string]models.LoginFlow
 
@@ -44,6 +45,7 @@ func newFakeStore() *fakeStore {
 				CreatedAt: time.Now(), ExpiresAt: time.Now().Add(time.Hour),
 			},
 		},
+		grants:     map[string]models.Grant{},
 		loginFlows: map[string]models.LoginFlow{},
 		failOn:     map[string]bool{},
 	}
@@ -266,6 +268,37 @@ func (f *fakeStore) TakeLoginFlow(state string) (models.LoginFlow, error) {
 // Keyed like the real store: one card per alert per channel.
 func activeAlertKey(fingerprint, teamID, channelID string) string {
 	return fingerprint + "\x00" + teamID + "\x00" + channelID
+}
+
+func (f *fakeStore) ListGrants() ([]models.Grant, error) {
+	if err := f.failing("ListGrants"); err != nil {
+		return nil, err
+	}
+	out := make([]models.Grant, 0, len(f.grants))
+	for _, grant := range f.grants {
+		out = append(out, grant)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return out, nil
+}
+
+func (f *fakeStore) CreateGrant(g models.Grant) (models.Grant, error) {
+	if err := f.failing("CreateGrant"); err != nil {
+		return models.Grant{}, err
+	}
+	if g.ID == "" {
+		g.ID = "generated"
+	}
+	f.grants[g.ID] = g
+	return g, nil
+}
+
+func (f *fakeStore) DeleteGrant(id string) error {
+	if err := f.failing("DeleteGrant"); err != nil {
+		return err
+	}
+	delete(f.grants, id)
+	return nil
 }
 
 func (f *fakeStore) UpsertActiveAlert(a models.ActiveAlert) error {

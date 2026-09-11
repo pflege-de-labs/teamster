@@ -340,6 +340,9 @@ func TestStoreErrorsWhenDatabaseIsClosed(t *testing.T) {
 		call func() error
 	}{
 		{"ListTemplates", func() error { _, err := s.ListTemplates(); return err }},
+		{"ListGrants", func() error { _, err := s.ListGrants(); return err }},
+		{"CreateGrant", func() error { _, err := s.CreateGrant(models.Grant{}); return err }},
+		{"DeleteGrant", func() error { return s.DeleteGrant("id") }},
 		{"CreateTemplate", func() error { _, err := s.CreateTemplate(models.Template{}); return err }},
 		{"UpdateTemplate", func() error { _, err := s.UpdateTemplate(models.Template{ID: "id"}); return err }},
 		{"DeleteTemplate", func() error { return s.DeleteTemplate("id") }},
@@ -615,6 +618,48 @@ INSERT INTO sessions VALUES ('old', 'tester', 'tester', 'oidc', '2026-01-01 00:0
 	}
 	if back.Roles != "editor" {
 		t.Errorf("roles = %q, want them stored", back.Roles)
+	}
+}
+
+func TestGrantLifecycle(t *testing.T) {
+	t.Parallel()
+
+	s := newTestStore(t)
+
+	grants, err := s.ListGrants()
+	if err != nil {
+		t.Fatalf("ListGrants: %v", err)
+	}
+	if len(grants) != 0 {
+		t.Errorf("ListGrants() = %+v, want none before any is created", grants)
+	}
+
+	team, err := s.CreateGrant(models.Grant{Role: "editor", TeamID: "platform"})
+	if err != nil {
+		t.Fatalf("CreateGrant: %v", err)
+	}
+	if team.ID == "" || team.CreatedAt.IsZero() {
+		t.Errorf("grant = %+v, want an id and a timestamp", team)
+	}
+	if _, err := s.CreateGrant(models.Grant{Role: "viewer", TeamID: "payments", ChannelID: "alerts"}); err != nil {
+		t.Fatalf("CreateGrant (channel): %v", err)
+	}
+
+	grants, err = s.ListGrants()
+	if err != nil {
+		t.Fatalf("ListGrants after create: %v", err)
+	}
+	// Ordered by role, so the page and its tests see them the same way twice.
+	if len(grants) != 2 || grants[0].Role != "editor" || grants[1].ChannelID != "alerts" {
+		t.Errorf("grants = %+v, want both, ordered by role", grants)
+	}
+
+	if err := s.DeleteGrant(team.ID); err != nil {
+		t.Fatalf("DeleteGrant: %v", err)
+	}
+	grants, _ = s.ListGrants()
+	if len(grants) != 1 {
+		t.Errorf("grants = %+v, want the deleted one gone", grants)
 	}
 }
 

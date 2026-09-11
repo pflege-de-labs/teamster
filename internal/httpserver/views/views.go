@@ -42,6 +42,10 @@ type Page struct {
 	// Role is shown in the header, so it is obvious why the controls are gone.
 	Role string
 
+	// Grants scope roles to Teams and channels. Only an admin sees or sets them.
+	Grants    []models.Grant
+	CanManage bool
+
 	// A nil Edit* means the matching form creates rather than updates.
 	EditTemplate    *models.Template
 	EditDestination *models.Destination
@@ -134,6 +138,15 @@ func parentOptions(p Page) []option {
 		out = append(out, option{Value: route.ID, Label: route.Name})
 	}
 	return out
+}
+
+// grantScope reads a grant back the way it was written: a Team, or one channel
+// of it.
+func grantScope(grant models.Grant) string {
+	if grant.ChannelID == "" {
+		return "team " + grant.TeamID + " (all channels)"
+	}
+	return "team " + grant.TeamID + " · channel " + grant.ChannelID
 }
 
 // templateShape says what a template sends, which matters more in a list than

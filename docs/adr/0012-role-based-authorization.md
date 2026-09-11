@@ -83,6 +83,25 @@ sent deliberately.
 `NewServer` now returns an error. A policy file that does not parse must stop the process, not leave
 every check to whatever the zero value decides.
 
+## Scoping a role to Teams and channels
+
+A `grants` row names a role, a Team and optionally a channel. The scope those grants describe
+becomes attributes on the principal, and three scoped actions — `deliver`, `viewChannel`,
+`viewTeam` — are decided against them; a channel entity has its Team as a parent, so granting a Team
+reaches its channels without expanding the channel list, which would otherwise make every permission
+check depend on a Graph call.
+
+**A role no grant names is unrestricted.** The alternative — no grant means no access — would make
+this change break every installation on upgrade, and would put a migration between an operator and
+their own configuration. The cost is that narrowing is opt-in, which the admin page says in as many
+words.
+
+Grants are keyed by role rather than by user, which is the same decision as reading roles by name:
+"the payments editors" is a role in the provider and a grant here, and there is no second notion
+of a group to keep in step.
+
+Deciding who may deliver where is `Action::"administer"`, so an editor cannot widen their own scope.
+
 ## Consequences
 
 The admin UI hides what a role may not do — the three forms, the edit links and the delete buttons —

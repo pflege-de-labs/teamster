@@ -97,7 +97,16 @@ func (s *Server) handleGraphTeams(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{"teams": teams})
+	// The picker offers only what the grants reach. Typing an id by hand is
+	// refused separately, when the destination is saved: this is the courtesy,
+	// that is the control.
+	visible, err := s.visibleTeams(r, teams)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"teams": visible})
 }
 
 func (s *Server) handleGraphChannels(w http.ResponseWriter, r *http.Request) {
@@ -129,5 +138,11 @@ func (s *Server) handleGraphChannels(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{"channels": channels})
+	visible, err := s.visibleChannels(r, teamID, channels)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"channels": visible})
 }

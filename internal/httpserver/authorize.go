@@ -100,6 +100,10 @@ func requestAuthorization(r *http.Request) (string, authz.Resource) {
 
 	resource := authz.Resource{Type: "Page"}
 	switch {
+	// Deciding who may deliver where is the admin's, not the editor's, so it
+	// is a different action rather than another thing an editor may edit.
+	case strings.HasPrefix(path, "/api/grants"), strings.HasPrefix(path, "/admin/grants"):
+		return authz.ActionAdminister, authz.Resource{Type: "Grant"}
 	case strings.HasPrefix(path, "/api/templates"), strings.HasPrefix(path, "/admin/templates"):
 		resource.Type = "Template"
 	case strings.HasPrefix(path, "/api/destinations"), strings.HasPrefix(path, "/admin/destinations"):

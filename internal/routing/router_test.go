@@ -85,6 +85,14 @@ func (s stubStore) DeleteActiveAlert(fingerprint, teamID, channelID string) erro
 	return store.ErrNotFound
 }
 
+func (s stubStore) ListGrants() ([]models.Grant, error) { return nil, store.ErrNotFound }
+
+func (s stubStore) CreateGrant(models.Grant) (models.Grant, error) {
+	return models.Grant{}, store.ErrNotFound
+}
+
+func (s stubStore) DeleteGrant(string) error { return store.ErrNotFound }
+
 func (s stubStore) CreateSession(models.Session) error { return store.ErrNotFound }
 
 func (s stubStore) GetSession(string) (models.Session, error) {
