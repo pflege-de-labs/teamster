@@ -12,11 +12,11 @@ import (
 	"github.com/pflege-de-labs/teamster/internal/models"
 )
 
-// sessionAs seeds a signed-in session holding a role, which is what the
+// sessionAs seeds a signed-in session holding these roles, which is what the
 // enforcement middleware reads.
-func sessionAs(st *fakeStore, role authz.Role) *fakeStore {
+func sessionAs(st *fakeStore, roles ...authz.Role) *fakeStore {
 	st.sessions[testSessionID] = models.Session{
-		ID: testSessionID, Subject: "tester", Name: "tester", Source: "oidc", Role: string(role),
+		ID: testSessionID, Subject: "tester", Name: "tester", Source: "oidc", Roles: authz.Encode(roles),
 		CreatedAt: time.Now(), ExpiresAt: time.Now().Add(time.Hour),
 	}
 	return st
@@ -41,45 +41,45 @@ func TestRolesDecideWhatARequestMayDo(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		role       authz.Role
+		roles      []authz.Role
 		method     string
 		path       string
 		body       string
 		wantStatus int
 	}{
-		{name: "a viewer may read the templates", role: authz.RoleViewer, method: http.MethodGet, path: "/api/templates", wantStatus: http.StatusOK},
-		{name: "a viewer may read the page", role: authz.RoleViewer, method: http.MethodGet, path: "/admin", wantStatus: http.StatusOK},
-		{name: "a viewer may see the routing graph", role: authz.RoleViewer, method: http.MethodGet, path: "/api/routing/graph", wantStatus: http.StatusOK},
+		{name: "a viewer may read the templates", roles: []authz.Role{authz.RoleViewer}, method: http.MethodGet, path: "/api/templates", wantStatus: http.StatusOK},
+		{name: "a viewer may read the page", roles: []authz.Role{authz.RoleViewer}, method: http.MethodGet, path: "/admin", wantStatus: http.StatusOK},
+		{name: "a viewer may see the routing graph", roles: []authz.Role{authz.RoleViewer}, method: http.MethodGet, path: "/api/routing/graph", wantStatus: http.StatusOK},
 		{
 			// Asking which route an alert would take changes nothing, so it is a
 			// read that happens to need a body.
-			name: "a viewer may probe a match", role: authz.RoleViewer, method: http.MethodPost,
+			name: "a viewer may probe a match", roles: []authz.Role{authz.RoleViewer}, method: http.MethodPost,
 			path: "/api/routing/match", body: `{"labels":{}}`, wantStatus: http.StatusOK,
 		},
 		{
-			name: "a viewer may preview a template", role: authz.RoleViewer, method: http.MethodPost,
+			name: "a viewer may preview a template", roles: []authz.Role{authz.RoleViewer}, method: http.MethodPost,
 			path: "/api/templates/preview", body: `{"body":"{}"}`, wantStatus: http.StatusOK,
 		},
 		{
-			name: "a viewer may not create a template", role: authz.RoleViewer, method: http.MethodPost,
+			name: "a viewer may not create a template", roles: []authz.Role{authz.RoleViewer}, method: http.MethodPost,
 			path: "/api/templates", body: `{"name":"x","body":"{}"}`, wantStatus: http.StatusForbidden,
 		},
 		{
-			name: "a viewer may not delete a route", role: authz.RoleViewer, method: http.MethodDelete,
+			name: "a viewer may not delete a route", roles: []authz.Role{authz.RoleViewer}, method: http.MethodDelete,
 			path: "/api/routes/known", wantStatus: http.StatusForbidden,
 		},
 		{
-			name: "an editor may create a template", role: authz.RoleEditor, method: http.MethodPost,
+			name: "an editor may create a template", roles: []authz.Role{authz.RoleEditor}, method: http.MethodPost,
 			path: "/api/templates", body: `{"name":"x","body":"{}"}`, wantStatus: http.StatusCreated,
 		},
 		{
-			name: "an admin may create a template", role: authz.RoleAdmin, method: http.MethodPost,
+			name: "an admin may create a template", roles: []authz.Role{authz.RoleAdmin}, method: http.MethodPost,
 			path: "/api/templates", body: `{"name":"x","body":"{}"}`, wantStatus: http.StatusCreated,
 		},
 		{
 			// Either tampering or a session from a newer build; neither is a
 			// reason to let it through.
-			name: "an unknown role may do nothing", role: authz.Role("superuser"), method: http.MethodGet,
+			name: "an unknown role may do nothing", roles: []authz.Role{authz.Role("superuser")}, method: http.MethodGet,
 			path: "/api/templates", wantStatus: http.StatusForbidden,
 		},
 	}
@@ -88,12 +88,12 @@ func TestRolesDecideWhatARequestMayDo(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			st := sessionAs(newFakeStore(), tt.role)
+			st := sessionAs(newFakeStore(), tt.roles...)
 			st.routes["known"] = models.Route{ID: "known", Name: "known"}
 			rec := asRole(t, newTestServer(t, st, &fakeMessenger{}).Handler, tt.method, tt.path, tt.body)
 
 			if rec.Code != tt.wantStatus {
-				t.Errorf("%s %s as %s = %d, want %d (%s)", tt.method, tt.path, tt.role, rec.Code, tt.wantStatus, rec.Body.String())
+				t.Errorf("%s %s as %v = %d, want %d (%s)", tt.method, tt.path, tt.roles, rec.Code, tt.wantStatus, rec.Body.String())
 			}
 		})
 	}
@@ -162,7 +162,13 @@ func TestEditorSeesControls(t *testing.T) {
 func TestSessionWithoutARoleKeepsItsAccess(t *testing.T) {
 	t.Parallel()
 
-	st := sessionAs(newFakeStore(), authz.Role(""))
+	st := newFakeStore()
+	// Written before the column existed: no roles at all, not the "none" marker.
+	st.sessions[testSessionID] = models.Session{
+		ID: testSessionID, Subject: "tester", Name: "tester", Source: "oidc",
+		CreatedAt: time.Now(), ExpiresAt: time.Now().Add(time.Hour),
+	}
+
 	rec := asRole(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodPost, "/api/templates", `{"name":"x","body":"{}"}`)
 	if rec.Code != http.StatusCreated {
 		t.Errorf("POST as a pre-roles session = %d, want it to still work (%s)", rec.Code, rec.Body.String())
@@ -294,7 +300,7 @@ func TestAPIWithoutAnyCredentials(t *testing.T) {
 func TestNoRoleGetsAPageExplainingWhy(t *testing.T) {
 	t.Parallel()
 
-	st := sessionAs(seededUIStore(), authz.RoleNone)
+	st := sessionAs(seededUIStore())
 	handler := newTestServer(t, st, &fakeMessenger{}).Handler
 
 	page := asRole(t, handler, http.MethodGet, "/admin", "")
@@ -320,12 +326,34 @@ func TestNoRoleGetsAPageExplainingWhy(t *testing.T) {
 func TestNoRoleGetsNoDataFromTheAPI(t *testing.T) {
 	t.Parallel()
 
-	st := sessionAs(newFakeStore(), authz.RoleNone)
+	st := sessionAs(newFakeStore())
 	rec := asRole(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/api/templates", "")
 	if rec.Code != http.StatusForbidden {
 		t.Errorf("GET /api/templates with no role = %d, want 403", rec.Code)
 	}
 	if strings.Contains(rec.Body.String(), "Ask an administrator") {
 		t.Error("a JSON caller got the HTML page")
+	}
+}
+
+// A deployment can define its own role in the provider and write a policy for
+// it. Until it does, that role grants nothing — and it does not stop the
+// default role from applying beside it.
+func TestARoleTheBuildDoesNotKnow(t *testing.T) {
+	t.Parallel()
+
+	st := sessionAs(newFakeStore(), authz.Role("auditor"))
+	handler := newTestServer(t, st, &fakeMessenger{}).Handler
+
+	if rec := asRole(t, handler, http.MethodGet, "/api/templates", ""); rec.Code != http.StatusForbidden {
+		t.Errorf("GET as auditor = %d, want 403 while no policy mentions the role", rec.Code)
+	}
+
+	// Carrying it alongside a role the policies do define changes nothing about
+	// what that role permits.
+	both := sessionAs(newFakeStore(), authz.Role("auditor"), authz.RoleEditor)
+	rec := asRole(t, newTestServer(t, both, &fakeMessenger{}).Handler, http.MethodPost, "/api/templates", `{"name":"x","body":"{}"}`)
+	if rec.Code != http.StatusCreated {
+		t.Errorf("POST as auditor+editor = %d, want 201 (%s)", rec.Code, rec.Body.String())
 	}
 }

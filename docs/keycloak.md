@@ -57,7 +57,12 @@ auth:
 ## Roles beyond signing in
 
 Name the roles in Keycloak exactly `admin`, `editor` and `viewer` — as realm roles, or as client
-roles on the `teamster` client — and assign them. Teamster reads them by name:
+roles on the `teamster` client — and assign them. Those three are the minimum: they are what
+Teamster's shipped policies define. Roles beyond them are read too and reach the policies by name,
+so defining `auditor` here means writing a policy for `Role::"auditor"` in
+`internal/authz/policies.cedar`; until then it grants nothing.
+
+Teamster reads them by name:
 
 ```yaml
 auth:
@@ -65,9 +70,13 @@ auth:
   default-role: "viewer"           # or leave empty for no access
 ```
 
-A user carrying several gets the most privileged. A user carrying none gets `default-role`, and if
-that is empty they sign in with no access and are told to ask an administrator for a role — which is
-the setting to use when everyone in the realm can reach the client.
+A user carrying several holds all of them, and the policies decide. A user carrying none of the
+three gets `default-role`; if that is empty they sign in with no access and are told to ask an
+administrator for a role — the setting to use when everyone in the realm can reach the client.
+
+Keycloak's own realm roles (`offline_access`, `default-roles-<realm>`) arrive as roles as well. No
+policy mentions them, so they grant nothing, and they do not stand in for a Teamster role when the
+default is applied.
 
 ## Where Teamster looks for the claim
 

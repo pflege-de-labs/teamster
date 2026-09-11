@@ -99,10 +99,13 @@ bad token, and `502` when routing, rendering, the store or Graph fails.
 
 ## Authorization
 
-A session carries a role — `admin`, `editor`, `viewer`, or none — decided at sign-in by reading the
-configured claim and matching its values against the role names. `auth.default-role` covers a user
-the claim names no role for; without one they hold no role, and every request answers `403` — as a
-page that says to ask an administrator when a browser asked for one.
+A session carries the roles the claim named, mapped one to one by name and stored on the session
+row. Every one of them becomes a parent of the Cedar principal, including roles this build has never
+heard of: a deployment that defines its own role and writes a policy for it gets that policy
+applied, and a role no policy mentions grants nothing. `admin`, `editor` and `viewer` are the three
+the shipped policies define; `auth.default-role` fills in when the claim names none of them, and
+without one the user holds no Teamster role and every request answers `403` — as a page that says to
+ask an administrator when a browser asked for one.
 
 `internal/authz` holds the rules as Cedar policies embedded in the binary and
 evaluates them in-process with `cedar-policy/cedar-go`; roles nest through Cedar entity parents, so

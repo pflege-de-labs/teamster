@@ -23,7 +23,7 @@ func newToken() (string, error) {
 	return base64.RawURLEncoding.EncodeToString(raw), nil
 }
 
-func (s *Server) startSession(w http.ResponseWriter, r *http.Request, subject, name, source string, role authz.Role) error {
+func (s *Server) startSession(w http.ResponseWriter, r *http.Request, subject, name, source string, roles []authz.Role) error {
 	id, err := newToken()
 	if err != nil {
 		return err
@@ -31,7 +31,7 @@ func (s *Server) startSession(w http.ResponseWriter, r *http.Request, subject, n
 
 	now := time.Now().UTC()
 	if err := s.store.CreateSession(models.Session{
-		ID: id, Subject: subject, Name: name, Source: source, Role: string(role),
+		ID: id, Subject: subject, Name: name, Source: source, Roles: authz.Encode(roles),
 		CreatedAt: now, ExpiresAt: now.Add(s.sessionTTL()),
 	}); err != nil {
 		return err
@@ -109,7 +109,7 @@ func isNotFound(err error) bool {
 func (s *Server) requireSession(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if session, ok := s.currentSession(r); ok {
-			next.ServeHTTP(w, r.WithContext(withPrincipal(r.Context(), session.Subject, session.Name, roleOf(session))))
+			next.ServeHTTP(w, r.WithContext(withPrincipal(r.Context(), session.Subject, session.Name, rolesOf(session))))
 			return
 		}
 		http.Redirect(w, r, "/admin/login", http.StatusFound)
