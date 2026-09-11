@@ -248,6 +248,36 @@ of* depending on whether the child is greedy. A second graph below pairs templat
 that use them; a template with nothing beside it is used by no route. A route pointing at a deleted
 destination shows up as a missing node rather than disappearing.
 
+## Backup and migration
+
+The configuration — templates, destinations, routes and permission grants — moves as one JSON
+bundle. It carries **no credentials** and no runtime state, so it can live in a repository beside
+the rest of a deployment's configuration:
+
+```bash
+teamster export -o teamster.json          # reads the database directly, server or no server
+teamster import teamster.json             # merge: upsert what the bundle carries
+teamster import teamster.json --mode replace --dry-run
+```
+
+`merge` leaves anything the bundle does not mention alone; `replace` makes the installation match
+the bundle. Both validate the whole bundle first and apply it in one transaction, so a bundle that
+will not apply changes nothing. `--dry-run` reports the diff by running the import and rolling it
+back, so the preview is of the real thing.
+
+The same over HTTP, for an admin session:
+
+```bash
+curl -u admin:pw http://localhost:8080/api/config/export > teamster.json
+curl -u admin:pw -X POST --data-binary @teamster.json   'http://localhost:8080/api/config/import?mode=replace&dry-run=true'
+```
+
+Ids are preserved, so re-importing a bundle where it came from is a no-op. Team and channel ids
+belong to one tenant, though: a bundle carried to another imports cleanly and then delivers nowhere.
+The bundle therefore carries the Team and channel names beside the ids, and the HTTP import names
+the destinations this tenant cannot resolve — see
+[ADR 0013](docs/adr/0013-configuration-transfer.md).
+
 ## Container
 
 ```bash

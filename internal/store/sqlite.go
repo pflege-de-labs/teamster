@@ -15,8 +15,20 @@ import (
 	"github.com/pflege-de-labs/teamster/internal/models"
 )
 
+// A queryer is whatever the statements run against: the database, or a
+// transaction while one is open. Every method uses it, so the same code serves
+// both and an import can be applied as a unit.
+type queryer interface {
+	Exec(query string, args ...any) (sql.Result, error)
+	Query(query string, args ...any) (*sql.Rows, error)
+	QueryRow(query string, args ...any) *sql.Row
+}
+
 type SQLiteStore struct {
+	// db is nil inside a transaction: there is nothing there to close, to ping,
+	// or to begin a second transaction on.
 	db   *sql.DB
+	sql  queryer
 	path string
 }
 
@@ -25,7 +37,7 @@ func NewSQLiteStore(path string) (*SQLiteStore, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite: %w", err)
 	}
-	store := &SQLiteStore{db: db, path: path}
+	store := &SQLiteStore{db: db, sql: db, path: path}
 	if err := store.migrate(); err != nil {
 		_ = db.Close()
 		return nil, err
@@ -34,13 +46,50 @@ func NewSQLiteStore(path string) (*SQLiteStore, error) {
 }
 
 func (s *SQLiteStore) Close() error {
+	if s.db == nil {
+		return errors.New("cannot close the store inside a transaction")
+	}
 	return s.db.Close()
+}
+
+// WithTx runs fn against a store bound to one transaction, committing when it
+// returns nil and rolling back otherwise. It is what lets an import that turns
+// out to be invalid half way through leave the configuration as it found it.
+func (s *SQLiteStore) WithTx(fn func(Store) error) error {
+	if s.db == nil {
+		return errors.New("already in a transaction")
+	}
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+
+	// A panic must not leave the transaction open, and it must keep travelling.
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
+
+	if err := fn(&SQLiteStore{sql: tx, path: s.path}); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit transaction: %w", err)
+	}
+	committed = true
+	return nil
 }
 
 // Ping is a round trip to the database rather than a look at a connection
 // struct: a file that has been deleted or a disk that has gone read-only shows
 // up here and nowhere else.
 func (s *SQLiteStore) Ping() error {
+	if s.db == nil {
+		return errors.New("cannot ping inside a transaction")
+	}
 	if err := s.db.Ping(); err != nil {
 		return fmt.Errorf("ping database: %w", err)
 	}
@@ -112,7 +161,7 @@ CREATE TABLE IF NOT EXISTS active_alerts (
 	PRIMARY KEY (fingerprint, team_id, channel_id)
 );
 `
-	_, err := s.db.Exec(schema)
+	_, err := s.sql.Exec(schema)
 	if err != nil {
 		return fmt.Errorf("migrate schema: %w", err)
 	}
@@ -149,7 +198,7 @@ func (s *SQLiteStore) addMissingColumns() error {
 		if _, ok := declared[add.column]; ok {
 			continue
 		}
-		if _, err := s.db.Exec(fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", add.table, add.column, add.definition)); err != nil {
+		if _, err := s.sql.Exec(fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", add.table, add.column, add.definition)); err != nil {
 			return fmt.Errorf("add %s.%s: %w", add.table, add.column, err)
 		}
 	}
@@ -232,7 +281,7 @@ ALTER TABLE active_alerts_rekeyed RENAME TO active_alerts;`)
 // primaryKey returns the key columns in key order, which is what distinguishes
 // the rebuilt active_alerts table from the one that preceded it.
 func (s *SQLiteStore) primaryKey(table string) ([]string, error) {
-	rows, err := s.db.Query(fmt.Sprintf("PRAGMA table_info(%s)", table))
+	rows, err := s.sql.Query(fmt.Sprintf("PRAGMA table_info(%s)", table))
 	if err != nil {
 		return nil, fmt.Errorf("inspect %s: %w", table, err)
 	}
@@ -271,7 +320,7 @@ func (s *SQLiteStore) primaryKey(table string) ([]string, error) {
 }
 
 func (s *SQLiteStore) columnTypes(table string) (map[string]string, error) {
-	rows, err := s.db.Query(fmt.Sprintf("PRAGMA table_info(%s)", table))
+	rows, err := s.sql.Query(fmt.Sprintf("PRAGMA table_info(%s)", table))
 	if err != nil {
 		return nil, fmt.Errorf("inspect %s: %w", table, err)
 	}
@@ -295,7 +344,7 @@ func (s *SQLiteStore) columnTypes(table string) (map[string]string, error) {
 }
 
 func (s *SQLiteStore) ListTemplates() ([]models.Template, error) {
-	rows, err := s.db.Query(`SELECT id, name, title, message_text, body, created_at, updated_at FROM templates ORDER BY name`)
+	rows, err := s.sql.Query(`SELECT id, name, title, message_text, body, created_at, updated_at FROM templates ORDER BY name`)
 	if err != nil {
 		return nil, fmt.Errorf("list templates: %w", err)
 	}
@@ -320,7 +369,7 @@ func (s *SQLiteStore) CreateTemplate(t models.Template) (models.Template, error)
 	t.CreatedAt = now
 	t.UpdatedAt = now
 
-	_, err := s.db.Exec(`INSERT INTO templates (id, name, title, message_text, body, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+	_, err := s.sql.Exec(`INSERT INTO templates (id, name, title, message_text, body, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
 		t.ID, t.Name, t.Title, t.Text, t.Body, t.CreatedAt, t.UpdatedAt)
 	if err != nil {
 		return models.Template{}, fmt.Errorf("create template: %w", err)
@@ -334,7 +383,7 @@ func (s *SQLiteStore) UpdateTemplate(t models.Template) (models.Template, error)
 	}
 	t.UpdatedAt = time.Now().UTC()
 
-	_, err := s.db.Exec(`UPDATE templates SET name = ?, title = ?, message_text = ?, body = ?, updated_at = ? WHERE id = ?`,
+	_, err := s.sql.Exec(`UPDATE templates SET name = ?, title = ?, message_text = ?, body = ?, updated_at = ? WHERE id = ?`,
 		t.Name, t.Title, t.Text, t.Body, t.UpdatedAt, t.ID)
 	if err != nil {
 		return models.Template{}, fmt.Errorf("update template: %w", err)
@@ -343,7 +392,7 @@ func (s *SQLiteStore) UpdateTemplate(t models.Template) (models.Template, error)
 }
 
 func (s *SQLiteStore) DeleteTemplate(id string) error {
-	_, err := s.db.Exec(`DELETE FROM templates WHERE id = ?`, id)
+	_, err := s.sql.Exec(`DELETE FROM templates WHERE id = ?`, id)
 	if err != nil {
 		return fmt.Errorf("delete template: %w", err)
 	}
@@ -352,7 +401,7 @@ func (s *SQLiteStore) DeleteTemplate(id string) error {
 
 func (s *SQLiteStore) GetTemplate(id string) (models.Template, error) {
 	var t models.Template
-	err := s.db.QueryRow(`SELECT id, name, title, message_text, body, created_at, updated_at FROM templates WHERE id = ?`, id).
+	err := s.sql.QueryRow(`SELECT id, name, title, message_text, body, created_at, updated_at FROM templates WHERE id = ?`, id).
 		Scan(&t.ID, &t.Name, &t.Title, &t.Text, &t.Body, &t.CreatedAt, &t.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -364,7 +413,7 @@ func (s *SQLiteStore) GetTemplate(id string) (models.Template, error) {
 }
 
 func (s *SQLiteStore) ListDestinations() ([]models.Destination, error) {
-	rows, err := s.db.Query(`SELECT id, name, team_id, channel_id, created_at, updated_at FROM destinations ORDER BY name`)
+	rows, err := s.sql.Query(`SELECT id, name, team_id, channel_id, created_at, updated_at FROM destinations ORDER BY name`)
 	if err != nil {
 		return nil, fmt.Errorf("list destinations: %w", err)
 	}
@@ -389,7 +438,7 @@ func (s *SQLiteStore) CreateDestination(d models.Destination) (models.Destinatio
 	d.CreatedAt = now
 	d.UpdatedAt = now
 
-	_, err := s.db.Exec(`INSERT INTO destinations (id, name, team_id, channel_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
+	_, err := s.sql.Exec(`INSERT INTO destinations (id, name, team_id, channel_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
 		d.ID, d.Name, d.TeamID, d.ChannelID, d.CreatedAt, d.UpdatedAt)
 	if err != nil {
 		return models.Destination{}, fmt.Errorf("create destination: %w", err)
@@ -403,7 +452,7 @@ func (s *SQLiteStore) UpdateDestination(d models.Destination) (models.Destinatio
 	}
 	d.UpdatedAt = time.Now().UTC()
 
-	_, err := s.db.Exec(`UPDATE destinations SET name = ?, team_id = ?, channel_id = ?, updated_at = ? WHERE id = ?`,
+	_, err := s.sql.Exec(`UPDATE destinations SET name = ?, team_id = ?, channel_id = ?, updated_at = ? WHERE id = ?`,
 		d.Name, d.TeamID, d.ChannelID, d.UpdatedAt, d.ID)
 	if err != nil {
 		return models.Destination{}, fmt.Errorf("update destination: %w", err)
@@ -412,7 +461,7 @@ func (s *SQLiteStore) UpdateDestination(d models.Destination) (models.Destinatio
 }
 
 func (s *SQLiteStore) DeleteDestination(id string) error {
-	_, err := s.db.Exec(`DELETE FROM destinations WHERE id = ?`, id)
+	_, err := s.sql.Exec(`DELETE FROM destinations WHERE id = ?`, id)
 	if err != nil {
 		return fmt.Errorf("delete destination: %w", err)
 	}
@@ -421,7 +470,7 @@ func (s *SQLiteStore) DeleteDestination(id string) error {
 
 func (s *SQLiteStore) GetDestination(id string) (models.Destination, error) {
 	var d models.Destination
-	err := s.db.QueryRow(`SELECT id, name, team_id, channel_id, created_at, updated_at FROM destinations WHERE id = ?`, id).
+	err := s.sql.QueryRow(`SELECT id, name, team_id, channel_id, created_at, updated_at FROM destinations WHERE id = ?`, id).
 		Scan(&d.ID, &d.Name, &d.TeamID, &d.ChannelID, &d.CreatedAt, &d.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -433,7 +482,7 @@ func (s *SQLiteStore) GetDestination(id string) (models.Destination, error) {
 }
 
 func (s *SQLiteStore) ListRoutes() ([]models.Route, error) {
-	rows, err := s.db.Query(`SELECT id, name, parent_id, greedy, label_selector, destination_id, template_id, is_default, priority, created_at, updated_at FROM routes ORDER BY priority DESC, name`)
+	rows, err := s.sql.Query(`SELECT id, name, parent_id, greedy, label_selector, destination_id, template_id, is_default, priority, created_at, updated_at FROM routes ORDER BY priority DESC, name`)
 	if err != nil {
 		return nil, fmt.Errorf("list routes: %w", err)
 	}
@@ -468,7 +517,7 @@ func (s *SQLiteStore) CreateRoute(r models.Route) (models.Route, error) {
 
 	selectorJSON := serializeSelector(r.LabelSelector)
 
-	_, err := s.db.Exec(`INSERT INTO routes (id, name, parent_id, greedy, label_selector, destination_id, template_id, is_default, priority, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+	_, err := s.sql.Exec(`INSERT INTO routes (id, name, parent_id, greedy, label_selector, destination_id, template_id, is_default, priority, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		r.ID, r.Name, r.ParentID, boolToInt(r.Greedy), selectorJSON, r.DestinationID, r.TemplateID, boolToInt(r.IsDefault), r.Priority, r.CreatedAt, r.UpdatedAt)
 	if err != nil {
 		return models.Route{}, fmt.Errorf("create route: %w", err)
@@ -484,7 +533,7 @@ func (s *SQLiteStore) UpdateRoute(r models.Route) (models.Route, error) {
 
 	selectorJSON := serializeSelector(r.LabelSelector)
 
-	_, err := s.db.Exec(`UPDATE routes SET name = ?, parent_id = ?, greedy = ?, label_selector = ?, destination_id = ?, template_id = ?, is_default = ?, priority = ?, updated_at = ? WHERE id = ?`,
+	_, err := s.sql.Exec(`UPDATE routes SET name = ?, parent_id = ?, greedy = ?, label_selector = ?, destination_id = ?, template_id = ?, is_default = ?, priority = ?, updated_at = ? WHERE id = ?`,
 		r.Name, r.ParentID, boolToInt(r.Greedy), selectorJSON, r.DestinationID, r.TemplateID, boolToInt(r.IsDefault), r.Priority, r.UpdatedAt, r.ID)
 	if err != nil {
 		return models.Route{}, fmt.Errorf("update route: %w", err)
@@ -493,7 +542,7 @@ func (s *SQLiteStore) UpdateRoute(r models.Route) (models.Route, error) {
 }
 
 func (s *SQLiteStore) DeleteRoute(id string) error {
-	_, err := s.db.Exec(`DELETE FROM routes WHERE id = ?`, id)
+	_, err := s.sql.Exec(`DELETE FROM routes WHERE id = ?`, id)
 	if err != nil {
 		return fmt.Errorf("delete route: %w", err)
 	}
@@ -507,7 +556,7 @@ func (s *SQLiteStore) GetRoute(id string) (models.Route, error) {
 		isDefault    int
 		greedy       int
 	)
-	row := s.db.QueryRow(`SELECT id, name, parent_id, greedy, label_selector, destination_id, template_id, is_default, priority, created_at, updated_at FROM routes WHERE id = ?`, id)
+	row := s.sql.QueryRow(`SELECT id, name, parent_id, greedy, label_selector, destination_id, template_id, is_default, priority, created_at, updated_at FROM routes WHERE id = ?`, id)
 	if err := row.Scan(&r.ID, &r.Name, &r.ParentID, &greedy, &selectorJSON, &r.DestinationID, &r.TemplateID, &isDefault, &r.Priority, &r.CreatedAt, &r.UpdatedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return models.Route{}, ErrNotFound
@@ -528,7 +577,7 @@ func boolToInt(value bool) int {
 }
 
 func (s *SQLiteStore) UpsertActiveAlert(a models.ActiveAlert) error {
-	_, err := s.db.Exec(`INSERT INTO active_alerts (fingerprint, status, team_id, channel_id, message_id, last_update)
+	_, err := s.sql.Exec(`INSERT INTO active_alerts (fingerprint, status, team_id, channel_id, message_id, last_update)
 VALUES (?, ?, ?, ?, ?, ?)
 ON CONFLICT(fingerprint, team_id, channel_id) DO UPDATE SET status = excluded.status, message_id = excluded.message_id, last_update = excluded.last_update`,
 		a.Fingerprint, a.Status, a.TeamID, a.ChannelID, a.MessageID, a.LastUpdate)
@@ -542,7 +591,7 @@ ON CONFLICT(fingerprint, team_id, channel_id) DO UPDATE SET status = excluded.st
 // fanned out to. Ordering is stable so that delivery, and its tests, see the
 // cards in the same order every time.
 func (s *SQLiteStore) ListActiveAlerts(fingerprint string) ([]models.ActiveAlert, error) {
-	rows, err := s.db.Query(`SELECT fingerprint, status, team_id, channel_id, message_id, last_update FROM active_alerts WHERE fingerprint = ? ORDER BY team_id, channel_id`, fingerprint)
+	rows, err := s.sql.Query(`SELECT fingerprint, status, team_id, channel_id, message_id, last_update FROM active_alerts WHERE fingerprint = ? ORDER BY team_id, channel_id`, fingerprint)
 	if err != nil {
 		return nil, fmt.Errorf("list active alerts: %w", err)
 	}
@@ -561,7 +610,7 @@ func (s *SQLiteStore) ListActiveAlerts(fingerprint string) ([]models.ActiveAlert
 
 func (s *SQLiteStore) GetActiveAlert(fingerprint, teamID, channelID string) (models.ActiveAlert, error) {
 	var a models.ActiveAlert
-	err := s.db.QueryRow(`SELECT fingerprint, status, team_id, channel_id, message_id, last_update FROM active_alerts WHERE fingerprint = ? AND team_id = ? AND channel_id = ?`, fingerprint, teamID, channelID).
+	err := s.sql.QueryRow(`SELECT fingerprint, status, team_id, channel_id, message_id, last_update FROM active_alerts WHERE fingerprint = ? AND team_id = ? AND channel_id = ?`, fingerprint, teamID, channelID).
 		Scan(&a.Fingerprint, &a.Status, &a.TeamID, &a.ChannelID, &a.MessageID, &a.LastUpdate)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -573,7 +622,7 @@ func (s *SQLiteStore) GetActiveAlert(fingerprint, teamID, channelID string) (mod
 }
 
 func (s *SQLiteStore) DeleteActiveAlert(fingerprint, teamID, channelID string) error {
-	_, err := s.db.Exec(`DELETE FROM active_alerts WHERE fingerprint = ? AND team_id = ? AND channel_id = ?`, fingerprint, teamID, channelID)
+	_, err := s.sql.Exec(`DELETE FROM active_alerts WHERE fingerprint = ? AND team_id = ? AND channel_id = ?`, fingerprint, teamID, channelID)
 	if err != nil {
 		return fmt.Errorf("delete active alert: %w", err)
 	}
@@ -608,7 +657,7 @@ func parseSelector(raw string) map[string]string {
 // ListGrants returns the scopes in a stable order, so the admin page and its
 // tests see them the same way every time.
 func (s *SQLiteStore) ListGrants() ([]models.Grant, error) {
-	rows, err := s.db.Query(`SELECT id, role, team_id, channel_id, created_at, updated_at FROM grants ORDER BY role, team_id, channel_id`)
+	rows, err := s.sql.Query(`SELECT id, role, team_id, channel_id, created_at, updated_at FROM grants ORDER BY role, team_id, channel_id`)
 	if err != nil {
 		return nil, fmt.Errorf("list grants: %w", err)
 	}
@@ -632,7 +681,7 @@ func (s *SQLiteStore) CreateGrant(g models.Grant) (models.Grant, error) {
 	}
 	g.CreatedAt, g.UpdatedAt = now, now
 
-	_, err := s.db.Exec(`INSERT INTO grants (id, role, team_id, channel_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
+	_, err := s.sql.Exec(`INSERT INTO grants (id, role, team_id, channel_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
 		g.ID, g.Role, g.TeamID, g.ChannelID, g.CreatedAt, g.UpdatedAt)
 	if err != nil {
 		return models.Grant{}, fmt.Errorf("create grant: %w", err)
@@ -641,7 +690,7 @@ func (s *SQLiteStore) CreateGrant(g models.Grant) (models.Grant, error) {
 }
 
 func (s *SQLiteStore) DeleteGrant(id string) error {
-	_, err := s.db.Exec(`DELETE FROM grants WHERE id = ?`, id)
+	_, err := s.sql.Exec(`DELETE FROM grants WHERE id = ?`, id)
 	if err != nil {
 		return fmt.Errorf("delete grant: %w", err)
 	}
@@ -649,7 +698,7 @@ func (s *SQLiteStore) DeleteGrant(id string) error {
 }
 
 func (s *SQLiteStore) CreateSession(session models.Session) error {
-	_, err := s.db.Exec(`INSERT INTO sessions (id, subject, name, source, role, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+	_, err := s.sql.Exec(`INSERT INTO sessions (id, subject, name, source, role, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
 		session.ID, session.Subject, session.Name, session.Source, session.Roles, session.CreatedAt, session.ExpiresAt)
 	if err != nil {
 		return fmt.Errorf("create session: %w", err)
@@ -661,7 +710,7 @@ func (s *SQLiteStore) CreateSession(session models.Session) error {
 // honour one by forgetting to check the time.
 func (s *SQLiteStore) GetSession(id string) (models.Session, error) {
 	var session models.Session
-	err := s.db.QueryRow(`SELECT id, subject, name, source, role, created_at, expires_at FROM sessions WHERE id = ?`, id).
+	err := s.sql.QueryRow(`SELECT id, subject, name, source, role, created_at, expires_at FROM sessions WHERE id = ?`, id).
 		Scan(&session.ID, &session.Subject, &session.Name, &session.Source, &session.Roles, &session.CreatedAt, &session.ExpiresAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -676,7 +725,7 @@ func (s *SQLiteStore) GetSession(id string) (models.Session, error) {
 }
 
 func (s *SQLiteStore) DeleteSession(id string) error {
-	if _, err := s.db.Exec(`DELETE FROM sessions WHERE id = ?`, id); err != nil {
+	if _, err := s.sql.Exec(`DELETE FROM sessions WHERE id = ?`, id); err != nil {
 		return fmt.Errorf("delete session: %w", err)
 	}
 	return nil
@@ -684,17 +733,17 @@ func (s *SQLiteStore) DeleteSession(id string) error {
 
 func (s *SQLiteStore) DeleteExpiredSessions() error {
 	now := time.Now()
-	if _, err := s.db.Exec(`DELETE FROM sessions WHERE expires_at <= ?`, now); err != nil {
+	if _, err := s.sql.Exec(`DELETE FROM sessions WHERE expires_at <= ?`, now); err != nil {
 		return fmt.Errorf("sweep sessions: %w", err)
 	}
-	if _, err := s.db.Exec(`DELETE FROM login_flows WHERE expires_at <= ?`, now); err != nil {
+	if _, err := s.sql.Exec(`DELETE FROM login_flows WHERE expires_at <= ?`, now); err != nil {
 		return fmt.Errorf("sweep login flows: %w", err)
 	}
 	return nil
 }
 
 func (s *SQLiteStore) CreateLoginFlow(flow models.LoginFlow) error {
-	_, err := s.db.Exec(`INSERT INTO login_flows (state, verifier, nonce, expires_at) VALUES (?, ?, ?, ?)`,
+	_, err := s.sql.Exec(`INSERT INTO login_flows (state, verifier, nonce, expires_at) VALUES (?, ?, ?, ?)`,
 		flow.State, flow.Verifier, flow.Nonce, flow.ExpiresAt)
 	if err != nil {
 		return fmt.Errorf("create login flow: %w", err)
@@ -706,7 +755,7 @@ func (s *SQLiteStore) CreateLoginFlow(flow models.LoginFlow) error {
 // callback finds nothing.
 func (s *SQLiteStore) TakeLoginFlow(state string) (models.LoginFlow, error) {
 	var flow models.LoginFlow
-	err := s.db.QueryRow(`DELETE FROM login_flows WHERE state = ? RETURNING state, verifier, nonce, expires_at`, state).
+	err := s.sql.QueryRow(`DELETE FROM login_flows WHERE state = ? RETURNING state, verifier, nonce, expires_at`, state).
 		Scan(&flow.State, &flow.Verifier, &flow.Nonce, &flow.ExpiresAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {

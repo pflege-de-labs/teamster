@@ -205,6 +205,26 @@ its destination and template resolved. `routing.ValidateRoute` and `ValidateDele
 both write paths and keep the tree acyclic, bounded and free of children that could never fire. See
 [ADR 0011](adr/0011-nested-routes.md).
 
+## Configuration transfer
+
+`internal/transfer` reads the configuration into a versioned bundle and writes one back. It carries
+templates, destinations, routes and grants — no credentials, no sessions, no alert state — and
+preserves ids, so a bundle re-imported where it came from changes nothing.
+
+An import validates the whole bundle before writing anything: the version, duplicate ids, references
+that point outside the bundle, and cycles in the route tree, the last through
+`routing.ValidateRoute` so the rules live in one place. It then applies it inside `store.WithTx`,
+writing templates and destinations before the routes that point at them and routes parents first. A
+dry run runs that same import and rolls it back, rather than computing the diff a second way.
+
+`store.Store` grows `WithTx(func(Store) error) error` for it. The SQLite implementation runs every
+statement against a `queryer`, which is the database or a transaction, so one set of methods serves
+both; `Close`, `Ping` and a nested `WithTx` are refused inside one.
+
+`GET /api/config/export`, `POST /api/config/import` and the `teamster export` / `teamster import`
+commands are three doors onto the same code. See
+[ADR 0013](adr/0013-configuration-transfer.md).
+
 ## Probes
 
 `GET /healthz` and `GET /readyz` answer before any authentication, because a kubelet has no

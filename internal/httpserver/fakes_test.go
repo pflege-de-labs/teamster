@@ -2,6 +2,7 @@ package httpserver
 
 import (
 	"errors"
+	"maps"
 	"sort"
 	"sync"
 	"time"
@@ -271,6 +272,39 @@ func activeAlertKey(fingerprint, teamID, channelID string) string {
 }
 
 func (f *fakeStore) Ping() error { return f.failing("Ping") }
+
+// WithTx runs fn against a copy and keeps the copy only when fn succeeds, which
+// is the behaviour the import depends on: a bundle rejected half way through
+// leaves the configuration as it was.
+func (f *fakeStore) WithTx(fn func(store.Store) error) error {
+	if err := f.failing("WithTx"); err != nil {
+		return err
+	}
+
+	f.mu.Lock()
+	snapshot := &fakeStore{
+		templates:    maps.Clone(f.templates),
+		destinations: maps.Clone(f.destinations),
+		routes:       maps.Clone(f.routes),
+		grants:       maps.Clone(f.grants),
+		activeAlerts: maps.Clone(f.activeAlerts),
+		sessions:     maps.Clone(f.sessions),
+		loginFlows:   maps.Clone(f.loginFlows),
+		failOn:       maps.Clone(f.failOn),
+	}
+	f.mu.Unlock()
+
+	if err := fn(snapshot); err != nil {
+		return err
+	}
+
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.templates, f.destinations, f.routes = snapshot.templates, snapshot.destinations, snapshot.routes
+	f.grants, f.activeAlerts = snapshot.grants, snapshot.activeAlerts
+	f.sessions, f.loginFlows = snapshot.sessions, snapshot.loginFlows
+	return nil
+}
 
 func (f *fakeStore) ListGrants() ([]models.Grant, error) {
 	if err := f.failing("ListGrants"); err != nil {

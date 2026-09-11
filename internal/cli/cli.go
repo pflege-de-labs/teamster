@@ -16,7 +16,9 @@ type CLI struct {
 	ConfigFile kong.ConfigFlag  `name:"config" short:"c" env:"TEAMSTER_CONFIG" placeholder:"FILE" help:"Load configuration from FILE, overriding the XDG locations."`
 	Version    kong.VersionFlag `help:"Print the version and exit."`
 
-	Serve ServeCmd `cmd:"" default:"1" help:"Run the webhook bridge HTTP server."`
+	Serve  ServeCmd  `cmd:"" default:"1" help:"Run the webhook bridge HTTP server."`
+	Export ExportCmd `cmd:"" help:"Write the configuration to a bundle."`
+	Import ImportCmd `cmd:"" help:"Apply a configuration bundle."`
 
 	Config config.Config `embed:""`
 }
