@@ -57,10 +57,12 @@ type ActiveAlert struct {
 // Session is a signed-in administrator. Subject and Name are what the identity
 // provider said; a local login records the configured username.
 type Session struct {
-	ID        string    `json:"id"`
-	Subject   string    `json:"subject"`
-	Name      string    `json:"name"`
-	Source    string    `json:"source"`
+	ID      string `json:"id"`
+	Subject string `json:"subject"`
+	Name    string `json:"name"`
+	Source  string `json:"source"`
+	// Role is what this session may do: admin, editor or viewer.
+	Role      string    `json:"role"`
 	CreatedAt time.Time `json:"created_at"`
 	ExpiresAt time.Time `json:"expires_at"`
 }

@@ -565,6 +565,59 @@ INSERT INTO active_alerts VALUES ('fp', 'firing', 'team', 'channel', 'msg-1', '2
 	}
 }
 
+// A database written before sessions carried a role gains the column, and the
+// sessions already in it keep working.
+func TestNewSQLiteStoreAddsTheSessionRole(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), "no-role.db")
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatalf("open old db: %v", err)
+	}
+	_, err = db.Exec(`CREATE TABLE sessions (
+	id TEXT PRIMARY KEY,
+	subject TEXT NOT NULL,
+	name TEXT NOT NULL,
+	source TEXT NOT NULL,
+	created_at DATETIME NOT NULL,
+	expires_at DATETIME NOT NULL
+);
+INSERT INTO sessions VALUES ('old', 'tester', 'tester', 'oidc', '2026-01-01 00:00:00+00:00', '2099-01-01 00:00:00+00:00')`)
+	if err != nil {
+		t.Fatalf("seed old db: %v", err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatalf("close old db: %v", err)
+	}
+
+	store, err := NewSQLiteStore(path)
+	if err != nil {
+		t.Fatalf("NewSQLiteStore: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+
+	session, err := store.GetSession("old")
+	if err != nil {
+		t.Fatalf("GetSession: %v", err)
+	}
+	if session.Subject != "tester" || session.Role != "" {
+		t.Errorf("session = %+v, want the stored row with an empty role", session)
+	}
+
+	session.ID, session.Role = "new", "editor"
+	if err := store.CreateSession(session); err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+	back, err := store.GetSession("new")
+	if err != nil {
+		t.Fatalf("GetSession after create: %v", err)
+	}
+	if back.Role != "editor" {
+		t.Errorf("role = %q, want it stored", back.Role)
+	}
+}
+
 func TestSessionLifecycle(t *testing.T) {
 	t.Parallel()
 

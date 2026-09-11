@@ -3,6 +3,8 @@ package httpserver
 import (
 	"net/http"
 
+	"github.com/pflege-de-labs/teamster/internal/authz"
+
 	"github.com/pflege-de-labs/teamster/internal/httpserver/views"
 )
 
@@ -55,7 +57,9 @@ func (s *Server) handleLocalLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.startSession(w, r, user, user, "local"); err != nil {
+	// The local credentials are the way back in when the provider is wrong or
+	// unreachable, so they administer.
+	if err := s.startSession(w, r, user, user, "local", authz.RoleAdmin); err != nil {
 		logError("start session", err)
 		loginFailed(w, r, "could not start a session")
 		return

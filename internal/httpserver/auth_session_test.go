@@ -22,7 +22,7 @@ func authServer(t *testing.T, st *fakeStore, auth config.AuthConfig) http.Handle
 		Admin:   config.AdminConfig{Username: "admin", Password: "pass"},
 		Auth:    auth,
 	}
-	return NewServer(cfg, st, &fakeMessenger{}).Handler
+	return mustServer(t, cfg, st, &fakeMessenger{}).Handler
 }
 
 // Anonymous is the state that matters: the admin pages must not be reachable
@@ -166,7 +166,7 @@ func TestLocalLoginRefusedWhenNoCredentialsConfigured(t *testing.T) {
 		Webhook: config.WebhookConfig{Token: "token"},
 		Auth:    config.AuthConfig{},
 	}
-	handler := NewServer(cfg, st, &fakeMessenger{}).Handler
+	handler := mustServer(t, cfg, st, &fakeMessenger{}).Handler
 
 	rec := postLogin(t, handler, url.Values{"username": {""}, "password": {""}})
 	if rec.Code != http.StatusFound || !strings.Contains(rec.Header().Get("Location"), "wrong") {
@@ -229,7 +229,7 @@ func TestLoginPageOffersTheConfiguredWaysIn(t *testing.T) {
 				cfg.Admin = config.AdminConfig{Username: "admin", Password: "pass"}
 			}
 
-			handler := NewServer(cfg, newFakeStore(), &fakeMessenger{}).Handler
+			handler := mustServer(t, cfg, newFakeStore(), &fakeMessenger{}).Handler
 			req := httptest.NewRequest(http.MethodGet, "/admin/login", nil)
 			rec := httptest.NewRecorder()
 			handler.ServeHTTP(rec, req)
@@ -403,7 +403,7 @@ func TestEmptyConfiguredPasswordAdmitsNobody(t *testing.T) {
 				Webhook: config.WebhookConfig{Token: "token"},
 				Admin:   tt.admin,
 			}
-			handler := NewServer(cfg, st, &fakeMessenger{}).Handler
+			handler := mustServer(t, cfg, st, &fakeMessenger{}).Handler
 
 			rec := postLogin(t, handler, tt.form)
 			if rec.Code != http.StatusFound || !strings.Contains(rec.Header().Get("Location"), "wrong") {

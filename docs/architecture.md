@@ -97,6 +97,23 @@ POST /webhook/alertmanager        POST /webhook/universal
 Any other `status` value is rejected. Handler errors map to `400` for malformed JSON, `401` for a
 bad token, and `502` when routing, rendering, the store or Graph fails.
 
+## Authorization
+
+A session carries a role — `admin`, `editor` or `viewer` — decided at sign-in from the same claim
+that grants access. `internal/authz` holds the rules as Cedar policies embedded in the binary and
+evaluates them in-process with `cedar-policy/cedar-go`; roles nest through Cedar entity parents, so
+an admin is an editor and an editor is a viewer.
+
+One middleware, `httpserver.authorize`, wraps the admin mux and is the only place a permission is
+enforced. It maps the path to a resource type and the method to an action, counting
+`POST /api/templates/preview` and `POST /api/routing/match` as reads because they answer a question
+and change nothing. The UI hides what a role may not do, which is a courtesy rather than a control.
+
+`/api` accepts a session as well as the local credentials; a state-changing call authenticated by a
+cookie has to pass the same origin check as a form post, because a cookie travels with a cross-site
+request and basic auth credentials do not. See
+[ADR 0012](adr/0012-role-based-authorization.md).
+
 ## Routing visualization
 
 `/admin/routing` draws the path an alert takes and answers which route a set of labels would take.

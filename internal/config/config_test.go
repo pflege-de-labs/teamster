@@ -72,6 +72,9 @@ func TestParseExampleConfig(t *testing.T) {
 			OIDCScopes:       []string{"profile", "email", "roles"},
 			Claim:            "realm_access.roles",
 			Allowed:          []string{"admin"},
+			AdminValues:      []string{"teamster-admins"},
+			EditorValues:     []string{"teamster-editors"},
+			ViewerValues:     []string{"teamster-viewers"},
 			SessionTTL:       12 * time.Hour,
 		},
 		Graph: GraphConfig{
@@ -228,7 +231,12 @@ func TestValidateRefusesIncompleteOIDC(t *testing.T) {
 	}{
 		{name: "complete", mutate: func(*Config) {}},
 		{name: "no issuer means no OIDC, and the rest is ignored", mutate: func(c *Config) { c.Auth = AuthConfig{} }},
-		{name: "issuer without accepted values", mutate: func(c *Config) { c.Auth.Allowed = nil }, wantErr: "auth allowed is required"},
+		{name: "issuer without accepted values", mutate: func(c *Config) { c.Auth.Allowed = nil }, wantErr: "auth allowed, or one of the role value lists, is required"},
+		{
+			// A role list names who may sign in just as much as auth-allowed does.
+			name:   "a role list stands in for auth-allowed",
+			mutate: func(c *Config) { c.Auth.Allowed, c.Auth.EditorValues = nil, []string{"teamster-editors"} },
+		},
 		{name: "issuer without a claim", mutate: func(c *Config) { c.Auth.Claim = "" }, wantErr: "auth claim is required"},
 		{name: "issuer without a client id", mutate: func(c *Config) { c.Auth.OIDCClientID = "" }, wantErr: "oidc-client-id is required"},
 		{name: "issuer without a redirect url", mutate: func(c *Config) { c.Auth.OIDCRedirectURL = "" }, wantErr: "oidc-redirect-url is required"},

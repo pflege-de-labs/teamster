@@ -34,6 +34,14 @@ type Page struct {
 	// Sample alerts the preview can render the template against.
 	PreviewSamples []string
 
+	// CanEdit hides what this session may not do. Hiding is not enforcing —
+	// the server refuses the post either way — but showing a viewer a Save
+	// button they cannot use is its own kind of broken.
+	CanEdit bool
+
+	// Role is shown in the header, so it is obvious why the controls are gone.
+	Role string
+
 	// A nil Edit* means the matching form creates rather than updates.
 	EditTemplate    *models.Template
 	EditDestination *models.Destination

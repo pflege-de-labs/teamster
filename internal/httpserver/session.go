@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pflege-de-labs/teamster/internal/authz"
 	"github.com/pflege-de-labs/teamster/internal/models"
 	"github.com/pflege-de-labs/teamster/internal/store"
 )
@@ -22,7 +23,7 @@ func newToken() (string, error) {
 	return base64.RawURLEncoding.EncodeToString(raw), nil
 }
 
-func (s *Server) startSession(w http.ResponseWriter, r *http.Request, subject, name, source string) error {
+func (s *Server) startSession(w http.ResponseWriter, r *http.Request, subject, name, source string, role authz.Role) error {
 	id, err := newToken()
 	if err != nil {
 		return err
@@ -30,7 +31,7 @@ func (s *Server) startSession(w http.ResponseWriter, r *http.Request, subject, n
 
 	now := time.Now().UTC()
 	if err := s.store.CreateSession(models.Session{
-		ID: id, Subject: subject, Name: name, Source: source,
+		ID: id, Subject: subject, Name: name, Source: source, Role: string(role),
 		CreatedAt: now, ExpiresAt: now.Add(s.sessionTTL()),
 	}); err != nil {
 		return err
@@ -107,8 +108,8 @@ func isNotFound(err error) bool {
 // basic auth, because automation cannot complete an authorization code flow.
 func (s *Server) requireSession(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if _, ok := s.currentSession(r); ok {
-			next.ServeHTTP(w, r)
+		if session, ok := s.currentSession(r); ok {
+			next.ServeHTTP(w, r.WithContext(withPrincipal(r.Context(), session.Subject, roleOf(session))))
 			return
 		}
 		http.Redirect(w, r, "/admin/login", http.StatusFound)

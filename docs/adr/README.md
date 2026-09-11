@@ -26,3 +26,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0009](0009-admin-authentication.md) | Admin authentication by Keycloak login or local credentials | Accepted |
 | [0010](0010-message-shape.md) | A template decides the title, text and card of a message | Accepted |
 | [0011](0011-nested-routes.md) | Routes form a tree and an alert can fan out | Accepted |
+| [0012](0012-role-based-authorization.md) | Roles are authorized with Cedar, evaluated in-process | Accepted |

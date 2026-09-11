@@ -315,7 +315,7 @@ different from an edge to a destination. That is two graphs drawn on top of each
 
 Depends on milestone 5. No ADR: it is the same page drawing a changed model.
 
-## Milestone 7 — Fine-grained permissions
+## Milestone 7 — Fine-grained permissions — roles done, scoping open
 
 Today an authenticated session can do anything. The roles we want are `admin`, `editor` and
 `viewer`, with an admin able to say which Teams and channels an editor — or a group of editors —
@@ -368,6 +368,19 @@ file in the XDG config directory, a table in SQLite edited through the admin UI,
 — and how much of Cedar's schema validation the Go implementation offers, which decides whether a
 bad policy is caught on write or only at evaluation. The library's API surface gets read before any
 of that is promised.
+
+### What shipped, and what did not
+
+The roles and their enforcement are done: claim values map to `admin`, `editor` and `viewer`,
+`internal/authz` evaluates the Cedar policies in-process, one middleware enforces them, and the UI
+hides what a role may not do. [ADR 0012](adr/0012-role-based-authorization.md) records it.
+
+Still open, and the reason this milestone is not marked done: **scoping**. Which Teams and channels
+a given editor or group may deliver to, and the global visibility overlay, both need a grant stored
+somewhere and a screen to manage it. `Action::"administer"` is already reserved for that screen, and
+a grant becomes an attribute on the principal with a policy that reads
+`resource in principal.grants` — the model was chosen so that this addition is entities and one
+policy, not a rewrite.
 
 ### Enforcement
 
@@ -494,7 +507,7 @@ Needs an ADR: it changes how every component in the UI is written.
 | — | 4 Activity feed messages | — | done |
 | — | 5 Nested routes | — | done |
 | — | 6 Visualization, second pass | 5 | done |
-| 4 | 7 Fine-grained permissions | 2 | ADR on where Cedar policies live |
+| 4 | 7 Fine-grained permissions — scoping | roles, done | policy storage for grants |
 | 5 | 8 Import and export | 7 for permissions | — |
 | 6 | 9 Card editor | 1.4 | decision after 1.4 |
 | 7 | 10 Localizable UI | — | — |

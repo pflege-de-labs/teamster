@@ -167,8 +167,32 @@ Configuring an issuer without `auth.allowed` refuses to start, because the alter
 everyone the provider will authenticate. Keep the local credentials configured: they are the way
 back in if the provider is unreachable or the claim is wrong.
 
-`/api` continues to accept those same credentials as HTTP basic auth, so existing automation keeps
-working.
+`/api` accepts either a session or those same credentials as HTTP basic auth, so existing automation
+keeps working and the admin UI's own fetches work for a session that never saw the local password.
+
+## Roles
+
+Three roles, in order: `admin`, `editor`, `viewer`.
+
+| Role | May |
+| --- | --- |
+| `admin` | everything, including whatever later releases add |
+| `editor` | read the configuration and change it |
+| `viewer` | read it, and nothing else |
+
+`auth.admin-values`, `auth.editor-values` and `auth.viewer-values` map claim values to roles, most
+privileged first. A value named in any of them may sign in even when `auth.allowed` does not repeat
+it. **Configure none of them and nothing changes: whoever may sign in administers.** Someone allowed
+in but named by no role list is a viewer — the least privilege, not the most. The local credentials
+administer, because they are the way back in when the provider is wrong.
+
+A role is decided at sign-in and travels with the session, so a change at the provider applies the
+next time that person signs in. The admin UI hides the controls a role may not use and says why;
+the server refuses the request either way. A refusal is a `403` naming the role and the resource.
+
+The rules are three policies in
+[`internal/authz/policies.cedar`](internal/authz/policies.cedar), evaluated in-process by
+[Cedar](https://www.cedarpolicy.com/) — see [ADR 0012](docs/adr/0012-role-based-authorization.md).
 
 ## Routing visualization
 
