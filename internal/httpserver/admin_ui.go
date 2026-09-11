@@ -31,6 +31,7 @@ func (s *Server) handleAdminPage(w http.ResponseWriter, r *http.Request) {
 		PreviewSamples: previewSamples(),
 		Role:           authz.Encode(roles),
 		CanEdit:        s.authz.Allow(principalSubject(r), roles, authz.ActionEdit, authz.Resource{Type: "Template"}),
+		CanManage:      s.authz.Allow(principalSubject(r), roles, authz.ActionAdminister, authz.Resource{Type: "Grant"}),
 	}
 
 	var err error
@@ -40,8 +41,17 @@ func (s *Server) handleAdminPage(w http.ResponseWriter, r *http.Request) {
 	if page.Destinations, err = s.store.ListDestinations(); err != nil {
 		page.Error = err.Error()
 	}
+	// A destination in a channel this session may not see is not theirs to read.
+	if page.Destinations, err = s.visibleDestinations(r, page.Destinations); err != nil {
+		page.Error = err.Error()
+	}
 	if page.Routes, err = s.store.ListRoutes(); err != nil {
 		page.Error = err.Error()
+	}
+	if page.CanManage {
+		if page.Grants, err = s.store.ListGrants(); err != nil {
+			page.Error = err.Error()
+		}
 	}
 
 	if selected := r.URL.Query().Get("edit"); selected != "" {
@@ -182,6 +192,16 @@ func (s *Server) saveDestination(r *http.Request) (string, error) {
 		TeamID:    r.PostFormValue("team_id"),
 		ChannelID: r.PostFormValue("channel_id"),
 	}
+	// Typing a channel id the picker would not have offered reaches here, which
+	// is why the check is on the write rather than on the list.
+	allowed, err := s.mayDeliverTo(r, destination.TeamID, destination.ChannelID)
+	if err != nil {
+		return "", err
+	}
+	if !allowed {
+		return "", errDeliveryRefused
+	}
+
 	if destination.ID == "" {
 		if _, err := s.store.CreateDestination(destination); err != nil {
 			return "", err
@@ -220,6 +240,15 @@ func (s *Server) saveRoute(r *http.Request) (string, error) {
 	}
 	if err := s.validateRoute(route); err != nil {
 		return "", err
+	}
+	// A route is how an alert reaches a channel, so pointing one at a
+	// destination outside the grants is the same escape as creating it there.
+	allowed, err := s.mayDeliverToDestination(r, route.DestinationID)
+	if err != nil {
+		return "", err
+	}
+	if !allowed {
+		return "", errDeliveryRefused
 	}
 	if route.ID == "" {
 		if _, err := s.store.CreateRoute(route); err != nil {

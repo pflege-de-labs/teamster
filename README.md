@@ -197,6 +197,28 @@ policies define, what the admin UI asks about when it decides whether to show a 
 `auth.default-role` may be set to. Removing or renaming them in the policy file breaks the UI;
 adding to them does not.
 
+### Limiting a role to Teams and channels
+
+An admin can narrow where a role may deliver, in **Delivery permissions** on `/admin` or through
+`/api/grants`. A grant names a role and a Team, optionally one channel of it:
+
+| Grant | Reaches |
+| --- | --- |
+| `editor` → team `platform` | every channel of that Team |
+| `editor` → team `platform`, channel `alerts` | that channel only |
+
+**A role with no grant reaches everything.** Narrowing starts the moment a grant names that role;
+from then on it reaches what its grants name and nothing else. An installation that has never added
+a grant behaves exactly as it did before they existed.
+
+Because roles map 1:1 from the provider, "the payments editors" is a role there and a grant here —
+no separate notion of a group. Admins are never limited. Grants apply to what a session may **see**
+as well as where it may deliver: the Team and channel pickers offer only what is granted, and a
+destination outside them is absent from the lists and the API. A write naming a channel the picker
+would not have offered is refused with a `403`, because hiding a control is a courtesy and the check
+is the control. Pointing a route at a destination outside the grants is refused the same way: a
+route is how an alert actually reaches a channel.
+
 `auth.default-role` is what someone gets when the claim names none of those three. Set it to
 `viewer` and everyone the provider authenticates may read the configuration; leave it empty and they
 sign in with no access and are shown a page telling them to ask an administrator for a role. Roles

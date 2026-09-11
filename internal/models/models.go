@@ -54,6 +54,22 @@ type ActiveAlert struct {
 	LastUpdate  time.Time `json:"last_update"`
 }
 
+// A Grant scopes a role to a Team or to one channel in it: holders of that role
+// may deliver there and see it. A role with no grant at all is unrestricted,
+// which is what an installation looks like before an admin narrows anything.
+//
+// Role is any role name the provider hands out, so "the payments editors" is a
+// role in the identity provider and a grant here, with nothing in between.
+type Grant struct {
+	ID   string `json:"id"`
+	Role string `json:"role"`
+	// TeamID is required; an empty ChannelID means the whole Team.
+	TeamID    string    `json:"team_id"`
+	ChannelID string    `json:"channel_id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
 // Session is a signed-in administrator. Subject and Name are what the identity
 // provider said; a local login records the configured username.
 type Session struct {

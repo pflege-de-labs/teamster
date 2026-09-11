@@ -69,6 +69,14 @@ CREATE TABLE IF NOT EXISTS routes (
 	created_at DATETIME NOT NULL,
 	updated_at DATETIME NOT NULL
 );
+CREATE TABLE IF NOT EXISTS grants (
+	id TEXT PRIMARY KEY,
+	role TEXT NOT NULL,
+	team_id TEXT NOT NULL,
+	channel_id TEXT NOT NULL DEFAULT '',
+	created_at DATETIME NOT NULL,
+	updated_at DATETIME NOT NULL
+);
 CREATE TABLE IF NOT EXISTS sessions (
 	id TEXT PRIMARY KEY,
 	subject TEXT NOT NULL,
@@ -142,6 +150,7 @@ func (s *SQLiteStore) addMissingColumns() error {
 // DATETIME; a database written before that fix silently fails every Scan.
 var timestampColumns = map[string][]string{
 	"templates":     {"created_at", "updated_at"},
+	"grants":        {"created_at", "updated_at"},
 	"destinations":  {"created_at", "updated_at"},
 	"routes":        {"created_at", "updated_at"},
 	"active_alerts": {"last_update"},
@@ -584,6 +593,49 @@ func parseSelector(raw string) map[string]string {
 		return map[string]string{}
 	}
 	return out
+}
+
+// ListGrants returns the scopes in a stable order, so the admin page and its
+// tests see them the same way every time.
+func (s *SQLiteStore) ListGrants() ([]models.Grant, error) {
+	rows, err := s.db.Query(`SELECT id, role, team_id, channel_id, created_at, updated_at FROM grants ORDER BY role, team_id, channel_id`)
+	if err != nil {
+		return nil, fmt.Errorf("list grants: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var out []models.Grant
+	for rows.Next() {
+		var g models.Grant
+		if err := rows.Scan(&g.ID, &g.Role, &g.TeamID, &g.ChannelID, &g.CreatedAt, &g.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("scan grant: %w", err)
+		}
+		out = append(out, g)
+	}
+	return out, rows.Err()
+}
+
+func (s *SQLiteStore) CreateGrant(g models.Grant) (models.Grant, error) {
+	now := time.Now().UTC()
+	if g.ID == "" {
+		g.ID = uuid.NewString()
+	}
+	g.CreatedAt, g.UpdatedAt = now, now
+
+	_, err := s.db.Exec(`INSERT INTO grants (id, role, team_id, channel_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
+		g.ID, g.Role, g.TeamID, g.ChannelID, g.CreatedAt, g.UpdatedAt)
+	if err != nil {
+		return models.Grant{}, fmt.Errorf("create grant: %w", err)
+	}
+	return g, nil
+}
+
+func (s *SQLiteStore) DeleteGrant(id string) error {
+	_, err := s.db.Exec(`DELETE FROM grants WHERE id = ?`, id)
+	if err != nil {
+		return fmt.Errorf("delete grant: %w", err)
+	}
+	return nil
 }
 
 func (s *SQLiteStore) CreateSession(session models.Session) error {

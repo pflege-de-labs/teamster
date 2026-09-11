@@ -29,6 +29,10 @@ type Store interface {
 	DeleteRoute(id string) error
 	GetRoute(id string) (models.Route, error)
 
+	ListGrants() ([]models.Grant, error)
+	CreateGrant(g models.Grant) (models.Grant, error)
+	DeleteGrant(id string) error
+
 	CreateSession(s models.Session) error
 	GetSession(id string) (models.Session, error)
 	DeleteSession(id string) error

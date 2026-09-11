@@ -121,6 +121,23 @@ cookie has to pass the same origin check as a form post, because a cookie travel
 request and basic auth credentials do not. See
 [ADR 0012](adr/0012-role-based-authorization.md).
 
+### Delivery permissions
+
+A `grants` row scopes a role to a Team or to one channel of it. `authz.ScopeFor` collects the grants
+naming any of a session's roles; a session no grant names is **unrestricted**, which is how an
+installation behaves before an admin narrows anything. The scope becomes attributes on the Cedar
+principal — `unrestricted`, `scopes`, `teams` — and the scoped policies read
+`principal.unrestricted || resource in principal.scopes`. A channel entity carries its Team as a
+parent, so a grant on a Team reaches the channels in it without the channel list being known.
+
+Three actions are scoped rather than blanket: `deliver`, `viewChannel` and `viewTeam`. Keeping them
+separate from `view` and `edit` is what lets a policy narrow the directory without narrowing
+everything else a role may do. Admins are covered by the blanket admin policy and are never scoped.
+
+Enforcement is at the writes — creating or moving a destination, and pointing a route at one — and
+the reads that list the directory. `internal/httpserver/grants.go` holds both, and reads the scope
+once per response rather than once per entry.
+
 ## Routing visualization
 
 `/admin/routing` draws the path an alert takes and answers which route a set of labels would take.

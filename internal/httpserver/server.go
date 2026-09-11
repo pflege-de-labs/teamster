@@ -77,6 +77,8 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger) (*ht
 	adminMux.HandleFunc("/api/routing/graph", api.handleRoutingGraph)
 	adminMux.HandleFunc("/api/routing/templates", api.handleTemplateGraph)
 	adminMux.HandleFunc("/api/routing/match", api.handleRoutingMatch)
+	adminMux.HandleFunc("/api/grants", api.handleGrants)
+	adminMux.HandleFunc("/api/grants/", api.handleGrantByID)
 	adminMux.HandleFunc("/api/graph/teams", api.handleGraphTeams)
 	adminMux.HandleFunc("/api/graph/teams/", api.handleGraphChannels)
 	adminMux.HandleFunc("/admin", api.handleAdminPage)
@@ -87,6 +89,8 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger) (*ht
 	adminMux.HandleFunc("/admin/destinations/delete", api.formPost(api.deleteDestination))
 	adminMux.HandleFunc("/admin/routes", api.formPost(api.saveRoute))
 	adminMux.HandleFunc("/admin/routes/delete", api.formPost(api.deleteRoute))
+	adminMux.HandleFunc("/admin/grants", api.formPost(api.saveGrant))
+	adminMux.HandleFunc("/admin/grants/delete", api.formPost(api.deleteGrant))
 	adminMux.HandleFunc("/", api.handleAssets)
 
 	authMux := http.NewServeMux()

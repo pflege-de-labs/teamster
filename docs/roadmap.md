@@ -315,7 +315,7 @@ different from an edge to a destination. That is two graphs drawn on top of each
 
 Depends on milestone 5. No ADR: it is the same page drawing a changed model.
 
-## Milestone 7 — Fine-grained permissions — roles done, scoping open
+## Milestone 7 — Fine-grained permissions — done
 
 Today an authenticated session can do anything. The roles we want are `admin`, `editor` and
 `viewer`, with an admin able to say which Teams and channels an editor — or a group of editors —
@@ -370,18 +370,17 @@ file in the XDG config directory, a table in SQLite edited through the admin UI,
 bad policy is caught on write or only at evaluation. The library's API surface gets read before any
 of that is promised.
 
-### What shipped, and what did not
+### How it shipped
 
-The roles and their enforcement are done: claim values map to `admin`, `editor` and `viewer`,
+In two parts. First the roles: claim values map to `admin`, `editor` and `viewer` by name,
 `internal/authz` evaluates the Cedar policies in-process, one middleware enforces them, and the UI
-hides what a role may not do. [ADR 0012](adr/0012-role-based-authorization.md) records it.
+hides what a role may not do. Then the scoping: a `grants` row ties a role to a Team or one channel
+of it, three scoped actions decide against it, and the pickers, the lists and the writes all go
+through it. A role no grant names stays unrestricted, so nothing narrows until an admin says so.
+[ADR 0012](adr/0012-role-based-authorization.md) records both.
 
-Still open, and the reason this milestone is not marked done: **scoping**. Which Teams and channels
-a given editor or group may deliver to, and the global visibility overlay, both need a grant stored
-somewhere and a screen to manage it. `Action::"administer"` is already reserved for that screen, and
-a grant becomes an attribute on the principal with a policy that reads
-`resource in principal.grants` — the model was chosen so that this addition is entities and one
-policy, not a rewrite.
+The addition was entities and three policies rather than a rewrite, which is what choosing a policy
+engine was supposed to buy.
 
 ### Enforcement
 
@@ -508,7 +507,7 @@ Needs an ADR: it changes how every component in the UI is written.
 | — | 4 Activity feed messages | — | done |
 | — | 5 Nested routes | — | done |
 | — | 6 Visualization, second pass | 5 | done |
-| 4 | 7 Fine-grained permissions — scoping | roles, done | policy storage for grants |
+| — | 7 Fine-grained permissions | 2 | done |
 | 5 | 8 Import and export | 7 for permissions | — |
 | 6 | 9 Card editor | 1.4 | decision after 1.4 |
 | 7 | 10 Localizable UI | — | — |

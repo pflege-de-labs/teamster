@@ -96,11 +96,23 @@ func (s *Server) handleDestinations(w http.ResponseWriter, r *http.Request) {
 			writeJSONError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
-		writeJSON(w, http.StatusOK, items)
+		visible, err := s.visibleDestinations(r, items)
+		if err != nil {
+			writeJSONError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, visible)
 	case http.MethodPost:
 		var d models.Destination
 		if err := json.NewDecoder(r.Body).Decode(&d); err != nil {
 			writeJSONError(w, http.StatusBadRequest, "invalid JSON")
+			return
+		}
+		if allowed, err := s.mayDeliverTo(r, d.TeamID, d.ChannelID); err != nil {
+			writeJSONError(w, http.StatusInternalServerError, err.Error())
+			return
+		} else if !allowed {
+			writeJSONError(w, http.StatusForbidden, errDeliveryRefused.Error())
 			return
 		}
 		created, err := s.store.CreateDestination(d)
@@ -140,6 +152,13 @@ func (s *Server) handleDestinationByID(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		d.ID = id
+		if allowed, err := s.mayDeliverTo(r, d.TeamID, d.ChannelID); err != nil {
+			writeJSONError(w, http.StatusInternalServerError, err.Error())
+			return
+		} else if !allowed {
+			writeJSONError(w, http.StatusForbidden, errDeliveryRefused.Error())
+			return
+		}
 		updated, err := s.store.UpdateDestination(d)
 		if err != nil {
 			writeJSONError(w, http.StatusInternalServerError, err.Error())
@@ -174,6 +193,13 @@ func (s *Server) handleRoutes(w http.ResponseWriter, r *http.Request) {
 		}
 		if err := s.validateRoute(rt); err != nil {
 			writeJSONError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		if allowed, err := s.mayDeliverToDestination(r, rt.DestinationID); err != nil {
+			writeJSONError(w, http.StatusInternalServerError, err.Error())
+			return
+		} else if !allowed {
+			writeJSONError(w, http.StatusForbidden, errDeliveryRefused.Error())
 			return
 		}
 		created, err := s.store.CreateRoute(rt)
@@ -215,6 +241,13 @@ func (s *Server) handleRouteByID(w http.ResponseWriter, r *http.Request) {
 		rt.ID = id
 		if err := s.validateRoute(rt); err != nil {
 			writeJSONError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		if allowed, err := s.mayDeliverToDestination(r, rt.DestinationID); err != nil {
+			writeJSONError(w, http.StatusInternalServerError, err.Error())
+			return
+		} else if !allowed {
+			writeJSONError(w, http.StatusForbidden, errDeliveryRefused.Error())
 			return
 		}
 		updated, err := s.store.UpdateRoute(rt)
