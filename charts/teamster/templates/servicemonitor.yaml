@@ -1,0 +1,51 @@
+{{- if .Values.metrics.serviceMonitor.enabled -}}
+{{- include "teamster.validate" . -}}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "teamster.fullname" . }}
+  namespace: {{ .Values.metrics.serviceMonitor.namespace | default .Release.Namespace }}
+  labels:
+    {{- include "teamster.labels" . | nindent 4 }}
+    {{- with .Values.metrics.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with .Values.metrics.serviceMonitor.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- /* Named, not numbered: the Service port is what the operator resolves. */}}
+  endpoints:
+    - port: metrics
+      path: {{ include "teamster.metricsPath" . }}
+      scheme: http
+      {{- with .Values.metrics.serviceMonitor.interval }}
+      interval: {{ . }}
+      {{- end }}
+      {{- with .Values.metrics.serviceMonitor.scrapeTimeout }}
+      scrapeTimeout: {{ . }}
+      {{- end }}
+      {{- /* Native histograms travel over protobuf only, so PrometheusProto
+             has to be offered first. Prometheus still needs
+             --enable-feature=native-histograms to accept it. */}}
+      {{- with .Values.metrics.serviceMonitor.scrapeProtocols }}
+      scrapeProtocols:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      honorLabels: {{ .Values.metrics.serviceMonitor.honorLabels }}
+      {{- with .Values.metrics.serviceMonitor.relabelings }}
+      relabelings:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.metrics.serviceMonitor.metricRelabelings }}
+      metricRelabelings:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+  selector:
+    matchLabels:
+      {{- include "teamster.selectorLabels" . | nindent 6 }}
+{{- end }}

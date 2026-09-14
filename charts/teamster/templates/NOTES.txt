@@ -24,6 +24,14 @@ teamster is running as a {{ .Values.workload.kind }}, storing its state in
 
    kubectl --namespace {{ .Release.Namespace }} get secret {{ include "teamster.credentialsSecretName" . }} \
      -o jsonpath='{.data.TEAMSTER_WEBHOOK_TOKEN}' | base64 -d
+{{- if include "teamster.metricsEnabled" . }}
+
+3. Metrics are on {{ include "teamster.metricsPath" . }}, port {{ include "teamster.metricsPort" . }} of the Service. The listener asks
+   for no credentials — keep it inside the cluster with a NetworkPolicy.
+
+   Prometheus needs --enable-feature=native-histograms to negotiate protobuf.
+   Without it the scrape still succeeds and every histogram bucket is lost.
+{{- end }}
 {{ if and .Values.credentials.adminPassword (eq .Values.credentials.adminPassword "change-me") }}
 WARNING: credentials.adminPassword is still the example value. The local login
 is a way into the admin UI from anywhere the service is reachable.

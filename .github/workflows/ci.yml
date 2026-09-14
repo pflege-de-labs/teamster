@@ -70,6 +70,11 @@ jobs:
             echo "::endgroup::"
           done
 
+      # Rendering proves the chart is not broken; it says nothing about a chart
+      # that is quietly wrong. This asserts what comes out.
+      - name: Assert what the chart renders
+        run: scripts/check-chart-render.sh charts/teamster
+
       # The chart refuses what the application cannot do; a rendering run that
       # succeeds here means the guard is gone.
       - name: Reject the unsupported combinations

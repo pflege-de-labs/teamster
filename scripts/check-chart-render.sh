@@ -24,6 +24,23 @@ contains() {
 	done
 }
 
+# refuses <description> <helm args...> — the render has to fail.
+refuses() {
+	local description=$1
+	shift
+	if helm template teamster "$chart" --values "$chart/ci/statefulset-values.yaml" "$@" >/dev/null 2>&1; then
+		fail "$description: the chart accepted it"
+	fi
+}
+
+# counts <rendered> <description> <expected> <pattern> — exactly this many.
+counts() {
+	local rendered=$1 description=$2 expected=$3 pattern=$4
+	local found
+	found=$(grep -c -- "$pattern" <<<"$rendered" || true)
+	[ "$found" = "$expected" ] || fail "$description: $found × $pattern, want $expected"
+}
+
 for values in "$chart"/ci/*-values.yaml; do
 	name=$(basename "$values")
 	echo "checking $name"
@@ -45,7 +62,48 @@ for values in "$chart"/ci/*-values.yaml; do
 	# Configuration and state, which a pod without them starts and then cannot
 	# do anything useful.
 	contains "$workload" "$name $kind" "mountPath: /etc/xdg/teamster" "name: data"
+
+	# The metrics port is published by two templates from one setting. Drift
+	# between them is a Service that resolves to nothing, or a listener nothing
+	# can reach — so assert they agree, whichever way this values file has it.
+	services=$(awk '/^kind: Service$/,/^---$/' <<<"$rendered")
+	if grep -q "name: metrics" <<<"$workload"; then
+		contains "$services" "$name Service" "name: metrics"
+	elif grep -q "name: metrics" <<<"$services"; then
+		fail "$name: the Service publishes a metrics port the container does not open"
+	fi
+
+	# A ServiceMonitor names a Service port by name, and asks for protobuf
+	# first, which is the only protocol native histograms travel over.
+	if grep -q "kind: ServiceMonitor" <<<"$rendered"; then
+		monitor=$(awk '/^kind: ServiceMonitor$/,0' <<<"$rendered")
+		contains "$monitor" "$name ServiceMonitor" "port: metrics" "- PrometheusProto"
+		contains "$services" "$name Service" "name: metrics"
+	fi
 done
+
+# Probes render once each. The startupProbe is emitted from a `with` block, and
+# a second block left behind by an edit produces a duplicate mapping key: helm
+# renders it happily and the API server rejects the manifest.
+echo "checking the probes"
+probed=$(helm template teamster "$chart" --values "$chart/ci/statefulset-values.yaml" \
+	--set startupProbe.httpGet.path=/healthz --set startupProbe.httpGet.port=http)
+counts "$probed" "startupProbe" 1 "startupProbe:"
+counts "$probed" "livenessProbe" 1 "livenessProbe:"
+counts "$probed" "readinessProbe" 1 "readinessProbe:"
+
+# The metrics listener takes no credentials, and the application binds it to
+# loopback for that reason. In a pod loopback reaches nothing, so the chart has
+# to refuse it rather than publish a Service port that resolves to silence.
+echo "checking the metrics guards"
+refuses "a loopback metrics addr" \
+	--set config.settings.metrics.enabled=true \
+	--set config.settings.metrics.addr=127.0.0.1:9090
+refuses "metrics sharing the server port" \
+	--set config.settings.metrics.enabled=true \
+	--set config.settings.metrics.addr=:8080
+refuses "a ServiceMonitor with no listener to scrape" \
+	--set metrics.serviceMonitor.enabled=true
 
 if [ "$failures" -gt 0 ]; then
 	echo "$failures assertion(s) failed" >&2
