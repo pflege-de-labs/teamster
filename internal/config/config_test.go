@@ -72,9 +72,13 @@ func TestParseExampleConfig(t *testing.T) {
 			ShutdownTimeout: 5 * time.Second,
 			ServiceName:     "teamster",
 		},
-		Database: DatabaseConfig{Path: "teamster.db", Migrate: "auto"},
-		Webhook:  WebhookConfig{Token: "replace-with-shared-token"},
-		Admin:    AdminConfig{Username: "admin", Password: "change-me"},
+		Database: DatabaseConfig{
+			Driver: "sqlite", Path: "teamster.db", Migrate: "auto",
+			Postgres:       PostgresConfig{Port: 5432, DBName: "teamster", User: "teamster", SSLMode: "require"},
+			ConnectTimeout: 10 * time.Second,
+		},
+		Webhook: WebhookConfig{Token: "replace-with-shared-token"},
+		Admin:   AdminConfig{Username: "admin", Password: "change-me"},
 		Auth: AuthConfig{
 			OIDCDiscoveryURL: "https://login.example/auth/realms/internal/.well-known/openid-configuration",
 			OIDCClientID:     "teamster",
@@ -158,9 +162,10 @@ func TestValidate(t *testing.T) {
 	t.Parallel()
 
 	valid := Config{
-		Webhook: WebhookConfig{Token: "token"},
-		Admin:   AdminConfig{Username: "admin", Password: "secret"},
-		Graph:   GraphConfig{TenantID: "tenant", ClientID: "client", ClientSecret: "secret"},
+		Database: DatabaseConfig{Driver: "sqlite", Path: "teamster.db"},
+		Webhook:  WebhookConfig{Token: "token"},
+		Admin:    AdminConfig{Username: "admin", Password: "secret"},
+		Graph:    GraphConfig{TenantID: "tenant", ClientID: "client", ClientSecret: "secret"},
 	}
 
 	tests := []struct {
@@ -220,9 +225,10 @@ func TestParseEnvPrecedence(t *testing.T) {
 // break one thing and see only that break.
 func completeConfig() Config {
 	return Config{
-		Webhook: WebhookConfig{Token: "token"},
-		Admin:   AdminConfig{Username: "admin", Password: "secret"},
-		Graph:   GraphConfig{TenantID: "tenant", ClientID: "client", ClientSecret: "secret"},
+		Database: DatabaseConfig{Driver: "sqlite", Path: "teamster.db"},
+		Webhook:  WebhookConfig{Token: "token"},
+		Admin:    AdminConfig{Username: "admin", Password: "secret"},
+		Graph:    GraphConfig{TenantID: "tenant", ClientID: "client", ClientSecret: "secret"},
 		Auth: AuthConfig{
 			OIDCDiscoveryURL: "https://login.example/auth/realms/internal/.well-known/openid-configuration",
 			OIDCClientID:     "teamster",
@@ -366,9 +372,10 @@ func TestValidateRequiresAnAbsoluteRedirectURL(t *testing.T) {
 	t.Parallel()
 
 	base := Config{
-		Webhook: WebhookConfig{Token: "token"},
-		Admin:   AdminConfig{Username: "admin", Password: "secret"},
-		Graph:   GraphConfig{TenantID: "tenant", ClientID: "client", ClientSecret: "secret"},
+		Database: DatabaseConfig{Driver: "sqlite", Path: "teamster.db"},
+		Webhook:  WebhookConfig{Token: "token"},
+		Admin:    AdminConfig{Username: "admin", Password: "secret"},
+		Graph:    GraphConfig{TenantID: "tenant", ClientID: "client", ClientSecret: "secret"},
 		Auth: AuthConfig{
 			OIDCDiscoveryURL: "https://login.example/auth/realms/internal/.well-known/openid-configuration",
 			OIDCClientID:     "teamster",

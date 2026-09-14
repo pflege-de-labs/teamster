@@ -2,7 +2,8 @@
 
 Teamster is a single Go binary that accepts alert webhooks, picks a Teams channel and an
 Adaptive Card template per alert, and posts or updates the card through the Microsoft Graph API.
-State lives in a local SQLite file; there are no other runtime dependencies.
+State lives in a SQL store: a local SQLite file by default, or a Postgres server for a deployment
+that runs more than one instance. SQLite is the option with no other runtime dependency.
 
 ## Components
 
@@ -16,7 +17,7 @@ State lives in a local SQLite file; there are no other runtime dependencies.
 | `internal/routing` | Selects a route for an alert's labels. |
 | `internal/templates` | Renders an Adaptive Card from a Go template plus alert data. |
 | `internal/graph` | Microsoft Graph client: OAuth2 client credentials, post and update channel messages. |
-| `internal/store` | `Store` interface and its SQLite implementation; `internal/store/migrations` owns the schema for templates, destinations, routes and active alerts. |
+| `internal/store` | `Store` interface, its SQLite and Postgres backends sharing one adapter; `internal/store/migrations` owns the schema for templates, destinations, routes and active alerts. |
 | `internal/models` | Shared data types: `Alert`, `Route`, `Template`, `Destination`, `ActiveAlert` and the two webhook payload shapes. |
 | `internal/httpserver/web` | Embedded static assets: icons, the web manifest and the Tailwind stylesheet built from `views/styles.css`. |
 
@@ -313,6 +314,26 @@ from each validating against a tree the other is about to change -- an orphaned
 child becomes a root, and a root matches the alerts its parent used to filter
 out. No constraint can express "this tree has no cycle", which is why that one
 is a transaction rather than an index.
+
+## Two backends, one adapter
+
+`store.Open` picks the backend from `database.driver`, by name and never by inference: the
+container image sets `TEAMSTER_DATABASE_PATH` whatever the driver is, so guessing would let an
+operator who configured only Postgres run happily against a file that dies with the container. The
+startup log says which database was opened.
+
+sqlc emits a package per dialect, and Go has no structural satisfaction across packages, so the two
+generated `Querier` interfaces can never be one type. Their parameter and row structs are generated
+from the same queries and are field for field identical, though, which makes them convertible — so
+the mapping between rows and `internal/models` lives once in `queryAdapter`, and `pgqueries.go` is
+one conversion per statement. The Postgres query files are themselves generated from the SQLite
+ones, which differ only in how a parameter is spelled.
+
+What Postgres adds is what a networked, genuinely concurrent database needs and a file does not: a
+bounded pool with a connection lifetime, session timeouts for statements, locks and idle
+transactions, isolation asked for by name, a bounded retry for the conflicts serializable isolation
+reports rather than prevents, and an advisory lock so two instances starting together cannot both
+migrate. See [ADR 0022](adr/0022-postgres-second-backend.md).
 
 ## Queries
 

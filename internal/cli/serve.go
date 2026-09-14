@@ -50,7 +50,8 @@ func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
 		return fmt.Errorf("config validation: %w", err)
 	}
 
-	sqlStore, err := store.NewSQLiteStore(ctx, cfg.Database.Path, store.MigrateMode(cfg.Database.Migrate))
+	opts := storeOptions(cfg, store.MigrateMode(cfg.Database.Migrate))
+	sqlStore, err := store.Open(ctx, opts)
 	if err != nil {
 		// A signal that arrives while the store is still opening is a
 		// shutdown, not a failure to start: there is nothing to report and
@@ -61,6 +62,9 @@ func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
 		return fmt.Errorf("open db: %w", err)
 	}
 	defer func() { _ = sqlStore.Close() }()
+	// Which database this instance is on is the first question of any
+	// incident, and the image's baked-in path makes it non-obvious.
+	log.Printf("store: %s", store.Target(opts))
 
 	// After the store, so that the deferred shutdown below — and the last
 	// collection it triggers — runs while the database is still open.

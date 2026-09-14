@@ -12,9 +12,10 @@ import (
 	"io/fs"
 
 	"github.com/pressly/goose/v3"
+	"github.com/pressly/goose/v3/lock"
 )
 
-//go:embed sqlite/*.sql
+//go:embed sqlite/*.sql postgres/*.sql
 var files embed.FS
 
 // Dialect names a backend's migration set. It mirrors goose's own dialect
@@ -22,7 +23,8 @@ var files embed.FS
 type Dialect string
 
 const (
-	SQLite Dialect = "sqlite"
+	SQLite   Dialect = "sqlite"
+	Postgres Dialect = "postgres"
 )
 
 // New builds a provider for one open database.
@@ -43,6 +45,12 @@ func New(dialect Dialect, db *sql.DB, opts ...goose.ProviderOption) (*goose.Prov
 	switch dialect {
 	case SQLite:
 		options = append(options, goose.WithGoMigrations(legacySQLiteMigrations()...))
+	case Postgres:
+		// More than one instance may start at once, and they must not both
+		// migrate. The session lock is held for the migration and released
+		// with the session, so an instance killed mid-migration does not leave
+		// the next one waiting forever.
+		options = append(options, goose.WithSessionLocker(mustSessionLocker()))
 	}
 	options = append(options, opts...)
 
@@ -53,10 +61,23 @@ func New(dialect Dialect, db *sql.DB, opts ...goose.ProviderOption) (*goose.Prov
 	return provider, nil
 }
 
+// mustSessionLocker builds the advisory lock. It panics rather than returning
+// an error because the only failure is an invalid option constant, which is a
+// programming mistake rather than a runtime condition.
+func mustSessionLocker() lock.SessionLocker {
+	locker, err := lock.NewPostgresSessionLocker()
+	if err != nil {
+		panic(fmt.Sprintf("postgres session locker: %v", err))
+	}
+	return locker
+}
+
 func gooseDialect(dialect Dialect) goose.Dialect {
 	switch dialect {
 	case SQLite:
 		return goose.DialectSQLite3
+	case Postgres:
+		return goose.DialectPostgres
 	default:
 		return goose.Dialect(dialect)
 	}

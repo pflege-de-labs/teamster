@@ -22,3 +22,15 @@ sql:
             go_type: "bool"
           - column: "routes.is_default"
             go_type: "bool"
+  - engine: "postgresql"
+    schema: "migrations/postgres"
+    queries: "queries/postgres"
+    gen:
+      go:
+        package: "pgdb"
+        out: "pgdb"
+        # database/sql rather than pgx: it makes this package emit the same
+        # DBTX and the same WithTx(*sql.Tx) as the SQLite one, so the two
+        # adapters have one shape between them instead of two.
+        sql_package: "database/sql"
+        emit_interface: true

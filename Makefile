@@ -4,6 +4,8 @@ export GOWORK := off
 COVERAGE_MIN ?= 75
 TAILWIND_VERSION ?= v4.3.3
 SQLC_VERSION ?= v1.31.1
+POSTGRES_IMAGE ?= postgres:18-alpine
+POSTGRES_DSN ?= postgres://teamster:teamster@127.0.0.1:15432/teamster?sslmode=disable
 COVERAGE_OUT ?= coverage.out
 BINARY       ?= bin/teamster
 IMAGE        ?= teamster
@@ -11,7 +13,7 @@ CHART        ?= charts/teamster
 CONTAINER_TOOL ?= $(shell command -v docker >/dev/null 2>&1 && echo docker || echo podman)
 VERSION      ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 
-.PHONY: all build run test coverage coverage-html fmt lint tidy hooks tools generate icons image image-run chart-lint clean
+.PHONY: all build run test test-postgres db-up db-down coverage coverage-html fmt lint tidy hooks tools generate icons image image-run chart-lint clean
 
 # The admin UI wears logo 1; logo 2 is the README header.
 ICON_SOURCE := images/favicons/logo-teamster-1
@@ -81,12 +83,28 @@ test:
 # filtered by path, since it emits names as generic as db.go and models.go.
 coverage:
 	go test -race ./... -covermode=atomic -coverpkg=./... -coverprofile=$(COVERAGE_OUT).raw
-	@grep -Ev '_templ\.go:|internal/store/sqlitedb/' $(COVERAGE_OUT).raw > $(COVERAGE_OUT)
+	@grep -Ev '_templ\.go:|internal/store/(sqlitedb|pgdb)/|internal/store/pgqueries\.go:' $(COVERAGE_OUT).raw > $(COVERAGE_OUT)
 	@go tool cover -func=$(COVERAGE_OUT) | tail -1
 	@total=$$(go tool cover -func=$(COVERAGE_OUT) | awk '/^total:/ {print $$3}' | tr -d '%'); \
 	awk -v total="$$total" -v min="$(COVERAGE_MIN)" 'BEGIN { \
 		if (total+0 < min+0) { printf "coverage %.1f%% is below the required %s%%\n", total, min; exit 1 } \
 		printf "coverage %.1f%% meets the required %s%%\n", total, min }'
+
+# The Postgres backend's tests skip unless they are told where a server is.
+# These start one with whatever container tool is here, so running them locally
+# needs no more setup than the SQLite ones.
+db-up:
+	$(CONTAINER_TOOL) run -d --rm --name teamster-pg \
+		-e POSTGRES_PASSWORD=teamster -e POSTGRES_USER=teamster -e POSTGRES_DB=teamster \
+		-p 15432:5432 $(POSTGRES_IMAGE)
+	@until $(CONTAINER_TOOL) exec teamster-pg pg_isready -U teamster >/dev/null 2>&1; do sleep 1; done
+	@echo "postgres ready on 127.0.0.1:15432"
+
+db-down:
+	-$(CONTAINER_TOOL) stop teamster-pg
+
+test-postgres:
+	TEAMSTER_TEST_POSTGRES_DSN="$(POSTGRES_DSN)" go test -race ./internal/store/...
 
 coverage-html: coverage
 	go tool cover -html=$(COVERAGE_OUT) -o coverage.html

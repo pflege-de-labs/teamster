@@ -39,6 +39,25 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    # The Postgres backend's tests skip when they are told of no server, and a
+    # skip here would mean a whole backend going untested without saying so.
+    # The suite fails rather than skips when CI is set and the DSN is not.
+    services:
+      postgres:
+        image: postgres:18-alpine@sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2
+        env:
+          POSTGRES_USER: teamster
+          POSTGRES_PASSWORD: teamster
+          POSTGRES_DB: teamster
+        options: >-
+          --health-cmd "pg_isready -U teamster"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 5432:5432
+    env:
+      TEAMSTER_TEST_POSTGRES_DSN: postgres://teamster:teamster@127.0.0.1:5432/teamster?sslmode=disable
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7

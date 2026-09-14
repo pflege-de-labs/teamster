@@ -10,6 +10,7 @@ import (
 	"github.com/pressly/goose/v3"
 
 	"github.com/pflege-de-labs/teamster/internal/config"
+	"github.com/pflege-de-labs/teamster/internal/store"
 	"github.com/pflege-de-labs/teamster/internal/store/migrations"
 )
 
@@ -97,13 +98,19 @@ func sourceName(source *goose.Source) string {
 // configured mode says, a command whose whole job is the schema must decide for
 // itself when it changes.
 func withProvider(ctx context.Context, cfg *config.Config, fn func(*goose.Provider) error) error {
-	db, err := sql.Open("sqlite", cfg.Database.Path)
+	opts := storeOptions(cfg, store.MigrateOff)
+	driver, dsn, dialect := "sqlite", opts.Path, migrations.SQLite
+	if cfg.Database.Driver == store.DriverPostgres {
+		driver, dsn, dialect = "pgx", opts.DSN, migrations.Postgres
+	}
+
+	db, err := sql.Open(driver, dsn)
 	if err != nil {
-		return fmt.Errorf("open %s: %w", cfg.Database.Path, err)
+		return fmt.Errorf("open %s: %w", store.Target(opts), err)
 	}
 	defer func() { _ = db.Close() }()
 
-	provider, err := migrations.New(migrations.SQLite, db)
+	provider, err := migrations.New(dialect, db)
 	if err != nil {
 		return err
 	}
@@ -112,7 +119,7 @@ func withProvider(ctx context.Context, cfg *config.Config, fn func(*goose.Provid
 	// migration rather than from Open. Naming the file here means every one of
 	// these commands says which database it could not touch.
 	if err := fn(provider); err != nil {
-		return fmt.Errorf("%s: %w", cfg.Database.Path, err)
+		return fmt.Errorf("%s: %w", store.Target(opts), err)
 	}
 	return nil
 }

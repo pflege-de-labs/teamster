@@ -51,11 +51,52 @@ type MetricsConfig struct {
 	ServiceName     string        `help:"service.name reported with every metric." default:"teamster"`
 }
 
+// DatabaseConfig chooses the backend and configures it. The keys belonging to
+// the driver that is not selected are ignored rather than rejected: the
+// container image sets TEAMSTER_DATABASE_PATH unconditionally, so rejecting a
+// path under postgres would fail every containerised deployment over a value
+// nobody wrote.
 type DatabaseConfig struct {
-	Path string `help:"Path to the SQLite database file." default:"teamster.db"`
+	Driver string `help:"Storage backend: sqlite for a single instance, postgres for several." enum:"sqlite,postgres" default:"sqlite"`
+
+	// Keeps its flat name rather than moving under a sqlite- prefix: renaming
+	// it would break every existing --database-path, TEAMSTER_DATABASE_PATH
+	// and the image's own ENV, to buy symmetry and nothing else.
+	Path string `help:"Path to the SQLite database file. Used when database-driver is sqlite." default:"teamster.db"`
+
+	Postgres PostgresConfig `embed:"" prefix:"postgres-"`
+
+	MaxOpenConns    int           `help:"Maximum open connections; 0 lets the backend choose." name:"max-open-conns" default:"0"`
+	MaxIdleConns    int           `help:"Maximum idle connections; 0 lets the backend choose." name:"max-idle-conns" default:"0"`
+	ConnMaxLifetime time.Duration `help:"How long a pooled connection may be reused; 0 lets the backend choose." name:"conn-max-lifetime" default:"0s"`
+	ConnectTimeout  time.Duration `help:"How long to wait for the first connection before giving up at startup." name:"connect-timeout" default:"10s"`
 	// A deployment that would rather run migrations as a visible step sets
 	// verify, and `teamster migrate up` becomes part of the upgrade.
 	Migrate string `help:"What opening the database does about pending migrations: apply them, verify none are pending, or neither." enum:"auto,verify,off" default:"auto"`
+}
+
+// PostgresConfig is discrete fields rather than one connection string, because
+// a string cannot be split between the config file and the environment. A
+// config file value wins over an environment variable (ADR 0001), so a DSN in
+// the file would take the password with it -- and a DSN in the environment
+// would mean the chart could render none of the rest. This way exactly one key
+// carries a secret, which is the same shape the other credentials already have.
+type PostgresConfig struct {
+	Host     string `help:"Postgres host name."`
+	Port     int    `help:"Postgres port." default:"5432"`
+	DBName   string `help:"Postgres database name." name:"dbname" default:"teamster"`
+	User     string `help:"Postgres user." default:"teamster"`
+	Password string `help:"Postgres password. Deliver it as TEAMSTER_DATABASE_POSTGRES_PASSWORD; a config file value would win over the environment."`
+	SSLMode  string `help:"libpq sslmode." name:"sslmode" enum:"disable,allow,prefer,require,verify-ca,verify-full" default:"require"`
+	// A managed Postgres publishes its own root, which the distroless image
+	// does not carry, so verify-ca and verify-full need this pointed at a
+	// mounted bundle.
+	SSLRootCert string `help:"CA certificate file that verify-ca and verify-full check the server against." name:"sslrootcert"`
+
+	// The escape hatch for what the fields above cannot say: a pooler, a
+	// target_session_attrs, a search_path. It carries the password, so deliver
+	// it as TEAMSTER_DATABASE_POSTGRES_URL.
+	URL string `help:"Full postgres:// connection URL instead of the individual fields." name:"url"`
 }
 
 type WebhookConfig struct {
@@ -96,6 +137,42 @@ type GraphConfig struct {
 	Scope    string `help:"OAuth2 scope requested for Graph." default:"https://graph.microsoft.com/.default"`
 }
 
+// validateDatabase checks what the chosen driver needs, and deliberately does
+// not check the other one's settings. The container image sets
+// TEAMSTER_DATABASE_PATH whatever the driver is, so rejecting a path under
+// postgres would fail every containerised deployment over a value the operator
+// never wrote.
+//
+// It also does not require a password: an empty one is a real Postgres auth
+// choice -- trust on a localhost pooler, an IAM token minted elsewhere -- and
+// refusing it here would be this service overruling the database's own
+// configuration.
+func validateDatabase(cfg DatabaseConfig) error {
+	switch cfg.Driver {
+	case "sqlite", "":
+		if cfg.Path == "" {
+			return fmt.Errorf("database path is required when database-driver is sqlite")
+		}
+		return nil
+	case "postgres":
+		if cfg.Postgres.URL != "" {
+			if cfg.Postgres.Host != "" || cfg.Postgres.Password != "" || cfg.Postgres.SSLRootCert != "" {
+				return fmt.Errorf("set either database-postgres-url or the individual database-postgres-* settings, not both")
+			}
+			return nil
+		}
+		if cfg.Postgres.Host == "" {
+			return fmt.Errorf("database-postgres-host is required when database-driver is postgres")
+		}
+		if cfg.Postgres.DBName == "" || cfg.Postgres.User == "" {
+			return fmt.Errorf("database-postgres-dbname and database-postgres-user are required when database-driver is postgres")
+		}
+		return nil
+	default:
+		return fmt.Errorf("database-driver must be sqlite or postgres, not %q", cfg.Driver)
+	}
+}
+
 // validateMetrics refuses a configuration that would start a listener nobody
 // can scrape, or none at all while claiming to be enabled. Everything here is
 // gated on Enabled: a deployment that wants no metrics configures nothing.
@@ -134,6 +211,9 @@ func Validate(cfg Config) error {
 	}
 	if cfg.Admin.Username == "" || cfg.Admin.Password == "" {
 		return fmt.Errorf("admin username/password is required")
+	}
+	if err := validateDatabase(cfg.Database); err != nil {
+		return err
 	}
 	if cfg.Webhook.Token == "" {
 		return fmt.Errorf("webhook token is required")
