@@ -5,6 +5,7 @@
 package transfer
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -50,20 +51,20 @@ type Directory interface {
 // are runtime state and are deliberately absent, as are all credentials: what
 // comes back is what an operator configured, and nothing that would be
 // dangerous in a backup.
-func Export(st store.Store, directory Directory) (Bundle, error) {
-	templates, err := st.ListTemplates()
+func Export(ctx context.Context, st store.Store, directory Directory) (Bundle, error) {
+	templates, err := st.ListTemplates(ctx)
 	if err != nil {
 		return Bundle{}, fmt.Errorf("templates: %w", err)
 	}
-	destinations, err := st.ListDestinations()
+	destinations, err := st.ListDestinations(ctx)
 	if err != nil {
 		return Bundle{}, fmt.Errorf("destinations: %w", err)
 	}
-	routes, err := st.ListRoutes()
+	routes, err := st.ListRoutes(ctx)
 	if err != nil {
 		return Bundle{}, fmt.Errorf("routes: %w", err)
 	}
-	grants, err := st.ListGrants()
+	grants, err := st.ListGrants(ctx)
 	if err != nil {
 		return Bundle{}, fmt.Errorf("grants: %w", err)
 	}

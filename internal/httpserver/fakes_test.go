@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"maps"
@@ -71,7 +72,7 @@ func (f *fakeStore) failing(method string) error {
 
 func (f *fakeStore) Close() error { return f.failing("Close") }
 
-func (f *fakeStore) ListTemplates() ([]models.Template, error) {
+func (f *fakeStore) ListTemplates(ctx context.Context) ([]models.Template, error) {
 	if err := f.failing("ListTemplates"); err != nil {
 		return nil, err
 	}
@@ -82,7 +83,7 @@ func (f *fakeStore) ListTemplates() ([]models.Template, error) {
 	return out, nil
 }
 
-func (f *fakeStore) CreateTemplate(t models.Template) (models.Template, error) {
+func (f *fakeStore) CreateTemplate(ctx context.Context, t models.Template) (models.Template, error) {
 	if err := f.failing("CreateTemplate"); err != nil {
 		return models.Template{}, err
 	}
@@ -93,7 +94,7 @@ func (f *fakeStore) CreateTemplate(t models.Template) (models.Template, error) {
 	return t, nil
 }
 
-func (f *fakeStore) UpdateTemplate(t models.Template) (models.Template, error) {
+func (f *fakeStore) UpdateTemplate(ctx context.Context, t models.Template) (models.Template, error) {
 	if err := f.failing("UpdateTemplate"); err != nil {
 		return models.Template{}, err
 	}
@@ -101,7 +102,7 @@ func (f *fakeStore) UpdateTemplate(t models.Template) (models.Template, error) {
 	return t, nil
 }
 
-func (f *fakeStore) DeleteTemplate(id string) error {
+func (f *fakeStore) DeleteTemplate(ctx context.Context, id string) error {
 	if err := f.failing("DeleteTemplate"); err != nil {
 		return err
 	}
@@ -109,7 +110,7 @@ func (f *fakeStore) DeleteTemplate(id string) error {
 	return nil
 }
 
-func (f *fakeStore) GetTemplate(id string) (models.Template, error) {
+func (f *fakeStore) GetTemplate(ctx context.Context, id string) (models.Template, error) {
 	if err := f.failing("GetTemplate"); err != nil {
 		return models.Template{}, err
 	}
@@ -120,7 +121,7 @@ func (f *fakeStore) GetTemplate(id string) (models.Template, error) {
 	return t, nil
 }
 
-func (f *fakeStore) ListDestinations() ([]models.Destination, error) {
+func (f *fakeStore) ListDestinations(ctx context.Context) ([]models.Destination, error) {
 	if err := f.failing("ListDestinations"); err != nil {
 		return nil, err
 	}
@@ -131,7 +132,7 @@ func (f *fakeStore) ListDestinations() ([]models.Destination, error) {
 	return out, nil
 }
 
-func (f *fakeStore) CreateDestination(d models.Destination) (models.Destination, error) {
+func (f *fakeStore) CreateDestination(ctx context.Context, d models.Destination) (models.Destination, error) {
 	if err := f.failing("CreateDestination"); err != nil {
 		return models.Destination{}, err
 	}
@@ -142,7 +143,7 @@ func (f *fakeStore) CreateDestination(d models.Destination) (models.Destination,
 	return d, nil
 }
 
-func (f *fakeStore) UpdateDestination(d models.Destination) (models.Destination, error) {
+func (f *fakeStore) UpdateDestination(ctx context.Context, d models.Destination) (models.Destination, error) {
 	if err := f.failing("UpdateDestination"); err != nil {
 		return models.Destination{}, err
 	}
@@ -150,7 +151,7 @@ func (f *fakeStore) UpdateDestination(d models.Destination) (models.Destination,
 	return d, nil
 }
 
-func (f *fakeStore) DeleteDestination(id string) error {
+func (f *fakeStore) DeleteDestination(ctx context.Context, id string) error {
 	if err := f.failing("DeleteDestination"); err != nil {
 		return err
 	}
@@ -158,7 +159,7 @@ func (f *fakeStore) DeleteDestination(id string) error {
 	return nil
 }
 
-func (f *fakeStore) GetDestination(id string) (models.Destination, error) {
+func (f *fakeStore) GetDestination(ctx context.Context, id string) (models.Destination, error) {
 	if err := f.failing("GetDestination"); err != nil {
 		return models.Destination{}, err
 	}
@@ -169,7 +170,7 @@ func (f *fakeStore) GetDestination(id string) (models.Destination, error) {
 	return d, nil
 }
 
-func (f *fakeStore) ListRoutes() ([]models.Route, error) {
+func (f *fakeStore) ListRoutes(ctx context.Context) ([]models.Route, error) {
 	if err := f.failing("ListRoutes"); err != nil {
 		return nil, err
 	}
@@ -180,7 +181,7 @@ func (f *fakeStore) ListRoutes() ([]models.Route, error) {
 	return out, nil
 }
 
-func (f *fakeStore) CreateRoute(r models.Route) (models.Route, error) {
+func (f *fakeStore) CreateRoute(ctx context.Context, r models.Route) (models.Route, error) {
 	if err := f.failing("CreateRoute"); err != nil {
 		return models.Route{}, err
 	}
@@ -191,7 +192,7 @@ func (f *fakeStore) CreateRoute(r models.Route) (models.Route, error) {
 	return r, nil
 }
 
-func (f *fakeStore) UpdateRoute(r models.Route) (models.Route, error) {
+func (f *fakeStore) UpdateRoute(ctx context.Context, r models.Route) (models.Route, error) {
 	if err := f.failing("UpdateRoute"); err != nil {
 		return models.Route{}, err
 	}
@@ -199,7 +200,7 @@ func (f *fakeStore) UpdateRoute(r models.Route) (models.Route, error) {
 	return r, nil
 }
 
-func (f *fakeStore) DeleteRoute(id string) error {
+func (f *fakeStore) DeleteRoute(ctx context.Context, id string) error {
 	if err := f.failing("DeleteRoute"); err != nil {
 		return err
 	}
@@ -207,7 +208,7 @@ func (f *fakeStore) DeleteRoute(id string) error {
 	return nil
 }
 
-func (f *fakeStore) GetRoute(id string) (models.Route, error) {
+func (f *fakeStore) GetRoute(ctx context.Context, id string) (models.Route, error) {
 	if err := f.failing("GetRoute"); err != nil {
 		return models.Route{}, err
 	}
@@ -218,7 +219,7 @@ func (f *fakeStore) GetRoute(id string) (models.Route, error) {
 	return r, nil
 }
 
-func (f *fakeStore) CreateSession(session models.Session) error {
+func (f *fakeStore) CreateSession(ctx context.Context, session models.Session) error {
 	if err := f.failing("CreateSession"); err != nil {
 		return err
 	}
@@ -226,7 +227,7 @@ func (f *fakeStore) CreateSession(session models.Session) error {
 	return nil
 }
 
-func (f *fakeStore) GetSession(id string) (models.Session, error) {
+func (f *fakeStore) GetSession(ctx context.Context, id string) (models.Session, error) {
 	if err := f.failing("GetSession"); err != nil {
 		return models.Session{}, err
 	}
@@ -237,7 +238,7 @@ func (f *fakeStore) GetSession(id string) (models.Session, error) {
 	return session, nil
 }
 
-func (f *fakeStore) DeleteSession(id string) error {
+func (f *fakeStore) DeleteSession(ctx context.Context, id string) error {
 	if err := f.failing("DeleteSession"); err != nil {
 		return err
 	}
@@ -245,9 +246,11 @@ func (f *fakeStore) DeleteSession(id string) error {
 	return nil
 }
 
-func (f *fakeStore) DeleteExpiredSessions() error { return f.failing("DeleteExpiredSessions") }
+func (f *fakeStore) DeleteExpiredSessions(ctx context.Context) error {
+	return f.failing("DeleteExpiredSessions")
+}
 
-func (f *fakeStore) CreateLoginFlow(flow models.LoginFlow) error {
+func (f *fakeStore) CreateLoginFlow(ctx context.Context, flow models.LoginFlow) error {
 	if err := f.failing("CreateLoginFlow"); err != nil {
 		return err
 	}
@@ -255,7 +258,7 @@ func (f *fakeStore) CreateLoginFlow(flow models.LoginFlow) error {
 	return nil
 }
 
-func (f *fakeStore) TakeLoginFlow(state string) (models.LoginFlow, error) {
+func (f *fakeStore) TakeLoginFlow(ctx context.Context, state string) (models.LoginFlow, error) {
 	if err := f.failing("TakeLoginFlow"); err != nil {
 		return models.LoginFlow{}, err
 	}
@@ -272,12 +275,12 @@ func activeAlertKey(fingerprint, teamID, channelID string) string {
 	return fingerprint + "\x00" + teamID + "\x00" + channelID
 }
 
-func (f *fakeStore) Ping() error { return f.failing("Ping") }
+func (f *fakeStore) Ping(ctx context.Context) error { return f.failing("Ping") }
 
 // WithTx runs fn against a copy and keeps the copy only when fn succeeds, which
 // is the behaviour the import depends on: a bundle rejected half way through
 // leaves the configuration as it was.
-func (f *fakeStore) WithTx(fn func(store.Store) error) error {
+func (f *fakeStore) WithTx(ctx context.Context, fn func(context.Context, store.Store) error) error {
 	if err := f.failing("WithTx"); err != nil {
 		return err
 	}
@@ -295,7 +298,7 @@ func (f *fakeStore) WithTx(fn func(store.Store) error) error {
 	}
 	f.mu.Unlock()
 
-	if err := fn(snapshot); err != nil {
+	if err := fn(ctx, snapshot); err != nil {
 		return err
 	}
 
@@ -307,7 +310,7 @@ func (f *fakeStore) WithTx(fn func(store.Store) error) error {
 	return nil
 }
 
-func (f *fakeStore) ListGrants() ([]models.Grant, error) {
+func (f *fakeStore) ListGrants(ctx context.Context) ([]models.Grant, error) {
 	if err := f.failing("ListGrants"); err != nil {
 		return nil, err
 	}
@@ -319,7 +322,7 @@ func (f *fakeStore) ListGrants() ([]models.Grant, error) {
 	return out, nil
 }
 
-func (f *fakeStore) CreateGrant(g models.Grant) (models.Grant, error) {
+func (f *fakeStore) CreateGrant(ctx context.Context, g models.Grant) (models.Grant, error) {
 	if err := f.failing("CreateGrant"); err != nil {
 		return models.Grant{}, err
 	}
@@ -332,7 +335,7 @@ func (f *fakeStore) CreateGrant(g models.Grant) (models.Grant, error) {
 	return g, nil
 }
 
-func (f *fakeStore) DeleteGrant(id string) error {
+func (f *fakeStore) DeleteGrant(ctx context.Context, id string) error {
 	if err := f.failing("DeleteGrant"); err != nil {
 		return err
 	}
@@ -340,7 +343,7 @@ func (f *fakeStore) DeleteGrant(id string) error {
 	return nil
 }
 
-func (f *fakeStore) UpsertActiveAlert(a models.ActiveAlert) error {
+func (f *fakeStore) UpsertActiveAlert(ctx context.Context, a models.ActiveAlert) error {
 	if err := f.failing("UpsertActiveAlert"); err != nil {
 		return err
 	}
@@ -348,7 +351,7 @@ func (f *fakeStore) UpsertActiveAlert(a models.ActiveAlert) error {
 	return nil
 }
 
-func (f *fakeStore) ListActiveAlerts(fingerprint string) ([]models.ActiveAlert, error) {
+func (f *fakeStore) ListActiveAlerts(ctx context.Context, fingerprint string) ([]models.ActiveAlert, error) {
 	if err := f.failing("ListActiveAlerts"); err != nil {
 		return nil, err
 	}
@@ -367,7 +370,7 @@ func (f *fakeStore) ListActiveAlerts(fingerprint string) ([]models.ActiveAlert, 
 	return out, nil
 }
 
-func (f *fakeStore) CountActiveAlerts() (int64, error) {
+func (f *fakeStore) CountActiveAlerts(ctx context.Context) (int64, error) {
 	if err := f.failing("CountActiveAlerts"); err != nil {
 		return 0, err
 	}
@@ -376,7 +379,7 @@ func (f *fakeStore) CountActiveAlerts() (int64, error) {
 	return int64(len(f.activeAlerts)), nil
 }
 
-func (f *fakeStore) GetActiveAlert(fingerprint, teamID, channelID string) (models.ActiveAlert, error) {
+func (f *fakeStore) GetActiveAlert(ctx context.Context, fingerprint, teamID, channelID string) (models.ActiveAlert, error) {
 	if err := f.failing("GetActiveAlert"); err != nil {
 		return models.ActiveAlert{}, err
 	}
@@ -387,7 +390,7 @@ func (f *fakeStore) GetActiveAlert(fingerprint, teamID, channelID string) (model
 	return a, nil
 }
 
-func (f *fakeStore) DeleteActiveAlert(fingerprint, teamID, channelID string) error {
+func (f *fakeStore) DeleteActiveAlert(ctx context.Context, fingerprint, teamID, channelID string) error {
 	if err := f.failing("DeleteActiveAlert"); err != nil {
 		return err
 	}

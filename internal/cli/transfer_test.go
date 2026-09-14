@@ -17,14 +17,15 @@ import (
 // The commands open the database directly, which is what makes them work on a
 // stopped installation — when a backup is most often wanted.
 func seededDatabase(t *testing.T) *config.Config {
+	ctx := t.Context()
 	t.Helper()
 
 	path := filepath.Join(t.TempDir(), "teamster.db")
-	st, err := store.NewSQLiteStore(path)
+	st, err := store.NewSQLiteStore(t.Context(), path)
 	if err != nil {
 		t.Fatalf("open store: %v", err)
 	}
-	if _, err := st.CreateTemplate(models.Template{ID: "tmpl", Name: "Card", Body: "{}"}); err != nil {
+	if _, err := st.CreateTemplate(ctx, models.Template{ID: "tmpl", Name: "Card", Body: "{}"}); err != nil {
 		t.Fatalf("seed template: %v", err)
 	}
 	if err := st.Close(); err != nil {
@@ -61,6 +62,7 @@ func TestExportCommandWritesABundle(t *testing.T) {
 
 // The round trip is the point: what one installation writes, another reads.
 func TestImportCommandAppliesAnExport(t *testing.T) {
+	ctx := t.Context()
 	t.Parallel()
 
 	source := seededDatabase(t)
@@ -74,13 +76,13 @@ func TestImportCommandAppliesAnExport(t *testing.T) {
 		t.Fatalf("import: %v", err)
 	}
 
-	st, err := store.NewSQLiteStore(target.Database.Path)
+	st, err := store.NewSQLiteStore(t.Context(), target.Database.Path)
 	if err != nil {
 		t.Fatalf("open target: %v", err)
 	}
 	defer func() { _ = st.Close() }()
 
-	templates, err := st.ListTemplates()
+	templates, err := st.ListTemplates(ctx)
 	if err != nil {
 		t.Fatalf("ListTemplates: %v", err)
 	}
@@ -90,6 +92,7 @@ func TestImportCommandAppliesAnExport(t *testing.T) {
 }
 
 func TestImportCommandDryRunChangesNothing(t *testing.T) {
+	ctx := t.Context()
 	t.Parallel()
 
 	cfg := seededDatabase(t)
@@ -102,9 +105,9 @@ func TestImportCommandDryRunChangesNothing(t *testing.T) {
 		t.Fatalf("dry run: %v", err)
 	}
 
-	st, _ := store.NewSQLiteStore(cfg.Database.Path)
+	st, _ := store.NewSQLiteStore(t.Context(), cfg.Database.Path)
 	defer func() { _ = st.Close() }()
-	templates, _ := st.ListTemplates()
+	templates, _ := st.ListTemplates(ctx)
 	if len(templates) != 1 || templates[0].ID != "tmpl" {
 		t.Errorf("templates = %+v, want the dry run to have changed nothing", templates)
 	}

@@ -20,6 +20,7 @@ import (
 )
 
 func (s *Server) handleAlertmanager(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -28,7 +29,7 @@ func (s *Server) handleAlertmanager(w http.ResponseWriter, r *http.Request) {
 		// Counted here because a refused token is otherwise a 401 nobody is
 		// watching, and "the sender's secret is wrong" looks exactly like "the
 		// sender stopped sending".
-		s.metrics.WebhookReceived(r.Context(), "alertmanager", "refused")
+		s.metrics.WebhookReceived(ctx, "alertmanager", "refused")
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
@@ -50,8 +51,8 @@ func (s *Server) handleAlertmanager(w http.ResponseWriter, r *http.Request) {
 			Generator:   alert.GeneratorURL,
 			Fingerprint: alert.Fingerprint,
 		}
-		s.metrics.WebhookReceived(r.Context(), model.Source, model.Status)
-		if err := s.processAlert(r.Context(), model); err != nil {
+		s.metrics.WebhookReceived(ctx, model.Source, model.Status)
+		if err := s.processAlert(ctx, model); err != nil {
 			writeJSONError(w, http.StatusBadGateway, err.Error())
 			return
 		}
@@ -61,12 +62,13 @@ func (s *Server) handleAlertmanager(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleUniversal(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 	if !s.webhookAuth(r) {
-		s.metrics.WebhookReceived(r.Context(), "universal", "refused")
+		s.metrics.WebhookReceived(ctx, "universal", "refused")
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
@@ -88,8 +90,8 @@ func (s *Server) handleUniversal(w http.ResponseWriter, r *http.Request) {
 		Fingerprint: payload.Fingerprint,
 	}
 
-	s.metrics.WebhookReceived(r.Context(), model.Source, model.Status)
-	if err := s.processAlert(r.Context(), model); err != nil {
+	s.metrics.WebhookReceived(ctx, model.Source, model.Status)
+	if err := s.processAlert(ctx, model); err != nil {
 		writeJSONError(w, http.StatusBadGateway, err.Error())
 		return
 	}
@@ -105,7 +107,7 @@ func (s *Server) processAlert(ctx context.Context, alert models.Alert) error {
 		return fmt.Errorf("unknown status: %s", alert.Status)
 	}
 
-	result, err := s.router.Plan(alert.Labels)
+	result, err := s.router.Plan(ctx, alert.Labels)
 	if err != nil {
 		return fmt.Errorf("route: %w", err)
 	}
@@ -137,7 +139,7 @@ func (s *Server) deliver(ctx context.Context, alert models.Alert, delivery routi
 		return err
 	}
 
-	active, err := s.store.GetActiveAlert(alert.Fingerprint, destination.TeamID, destination.ChannelID)
+	active, err := s.store.GetActiveAlert(ctx, alert.Fingerprint, destination.TeamID, destination.ChannelID)
 	switch {
 	case err == nil:
 		// The card for this channel already exists, so the alert is an update to
@@ -149,7 +151,7 @@ func (s *Server) deliver(ctx context.Context, alert models.Alert, delivery routi
 		s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeUpdated)
 		active.Status = alert.Status
 		active.LastUpdate = time.Now().UTC()
-		return s.store.UpsertActiveAlert(active)
+		return s.store.UpsertActiveAlert(ctx, active)
 	case !errors.Is(err, store.ErrNotFound):
 		return fmt.Errorf("active alert lookup: %w", err)
 	}
@@ -161,7 +163,7 @@ func (s *Server) deliver(ctx context.Context, alert models.Alert, delivery routi
 	}
 	s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomePosted)
 
-	return s.store.UpsertActiveAlert(models.ActiveAlert{
+	return s.store.UpsertActiveAlert(ctx, models.ActiveAlert{
 		Fingerprint: alert.Fingerprint,
 		Status:      alert.Status,
 		TeamID:      destination.TeamID,
@@ -175,14 +177,14 @@ func (s *Server) deliver(ctx context.Context, alert models.Alert, delivery routi
 // the routes may have changed since: a card in a channel the plan no longer
 // names still has to stop saying the alert is firing.
 func (s *Server) resolveAlert(ctx context.Context, alert models.Alert, plan []routing.Delivery) error {
-	active, err := s.store.ListActiveAlerts(alert.Fingerprint)
+	active, err := s.store.ListActiveAlerts(ctx, alert.Fingerprint)
 	if err != nil {
 		return fmt.Errorf("active alert lookup: %w", err)
 	}
 
 	var failures []error
 	for _, card := range active {
-		delivery, err := s.deliveryFor(card, plan)
+		delivery, err := s.deliveryFor(ctx, card, plan)
 		if err != nil {
 			failures = append(failures, err)
 			continue
@@ -200,7 +202,7 @@ func (s *Server) resolveAlert(ctx context.Context, alert models.Alert, plan []ro
 			failures = append(failures, fmt.Errorf("graph update: %w", err))
 			continue
 		}
-		if err := s.store.DeleteActiveAlert(card.Fingerprint, card.TeamID, card.ChannelID); err != nil {
+		if err := s.store.DeleteActiveAlert(ctx, card.Fingerprint, card.TeamID, card.ChannelID); err != nil {
 			failures = append(failures, err)
 		}
 	}
@@ -210,9 +212,9 @@ func (s *Server) resolveAlert(ctx context.Context, alert models.Alert, plan []ro
 // The delivery that owns a card is the one pointing at its channel; a card the
 // plan no longer covers is rendered with the first template the plan names,
 // which is better than leaving it claiming the alert still fires.
-func (s *Server) deliveryFor(card models.ActiveAlert, plan []routing.Delivery) (routing.Delivery, error) {
+func (s *Server) deliveryFor(ctx context.Context, card models.ActiveAlert, plan []routing.Delivery) (routing.Delivery, error) {
 	for _, delivery := range plan {
-		destination, err := s.store.GetDestination(delivery.DestinationID)
+		destination, err := s.store.GetDestination(ctx, delivery.DestinationID)
 		if err != nil {
 			continue
 		}
@@ -227,12 +229,12 @@ func (s *Server) deliveryFor(card models.ActiveAlert, plan []routing.Delivery) (
 }
 
 func (s *Server) render(ctx context.Context, alert models.Alert, delivery routing.Delivery) (models.Destination, graph.Message, error) {
-	template, err := s.store.GetTemplate(delivery.TemplateID)
+	template, err := s.store.GetTemplate(ctx, delivery.TemplateID)
 	if err != nil {
 		s.metrics.RenderFailed(ctx, delivery.TemplateID, metrics.StageTemplate)
 		return models.Destination{}, graph.Message{}, fmt.Errorf("template: %w", err)
 	}
-	destination, err := s.store.GetDestination(delivery.DestinationID)
+	destination, err := s.store.GetDestination(ctx, delivery.DestinationID)
 	if err != nil {
 		s.metrics.RenderFailed(ctx, delivery.TemplateID, metrics.StageDestination)
 		return models.Destination{}, graph.Message{}, fmt.Errorf("destination: %w", err)

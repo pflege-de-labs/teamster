@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -20,13 +21,14 @@ const maxBundleBytes = 8 << 20
 // credentials and no runtime state, which is what makes it safe to keep beside
 // the rest of a deployment's configuration.
 func (s *Server) handleExport(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	if r.Method != http.MethodGet {
 		w.Header().Set("Allow", http.MethodGet)
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 
-	bundle, err := transfer.Export(s.store, s.directoryNames())
+	bundle, err := transfer.Export(ctx, s.store, s.directoryNames(ctx))
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -40,6 +42,7 @@ func (s *Server) handleExport(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleImport(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", http.MethodPost)
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -65,7 +68,7 @@ func (s *Server) handleImport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := transfer.Import(s.store, bundle, mode, dryRun)
+	result, err := transfer.Import(ctx, s.store, bundle, mode, dryRun)
 	if err != nil {
 		// A bundle this installation will not accept is the caller's to fix,
 		// not a failure of the server.
@@ -143,8 +146,8 @@ func describeDestination(destination transfer.BundleDestination) string {
 // directoryNames resolves Team and channel names for an export, and gives up
 // quietly: Graph being unreachable is no reason to refuse to back a
 // configuration up.
-func (s *Server) directoryNames() transfer.Directory {
-	destinations, err := s.store.ListDestinations()
+func (s *Server) directoryNames(ctx context.Context) transfer.Directory {
+	destinations, err := s.store.ListDestinations(ctx)
 	if err != nil {
 		return nil
 	}

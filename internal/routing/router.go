@@ -1,6 +1,7 @@
 package routing
 
 import (
+	"context"
 	"fmt"
 	"sort"
 
@@ -59,8 +60,8 @@ type Result struct {
 // matching children then refine it: a child delivers as well as its parent, or
 // instead of it when greedy. Only a failure to read the store is an error;
 // finding nothing is an answer.
-func (r *Router) Plan(labels map[string]string) (Result, error) {
-	routes, err := r.store.ListRoutes()
+func (r *Router) Plan(ctx context.Context, labels map[string]string) (Result, error) {
+	routes, err := r.store.ListRoutes(ctx)
 	if err != nil {
 		return Result{}, err
 	}

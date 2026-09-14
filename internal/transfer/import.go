@@ -1,6 +1,7 @@
 package transfer
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sort"
@@ -60,7 +61,7 @@ const (
 // leaves the configuration as it found it. A dry run computes the same diff and
 // then rolls back rather than taking a different path — a preview that does not
 // exercise the real code is a preview of something else.
-func Import(st store.Store, bundle Bundle, mode Mode, dryRun bool) (Result, error) {
+func Import(ctx context.Context, st store.Store, bundle Bundle, mode Mode, dryRun bool) (Result, error) {
 	if err := bundle.Validate(); err != nil {
 		return Result{}, err
 	}
@@ -68,8 +69,8 @@ func Import(st store.Store, bundle Bundle, mode Mode, dryRun bool) (Result, erro
 	result := Result{Mode: mode, DryRun: dryRun}
 	errDryRun := errors.New("dry run")
 
-	err := st.WithTx(func(tx store.Store) error {
-		changes, err := apply(tx, bundle, mode)
+	err := st.WithTx(ctx, func(ctx context.Context, tx store.Store) error {
+		changes, err := apply(ctx, tx, bundle, mode)
 		if err != nil {
 			return err
 		}
@@ -91,10 +92,10 @@ func Import(st store.Store, bundle Bundle, mode Mode, dryRun bool) (Result, erro
 // destinations exist before the routes that point at them, and routes are
 // written parents first so a child never references a row that is not there
 // yet.
-func apply(tx store.Store, bundle Bundle, mode Mode) ([]Change, error) {
+func apply(ctx context.Context, tx store.Store, bundle Bundle, mode Mode) ([]Change, error) {
 	var changes []Change
 
-	templates, err := tx.ListTemplates()
+	templates, err := tx.ListTemplates(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -104,16 +105,16 @@ func apply(tx store.Store, bundle Bundle, mode Mode) ([]Change, error) {
 		action := actionCreate
 		if _, found := existingTemplates[template.ID]; found {
 			action = actionUpdate
-			if _, err := tx.UpdateTemplate(template); err != nil {
+			if _, err := tx.UpdateTemplate(ctx, template); err != nil {
 				return nil, err
 			}
-		} else if _, err := tx.CreateTemplate(template); err != nil {
+		} else if _, err := tx.CreateTemplate(ctx, template); err != nil {
 			return nil, err
 		}
 		changes = append(changes, Change{Kind: "template", Action: action, ID: template.ID, Name: template.Name})
 	}
 
-	destinations, err := tx.ListDestinations()
+	destinations, err := tx.ListDestinations(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -123,16 +124,16 @@ func apply(tx store.Store, bundle Bundle, mode Mode) ([]Change, error) {
 		action := actionCreate
 		if _, found := existingDestinations[destination.ID]; found {
 			action = actionUpdate
-			if _, err := tx.UpdateDestination(destination); err != nil {
+			if _, err := tx.UpdateDestination(ctx, destination); err != nil {
 				return nil, err
 			}
-		} else if _, err := tx.CreateDestination(destination); err != nil {
+		} else if _, err := tx.CreateDestination(ctx, destination); err != nil {
 			return nil, err
 		}
 		changes = append(changes, Change{Kind: "destination", Action: action, ID: destination.ID, Name: destination.Name})
 	}
 
-	routes, err := tx.ListRoutes()
+	routes, err := tx.ListRoutes(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -142,16 +143,16 @@ func apply(tx store.Store, bundle Bundle, mode Mode) ([]Change, error) {
 		action := actionCreate
 		if _, found := existingRoutes[route.ID]; found {
 			action = actionUpdate
-			if _, err := tx.UpdateRoute(route); err != nil {
+			if _, err := tx.UpdateRoute(ctx, route); err != nil {
 				return nil, err
 			}
-		} else if _, err := tx.CreateRoute(route); err != nil {
+		} else if _, err := tx.CreateRoute(ctx, route); err != nil {
 			return nil, err
 		}
 		changes = append(changes, Change{Kind: "route", Action: action, ID: route.ID, Name: route.Name})
 	}
 
-	grants, err := tx.ListGrants()
+	grants, err := tx.ListGrants(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -163,7 +164,7 @@ func apply(tx store.Store, bundle Bundle, mode Mode) ([]Change, error) {
 			// whole row, so an unchanged one is left alone.
 			continue
 		}
-		if _, err := tx.CreateGrant(grant); err != nil {
+		if _, err := tx.CreateGrant(ctx, grant); err != nil {
 			return nil, err
 		}
 		changes = append(changes, Change{Kind: "grant", Action: actionCreate, ID: grant.ID, Name: grant.Role})
@@ -175,7 +176,7 @@ func apply(tx store.Store, bundle Bundle, mode Mode) ([]Change, error) {
 
 	// Deletions run children first, so removing a parent never orphans a route
 	// that is about to go as well.
-	removals, err := deleteUnmentioned(tx, bundle, existingTemplates, existingDestinations, existingRoutes, existingGrants)
+	removals, err := deleteUnmentioned(ctx, tx, bundle, existingTemplates, existingDestinations, existingRoutes, existingGrants)
 	if err != nil {
 		return nil, err
 	}
@@ -183,6 +184,7 @@ func apply(tx store.Store, bundle Bundle, mode Mode) ([]Change, error) {
 }
 
 func deleteUnmentioned(
+	ctx context.Context,
 	tx store.Store,
 	bundle Bundle,
 	templates map[string]models.Template,
@@ -200,7 +202,7 @@ func deleteUnmentioned(
 		}
 	}
 	for _, route := range childrenFirst(doomed) {
-		if err := tx.DeleteRoute(route.ID); err != nil {
+		if err := tx.DeleteRoute(ctx, route.ID); err != nil {
 			return nil, err
 		}
 		changes = append(changes, Change{Kind: "route", Action: actionDelete, ID: route.ID, Name: route.Name})
@@ -211,7 +213,7 @@ func deleteUnmentioned(
 		if keepGrants[entry.ID] {
 			continue
 		}
-		if err := tx.DeleteGrant(entry.ID); err != nil {
+		if err := tx.DeleteGrant(ctx, entry.ID); err != nil {
 			return nil, err
 		}
 		changes = append(changes, Change{Kind: "grant", Action: actionDelete, ID: entry.ID, Name: entry.Value.Role})
@@ -222,7 +224,7 @@ func deleteUnmentioned(
 		if keepDestinations[entry.ID] {
 			continue
 		}
-		if err := tx.DeleteDestination(entry.ID); err != nil {
+		if err := tx.DeleteDestination(ctx, entry.ID); err != nil {
 			return nil, err
 		}
 		changes = append(changes, Change{Kind: "destination", Action: actionDelete, ID: entry.ID, Name: entry.Value.Name})
@@ -233,7 +235,7 @@ func deleteUnmentioned(
 		if keepTemplates[entry.ID] {
 			continue
 		}
-		if err := tx.DeleteTemplate(entry.ID); err != nil {
+		if err := tx.DeleteTemplate(ctx, entry.ID); err != nil {
 			return nil, err
 		}
 		changes = append(changes, Change{Kind: "template", Action: actionDelete, ID: entry.ID, Name: entry.Value.Name})

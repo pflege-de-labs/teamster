@@ -1,6 +1,7 @@
 package store
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"path/filepath"
@@ -14,7 +15,7 @@ import (
 func newTestStore(t *testing.T) *SQLiteStore {
 	t.Helper()
 
-	s, err := NewSQLiteStore(filepath.Join(t.TempDir(), "test.db"))
+	s, err := NewSQLiteStore(t.Context(), filepath.Join(t.TempDir(), "test.db"))
 	if err != nil {
 		t.Fatalf("NewSQLiteStore: %v", err)
 	}
@@ -37,8 +38,8 @@ func closedStore(t *testing.T) *SQLiteStore {
 func TestNewSQLiteStoreRejectsUnusablePath(t *testing.T) {
 	t.Parallel()
 
-	if _, err := NewSQLiteStore(filepath.Join(t.TempDir(), "missing-dir", "test.db")); err == nil {
-		t.Error("NewSQLiteStore() = nil error, want failure for a path that cannot be created")
+	if _, err := NewSQLiteStore(t.Context(), filepath.Join(t.TempDir(), "missing-dir", "test.db")); err == nil {
+		t.Error("NewSQLiteStore(t.Context(), ) = nil error, want failure for a path that cannot be created")
 	}
 }
 
@@ -47,7 +48,7 @@ func TestTemplateCRUD(t *testing.T) {
 
 	s := newTestStore(t)
 
-	created, err := s.CreateTemplate(models.Template{Name: "card", Body: "{}"})
+	created, err := s.CreateTemplate(t.Context(), models.Template{Name: "card", Body: "{}"})
 	if err != nil {
 		t.Fatalf("CreateTemplate: %v", err)
 	}
@@ -58,7 +59,7 @@ func TestTemplateCRUD(t *testing.T) {
 		t.Error("CreateTemplate() left the timestamps zero")
 	}
 
-	got, err := s.GetTemplate(created.ID)
+	got, err := s.GetTemplate(t.Context(), created.ID)
 	if err != nil {
 		t.Fatalf("GetTemplate: %v", err)
 	}
@@ -66,7 +67,7 @@ func TestTemplateCRUD(t *testing.T) {
 		t.Errorf("GetTemplate() = %+v, want name %q body %q", got, "card", "{}")
 	}
 
-	updated, err := s.UpdateTemplate(models.Template{ID: created.ID, Name: "renamed", Body: "{\"a\":1}"})
+	updated, err := s.UpdateTemplate(t.Context(), models.Template{ID: created.ID, Name: "renamed", Body: "{\"a\":1}"})
 	if err != nil {
 		t.Fatalf("UpdateTemplate: %v", err)
 	}
@@ -74,7 +75,7 @@ func TestTemplateCRUD(t *testing.T) {
 		t.Errorf("UpdateTemplate().Name = %q, want %q", updated.Name, "renamed")
 	}
 
-	list, err := s.ListTemplates()
+	list, err := s.ListTemplates(t.Context())
 	if err != nil {
 		t.Fatalf("ListTemplates: %v", err)
 	}
@@ -82,10 +83,10 @@ func TestTemplateCRUD(t *testing.T) {
 		t.Errorf("ListTemplates() = %+v, want one renamed template", list)
 	}
 
-	if err := s.DeleteTemplate(created.ID); err != nil {
+	if err := s.DeleteTemplate(t.Context(), created.ID); err != nil {
 		t.Fatalf("DeleteTemplate: %v", err)
 	}
-	if _, err := s.GetTemplate(created.ID); !errors.Is(err, ErrNotFound) {
+	if _, err := s.GetTemplate(t.Context(), created.ID); !errors.Is(err, ErrNotFound) {
 		t.Errorf("GetTemplate() after delete = %v, want ErrNotFound", err)
 	}
 }
@@ -95,14 +96,14 @@ func TestTemplateKeepsSuppliedID(t *testing.T) {
 
 	s := newTestStore(t)
 
-	created, err := s.CreateTemplate(models.Template{ID: "fixed-id", Name: "card", Body: "{}"})
+	created, err := s.CreateTemplate(t.Context(), models.Template{ID: "fixed-id", Name: "card", Body: "{}"})
 	if err != nil {
 		t.Fatalf("CreateTemplate: %v", err)
 	}
 	if created.ID != "fixed-id" {
 		t.Errorf("CreateTemplate().ID = %q, want %q", created.ID, "fixed-id")
 	}
-	if _, err := s.CreateTemplate(models.Template{ID: "fixed-id", Name: "dup"}); err == nil {
+	if _, err := s.CreateTemplate(t.Context(), models.Template{ID: "fixed-id", Name: "dup"}); err == nil {
 		t.Error("CreateTemplate() with a duplicate ID = nil error, want a primary key violation")
 	}
 }
@@ -112,12 +113,12 @@ func TestDestinationCRUD(t *testing.T) {
 
 	s := newTestStore(t)
 
-	created, err := s.CreateDestination(models.Destination{Name: "ops", TeamID: "team", ChannelID: "channel"})
+	created, err := s.CreateDestination(t.Context(), models.Destination{Name: "ops", TeamID: "team", ChannelID: "channel"})
 	if err != nil {
 		t.Fatalf("CreateDestination: %v", err)
 	}
 
-	got, err := s.GetDestination(created.ID)
+	got, err := s.GetDestination(t.Context(), created.ID)
 	if err != nil {
 		t.Fatalf("GetDestination: %v", err)
 	}
@@ -125,10 +126,10 @@ func TestDestinationCRUD(t *testing.T) {
 		t.Errorf("GetDestination() = %+v, want team/channel", got)
 	}
 
-	if _, err := s.UpdateDestination(models.Destination{ID: created.ID, Name: "ops2", TeamID: "t2", ChannelID: "c2"}); err != nil {
+	if _, err := s.UpdateDestination(t.Context(), models.Destination{ID: created.ID, Name: "ops2", TeamID: "t2", ChannelID: "c2"}); err != nil {
 		t.Fatalf("UpdateDestination: %v", err)
 	}
-	got, err = s.GetDestination(created.ID)
+	got, err = s.GetDestination(t.Context(), created.ID)
 	if err != nil {
 		t.Fatalf("GetDestination after update: %v", err)
 	}
@@ -136,7 +137,7 @@ func TestDestinationCRUD(t *testing.T) {
 		t.Errorf("GetDestination() after update = %+v, want the updated values", got)
 	}
 
-	list, err := s.ListDestinations()
+	list, err := s.ListDestinations(t.Context())
 	if err != nil {
 		t.Fatalf("ListDestinations: %v", err)
 	}
@@ -144,10 +145,10 @@ func TestDestinationCRUD(t *testing.T) {
 		t.Errorf("ListDestinations() returned %d items, want 1", len(list))
 	}
 
-	if err := s.DeleteDestination(created.ID); err != nil {
+	if err := s.DeleteDestination(t.Context(), created.ID); err != nil {
 		t.Fatalf("DeleteDestination: %v", err)
 	}
-	if _, err := s.GetDestination(created.ID); !errors.Is(err, ErrNotFound) {
+	if _, err := s.GetDestination(t.Context(), created.ID); !errors.Is(err, ErrNotFound) {
 		t.Errorf("GetDestination() after delete = %v, want ErrNotFound", err)
 	}
 }
@@ -157,7 +158,7 @@ func TestRouteCRUD(t *testing.T) {
 
 	s := newTestStore(t)
 
-	created, err := s.CreateRoute(models.Route{
+	created, err := s.CreateRoute(t.Context(), models.Route{
 		Name:          "critical",
 		LabelSelector: map[string]string{"severity": "critical"},
 		DestinationID: "dest",
@@ -168,7 +169,7 @@ func TestRouteCRUD(t *testing.T) {
 		t.Fatalf("CreateRoute: %v", err)
 	}
 
-	got, err := s.GetRoute(created.ID)
+	got, err := s.GetRoute(t.Context(), created.ID)
 	if err != nil {
 		t.Fatalf("GetRoute: %v", err)
 	}
@@ -182,7 +183,7 @@ func TestRouteCRUD(t *testing.T) {
 		t.Errorf("GetRoute().Priority = %d, want 10", got.Priority)
 	}
 
-	if _, err := s.UpdateRoute(models.Route{
+	if _, err := s.UpdateRoute(t.Context(), models.Route{
 		ID:            created.ID,
 		Name:          "fallback",
 		LabelSelector: nil,
@@ -194,7 +195,7 @@ func TestRouteCRUD(t *testing.T) {
 		t.Fatalf("UpdateRoute: %v", err)
 	}
 
-	got, err = s.GetRoute(created.ID)
+	got, err = s.GetRoute(t.Context(), created.ID)
 	if err != nil {
 		t.Fatalf("GetRoute after update: %v", err)
 	}
@@ -205,7 +206,7 @@ func TestRouteCRUD(t *testing.T) {
 		t.Errorf("GetRoute().LabelSelector = %v, want empty", got.LabelSelector)
 	}
 
-	list, err := s.ListRoutes()
+	list, err := s.ListRoutes(t.Context())
 	if err != nil {
 		t.Fatalf("ListRoutes: %v", err)
 	}
@@ -213,10 +214,10 @@ func TestRouteCRUD(t *testing.T) {
 		t.Errorf("ListRoutes() = %+v, want the single default route", list)
 	}
 
-	if err := s.DeleteRoute(created.ID); err != nil {
+	if err := s.DeleteRoute(t.Context(), created.ID); err != nil {
 		t.Fatalf("DeleteRoute: %v", err)
 	}
-	if _, err := s.GetRoute(created.ID); !errors.Is(err, ErrNotFound) {
+	if _, err := s.GetRoute(t.Context(), created.ID); !errors.Is(err, ErrNotFound) {
 		t.Errorf("GetRoute() after delete = %v, want ErrNotFound", err)
 	}
 }
@@ -233,17 +234,17 @@ func TestUpdateRequiresID(t *testing.T) {
 	}{
 		{
 			name: "template",
-			call: func() error { _, err := s.UpdateTemplate(models.Template{}); return err },
+			call: func() error { _, err := s.UpdateTemplate(t.Context(), models.Template{}); return err },
 			want: "template id is required",
 		},
 		{
 			name: "destination",
-			call: func() error { _, err := s.UpdateDestination(models.Destination{}); return err },
+			call: func() error { _, err := s.UpdateDestination(t.Context(), models.Destination{}); return err },
 			want: "destination id is required",
 		},
 		{
 			name: "route",
-			call: func() error { _, err := s.UpdateRoute(models.Route{}); return err },
+			call: func() error { _, err := s.UpdateRoute(t.Context(), models.Route{}); return err },
 			want: "route id is required",
 		},
 	}
@@ -266,7 +267,7 @@ func TestActiveAlertLifecycle(t *testing.T) {
 	s := newTestStore(t)
 	firstUpdate := time.Date(2026, 9, 8, 10, 0, 0, 0, time.UTC)
 
-	if _, err := s.GetActiveAlert("unknown", "team", "channel"); !errors.Is(err, ErrNotFound) {
+	if _, err := s.GetActiveAlert(t.Context(), "unknown", "team", "channel"); !errors.Is(err, ErrNotFound) {
 		t.Errorf("GetActiveAlert() for an unknown fingerprint = %v, want ErrNotFound", err)
 	}
 
@@ -278,11 +279,11 @@ func TestActiveAlertLifecycle(t *testing.T) {
 		MessageID:   "msg-1",
 		LastUpdate:  firstUpdate,
 	}
-	if err := s.UpsertActiveAlert(alert); err != nil {
+	if err := s.UpsertActiveAlert(t.Context(), alert); err != nil {
 		t.Fatalf("UpsertActiveAlert: %v", err)
 	}
 
-	got, err := s.GetActiveAlert("fp", "team", "channel")
+	got, err := s.GetActiveAlert(t.Context(), "fp", "team", "channel")
 	if err != nil {
 		t.Fatalf("GetActiveAlert: %v", err)
 	}
@@ -292,11 +293,11 @@ func TestActiveAlertLifecycle(t *testing.T) {
 
 	alert.MessageID = "msg-2"
 	alert.LastUpdate = firstUpdate.Add(time.Minute)
-	if err := s.UpsertActiveAlert(alert); err != nil {
+	if err := s.UpsertActiveAlert(t.Context(), alert); err != nil {
 		t.Fatalf("UpsertActiveAlert (conflict): %v", err)
 	}
 
-	got, err = s.GetActiveAlert("fp", "team", "channel")
+	got, err = s.GetActiveAlert(t.Context(), "fp", "team", "channel")
 	if err != nil {
 		t.Fatalf("GetActiveAlert after upsert: %v", err)
 	}
@@ -308,10 +309,10 @@ func TestActiveAlertLifecycle(t *testing.T) {
 	second := alert
 	second.ChannelID = "other-channel"
 	second.MessageID = "msg-3"
-	if err := s.UpsertActiveAlert(second); err != nil {
+	if err := s.UpsertActiveAlert(t.Context(), second); err != nil {
 		t.Fatalf("UpsertActiveAlert (second channel): %v", err)
 	}
-	cards, err := s.ListActiveAlerts("fp")
+	cards, err := s.ListActiveAlerts(t.Context(), "fp")
 	if err != nil {
 		t.Fatalf("ListActiveAlerts: %v", err)
 	}
@@ -319,13 +320,13 @@ func TestActiveAlertLifecycle(t *testing.T) {
 		t.Fatalf("ListActiveAlerts() = %+v, want one card per channel", cards)
 	}
 
-	if err := s.DeleteActiveAlert("fp", "team", "channel"); err != nil {
+	if err := s.DeleteActiveAlert(t.Context(), "fp", "team", "channel"); err != nil {
 		t.Fatalf("DeleteActiveAlert: %v", err)
 	}
-	if _, err := s.GetActiveAlert("fp", "team", "channel"); !errors.Is(err, ErrNotFound) {
+	if _, err := s.GetActiveAlert(t.Context(), "fp", "team", "channel"); !errors.Is(err, ErrNotFound) {
 		t.Errorf("GetActiveAlert() after delete = %v, want ErrNotFound", err)
 	}
-	if _, err := s.GetActiveAlert("fp", "team", "other-channel"); err != nil {
+	if _, err := s.GetActiveAlert(t.Context(), "fp", "team", "other-channel"); err != nil {
 		t.Errorf("the other channel's card = %v, want it untouched", err)
 	}
 }
@@ -339,28 +340,28 @@ func TestStoreErrorsWhenDatabaseIsClosed(t *testing.T) {
 		name string
 		call func() error
 	}{
-		{"ListTemplates", func() error { _, err := s.ListTemplates(); return err }},
-		{"Ping", func() error { return s.Ping() }},
-		{"ListGrants", func() error { _, err := s.ListGrants(); return err }},
-		{"CreateGrant", func() error { _, err := s.CreateGrant(models.Grant{}); return err }},
-		{"DeleteGrant", func() error { return s.DeleteGrant("id") }},
-		{"CreateTemplate", func() error { _, err := s.CreateTemplate(models.Template{}); return err }},
-		{"UpdateTemplate", func() error { _, err := s.UpdateTemplate(models.Template{ID: "id"}); return err }},
-		{"DeleteTemplate", func() error { return s.DeleteTemplate("id") }},
-		{"GetTemplate", func() error { _, err := s.GetTemplate("id"); return err }},
-		{"ListDestinations", func() error { _, err := s.ListDestinations(); return err }},
-		{"CreateDestination", func() error { _, err := s.CreateDestination(models.Destination{}); return err }},
-		{"UpdateDestination", func() error { _, err := s.UpdateDestination(models.Destination{ID: "id"}); return err }},
-		{"DeleteDestination", func() error { return s.DeleteDestination("id") }},
-		{"GetDestination", func() error { _, err := s.GetDestination("id"); return err }},
-		{"ListRoutes", func() error { _, err := s.ListRoutes(); return err }},
-		{"CreateRoute", func() error { _, err := s.CreateRoute(models.Route{}); return err }},
-		{"UpdateRoute", func() error { _, err := s.UpdateRoute(models.Route{ID: "id"}); return err }},
-		{"DeleteRoute", func() error { return s.DeleteRoute("id") }},
-		{"GetRoute", func() error { _, err := s.GetRoute("id"); return err }},
-		{"UpsertActiveAlert", func() error { return s.UpsertActiveAlert(models.ActiveAlert{}) }},
-		{"GetActiveAlert", func() error { _, err := s.GetActiveAlert("fp", "team", "channel"); return err }},
-		{"DeleteActiveAlert", func() error { return s.DeleteActiveAlert("fp", "team", "channel") }},
+		{"ListTemplates", func() error { _, err := s.ListTemplates(t.Context()); return err }},
+		{"Ping", func() error { return s.Ping(t.Context()) }},
+		{"ListGrants", func() error { _, err := s.ListGrants(t.Context()); return err }},
+		{"CreateGrant", func() error { _, err := s.CreateGrant(t.Context(), models.Grant{}); return err }},
+		{"DeleteGrant", func() error { return s.DeleteGrant(t.Context(), "id") }},
+		{"CreateTemplate", func() error { _, err := s.CreateTemplate(t.Context(), models.Template{}); return err }},
+		{"UpdateTemplate", func() error { _, err := s.UpdateTemplate(t.Context(), models.Template{ID: "id"}); return err }},
+		{"DeleteTemplate", func() error { return s.DeleteTemplate(t.Context(), "id") }},
+		{"GetTemplate", func() error { _, err := s.GetTemplate(t.Context(), "id"); return err }},
+		{"ListDestinations", func() error { _, err := s.ListDestinations(t.Context()); return err }},
+		{"CreateDestination", func() error { _, err := s.CreateDestination(t.Context(), models.Destination{}); return err }},
+		{"UpdateDestination", func() error { _, err := s.UpdateDestination(t.Context(), models.Destination{ID: "id"}); return err }},
+		{"DeleteDestination", func() error { return s.DeleteDestination(t.Context(), "id") }},
+		{"GetDestination", func() error { _, err := s.GetDestination(t.Context(), "id"); return err }},
+		{"ListRoutes", func() error { _, err := s.ListRoutes(t.Context()); return err }},
+		{"CreateRoute", func() error { _, err := s.CreateRoute(t.Context(), models.Route{}); return err }},
+		{"UpdateRoute", func() error { _, err := s.UpdateRoute(t.Context(), models.Route{ID: "id"}); return err }},
+		{"DeleteRoute", func() error { return s.DeleteRoute(t.Context(), "id") }},
+		{"GetRoute", func() error { _, err := s.GetRoute(t.Context(), "id"); return err }},
+		{"UpsertActiveAlert", func() error { return s.UpsertActiveAlert(t.Context(), models.ActiveAlert{}) }},
+		{"GetActiveAlert", func() error { _, err := s.GetActiveAlert(t.Context(), "fp", "team", "channel"); return err }},
+		{"DeleteActiveAlert", func() error { return s.DeleteActiveAlert(t.Context(), "fp", "team", "channel") }},
 	}
 
 	for _, tt := range tests {
@@ -445,12 +446,12 @@ func TestNewSQLiteStoreRejectsLegacyTextTimestamps(t *testing.T) {
 		t.Fatalf("close legacy db: %v", err)
 	}
 
-	_, err = NewSQLiteStore(path)
+	_, err = NewSQLiteStore(t.Context(), path)
 	if err == nil {
-		t.Fatal("NewSQLiteStore() = nil error, want a rejection of the legacy schema")
+		t.Fatal("NewSQLiteStore(t.Context(), ) = nil error, want a rejection of the legacy schema")
 	}
 	if !strings.Contains(err.Error(), "delete it and restart") {
-		t.Errorf("NewSQLiteStore() = %v, want an error telling the operator to delete the database", err)
+		t.Errorf("NewSQLiteStore(t.Context(), ) = %v, want an error telling the operator to delete the database", err)
 	}
 }
 
@@ -480,13 +481,13 @@ VALUES ('old', 'Card', '{"type":"AdaptiveCard"}', '2026-01-01 00:00:00+00:00', '
 		t.Fatalf("close old db: %v", err)
 	}
 
-	store, err := NewSQLiteStore(path)
+	store, err := NewSQLiteStore(t.Context(), path)
 	if err != nil {
 		t.Fatalf("NewSQLiteStore: %v", err)
 	}
 	t.Cleanup(func() { _ = store.Close() })
 
-	got, err := store.GetTemplate("old")
+	got, err := store.GetTemplate(t.Context(), "old")
 	if err != nil {
 		t.Fatalf("GetTemplate: %v", err)
 	}
@@ -500,10 +501,10 @@ VALUES ('old', 'Card', '{"type":"AdaptiveCard"}', '2026-01-01 00:00:00+00:00', '
 	// Writing through the new columns has to work against the altered table.
 	got.Title = "{{ .Alert.Status }}"
 	got.Text = "<p>hi</p>"
-	if _, err := store.UpdateTemplate(got); err != nil {
+	if _, err := store.UpdateTemplate(t.Context(), got); err != nil {
 		t.Fatalf("UpdateTemplate: %v", err)
 	}
-	back, err := store.GetTemplate("old")
+	back, err := store.GetTemplate(t.Context(), "old")
 	if err != nil {
 		t.Fatalf("GetTemplate after update: %v", err)
 	}
@@ -539,13 +540,13 @@ INSERT INTO active_alerts VALUES ('fp', 'firing', 'team', 'channel', 'msg-1', '2
 		t.Fatalf("close old db: %v", err)
 	}
 
-	store, err := NewSQLiteStore(path)
+	store, err := NewSQLiteStore(t.Context(), path)
 	if err != nil {
 		t.Fatalf("NewSQLiteStore: %v", err)
 	}
 	t.Cleanup(func() { _ = store.Close() })
 
-	got, err := store.GetActiveAlert("fp", "team", "channel")
+	got, err := store.GetActiveAlert(t.Context(), "fp", "team", "channel")
 	if err != nil {
 		t.Fatalf("GetActiveAlert: %v", err)
 	}
@@ -557,10 +558,10 @@ INSERT INTO active_alerts VALUES ('fp', 'firing', 'team', 'channel', 'msg-1', '2
 	second := got
 	second.ChannelID = "other"
 	second.MessageID = "msg-2"
-	if err := store.UpsertActiveAlert(second); err != nil {
+	if err := store.UpsertActiveAlert(t.Context(), second); err != nil {
 		t.Fatalf("UpsertActiveAlert: %v", err)
 	}
-	cards, err := store.ListActiveAlerts("fp")
+	cards, err := store.ListActiveAlerts(t.Context(), "fp")
 	if err != nil {
 		t.Fatalf("ListActiveAlerts: %v", err)
 	}
@@ -595,13 +596,13 @@ INSERT INTO sessions VALUES ('old', 'tester', 'tester', 'oidc', '2026-01-01 00:0
 		t.Fatalf("close old db: %v", err)
 	}
 
-	store, err := NewSQLiteStore(path)
+	store, err := NewSQLiteStore(t.Context(), path)
 	if err != nil {
 		t.Fatalf("NewSQLiteStore: %v", err)
 	}
 	t.Cleanup(func() { _ = store.Close() })
 
-	session, err := store.GetSession("old")
+	session, err := store.GetSession(t.Context(), "old")
 	if err != nil {
 		t.Fatalf("GetSession: %v", err)
 	}
@@ -610,10 +611,10 @@ INSERT INTO sessions VALUES ('old', 'tester', 'tester', 'oidc', '2026-01-01 00:0
 	}
 
 	session.ID, session.Roles = "new", "editor"
-	if err := store.CreateSession(session); err != nil {
+	if err := store.CreateSession(t.Context(), session); err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
-	back, err := store.GetSession("new")
+	back, err := store.GetSession(t.Context(), "new")
 	if err != nil {
 		t.Fatalf("GetSession after create: %v", err)
 	}
@@ -629,19 +630,19 @@ func TestWithTx(t *testing.T) {
 
 	s := newTestStore(t)
 
-	if err := s.WithTx(func(tx Store) error {
-		_, err := tx.CreateTemplate(models.Template{ID: "kept", Name: "Kept", Body: "{}"})
+	if err := s.WithTx(t.Context(), func(ctx context.Context, tx Store) error {
+		_, err := tx.CreateTemplate(t.Context(), models.Template{ID: "kept", Name: "Kept", Body: "{}"})
 		return err
 	}); err != nil {
 		t.Fatalf("WithTx: %v", err)
 	}
-	if _, err := s.GetTemplate("kept"); err != nil {
+	if _, err := s.GetTemplate(t.Context(), "kept"); err != nil {
 		t.Errorf("GetTemplate after a committed transaction = %v, want the row", err)
 	}
 
 	wanted := errors.New("changed my mind")
-	err := s.WithTx(func(tx Store) error {
-		if _, err := tx.CreateTemplate(models.Template{ID: "rolled-back", Name: "Gone", Body: "{}"}); err != nil {
+	err := s.WithTx(t.Context(), func(ctx context.Context, tx Store) error {
+		if _, err := tx.CreateTemplate(t.Context(), models.Template{ID: "rolled-back", Name: "Gone", Body: "{}"}); err != nil {
 			return err
 		}
 		return wanted
@@ -649,20 +650,20 @@ func TestWithTx(t *testing.T) {
 	if !errors.Is(err, wanted) {
 		t.Errorf("WithTx() = %v, want the callback's error", err)
 	}
-	if _, err := s.GetTemplate("rolled-back"); !errors.Is(err, ErrNotFound) {
+	if _, err := s.GetTemplate(t.Context(), "rolled-back"); !errors.Is(err, ErrNotFound) {
 		t.Errorf("GetTemplate after a rollback = %v, want ErrNotFound", err)
 	}
 
 	// Nothing inside a transaction may close the database, ping it, or open a
 	// second one; each would be operating on a handle that is not there.
-	if err := s.WithTx(func(tx Store) error {
-		if err := tx.Ping(); err == nil {
+	if err := s.WithTx(t.Context(), func(ctx context.Context, tx Store) error {
+		if err := tx.Ping(t.Context()); err == nil {
 			t.Error("Ping() inside a transaction = nil, want a refusal")
 		}
 		if err := tx.Close(); err == nil {
 			t.Error("Close() inside a transaction = nil, want a refusal")
 		}
-		if err := tx.WithTx(func(Store) error { return nil }); err == nil {
+		if err := tx.WithTx(t.Context(), func(context.Context, Store) error { return nil }); err == nil {
 			t.Error("a nested WithTx = nil, want a refusal")
 		}
 		return nil
@@ -676,7 +677,7 @@ func TestGrantLifecycle(t *testing.T) {
 
 	s := newTestStore(t)
 
-	grants, err := s.ListGrants()
+	grants, err := s.ListGrants(t.Context())
 	if err != nil {
 		t.Fatalf("ListGrants: %v", err)
 	}
@@ -684,18 +685,18 @@ func TestGrantLifecycle(t *testing.T) {
 		t.Errorf("ListGrants() = %+v, want none before any is created", grants)
 	}
 
-	team, err := s.CreateGrant(models.Grant{Role: "editor", TeamID: "platform"})
+	team, err := s.CreateGrant(t.Context(), models.Grant{Role: "editor", TeamID: "platform"})
 	if err != nil {
 		t.Fatalf("CreateGrant: %v", err)
 	}
 	if team.ID == "" || team.CreatedAt.IsZero() {
 		t.Errorf("grant = %+v, want an id and a timestamp", team)
 	}
-	if _, err := s.CreateGrant(models.Grant{Role: "viewer", TeamID: "payments", ChannelID: "alerts"}); err != nil {
+	if _, err := s.CreateGrant(t.Context(), models.Grant{Role: "viewer", TeamID: "payments", ChannelID: "alerts"}); err != nil {
 		t.Fatalf("CreateGrant (channel): %v", err)
 	}
 
-	grants, err = s.ListGrants()
+	grants, err = s.ListGrants(t.Context())
 	if err != nil {
 		t.Fatalf("ListGrants after create: %v", err)
 	}
@@ -704,10 +705,10 @@ func TestGrantLifecycle(t *testing.T) {
 		t.Errorf("grants = %+v, want both, ordered by role", grants)
 	}
 
-	if err := s.DeleteGrant(team.ID); err != nil {
+	if err := s.DeleteGrant(t.Context(), team.ID); err != nil {
 		t.Fatalf("DeleteGrant: %v", err)
 	}
-	grants, _ = s.ListGrants()
+	grants, _ = s.ListGrants(t.Context())
 	if len(grants) != 1 {
 		t.Errorf("grants = %+v, want the deleted one gone", grants)
 	}
@@ -722,11 +723,11 @@ func TestSessionLifecycle(t *testing.T) {
 		CreatedAt: time.Now().UTC(), ExpiresAt: time.Now().UTC().Add(time.Hour),
 	}
 
-	if err := s.CreateSession(session); err != nil {
+	if err := s.CreateSession(t.Context(), session); err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
 
-	got, err := s.GetSession("sess-1")
+	got, err := s.GetSession(t.Context(), "sess-1")
 	if err != nil {
 		t.Fatalf("GetSession: %v", err)
 	}
@@ -734,10 +735,10 @@ func TestSessionLifecycle(t *testing.T) {
 		t.Errorf("GetSession() = %+v, want the stored identity", got)
 	}
 
-	if err := s.DeleteSession("sess-1"); err != nil {
+	if err := s.DeleteSession(t.Context(), "sess-1"); err != nil {
 		t.Fatalf("DeleteSession: %v", err)
 	}
-	if _, err := s.GetSession("sess-1"); !errors.Is(err, ErrNotFound) {
+	if _, err := s.GetSession(t.Context(), "sess-1"); !errors.Is(err, ErrNotFound) {
 		t.Errorf("GetSession() after delete = %v, want ErrNotFound", err)
 	}
 }
@@ -748,13 +749,13 @@ func TestExpiredSessionReadsAsMissing(t *testing.T) {
 	t.Parallel()
 
 	s := newTestStore(t)
-	if err := s.CreateSession(models.Session{
+	if err := s.CreateSession(t.Context(), models.Session{
 		ID: "stale", Subject: "u", CreatedAt: time.Now().Add(-2 * time.Hour), ExpiresAt: time.Now().Add(-time.Hour),
 	}); err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
 
-	if _, err := s.GetSession("stale"); !errors.Is(err, ErrNotFound) {
+	if _, err := s.GetSession(t.Context(), "stale"); !errors.Is(err, ErrNotFound) {
 		t.Errorf("GetSession() = %v, want an expired session to read as missing", err)
 	}
 }
@@ -769,7 +770,7 @@ func TestDeleteExpiredSessionsSweepsBothTables(t *testing.T) {
 		{ID: "old", ExpiresAt: past, CreatedAt: past},
 		{ID: "live", ExpiresAt: future, CreatedAt: time.Now()},
 	} {
-		if err := s.CreateSession(session); err != nil {
+		if err := s.CreateSession(t.Context(), session); err != nil {
 			t.Fatalf("CreateSession: %v", err)
 		}
 	}
@@ -777,22 +778,22 @@ func TestDeleteExpiredSessionsSweepsBothTables(t *testing.T) {
 		{State: "old", Verifier: "v", Nonce: "n", ExpiresAt: past},
 		{State: "live", Verifier: "v", Nonce: "n", ExpiresAt: future},
 	} {
-		if err := s.CreateLoginFlow(flow); err != nil {
+		if err := s.CreateLoginFlow(t.Context(), flow); err != nil {
 			t.Fatalf("CreateLoginFlow: %v", err)
 		}
 	}
 
-	if err := s.DeleteExpiredSessions(); err != nil {
+	if err := s.DeleteExpiredSessions(t.Context()); err != nil {
 		t.Fatalf("DeleteExpiredSessions: %v", err)
 	}
 
-	if _, err := s.GetSession("live"); err != nil {
+	if _, err := s.GetSession(t.Context(), "live"); err != nil {
 		t.Errorf("the live session was swept: %v", err)
 	}
-	if _, err := s.TakeLoginFlow("live"); err != nil {
+	if _, err := s.TakeLoginFlow(t.Context(), "live"); err != nil {
 		t.Errorf("the live flow was swept: %v", err)
 	}
-	if _, err := s.TakeLoginFlow("old"); !errors.Is(err, ErrNotFound) {
+	if _, err := s.TakeLoginFlow(t.Context(), "old"); !errors.Is(err, ErrNotFound) {
 		t.Errorf("the expired flow survived: %v", err)
 	}
 }
@@ -804,11 +805,11 @@ func TestLoginFlowIsSingleUse(t *testing.T) {
 	s := newTestStore(t)
 	flow := models.LoginFlow{State: "state-1", Verifier: "verifier", Nonce: "nonce", ExpiresAt: time.Now().Add(time.Minute)}
 
-	if err := s.CreateLoginFlow(flow); err != nil {
+	if err := s.CreateLoginFlow(t.Context(), flow); err != nil {
 		t.Fatalf("CreateLoginFlow: %v", err)
 	}
 
-	got, err := s.TakeLoginFlow("state-1")
+	got, err := s.TakeLoginFlow(t.Context(), "state-1")
 	if err != nil {
 		t.Fatalf("TakeLoginFlow: %v", err)
 	}
@@ -816,7 +817,7 @@ func TestLoginFlowIsSingleUse(t *testing.T) {
 		t.Errorf("TakeLoginFlow() = %+v, want the stored verifier and nonce", got)
 	}
 
-	if _, err := s.TakeLoginFlow("state-1"); !errors.Is(err, ErrNotFound) {
+	if _, err := s.TakeLoginFlow(t.Context(), "state-1"); !errors.Is(err, ErrNotFound) {
 		t.Errorf("a state was redeemable twice: %v", err)
 	}
 }
@@ -825,11 +826,11 @@ func TestExpiredLoginFlowIsRefused(t *testing.T) {
 	t.Parallel()
 
 	s := newTestStore(t)
-	if err := s.CreateLoginFlow(models.LoginFlow{State: "stale", Verifier: "v", Nonce: "n", ExpiresAt: time.Now().Add(-time.Minute)}); err != nil {
+	if err := s.CreateLoginFlow(t.Context(), models.LoginFlow{State: "stale", Verifier: "v", Nonce: "n", ExpiresAt: time.Now().Add(-time.Minute)}); err != nil {
 		t.Fatalf("CreateLoginFlow: %v", err)
 	}
 
-	if _, err := s.TakeLoginFlow("stale"); !errors.Is(err, ErrNotFound) {
+	if _, err := s.TakeLoginFlow(t.Context(), "stale"); !errors.Is(err, ErrNotFound) {
 		t.Errorf("TakeLoginFlow() = %v, want an expired flow refused", err)
 	}
 }

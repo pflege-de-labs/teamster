@@ -1,6 +1,7 @@
 package store
 
 import (
+	"context"
 	"errors"
 
 	"github.com/pflege-de-labs/teamster/internal/models"
@@ -12,49 +13,52 @@ type Store interface {
 	Close() error
 	// Ping reports whether the database can still be reached, which is what
 	// readiness turns on.
-	Ping() error
+	Ping(ctx context.Context) error
 
 	// WithTx runs fn against a store bound to one transaction. Everything fn
 	// writes lands together or not at all, which is what an import that may be
 	// rejected half way through needs.
-	WithTx(fn func(Store) error) error
+	//
+	// fn receives the context rather than closing over one, so a transaction
+	// can be given its own deadline without touching every caller.
+	WithTx(ctx context.Context, fn func(ctx context.Context, tx Store) error) error
 
-	ListTemplates() ([]models.Template, error)
-	CreateTemplate(t models.Template) (models.Template, error)
-	UpdateTemplate(t models.Template) (models.Template, error)
-	DeleteTemplate(id string) error
-	GetTemplate(id string) (models.Template, error)
+	ListTemplates(ctx context.Context) ([]models.Template, error)
+	CreateTemplate(ctx context.Context, t models.Template) (models.Template, error)
+	UpdateTemplate(ctx context.Context, t models.Template) (models.Template, error)
+	DeleteTemplate(ctx context.Context, id string) error
+	GetTemplate(ctx context.Context, id string) (models.Template, error)
 
-	ListDestinations() ([]models.Destination, error)
-	CreateDestination(d models.Destination) (models.Destination, error)
-	UpdateDestination(d models.Destination) (models.Destination, error)
-	DeleteDestination(id string) error
-	GetDestination(id string) (models.Destination, error)
+	ListDestinations(ctx context.Context) ([]models.Destination, error)
+	CreateDestination(ctx context.Context, d models.Destination) (models.Destination, error)
+	UpdateDestination(ctx context.Context, d models.Destination) (models.Destination, error)
+	DeleteDestination(ctx context.Context, id string) error
+	GetDestination(ctx context.Context, id string) (models.Destination, error)
 
-	ListRoutes() ([]models.Route, error)
-	CreateRoute(r models.Route) (models.Route, error)
-	UpdateRoute(r models.Route) (models.Route, error)
-	DeleteRoute(id string) error
-	GetRoute(id string) (models.Route, error)
+	ListRoutes(ctx context.Context) ([]models.Route, error)
+	CreateRoute(ctx context.Context, r models.Route) (models.Route, error)
+	UpdateRoute(ctx context.Context, r models.Route) (models.Route, error)
+	DeleteRoute(ctx context.Context, id string) error
+	GetRoute(ctx context.Context, id string) (models.Route, error)
 
-	ListGrants() ([]models.Grant, error)
-	CreateGrant(g models.Grant) (models.Grant, error)
-	DeleteGrant(id string) error
+	ListGrants(ctx context.Context) ([]models.Grant, error)
+	CreateGrant(ctx context.Context, g models.Grant) (models.Grant, error)
+	DeleteGrant(ctx context.Context, id string) error
 
-	CreateSession(s models.Session) error
-	GetSession(id string) (models.Session, error)
-	DeleteSession(id string) error
-	DeleteExpiredSessions() error
+	CreateSession(ctx context.Context, s models.Session) error
+	GetSession(ctx context.Context, id string) (models.Session, error)
+	DeleteSession(ctx context.Context, id string) error
+	DeleteExpiredSessions(ctx context.Context) error
 
-	CreateLoginFlow(f models.LoginFlow) error
-	TakeLoginFlow(state string) (models.LoginFlow, error)
+	CreateLoginFlow(ctx context.Context, f models.LoginFlow) error
+	TakeLoginFlow(ctx context.Context, state string) (models.LoginFlow, error)
 
-	UpsertActiveAlert(a models.ActiveAlert) error
-	ListActiveAlerts(fingerprint string) ([]models.ActiveAlert, error)
+	UpsertActiveAlert(ctx context.Context, a models.ActiveAlert) error
+	ListActiveAlerts(ctx context.Context, fingerprint string) ([]models.ActiveAlert, error)
 	// CountActiveAlerts is how many cards this service is currently keeping up
 	// to date. It runs on every metrics collection, so it counts rather than
 	// reads.
-	CountActiveAlerts() (int64, error)
-	GetActiveAlert(fingerprint, teamID, channelID string) (models.ActiveAlert, error)
-	DeleteActiveAlert(fingerprint, teamID, channelID string) error
+	CountActiveAlerts(ctx context.Context) (int64, error)
+	GetActiveAlert(ctx context.Context, fingerprint, teamID, channelID string) (models.ActiveAlert, error)
+	DeleteActiveAlert(ctx context.Context, fingerprint, teamID, channelID string) error
 }

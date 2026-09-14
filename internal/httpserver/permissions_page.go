@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"context"
 	"net/http"
 	"sort"
 
@@ -13,14 +14,15 @@ import (
 // the tenant is, and it is the only thing on it that an editor may not see at
 // all.
 func (s *Server) handlePermissionsPage(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	if r.Method != http.MethodGet {
 		w.Header().Set("Allow", http.MethodGet)
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 
-	page := views.Permissions{Viewer: s.viewerFor(r), Roles: s.knownRoles()}
-	if err := views.PermissionsPage(page).Render(r.Context(), w); err != nil {
+	page := views.Permissions{Viewer: s.viewerFor(r), Roles: s.knownRoles(ctx)}
+	if err := views.PermissionsPage(page).Render(ctx, w); err != nil {
 		logError("render permissions page", err)
 	}
 }
@@ -34,13 +36,13 @@ func (s *Server) handlePermissionsPage(w http.ResponseWriter, r *http.Request) {
 // resource, so a grant naming that role would be stored, shown, and then
 // ignored by the authorizer — a control that does nothing is worse than no
 // control.
-func (s *Server) knownRoles() []string {
+func (s *Server) knownRoles(ctx context.Context) []string {
 	roles := map[string]bool{
 		string(authz.RoleEditor): true,
 		string(authz.RoleViewer): true,
 	}
 
-	if grants, err := s.store.ListGrants(); err == nil {
+	if grants, err := s.store.ListGrants(ctx); err == nil {
 		for _, grant := range grants {
 			roles[grant.Role] = true
 		}

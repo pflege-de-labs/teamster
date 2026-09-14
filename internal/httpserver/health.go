@@ -27,6 +27,7 @@ func (s *Server) handleLive(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleReady(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		w.Header().Set("Allow", "GET, HEAD")
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -45,7 +46,7 @@ func (s *Server) handleReady(w http.ResponseWriter, r *http.Request) {
 	// Graph deliberately is not checked: it is somebody else's service, and
 	// taking this instance out of rotation when it is unreachable would stop
 	// the admin UI from working precisely when an operator wants to look at it.
-	if err := s.store.Ping(); err != nil {
+	if err := s.store.Ping(ctx); err != nil {
 		logError("readiness", err)
 		writePlain(w, http.StatusServiceUnavailable, "database unreachable")
 		return

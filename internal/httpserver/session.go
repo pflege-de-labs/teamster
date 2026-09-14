@@ -24,13 +24,14 @@ func newToken() (string, error) {
 }
 
 func (s *Server) startSession(w http.ResponseWriter, r *http.Request, subject, name, source string, roles []authz.Role) error {
+	ctx := r.Context()
 	id, err := newToken()
 	if err != nil {
 		return err
 	}
 
 	now := time.Now().UTC()
-	if err := s.store.CreateSession(models.Session{
+	if err := s.store.CreateSession(ctx, models.Session{
 		ID: id, Subject: subject, Name: name, Source: source, Roles: authz.Encode(roles),
 		CreatedAt: now, ExpiresAt: now.Add(s.sessionTTL()),
 	}); err != nil {
@@ -66,12 +67,13 @@ func isTLS(r *http.Request) bool {
 }
 
 func (s *Server) currentSession(r *http.Request) (models.Session, bool) {
+	ctx := r.Context()
 	cookie, err := r.Cookie(sessionCookie)
 	if err != nil || cookie.Value == "" {
 		return models.Session{}, false
 	}
 
-	session, err := s.store.GetSession(cookie.Value)
+	session, err := s.store.GetSession(ctx, cookie.Value)
 	if err != nil {
 		return models.Session{}, false
 	}
@@ -79,8 +81,9 @@ func (s *Server) currentSession(r *http.Request) (models.Session, bool) {
 }
 
 func (s *Server) endSession(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	if cookie, err := r.Cookie(sessionCookie); err == nil && cookie.Value != "" {
-		if err := s.store.DeleteSession(cookie.Value); err != nil && !isNotFound(err) {
+		if err := s.store.DeleteSession(ctx, cookie.Value); err != nil && !isNotFound(err) {
 			logError("delete session", err)
 		}
 	}
