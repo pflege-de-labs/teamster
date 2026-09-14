@@ -136,5 +136,31 @@
       "at any time"
     ],
     "automerge": true
-  }
+  },
+  "customManagers": [
+    {
+      "description": "The Tailwind CLI is pinned by a Makefile variable, which no manager sees on its own.",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^Makefile$/"
+      ],
+      "matchStrings": [
+        "TAILWIND_VERSION \\?= (?<currentValue>v[\\d.]+)"
+      ],
+      "depNameTemplate": "tailwindlabs/tailwindcss",
+      "datasourceTemplate": "github-releases"
+    },
+    {
+      "description": "The sqlc CLI is pinned the same way. A bump regenerates committed code, so CI's generated-code check gates it.",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^Makefile$/"
+      ],
+      "matchStrings": [
+        "SQLC_VERSION \\?= (?<currentValue>v[\\d.]+)"
+      ],
+      "depNameTemplate": "sqlc-dev/sqlc",
+      "datasourceTemplate": "github-releases"
+    }
+  ]
 }

@@ -1,0 +1,24 @@
+version: "2"
+sql:
+  # The schema input is the goose migration directory rather than a copy of the
+  # schema: sqlc understands the +goose annotations, and pointing it at the
+  # files that actually run is what makes it impossible for the types to be
+  # checked against a schema nobody has.
+  - engine: "sqlite"
+    schema: "migrations/sqlite"
+    queries: "queries/sqlite"
+    gen:
+      go:
+        package: "sqlitedb"
+        out: "sqlitedb"
+        sql_package: "database/sql"
+        emit_interface: true
+        overrides:
+          # SQLite has no boolean type, so these are declared INTEGER and would
+          # come back as int64. Changing the declared type would mean rebuilding
+          # the table on every installation; overriding the Go type costs
+          # nothing, and database/sql converts 0 and 1 in both directions.
+          - column: "routes.greedy"
+            go_type: "bool"
+          - column: "routes.is_default"
+            go_type: "bool"

@@ -245,9 +245,10 @@ that point outside the bundle, and cycles in the route tree, the last through
 writing templates and destinations before the routes that point at them and routes parents first. A
 dry run runs that same import and rolls it back, rather than computing the diff a second way.
 
-`store.Store` grows `WithTx(ctx, func(ctx, Store) error) error` for it. The SQLite implementation
-runs every statement against a `queryer`, which is the database or a transaction, so one set of
-methods serves both; `Close`, `Ping` and a nested `WithTx` are refused inside one. `WithTx` passes
+`store.Store` grows `WithTx(ctx, func(ctx, Store) error) error` for it. The store and the
+transaction-bound view of it embed the same generated queries, so the data methods are written
+once; `Close`, `Ping` and a nested `WithTx` are refused inside a transaction, by a type that has no
+database to perform them with rather than by a nil check. `WithTx` passes
 the context to the function rather than letting it close over the caller's, so a transaction can be
 given a deadline of its own without changing any caller.
 
@@ -297,6 +298,18 @@ to reach.
 The draining flag is set from a shutdown hook, which net/http runs in its own goroutine; readiness
 therefore flips a moment after `Shutdown` is called rather than during it, which is immaterial
 against a probe interval and is why the test for it waits rather than assuming an order.
+
+## Queries
+
+The statements live in `internal/store/queries/<dialect>/` and the Go that runs them is generated
+from them by sqlc, type-checked against the migrations, and committed — so a build needs no
+generator, the same bargain the admin UI makes ([ADR 0008](adr/0008-templ-tailwind-admin-ui.md)).
+`internal/store/sqlite.go` is the adapter between the generated rows and `internal/models`, and
+`internal/store/policy.go` holds the handful of rules that are decisions rather than SQL: what an
+empty id means, which clock stamps a row, when a row that exists still reads as missing.
+
+Editing a `.sql` file means running `make generate`. A stale regeneration compiles and runs the old
+statement, which is why CI regenerates and diffs. See [ADR 0020](adr/0020-sqlc-generated-queries.md).
 
 ## The schema
 

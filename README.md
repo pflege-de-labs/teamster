@@ -514,7 +514,7 @@ key and an optional ServiceMonitor; the chart publishes the port and refuses a l
 
 ```bash
 make hooks          # install the git hooks, once per clone
-make generate       # regenerate the templ components and the stylesheet
+make generate       # regenerate the queries, the templ components and the stylesheet
 make icons          # copy the favicon set the binary serves from images/
 make test           # go test ./...
 make coverage       # coverage report, fails below 75%
@@ -556,9 +556,11 @@ The favicon set is generated from a logo with `scripts/make-favicons.sh` into
 be a release behind in the first place.
 
 The admin UI is rendered from [templ](https://github.com/a-h/templ) components in
-`internal/httpserver/views`, styled with Tailwind. Both generators run through `make generate`,
-and their output is committed, so building or testing the service needs neither of them —
-only changing the UI does. `make tools` fetches the pinned Tailwind binary; templ comes from
+`internal/httpserver/views`, styled with Tailwind. Every generator runs through `make generate`
+and its output is committed, so building or testing the service needs none of them — only changing
+the thing they generate does. The same is true of the store: the SQL in
+`internal/store/queries/sqlite` is the source, and sqlc generates the Go that runs it. `make tools`
+fetches the pinned Tailwind and sqlc binaries; templ comes from
 `go.mod`. `air` runs the generators before each rebuild, so editing a `.templ` file reloads the
 running server.
 
