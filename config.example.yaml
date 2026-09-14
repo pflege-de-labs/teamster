@@ -80,4 +80,9 @@ graph:
   client-id: "your-client-id"
   client-secret: "your-client-secret"
   base-url: "https://graph.microsoft.com/v1.0"
+  # Empty derives https://login.microsoftonline.com/<tenant-id>/oauth2/v2.0/token.
+  # A sovereign cloud changes this, base-url and scope together; so does a test
+  # that wants Graph to be something it controls.
+  token-url: ""
+  scope: "https://graph.microsoft.com/.default"
   timeout-sec: 10
