@@ -3,6 +3,7 @@ export GOWORK := off
 
 COVERAGE_MIN ?= 75
 TAILWIND_VERSION ?= v4.3.3
+SQLC_VERSION ?= v1.31.1
 COVERAGE_OUT ?= coverage.out
 BINARY       ?= bin/teamster
 IMAGE        ?= teamster
@@ -21,7 +22,7 @@ all: generate lint coverage build
 
 # templ ships as a go tool dependency, so only Tailwind needs fetching. The
 # generated output is committed, so this is needed only to change it.
-tools: bin/tailwindcss
+tools: bin/tailwindcss bin/sqlc
 
 bin/tailwindcss:
 	@mkdir -p bin
@@ -35,6 +36,23 @@ bin/tailwindcss:
 	curl -fsSL -o bin/tailwindcss \
 		"https://github.com/tailwindlabs/tailwindcss/releases/download/$(TAILWIND_VERSION)/$$asset"
 	@chmod +x bin/tailwindcss
+
+# sqlc is a downloaded binary rather than a go.mod tool dependency: it depends
+# on a cgo SQL parser, which a tool directive would drag into go.sum and make
+# `go mod download` fetch on every image build.
+bin/sqlc:
+	@mkdir -p bin
+	@case "$$(uname -s)-$$(uname -m)" in \
+		Darwin-arm64) asset=darwin_arm64 ;; \
+		Darwin-x86_64) asset=darwin_amd64 ;; \
+		Linux-aarch64) asset=linux_arm64 ;; \
+		Linux-x86_64) asset=linux_amd64 ;; \
+		*) echo "no sqlc build for $$(uname -s)-$$(uname -m)" >&2; exit 1 ;; \
+	esac; \
+	version=$(SQLC_VERSION); \
+	curl -fsSL "https://github.com/sqlc-dev/sqlc/releases/download/$$version/sqlc_$${version#v}_$$asset.tar.gz" \
+		| tar -xzC bin sqlc
+	@chmod +x bin/sqlc
 
 generate: tools
 	go generate ./...
@@ -58,11 +76,12 @@ test:
 	go test -race ./...
 
 # -coverpkg attributes coverage across packages, so code exercised through
-# another package's tests counts; the templ output is then filtered out,
-# because generated code is not ours to test.
+# another package's tests counts; the generated output — templ's and sqlc's —
+# is then filtered out, because generated code is not ours to test. sqlc is
+# filtered by path, since it emits names as generic as db.go and models.go.
 coverage:
 	go test -race ./... -covermode=atomic -coverpkg=./... -coverprofile=$(COVERAGE_OUT).raw
-	@grep -v '_templ\.go:' $(COVERAGE_OUT).raw > $(COVERAGE_OUT)
+	@grep -Ev '_templ\.go:|internal/store/sqlitedb/' $(COVERAGE_OUT).raw > $(COVERAGE_OUT)
 	@go tool cover -func=$(COVERAGE_OUT) | tail -1
 	@total=$$(go tool cover -func=$(COVERAGE_OUT) | awk '/^total:/ {print $$3}' | tr -d '%'); \
 	awk -v total="$$total" -v min="$(COVERAGE_MIN)" 'BEGIN { \

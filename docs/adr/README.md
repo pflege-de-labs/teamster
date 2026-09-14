@@ -34,3 +34,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0017](0017-metrics-through-opentelemetry.md) | Metrics are recorded once against OpenTelemetry and exported as native histograms | Accepted |
 | [0018](0018-store-takes-a-context.md) | Every store call takes a context | Accepted |
 | [0019](0019-goose-migrations.md) | The schema is a numbered set of goose migrations | Accepted |
+| [0020](0020-sqlc-generated-queries.md) | Queries are generated from SQL by sqlc | Accepted |
