@@ -974,3 +974,53 @@ func TestCompletingALostClaimIsRefused(t *testing.T) {
 		t.Errorf("card = %q, want the winner's message left alone", card.MessageID)
 	}
 }
+
+// A role granted the same scope twice is a duplicate, not a second permission,
+// and the database is what says so now.
+func TestGrantScopeIsUnique(t *testing.T) {
+	t.Parallel()
+
+	s := newTestStore(t)
+	grant := models.Grant{Role: "editor", TeamID: "team", ChannelID: "channel"}
+
+	if _, err := s.CreateGrant(t.Context(), grant); err != nil {
+		t.Fatalf("CreateGrant: %v", err)
+	}
+	if _, err := s.CreateGrant(t.Context(), grant); err == nil {
+		t.Error("CreateGrant() for the same scope twice = nil error, want a rejection")
+	}
+
+	// A different channel in the same team is a different scope.
+	other := grant
+	other.ChannelID = "other-channel"
+	if _, err := s.CreateGrant(t.Context(), other); err != nil {
+		t.Errorf("CreateGrant() for a second channel = %v, want it allowed", err)
+	}
+}
+
+func TestDeleteGrantsForRole(t *testing.T) {
+	t.Parallel()
+
+	s := newTestStore(t)
+	for _, grant := range []models.Grant{
+		{Role: "editor", TeamID: "team", ChannelID: "one"},
+		{Role: "editor", TeamID: "team", ChannelID: "two"},
+		{Role: "viewer", TeamID: "team", ChannelID: "one"},
+	} {
+		if _, err := s.CreateGrant(t.Context(), grant); err != nil {
+			t.Fatalf("CreateGrant: %v", err)
+		}
+	}
+
+	if err := s.DeleteGrantsForRole(t.Context(), "editor"); err != nil {
+		t.Fatalf("DeleteGrantsForRole: %v", err)
+	}
+
+	left, err := s.ListGrants(t.Context())
+	if err != nil {
+		t.Fatalf("ListGrants: %v", err)
+	}
+	if len(left) != 1 || left[0].Role != "viewer" {
+		t.Errorf("grants = %+v, want only the viewer's", left)
+	}
+}

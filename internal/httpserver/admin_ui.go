@@ -14,6 +14,7 @@ import (
 	"github.com/pflege-de-labs/teamster/internal/httpserver/views"
 	"github.com/pflege-de-labs/teamster/internal/models"
 	"github.com/pflege-de-labs/teamster/internal/routing"
+	"github.com/pflege-de-labs/teamster/internal/store"
 	"github.com/pflege-de-labs/teamster/internal/templates"
 )
 
@@ -241,9 +242,6 @@ func (s *Server) saveRoute(r *http.Request) (string, error) {
 		Greedy:        r.PostFormValue("greedy") == "true",
 		Priority:      priority,
 	}
-	if err := s.validateRoute(ctx, route); err != nil {
-		return "", err
-	}
 	// A route is how an alert reaches a channel, so pointing one at a
 	// destination outside the grants is the same escape as creating it there.
 	allowed, err := s.mayDeliverToDestination(r, route.DestinationID)
@@ -253,14 +251,12 @@ func (s *Server) saveRoute(r *http.Request) (string, error) {
 	if !allowed {
 		return "", errDeliveryRefused
 	}
-	if route.ID == "" {
-		if _, err := s.store.CreateRoute(ctx, route); err != nil {
-			return "", err
-		}
-		return "Route created.", nil
-	}
-	if _, err := s.store.UpdateRoute(ctx, route); err != nil {
+	created := route.ID == ""
+	if _, err := s.saveRouteChecked(ctx, route); err != nil {
 		return "", err
+	}
+	if created {
+		return "Route created.", nil
 	}
 	return "Route updated.", nil
 }
@@ -294,28 +290,59 @@ func (s *Server) deleteDestination(r *http.Request) (string, error) {
 
 // Both write paths validate the same way, because the tree rules are routing's
 // and neither the form nor the API may be the only place they hold.
-func (s *Server) validateRoute(ctx context.Context, route models.Route) error {
-	existing, err := s.store.ListRoutes(ctx)
-	if err != nil {
+// invalidRoute marks a rejection the caller can fix, so the handlers can still
+// tell a bad request from a broken database now that both come back from the
+// same call.
+type invalidRoute struct{ err error }
+
+func (e invalidRoute) Error() string { return e.err.Error() }
+func (e invalidRoute) Unwrap() error { return e.err }
+
+// saveRouteChecked validates the route against the tree and writes it in one
+// transaction. Doing the two separately let two admins each validate against a
+// tree the other was about to change, and the losing edit could orphan a child
+// -- which the router treats as a root, so it starts matching alerts its parent
+// used to filter out.
+func (s *Server) saveRouteChecked(ctx context.Context, route models.Route) (models.Route, error) {
+	var saved models.Route
+	err := s.store.WithSerializableTx(ctx, func(ctx context.Context, tx store.Store) error {
+		existing, err := tx.ListRoutes(ctx)
+		if err != nil {
+			return err
+		}
+		if err := routing.ValidateRoute(route, existing); err != nil {
+			return invalidRoute{err}
+		}
+		if route.ID == "" {
+			saved, err = tx.CreateRoute(ctx, route)
+			return err
+		}
+		saved, err = tx.UpdateRoute(ctx, route)
 		return err
-	}
-	return routing.ValidateRoute(route, existing)
+	})
+	return saved, err
 }
 
-func (s *Server) validateRouteDelete(ctx context.Context, id string) error {
-	existing, err := s.store.ListRoutes(ctx)
-	if err != nil {
-		return err
-	}
-	return routing.ValidateDelete(id, existing)
+// deleteRouteChecked is the same bargain for the other direction: a route with
+// children may not be deleted, and the check has to see the tree the delete
+// applies to.
+func (s *Server) deleteRouteChecked(ctx context.Context, id string) error {
+	return s.store.WithSerializableTx(ctx, func(ctx context.Context, tx store.Store) error {
+		existing, err := tx.ListRoutes(ctx)
+		if err != nil {
+			return err
+		}
+		if err := routing.ValidateDelete(id, existing); err != nil {
+			return invalidRoute{err}
+		}
+		return tx.DeleteRoute(ctx, id)
+	})
 }
 
 func (s *Server) deleteRoute(r *http.Request) (string, error) {
 	ctx := r.Context()
-	if err := s.validateRouteDelete(ctx, r.PostFormValue("id")); err != nil {
-		return "", err
-	}
-	if err := s.store.DeleteRoute(ctx, r.PostFormValue("id")); err != nil {
+
+	if err := s.deleteRouteChecked(ctx, r.PostFormValue("id")); err != nil {
 		return "", err
 	}
 	return "Route deleted.", nil

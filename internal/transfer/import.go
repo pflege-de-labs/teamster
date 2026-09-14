@@ -74,6 +74,8 @@ func Import(ctx context.Context, st store.Store, bundle Bundle, mode Mode, dryRu
 		if err != nil {
 			return err
 		}
+		// Assigned, never appended: a backend that reports a serialization
+		// conflict runs this closure again, and an append would double the diff.
 		result.Changes = changes
 
 		if dryRun {

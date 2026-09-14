@@ -333,6 +333,13 @@ func (f *fakeStore) Ping(ctx context.Context) error {
 // WithTx runs fn against a copy and keeps the copy only when fn succeeds, which
 // is the behaviour the import depends on: a bundle rejected half way through
 // leaves the configuration as it was.
+// The fake serialises everything through one mutex, so the two transaction
+// flavours are the same thing here; the distinction is a promise to a backend
+// that has to work for it.
+func (f *fakeStore) WithSerializableTx(ctx context.Context, fn func(context.Context, store.Store) error) error {
+	return f.WithTx(ctx, fn)
+}
+
 func (f *fakeStore) WithTx(ctx context.Context, fn func(context.Context, store.Store) error) error {
 	// The lock is dropped before fn runs: fn reaches back into the store
 	// through the snapshot, and a mutex that is not reentrant would deadlock.
@@ -392,6 +399,20 @@ func (f *fakeStore) CreateGrant(ctx context.Context, g models.Grant) (models.Gra
 	}
 	f.grants[g.ID] = g
 	return g, nil
+}
+
+func (f *fakeStore) DeleteGrantsForRole(ctx context.Context, role string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("DeleteGrantsForRole"); err != nil {
+		return err
+	}
+	for id, grant := range f.grants {
+		if grant.Role == role {
+			delete(f.grants, id)
+		}
+	}
+	return nil
 }
 
 func (f *fakeStore) DeleteGrant(ctx context.Context, id string) error {

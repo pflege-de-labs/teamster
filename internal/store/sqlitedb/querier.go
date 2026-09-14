@@ -36,6 +36,10 @@ type Querier interface {
 	DeleteExpiredLoginFlows(ctx context.Context, expiresAt time.Time) error
 	DeleteExpiredSessions(ctx context.Context, expiresAt time.Time) error
 	DeleteGrant(ctx context.Context, id string) error
+	// DeleteGrantsForRole replaces the list-and-filter-in-Go that used to stand
+	// here. A set delete takes the locks the isolation level needs and cannot
+	// interleave with another writer's replacement into the union of both.
+	DeleteGrantsForRole(ctx context.Context, role string) error
 	DeleteRoute(ctx context.Context, id string) error
 	DeleteSession(ctx context.Context, id string) error
 	DeleteTemplate(ctx context.Context, id string) error

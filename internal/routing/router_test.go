@@ -104,6 +104,10 @@ func (s stubStore) DeleteActiveAlertCard(ctx context.Context, _, _, _, _ string)
 
 func (s stubStore) Ping(ctx context.Context) error { return nil }
 
+func (s stubStore) WithSerializableTx(ctx context.Context, _ func(context.Context, store.Store) error) error {
+	return store.ErrNotFound
+}
+
 func (s stubStore) WithTx(ctx context.Context, _ func(context.Context, store.Store) error) error {
 	return store.ErrNotFound
 }
@@ -117,6 +121,8 @@ func (s stubStore) CreateGrant(ctx context.Context, _ models.Grant) (models.Gran
 }
 
 func (s stubStore) DeleteGrant(ctx context.Context, _ string) error { return store.ErrNotFound }
+
+func (s stubStore) DeleteGrantsForRole(ctx context.Context, _ string) error { return store.ErrNotFound }
 
 func (s stubStore) CreateSession(ctx context.Context, _ models.Session) error {
 	return store.ErrNotFound

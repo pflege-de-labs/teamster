@@ -45,6 +45,18 @@ func (q *Queries) DeleteGrant(ctx context.Context, id string) error {
 	return err
 }
 
+const deleteGrantsForRole = `-- name: DeleteGrantsForRole :exec
+DELETE FROM grants WHERE role = ?
+`
+
+// DeleteGrantsForRole replaces the list-and-filter-in-Go that used to stand
+// here. A set delete takes the locks the isolation level needs and cannot
+// interleave with another writer's replacement into the union of both.
+func (q *Queries) DeleteGrantsForRole(ctx context.Context, role string) error {
+	_, err := q.db.ExecContext(ctx, deleteGrantsForRole, role)
+	return err
+}
+
 const listGrants = `-- name: ListGrants :many
 SELECT id, role, team_id, channel_id, created_at, updated_at
 FROM grants
