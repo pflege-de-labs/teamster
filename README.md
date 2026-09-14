@@ -80,6 +80,42 @@ graph:
   scope: "http://127.0.0.1:18500/.default"
 ```
 
+## Storage
+
+| `database.driver` | What it is |
+| --- | --- |
+| `sqlite` | One file, no other runtime dependency, and exactly one instance: SQLite takes a single writer. The default. |
+| `postgres` | Several instances sharing one database. |
+
+Postgres is configured with discrete settings rather than a connection string, because a config
+file value beats an environment variable — so a URL in the file would take the password with it:
+
+```yaml
+database:
+  driver: postgres
+  postgres:
+    host: pg.internal
+    dbname: teamster
+    user: teamster
+    sslmode: require
+```
+
+The password is the fifth value that must stay out of the config file, alongside the webhook token,
+the admin password and the two client secrets. Set `TEAMSTER_DATABASE_POSTGRES_PASSWORD`.
+
+`sslmode` defaults to `require`. `verify-ca` and `verify-full` check the server against
+`database.postgres.sslrootcert`, which a managed Postgres usually needs, because the container
+image carries the public roots and not the provider's own.
+
+### Moving from SQLite to Postgres
+
+Take a bundle with `teamster export` (or `GET /api/config/export`), point the configuration at
+Postgres, run `teamster migrate up`, and import it. **The bundle carries configuration, not runtime
+state**: sessions, login flows and active alerts stay behind. So everyone signs in again, and any
+alert firing at the moment you cut over has a card in Teams the new instance has never heard of —
+the next `firing` posts a second one, and the eventual `resolved` never edits the first. Resolve
+what you can first.
+
 ## Schema migrations
 
 The schema is versioned. Starting the server applies whatever is missing, which is what a single

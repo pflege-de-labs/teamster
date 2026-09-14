@@ -9,7 +9,42 @@ server:
   idle-timeout: "120s"
 
 database:
+  # Where the state lives.
+  #   sqlite   - one file, no other runtime dependency, and exactly one
+  #              instance: SQLite takes a single writer. The default.
+  #   postgres - several instances sharing one database.
+  driver: "sqlite"
+
+  # sqlite only.
   path: "teamster.db"
+
+  # postgres only. The settings of the driver that is not selected are ignored,
+  # so both blocks can stay here while an installation moves between them.
+  postgres:
+    host: ""
+    port: 5432
+    dbname: "teamster"
+    user: "teamster"
+    # Leave this commented out. A config file value wins over an environment
+    # variable, so a password here would silently override the
+    # TEAMSTER_DATABASE_POSTGRES_PASSWORD your secret store provides.
+    # password: ""
+    sslmode: "require"
+    # verify-ca and verify-full check the server against this. A managed
+    # Postgres publishes its own root, which the container image does not carry.
+    sslrootcert: ""
+    # Instead of the fields above, for what they cannot say -- a pooler, a
+    # target_session_attrs. Carries the password, so set it from the
+    # environment rather than here.
+    url: ""
+
+  # 0 lets the backend choose: unbounded for SQLite, which serialises on one
+  # connection anyway, and 10 open with 5 idle for Postgres. Divide a server's
+  # max_connections by the number of instances before raising it.
+  max-open-conns: 0
+  max-idle-conns: 0
+  conn-max-lifetime: "0s"
+  connect-timeout: "10s"
   # What opening the database does about a schema that is not the one this
   # build expects:
   #   auto   — apply what is missing. The default, and what every release
