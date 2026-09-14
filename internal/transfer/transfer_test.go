@@ -307,7 +307,7 @@ func TestAFailedImportLeavesNothingBehind(t *testing.T) {
 
 	failing := &refusingStore{Store: st, failOn: "new-root"}
 	if _, err := Import(t.Context(), failing, bundle, ModeMerge, false); err == nil {
-		t.Fatal("Import(t.Context(), ) = nil error, want the refusal to surface")
+		t.Fatal("Import() = nil error, want the refusal to surface")
 	}
 
 	templates, _ := st.ListTemplates(ctx)

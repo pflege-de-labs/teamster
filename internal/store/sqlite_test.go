@@ -39,7 +39,7 @@ func TestNewSQLiteStoreRejectsUnusablePath(t *testing.T) {
 	t.Parallel()
 
 	if _, err := NewSQLiteStore(t.Context(), filepath.Join(t.TempDir(), "missing-dir", "test.db")); err == nil {
-		t.Error("NewSQLiteStore(t.Context(), ) = nil error, want failure for a path that cannot be created")
+		t.Error("NewSQLiteStore() = nil error, want failure for a path that cannot be created")
 	}
 }
 
@@ -448,10 +448,10 @@ func TestNewSQLiteStoreRejectsLegacyTextTimestamps(t *testing.T) {
 
 	_, err = NewSQLiteStore(t.Context(), path)
 	if err == nil {
-		t.Fatal("NewSQLiteStore(t.Context(), ) = nil error, want a rejection of the legacy schema")
+		t.Fatal("NewSQLiteStore() = nil error, want a rejection of the legacy schema")
 	}
 	if !strings.Contains(err.Error(), "delete it and restart") {
-		t.Errorf("NewSQLiteStore(t.Context(), ) = %v, want an error telling the operator to delete the database", err)
+		t.Errorf("NewSQLiteStore() = %v, want an error telling the operator to delete the database", err)
 	}
 }
 
