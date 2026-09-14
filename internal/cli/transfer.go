@@ -20,7 +20,10 @@ type ExportCmd struct {
 }
 
 func (c *ExportCmd) Run(ctx context.Context, cfg *config.Config) error {
-	sqlStore, err := store.NewSQLiteStore(ctx, cfg.Database.Path)
+	// A backup reads. Whatever the configured mode is, it does not apply here:
+	// an export must not be the thing that migrates an installation, and one
+	// taken from a database this build cannot read would be silently partial.
+	sqlStore, err := store.NewSQLiteStore(ctx, cfg.Database.Path, store.MigrateVerify)
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
 	}
@@ -80,7 +83,7 @@ func (c *ImportCmd) Run(ctx context.Context, cfg *config.Config) error {
 		return fmt.Errorf("read bundle: %w", err)
 	}
 
-	sqlStore, err := store.NewSQLiteStore(ctx, cfg.Database.Path)
+	sqlStore, err := store.NewSQLiteStore(ctx, cfg.Database.Path, store.MigrateMode(cfg.Database.Migrate))
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
 	}

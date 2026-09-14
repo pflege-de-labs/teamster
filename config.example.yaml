@@ -10,6 +10,15 @@ server:
 
 database:
   path: "teamster.db"
+  # What opening the database does about a schema that is not the one this
+  # build expects:
+  #   auto   — apply what is missing. The default, and what every release
+  #            before there was a version ledger did implicitly.
+  #   verify — refuse to start, naming `teamster migrate up`. For a deployment
+  #            that would rather a schema change were a step somebody watches,
+  #            or whose database role may not change the schema.
+  #   off    — open it as it is and ask no questions.
+  migrate: "auto"
 
 webhook:
   token: "replace-with-shared-token"

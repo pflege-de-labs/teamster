@@ -6,14 +6,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"sort"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	_ "modernc.org/sqlite"
 
 	"github.com/pflege-de-labs/teamster/internal/models"
+	"github.com/pflege-de-labs/teamster/internal/store/migrations"
 )
 
 // A queryer is whatever the statements run against: the database, or a
@@ -33,15 +32,17 @@ type SQLiteStore struct {
 	path string
 }
 
-func NewSQLiteStore(ctx context.Context, path string) (*SQLiteStore, error) {
+// NewSQLiteStore opens the file and brings the schema to the version this
+// build expects, or checks that somebody else already did — see MigrateMode.
+func NewSQLiteStore(ctx context.Context, path string, migrate MigrateMode) (*SQLiteStore, error) {
 	db, err := sql.Open("sqlite", path)
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite: %w", err)
 	}
 	store := &SQLiteStore{db: db, sql: db, path: path}
-	if err := store.migrate(ctx); err != nil {
+	if err := applyMigrations(ctx, migrations.SQLite, db, migrate); err != nil {
 		_ = db.Close()
-		return nil, err
+		return nil, fmt.Errorf("%s: %w", path, err)
 	}
 	return store, nil
 }
@@ -95,253 +96,6 @@ func (s *SQLiteStore) Ping(ctx context.Context) error {
 		return fmt.Errorf("ping database: %w", err)
 	}
 	return nil
-}
-
-func (s *SQLiteStore) migrate(ctx context.Context) error {
-	schema := `
-CREATE TABLE IF NOT EXISTS templates (
-	id TEXT PRIMARY KEY,
-	name TEXT NOT NULL,
-	title TEXT NOT NULL DEFAULT '',
-	message_text TEXT NOT NULL DEFAULT '',
-	body TEXT NOT NULL DEFAULT '',
-	created_at DATETIME NOT NULL,
-	updated_at DATETIME NOT NULL
-);
-CREATE TABLE IF NOT EXISTS destinations (
-	id TEXT PRIMARY KEY,
-	name TEXT NOT NULL,
-	team_id TEXT NOT NULL,
-	channel_id TEXT NOT NULL,
-	created_at DATETIME NOT NULL,
-	updated_at DATETIME NOT NULL
-);
-CREATE TABLE IF NOT EXISTS routes (
-	id TEXT PRIMARY KEY,
-	name TEXT NOT NULL,
-	parent_id TEXT NOT NULL DEFAULT '',
-	greedy INTEGER NOT NULL DEFAULT 0,
-	label_selector TEXT NOT NULL,
-	destination_id TEXT NOT NULL,
-	template_id TEXT NOT NULL,
-	is_default INTEGER NOT NULL,
-	priority INTEGER NOT NULL,
-	created_at DATETIME NOT NULL,
-	updated_at DATETIME NOT NULL
-);
-CREATE TABLE IF NOT EXISTS grants (
-	id TEXT PRIMARY KEY,
-	role TEXT NOT NULL,
-	team_id TEXT NOT NULL,
-	channel_id TEXT NOT NULL DEFAULT '',
-	created_at DATETIME NOT NULL,
-	updated_at DATETIME NOT NULL
-);
-CREATE TABLE IF NOT EXISTS sessions (
-	id TEXT PRIMARY KEY,
-	subject TEXT NOT NULL,
-	name TEXT NOT NULL,
-	source TEXT NOT NULL,
-	role TEXT NOT NULL DEFAULT '',
-	created_at DATETIME NOT NULL,
-	expires_at DATETIME NOT NULL
-);
-CREATE TABLE IF NOT EXISTS login_flows (
-	state TEXT PRIMARY KEY,
-	verifier TEXT NOT NULL,
-	nonce TEXT NOT NULL,
-	expires_at DATETIME NOT NULL
-);
-CREATE TABLE IF NOT EXISTS active_alerts (
-	fingerprint TEXT NOT NULL,
-	status TEXT NOT NULL,
-	team_id TEXT NOT NULL,
-	channel_id TEXT NOT NULL,
-	message_id TEXT NOT NULL,
-	last_update DATETIME NOT NULL,
-	PRIMARY KEY (fingerprint, team_id, channel_id)
-);
-`
-	_, err := s.sql.ExecContext(ctx, schema)
-	if err != nil {
-		return fmt.Errorf("migrate schema: %w", err)
-	}
-	if err := s.addMissingColumns(ctx); err != nil {
-		return err
-	}
-	if err := s.rekeyActiveAlerts(ctx); err != nil {
-		return err
-	}
-	return s.checkTimestampColumns(ctx)
-}
-
-// addedColumns are columns a later release introduced. CREATE TABLE IF NOT
-// EXISTS leaves an existing table alone, so a database created before them
-// needs them added rather than the whole schema replayed.
-var addedColumns = []struct {
-	table, column, definition string
-}{
-	{"templates", "title", "TEXT NOT NULL DEFAULT ''"},
-	{"templates", "message_text", "TEXT NOT NULL DEFAULT ''"},
-	{"routes", "parent_id", "TEXT NOT NULL DEFAULT ''"},
-	{"routes", "greedy", "INTEGER NOT NULL DEFAULT 0"},
-	{"sessions", "role", "TEXT NOT NULL DEFAULT ''"},
-}
-
-// A template written before this migration is card-only, and renders the title
-// it always had: templates.DefaultTitle fills in for an empty one.
-func (s *SQLiteStore) addMissingColumns(ctx context.Context) error {
-	for _, add := range addedColumns {
-		declared, err := s.columnTypes(ctx, add.table)
-		if err != nil {
-			return err
-		}
-		if _, ok := declared[add.column]; ok {
-			continue
-		}
-		if _, err := s.sql.ExecContext(ctx, fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", add.table, add.column, add.definition)); err != nil {
-			return fmt.Errorf("add %s.%s: %w", add.table, add.column, err)
-		}
-	}
-	return nil
-}
-
-// timestampColumns are read back as time.Time only while they are declared
-// DATETIME; a database written before that fix silently fails every Scan.
-var timestampColumns = map[string][]string{
-	"templates":     {"created_at", "updated_at"},
-	"grants":        {"created_at", "updated_at"},
-	"destinations":  {"created_at", "updated_at"},
-	"routes":        {"created_at", "updated_at"},
-	"active_alerts": {"last_update"},
-	"sessions":      {"created_at", "expires_at"},
-	"login_flows":   {"expires_at"},
-}
-
-func (s *SQLiteStore) checkTimestampColumns(ctx context.Context) error {
-	for table, columns := range timestampColumns {
-		declared, err := s.columnTypes(ctx, table)
-		if err != nil {
-			return err
-		}
-		for _, column := range columns {
-			if got := strings.ToUpper(declared[column]); got != "" && got != "DATETIME" {
-				return fmt.Errorf("%s: table %s column %s is declared %s, expected DATETIME; "+
-					"this database was created by an older build and cannot be read, delete it and restart",
-					s.path, table, column, got)
-			}
-		}
-	}
-	return nil
-}
-
-// An alert that fans out has one card per channel, so active_alerts is keyed by
-// the channel as well as the fingerprint. A database written before that has the
-// old single-column key, which SQLite can only change by rebuilding the table —
-// the rows survive, because one card per alert is a valid fan-out of one.
-func (s *SQLiteStore) rekeyActiveAlerts(ctx context.Context) error {
-	key, err := s.primaryKey(ctx, "active_alerts")
-	if err != nil {
-		return err
-	}
-	if len(key) != 1 || key[0] != "fingerprint" {
-		return nil
-	}
-
-	// In one transaction: a rebuild interrupted half way would otherwise leave
-	// the scratch table behind, and every later start would fail trying to
-	// create it again. SQLite makes DDL transactional, so this rolls back whole.
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("rekey active alerts: %w", err)
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	_, err = tx.Exec(`
-CREATE TABLE active_alerts_rekeyed (
-	fingerprint TEXT NOT NULL,
-	status TEXT NOT NULL,
-	team_id TEXT NOT NULL,
-	channel_id TEXT NOT NULL,
-	message_id TEXT NOT NULL,
-	last_update DATETIME NOT NULL,
-	PRIMARY KEY (fingerprint, team_id, channel_id)
-);
-INSERT INTO active_alerts_rekeyed SELECT fingerprint, status, team_id, channel_id, message_id, last_update FROM active_alerts;
-DROP TABLE active_alerts;
-ALTER TABLE active_alerts_rekeyed RENAME TO active_alerts;`)
-	if err != nil {
-		return fmt.Errorf("rekey active alerts: %w", err)
-	}
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("rekey active alerts: %w", err)
-	}
-	return nil
-}
-
-// primaryKey returns the key columns in key order, which is what distinguishes
-// the rebuilt active_alerts table from the one that preceded it.
-func (s *SQLiteStore) primaryKey(ctx context.Context, table string) ([]string, error) {
-	rows, err := s.sql.QueryContext(ctx, fmt.Sprintf("PRAGMA table_info(%s)", table))
-	if err != nil {
-		return nil, fmt.Errorf("inspect %s: %w", table, err)
-	}
-	defer func() { _ = rows.Close() }()
-
-	type keyColumn struct {
-		name     string
-		position int
-	}
-	var key []keyColumn
-	for rows.Next() {
-		var (
-			cid        int
-			name, kind string
-			notNull    int
-			dflt       sql.NullString
-			pk         int
-		)
-		if err := rows.Scan(&cid, &name, &kind, &notNull, &dflt, &pk); err != nil {
-			return nil, fmt.Errorf("scan %s column: %w", table, err)
-		}
-		if pk > 0 {
-			key = append(key, keyColumn{name: name, position: pk})
-		}
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	sort.Slice(key, func(i, j int) bool { return key[i].position < key[j].position })
-	names := make([]string, 0, len(key))
-	for _, column := range key {
-		names = append(names, column.name)
-	}
-	return names, nil
-}
-
-func (s *SQLiteStore) columnTypes(ctx context.Context, table string) (map[string]string, error) {
-	rows, err := s.sql.QueryContext(ctx, fmt.Sprintf("PRAGMA table_info(%s)", table))
-	if err != nil {
-		return nil, fmt.Errorf("inspect %s: %w", table, err)
-	}
-	defer func() { _ = rows.Close() }()
-
-	types := map[string]string{}
-	for rows.Next() {
-		var (
-			cid        int
-			name, kind string
-			notNull    int
-			dflt       sql.NullString
-			pk         int
-		)
-		if err := rows.Scan(&cid, &name, &kind, &notNull, &dflt, &pk); err != nil {
-			return nil, fmt.Errorf("scan %s column: %w", table, err)
-		}
-		types[name] = kind
-	}
-	return types, rows.Err()
 }
 
 func (s *SQLiteStore) ListTemplates(ctx context.Context) ([]models.Template, error) {

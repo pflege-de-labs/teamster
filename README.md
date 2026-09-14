@@ -80,6 +80,34 @@ graph:
   scope: "http://127.0.0.1:18500/.default"
 ```
 
+## Schema migrations
+
+The schema is versioned. Starting the server applies whatever is missing, which is what a single
+instance wants and what every earlier release did implicitly, so upgrading needs nothing extra.
+
+To make it a step of its own instead:
+
+```bash
+teamster migrate status      # what has been applied, and what has not
+teamster migrate up          # apply everything pending
+teamster migrate down        # roll back one migration
+```
+
+`database.migrate` decides what the server does when it opens a database that is behind:
+
+| Value | What happens |
+| --- | --- |
+| `auto` | Apply the missing migrations. The default. |
+| `verify` | Refuse to start, naming `teamster migrate up`. |
+| `off` | Open it as it is. |
+
+Set `verify` when a schema change should be something you watch — a deployment that runs
+`teamster migrate up` as its own step before rolling out the new version, or an installation whose
+database user is not allowed to change the schema.
+
+`teamster export` never migrates, whatever the setting: taking a backup must not be the thing that
+changes an installation.
+
 ## Webhooks
 
 ### Alertmanager (0.31)
@@ -145,14 +173,14 @@ Helper functions:
   inherits the nearest ancestor's, so "the same card, one more channel" is a one-field route.
 - A route with children cannot be deleted; remove or reparent them first, because an orphan becomes
   a root that matches alerts its parent used to filter out.
-- A database file written before the `DATETIME` timestamp fix cannot be read. The server refuses
-  to start against one and names the file; delete it and restart to recreate the schema.
+- A database file written before the `DATETIME` timestamp fix cannot be read. Migrating it fails
+  and names the file; delete it and start again to recreate the schema.
 - A default route is used if no labels match.
 - Active alerts are tracked in SQLite per channel, so an alert that fans out updates and resolves
   every card it posted. One channel failing does not stop the others; the response is a `502` and
   the sender's retry updates what already landed rather than duplicating it.
-- A database written before templates had a title gains the columns on the next start; nothing
-  needs to be deleted.
+- A database written before templates had a title gains the columns the first time a newer build
+  migrates it; nothing needs to be deleted.
 
 ## Sample payloads
 

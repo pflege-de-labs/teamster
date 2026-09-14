@@ -16,7 +16,7 @@ State lives in a local SQLite file; there are no other runtime dependencies.
 | `internal/routing` | Selects a route for an alert's labels. |
 | `internal/templates` | Renders an Adaptive Card from a Go template plus alert data. |
 | `internal/graph` | Microsoft Graph client: OAuth2 client credentials, post and update channel messages. |
-| `internal/store` | `Store` interface and its SQLite implementation for templates, destinations, routes and active alerts. |
+| `internal/store` | `Store` interface and its SQLite implementation; `internal/store/migrations` owns the schema for templates, destinations, routes and active alerts. |
 | `internal/models` | Shared data types: `Alert`, `Route`, `Template`, `Destination`, `ActiveAlert` and the two webhook payload shapes. |
 | `internal/httpserver/web` | Embedded static assets: icons, the web manifest and the Tailwind stylesheet built from `views/styles.css`. |
 
@@ -298,11 +298,28 @@ The draining flag is set from a shutdown hook, which net/http runs in its own go
 therefore flips a moment after `Shutdown` is called rather than during it, which is immaterial
 against a probe interval and is why the test for it waits rather than assuming an order.
 
+## The schema
+
+`internal/store/migrations` owns the schema: numbered files per dialect, embedded in the binary and
+applied by goose. Two exist so far. `0001` is the baseline — the schema as it stood when the ledger
+was introduced, written with `IF NOT EXISTS` so that a database an earlier build already converged
+adopts it rather than failing. `0002` is a Go migration holding the convergence those earlier
+builds performed on every open: add the columns a later release introduced, rebuild `active_alerts`
+if it still carries the old single-column key, and refuse a database whose timestamps are declared
+the wrong type. It runs once and is recorded, which is what retires the `PRAGMA` inspection that
+used to run on every start.
+
+`database.migrate` decides what opening the store does about a schema that is behind: `auto`
+applies what is missing, `verify` refuses and names `teamster migrate up`, `off` asks nothing.
+`teamster export` always verifies — reading a database must not migrate it. A migration must leave
+the previous release able to run against the new schema, because migrations run before the pods
+that need them. See [ADR 0019](adr/0019-goose-migrations.md).
+
 ## Alert lifecycle
 
 Timestamp columns are declared `DATETIME`; the SQLite driver only converts them back to
-`time.Time` for that declared type. `NewSQLiteStore` refuses to open a database whose timestamp
-columns are declared otherwise, since every read from it would fail.
+`time.Time` for that declared type. A migration refuses a database whose timestamp columns are
+declared otherwise, since every read from it would fail.
 
 `active_alerts` is keyed by `(fingerprint, team_id, channel_id)` and stores the Graph message ID, so
 an alert that fans out has one row per channel. A repeated `firing` alert edits the existing card in

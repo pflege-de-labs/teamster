@@ -24,6 +24,26 @@ A change is done when all of these hold:
 * [Architecture documentation](docs/architecture.md) reflects the change
 * An [ADR](docs/adr/) exists for every architectural decision the change makes
 * `README.md` and the user-facing documentation match the behaviour that shipped
+* A schema change leaves the *previous* release able to run against the new schema
+
+## Schema changes
+
+Migrations live in `internal/store/migrations/<dialect>/`, are numbered sequentially and are
+applied by goose. `teamster migrate up|down|status` runs them by hand; opening the store runs them
+too unless `database.migrate` says otherwise.
+
+The rule above is the one that is easy to break. Migrations run before the new pods do, so the
+release that meets the new schema first is the *old* one. Within a release that means additive
+changes only — a new table, a new column that is nullable or has a default, a new index. Renaming,
+dropping or narrowing anything is a two-release job: the release that stops using it, then the
+release that removes it.
+
+A new migration is a new file: `NNNN-name.sql` with `-- +goose Up` and `-- +goose Down` sections.
+The goose CLI is deliberately not a tool dependency — it pulls a driver for every database goose
+supports, which `go mod download` would then fetch on every image build, and the only thing it
+would do for us is create a two-line file.
+
+An accepted migration is never edited. It has already run somewhere.
 
 ## Development workflow
 

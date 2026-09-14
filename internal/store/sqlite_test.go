@@ -15,7 +15,7 @@ import (
 func newTestStore(t *testing.T) *SQLiteStore {
 	t.Helper()
 
-	s, err := NewSQLiteStore(t.Context(), filepath.Join(t.TempDir(), "test.db"))
+	s, err := NewSQLiteStore(t.Context(), filepath.Join(t.TempDir(), "test.db"), MigrateAuto)
 	if err != nil {
 		t.Fatalf("NewSQLiteStore: %v", err)
 	}
@@ -38,7 +38,7 @@ func closedStore(t *testing.T) *SQLiteStore {
 func TestNewSQLiteStoreRejectsUnusablePath(t *testing.T) {
 	t.Parallel()
 
-	if _, err := NewSQLiteStore(t.Context(), filepath.Join(t.TempDir(), "missing-dir", "test.db")); err == nil {
+	if _, err := NewSQLiteStore(t.Context(), filepath.Join(t.TempDir(), "missing-dir", "test.db"), MigrateAuto); err == nil {
 		t.Error("NewSQLiteStore() = nil error, want failure for a path that cannot be created")
 	}
 }
@@ -446,7 +446,7 @@ func TestNewSQLiteStoreRejectsLegacyTextTimestamps(t *testing.T) {
 		t.Fatalf("close legacy db: %v", err)
 	}
 
-	_, err = NewSQLiteStore(t.Context(), path)
+	_, err = NewSQLiteStore(t.Context(), path, MigrateAuto)
 	if err == nil {
 		t.Fatal("NewSQLiteStore() = nil error, want a rejection of the legacy schema")
 	}
@@ -481,7 +481,7 @@ VALUES ('old', 'Card', '{"type":"AdaptiveCard"}', '2026-01-01 00:00:00+00:00', '
 		t.Fatalf("close old db: %v", err)
 	}
 
-	store, err := NewSQLiteStore(t.Context(), path)
+	store, err := NewSQLiteStore(t.Context(), path, MigrateAuto)
 	if err != nil {
 		t.Fatalf("NewSQLiteStore: %v", err)
 	}
@@ -540,7 +540,7 @@ INSERT INTO active_alerts VALUES ('fp', 'firing', 'team', 'channel', 'msg-1', '2
 		t.Fatalf("close old db: %v", err)
 	}
 
-	store, err := NewSQLiteStore(t.Context(), path)
+	store, err := NewSQLiteStore(t.Context(), path, MigrateAuto)
 	if err != nil {
 		t.Fatalf("NewSQLiteStore: %v", err)
 	}
@@ -596,7 +596,7 @@ INSERT INTO sessions VALUES ('old', 'tester', 'tester', 'oidc', '2026-01-01 00:0
 		t.Fatalf("close old db: %v", err)
 	}
 
-	store, err := NewSQLiteStore(t.Context(), path)
+	store, err := NewSQLiteStore(t.Context(), path, MigrateAuto)
 	if err != nil {
 		t.Fatalf("NewSQLiteStore: %v", err)
 	}

@@ -50,7 +50,7 @@ func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
 		return fmt.Errorf("config validation: %w", err)
 	}
 
-	sqlStore, err := store.NewSQLiteStore(ctx, cfg.Database.Path)
+	sqlStore, err := store.NewSQLiteStore(ctx, cfg.Database.Path, store.MigrateMode(cfg.Database.Migrate))
 	if err != nil {
 		// A signal that arrives while the store is still opening is a
 		// shutdown, not a failure to start: there is nothing to report and

@@ -53,6 +53,9 @@ type MetricsConfig struct {
 
 type DatabaseConfig struct {
 	Path string `help:"Path to the SQLite database file." default:"teamster.db"`
+	// A deployment that would rather run migrations as a visible step sets
+	// verify, and `teamster migrate up` becomes part of the upgrade.
+	Migrate string `help:"What opening the database does about pending migrations: apply them, verify none are pending, or neither." enum:"auto,verify,off" default:"auto"`
 }
 
 type WebhookConfig struct {
