@@ -45,6 +45,10 @@ type Server struct {
 	directory  *directoryCache
 	oidc       *oidcProvider
 	httpServer *http.Server
+
+	// now is the clock delivery stamps claims from. It is a field so a test
+	// can move time forward past a claim's staleness cutoff without waiting.
+	now func() time.Time
 }
 
 // headerGrace bounds how long a client may dawdle over request headers, which
@@ -82,6 +86,7 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger, tel 
 		authz:     authorizer,
 		metrics:   tel,
 		text:      text,
+		now:       func() time.Time { return time.Now().UTC() },
 		directory: newDirectoryCache(directoryTTL),
 		oidc:      &oidcProvider{},
 	}

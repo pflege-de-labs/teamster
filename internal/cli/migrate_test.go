@@ -61,13 +61,15 @@ func TestMigrateDownRollsBackOneMigration(t *testing.T) {
 		t.Fatalf("migrate up: %v", err)
 	}
 
-	// 0002 has no down: the convergence it performs cannot be undone, and
-	// goose records the version anyway.
-	if err := (&MigrateDownCmd{}).Run(ctx, cfg); err != nil {
-		t.Fatalf("first migrate down: %v", err)
-	}
-	if err := (&MigrateDownCmd{}).Run(ctx, cfg); err != nil {
-		t.Fatalf("second migrate down: %v", err)
+	// One step at a time until there is nothing left, rather than a count:
+	// this test should not need editing every time a migration is added.
+	for step := 0; ; step++ {
+		if err := (&MigrateDownCmd{}).Run(ctx, cfg); err != nil {
+			break
+		}
+		if step > 50 {
+			t.Fatal("migrate down never ran out of migrations")
+		}
 	}
 
 	db, err := sql.Open("sqlite", cfg.Database.Path)

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -51,10 +52,19 @@ func (sqliteTx) WithTx(context.Context, func(context.Context, Store) error) erro
 // NewSQLiteStore opens the file and brings the schema to the version this
 // build expects, or checks that somebody else already did — see MigrateMode.
 func NewSQLiteStore(ctx context.Context, path string, migrate MigrateMode) (*SQLiteStore, error) {
-	db, err := sql.Open("sqlite", path)
+	db, err := sql.Open("sqlite", sqliteDSN(path))
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite: %w", err)
 	}
+
+	// One connection, deliberately. SQLite takes a single writer, and left to
+	// itself database/sql opens as many connections to the file as there are
+	// concurrent callers -- which turns two requests for the same alert into
+	// SQLITE_BUSY rather than into one of them waiting its turn. With a single
+	// connection the queueing happens in Go, where it costs nothing at this
+	// volume and cannot fail.
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
 	if err := applyMigrations(ctx, migrations.SQLite, db, migrate); err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("%s: %w", path, err)
@@ -64,6 +74,21 @@ func NewSQLiteStore(ctx context.Context, path string, migrate MigrateMode) (*SQL
 		db:            db,
 		path:          path,
 	}, nil
+}
+
+// sqliteDSN adds the pragmas that make a file usable by a long-running
+// service. busy_timeout covers the other process -- a CLI export, a backup --
+// that this connection limit cannot serialise; WAL keeps a reader from
+// blocking the writer; foreign_keys is off per connection unless asked for,
+// which would quietly make every foreign key decorative.
+//
+// A path that already looks like a DSN is left alone, so an operator can pass
+// options this does not know about.
+func sqliteDSN(path string) string {
+	if strings.HasPrefix(path, "file:") || strings.Contains(path, "?") {
+		return path
+	}
+	return "file:" + path + "?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_pragma=foreign_keys(1)"
 }
 
 func (s *SQLiteStore) Close() error {
@@ -371,17 +396,106 @@ func routeOf(row sqlitedb.Route) models.Route {
 	}
 }
 
-func (s sqliteQueries) UpsertActiveAlert(ctx context.Context, a models.ActiveAlert) error {
-	err := s.q.UpsertActiveAlert(ctx, sqlitedb.UpsertActiveAlertParams{
-		Fingerprint: a.Fingerprint,
-		Status:      a.Status,
-		TeamID:      a.TeamID,
-		ChannelID:   a.ChannelID,
-		MessageID:   a.MessageID,
-		LastUpdate:  a.LastUpdate,
+// ClaimActiveAlert reaps an abandoned claim and then takes the row, both in
+// one transaction. Two statements rather than one upsert with a WHERE, because
+// the two need different timestamps -- the cutoff and this claim's own -- and
+// sqlc folds two parameters that infer the same column name into one. Reading
+// the row afterwards is what turns "the insert did nothing" into a reason.
+func (s sqliteQueries) ClaimActiveAlert(ctx context.Context, claim models.AlertClaim) (models.ActiveAlert, ClaimOutcome, error) {
+	reaped, err := s.q.ReapStaleClaim(ctx, sqlitedb.ReapStaleClaimParams{
+		Fingerprint: claim.Fingerprint,
+		TeamID:      claim.TeamID,
+		ChannelID:   claim.ChannelID,
+		ClaimedAt:   sql.NullTime{Time: claim.StaleBefore, Valid: true},
 	})
 	if err != nil {
-		return fmt.Errorf("upsert active alert: %w", err)
+		return models.ActiveAlert{}, ClaimHeld, fmt.Errorf("reap stale claim: %w", err)
+	}
+
+	row, err := s.q.ClaimActiveAlert(ctx, sqlitedb.ClaimActiveAlertParams{
+		Fingerprint: claim.Fingerprint,
+		TeamID:      claim.TeamID,
+		ChannelID:   claim.ChannelID,
+		Status:      claim.Status,
+		ClaimOwner:  claim.Owner,
+		ClaimedAt:   sql.NullTime{Time: claim.At, Valid: true},
+		LastUpdate:  claim.At,
+	})
+	switch {
+	case err == nil:
+		if reaped > 0 {
+			return activeAlertOf(row), ClaimRecovered, nil
+		}
+		return activeAlertOf(row), ClaimAcquired, nil
+	case !errors.Is(notFound(err), ErrNotFound):
+		return models.ActiveAlert{}, ClaimHeld, fmt.Errorf("claim active alert: %w", err)
+	}
+
+	// The insert conflicted, so somebody was there first. Which of the two
+	// answers it is depends on whether they got as far as posting.
+	existing, err := s.GetActiveAlert(ctx, claim.Fingerprint, claim.TeamID, claim.ChannelID)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			// Gone between the two statements: a resolve deleted it. Treat it
+			// as held rather than looping, and let the sender retry.
+			return models.ActiveAlert{}, ClaimHeld, nil
+		}
+		return models.ActiveAlert{}, ClaimHeld, err
+	}
+	if existing.Posted() {
+		return existing, ClaimPosted, nil
+	}
+	return existing, ClaimHeld, nil
+}
+
+func (s sqliteQueries) CompleteActiveAlertClaim(ctx context.Context, claim models.AlertClaim, messageID string, at time.Time) error {
+	_, err := s.q.CompleteActiveAlertClaim(ctx, sqlitedb.CompleteActiveAlertClaimParams{
+		Fingerprint: claim.Fingerprint,
+		TeamID:      claim.TeamID,
+		ChannelID:   claim.ChannelID,
+		Status:      claim.Status,
+		MessageID:   messageID,
+		ClaimOwner:  claim.Owner,
+		ClaimedAt:   sql.NullTime{Time: claim.At, Valid: true},
+		PostedAt:    sql.NullTime{Time: at, Valid: true},
+		LastUpdate:  at,
+	})
+	switch {
+	case err == nil:
+		return nil
+	case errors.Is(notFound(err), ErrNotFound):
+		// No row was written, so the row under this key is somebody else's
+		// card. The message just posted has nothing pointing at it.
+		return ErrClaimLost
+	default:
+		return fmt.Errorf("complete active alert claim: %w", err)
+	}
+}
+
+func (s sqliteQueries) ReleaseActiveAlertClaim(ctx context.Context, claim models.AlertClaim) error {
+	err := s.q.ReleaseActiveAlertClaim(ctx, sqlitedb.ReleaseActiveAlertClaimParams{
+		Fingerprint: claim.Fingerprint,
+		TeamID:      claim.TeamID,
+		ChannelID:   claim.ChannelID,
+		ClaimOwner:  claim.Owner,
+	})
+	if err != nil {
+		return fmt.Errorf("release active alert claim: %w", err)
+	}
+	return nil
+}
+
+func (s sqliteQueries) TouchActiveAlert(ctx context.Context, card models.ActiveAlert, status string, at time.Time) error {
+	err := s.q.TouchActiveAlert(ctx, sqlitedb.TouchActiveAlertParams{
+		Status:      status,
+		LastUpdate:  at,
+		Fingerprint: card.Fingerprint,
+		TeamID:      card.TeamID,
+		ChannelID:   card.ChannelID,
+		MessageID:   card.MessageID,
+	})
+	if err != nil {
+		return fmt.Errorf("touch active alert: %w", err)
 	}
 	return nil
 }
@@ -424,14 +538,15 @@ func (s sqliteQueries) GetActiveAlert(ctx context.Context, fingerprint, teamID, 
 	return activeAlertOf(row), nil
 }
 
-func (s sqliteQueries) DeleteActiveAlert(ctx context.Context, fingerprint, teamID, channelID string) error {
-	err := s.q.DeleteActiveAlert(ctx, sqlitedb.DeleteActiveAlertParams{
+func (s sqliteQueries) DeleteActiveAlertCard(ctx context.Context, fingerprint, teamID, channelID, messageID string) error {
+	err := s.q.DeleteActiveAlertCard(ctx, sqlitedb.DeleteActiveAlertCardParams{
 		Fingerprint: fingerprint,
 		TeamID:      teamID,
 		ChannelID:   channelID,
+		MessageID:   messageID,
 	})
 	if err != nil {
-		return fmt.Errorf("delete active alert: %w", err)
+		return fmt.Errorf("delete active alert card: %w", err)
 	}
 	return nil
 }
@@ -443,6 +558,9 @@ func activeAlertOf(row sqlitedb.ActiveAlert) models.ActiveAlert {
 		TeamID:      row.TeamID,
 		ChannelID:   row.ChannelID,
 		MessageID:   row.MessageID,
+		ClaimOwner:  row.ClaimOwner,
+		ClaimedAt:   row.ClaimedAt.Time,
+		PostedAt:    row.PostedAt.Time,
 		LastUpdate:  row.LastUpdate,
 	}
 }

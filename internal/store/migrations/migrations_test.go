@@ -22,6 +22,24 @@ func openDB(t *testing.T, name string) *sql.DB {
 	return db
 }
 
+// latest is the highest migration this build carries. Asking rather than
+// hardcoding means adding a migration does not break these tests.
+func latest(t *testing.T, db *sql.DB) int64 {
+	t.Helper()
+
+	provider, err := New(SQLite, db)
+	if err != nil {
+		t.Fatalf("provider: %v", err)
+	}
+	var highest int64
+	for _, source := range provider.ListSources() {
+		if source.Version > highest {
+			highest = source.Version
+		}
+	}
+	return highest
+}
+
 func version(t *testing.T, ctx context.Context, db *sql.DB) int64 {
 	t.Helper()
 
@@ -52,8 +70,8 @@ func TestUpBuildsTheSchemaFromNothing(t *testing.T) {
 			t.Errorf("table %s: %v", table, err)
 		}
 	}
-	if got := version(t, ctx, db); got != 2 {
-		t.Errorf("version = %d, want 2", got)
+	if got, want := version(t, ctx, db), latest(t, db); got != want {
+		t.Errorf("version = %d, want %d", got, want)
 	}
 }
 
@@ -83,8 +101,8 @@ func TestUpIsIdempotent(t *testing.T) {
 	if count != 1 {
 		t.Errorf("templates = %d, want the row to survive a second Up", count)
 	}
-	if got := version(t, ctx, db); got != 2 {
-		t.Errorf("version = %d, want 2", got)
+	if got, want := version(t, ctx, db), latest(t, db); got != want {
+		t.Errorf("version = %d, want %d", got, want)
 	}
 }
 
@@ -136,8 +154,8 @@ INSERT INTO templates (id, name, title, message_text, body, created_at, updated_
 	if title != "title" || text != "text" {
 		t.Errorf("template = (%q, %q), want the existing values untouched", title, text)
 	}
-	if got := version(t, ctx, db); got != 2 {
-		t.Errorf("version = %d, want the converged database recorded at 2", got)
+	if got, want := version(t, ctx, db), latest(t, db); got != want {
+		t.Errorf("version = %d, want the converged database recorded at %d", got, want)
 	}
 }
 
@@ -183,8 +201,8 @@ func TestConcurrentUpAppliesOnce(t *testing.T) {
 	if err := db.QueryRowContext(ctx, "SELECT count(*) FROM goose_db_version WHERE version_id > 0").Scan(&applied); err != nil {
 		t.Fatalf("count applied migrations: %v", err)
 	}
-	if applied != 2 {
-		t.Errorf("applied = %d, want each migration recorded once", applied)
+	if want := int(latest(t, db)); applied != want {
+		t.Errorf("applied = %d, want each of the %d migrations recorded once", applied, want)
 	}
 }
 

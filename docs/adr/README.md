@@ -35,3 +35,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0018](0018-store-takes-a-context.md) | Every store call takes a context | Accepted |
 | [0019](0019-goose-migrations.md) | The schema is a numbered set of goose migrations | Accepted |
 | [0020](0020-sqlc-generated-queries.md) | Queries are generated from SQL by sqlc | Accepted |
+| [0021](0021-claim-a-card-before-posting.md) | A card is claimed before it is posted | Accepted |

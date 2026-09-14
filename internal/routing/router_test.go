@@ -72,7 +72,19 @@ func (s stubStore) GetRoute(ctx context.Context, id string) (models.Route, error
 	return models.Route{}, store.ErrNotFound
 }
 
-func (s stubStore) UpsertActiveAlert(ctx context.Context, a models.ActiveAlert) error {
+func (s stubStore) ClaimActiveAlert(ctx context.Context, _ models.AlertClaim) (models.ActiveAlert, store.ClaimOutcome, error) {
+	return models.ActiveAlert{}, store.ClaimHeld, store.ErrNotFound
+}
+
+func (s stubStore) CompleteActiveAlertClaim(ctx context.Context, _ models.AlertClaim, _ string, _ time.Time) error {
+	return store.ErrNotFound
+}
+
+func (s stubStore) ReleaseActiveAlertClaim(ctx context.Context, _ models.AlertClaim) error {
+	return store.ErrNotFound
+}
+
+func (s stubStore) TouchActiveAlert(ctx context.Context, _ models.ActiveAlert, _ string, _ time.Time) error {
 	return store.ErrNotFound
 }
 
@@ -86,7 +98,7 @@ func (s stubStore) GetActiveAlert(ctx context.Context, fingerprint, teamID, chan
 	return models.ActiveAlert{}, store.ErrNotFound
 }
 
-func (s stubStore) DeleteActiveAlert(ctx context.Context, fingerprint, teamID, channelID string) error {
+func (s stubStore) DeleteActiveAlertCard(ctx context.Context, _, _, _, _ string) error {
 	return store.ErrNotFound
 }
 

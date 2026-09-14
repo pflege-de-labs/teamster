@@ -5,6 +5,7 @@
 package sqlitedb
 
 import (
+	"database/sql"
 	"time"
 )
 
@@ -14,6 +15,9 @@ type ActiveAlert struct {
 	TeamID      string
 	ChannelID   string
 	MessageID   string
+	ClaimOwner  string
+	ClaimedAt   sql.NullTime
+	PostedAt    sql.NullTime
 	LastUpdate  time.Time
 }
 

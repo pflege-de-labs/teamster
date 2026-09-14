@@ -3,11 +3,48 @@ package store
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/pflege-de-labs/teamster/internal/models"
 )
 
-var ErrNotFound = errors.New("not found")
+var (
+	ErrNotFound = errors.New("not found")
+	// ErrClaimLost means the row this caller claimed now belongs to somebody
+	// else's card. Whatever it posted is unreachable: no row names it, so
+	// nothing will ever update or resolve it.
+	ErrClaimLost = errors.New("alert claim was taken by another writer")
+)
+
+// A ClaimOutcome says what asking for the right to post found.
+type ClaimOutcome int
+
+const (
+	// ClaimAcquired: nothing was there, and the card is ours to post.
+	ClaimAcquired ClaimOutcome = iota
+	// ClaimRecovered: a claim was there but its owner never posted and the
+	// staleness cutoff has passed, so it has been taken over.
+	ClaimRecovered
+	// ClaimPosted: a card already exists, and this alert is an update to it.
+	ClaimPosted
+	// ClaimHeld: another writer is inside its Graph call for this very card.
+	ClaimHeld
+)
+
+func (o ClaimOutcome) String() string {
+	switch o {
+	case ClaimAcquired:
+		return "acquired"
+	case ClaimRecovered:
+		return "recovered"
+	case ClaimPosted:
+		return "posted"
+	case ClaimHeld:
+		return "held"
+	default:
+		return "unknown"
+	}
+}
 
 type Store interface {
 	Close() error
@@ -53,12 +90,30 @@ type Store interface {
 	CreateLoginFlow(ctx context.Context, f models.LoginFlow) error
 	TakeLoginFlow(ctx context.Context, state string) (models.LoginFlow, error)
 
-	UpsertActiveAlert(ctx context.Context, a models.ActiveAlert) error
+	// ClaimActiveAlert takes the right to post the card for one channel, or
+	// reports who has it. The Graph call that follows happens outside any
+	// transaction, so the claim row is the only record that a post is in
+	// flight — which is what lets a process that dies mid-post be recovered
+	// rather than leave the alert stuck.
+	ClaimActiveAlert(ctx context.Context, claim models.AlertClaim) (models.ActiveAlert, ClaimOutcome, error)
+	// CompleteActiveAlertClaim records the card the claim produced. It returns
+	// ErrClaimLost when the claim is no longer the caller's, which means the
+	// message just posted is an orphan and nothing can adopt it.
+	CompleteActiveAlertClaim(ctx context.Context, claim models.AlertClaim, messageID string, at time.Time) error
+	// ReleaseActiveAlertClaim hands back a claim whose post failed, so the next
+	// attempt need not wait out the staleness cutoff.
+	ReleaseActiveAlertClaim(ctx context.Context, claim models.AlertClaim) error
+	// TouchActiveAlert records that an existing card was updated. It matches on
+	// the message id, so an update to a card that has since been replaced does
+	// not stamp its replacement.
+	TouchActiveAlert(ctx context.Context, card models.ActiveAlert, status string, at time.Time) error
 	ListActiveAlerts(ctx context.Context, fingerprint string) ([]models.ActiveAlert, error)
 	// CountActiveAlerts is how many cards this service is currently keeping up
 	// to date. It runs on every metrics collection, so it counts rather than
 	// reads.
 	CountActiveAlerts(ctx context.Context) (int64, error)
 	GetActiveAlert(ctx context.Context, fingerprint, teamID, channelID string) (models.ActiveAlert, error)
-	DeleteActiveAlert(ctx context.Context, fingerprint, teamID, channelID string) error
+	// DeleteActiveAlertCard forgets one card, and only if it is still that
+	// card: a resolve racing a refire must not delete the new card's row.
+	DeleteActiveAlertCard(ctx context.Context, fingerprint, teamID, channelID, messageID string) error
 }

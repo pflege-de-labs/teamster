@@ -176,9 +176,13 @@ Helper functions:
 - A database file written before the `DATETIME` timestamp fix cannot be read. Migrating it fails
   and names the file; delete it and start again to recreate the schema.
 - A default route is used if no labels match.
-- Active alerts are tracked in SQLite per channel, so an alert that fans out updates and resolves
-  every card it posted. One channel failing does not stop the others; the response is a `502` and
-  the sender's retry updates what already landed rather than duplicating it.
+- Active alerts are tracked per channel, so an alert that fans out updates and resolves every card
+  it posted. One channel failing does not stop the others; the response is a `502` and the sender's
+  retry updates what already landed rather than duplicating it.
+- The right to post a card is claimed before the card is posted, so two deliveries of the same
+  alert to the same channel produce one card rather than two. The one that loses gets a `502`, and
+  its retry edits the card the winner made. A claim left behind by a process that died is taken
+  over by the next attempt after `max(30s, 3 x graph.timeout-sec)`.
 - A database written before templates had a title gains the columns the first time a newer build
   migrates it; nothing needs to be deleted.
 

@@ -11,6 +11,8 @@ import (
 	"sort"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/pflege-de-labs/teamster/internal/graph"
 	"github.com/pflege-de-labs/teamster/internal/metrics"
 	"github.com/pflege-de-labs/teamster/internal/models"
@@ -133,44 +135,92 @@ func (s *Server) processAlert(ctx context.Context, alert models.Alert) error {
 	return errors.Join(failures...)
 }
 
+// errCardInFlight says another instance is inside its Graph call for this very
+// card. It is an error rather than a silent success because the payload that
+// lost the race may carry something the winner's did not: a 502 asks the sender
+// to retry, and the retry updates the card the winner created.
+var errCardInFlight = errors.New("another instance is posting this card")
+
+// claimTTL is how long a claim may go uncompleted before another instance may
+// take it over. It has to outlast a Graph call comfortably: too short and two
+// instances post the same card, which is the thing claiming exists to prevent.
+func (s *Server) claimTTL() time.Duration {
+	graphTimeout := time.Duration(s.cfg.Graph.TimeoutSec) * time.Second
+	if ttl := 3 * graphTimeout; ttl > 30*time.Second {
+		return ttl
+	}
+	return 30 * time.Second
+}
+
+// deliver posts or updates the one card this delivery names.
+//
+// The card is claimed before the Graph call and the claim completed after it,
+// with no transaction spanning the two: a transaction held across a network
+// call pins a connection for as long as Microsoft takes to answer, and tells us
+// nothing if the process dies holding it. The claim row does — it is the only
+// record that a post was in flight, which is what lets the next attempt take
+// over rather than wait forever or post a second card.
 func (s *Server) deliver(ctx context.Context, alert models.Alert, delivery routing.Delivery) error {
 	destination, msg, err := s.render(ctx, alert, delivery)
 	if err != nil {
 		return err
 	}
 
-	active, err := s.store.GetActiveAlert(ctx, alert.Fingerprint, destination.TeamID, destination.ChannelID)
-	switch {
-	case err == nil:
-		// The card for this channel already exists, so the alert is an update to
-		// it rather than a second card.
-		if err := s.graph.UpdateMessage(active.TeamID, active.ChannelID, active.MessageID, msg); err != nil {
+	now := s.now()
+	claim := models.AlertClaim{
+		Fingerprint: alert.Fingerprint,
+		TeamID:      destination.TeamID,
+		ChannelID:   destination.ChannelID,
+		Status:      alert.Status,
+		Owner:       uuid.NewString(),
+		At:          now,
+		StaleBefore: now.Add(-s.claimTTL()),
+	}
+
+	card, outcome, err := s.store.ClaimActiveAlert(ctx, claim)
+	if err != nil {
+		return fmt.Errorf("claim active alert: %w", err)
+	}
+
+	switch outcome {
+	case store.ClaimPosted:
+		// The card for this channel already exists, so the alert is an update
+		// to it rather than a second card.
+		if err := s.graph.UpdateMessage(card.TeamID, card.ChannelID, card.MessageID, msg); err != nil {
 			s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeFailed)
 			return fmt.Errorf("graph update: %w", err)
 		}
 		s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeUpdated)
-		active.Status = alert.Status
-		active.LastUpdate = time.Now().UTC()
-		return s.store.UpsertActiveAlert(ctx, active)
-	case !errors.Is(err, store.ErrNotFound):
-		return fmt.Errorf("active alert lookup: %w", err)
+		return s.store.TouchActiveAlert(ctx, card, alert.Status, s.now())
+	case store.ClaimHeld:
+		s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeFailed)
+		return errCardInFlight
 	}
 
 	messageID, err := s.graph.PostMessage(destination.TeamID, destination.ChannelID, msg)
 	if err != nil {
 		s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeFailed)
+		// The claim is ours and nothing was posted under it, so it goes back
+		// now rather than making the next attempt wait out the cutoff.
+		if release := s.store.ReleaseActiveAlertClaim(ctx, claim); release != nil {
+			logError("release alert claim", release)
+		}
 		return fmt.Errorf("graph post: %w", err)
 	}
 	s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomePosted)
 
-	return s.store.UpsertActiveAlert(ctx, models.ActiveAlert{
-		Fingerprint: alert.Fingerprint,
-		Status:      alert.Status,
-		TeamID:      destination.TeamID,
-		ChannelID:   destination.ChannelID,
-		MessageID:   messageID,
-		LastUpdate:  time.Now().UTC(),
-	})
+	if err := s.store.CompleteActiveAlertClaim(ctx, claim, messageID, s.now()); err != nil {
+		if errors.Is(err, store.ErrClaimLost) {
+			// The window this cannot close: the post succeeded, and by the time
+			// it was recorded the row belonged to somebody else's card. Graph
+			// has no idempotency key for a channel message, so the card just
+			// posted cannot be adopted or withdrawn -- only reported.
+			logError("orphaned card", fmt.Errorf("%s/%s message %s: %w",
+				destination.TeamID, destination.ChannelID, messageID, err))
+		}
+		return err
+	}
+	return nil
 }
 
 // resolveAlert walks the cards that were posted rather than the plan, because
@@ -184,6 +234,17 @@ func (s *Server) resolveAlert(ctx context.Context, alert models.Alert, plan []ro
 
 	var failures []error
 	for _, card := range active {
+		// A claim in flight has no card yet, so there is nothing to edit and
+		// nothing to forget: deleting it would strand the message the other
+		// instance is about to post, still saying the alert fires. Reporting
+		// it retryable is the same reasoning as the failed update below --
+		// the sender's retry is what puts it right, by which time the card
+		// exists and this becomes an ordinary resolve.
+		if !card.Posted() {
+			failures = append(failures, fmt.Errorf("channel %s: %w", card.ChannelID, errCardInFlight))
+			continue
+		}
+
 		delivery, err := s.deliveryFor(ctx, card, plan)
 		if err != nil {
 			failures = append(failures, err)
@@ -202,7 +263,9 @@ func (s *Server) resolveAlert(ctx context.Context, alert models.Alert, plan []ro
 			failures = append(failures, fmt.Errorf("graph update: %w", err))
 			continue
 		}
-		if err := s.store.DeleteActiveAlert(ctx, card.Fingerprint, card.TeamID, card.ChannelID); err != nil {
+		// Deleting by message id, so a resolve that raced a refire forgets the
+		// card it just edited rather than the newer one that replaced it.
+		if err := s.store.DeleteActiveAlertCard(ctx, card.Fingerprint, card.TeamID, card.ChannelID, card.MessageID); err != nil {
 			failures = append(failures, err)
 		}
 	}

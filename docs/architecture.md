@@ -339,6 +339,17 @@ an alert that fans out has one row per channel. A repeated `firing` alert edits 
 each channel instead of posting a new one, and a `resolved` alert edits each card one last time
 before its row is deleted.
 
+A row exists from the moment delivery claims the right to post, which is before the card does:
+`posted_at` is non-NULL exactly when a card exists, and a CHECK ties it to the message id so the
+half state cannot be written. Delivery claims the row, calls Graph outside any transaction, then
+completes the claim — a transaction spanning a network call would pin a connection for as long as
+Microsoft takes and would tell nobody anything if the process died holding it, whereas the claim
+row is the record that a post was in flight. A claim whose owner never completed it is taken over
+by the next attempt once `max(30s, 3 x graph.timeout-sec)` has passed, so recovery is lazy and
+there is no reaper. A caller that finds a claim in flight is refused with a 502, and the sender's
+retry lands on the card the winner created. See
+[ADR 0021](adr/0021-claim-a-card-before-posting.md).
+
 Delivery is best effort per destination: one channel failing does not cost the others their message,
 and the failures are reported together as a `502`. That is safe because each delivery records its
 own message id, so a retry updates the cards that made it rather than duplicating them. Resolution

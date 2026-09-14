@@ -198,7 +198,7 @@ func TestDeliveriesAreCounted(t *testing.T) {
 			name: "an update to one that exists",
 			setup: func(st *fakeStore, _ *fakeMessenger) {
 				st.activeAlerts[activeAlertKey("fp", "team", "channel")] = models.ActiveAlert{
-					Fingerprint: "fp", TeamID: "team", ChannelID: "channel", MessageID: "graph-1",
+					Fingerprint: "fp", TeamID: "team", ChannelID: "channel", MessageID: "graph-1", PostedAt: testPostedAt,
 				}
 			},
 			body: `{"status":"firing","labels":{},"fingerprint":"fp"}`,

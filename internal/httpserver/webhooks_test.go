@@ -136,6 +136,10 @@ func TestUniversalWebhookPostsANewCard(t *testing.T) {
 	}
 }
 
+// testPostedAt stands in for "this card exists". A row carrying a message id
+// must carry a posting time too -- the schema's CHECK says so.
+var testPostedAt = time.Date(2026, 9, 8, 10, 0, 0, 0, time.UTC)
+
 func TestRepeatedFiringAlertUpdatesTheCard(t *testing.T) {
 	t.Parallel()
 
@@ -147,6 +151,7 @@ func TestRepeatedFiringAlertUpdatesTheCard(t *testing.T) {
 		TeamID:      "team",
 		ChannelID:   "channel",
 		MessageID:   "graph-1",
+		PostedAt:    testPostedAt,
 	}
 
 	rec := postWebhook(t, handler, "/webhook/universal", "token", `{"status":"firing","labels":{},"fingerprint":"fp-1"}`)
@@ -170,7 +175,7 @@ func TestResolvedAlertUpdatesAndClearsTheCard(t *testing.T) {
 	msg := &fakeMessenger{}
 	st, handler := seededServer(t, msg)
 	st.activeAlerts[activeAlertKey("fp-1", "team", "channel")] = models.ActiveAlert{
-		Fingerprint: "fp-1", TeamID: "team", ChannelID: "channel", MessageID: "graph-1",
+		Fingerprint: "fp-1", TeamID: "team", ChannelID: "channel", MessageID: "graph-1", PostedAt: testPostedAt,
 	}
 
 	rec := postWebhook(t, handler, "/webhook/universal", "token", `{"status":"resolved","labels":{},"fingerprint":"fp-1"}`)
@@ -346,7 +351,7 @@ func TestProcessAlertFailures(t *testing.T) {
 			body: `{"status":"firing","labels":{},"fingerprint":"fp"}`,
 			setup: func(st *fakeStore, msg *fakeMessenger) {
 				st.activeAlerts[activeAlertKey("fp", "team", "channel")] = models.ActiveAlert{
-					Fingerprint: "fp", TeamID: "team", ChannelID: "channel", MessageID: "graph-1",
+					Fingerprint: "fp", TeamID: "team", ChannelID: "channel", MessageID: "graph-1", PostedAt: testPostedAt,
 				}
 				msg.updateErr = errors.New("graph down")
 			},
@@ -357,17 +362,17 @@ func TestProcessAlertFailures(t *testing.T) {
 			body: `{"status":"resolved","labels":{},"fingerprint":"fp"}`,
 			setup: func(st *fakeStore, msg *fakeMessenger) {
 				st.activeAlerts[activeAlertKey("fp", "team", "channel")] = models.ActiveAlert{
-					Fingerprint: "fp", TeamID: "team", ChannelID: "channel", MessageID: "graph-1",
+					Fingerprint: "fp", TeamID: "team", ChannelID: "channel", MessageID: "graph-1", PostedAt: testPostedAt,
 				}
 				msg.updateErr = errors.New("graph down")
 			},
 			wantErr: "graph update:",
 		},
 		{
-			name:    "active alert lookup fails while firing",
+			name:    "claiming the card fails while firing",
 			body:    `{"status":"firing","labels":{},"fingerprint":"fp"}`,
-			setup:   func(st *fakeStore, _ *fakeMessenger) { st.fail("GetActiveAlert") },
-			wantErr: "active alert lookup:",
+			setup:   func(st *fakeStore, _ *fakeMessenger) { st.fail("ClaimActiveAlert") },
+			wantErr: "claim active alert:",
 		},
 		{
 			name:    "active alert lookup fails while resolving",
