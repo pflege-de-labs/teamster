@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"context"
 	"net/http"
 	"sync/atomic"
 	"time"
@@ -21,6 +22,17 @@ type messenger interface {
 	ListChannels(teamID string) ([]graph.Channel, error)
 }
 
+// telemetry is what this server records against. It is an interface so the
+// package depends on the shape rather than the pipeline, and so a test can hand
+// it one that remembers what it was told.
+type telemetry interface {
+	ServerMiddleware(operation string) func(http.Handler) http.Handler
+	RouteTag(next http.Handler) http.Handler
+	DeliveryRecorded(ctx context.Context, route, outcome string)
+	WebhookReceived(ctx context.Context, source, status string)
+	RenderFailed(ctx context.Context, templateID, stage string)
+}
+
 type Server struct {
 	cfg        config.Config
 	store      store.Store
@@ -28,6 +40,7 @@ type Server struct {
 	router     *routing.Router
 	draining   atomic.Bool
 	authz      *authz.Authorizer
+	metrics    telemetry
 	text       *i18n.Bundle
 	directory  *directoryCache
 	oidc       *oidcProvider
@@ -48,7 +61,7 @@ func readHeaderTimeout(readTimeout time.Duration) time.Duration {
 // NewServer returns an error rather than starting without an authorizer: a
 // policy file that does not parse would otherwise leave every check to fall
 // through to whatever the zero value decides.
-func NewServer(cfg config.Config, store store.Store, graphClient messenger) (*http.Server, error) {
+func NewServer(cfg config.Config, store store.Store, graphClient messenger, tel telemetry) (*http.Server, error) {
 	registerMIMETypes()
 
 	authorizer, err := authz.New()
@@ -67,6 +80,7 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger) (*ht
 		graph:     graphClient,
 		router:    routing.New(store),
 		authz:     authorizer,
+		metrics:   tel,
 		text:      text,
 		directory: newDirectoryCache(directoryTTL),
 		oidc:      &oidcProvider{},
@@ -142,8 +156,11 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger) (*ht
 	// and cancelling every in-flight request the moment SIGTERM arrives is the
 	// opposite of the draining shutdown in ADR 0003.
 	api.httpServer = &http.Server{
-		Addr:              cfg.Server.Addr,
-		Handler:           api.logging(api.localized(mux)),
+		Addr: cfg.Server.Addr,
+		// RouteTag sits beside the mux on purpose: see its comment. The
+		// instrumentation on the outside cannot see a pattern the mux wrote
+		// into a request that localized had already copied.
+		Handler:           tel.ServerMiddleware("teamster")(api.logging(api.localized(tel.RouteTag(mux)))),
 		ReadHeaderTimeout: readHeaderTimeout(cfg.Server.ReadTimeout),
 		ReadTimeout:       cfg.Server.ReadTimeout,
 		WriteTimeout:      cfg.Server.WriteTimeout,

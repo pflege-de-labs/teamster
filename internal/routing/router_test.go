@@ -77,6 +77,8 @@ func (s stubStore) ListActiveAlerts(fingerprint string) ([]models.ActiveAlert, e
 	return nil, store.ErrNotFound
 }
 
+func (s stubStore) CountActiveAlerts() (int64, error) { return 0, store.ErrNotFound }
+
 func (s stubStore) GetActiveAlert(fingerprint, teamID, channelID string) (models.ActiveAlert, error) {
 	return models.ActiveAlert{}, store.ErrNotFound
 }

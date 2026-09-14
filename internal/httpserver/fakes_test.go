@@ -367,6 +367,15 @@ func (f *fakeStore) ListActiveAlerts(fingerprint string) ([]models.ActiveAlert, 
 	return out, nil
 }
 
+func (f *fakeStore) CountActiveAlerts() (int64, error) {
+	if err := f.failing("CountActiveAlerts"); err != nil {
+		return 0, err
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return int64(len(f.activeAlerts)), nil
+}
+
 func (f *fakeStore) GetActiveAlert(fingerprint, teamID, channelID string) (models.ActiveAlert, error) {
 	if err := f.failing("GetActiveAlert"); err != nil {
 		return models.ActiveAlert{}, err

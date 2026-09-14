@@ -1,6 +1,7 @@
 package graph
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -9,8 +10,20 @@ import (
 	"testing"
 	"time"
 
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel/attribute"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric/metricdata"
+	tracenoop "go.opentelemetry.io/otel/trace/noop"
+
 	"github.com/pflege-de-labs/teamster/internal/config"
 )
+
+// uninstrumented is what a client gets when nobody is measuring: the transport
+// it was handed, unchanged.
+type uninstrumented struct{}
+
+func (uninstrumented) ClientTransport(base http.RoundTripper) http.RoundTripper { return base }
 
 // newTestClient points a client at a stub Graph API, bypassing the OAuth2
 // exchange that NewClient would otherwise perform against Entra.
@@ -32,7 +45,7 @@ func TestNewClient(t *testing.T) {
 		ClientSecret: "secret",
 		BaseURL:      "https://graph.example/v1.0",
 		TimeoutSec:   7,
-	})
+	}, uninstrumented{})
 	if err != nil {
 		t.Fatalf("NewClient: %v", err)
 	}
@@ -425,4 +438,90 @@ func names(teams []Team) []string {
 		out = append(out, team.Name)
 	}
 	return out
+}
+
+// Graph is the dependency most likely to be the problem, so the client's calls
+// are measured — including the ones that fail, which the error string alone
+// cannot tell apart from a timeout.
+func TestCallsAreMeasured(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		status     int
+		wantStatus int64
+	}{
+		{name: "a call that works", status: http.StatusOK, wantStatus: 200},
+		{name: "a call Graph refuses", status: http.StatusInternalServerError, wantStatus: 500},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			reader := sdkmetric.NewManualReader()
+			provider := sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader))
+			t.Cleanup(func() { _ = provider.Shutdown(context.Background()) })
+
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(tt.status)
+				_, _ = w.Write([]byte(`{"id":"message-1"}`))
+			}))
+			t.Cleanup(srv.Close)
+
+			client := &Client{
+				baseURL: srv.URL,
+				httpClient: &http.Client{
+					Transport: measuring{provider: provider}.ClientTransport(http.DefaultTransport),
+				},
+			}
+			_, _ = client.PostMessage("team", "channel", Message{Title: "hello"})
+
+			var collected metricdata.ResourceMetrics
+			if err := reader.Collect(context.Background(), &collected); err != nil {
+				t.Fatalf("collect: %v", err)
+			}
+
+			point := durationPoint(t, collected, "http.client.request.duration")
+			if got, ok := point.Attributes.Value(attribute.Key("http.response.status_code")); !ok || got.AsInt64() != tt.wantStatus {
+				t.Errorf("status attribute = %v, want %d", got.AsInt64(), tt.wantStatus)
+			}
+			if got, ok := point.Attributes.Value(attribute.Key("server.address")); !ok || got.AsString() == "" {
+				t.Error("no server.address attribute, so Graph cannot be told from the token endpoint")
+			}
+		})
+	}
+}
+
+// measuring is the real wrapper with a provider a test can read back.
+type measuring struct{ provider *sdkmetric.MeterProvider }
+
+func (m measuring) ClientTransport(base http.RoundTripper) http.RoundTripper {
+	return otelhttp.NewTransport(base,
+		otelhttp.WithMeterProvider(m.provider),
+		otelhttp.WithTracerProvider(tracenoop.NewTracerProvider()),
+	)
+}
+
+func durationPoint(t *testing.T, collected metricdata.ResourceMetrics, name string) metricdata.HistogramDataPoint[float64] {
+	t.Helper()
+
+	for _, scope := range collected.ScopeMetrics {
+		for _, m := range scope.Metrics {
+			if m.Name != name {
+				continue
+			}
+			histogram, ok := m.Data.(metricdata.Histogram[float64])
+			if !ok {
+				t.Fatalf("%s is %T, want a float histogram", name, m.Data)
+			}
+			if len(histogram.DataPoints) != 1 {
+				t.Fatalf("%s has %d data points, want 1", name, len(histogram.DataPoints))
+			}
+			return histogram.DataPoints[0]
+		}
+	}
+
+	t.Fatalf("no metric named %s was recorded", name)
+	return metricdata.HistogramDataPoint[float64]{}
 }

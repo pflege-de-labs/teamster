@@ -62,7 +62,16 @@ func TestParseExampleConfig(t *testing.T) {
 			WriteTimeout:    time.Minute,
 			IdleTimeout:     2 * time.Minute,
 		},
-		UI:       UIConfig{Language: "en"},
+		UI: UIConfig{Language: "en"},
+		Metrics: MetricsConfig{
+			Addr:            "127.0.0.1:9090",
+			Path:            "/metrics",
+			Prometheus:      true,
+			OTLPProtocol:    "http",
+			OTLPInterval:    time.Minute,
+			ShutdownTimeout: 5 * time.Second,
+			ServiceName:     "teamster",
+		},
 		Database: DatabaseConfig{Path: "teamster.db"},
 		Webhook:  WebhookConfig{Token: "replace-with-shared-token"},
 		Admin:    AdminConfig{Username: "admin", Password: "change-me"},
@@ -206,10 +215,10 @@ func TestParseEnvPrecedence(t *testing.T) {
 
 // Failing closed: an issuer without accepted values would admit everyone the
 // provider will authenticate.
-func TestValidateRefusesIncompleteOIDC(t *testing.T) {
-	t.Parallel()
-
-	complete := Config{
+// completeConfig is the smallest configuration Validate accepts, so a test can
+// break one thing and see only that break.
+func completeConfig() Config {
+	return Config{
 		Webhook: WebhookConfig{Token: "token"},
 		Admin:   AdminConfig{Username: "admin", Password: "secret"},
 		Graph:   GraphConfig{TenantID: "tenant", ClientID: "client", ClientSecret: "secret"},
@@ -220,6 +229,93 @@ func TestValidateRefusesIncompleteOIDC(t *testing.T) {
 			Claim:            "realm_access.roles",
 		},
 	}
+}
+
+// Metrics validation is gated on Enabled, so a deployment that wants none
+// configures none — and one that wants them is refused a listener nobody could
+// scrape.
+func TestValidateMetrics(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		mutate  func(*Config)
+		wantErr string
+	}{
+		{name: "disabled, and nothing else set", mutate: func(*Config) {}},
+		{
+			name: "enabled with the Prometheus exporter",
+			mutate: func(c *Config) {
+				c.Metrics = MetricsConfig{Enabled: true, Addr: "127.0.0.1:9090", Path: "/metrics", Prometheus: true}
+			},
+		},
+		{
+			name: "enabled with OTLP alone",
+			mutate: func(c *Config) {
+				c.Metrics = MetricsConfig{Enabled: true, OTLPEndpoint: "localhost:4318", OTLPInterval: time.Minute}
+			},
+		},
+		{
+			// Enabled and exporting nowhere is a listener nobody reads.
+			name:    "enabled with no exporter at all",
+			mutate:  func(c *Config) { c.Metrics = MetricsConfig{Enabled: true} },
+			wantErr: "neither the Prometheus exporter nor an OTLP endpoint",
+		},
+		{
+			name: "enabled without an address",
+			mutate: func(c *Config) {
+				c.Metrics = MetricsConfig{Enabled: true, Prometheus: true, Path: "/metrics"}
+			},
+			wantErr: "metrics addr is required",
+		},
+		{
+			// Both listeners would bind, and the second would fail with an
+			// error naming neither of them.
+			name: "sharing the server's address",
+			mutate: func(c *Config) {
+				c.Server.Addr = ":8080"
+				c.Metrics = MetricsConfig{Enabled: true, Prometheus: true, Addr: ":8080", Path: "/metrics"}
+			},
+			wantErr: "the address the server already listens on",
+		},
+		{
+			name: "a path that is not one",
+			mutate: func(c *Config) {
+				c.Metrics = MetricsConfig{Enabled: true, Prometheus: true, Addr: "127.0.0.1:9090", Path: "metrics"}
+			},
+			wantErr: "must start with a slash",
+		},
+		{
+			name: "an OTLP interval that never elapses",
+			mutate: func(c *Config) {
+				c.Metrics = MetricsConfig{Enabled: true, OTLPEndpoint: "localhost:4318"}
+			},
+			wantErr: "otlp-interval must be positive",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := completeConfig()
+			tt.mutate(&cfg)
+
+			err := Validate(cfg)
+			switch {
+			case tt.wantErr == "" && err != nil:
+				t.Errorf("Validate() = %v, want it accepted", err)
+			case tt.wantErr != "" && (err == nil || !strings.Contains(err.Error(), tt.wantErr)):
+				t.Errorf("Validate() = %v, want an error containing %q", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidateRefusesIncompleteOIDC(t *testing.T) {
+	t.Parallel()
+
+	complete := completeConfig()
 
 	tests := []struct {
 		name    string

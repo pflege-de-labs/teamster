@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/pflege-de-labs/teamster/internal/graph"
+	"github.com/pflege-de-labs/teamster/internal/metrics"
 	"github.com/pflege-de-labs/teamster/internal/models"
 	"github.com/pflege-de-labs/teamster/internal/routing"
 	"github.com/pflege-de-labs/teamster/internal/store"
@@ -23,6 +25,10 @@ func (s *Server) handleAlertmanager(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !s.webhookAuth(r) {
+		// Counted here because a refused token is otherwise a 401 nobody is
+		// watching, and "the sender's secret is wrong" looks exactly like "the
+		// sender stopped sending".
+		s.metrics.WebhookReceived(r.Context(), "alertmanager", "refused")
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
@@ -44,7 +50,8 @@ func (s *Server) handleAlertmanager(w http.ResponseWriter, r *http.Request) {
 			Generator:   alert.GeneratorURL,
 			Fingerprint: alert.Fingerprint,
 		}
-		if err := s.processAlert(model); err != nil {
+		s.metrics.WebhookReceived(r.Context(), model.Source, model.Status)
+		if err := s.processAlert(r.Context(), model); err != nil {
 			writeJSONError(w, http.StatusBadGateway, err.Error())
 			return
 		}
@@ -59,6 +66,7 @@ func (s *Server) handleUniversal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !s.webhookAuth(r) {
+		s.metrics.WebhookReceived(r.Context(), "universal", "refused")
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
@@ -80,7 +88,8 @@ func (s *Server) handleUniversal(w http.ResponseWriter, r *http.Request) {
 		Fingerprint: payload.Fingerprint,
 	}
 
-	if err := s.processAlert(model); err != nil {
+	s.metrics.WebhookReceived(r.Context(), model.Source, model.Status)
+	if err := s.processAlert(r.Context(), model); err != nil {
 		writeJSONError(w, http.StatusBadGateway, err.Error())
 		return
 	}
@@ -88,7 +97,7 @@ func (s *Server) handleUniversal(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
-func (s *Server) processAlert(alert models.Alert) error {
+func (s *Server) processAlert(ctx context.Context, alert models.Alert) error {
 	if alert.Fingerprint == "" {
 		alert.Fingerprint = hashFingerprint(alert)
 	}
@@ -108,22 +117,22 @@ func (s *Server) processAlert(alert models.Alert) error {
 	}
 
 	if alert.Status == "resolved" {
-		return s.resolveAlert(alert, result.Deliveries)
+		return s.resolveAlert(ctx, alert, result.Deliveries)
 	}
 
 	// One channel refusing the message must not cost the others theirs, so every
 	// delivery is attempted and the failures are reported together.
 	var failures []error
 	for _, delivery := range result.Deliveries {
-		if err := s.deliver(alert, delivery); err != nil {
+		if err := s.deliver(ctx, alert, delivery); err != nil {
 			failures = append(failures, fmt.Errorf("route %s: %w", delivery.RouteName, err))
 		}
 	}
 	return errors.Join(failures...)
 }
 
-func (s *Server) deliver(alert models.Alert, delivery routing.Delivery) error {
-	destination, msg, err := s.render(alert, delivery)
+func (s *Server) deliver(ctx context.Context, alert models.Alert, delivery routing.Delivery) error {
+	destination, msg, err := s.render(ctx, alert, delivery)
 	if err != nil {
 		return err
 	}
@@ -134,8 +143,10 @@ func (s *Server) deliver(alert models.Alert, delivery routing.Delivery) error {
 		// The card for this channel already exists, so the alert is an update to
 		// it rather than a second card.
 		if err := s.graph.UpdateMessage(active.TeamID, active.ChannelID, active.MessageID, msg); err != nil {
+			s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeFailed)
 			return fmt.Errorf("graph update: %w", err)
 		}
+		s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeUpdated)
 		active.Status = alert.Status
 		active.LastUpdate = time.Now().UTC()
 		return s.store.UpsertActiveAlert(active)
@@ -145,8 +156,10 @@ func (s *Server) deliver(alert models.Alert, delivery routing.Delivery) error {
 
 	messageID, err := s.graph.PostMessage(destination.TeamID, destination.ChannelID, msg)
 	if err != nil {
+		s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeFailed)
 		return fmt.Errorf("graph post: %w", err)
 	}
+	s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomePosted)
 
 	return s.store.UpsertActiveAlert(models.ActiveAlert{
 		Fingerprint: alert.Fingerprint,
@@ -161,7 +174,7 @@ func (s *Server) deliver(alert models.Alert, delivery routing.Delivery) error {
 // resolveAlert walks the cards that were posted rather than the plan, because
 // the routes may have changed since: a card in a channel the plan no longer
 // names still has to stop saying the alert is firing.
-func (s *Server) resolveAlert(alert models.Alert, plan []routing.Delivery) error {
+func (s *Server) resolveAlert(ctx context.Context, alert models.Alert, plan []routing.Delivery) error {
 	active, err := s.store.ListActiveAlerts(alert.Fingerprint)
 	if err != nil {
 		return fmt.Errorf("active alert lookup: %w", err)
@@ -175,7 +188,7 @@ func (s *Server) resolveAlert(alert models.Alert, plan []routing.Delivery) error
 			continue
 		}
 
-		_, msg, err := s.render(alert, delivery)
+		_, msg, err := s.render(ctx, alert, delivery)
 		if err != nil {
 			failures = append(failures, err)
 			continue
@@ -213,13 +226,15 @@ func (s *Server) deliveryFor(card models.ActiveAlert, plan []routing.Delivery) (
 	return plan[0], nil
 }
 
-func (s *Server) render(alert models.Alert, delivery routing.Delivery) (models.Destination, graph.Message, error) {
+func (s *Server) render(ctx context.Context, alert models.Alert, delivery routing.Delivery) (models.Destination, graph.Message, error) {
 	template, err := s.store.GetTemplate(delivery.TemplateID)
 	if err != nil {
+		s.metrics.RenderFailed(ctx, delivery.TemplateID, metrics.StageTemplate)
 		return models.Destination{}, graph.Message{}, fmt.Errorf("template: %w", err)
 	}
 	destination, err := s.store.GetDestination(delivery.DestinationID)
 	if err != nil {
+		s.metrics.RenderFailed(ctx, delivery.TemplateID, metrics.StageDestination)
 		return models.Destination{}, graph.Message{}, fmt.Errorf("destination: %w", err)
 	}
 
@@ -228,12 +243,23 @@ func (s *Server) render(alert models.Alert, delivery routing.Delivery) (models.D
 		Now:   time.Now().UTC().Format(time.RFC3339),
 	})
 	if err != nil {
+		s.metrics.RenderFailed(ctx, delivery.TemplateID, metrics.StageRender)
 		return models.Destination{}, graph.Message{}, fmt.Errorf("render: %w", err)
 	}
 
 	// The summary line is the template's to decide now; templates.RenderMessage
 	// falls back to the one this service used to hardcode.
 	return destination, graph.Message{Title: rendered.Title, Text: rendered.Text, Card: rendered.Card}, nil
+}
+
+// routeLabel is what a delivery is counted under. The name is what an operator
+// recognises, but nothing requires a route to have one, and an empty attribute
+// is a row in a dashboard that says nothing.
+func routeLabel(delivery routing.Delivery) string {
+	if delivery.RouteName != "" {
+		return delivery.RouteName
+	}
+	return delivery.RouteID
 }
 
 func hashFingerprint(alert models.Alert) string {

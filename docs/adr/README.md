@@ -31,3 +31,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0014](0014-card-editor.md) | Better JSON editing instead of a card designer | Accepted |
 | [0015](0015-localizable-ui.md) | The UI's text lives in per-language catalogs | Accepted |
 | [0016](0016-helm-chart.md) | The Helm chart ships in this repository and deploys a single SQLite writer | Accepted |
+| [0017](0017-metrics-through-opentelemetry.md) | Metrics are recorded once against OpenTelemetry and exported as native histograms | Accepted |

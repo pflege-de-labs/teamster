@@ -23,6 +23,26 @@ ui:
   # the built-in text, so wording can be changed without waiting for a release.
   locale-dir: ""
 
+# What the service says about itself. Off by default: the attributes name
+# routes, templates and channels, and the listener authenticates nobody — keep
+# it on an interface only your collector can reach.
+metrics:
+  enabled: false
+  addr: "127.0.0.1:9090"
+  path: "/metrics"
+  # Serves the Prometheus exporter, which emits native histograms. Prometheus
+  # must be started with --enable-feature=native-histograms to negotiate the
+  # protobuf exposition; without it the scrape silently degrades to a count and
+  # a sum, and every quantile becomes NaN.
+  prometheus: true
+  # Leave empty to run no OTLP exporter. host:port for grpc, a URL for http.
+  otlp-endpoint: ""
+  otlp-protocol: "http"
+  otlp-insecure: false
+  otlp-interval: "60s"
+  shutdown-timeout: "5s"
+  service-name: "teamster"
+
 # The local login, used at /admin/login and as basic auth for /api. Keep it
 # configured: it is the way back in if the identity provider is unreachable or
 # the claim below is wrong.

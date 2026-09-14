@@ -51,6 +51,10 @@ type Store interface {
 
 	UpsertActiveAlert(a models.ActiveAlert) error
 	ListActiveAlerts(fingerprint string) ([]models.ActiveAlert, error)
+	// CountActiveAlerts is how many cards this service is currently keeping up
+	// to date. It runs on every metrics collection, so it counts rather than
+	// reads.
+	CountActiveAlerts() (int64, error)
 	GetActiveAlert(fingerprint, teamID, channelID string) (models.ActiveAlert, error)
 	DeleteActiveAlert(fingerprint, teamID, channelID string) error
 }
