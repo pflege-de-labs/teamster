@@ -1,6 +1,7 @@
 package transfer
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"testing"
@@ -10,24 +11,25 @@ import (
 )
 
 func configured(t *testing.T) *store.SQLiteStore {
+	ctx := t.Context()
 	t.Helper()
 
-	st, err := store.NewSQLiteStore(t.TempDir() + "/teamster.db")
+	st, err := store.NewSQLiteStore(t.Context(), t.TempDir()+"/teamster.db")
 	if err != nil {
 		t.Fatalf("open store: %v", err)
 	}
 	t.Cleanup(func() { _ = st.Close() })
 
-	if _, err := st.CreateTemplate(models.Template{ID: "tmpl", Name: "Critical card", Body: `{"type":"AdaptiveCard"}`}); err != nil {
+	if _, err := st.CreateTemplate(ctx, models.Template{ID: "tmpl", Name: "Critical card", Body: `{"type":"AdaptiveCard"}`}); err != nil {
 		t.Fatalf("seed template: %v", err)
 	}
-	if _, err := st.CreateDestination(models.Destination{ID: "dest", Name: "Ops", TeamID: "team", ChannelID: "chan"}); err != nil {
+	if _, err := st.CreateDestination(ctx, models.Destination{ID: "dest", Name: "Ops", TeamID: "team", ChannelID: "chan"}); err != nil {
 		t.Fatalf("seed destination: %v", err)
 	}
-	if _, err := st.CreateRoute(models.Route{ID: "root", Name: "Critical", DestinationID: "dest", TemplateID: "tmpl", Priority: 100}); err != nil {
+	if _, err := st.CreateRoute(ctx, models.Route{ID: "root", Name: "Critical", DestinationID: "dest", TemplateID: "tmpl", Priority: 100}); err != nil {
 		t.Fatalf("seed route: %v", err)
 	}
-	if _, err := st.CreateGrant(models.Grant{ID: "grant", Role: "editor", TeamID: "team"}); err != nil {
+	if _, err := st.CreateGrant(ctx, models.Grant{ID: "grant", Role: "editor", TeamID: "team"}); err != nil {
 		t.Fatalf("seed grant: %v", err)
 	}
 	return st
@@ -41,7 +43,7 @@ func (fixedDirectory) ChannelName(string, string) string { return "Alerts" }
 func TestExportCarriesTheConfigurationAndNoSecrets(t *testing.T) {
 	t.Parallel()
 
-	bundle, err := Export(configured(t), fixedDirectory{})
+	bundle, err := Export(t.Context(), configured(t), fixedDirectory{})
 	if err != nil {
 		t.Fatalf("Export: %v", err)
 	}
@@ -66,7 +68,7 @@ func TestExportCarriesTheConfigurationAndNoSecrets(t *testing.T) {
 func TestExportWithoutADirectory(t *testing.T) {
 	t.Parallel()
 
-	bundle, err := Export(configured(t), nil)
+	bundle, err := Export(t.Context(), configured(t), nil)
 	if err != nil {
 		t.Fatalf("Export: %v", err)
 	}
@@ -171,12 +173,12 @@ func TestImportingAnExportChangesNothing(t *testing.T) {
 	t.Parallel()
 
 	st := configured(t)
-	bundle, err := Export(st, nil)
+	bundle, err := Export(t.Context(), st, nil)
 	if err != nil {
 		t.Fatalf("Export: %v", err)
 	}
 
-	result, err := Import(st, bundle, ModeReplace, false)
+	result, err := Import(t.Context(), st, bundle, ModeReplace, false)
 	if err != nil {
 		t.Fatalf("Import: %v", err)
 	}
@@ -186,7 +188,7 @@ func TestImportingAnExportChangesNothing(t *testing.T) {
 		}
 	}
 
-	after, err := Export(st, nil)
+	after, err := Export(t.Context(), st, nil)
 	if err != nil {
 		t.Fatalf("Export after import: %v", err)
 	}
@@ -196,6 +198,7 @@ func TestImportingAnExportChangesNothing(t *testing.T) {
 }
 
 func TestImportModes(t *testing.T) {
+	ctx := t.Context()
 	t.Parallel()
 
 	tests := []struct {
@@ -223,12 +226,12 @@ func TestImportModes(t *testing.T) {
 				Templates: []models.Template{{ID: "other", Name: "Other card", Body: "{}"}},
 			}
 
-			result, err := Import(st, bundle, tt.mode, false)
+			result, err := Import(t.Context(), st, bundle, tt.mode, false)
 			if err != nil {
 				t.Fatalf("Import: %v", err)
 			}
 
-			templates, err := st.ListTemplates()
+			templates, err := st.ListTemplates(ctx)
 			if err != nil {
 				t.Fatalf("ListTemplates: %v", err)
 			}
@@ -256,12 +259,13 @@ func TestImportModes(t *testing.T) {
 // of it — computed by running the import and rolling back, so the preview is of
 // the real thing rather than of a second implementation.
 func TestDryRunChangesNothing(t *testing.T) {
+	ctx := t.Context()
 	t.Parallel()
 
 	st := configured(t)
 	bundle := Bundle{Version: Version, Templates: []models.Template{{ID: "other", Name: "Other", Body: "{}"}}}
 
-	preview, err := Import(st, bundle, ModeReplace, true)
+	preview, err := Import(t.Context(), st, bundle, ModeReplace, true)
 	if err != nil {
 		t.Fatalf("dry run: %v", err)
 	}
@@ -269,12 +273,12 @@ func TestDryRunChangesNothing(t *testing.T) {
 		t.Fatalf("result = %+v, want a diff marked as a dry run", preview)
 	}
 
-	templates, _ := st.ListTemplates()
+	templates, _ := st.ListTemplates(ctx)
 	if len(templates) != 1 || templates[0].ID != "tmpl" {
 		t.Errorf("templates = %+v, want the configuration untouched", templates)
 	}
 
-	applied, err := Import(st, bundle, ModeReplace, false)
+	applied, err := Import(t.Context(), st, bundle, ModeReplace, false)
 	if err != nil {
 		t.Fatalf("Import: %v", err)
 	}
@@ -286,6 +290,7 @@ func TestDryRunChangesNothing(t *testing.T) {
 // A bundle that cannot be applied must leave the configuration as it was, which
 // is the whole reason the import runs in a transaction.
 func TestAFailedImportLeavesNothingBehind(t *testing.T) {
+	ctx := t.Context()
 	t.Parallel()
 
 	st := configured(t)
@@ -301,15 +306,15 @@ func TestAFailedImportLeavesNothingBehind(t *testing.T) {
 	}
 
 	failing := &refusingStore{Store: st, failOn: "new-root"}
-	if _, err := Import(failing, bundle, ModeMerge, false); err == nil {
-		t.Fatal("Import() = nil error, want the refusal to surface")
+	if _, err := Import(t.Context(), failing, bundle, ModeMerge, false); err == nil {
+		t.Fatal("Import(t.Context(), ) = nil error, want the refusal to surface")
 	}
 
-	templates, _ := st.ListTemplates()
+	templates, _ := st.ListTemplates(ctx)
 	if len(templates) != 1 {
 		t.Errorf("templates = %+v, want the failed import rolled back", templates)
 	}
-	destinations, _ := st.ListDestinations()
+	destinations, _ := st.ListDestinations(ctx)
 	if len(destinations) != 1 {
 		t.Errorf("destinations = %+v, want the failed import rolled back", destinations)
 	}
@@ -321,17 +326,17 @@ type refusingStore struct {
 	failOn string
 }
 
-func (r *refusingStore) WithTx(fn func(store.Store) error) error {
-	return r.Store.WithTx(func(tx store.Store) error {
-		return fn(&refusingStore{Store: tx, failOn: r.failOn})
+func (r *refusingStore) WithTx(ctx context.Context, fn func(context.Context, store.Store) error) error {
+	return r.Store.WithTx(ctx, func(ctx context.Context, tx store.Store) error {
+		return fn(ctx, &refusingStore{Store: tx, failOn: r.failOn})
 	})
 }
 
-func (r *refusingStore) CreateRoute(route models.Route) (models.Route, error) {
+func (r *refusingStore) CreateRoute(ctx context.Context, route models.Route) (models.Route, error) {
 	if route.ID == r.failOn {
 		return models.Route{}, errors.New("refused")
 	}
-	return r.Store.CreateRoute(route)
+	return r.Store.CreateRoute(ctx, route)
 }
 
 func TestParseMode(t *testing.T) {
@@ -351,6 +356,7 @@ func TestParseMode(t *testing.T) {
 // A child cannot be written before its parent exists, or the tree validation on
 // write refuses it.
 func TestRoutesAreWrittenParentsFirst(t *testing.T) {
+	ctx := t.Context()
 	t.Parallel()
 
 	st := configured(t)
@@ -365,11 +371,11 @@ func TestRoutesAreWrittenParentsFirst(t *testing.T) {
 		},
 	}
 
-	if _, err := Import(st, bundle, ModeReplace, false); err != nil {
+	if _, err := Import(t.Context(), st, bundle, ModeReplace, false); err != nil {
 		t.Fatalf("Import: %v", err)
 	}
 
-	routes, _ := st.ListRoutes()
+	routes, _ := st.ListRoutes(ctx)
 	if len(routes) != 2 {
 		t.Fatalf("routes = %+v, want both", routes)
 	}

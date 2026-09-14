@@ -20,7 +20,7 @@ type ExportCmd struct {
 }
 
 func (c *ExportCmd) Run(ctx context.Context, cfg *config.Config) error {
-	sqlStore, err := store.NewSQLiteStore(cfg.Database.Path)
+	sqlStore, err := store.NewSQLiteStore(ctx, cfg.Database.Path)
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
 	}
@@ -29,7 +29,7 @@ func (c *ExportCmd) Run(ctx context.Context, cfg *config.Config) error {
 	// No directory: resolving Team names needs Graph credentials, and an export
 	// from the command line should not depend on them. The ids are what the
 	// import reads; the names are a hint the server's export can add.
-	bundle, err := transfer.Export(sqlStore, nil)
+	bundle, err := transfer.Export(ctx, sqlStore, nil)
 	if err != nil {
 		return err
 	}
@@ -80,13 +80,13 @@ func (c *ImportCmd) Run(ctx context.Context, cfg *config.Config) error {
 		return fmt.Errorf("read bundle: %w", err)
 	}
 
-	sqlStore, err := store.NewSQLiteStore(cfg.Database.Path)
+	sqlStore, err := store.NewSQLiteStore(ctx, cfg.Database.Path)
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
 	}
 	defer func() { _ = sqlStore.Close() }()
 
-	result, err := transfer.Import(sqlStore, bundle, mode, c.DryRun)
+	result, err := transfer.Import(ctx, sqlStore, bundle, mode, c.DryRun)
 	if err != nil {
 		return err
 	}

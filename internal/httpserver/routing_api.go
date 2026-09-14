@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -61,13 +62,14 @@ type graphLink struct {
 }
 
 func (s *Server) handleRoutingGraph(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	if r.Method != http.MethodGet {
 		w.Header().Set("Allow", http.MethodGet)
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 
-	routes, destinations, templates, err := s.routingConfiguration(w)
+	routes, destinations, templates, err := s.routingConfiguration(ctx, w)
 	if err != nil {
 		return
 	}
@@ -81,13 +83,14 @@ func (s *Server) handleRoutingGraph(w http.ResponseWriter, r *http.Request) {
 // step an alert takes, and drawing it over the flow made one arrow mean two
 // things.
 func (s *Server) handleTemplateGraph(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	if r.Method != http.MethodGet {
 		w.Header().Set("Allow", http.MethodGet)
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 
-	routes, _, templates, err := s.routingConfiguration(w)
+	routes, _, templates, err := s.routingConfiguration(ctx, w)
 	if err != nil {
 		return
 	}
@@ -98,18 +101,18 @@ func (s *Server) handleTemplateGraph(w http.ResponseWriter, r *http.Request) {
 
 // routingConfiguration reads what both pictures are drawn from, reporting the
 // failure itself so each handler stays about its own graph.
-func (s *Server) routingConfiguration(w http.ResponseWriter) ([]models.Route, []models.Destination, []models.Template, error) {
-	routes, err := s.store.ListRoutes()
+func (s *Server) routingConfiguration(ctx context.Context, w http.ResponseWriter) ([]models.Route, []models.Destination, []models.Template, error) {
+	routes, err := s.store.ListRoutes(ctx)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return nil, nil, nil, err
 	}
-	destinations, err := s.store.ListDestinations()
+	destinations, err := s.store.ListDestinations(ctx)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return nil, nil, nil, err
 	}
-	templates, err := s.store.ListTemplates()
+	templates, err := s.store.ListTemplates(ctx)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return nil, nil, nil, err
@@ -467,6 +470,7 @@ func selectorSummary(selector map[string]string) string {
 }
 
 func (s *Server) handleRoutingMatch(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", http.MethodPost)
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -483,13 +487,13 @@ func (s *Server) handleRoutingMatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := s.router.Plan(req.Labels)
+	result, err := s.router.Plan(ctx, req.Labels)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	routes, err := s.store.ListRoutes()
+	routes, err := s.store.ListRoutes(ctx)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return

@@ -12,9 +12,10 @@ import (
 )
 
 func (s *Server) handleTemplates(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	switch r.Method {
 	case http.MethodGet:
-		items, err := s.store.ListTemplates()
+		items, err := s.store.ListTemplates(ctx)
 		if err != nil {
 			writeJSONError(w, http.StatusInternalServerError, err.Error())
 			return
@@ -30,7 +31,7 @@ func (s *Server) handleTemplates(w http.ResponseWriter, r *http.Request) {
 			writeJSONError(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		created, err := s.store.CreateTemplate(t)
+		created, err := s.store.CreateTemplate(ctx, t)
 		if err != nil {
 			writeJSONError(w, http.StatusInternalServerError, err.Error())
 			return
@@ -42,6 +43,7 @@ func (s *Server) handleTemplates(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleTemplateByID(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	id := strings.TrimPrefix(r.URL.Path, "/api/templates/")
 	if id == "" {
 		w.WriteHeader(http.StatusNotFound)
@@ -50,7 +52,7 @@ func (s *Server) handleTemplateByID(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case http.MethodGet:
-		item, err := s.store.GetTemplate(id)
+		item, err := s.store.GetTemplate(ctx, id)
 		if err != nil {
 			status := http.StatusInternalServerError
 			if errors.Is(err, store.ErrNotFound) {
@@ -71,14 +73,14 @@ func (s *Server) handleTemplateByID(w http.ResponseWriter, r *http.Request) {
 			writeJSONError(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		updated, err := s.store.UpdateTemplate(t)
+		updated, err := s.store.UpdateTemplate(ctx, t)
 		if err != nil {
 			writeJSONError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
 		writeJSON(w, http.StatusOK, updated)
 	case http.MethodDelete:
-		if err := s.store.DeleteTemplate(id); err != nil {
+		if err := s.store.DeleteTemplate(ctx, id); err != nil {
 			writeJSONError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
@@ -89,9 +91,10 @@ func (s *Server) handleTemplateByID(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDestinations(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	switch r.Method {
 	case http.MethodGet:
-		items, err := s.store.ListDestinations()
+		items, err := s.store.ListDestinations(ctx)
 		if err != nil {
 			writeJSONError(w, http.StatusInternalServerError, err.Error())
 			return
@@ -115,7 +118,7 @@ func (s *Server) handleDestinations(w http.ResponseWriter, r *http.Request) {
 			writeJSONError(w, http.StatusForbidden, errDeliveryRefused.Error())
 			return
 		}
-		created, err := s.store.CreateDestination(d)
+		created, err := s.store.CreateDestination(ctx, d)
 		if err != nil {
 			writeJSONError(w, http.StatusInternalServerError, err.Error())
 			return
@@ -127,6 +130,7 @@ func (s *Server) handleDestinations(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDestinationByID(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	id := strings.TrimPrefix(r.URL.Path, "/api/destinations/")
 	if id == "" {
 		w.WriteHeader(http.StatusNotFound)
@@ -135,7 +139,7 @@ func (s *Server) handleDestinationByID(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case http.MethodGet:
-		item, err := s.store.GetDestination(id)
+		item, err := s.store.GetDestination(ctx, id)
 		if err != nil {
 			status := http.StatusInternalServerError
 			if errors.Is(err, store.ErrNotFound) {
@@ -159,14 +163,14 @@ func (s *Server) handleDestinationByID(w http.ResponseWriter, r *http.Request) {
 			writeJSONError(w, http.StatusForbidden, errDeliveryRefused.Error())
 			return
 		}
-		updated, err := s.store.UpdateDestination(d)
+		updated, err := s.store.UpdateDestination(ctx, d)
 		if err != nil {
 			writeJSONError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
 		writeJSON(w, http.StatusOK, updated)
 	case http.MethodDelete:
-		if err := s.store.DeleteDestination(id); err != nil {
+		if err := s.store.DeleteDestination(ctx, id); err != nil {
 			writeJSONError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
@@ -177,9 +181,10 @@ func (s *Server) handleDestinationByID(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleRoutes(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	switch r.Method {
 	case http.MethodGet:
-		items, err := s.store.ListRoutes()
+		items, err := s.store.ListRoutes(ctx)
 		if err != nil {
 			writeJSONError(w, http.StatusInternalServerError, err.Error())
 			return
@@ -191,7 +196,7 @@ func (s *Server) handleRoutes(w http.ResponseWriter, r *http.Request) {
 			writeJSONError(w, http.StatusBadRequest, "invalid JSON")
 			return
 		}
-		if err := s.validateRoute(rt); err != nil {
+		if err := s.validateRoute(ctx, rt); err != nil {
 			writeJSONError(w, http.StatusBadRequest, err.Error())
 			return
 		}
@@ -202,7 +207,7 @@ func (s *Server) handleRoutes(w http.ResponseWriter, r *http.Request) {
 			writeJSONError(w, http.StatusForbidden, errDeliveryRefused.Error())
 			return
 		}
-		created, err := s.store.CreateRoute(rt)
+		created, err := s.store.CreateRoute(ctx, rt)
 		if err != nil {
 			writeJSONError(w, http.StatusInternalServerError, err.Error())
 			return
@@ -214,6 +219,7 @@ func (s *Server) handleRoutes(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleRouteByID(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	id := strings.TrimPrefix(r.URL.Path, "/api/routes/")
 	if id == "" {
 		w.WriteHeader(http.StatusNotFound)
@@ -222,7 +228,7 @@ func (s *Server) handleRouteByID(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case http.MethodGet:
-		item, err := s.store.GetRoute(id)
+		item, err := s.store.GetRoute(ctx, id)
 		if err != nil {
 			status := http.StatusInternalServerError
 			if errors.Is(err, store.ErrNotFound) {
@@ -239,7 +245,7 @@ func (s *Server) handleRouteByID(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		rt.ID = id
-		if err := s.validateRoute(rt); err != nil {
+		if err := s.validateRoute(ctx, rt); err != nil {
 			writeJSONError(w, http.StatusBadRequest, err.Error())
 			return
 		}
@@ -250,18 +256,18 @@ func (s *Server) handleRouteByID(w http.ResponseWriter, r *http.Request) {
 			writeJSONError(w, http.StatusForbidden, errDeliveryRefused.Error())
 			return
 		}
-		updated, err := s.store.UpdateRoute(rt)
+		updated, err := s.store.UpdateRoute(ctx, rt)
 		if err != nil {
 			writeJSONError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
 		writeJSON(w, http.StatusOK, updated)
 	case http.MethodDelete:
-		if err := s.validateRouteDelete(id); err != nil {
+		if err := s.validateRouteDelete(ctx, id); err != nil {
 			writeJSONError(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		if err := s.store.DeleteRoute(id); err != nil {
+		if err := s.store.DeleteRoute(ctx, id); err != nil {
 			writeJSONError(w, http.StatusInternalServerError, err.Error())
 			return
 		}

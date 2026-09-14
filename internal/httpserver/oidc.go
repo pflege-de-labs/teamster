@@ -111,12 +111,13 @@ func (s *Server) oauthConfig(provider *oidc.Provider) oauth2.Config {
 }
 
 func (s *Server) handleAuthStart(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	if !s.oidcEnabled() {
 		http.Redirect(w, r, "/admin/login?error=no+identity+provider+configured", http.StatusFound)
 		return
 	}
 
-	provider, err := s.discover(r.Context())
+	provider, err := s.discover(ctx)
 	if err != nil {
 		logError("oidc discovery", err)
 		http.Redirect(w, r, "/admin/login?error=identity+provider+unreachable", http.StatusFound)
@@ -135,7 +136,7 @@ func (s *Server) handleAuthStart(w http.ResponseWriter, r *http.Request) {
 	}
 	verifier := oauth2.GenerateVerifier()
 
-	if err := s.store.CreateLoginFlow(models.LoginFlow{
+	if err := s.store.CreateLoginFlow(ctx, models.LoginFlow{
 		State: state, Verifier: verifier, Nonce: nonce,
 		ExpiresAt: time.Now().UTC().Add(loginFlowTTL),
 	}); err != nil {
@@ -152,6 +153,7 @@ func (s *Server) handleAuthStart(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleAuthCallback(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	if !s.oidcEnabled() {
 		http.NotFound(w, r)
 		return
@@ -163,13 +165,13 @@ func (s *Server) handleAuthCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// The flow is redeemed here, so a replayed callback finds nothing.
-	flow, err := s.store.TakeLoginFlow(r.URL.Query().Get("state"))
+	flow, err := s.store.TakeLoginFlow(ctx, r.URL.Query().Get("state"))
 	if err != nil {
 		loginFailed(w, r, "this login did not start here, or it expired")
 		return
 	}
 
-	provider, err := s.discover(r.Context())
+	provider, err := s.discover(ctx)
 	if err != nil {
 		logError("oidc discovery", err)
 		loginFailed(w, r, "identity provider unreachable")
@@ -177,14 +179,14 @@ func (s *Server) handleAuthCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	config := s.oauthConfig(provider)
-	token, err := config.Exchange(r.Context(), r.URL.Query().Get("code"), oauth2.VerifierOption(flow.Verifier))
+	token, err := config.Exchange(ctx, r.URL.Query().Get("code"), oauth2.VerifierOption(flow.Verifier))
 	if err != nil {
 		logError("oidc exchange", err)
 		loginFailed(w, r, "the identity provider rejected the login")
 		return
 	}
 
-	subject, name, roles, err := s.verifyIDToken(r.Context(), provider, token, flow.Nonce)
+	subject, name, roles, err := s.verifyIDToken(ctx, provider, token, flow.Nonce)
 	if err != nil {
 		logError("oidc verify", err)
 		loginFailed(w, r, err.Error())

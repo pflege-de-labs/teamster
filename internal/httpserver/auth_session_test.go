@@ -95,6 +95,7 @@ func TestAPIStillAcceptsBasicAuth(t *testing.T) {
 }
 
 func TestLocalLoginCreatesASession(t *testing.T) {
+	ctx := t.Context()
 	t.Parallel()
 
 	st := newFakeStore()
@@ -110,7 +111,7 @@ func TestLocalLoginCreatesASession(t *testing.T) {
 	}
 
 	cookie := sessionCookieFrom(t, rec)
-	session, err := st.GetSession(cookie.Value)
+	session, err := st.GetSession(ctx, cookie.Value)
 	if err != nil {
 		t.Fatalf("the login did not store a session: %v", err)
 	}

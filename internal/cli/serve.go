@@ -20,14 +20,21 @@ import (
 // ServeCmd runs the HTTP server until ctx is cancelled.
 type ServeCmd struct{}
 
+// sessionSweeper is the one method the sweep needs. Taking the interface
+// rather than the store keeps the sweeper testable and independent of which
+// backend is open, in the spirit of ADR 0002.
+type sessionSweeper interface {
+	DeleteExpiredSessions(ctx context.Context) error
+}
+
 // sweepSessions clears expired sessions and abandoned login flows. Neither is
 // honoured once expired, so this only keeps the tables from growing.
-func sweepSessions(ctx context.Context, store *store.SQLiteStore) {
+func sweepSessions(ctx context.Context, store sessionSweeper) {
 	ticker := time.NewTicker(time.Hour)
 	defer ticker.Stop()
 
 	for {
-		if err := store.DeleteExpiredSessions(); err != nil {
+		if err := store.DeleteExpiredSessions(ctx); err != nil {
 			log.Printf("sweep sessions: %v", err)
 		}
 		select {
@@ -43,8 +50,14 @@ func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
 		return fmt.Errorf("config validation: %w", err)
 	}
 
-	sqlStore, err := store.NewSQLiteStore(cfg.Database.Path)
+	sqlStore, err := store.NewSQLiteStore(ctx, cfg.Database.Path)
 	if err != nil {
+		// A signal that arrives while the store is still opening is a
+		// shutdown, not a failure to start: there is nothing to report and
+		// nothing left to close.
+		if ctx.Err() != nil {
+			return nil
+		}
 		return fmt.Errorf("open db: %w", err)
 	}
 	defer func() { _ = sqlStore.Close() }()
@@ -66,8 +79,11 @@ func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
 		}
 	}()
 
-	if err := telemetry.ObserveActiveAlerts(func(context.Context) (int64, error) {
-		return sqlStore.CountActiveAlerts()
+	// The collection's own context, not the process one: the last collection
+	// is the one shutdown forces, by which time the process context is already
+	// cancelled and reading the gauge through it would fail.
+	if err := telemetry.ObserveActiveAlerts(func(ctx context.Context) (int64, error) {
+		return sqlStore.CountActiveAlerts(ctx)
 	}); err != nil {
 		return fmt.Errorf("active alerts gauge: %w", err)
 	}

@@ -1,6 +1,7 @@
 package routing
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"testing"
@@ -17,108 +18,118 @@ type stubStore struct {
 
 func (s stubStore) Close() error { return nil }
 
-func (s stubStore) ListTemplates() ([]models.Template, error) {
+func (s stubStore) ListTemplates(ctx context.Context) ([]models.Template, error) {
 	return nil, store.ErrNotFound
 }
 
-func (s stubStore) CreateTemplate(t models.Template) (models.Template, error) {
+func (s stubStore) CreateTemplate(ctx context.Context, t models.Template) (models.Template, error) {
 	return models.Template{}, store.ErrNotFound
 }
 
-func (s stubStore) UpdateTemplate(t models.Template) (models.Template, error) {
+func (s stubStore) UpdateTemplate(ctx context.Context, t models.Template) (models.Template, error) {
 	return models.Template{}, store.ErrNotFound
 }
 
-func (s stubStore) DeleteTemplate(id string) error { return store.ErrNotFound }
+func (s stubStore) DeleteTemplate(ctx context.Context, id string) error { return store.ErrNotFound }
 
-func (s stubStore) GetTemplate(id string) (models.Template, error) {
+func (s stubStore) GetTemplate(ctx context.Context, id string) (models.Template, error) {
 	return models.Template{}, store.ErrNotFound
 }
 
-func (s stubStore) ListDestinations() ([]models.Destination, error) {
+func (s stubStore) ListDestinations(ctx context.Context) ([]models.Destination, error) {
 	return nil, store.ErrNotFound
 }
 
-func (s stubStore) CreateDestination(d models.Destination) (models.Destination, error) {
+func (s stubStore) CreateDestination(ctx context.Context, d models.Destination) (models.Destination, error) {
 	return models.Destination{}, store.ErrNotFound
 }
 
-func (s stubStore) UpdateDestination(d models.Destination) (models.Destination, error) {
+func (s stubStore) UpdateDestination(ctx context.Context, d models.Destination) (models.Destination, error) {
 	return models.Destination{}, store.ErrNotFound
 }
 
-func (s stubStore) DeleteDestination(id string) error { return store.ErrNotFound }
+func (s stubStore) DeleteDestination(ctx context.Context, id string) error { return store.ErrNotFound }
 
-func (s stubStore) GetDestination(id string) (models.Destination, error) {
+func (s stubStore) GetDestination(ctx context.Context, id string) (models.Destination, error) {
 	return models.Destination{}, store.ErrNotFound
 }
 
-func (s stubStore) ListRoutes() ([]models.Route, error) {
+func (s stubStore) ListRoutes(ctx context.Context) ([]models.Route, error) {
 	return s.routes, s.err
 }
 
-func (s stubStore) CreateRoute(r models.Route) (models.Route, error) {
+func (s stubStore) CreateRoute(ctx context.Context, r models.Route) (models.Route, error) {
 	return models.Route{}, store.ErrNotFound
 }
 
-func (s stubStore) UpdateRoute(r models.Route) (models.Route, error) {
+func (s stubStore) UpdateRoute(ctx context.Context, r models.Route) (models.Route, error) {
 	return models.Route{}, store.ErrNotFound
 }
 
-func (s stubStore) DeleteRoute(id string) error { return store.ErrNotFound }
+func (s stubStore) DeleteRoute(ctx context.Context, id string) error { return store.ErrNotFound }
 
-func (s stubStore) GetRoute(id string) (models.Route, error) {
+func (s stubStore) GetRoute(ctx context.Context, id string) (models.Route, error) {
 	return models.Route{}, store.ErrNotFound
 }
 
-func (s stubStore) UpsertActiveAlert(a models.ActiveAlert) error { return store.ErrNotFound }
-
-func (s stubStore) ListActiveAlerts(fingerprint string) ([]models.ActiveAlert, error) {
-	return nil, store.ErrNotFound
-}
-
-func (s stubStore) CountActiveAlerts() (int64, error) { return 0, store.ErrNotFound }
-
-func (s stubStore) GetActiveAlert(fingerprint, teamID, channelID string) (models.ActiveAlert, error) {
-	return models.ActiveAlert{}, store.ErrNotFound
-}
-
-func (s stubStore) DeleteActiveAlert(fingerprint, teamID, channelID string) error {
+func (s stubStore) UpsertActiveAlert(ctx context.Context, a models.ActiveAlert) error {
 	return store.ErrNotFound
 }
 
-func (s stubStore) Ping() error { return nil }
+func (s stubStore) ListActiveAlerts(ctx context.Context, fingerprint string) ([]models.ActiveAlert, error) {
+	return nil, store.ErrNotFound
+}
 
-func (s stubStore) WithTx(func(store.Store) error) error { return store.ErrNotFound }
+func (s stubStore) CountActiveAlerts(ctx context.Context) (int64, error) { return 0, store.ErrNotFound }
 
-func (s stubStore) ListGrants() ([]models.Grant, error) { return nil, store.ErrNotFound }
+func (s stubStore) GetActiveAlert(ctx context.Context, fingerprint, teamID, channelID string) (models.ActiveAlert, error) {
+	return models.ActiveAlert{}, store.ErrNotFound
+}
 
-func (s stubStore) CreateGrant(models.Grant) (models.Grant, error) {
+func (s stubStore) DeleteActiveAlert(ctx context.Context, fingerprint, teamID, channelID string) error {
+	return store.ErrNotFound
+}
+
+func (s stubStore) Ping(ctx context.Context) error { return nil }
+
+func (s stubStore) WithTx(ctx context.Context, _ func(context.Context, store.Store) error) error {
+	return store.ErrNotFound
+}
+
+func (s stubStore) ListGrants(ctx context.Context) ([]models.Grant, error) {
+	return nil, store.ErrNotFound
+}
+
+func (s stubStore) CreateGrant(ctx context.Context, _ models.Grant) (models.Grant, error) {
 	return models.Grant{}, store.ErrNotFound
 }
 
-func (s stubStore) DeleteGrant(string) error { return store.ErrNotFound }
+func (s stubStore) DeleteGrant(ctx context.Context, _ string) error { return store.ErrNotFound }
 
-func (s stubStore) CreateSession(models.Session) error { return store.ErrNotFound }
+func (s stubStore) CreateSession(ctx context.Context, _ models.Session) error {
+	return store.ErrNotFound
+}
 
-func (s stubStore) GetSession(string) (models.Session, error) {
+func (s stubStore) GetSession(ctx context.Context, _ string) (models.Session, error) {
 	return models.Session{}, store.ErrNotFound
 }
 
-func (s stubStore) DeleteSession(string) error { return store.ErrNotFound }
+func (s stubStore) DeleteSession(ctx context.Context, _ string) error { return store.ErrNotFound }
 
-func (s stubStore) DeleteExpiredSessions() error { return store.ErrNotFound }
+func (s stubStore) DeleteExpiredSessions(ctx context.Context) error { return store.ErrNotFound }
 
-func (s stubStore) CreateLoginFlow(models.LoginFlow) error { return store.ErrNotFound }
+func (s stubStore) CreateLoginFlow(ctx context.Context, _ models.LoginFlow) error {
+	return store.ErrNotFound
+}
 
-func (s stubStore) TakeLoginFlow(string) (models.LoginFlow, error) {
+func (s stubStore) TakeLoginFlow(ctx context.Context, _ string) (models.LoginFlow, error) {
 	return models.LoginFlow{}, store.ErrNotFound
 }
 
 func planOf(t *testing.T, routes []models.Route, labels map[string]string) Result {
 	t.Helper()
 
-	result, err := New(stubStore{routes: routes}).Plan(labels)
+	result, err := New(stubStore{routes: routes}).Plan(t.Context(), labels)
 	if err != nil {
 		t.Fatalf("Plan: %v", err)
 	}
@@ -352,7 +363,7 @@ func TestPlanStopsAtMaxDepth(t *testing.T) {
 
 	done := make(chan Result, 1)
 	go func() {
-		result, err := New(stubStore{routes: routes}).Plan(map[string]string{"severity": "critical"})
+		result, err := New(stubStore{routes: routes}).Plan(t.Context(), map[string]string{"severity": "critical"})
 		if err != nil {
 			t.Errorf("Plan: %v", err)
 		}
@@ -372,7 +383,7 @@ func TestPlanStopsAtMaxDepth(t *testing.T) {
 func TestPlanReportsStoreFailures(t *testing.T) {
 	t.Parallel()
 
-	if _, err := New(stubStore{err: errors.New("store down")}).Plan(map[string]string{"severity": "critical"}); err == nil {
+	if _, err := New(stubStore{err: errors.New("store down")}).Plan(t.Context(), map[string]string{"severity": "critical"}); err == nil {
 		t.Fatal("Plan() = nil error, want the store failure to surface")
 	}
 }

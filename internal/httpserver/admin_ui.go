@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -19,6 +20,7 @@ import (
 // handleAdminPage renders the admin UI. Notices arrive as query parameters
 // because a form post answers with a redirect, which carries no body.
 func (s *Server) handleAdminPage(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	if r.Method != http.MethodGet {
 		w.Header().Set("Allow", http.MethodGet)
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -38,26 +40,26 @@ func (s *Server) handleAdminPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var err error
-	if page.Templates, err = s.store.ListTemplates(); err != nil {
+	if page.Templates, err = s.store.ListTemplates(ctx); err != nil {
 		page.Error = err.Error()
 	}
-	if page.Destinations, err = s.store.ListDestinations(); err != nil {
+	if page.Destinations, err = s.store.ListDestinations(ctx); err != nil {
 		page.Error = err.Error()
 	}
 	// A destination in a channel this session may not see is not theirs to read.
 	if page.Destinations, err = s.visibleDestinations(r, page.Destinations); err != nil {
 		page.Error = err.Error()
 	}
-	if page.Routes, err = s.store.ListRoutes(); err != nil {
+	if page.Routes, err = s.store.ListRoutes(ctx); err != nil {
 		page.Error = err.Error()
 	}
 
 	if selected := r.URL.Query().Get("edit"); selected != "" {
-		s.loadForEditing(&page, selected, r.URL.Query().Get("id"))
+		s.loadForEditing(ctx, &page, selected, r.URL.Query().Get("id"))
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := views.Admin(page).Render(r.Context(), w); err != nil {
+	if err := views.Admin(page).Render(ctx, w); err != nil {
 		log.Printf("render admin page: %v", err)
 	}
 }
@@ -65,7 +67,7 @@ func (s *Server) handleAdminPage(w http.ResponseWriter, r *http.Request) {
 // loadForEditing fills in the record a form should start from. A record that
 // has gone missing is reported on the page, which stays useful, rather than
 // turning the whole request into a 404.
-func (s *Server) loadForEditing(page *views.Page, section, id string) {
+func (s *Server) loadForEditing(ctx context.Context, page *views.Page, section, id string) {
 	if id == "" {
 		return
 	}
@@ -74,17 +76,17 @@ func (s *Server) loadForEditing(page *views.Page, section, id string) {
 	switch section {
 	case "templates":
 		var template models.Template
-		if template, err = s.store.GetTemplate(id); err == nil {
+		if template, err = s.store.GetTemplate(ctx, id); err == nil {
 			page.EditTemplate = &template
 		}
 	case "destinations":
 		var destination models.Destination
-		if destination, err = s.store.GetDestination(id); err == nil {
+		if destination, err = s.store.GetDestination(ctx, id); err == nil {
 			page.EditDestination = &destination
 		}
 	case "routes":
 		var route models.Route
-		if route, err = s.store.GetRoute(id); err == nil {
+		if route, err = s.store.GetRoute(ctx, id); err == nil {
 			page.EditRoute = &route
 		}
 	default:
@@ -161,6 +163,7 @@ func redirectToAdmin(w http.ResponseWriter, r *http.Request, notice, message str
 }
 
 func (s *Server) saveTemplate(r *http.Request) (string, error) {
+	ctx := r.Context()
 	template := models.Template{
 		ID:    r.PostFormValue("id"),
 		Name:  r.PostFormValue("name"),
@@ -172,18 +175,19 @@ func (s *Server) saveTemplate(r *http.Request) (string, error) {
 		return "", err
 	}
 	if template.ID == "" {
-		if _, err := s.store.CreateTemplate(template); err != nil {
+		if _, err := s.store.CreateTemplate(ctx, template); err != nil {
 			return "", err
 		}
 		return "Template created.", nil
 	}
-	if _, err := s.store.UpdateTemplate(template); err != nil {
+	if _, err := s.store.UpdateTemplate(ctx, template); err != nil {
 		return "", err
 	}
 	return "Template updated.", nil
 }
 
 func (s *Server) saveDestination(r *http.Request) (string, error) {
+	ctx := r.Context()
 	destination := models.Destination{
 		ID:        r.PostFormValue("id"),
 		Name:      r.PostFormValue("name"),
@@ -201,18 +205,19 @@ func (s *Server) saveDestination(r *http.Request) (string, error) {
 	}
 
 	if destination.ID == "" {
-		if _, err := s.store.CreateDestination(destination); err != nil {
+		if _, err := s.store.CreateDestination(ctx, destination); err != nil {
 			return "", err
 		}
 		return "Destination created.", nil
 	}
-	if _, err := s.store.UpdateDestination(destination); err != nil {
+	if _, err := s.store.UpdateDestination(ctx, destination); err != nil {
 		return "", err
 	}
 	return "Destination updated.", nil
 }
 
 func (s *Server) saveRoute(r *http.Request) (string, error) {
+	ctx := r.Context()
 	selector, err := parseSelector(r.PostFormValue("label_selector"))
 	if err != nil {
 		return "", err
@@ -236,7 +241,7 @@ func (s *Server) saveRoute(r *http.Request) (string, error) {
 		Greedy:        r.PostFormValue("greedy") == "true",
 		Priority:      priority,
 	}
-	if err := s.validateRoute(route); err != nil {
+	if err := s.validateRoute(ctx, route); err != nil {
 		return "", err
 	}
 	// A route is how an alert reaches a channel, so pointing one at a
@@ -249,12 +254,12 @@ func (s *Server) saveRoute(r *http.Request) (string, error) {
 		return "", errDeliveryRefused
 	}
 	if route.ID == "" {
-		if _, err := s.store.CreateRoute(route); err != nil {
+		if _, err := s.store.CreateRoute(ctx, route); err != nil {
 			return "", err
 		}
 		return "Route created.", nil
 	}
-	if _, err := s.store.UpdateRoute(route); err != nil {
+	if _, err := s.store.UpdateRoute(ctx, route); err != nil {
 		return "", err
 	}
 	return "Route updated.", nil
@@ -272,14 +277,16 @@ func parseSelector(raw string) (map[string]string, error) {
 }
 
 func (s *Server) deleteTemplate(r *http.Request) (string, error) {
-	if err := s.store.DeleteTemplate(r.PostFormValue("id")); err != nil {
+	ctx := r.Context()
+	if err := s.store.DeleteTemplate(ctx, r.PostFormValue("id")); err != nil {
 		return "", err
 	}
 	return "Template deleted.", nil
 }
 
 func (s *Server) deleteDestination(r *http.Request) (string, error) {
-	if err := s.store.DeleteDestination(r.PostFormValue("id")); err != nil {
+	ctx := r.Context()
+	if err := s.store.DeleteDestination(ctx, r.PostFormValue("id")); err != nil {
 		return "", err
 	}
 	return "Destination deleted.", nil
@@ -287,16 +294,16 @@ func (s *Server) deleteDestination(r *http.Request) (string, error) {
 
 // Both write paths validate the same way, because the tree rules are routing's
 // and neither the form nor the API may be the only place they hold.
-func (s *Server) validateRoute(route models.Route) error {
-	existing, err := s.store.ListRoutes()
+func (s *Server) validateRoute(ctx context.Context, route models.Route) error {
+	existing, err := s.store.ListRoutes(ctx)
 	if err != nil {
 		return err
 	}
 	return routing.ValidateRoute(route, existing)
 }
 
-func (s *Server) validateRouteDelete(id string) error {
-	existing, err := s.store.ListRoutes()
+func (s *Server) validateRouteDelete(ctx context.Context, id string) error {
+	existing, err := s.store.ListRoutes(ctx)
 	if err != nil {
 		return err
 	}
@@ -304,10 +311,11 @@ func (s *Server) validateRouteDelete(id string) error {
 }
 
 func (s *Server) deleteRoute(r *http.Request) (string, error) {
-	if err := s.validateRouteDelete(r.PostFormValue("id")); err != nil {
+	ctx := r.Context()
+	if err := s.validateRouteDelete(ctx, r.PostFormValue("id")); err != nil {
 		return "", err
 	}
-	if err := s.store.DeleteRoute(r.PostFormValue("id")); err != nil {
+	if err := s.store.DeleteRoute(ctx, r.PostFormValue("id")); err != nil {
 		return "", err
 	}
 	return "Route deleted.", nil

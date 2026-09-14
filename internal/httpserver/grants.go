@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -21,8 +22,9 @@ var errDeliveryRefused = errors.New("your roles are not granted that Team or cha
 // request rather than a cache: grants change when an admin changes them, and a
 // permission that lags behind the change is the kind of bug nobody finds.
 func (s *Server) scopeOf(r *http.Request) (authz.Scope, error) {
+	ctx := r.Context()
 	_, roles := principalOf(r)
-	grants, err := s.store.ListGrants()
+	grants, err := s.store.ListGrants(ctx)
 	if err != nil {
 		return authz.Scope{}, err
 	}
@@ -62,11 +64,12 @@ func (s *Server) mayDeliverTo(r *http.Request, teamID, channelID string) (bool, 
 // at a destination outside the grants is the same escape as creating the
 // destination there.
 func (s *Server) mayDeliverToDestination(r *http.Request, destinationID string) (bool, error) {
+	ctx := r.Context()
 	if destinationID == "" {
 		return true, nil
 	}
 
-	destination, err := s.store.GetDestination(destinationID)
+	destination, err := s.store.GetDestination(ctx, destinationID)
 	if err != nil {
 		// A route may point at a destination that does not exist; the graph
 		// shows that as a broken route rather than refusing to save it.
@@ -79,9 +82,10 @@ func (s *Server) mayDeliverToDestination(r *http.Request, destinationID string) 
 }
 
 func (s *Server) handleGrants(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	switch r.Method {
 	case http.MethodGet:
-		items, err := s.store.ListGrants()
+		items, err := s.store.ListGrants(ctx)
 		if err != nil {
 			writeJSONError(w, http.StatusInternalServerError, err.Error())
 			return
@@ -97,7 +101,7 @@ func (s *Server) handleGrants(w http.ResponseWriter, r *http.Request) {
 			writeJSONError(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		created, err := s.store.CreateGrant(grant)
+		created, err := s.store.CreateGrant(ctx, grant)
 		if err != nil {
 			writeJSONError(w, http.StatusInternalServerError, err.Error())
 			return
@@ -112,6 +116,7 @@ func (s *Server) handleGrants(w http.ResponseWriter, r *http.Request) {
 // page edits a whole tree of Teams and channels at once, and sending that as a
 // list of creates and deletes would leave a half-applied scope on any failure.
 func (s *Server) handleRoleGrants(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	if r.Method != http.MethodPut {
 		w.Header().Set("Allow", http.MethodPut)
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -150,7 +155,7 @@ func (s *Server) handleRoleGrants(w http.ResponseWriter, r *http.Request) {
 		wanted = append(wanted, grant)
 	}
 
-	if err := s.replaceRoleGrants(role, wanted); err != nil {
+	if err := s.replaceRoleGrants(ctx, role, wanted); err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -162,9 +167,9 @@ func (s *Server) handleRoleGrants(w http.ResponseWriter, r *http.Request) {
 // channels is still far inside this.
 const maxScopeBytes = 1 << 20
 
-func (s *Server) replaceRoleGrants(role string, wanted []models.Grant) error {
-	return s.store.WithTx(func(tx store.Store) error {
-		existing, err := tx.ListGrants()
+func (s *Server) replaceRoleGrants(ctx context.Context, role string, wanted []models.Grant) error {
+	return s.store.WithTx(ctx, func(ctx context.Context, tx store.Store) error {
+		existing, err := tx.ListGrants(ctx)
 		if err != nil {
 			return err
 		}
@@ -172,12 +177,12 @@ func (s *Server) replaceRoleGrants(role string, wanted []models.Grant) error {
 			if grant.Role != role {
 				continue
 			}
-			if err := tx.DeleteGrant(grant.ID); err != nil {
+			if err := tx.DeleteGrant(ctx, grant.ID); err != nil {
 				return err
 			}
 		}
 		for _, grant := range wanted {
-			if _, err := tx.CreateGrant(grant); err != nil {
+			if _, err := tx.CreateGrant(ctx, grant); err != nil {
 				return err
 			}
 		}
@@ -186,6 +191,7 @@ func (s *Server) replaceRoleGrants(role string, wanted []models.Grant) error {
 }
 
 func (s *Server) handleGrantByID(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	id := strings.TrimPrefix(r.URL.Path, "/api/grants/")
 	if id == "" {
 		w.WriteHeader(http.StatusNotFound)
@@ -196,7 +202,7 @@ func (s *Server) handleGrantByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.store.DeleteGrant(id); err != nil {
+	if err := s.store.DeleteGrant(ctx, id); err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -216,6 +222,7 @@ func validateGrant(grant models.Grant) error {
 }
 
 func (s *Server) saveGrant(r *http.Request) (string, error) {
+	ctx := r.Context()
 	grant := models.Grant{
 		Role:      strings.TrimSpace(r.PostFormValue("role")),
 		TeamID:    strings.TrimSpace(r.PostFormValue("team_id")),
@@ -224,14 +231,15 @@ func (s *Server) saveGrant(r *http.Request) (string, error) {
 	if err := validateGrant(grant); err != nil {
 		return "", err
 	}
-	if _, err := s.store.CreateGrant(grant); err != nil {
+	if _, err := s.store.CreateGrant(ctx, grant); err != nil {
 		return "", err
 	}
 	return "Grant created.", nil
 }
 
 func (s *Server) deleteGrant(r *http.Request) (string, error) {
-	if err := s.store.DeleteGrant(r.PostFormValue("id")); err != nil {
+	ctx := r.Context()
+	if err := s.store.DeleteGrant(ctx, r.PostFormValue("id")); err != nil {
 		return "", err
 	}
 	return "Grant deleted.", nil
