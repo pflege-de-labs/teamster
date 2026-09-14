@@ -129,9 +129,11 @@ every flag, and the values an enum flag accepts — `--database-driver <TAB>`
 offers `sqlite` and `postgres`. Regenerate it after upgrading and it picks up
 whatever the new release added.
 
-One gap worth knowing: in bash an enum flag completes to the value of its
-environment variable rather than to the enum's values. Commands and flags
-complete normally. zsh and fish offer the values.
+One thing to know about bash: because every flag here also reads an environment
+variable, an enum flag completes to that variable's current value instead of to
+the values the flag accepts — nothing when it is unset, and whatever it says
+when it is set, valid or not. Commands and flags complete normally, and zsh and
+fish offer the real values. Reported upstream.
 
 ## Schema migrations
 

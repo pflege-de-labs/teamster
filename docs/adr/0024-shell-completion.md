@@ -40,10 +40,17 @@ nothing, and it is not offered after `migrate`, where fish falls back to listing
 driven by the model rather than by pattern-matching the generated text, so it cannot rewrite a line
 that merely looks similar. It is narrow and it comes out when king grows the same fix.
 
-**We accept one gap.** In bash, a flag with an `enum` completes to the value of its environment
-variable rather than to the enum's values. Commands and flags still complete. That is an absence
-rather than a wrong answer, so it is documented in the README and left to upstream, unlike the fish
-behaviour, which actively misleads.
+**We accept one defect we did not fix.** In bash, a flag that has both an `enum` and an
+environment variable completes to the variable's current value instead of the enum's — offering
+nothing when it is unset, and whatever it holds when it is set, including a value the flag would
+reject. Every flag here has an environment variable, because `kong.DefaultEnvars` gives them one,
+so this affects all of them. Commands and flags still complete, and zsh and fish offer the real
+values.
+
+It is left to upstream rather than corrected locally because, unlike the fish nesting, the fix
+belongs inside king's bash generator rather than in a rewrite of its output: the enum and the
+environment variable should be offered together, which is a change to how the completion line is
+built and not to a condition on it.
 
 Alternatives considered:
 
@@ -71,5 +78,5 @@ script is worth less than none.
 The dependency brings `mmark` with it, for the man pages king can also generate and we do not use.
 The linker drops it: the binary grows by 0.05 MB, 0.2%.
 
-Two things are reported upstream — the fish nesting and the bash enum gap. If both are fixed, the
-local correction disappears and this decision becomes "use king".
+Two things are reported upstream — the fish nesting and the bash enum substitution. If both are
+fixed, the local correction disappears and this decision becomes "use king".
