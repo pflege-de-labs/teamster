@@ -19,27 +19,78 @@ Those five values have no default: teamster refuses to start without a webhook t
 login and a Graph credential. Use `credentials.existingSecret` instead of the three `--set`
 credentials in anything but a demo.
 
-## How the pod is run
+## Choosing a backend
 
-| `workload.kind` | Storage | When to use it |
+| `database.driver` | Shape | When |
 | --- | --- | --- |
-| `StatefulSet` (default) | `volumeClaimTemplate` managed by the chart | The normal case. The claim outlives the pod and follows it when it is rescheduled. |
-| `Deployment` | `persistence.existingClaim`, or `persistence.create=true` | A cluster where claims are provisioned separately from the workload. |
+| `sqlite` (default) | One pod, state in a file on a volume | A single instance with no other runtime dependency. |
+| `postgres` | Any number of pods sharing one database | More than one instance, and upgrades with no gap. |
 
-Both run exactly one replica, and the chart refuses `replicaCount` above 1: teamster keeps its
-state in SQLite, which takes a single writer, so a second replica would serve a database of its
-own. A `Deployment` rolls with the `Recreate` strategy, because a `ReadWriteOnce` volume admits
-one pod at a time.
+`workload.kind` is derived from the driver unless you set it: a StatefulSet for `sqlite`, whose
+file needs a claim that follows the pod, and a Deployment for `postgres`, which keeps nothing
+locally. Both can be overridden; the combinations that cannot work are refused at render time
+rather than deployed.
 
-`persistence.enabled=false` runs on an `emptyDir`. Every template, destination, route and active
-alert is then lost when the pod restarts — a demo setting, nothing more.
+With `sqlite` the chart refuses `replicaCount` above 1 — SQLite takes a single writer, so a second
+replica would serve a database of its own — and a Deployment rolls with `Recreate`, because a
+`ReadWriteOnce` volume admits one pod. With `postgres` there is no such limit: replicas roll with
+`maxUnavailable: 0` and a surge pod, and a multi-replica release gets a PodDisruptionBudget.
 
-### There is no remote-database mode yet
+`persistence` applies to `sqlite` only and is ignored under `postgres`, where nothing is written
+outside `/tmp`. `persistence.enabled=false` runs on an `emptyDir`: every template, destination,
+route and active alert is lost when the pod restarts, which is a demo setting and nothing more.
 
-`database.driver` accepts `sqlite` only. `postgres` is rejected at render time with a message
-rather than quietly ignored, so a values file written against a future release fails loudly
-instead of starting a server that keeps its state somewhere the operator did not expect. Adding
-Postgres is an application change first — see the [roadmap](../../docs/roadmap.md).
+### Bring your own Postgres
+
+**This chart does not deploy a Postgres, and that is deliberate.** Bundling a single-pod
+`postgresql` subchart on a PVC would make "teamster is highly available" mean "teamster now depends
+on something less available than the StatefulSet it replaced", while looking like the opposite. HA
+Postgres in Kubernetes is an operator's job or a managed service.
+
+What the chart does instead is read the secret that operator already created:
+
+```yaml
+database:
+  driver: postgres
+  postgres:
+    host: teamster-pg-rw
+    passwordFrom:
+      secretName: teamster-pg-app   # created by the Postgres operator
+      key: password
+replicaCount: 3
+```
+
+A cluster can be declared alongside the release with `extraObjects`, so one `helm install` still
+does everything:
+
+```yaml
+extraObjects:
+  postgres: |
+    apiVersion: postgresql.cnpg.io/v1
+    kind: Cluster
+    metadata:
+      name: teamster-pg
+    spec:
+      instances: 3
+      storage:
+        size: 5Gi
+      bootstrap:
+        initdb:
+          database: teamster
+          owner: teamster
+```
+
+### Migrations
+
+Migrations run when the process opens the database, guarded by an advisory lock so two instances
+starting together cannot both apply them. Set `config.settings.database.migrate=verify` to make it
+a step of its own instead — an instance then refuses to serve a database that is behind, naming
+`teamster migrate up`. Deployments whose application role has no DDL rights want that, and can run
+the command from a Job declared in `extraObjects`.
+
+There is no `helm.sh/hook` Job for it. Hooks render before the config and credentials Secrets they
+would need, and a failed hook leaves the release `failed` with the old pods still serving, which
+reads as "the upgrade did nothing" rather than "the migration failed".
 
 ## Configuration and credentials
 
@@ -62,6 +113,7 @@ these four must not also appear under `config.settings`:
 | `credentials.adminPassword` | `TEAMSTER_ADMIN_PASSWORD` |
 | `credentials.graphClientSecret` | `TEAMSTER_GRAPH_CLIENT_SECRET` |
 | `credentials.oidcClientSecret` (optional) | `TEAMSTER_AUTH_OIDC_CLIENT_SECRET` |
+| `credentials.databasePassword` | `TEAMSTER_DATABASE_POSTGRES_PASSWORD` |
 
 Set `credentials.existingSecret` to a secret you manage — sealed-secrets, external-secrets,
 whatever the cluster uses — and the chart creates none. That secret has to use the key names in
@@ -263,14 +315,19 @@ The [values.yaml](values.yaml) comments are the reference. The ones most often c
 
 | Key | Default | What it does |
 | --- | --- | --- |
-| `workload.kind` | `StatefulSet` | `StatefulSet` or `Deployment`. |
-| `replicaCount` | `1` | Must stay 1. |
+| `database.driver` | `sqlite` | `sqlite` or `postgres`. |
+| `database.postgres.host` | `""` | Required under `postgres`. |
+| `database.postgres.passwordFrom` | `{}` | Read the password from a secret somebody else owns. |
+| `workload.kind` | `""` | Derived from the driver; set to override. |
+| `replicaCount` | `1` | Must stay 1 under `sqlite`; any number under `postgres`. |
+| `pdb.enabled` | `true` | A disruption budget, for multi-replica `postgres` only. |
 | `persistence.enabled` | `true` | Off means an `emptyDir` and no durable state. |
 | `persistence.size` | `1Gi` | Size of the SQLite volume. |
 | `persistence.storageClass` | `""` | Empty uses the cluster default. |
 | `image.tag` | `""` | Defaults to the chart's `appVersion`. |
 | `config.settings` | see values | The config file, in teamster's own key names. |
 | `credentials.existingSecret` | `""` | Use a secret you manage. |
+| `credentials.databasePassword` | `""` | The Postgres password, if not using `passwordFrom`. |
 | `service.port` | `8080` | Port the Service publishes. |
 | `ingress.enabled` / `httpRoute.enabled` | `false` | How the service is published. |
 | `config.settings.metrics.enabled` | `false` | Opens the metrics listener and publishes its port. |

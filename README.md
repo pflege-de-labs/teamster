@@ -549,6 +549,21 @@ HTTPRoute, and `extraObjects` carries arbitrary resources alongside the release.
 There is no multi-replica mode: teamster keeps its state in SQLite, which takes a single writer.
 See the [chart README](charts/teamster/README.md) for the full set of values. Metrics there are a values
 key and an optional ServiceMonitor; the chart publishes the port and refuses a loopback address.
+For more than one replica, point it at a Postgres:
+
+```bash
+helm upgrade teamster oci://ghcr.io/pflege-de-labs/charts/teamster \
+  --reuse-values \
+  --set database.driver=postgres \
+  --set database.postgres.host=teamster-pg-rw \
+  --set database.postgres.passwordFrom.secretName=teamster-pg-app \
+  --set replicaCount=3
+```
+
+The chart deploys no Postgres of its own — a single-pod database bundled into the release would be
+less available than the StatefulSet it replaced. It reads the secret your Postgres operator or
+cloud provider already made. See the [chart README](charts/teamster/README.md) for the full set of
+values.
 
 ## Development
 

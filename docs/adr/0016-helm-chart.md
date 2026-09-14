@@ -1,6 +1,6 @@
 # 0016. The Helm chart ships in this repository and deploys a single SQLite writer
 
-* Status: Accepted
+* Status: Superseded by [0023](0023-chart-deploys-either-shape.md)
 * Date: 2026-09-11
 
 ## Context

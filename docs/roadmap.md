@@ -550,37 +550,37 @@ reaches nothing — the boundary is the pod network and a NetworkPolicy, not the
 
 Needs an ADR: it adds an export surface and a dependency that will be in every build.
 
-## Milestone 12 — More than one instance, more than SQLite
+## Milestone 12 — More than one instance, more than SQLite — done
 
-SQLite takes one writer, and the store runs its migrations at startup. Two replicas would race on
-both, so a deployment is one pod, `ReadWriteOnce`, and a restart is a gap in alert delivery.
+Several instances behind a service, each able to take any request, sharing one Postgres. SQLite
+remains the default and remains one pod.
 
-For most installations that is fine. For one where an alert that does not arrive is a real problem,
-it is not.
+### What it took
 
-### What actually blocks it
-
-* **The store.** `store.Store` is an interface and `httpserver.NewServer` takes it, so a second
-  implementation is a new type and a driver setting rather than a refactor. What is SQLite-shaped is
-  the migration code — `PRAGMA table_info`, and the `active_alerts` rebuild that exists because
-  SQLite cannot alter a primary key — the `DATETIME` declared-type guard, and `?` placeholders.
-* **Migrations on start.** Two instances starting together must not both migrate. An advisory lock
-  in the database, or a migration that runs as its own step, rather than every process racing.
-* **Alert state.** `active_alerts` is how a repeated `firing` finds its card instead of posting a
-  second one. Two instances handling the same alert concurrently need that to be atomic — a unique
-  key and an upsert that returns what it did, rather than the read-then-write there is today.
-* **The session and login-flow tables**, which are already shared state and would simply work.
-* **The directory cache**, which is per-process and would merely be warmed twice.
-
-Postgres is the obvious second backend: it is what the deployments that want two replicas already
-run.
+* **The store.** A context on every call, so a query can be cancelled by the request that issued
+  it or by a shutdown ([ADR 0018](adr/0018-store-takes-a-context.md)). Then goose for the schema,
+  which retired the `PRAGMA` inspection that ran on every open
+  ([ADR 0019](adr/0019-goose-migrations.md)), and sqlc for the queries, which is what made a second
+  dialect a generated file rather than a second hand-written implementation
+  ([ADR 0020](adr/0020-sqlc-generated-queries.md)).
+* **Migrations on start.** goose's Postgres session lock, so two instances starting together cannot
+  both apply them, plus `teamster migrate` and a `verify` mode for deployments that would rather
+  the schema were a step somebody watches.
+* **Alert state.** The read-then-write became a claim taken before the Graph call and completed
+  after it ([ADR 0021](adr/0021-claim-a-card-before-posting.md)). This turned out to be a bug in
+  the single-pod deployment too: `net/http` serves concurrently, so two Alertmanager requests for
+  one alert already posted two cards.
+* **The admin paths**, where a check and the write it guarded were two steps another writer could
+  get between. A unique index for grants, a transaction for the route tree.
+* **The session and login-flow tables**, which needed nothing, as expected.
+* **The directory cache**, still per-process and still fine.
+* **Postgres** ([ADR 0022](adr/0022-postgres-second-backend.md)) and the chart that deploys it
+  ([ADR 0023](adr/0023-chart-deploys-either-shape.md)).
 
 ### What it is not
 
 Not a queue, not leader election, not sharding. Two or three instances behind a service, each able
 to take any request, sharing one database. Anything more is a different service.
-
-Needs an ADR, and probably a second one for how migrations are sequenced.
 
 ## Milestone 13 — Alerts in a person's chat
 
@@ -679,7 +679,7 @@ permissions table is the first thing to read when this milestone starts, not the
 | — | 9 Card editor | 1.4 | done |
 | — | 10 Localizable UI | — | done |
 | — | 11 Metrics | — | done |
-| 9 | 12 More than one instance | 11 helps | ADR, and a second backend |
+| — | 12 More than one instance | 11 helps | done |
 | 10 | 13 Alerts in a person's chat | — | ADR choosing the route; a Teams app registration |
 
 1.3 sat after 1.4 because it was the only item waiting on someone else to grant a permission.
@@ -720,14 +720,26 @@ more strings to extract later, so if a second language is actually wanted, pull 
   parent's delivery, not its grandparent's.
 * Should a message that carries only text still be updated in place when an alert resolves, or is
   editing a plain message in Teams confusing in a way editing a card is not?
-* Should teamster grow a second store implementation? The Helm chart
-  ([ADR 0016](adr/0016-helm-chart.md)) deploys one pod because SQLite takes one writer, and it
-  rejects `database.driver=postgres` rather than pretending. A remote database would buy several
-  replicas and a backup story the cluster already has, at the cost of a schema, a migration path
-  and a second dialect in `internal/store`. That is now milestone 12, which is where the answer
-  belongs; what is still open is whether anybody wants it enough to build it.
+* Answered at milestone 12: teamster has a second store implementation. Postgres, chosen by
+  `database.driver`, with SQLite still the default for an installation that wants no runtime
+  dependency of its own.
 * Which identity should an alert in a chat come from — the person receiving it, or a bot? Route A
   makes the alert look like something the recipient wrote to themselves, which is the cheapest to
   build and the strangest to read. Decide before milestone 13 starts.
+* Read replicas. Nothing routes a read anywhere in particular, and `target_session_attrs` is only
+  reachable through the connection-URL escape hatch. Worth a first-class setting, or is the read
+  load simply too small to care?
+* The directory cache is per-process, so every replica warms its own and each pays Graph for it. A
+  shared table, or leave it?
+* `sweepSessions` runs hourly in every replica against the same tables. It is an idempotent set
+  delete with no user-visible effect, so duplicating it is harmless and leader-electing it would
+  add a lease, renewal and clock assumptions to protect a `DELETE`. Leave it, or is the waste worth
+  removing?
+* Nothing stops two routes claiming `is_default`; `selectRoot` takes whichever sorts first. A
+  partial unique index would express it, but it is a new rule rather than a race, and a migration
+  that fails on an installation which already has two needs its own thought.
+* pgbouncer in transaction-pooling mode: safe, or does the store hold session state? Prepared
+  statements and advisory locks are session-scoped, so this needs an answer before it is documented
+  as supported.
 * Vendored JavaScript has no update path today. A checksum file and a documented refresh procedure
   are the minimum; a `make vendor` target may be worth it.
