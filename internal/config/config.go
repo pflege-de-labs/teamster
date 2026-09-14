@@ -84,6 +84,13 @@ type GraphConfig struct {
 	ClientSecret string `help:"Microsoft Entra client secret."`
 	BaseURL      string `help:"Microsoft Graph API base URL." default:"https://graph.microsoft.com/v1.0"`
 	TimeoutSec   int    `help:"Timeout in seconds for Graph API calls." default:"10"`
+
+	// The token endpoint cannot have a static default because it carries the
+	// tenant id, so an empty value means the public cloud's. A sovereign cloud
+	// needs this and base-url and scope changed together; a test needs it to
+	// point somewhere it controls.
+	TokenURL string `help:"OAuth2 token endpoint. Empty derives the public Microsoft Entra endpoint for graph-tenant-id." name:"token-url"`
+	Scope    string `help:"OAuth2 scope requested for Graph." default:"https://graph.microsoft.com/.default"`
 }
 
 // validateMetrics refuses a configuration that would start a listener nobody

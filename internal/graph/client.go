@@ -84,6 +84,24 @@ func (m Message) request() MessageRequest {
 	return req
 }
 
+// TokenURL is where this client asks for a token: the configured endpoint, or
+// the public Microsoft Entra one for the tenant when none is set. It is
+// exported because "which endpoint am I actually authenticating against" is a
+// question worth being able to answer from outside this package.
+func TokenURL(cfg config.GraphConfig) string {
+	if cfg.TokenURL != "" {
+		return cfg.TokenURL
+	}
+	return fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/token", cfg.TenantID)
+}
+
+func scopeOf(cfg config.GraphConfig) string {
+	if cfg.Scope != "" {
+		return cfg.Scope
+	}
+	return "https://graph.microsoft.com/.default"
+}
+
 // instrumentation wraps the transport this client calls Graph through. It lives
 // here rather than in the metrics package so that graph depends on nothing but
 // an interface — and so a test can pass one that does nothing.
@@ -95,8 +113,8 @@ func NewClient(cfg config.GraphConfig, tel instrumentation) (*Client, error) {
 	oauthCfg := clientcredentials.Config{
 		ClientID:     cfg.ClientID,
 		ClientSecret: cfg.ClientSecret,
-		TokenURL:     fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/token", cfg.TenantID),
-		Scopes:       []string{"https://graph.microsoft.com/.default"},
+		TokenURL:     TokenURL(cfg),
+		Scopes:       []string{scopeOf(cfg)},
 	}
 
 	// The instrumented transport goes underneath oauth2's, not around it. A

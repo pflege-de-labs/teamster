@@ -63,6 +63,23 @@ graph:
 Unknown keys are ignored silently, so a misspelled key shows up as a startup failure in
 validation. See [config.example.yaml](config.example.yaml) for the full set.
 
+### Talking to something other than the public Graph
+
+`graph.base-url`, `graph.token-url` and `graph.scope` are the three settings that decide which
+Graph this talks to. Leaving `token-url` empty derives
+`https://login.microsoftonline.com/<tenant-id>/oauth2/v2.0/token`, which is what a normal
+deployment wants.
+
+Change all three together for a sovereign cloud, or point them at a server you control to exercise
+delivery without a Microsoft tenant:
+
+```yaml
+graph:
+  base-url: "http://127.0.0.1:18500"
+  token-url: "http://127.0.0.1:18500/token"
+  scope: "http://127.0.0.1:18500/.default"
+```
+
 ## Webhooks
 
 ### Alertmanager (0.31)

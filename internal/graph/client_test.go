@@ -525,3 +525,34 @@ func durationPoint(t *testing.T, collected metricdata.ResourceMetrics, name stri
 	t.Fatalf("no metric named %s was recorded", name)
 	return metricdata.HistogramDataPoint[float64]{}
 }
+
+func TestTokenURL(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		cfg  config.GraphConfig
+		want string
+	}{
+		{
+			name: "the public cloud endpoint is derived from the tenant",
+			cfg:  config.GraphConfig{TenantID: "tenant-1"},
+			want: "https://login.microsoftonline.com/tenant-1/oauth2/v2.0/token",
+		},
+		{
+			name: "a configured endpoint is used as it stands",
+			cfg:  config.GraphConfig{TenantID: "tenant-1", TokenURL: "https://login.example/token"},
+			want: "https://login.example/token",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := TokenURL(tt.cfg); got != tt.want {
+				t.Errorf("TokenURL() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}

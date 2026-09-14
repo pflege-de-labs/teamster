@@ -89,6 +89,7 @@ func TestParseExampleConfig(t *testing.T) {
 			ClientID:     "your-client-id",
 			ClientSecret: "your-client-secret",
 			BaseURL:      "https://graph.microsoft.com/v1.0",
+			Scope:        "https://graph.microsoft.com/.default",
 			TimeoutSec:   10,
 		},
 	}
