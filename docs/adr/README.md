@@ -38,3 +38,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0021](0021-claim-a-card-before-posting.md) | A card is claimed before it is posted | Accepted |
 | [0022](0022-postgres-second-backend.md) | Postgres is the second storage backend | Accepted |
 | [0023](0023-chart-deploys-either-shape.md) | The chart deploys either shape | Accepted |
+| [0024](0024-shell-completion.md) | Shell completion is generated from the command tree | Accepted |
