@@ -124,9 +124,12 @@ func TestConformanceTemplates(t *testing.T) {
 		if err != nil {
 			t.Fatalf("GetTemplate: %v", err)
 		}
-		// Postgres keeps microseconds, SQLite keeps nanoseconds, so an exact
-		// comparison would pass on one backend and fail on the other.
-		if !got.CreatedAt.Round(time.Microsecond).Equal(created.CreatedAt.Round(time.Microsecond)) {
+		// Postgres keeps microseconds and SQLite keeps nanoseconds, so an exact
+		// comparison fails on Postgres. Truncate rather than round: Postgres
+		// truncates, so rounding disagrees with it whenever the digits it drops
+		// come to half a microsecond or more -- which is a test that passes
+		// most of the time, the worst kind.
+		if !got.CreatedAt.Truncate(time.Microsecond).Equal(created.CreatedAt.Truncate(time.Microsecond)) {
 			t.Errorf("CreatedAt = %v, want %v", got.CreatedAt, created.CreatedAt)
 		}
 		if got.Name != "Card" {
