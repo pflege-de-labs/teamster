@@ -96,15 +96,39 @@ jobs:
 
       # The chart refuses what the application cannot do; a rendering run that
       # succeeds here means the guard is gone.
+      # Each of these is a deployment that would start and then be wrong, which
+      # is why the chart refuses it at render time rather than at three in the
+      # morning.
       - name: Reject the unsupported combinations
         run: |
-          for args in "--set database.driver=postgres" "--set replicaCount=2" "--set workload.kind=Deployment"; do
-            if helm template teamster charts/teamster \
-              --values charts/teamster/ci/statefulset-values.yaml $args >/dev/null 2>&1; then
-              echo "chart accepted $args, which it must reject" >&2
+          reject() {
+            if helm template teamster charts/teamster "$@" >/dev/null 2>&1; then
+              echo "chart accepted: $*" >&2
               exit 1
             fi
-          done
+          }
+          sqlite="--values charts/teamster/ci/statefulset-values.yaml"
+          postgres="--values charts/teamster/ci/postgres-values.yaml"
+
+          # SQLite takes one writer, and a Deployment needs a claim that outlives the pod.
+          reject $sqlite --set replicaCount=2
+          reject $sqlite --set workload.kind=Deployment
+          # A driver nothing implements.
+          reject $sqlite --set database.driver=cassandra
+          # Postgres without somewhere to connect, or without a password.
+          reject --set database.driver=postgres --set credentials.webhookToken=t \
+            --set credentials.adminPassword=p --set credentials.graphClientSecret=s
+          reject --set database.driver=postgres --set database.postgres.host=db \
+            --set credentials.webhookToken=t --set credentials.adminPassword=p \
+            --set credentials.graphClientSecret=s
+          # Two passwords, which is one too many to reason about.
+          reject $postgres --set database.postgres.passwordFrom.secretName=other
+          # A claim a postgres release has no use for.
+          reject $postgres --set persistence.existingClaim=data-teamster-0
+          # A secret in the config file, where it would beat the environment
+          # variable that carries it.
+          reject $postgres --set config.settings.database.postgres.password=leaked
+          reject $sqlite --set config.settings.webhook.token=leaked
 
   image:
     runs-on: ubuntu-latest

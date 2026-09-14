@@ -1,7 +1,7 @@
 {{- include "teamster.validate" . -}}
-{{- if eq .Values.workload.kind "Deployment" -}}
+{{- if eq (include "teamster.workloadKind" .) "Deployment" -}}
 {{- $claim := dict "name" "data" "emptyDir" (dict) -}}
-{{- if .Values.persistence.enabled -}}
+{{- if and (include "teamster.usesDataVolume" .) .Values.persistence.enabled -}}
 {{- $claim = dict "name" "data" "persistentVolumeClaim" (dict "claimName" (include "teamster.claimName" .)) -}}
 {{- end -}}
 apiVersion: apps/v1
@@ -16,10 +16,8 @@ metadata:
   {{- end }}
 spec:
   replicas: {{ .Values.replicaCount }}
-  {{- /* A ReadWriteOnce volume admits one pod, so the old one has to go
-         before the new one starts. */}}
   strategy:
-    type: Recreate
+    {{- include "teamster.deploymentStrategy" . | nindent 4 }}
   selector:
     matchLabels:
       {{- include "teamster.selectorLabels" . | nindent 6 }}

@@ -1,0 +1,29 @@
+# Several replicas sharing a Postgres somebody else runs, which is what the
+# whole storage-backend change was for.
+database:
+  driver: postgres
+  postgres:
+    host: pg-rw.databases.svc
+    dbname: teamster
+    user: teamster
+    sslmode: require
+
+replicaCount: 3
+
+credentials:
+  webhookToken: ci-token
+  adminUsername: admin
+  adminPassword: ci-password
+  graphClientSecret: ci-graph-secret
+  databasePassword: ci-database-password
+
+config:
+  settings:
+    graph:
+      tenant-id: ci-tenant
+      client-id: ci-client
+
+httpRoute:
+  enabled: true
+  hostnames:
+    - teamster.ci

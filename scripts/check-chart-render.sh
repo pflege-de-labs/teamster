@@ -77,9 +77,39 @@ for values in "$chart"/ci/*-values.yaml; do
 	# The service has to point at the port the probes name.
 	contains "$workload" "$name $kind" "name: http"
 
-	# Configuration and state, which a pod without them starts and then cannot
-	# do anything useful.
-	contains "$workload" "$name $kind" "mountPath: /etc/xdg/teamster" "name: data"
+	# Configuration, which a pod without it starts and then cannot do anything
+	# useful.
+	contains "$workload" "$name $kind" "mountPath: /etc/xdg/teamster"
+
+	# State, which depends on where it lives. A sqlite release must mount a
+	# data volume; a postgres one must not, because mounting a volume nothing
+	# writes to is how a Deployment quietly acquires a ReadWriteOnce claim and
+	# stops being able to roll.
+	driver=$(grep -m1 -E '^ +driver: ' <<<"$rendered" | awk '{print $2}')
+	case "${driver:-sqlite}" in
+	sqlite)
+		contains "$workload" "$name $kind" "name: data"
+		grep -q "kind: PodDisruptionBudget" <<<"$rendered" &&
+			fail "$name renders a disruption budget for a single-writer release"
+		;;
+	postgres)
+		grep -q "name: data" <<<"$workload" &&
+			fail "$name mounts a data volume, which a postgres release has no use for"
+		contains "$rendered" "$name credentials" "TEAMSTER_DATABASE_POSTGRES_PASSWORD"
+		# The password must never be in the config file: a value there beats the
+		# environment variable that carries it.
+		config=$(awk '/config.yaml: \|/,/^---$/' <<<"$rendered")
+		grep -q "password" <<<"$config" &&
+			fail "$name writes a database password into the config file"
+		replicas=$(grep -m1 -E '^  replicas: ' <<<"$workload" | awk '{print $2}')
+		if [ "${replicas:-1}" -gt 1 ]; then
+			contains "$rendered" "$name" "kind: PodDisruptionBudget"
+		fi
+		;;
+	*)
+		fail "$name renders an unknown driver ${driver}"
+		;;
+	esac
 
 	# The metrics port is published by two templates from one setting. Drift
 	# between them is a Service that resolves to nothing, or a listener nothing

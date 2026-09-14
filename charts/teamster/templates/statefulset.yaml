@@ -1,7 +1,7 @@
 {{- include "teamster.validate" . -}}
-{{- if eq .Values.workload.kind "StatefulSet" -}}
+{{- if eq (include "teamster.workloadKind" .) "StatefulSet" -}}
 {{- $claim := "" -}}
-{{- if not .Values.persistence.enabled -}}
+{{- if or (not (include "teamster.usesDataVolume" .)) (not .Values.persistence.enabled) -}}
 {{- $claim = dict "name" "data" "emptyDir" (dict) -}}
 {{- else if .Values.persistence.existingClaim -}}
 {{- $claim = dict "name" "data" "persistentVolumeClaim" (dict "claimName" .Values.persistence.existingClaim) -}}
@@ -26,7 +26,7 @@ spec:
   updateStrategy:
     {{- toYaml . | nindent 4 }}
   {{- end }}
-  {{- if and .Values.persistence.enabled (not .Values.persistence.existingClaim) }}
+  {{- if and (include "teamster.usesDataVolume" .) .Values.persistence.enabled (not .Values.persistence.existingClaim) }}
   {{- with .Values.persistence.retentionPolicy }}
   persistentVolumeClaimRetentionPolicy:
     {{- toYaml . | nindent 4 }}

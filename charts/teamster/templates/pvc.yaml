@@ -3,7 +3,7 @@ Deployment mode has no volumeClaimTemplate, so the claim carrying the SQLite
 file is a resource of its own. It is kept on uninstall by default: the alert
 state and the admin configuration live in it.
 */ -}}
-{{- if and (eq .Values.workload.kind "Deployment") .Values.persistence.enabled .Values.persistence.create (not .Values.persistence.existingClaim) }}
+{{- if and (include "teamster.usesDataVolume" .) (eq (include "teamster.workloadKind" .) "Deployment") .Values.persistence.enabled .Values.persistence.create (not .Values.persistence.existingClaim) }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:

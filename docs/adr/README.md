@@ -30,10 +30,11 @@ Architectural decisions are recorded here, one file per decision, in
 | [0013](0013-configuration-transfer.md) | Configuration moves as a versioned JSON bundle | Accepted |
 | [0014](0014-card-editor.md) | Better JSON editing instead of a card designer | Accepted |
 | [0015](0015-localizable-ui.md) | The UI's text lives in per-language catalogs | Accepted |
-| [0016](0016-helm-chart.md) | The Helm chart ships in this repository and deploys a single SQLite writer | Accepted |
+| [0016](0016-helm-chart.md) | The Helm chart ships in this repository and deploys a single SQLite writer | Superseded by 0023 |
 | [0017](0017-metrics-through-opentelemetry.md) | Metrics are recorded once against OpenTelemetry and exported as native histograms | Accepted |
 | [0018](0018-store-takes-a-context.md) | Every store call takes a context | Accepted |
 | [0019](0019-goose-migrations.md) | The schema is a numbered set of goose migrations | Accepted |
 | [0020](0020-sqlc-generated-queries.md) | Queries are generated from SQL by sqlc | Accepted |
 | [0021](0021-claim-a-card-before-posting.md) | A card is claimed before it is posted | Accepted |
 | [0022](0022-postgres-second-backend.md) | Postgres is the second storage backend | Accepted |
+| [0023](0023-chart-deploys-either-shape.md) | The chart deploys either shape | Accepted |

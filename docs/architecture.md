@@ -75,11 +75,14 @@ newest stable release. See [ADR 0006](adr/0006-release-rebuild-sbom-signing.md).
 ### Kubernetes
 
 The Helm chart in [charts/teamster](../charts/teamster) deploys the image, and it is published as
-an OCI artifact to `ghcr.io/pflege-de-labs/charts`. It runs one pod: SQLite takes a single writer,
-so the chart rejects a `replicaCount` above 1 and rejects `database.driver=postgres`, which no
-store implements. The default workload is a StatefulSet whose `volumeClaimTemplate` carries
-`/data`; a Deployment against an existing claim is offered for clusters that provision storage
-separately, and rolls with `Recreate` because a `ReadWriteOnce` volume admits one pod.
+an OCI artifact to `ghcr.io/pflege-de-labs/charts`. The deployment shape is derived from
+`database.driver`: a StatefulSet whose `volumeClaimTemplate` carries `/data` for `sqlite`, and a
+Deployment for `postgres`, which keeps nothing locally. A sqlite release is one pod, because SQLite
+takes a single writer, and rolls with `Recreate`; a postgres release is as many as asked for, rolls
+with `maxUnavailable: 0` and a surge pod, and gets a PodDisruptionBudget once there is more than
+one. The chart deploys no Postgres of its own — a bundled single-pod database would be less
+available than the StatefulSet it replaced — and reads the secret an operator or provider already
+made through `database.postgres.passwordFrom`.
 
 Configuration follows the precedence the binary implements. The config file is rendered into a
 Secret and mounted at `/etc/xdg/teamster/config.yaml`, while the webhook token, the admin login and
@@ -87,8 +90,9 @@ the Graph and OIDC client secrets arrive as `TEAMSTER_*` environment variables f
 secret — which works only because an environment variable is honoured when no config file sets that
 key, so those four stay out of the file. Both secrets are hashed into pod annotations, so a changed
 value rolls the pod. The service is published through an Ingress or a Gateway API `HTTPRoute`, and
-`extraObjects` carries whatever else a deployment needs. See
-[ADR 0016](adr/0016-helm-chart.md).
+`extraObjects` carries whatever else a deployment needs. A secret written into `config.settings` is
+a render-time error, because a config file value beats the environment variable carrying it. See
+[ADR 0023](adr/0023-chart-deploys-either-shape.md).
 
 ## Request flow
 

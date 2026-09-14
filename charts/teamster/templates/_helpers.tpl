@@ -68,17 +68,27 @@ that cannot start or a database that silently corrupts.
 */}}
 {{- define "teamster.validate" -}}
 {{- $driver := .Values.database.driver -}}
-{{- if eq $driver "postgres" -}}
-{{- fail "database.driver=postgres: teamster stores its state in SQLite only. Use database.driver=sqlite; see charts/teamster/README.md." -}}
-{{- else if ne $driver "sqlite" -}}
-{{- fail (printf "database.driver=%s is not a known driver, use \"sqlite\"" $driver) -}}
+{{- if not (has $driver (list "sqlite" "postgres")) -}}
+{{- fail (printf "database.driver=%s is not a known driver, use \"sqlite\" or \"postgres\"" $driver) -}}
 {{- end -}}
-{{- if not (has .Values.workload.kind (list "StatefulSet" "Deployment")) -}}
-{{- fail (printf "workload.kind=%s is not supported, use \"StatefulSet\" or \"Deployment\"" .Values.workload.kind) -}}
+{{- $kind := include "teamster.workloadKind" . -}}
+{{- if not (has $kind (list "StatefulSet" "Deployment")) -}}
+{{- fail (printf "workload.kind=%s is not supported, use \"StatefulSet\" or \"Deployment\"" $kind) -}}
 {{- end -}}
-{{- if gt (int .Values.replicaCount) 1 -}}
-{{- fail "replicaCount must be 1: SQLite takes a single writer, and a second replica would serve a database of its own." -}}
+
+{{- /* A secret written into the config file wins over the environment variable
+       carrying it, so the chart refuses to render one rather than letting the
+       precedence rule surprise somebody at three in the morning. */ -}}
+{{- $settings := .Values.config.settings | default dict -}}
+{{- range $section, $key := dict "webhook" "token" "admin" "password" "graph" "client-secret" -}}
+{{- if dig $section $key "" $settings -}}
+{{- fail (printf "config.settings.%s.%s is written into the config file, where it beats the environment variable that carries it. Use the credentials block." $section $key) -}}
 {{- end -}}
+{{- end -}}
+{{- if dig "database" "postgres" "password" "" $settings -}}
+{{- fail "config.settings.database.postgres.password is written into the config file, where it beats TEAMSTER_DATABASE_POSTGRES_PASSWORD. Use credentials.databasePassword or database.postgres.passwordFrom." -}}
+{{- end -}}
+
 {{- $metrics := dig "metrics" (dict) (.Values.config.settings | default dict) -}}
 {{- if dig "enabled" false $metrics -}}
 {{- /* Collecting with nowhere to send it is what teamster refuses on startup;
@@ -102,8 +112,72 @@ that cannot start or a database that silently corrupts.
 {{- if and (dig "serviceMonitor" "enabled" false (.Values.metrics | default dict)) (not (include "teamster.metricsEnabled" .)) -}}
 {{- fail "metrics.serviceMonitor.enabled needs a listener to scrape: set config.settings.metrics.enabled=true and leave config.settings.metrics.prometheus on." -}}
 {{- end -}}
-{{- if and (eq .Values.workload.kind "Deployment") .Values.persistence.enabled (not .Values.persistence.existingClaim) (not .Values.persistence.create) -}}
-{{- fail "workload.kind=Deployment needs a volume that outlives the pod: set persistence.existingClaim, or persistence.create=true to have the chart manage the PersistentVolumeClaim." -}}
+
+{{- if eq $driver "sqlite" -}}
+{{- if gt (int .Values.replicaCount) 1 -}}
+{{- fail "replicaCount must be 1 with database.driver=sqlite: SQLite takes a single writer, and a second replica would serve a database of its own. Set database.driver=postgres to run more than one." -}}
+{{- end -}}
+{{- if and (eq $kind "Deployment") .Values.persistence.enabled (not .Values.persistence.existingClaim) (not .Values.persistence.create) -}}
+{{- fail "workload.kind=Deployment with database.driver=sqlite needs a volume that outlives the pod: set persistence.existingClaim, or persistence.create=true to have the chart manage the PersistentVolumeClaim." -}}
+{{- end -}}
+{{- else -}}
+{{- if not .Values.database.postgres.host -}}
+{{- fail "database.driver=postgres needs database.postgres.host. This chart does not deploy a Postgres; point it at one your cluster or your provider manages." -}}
+{{- end -}}
+{{- if and .Values.credentials.databasePassword .Values.database.postgres.passwordFrom.secretName -}}
+{{- fail "set either credentials.databasePassword or database.postgres.passwordFrom, not both." -}}
+{{- end -}}
+{{- if and (not .Values.credentials.databasePassword) (not .Values.database.postgres.passwordFrom.secretName) (not .Values.credentials.existingSecret) -}}
+{{- fail "database.driver=postgres needs a password: credentials.databasePassword, database.postgres.passwordFrom pointing at a secret somebody else manages, or TEAMSTER_DATABASE_POSTGRES_PASSWORD inside credentials.existingSecret." -}}
+{{- end -}}
+{{- /* persistence.enabled is ignored rather than refused, because Helm cannot
+       tell its default true from an explicit one and --set database.driver=postgres
+       on its own has to work. An existingClaim can only have been typed by hand. */ -}}
+{{- if .Values.persistence.existingClaim -}}
+{{- fail "database.driver=postgres keeps no local state, so persistence.existingClaim cannot be honoured. Remove it." -}}
+{{- end -}}
+{{- end -}}
+{{- end }}
+
+{{/*
+The workload kind, derived from the driver unless it is set: a StatefulSet for
+sqlite, whose file lives on a claim that has to follow the pod, and a Deployment
+for postgres, which keeps nothing locally at all.
+*/}}
+{{- define "teamster.workloadKind" -}}
+{{- if .Values.workload.kind -}}
+{{- .Values.workload.kind }}
+{{- else if eq .Values.database.driver "postgres" -}}
+Deployment
+{{- else -}}
+StatefulSet
+{{- end -}}
+{{- end }}
+
+{{/*
+Whether a data volume is mounted at all. Postgres deployments write nothing
+outside /tmp.
+*/}}
+{{- define "teamster.usesDataVolume" -}}
+{{- if eq .Values.database.driver "sqlite" -}}true{{- end -}}
+{{- end }}
+
+{{/*
+How a Deployment rolls. A ReadWriteOnce volume admits one pod, so sqlite has to
+stop the old one before starting the new; postgres has no such constraint, and
+readiness already gates on the store and on draining, so no replica need be
+given up during an update.
+*/}}
+{{- define "teamster.deploymentStrategy" -}}
+{{- if .Values.workload.strategy -}}
+{{- toYaml .Values.workload.strategy -}}
+{{- else if eq .Values.database.driver "sqlite" -}}
+type: Recreate
+{{- else -}}
+type: RollingUpdate
+rollingUpdate:
+  maxUnavailable: 0
+  maxSurge: 1
 {{- end -}}
 {{- end }}
 
@@ -145,7 +219,26 @@ is .Values.config.settings verbatim, in teamster's own hyphenated key names.
 */}}
 {{- define "teamster.configYaml" -}}
 {{- $settings := deepCopy (.Values.config.settings | default dict) -}}
-{{- $database := merge (dig "database" (dict) $settings) (dict "path" (include "teamster.databasePath" .)) -}}
+{{- $database := dig "database" (dict) $settings -}}
+{{- $_ := set $database "driver" .Values.database.driver -}}
+{{- if eq .Values.database.driver "sqlite" -}}
+{{- $_ := set $database "path" (include "teamster.databasePath" .) -}}
+{{- else -}}
+{{- $pg := dict
+      "host" .Values.database.postgres.host
+      "port" (int .Values.database.postgres.port)
+      "dbname" .Values.database.postgres.dbname
+      "user" .Values.database.postgres.user
+      "sslmode" .Values.database.postgres.sslmode -}}
+{{- with .Values.database.postgres.sslrootcert }}{{- $_ := set $pg "sslrootcert" . }}{{- end -}}
+{{- /* No password key, ever: a config file value beats the environment
+       variable that carries it, so writing one here would silently override
+       the secret. */ -}}
+{{- $_ := set $database "postgres" (merge (dig "postgres" (dict) $database) $pg) -}}
+{{- end -}}
+{{- with .Values.database.maxOpenConns }}{{- $_ := set $database "max-open-conns" (int .) }}{{- end -}}
+{{- with .Values.database.maxIdleConns }}{{- $_ := set $database "max-idle-conns" (int .) }}{{- end -}}
+{{- with .Values.database.connMaxLifetime }}{{- $_ := set $database "conn-max-lifetime" . }}{{- end -}}
 {{- $_ := set $settings "database" $database -}}
 {{- /* An empty section is noise in the rendered file; kong ignores it either way. */ -}}
 {{- $out := dict -}}
@@ -267,9 +360,20 @@ spec:
         {{- with $.Values.envFrom }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
-      {{- with $.Values.env }}
+      {{- if or $.Values.env (and (eq $.Values.database.driver "postgres") $.Values.database.postgres.passwordFrom.secretName) }}
       env:
+        {{- if and (eq $.Values.database.driver "postgres") $.Values.database.postgres.passwordFrom.secretName }}
+        {{- /* env beats envFrom in Kubernetes, so this wins over whatever the
+               credentials secret happens to carry. */}}
+        - name: TEAMSTER_DATABASE_POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ $.Values.database.postgres.passwordFrom.secretName }}
+              key: {{ $.Values.database.postgres.passwordFrom.key }}
+        {{- end }}
+        {{- with $.Values.env }}
         {{- toYaml . | nindent 8 }}
+        {{- end }}
       {{- end }}
       {{- /* Off unless a deployment asks for it: see the note in values.yaml. */}}
       {{- with $.Values.startupProbe }}
@@ -293,8 +397,10 @@ spec:
         - name: config
           mountPath: /etc/xdg/teamster
           readOnly: true
+        {{- if include "teamster.usesDataVolume" $ }}
         - name: data
           mountPath: {{ $.Values.persistence.mountPath }}
+        {{- end }}
         {{- /* SQLite writes journal files next to the database, but the
                modernc driver still needs a writable temporary directory
                under a read-only root filesystem. */}}
@@ -317,8 +423,10 @@ spec:
             path: config.yaml
     - name: tmp
       emptyDir: {}
+    {{- if include "teamster.usesDataVolume" $ }}
     {{- with .dataVolume }}
     {{- toYaml (list .) | nindent 4 }}
+    {{- end }}
     {{- end }}
     {{- with $.Values.volumes }}
     {{- toYaml . | nindent 4 }}

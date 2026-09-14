@@ -1,8 +1,9 @@
 # Default values for teamster.
 # This is a YAML-formatted file.
 
-# SQLite takes a single writer, so this is 1 and the chart refuses anything
-# higher. A second replica would open a database of its own.
+# SQLite takes a single writer, so a sqlite release is one pod and the chart
+# refuses anything higher. With database.driver=postgres there is no such
+# limit: raise this and the replicas share the database.
 replicaCount: 1
 
 image:
@@ -26,22 +27,57 @@ fullnameOverride: ""
 # There is no Deployment-with-a-remote-database mode: teamster stores its state
 # in SQLite only. See charts/teamster/README.md.
 workload:
-  kind: StatefulSet
+  # Empty derives it from the driver: a StatefulSet for sqlite, whose file needs
+  # a claim that follows the pod, and a Deployment for postgres, which keeps
+  # nothing locally. Set it to override; the combinations that cannot work are
+  # refused at render time.
+  kind: ""
   annotations: {}
   # StatefulSet only.
   updateStrategy:
     type: RollingUpdate
+  # Deployment only. Empty derives Recreate for sqlite, because a ReadWriteOnce
+  # volume admits one pod, and a surging RollingUpdate for postgres.
+  strategy: {}
 
-# Which store teamster runs against. "sqlite" is the only implemented driver;
-# "postgres" is rejected with a message rather than silently ignored.
+# Which store teamster runs against.
+#
+#   sqlite   - one pod, state in a file on a volume. The default.
+#   postgres - several pods sharing one database. This chart does NOT deploy a
+#              Postgres; point it at one your cluster or your provider manages.
+#              See the chart README, "Bring your own Postgres".
 database:
   driver: sqlite
+
   sqlite:
     # File name below persistence.mountPath. The full path is written into the
     # rendered config as database.path.
     fileName: teamster.db
 
-# The volume carrying the SQLite file.
+  postgres:
+    host: ""
+    port: 5432
+    dbname: teamster
+    user: teamster
+    sslmode: require
+    # Path inside the container. Mount the CA with volumes/volumeMounts: a
+    # managed Postgres publishes its own root, which the image does not carry.
+    sslrootcert: ""
+    # Read the password from a secret somebody else owns -- the one a Postgres
+    # operator or your cloud provider created. Mutually exclusive with
+    # credentials.databasePassword.
+    passwordFrom:
+      secretName: ""
+      key: password
+
+  # 0 lets the backend choose. Divide the server's max_connections by
+  # replicaCount before raising maxOpenConns.
+  maxOpenConns: 0
+  maxIdleConns: 0
+  connMaxLifetime: ""
+
+# The volume carrying the SQLite file. Ignored entirely under
+# database.driver=postgres, where nothing is written outside /tmp.
 #
 # Turning this off runs on an emptyDir: every template, destination, route and
 # active alert is lost when the pod restarts. Useful for a demo, nothing else.
@@ -251,6 +287,9 @@ credentials:
   graphClientSecret: ""
   # Omit for a public OIDC client using PKCE, which is the recommended setup.
   oidcClientSecret: ""
+  # Postgres password, delivered as TEAMSTER_DATABASE_POSTGRES_PASSWORD.
+  # Mutually exclusive with database.postgres.passwordFrom.
+  databasePassword: ""
   # Further TEAMSTER_* variables, added to the same secret.
   extra: {}
 
@@ -366,6 +405,13 @@ httpRoute:
       #       set:
       #         - name: X-Forwarded-Proto
       #           value: https
+
+# A disruption budget for a multi-replica postgres release. A single-pod release
+# gets none: one-of-one blocks every node drain.
+pdb:
+  enabled: true
+  minAvailable: 1
+  maxUnavailable: ""
 
 # Additional volumes and mounts on the pod.
 volumes: []

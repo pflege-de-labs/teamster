@@ -1,5 +1,9 @@
-teamster is running as a {{ .Values.workload.kind }}, storing its state in
-{{ if .Values.persistence.enabled }}{{ include "teamster.databasePath" . }} on a persistent volume{{ else }}an emptyDir — EVERY TEMPLATE, DESTINATION AND ROUTE IS LOST WHEN THE POD RESTARTS. Set persistence.enabled=true{{ end }}.
+teamster is running as a {{ include "teamster.workloadKind" . }} of {{ .Values.replicaCount }},
+{{- if eq .Values.database.driver "postgres" }}
+storing its state in postgres at {{ .Values.database.postgres.host }}:{{ .Values.database.postgres.port }}/{{ .Values.database.postgres.dbname }} (sslmode {{ .Values.database.postgres.sslmode }}).
+{{- else }}
+storing its state in {{ if .Values.persistence.enabled }}{{ include "teamster.databasePath" . }} on a persistent volume{{ else }}an emptyDir — EVERY TEMPLATE, DESTINATION AND ROUTE IS LOST WHEN THE POD RESTARTS. Set persistence.enabled=true{{ end }}.
+{{- end }}
 
 1. Reach the admin UI at /admin:
 {{- if .Values.httpRoute.enabled }}
