@@ -4,8 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -271,46 +273,70 @@ func TestActiveAlertLifecycle(t *testing.T) {
 		t.Errorf("GetActiveAlert() for an unknown fingerprint = %v, want ErrNotFound", err)
 	}
 
-	alert := models.ActiveAlert{
+	claim := models.AlertClaim{
 		Fingerprint: "fp",
-		Status:      "firing",
 		TeamID:      "team",
 		ChannelID:   "channel",
-		MessageID:   "msg-1",
-		LastUpdate:  firstUpdate,
+		Status:      "firing",
+		Owner:       "owner-1",
+		At:          firstUpdate,
+		StaleBefore: firstUpdate.Add(-time.Minute),
 	}
-	if err := s.UpsertActiveAlert(t.Context(), alert); err != nil {
-		t.Fatalf("UpsertActiveAlert: %v", err)
+	card, outcome, err := s.ClaimActiveAlert(t.Context(), claim)
+	if err != nil {
+		t.Fatalf("ClaimActiveAlert: %v", err)
+	}
+	if outcome != ClaimAcquired {
+		t.Errorf("ClaimActiveAlert() = %v, want acquired", outcome)
+	}
+	if card.Posted() {
+		t.Errorf("a fresh claim = %+v, want no card yet", card)
+	}
+
+	if err := s.CompleteActiveAlertClaim(t.Context(), claim, "msg-1", firstUpdate); err != nil {
+		t.Fatalf("CompleteActiveAlertClaim: %v", err)
 	}
 
 	got, err := s.GetActiveAlert(t.Context(), "fp", "team", "channel")
 	if err != nil {
 		t.Fatalf("GetActiveAlert: %v", err)
 	}
-	if got.MessageID != "msg-1" || !got.LastUpdate.Equal(firstUpdate) {
-		t.Errorf("GetActiveAlert() = %+v, want message msg-1 at %v", got, firstUpdate)
+	if got.MessageID != "msg-1" || !got.Posted() {
+		t.Errorf("GetActiveAlert() = %+v, want the posted card msg-1", got)
 	}
 
-	alert.MessageID = "msg-2"
-	alert.LastUpdate = firstUpdate.Add(time.Minute)
-	if err := s.UpsertActiveAlert(t.Context(), alert); err != nil {
-		t.Fatalf("UpsertActiveAlert (conflict): %v", err)
+	// Claiming again finds the card and says so, rather than posting a second.
+	second := claim
+	second.Owner = "owner-2"
+	existing, outcome, err := s.ClaimActiveAlert(t.Context(), second)
+	if err != nil {
+		t.Fatalf("ClaimActiveAlert over a card: %v", err)
+	}
+	if outcome != ClaimPosted || existing.MessageID != "msg-1" {
+		t.Errorf("ClaimActiveAlert() = %v/%+v, want posted with msg-1", outcome, existing)
 	}
 
+	later := firstUpdate.Add(time.Minute)
+	if err := s.TouchActiveAlert(t.Context(), existing, "firing", later); err != nil {
+		t.Fatalf("TouchActiveAlert: %v", err)
+	}
 	got, err = s.GetActiveAlert(t.Context(), "fp", "team", "channel")
 	if err != nil {
-		t.Fatalf("GetActiveAlert after upsert: %v", err)
+		t.Fatalf("GetActiveAlert after touch: %v", err)
 	}
-	if got.MessageID != "msg-2" {
-		t.Errorf("GetActiveAlert().MessageID = %q after upsert, want msg-2", got.MessageID)
+	if !got.LastUpdate.Equal(later) {
+		t.Errorf("LastUpdate = %v after touch, want %v", got.LastUpdate, later)
 	}
 
 	// The same alert in a second channel is a second card, not an overwrite.
-	second := alert
-	second.ChannelID = "other-channel"
-	second.MessageID = "msg-3"
-	if err := s.UpsertActiveAlert(t.Context(), second); err != nil {
-		t.Fatalf("UpsertActiveAlert (second channel): %v", err)
+	other := claim
+	other.ChannelID = "other-channel"
+	other.Owner = "owner-3"
+	if _, _, err := s.ClaimActiveAlert(t.Context(), other); err != nil {
+		t.Fatalf("ClaimActiveAlert (second channel): %v", err)
+	}
+	if err := s.CompleteActiveAlertClaim(t.Context(), other, "msg-3", firstUpdate); err != nil {
+		t.Fatalf("CompleteActiveAlertClaim (second channel): %v", err)
 	}
 	cards, err := s.ListActiveAlerts(t.Context(), "fp")
 	if err != nil {
@@ -320,8 +346,8 @@ func TestActiveAlertLifecycle(t *testing.T) {
 		t.Fatalf("ListActiveAlerts() = %+v, want one card per channel", cards)
 	}
 
-	if err := s.DeleteActiveAlert(t.Context(), "fp", "team", "channel"); err != nil {
-		t.Fatalf("DeleteActiveAlert: %v", err)
+	if err := s.DeleteActiveAlertCard(t.Context(), "fp", "team", "channel", "msg-1"); err != nil {
+		t.Fatalf("DeleteActiveAlertCard: %v", err)
 	}
 	if _, err := s.GetActiveAlert(t.Context(), "fp", "team", "channel"); !errors.Is(err, ErrNotFound) {
 		t.Errorf("GetActiveAlert() after delete = %v, want ErrNotFound", err)
@@ -359,9 +385,18 @@ func TestStoreErrorsWhenDatabaseIsClosed(t *testing.T) {
 		{"UpdateRoute", func() error { _, err := s.UpdateRoute(t.Context(), models.Route{ID: "id"}); return err }},
 		{"DeleteRoute", func() error { return s.DeleteRoute(t.Context(), "id") }},
 		{"GetRoute", func() error { _, err := s.GetRoute(t.Context(), "id"); return err }},
-		{"UpsertActiveAlert", func() error { return s.UpsertActiveAlert(t.Context(), models.ActiveAlert{}) }},
+		{"ClaimActiveAlert", func() error { _, _, err := s.ClaimActiveAlert(t.Context(), models.AlertClaim{}); return err }},
+		{"CompleteActiveAlertClaim", func() error {
+			return s.CompleteActiveAlertClaim(t.Context(), models.AlertClaim{}, "msg", time.Now())
+		}},
+		{"ReleaseActiveAlertClaim", func() error { return s.ReleaseActiveAlertClaim(t.Context(), models.AlertClaim{}) }},
+		{"TouchActiveAlert", func() error {
+			return s.TouchActiveAlert(t.Context(), models.ActiveAlert{}, "firing", time.Now())
+		}},
 		{"GetActiveAlert", func() error { _, err := s.GetActiveAlert(t.Context(), "fp", "team", "channel"); return err }},
-		{"DeleteActiveAlert", func() error { return s.DeleteActiveAlert(t.Context(), "fp", "team", "channel") }},
+		{"DeleteActiveAlertCard", func() error {
+			return s.DeleteActiveAlertCard(t.Context(), "fp", "team", "channel", "msg")
+		}},
 	}
 
 	for _, tt := range tests {
@@ -555,11 +590,20 @@ INSERT INTO active_alerts VALUES ('fp', 'firing', 'team', 'channel', 'msg-1', '2
 	}
 
 	// The point of the rebuild: a second channel is a second card.
-	second := got
-	second.ChannelID = "other"
-	second.MessageID = "msg-2"
-	if err := store.UpsertActiveAlert(t.Context(), second); err != nil {
-		t.Fatalf("UpsertActiveAlert: %v", err)
+	second := models.AlertClaim{
+		Fingerprint: "fp",
+		TeamID:      "team",
+		ChannelID:   "other",
+		Status:      "firing",
+		Owner:       "owner",
+		At:          time.Now().UTC(),
+		StaleBefore: time.Now().UTC().Add(-time.Minute),
+	}
+	if _, _, err := store.ClaimActiveAlert(t.Context(), second); err != nil {
+		t.Fatalf("ClaimActiveAlert: %v", err)
+	}
+	if err := store.CompleteActiveAlertClaim(t.Context(), second, "msg-2", time.Now().UTC()); err != nil {
+		t.Fatalf("CompleteActiveAlertClaim: %v", err)
 	}
 	cards, err := store.ListActiveAlerts(t.Context(), "fp")
 	if err != nil {
@@ -832,5 +876,101 @@ func TestExpiredLoginFlowIsRefused(t *testing.T) {
 
 	if _, err := s.TakeLoginFlow(t.Context(), "stale"); !errors.Is(err, ErrNotFound) {
 		t.Errorf("TakeLoginFlow() = %v, want an expired flow refused", err)
+	}
+}
+
+// The claim is only worth anything if the database enforces it, so this drives
+// the real statements rather than a fake: several writers race for one card and
+// exactly one may have it.
+func TestConcurrentClaimsAllowOneWriter(t *testing.T) {
+	t.Parallel()
+
+	s := newTestStore(t)
+	now := time.Now().UTC()
+
+	const writers = 8
+	outcomes := make([]ClaimOutcome, writers)
+	errs := make([]error, writers)
+	start := make(chan struct{})
+
+	var wg sync.WaitGroup
+	for i := range writers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			_, outcome, err := s.ClaimActiveAlert(t.Context(), models.AlertClaim{
+				Fingerprint: "fp",
+				TeamID:      "team",
+				ChannelID:   "channel",
+				Status:      "firing",
+				Owner:       fmt.Sprintf("owner-%d", i),
+				At:          now,
+				StaleBefore: now.Add(-time.Minute),
+			})
+			outcomes[i], errs[i] = outcome, err
+		}()
+	}
+	close(start)
+	wg.Wait()
+
+	var acquired, held int
+	for i, outcome := range outcomes {
+		if errs[i] != nil {
+			t.Errorf("writer %d: %v", i, errs[i])
+			continue
+		}
+		switch outcome {
+		case ClaimAcquired:
+			acquired++
+		case ClaimHeld:
+			held++
+		default:
+			t.Errorf("writer %d got %v, want acquired or held", i, outcome)
+		}
+	}
+	if acquired != 1 || held != writers-1 {
+		t.Errorf("got %d acquired and %d held, want 1 and %d", acquired, held, writers-1)
+	}
+}
+
+// Completing a claim somebody else now owns must not overwrite their card: the
+// message this caller posted is orphaned, and saying so is all that is left.
+func TestCompletingALostClaimIsRefused(t *testing.T) {
+	t.Parallel()
+
+	s := newTestStore(t)
+	now := time.Now().UTC()
+	mine := models.AlertClaim{
+		Fingerprint: "fp", TeamID: "team", ChannelID: "channel", Status: "firing",
+		Owner: "mine", At: now, StaleBefore: now.Add(-time.Minute),
+	}
+
+	if _, _, err := s.ClaimActiveAlert(t.Context(), mine); err != nil {
+		t.Fatalf("ClaimActiveAlert: %v", err)
+	}
+
+	// Somebody else takes it over once it is stale, and posts their own card.
+	theirs := mine
+	theirs.Owner = "theirs"
+	theirs.At = now.Add(time.Hour)
+	theirs.StaleBefore = now.Add(time.Minute)
+	if _, outcome, err := s.ClaimActiveAlert(t.Context(), theirs); err != nil || outcome != ClaimRecovered {
+		t.Fatalf("takeover = %v/%v, want recovered", outcome, err)
+	}
+	if err := s.CompleteActiveAlertClaim(t.Context(), theirs, "their-message", theirs.At); err != nil {
+		t.Fatalf("CompleteActiveAlertClaim: %v", err)
+	}
+
+	if err := s.CompleteActiveAlertClaim(t.Context(), mine, "my-message", now); !errors.Is(err, ErrClaimLost) {
+		t.Errorf("completing the lost claim = %v, want ErrClaimLost", err)
+	}
+
+	card, err := s.GetActiveAlert(t.Context(), "fp", "team", "channel")
+	if err != nil {
+		t.Fatalf("GetActiveAlert: %v", err)
+	}
+	if card.MessageID != "their-message" {
+		t.Errorf("card = %q, want the winner's message left alone", card.MessageID)
 	}
 }

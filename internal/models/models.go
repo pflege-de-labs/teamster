@@ -45,13 +45,42 @@ type Route struct {
 // An ActiveAlert is one card this service posted. An alert that fans out to
 // several channels has one of these per channel, which is why the key is the
 // fingerprint together with the Team and channel.
+// An ActiveAlert is one card: the message this service posted to one channel
+// for one alert, and is keeping up to date until the alert resolves.
+//
+// A row exists from the moment delivery claims the right to post, which is
+// before the card does. PostedAt is what tells the two apart: while it is zero
+// the row is a claim in flight and MessageID is empty, because there is no
+// message yet to name.
 type ActiveAlert struct {
 	Fingerprint string    `json:"fingerprint"`
 	Status      string    `json:"status"`
 	TeamID      string    `json:"team_id"`
 	ChannelID   string    `json:"channel_id"`
 	MessageID   string    `json:"message_id"`
+	ClaimOwner  string    `json:"claim_owner,omitempty"`
+	ClaimedAt   time.Time `json:"claimed_at,omitempty"`
+	PostedAt    time.Time `json:"posted_at,omitempty"`
 	LastUpdate  time.Time `json:"last_update"`
+}
+
+// Posted reports whether a card exists for this row, as opposed to a claim on
+// the right to post one.
+func (a ActiveAlert) Posted() bool { return !a.PostedAt.IsZero() }
+
+// An AlertClaim is the right to post one card, asked for before the Graph call
+// and completed after it. Owner is unique to the attempt rather than to the
+// process: it only has to answer "is this still mine to finish".
+type AlertClaim struct {
+	Fingerprint string
+	TeamID      string
+	ChannelID   string
+	Status      string
+	Owner       string
+	At          time.Time
+	// StaleBefore is the age at which a claim is presumed abandoned, because
+	// whatever took it died between claiming and posting.
+	StaleBefore time.Time
 }
 
 // A Grant scopes a role to a Team or to one channel in it: holders of that role

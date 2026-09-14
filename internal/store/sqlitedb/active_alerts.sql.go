@@ -7,13 +7,112 @@ package sqlitedb
 
 import (
 	"context"
+	"database/sql"
 	"time"
 )
 
-const countActiveAlerts = `-- name: CountActiveAlerts :one
-SELECT COUNT(*) FROM active_alerts
+const claimActiveAlert = `-- name: ClaimActiveAlert :one
+INSERT INTO active_alerts (
+	fingerprint, team_id, channel_id, status, message_id,
+	claim_owner, claimed_at, posted_at, last_update)
+VALUES (?, ?, ?, ?, '', ?, ?, NULL, ?)
+ON CONFLICT(fingerprint, team_id, channel_id) DO NOTHING
+RETURNING fingerprint, status, team_id, channel_id, message_id, claim_owner, claimed_at, posted_at, last_update
 `
 
+type ClaimActiveAlertParams struct {
+	Fingerprint string
+	TeamID      string
+	ChannelID   string
+	Status      string
+	ClaimOwner  string
+	ClaimedAt   sql.NullTime
+	LastUpdate  time.Time
+}
+
+// ClaimActiveAlert takes the right to post the card for one channel. A row
+// comes back only when the claim is ours; a claim somebody else is still
+// working on, and a row that already carries a card, both leave this returning
+// nothing, and the caller reads the row to find out which.
+func (q *Queries) ClaimActiveAlert(ctx context.Context, arg ClaimActiveAlertParams) (ActiveAlert, error) {
+	row := q.db.QueryRowContext(ctx, claimActiveAlert,
+		arg.Fingerprint,
+		arg.TeamID,
+		arg.ChannelID,
+		arg.Status,
+		arg.ClaimOwner,
+		arg.ClaimedAt,
+		arg.LastUpdate,
+	)
+	var i ActiveAlert
+	err := row.Scan(
+		&i.Fingerprint,
+		&i.Status,
+		&i.TeamID,
+		&i.ChannelID,
+		&i.MessageID,
+		&i.ClaimOwner,
+		&i.ClaimedAt,
+		&i.PostedAt,
+		&i.LastUpdate,
+	)
+	return i, err
+}
+
+const completeActiveAlertClaim = `-- name: CompleteActiveAlertClaim :one
+INSERT INTO active_alerts (
+	fingerprint, team_id, channel_id, status, message_id,
+	claim_owner, claimed_at, posted_at, last_update)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(fingerprint, team_id, channel_id) DO UPDATE SET
+	message_id  = excluded.message_id,
+	posted_at   = excluded.posted_at,
+	status      = excluded.status,
+	last_update = excluded.last_update
+WHERE active_alerts.posted_at IS NULL
+  AND active_alerts.claim_owner = excluded.claim_owner
+RETURNING message_id
+`
+
+type CompleteActiveAlertClaimParams struct {
+	Fingerprint string
+	TeamID      string
+	ChannelID   string
+	Status      string
+	MessageID   string
+	ClaimOwner  string
+	ClaimedAt   sql.NullTime
+	PostedAt    sql.NullTime
+	LastUpdate  time.Time
+}
+
+// CompleteActiveAlertClaim records the card the claim produced. The guard is
+// what makes a lost claim visible: zero rows means somebody else's card is
+// recorded under this key, so the one just posted is an orphan and the caller
+// has to say so rather than overwrite them.
+func (q *Queries) CompleteActiveAlertClaim(ctx context.Context, arg CompleteActiveAlertClaimParams) (string, error) {
+	row := q.db.QueryRowContext(ctx, completeActiveAlertClaim,
+		arg.Fingerprint,
+		arg.TeamID,
+		arg.ChannelID,
+		arg.Status,
+		arg.MessageID,
+		arg.ClaimOwner,
+		arg.ClaimedAt,
+		arg.PostedAt,
+		arg.LastUpdate,
+	)
+	var message_id string
+	err := row.Scan(&message_id)
+	return message_id, err
+}
+
+const countActiveAlerts = `-- name: CountActiveAlerts :one
+SELECT COUNT(*) FROM active_alerts WHERE posted_at IS NOT NULL
+`
+
+// CountActiveAlerts counts cards, not claims: a claim in flight is not yet
+// something this service is keeping up to date.
 func (q *Queries) CountActiveAlerts(ctx context.Context) (int64, error) {
 	row := q.db.QueryRowContext(ctx, countActiveAlerts)
 	var count int64
@@ -21,24 +120,32 @@ func (q *Queries) CountActiveAlerts(ctx context.Context) (int64, error) {
 	return count, err
 }
 
-const deleteActiveAlert = `-- name: DeleteActiveAlert :exec
+const deleteActiveAlertCard = `-- name: DeleteActiveAlertCard :exec
 DELETE FROM active_alerts
-WHERE fingerprint = ? AND team_id = ? AND channel_id = ?
+WHERE fingerprint = ? AND team_id = ? AND channel_id = ? AND message_id = ?
 `
 
-type DeleteActiveAlertParams struct {
+type DeleteActiveAlertCardParams struct {
 	Fingerprint string
 	TeamID      string
 	ChannelID   string
+	MessageID   string
 }
 
-func (q *Queries) DeleteActiveAlert(ctx context.Context, arg DeleteActiveAlertParams) error {
-	_, err := q.db.ExecContext(ctx, deleteActiveAlert, arg.Fingerprint, arg.TeamID, arg.ChannelID)
+// DeleteActiveAlertCard removes the row for one card, and only if it is still
+// that card: a resolve that raced a refire must not delete the new card's row.
+func (q *Queries) DeleteActiveAlertCard(ctx context.Context, arg DeleteActiveAlertCardParams) error {
+	_, err := q.db.ExecContext(ctx, deleteActiveAlertCard,
+		arg.Fingerprint,
+		arg.TeamID,
+		arg.ChannelID,
+		arg.MessageID,
+	)
 	return err
 }
 
 const getActiveAlert = `-- name: GetActiveAlert :one
-SELECT fingerprint, status, team_id, channel_id, message_id, last_update
+SELECT fingerprint, status, team_id, channel_id, message_id, claim_owner, claimed_at, posted_at, last_update
 FROM active_alerts
 WHERE fingerprint = ? AND team_id = ? AND channel_id = ?
 `
@@ -58,21 +165,24 @@ func (q *Queries) GetActiveAlert(ctx context.Context, arg GetActiveAlertParams) 
 		&i.TeamID,
 		&i.ChannelID,
 		&i.MessageID,
+		&i.ClaimOwner,
+		&i.ClaimedAt,
+		&i.PostedAt,
 		&i.LastUpdate,
 	)
 	return i, err
 }
 
 const listActiveAlerts = `-- name: ListActiveAlerts :many
-SELECT fingerprint, status, team_id, channel_id, message_id, last_update
+SELECT fingerprint, status, team_id, channel_id, message_id, claim_owner, claimed_at, posted_at, last_update
 FROM active_alerts
 WHERE fingerprint = ?
 ORDER BY team_id, channel_id
 `
 
 // ListActiveAlerts returns every card posted for an alert, one per channel it
-// fanned out to. The order is stable so that delivery, and its tests, see the
-// cards the same way every time.
+// fanned out to, and any claim still in flight. The order is stable so that
+// delivery, and its tests, see them the same way every time.
 func (q *Queries) ListActiveAlerts(ctx context.Context, fingerprint string) ([]ActiveAlert, error) {
 	rows, err := q.db.QueryContext(ctx, listActiveAlerts, fingerprint)
 	if err != nil {
@@ -88,6 +198,9 @@ func (q *Queries) ListActiveAlerts(ctx context.Context, fingerprint string) ([]A
 			&i.TeamID,
 			&i.ChannelID,
 			&i.MessageID,
+			&i.ClaimOwner,
+			&i.ClaimedAt,
+			&i.PostedAt,
 			&i.LastUpdate,
 		); err != nil {
 			return nil, err
@@ -103,32 +216,89 @@ func (q *Queries) ListActiveAlerts(ctx context.Context, fingerprint string) ([]A
 	return items, nil
 }
 
-const upsertActiveAlert = `-- name: UpsertActiveAlert :exec
-INSERT INTO active_alerts (fingerprint, status, team_id, channel_id, message_id, last_update)
-VALUES (?, ?, ?, ?, ?, ?)
-ON CONFLICT(fingerprint, team_id, channel_id) DO UPDATE SET
-	status = excluded.status,
-	message_id = excluded.message_id,
-	last_update = excluded.last_update
+const reapStaleClaim = `-- name: ReapStaleClaim :execrows
+DELETE FROM active_alerts
+WHERE fingerprint = ? AND team_id = ? AND channel_id = ? AND posted_at IS NULL AND claimed_at <= ?
 `
 
-type UpsertActiveAlertParams struct {
+type ReapStaleClaimParams struct {
 	Fingerprint string
+	TeamID      string
+	ChannelID   string
+	ClaimedAt   sql.NullTime
+}
+
+// ReapStaleClaim drops a claim a process took and never completed. It is
+// separate from the claim below rather than a WHERE clause on it because the
+// two need different timestamps -- the cutoff and the new claim's own -- and
+// sqlc's SQLite engine folds two parameters that infer the same column name
+// into one. Two statements in one transaction say the same thing and read
+// better: reap what is dead, then claim what is free.
+func (q *Queries) ReapStaleClaim(ctx context.Context, arg ReapStaleClaimParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, reapStaleClaim,
+		arg.Fingerprint,
+		arg.TeamID,
+		arg.ChannelID,
+		arg.ClaimedAt,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const releaseActiveAlertClaim = `-- name: ReleaseActiveAlertClaim :exec
+DELETE FROM active_alerts
+WHERE fingerprint = ? AND team_id = ? AND channel_id = ?
+  AND claim_owner = ? AND posted_at IS NULL
+`
+
+type ReleaseActiveAlertClaimParams struct {
+	Fingerprint string
+	TeamID      string
+	ChannelID   string
+	ClaimOwner  string
+}
+
+// ReleaseActiveAlertClaim hands a claim back when the post failed, so the next
+// attempt does not have to wait out the staleness cutoff. Deleting is safe
+// because posted_at IS NULL says no card was ever created under it.
+func (q *Queries) ReleaseActiveAlertClaim(ctx context.Context, arg ReleaseActiveAlertClaimParams) error {
+	_, err := q.db.ExecContext(ctx, releaseActiveAlertClaim,
+		arg.Fingerprint,
+		arg.TeamID,
+		arg.ChannelID,
+		arg.ClaimOwner,
+	)
+	return err
+}
+
+const touchActiveAlert = `-- name: TouchActiveAlert :exec
+UPDATE active_alerts
+SET status = ?, last_update = ?
+WHERE fingerprint = ? AND team_id = ? AND channel_id = ? AND message_id = ?
+`
+
+type TouchActiveAlertParams struct {
 	Status      string
+	LastUpdate  time.Time
+	Fingerprint string
 	TeamID      string
 	ChannelID   string
 	MessageID   string
-	LastUpdate  time.Time
 }
 
-func (q *Queries) UpsertActiveAlert(ctx context.Context, arg UpsertActiveAlertParams) error {
-	_, err := q.db.ExecContext(ctx, upsertActiveAlert,
-		arg.Fingerprint,
+// TouchActiveAlert records that an existing card was updated. It matches on the
+// message id so that a resolve-then-refire cycle, which replaces the card, does
+// not have its newer row stamped by an update to the older one.
+func (q *Queries) TouchActiveAlert(ctx context.Context, arg TouchActiveAlertParams) error {
+	_, err := q.db.ExecContext(ctx, touchActiveAlert,
 		arg.Status,
+		arg.LastUpdate,
+		arg.Fingerprint,
 		arg.TeamID,
 		arg.ChannelID,
 		arg.MessageID,
-		arg.LastUpdate,
 	)
 	return err
 }

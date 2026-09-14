@@ -10,6 +10,18 @@ import (
 )
 
 type Querier interface {
+	// ClaimActiveAlert takes the right to post the card for one channel. A row
+	// comes back only when the claim is ours; a claim somebody else is still
+	// working on, and a row that already carries a card, both leave this returning
+	// nothing, and the caller reads the row to find out which.
+	ClaimActiveAlert(ctx context.Context, arg ClaimActiveAlertParams) (ActiveAlert, error)
+	// CompleteActiveAlertClaim records the card the claim produced. The guard is
+	// what makes a lost claim visible: zero rows means somebody else's card is
+	// recorded under this key, so the one just posted is an orphan and the caller
+	// has to say so rather than overwrite them.
+	CompleteActiveAlertClaim(ctx context.Context, arg CompleteActiveAlertClaimParams) (string, error)
+	// CountActiveAlerts counts cards, not claims: a claim in flight is not yet
+	// something this service is keeping up to date.
 	CountActiveAlerts(ctx context.Context) (int64, error)
 	CreateDestination(ctx context.Context, arg CreateDestinationParams) error
 	CreateGrant(ctx context.Context, arg CreateGrantParams) error
@@ -17,7 +29,9 @@ type Querier interface {
 	CreateRoute(ctx context.Context, arg CreateRouteParams) error
 	CreateSession(ctx context.Context, arg CreateSessionParams) error
 	CreateTemplate(ctx context.Context, arg CreateTemplateParams) error
-	DeleteActiveAlert(ctx context.Context, arg DeleteActiveAlertParams) error
+	// DeleteActiveAlertCard removes the row for one card, and only if it is still
+	// that card: a resolve that raced a refire must not delete the new card's row.
+	DeleteActiveAlertCard(ctx context.Context, arg DeleteActiveAlertCardParams) error
 	DeleteDestination(ctx context.Context, id string) error
 	DeleteExpiredLoginFlows(ctx context.Context, expiresAt time.Time) error
 	DeleteExpiredSessions(ctx context.Context, expiresAt time.Time) error
@@ -31,20 +45,34 @@ type Querier interface {
 	GetSession(ctx context.Context, id string) (Session, error)
 	GetTemplate(ctx context.Context, id string) (Template, error)
 	// ListActiveAlerts returns every card posted for an alert, one per channel it
-	// fanned out to. The order is stable so that delivery, and its tests, see the
-	// cards the same way every time.
+	// fanned out to, and any claim still in flight. The order is stable so that
+	// delivery, and its tests, see them the same way every time.
 	ListActiveAlerts(ctx context.Context, fingerprint string) ([]ActiveAlert, error)
 	ListDestinations(ctx context.Context) ([]Destination, error)
 	ListGrants(ctx context.Context) ([]Grant, error)
 	ListRoutes(ctx context.Context) ([]Route, error)
 	ListTemplates(ctx context.Context) ([]Template, error)
+	// ReapStaleClaim drops a claim a process took and never completed. It is
+	// separate from the claim below rather than a WHERE clause on it because the
+	// two need different timestamps -- the cutoff and the new claim's own -- and
+	// sqlc's SQLite engine folds two parameters that infer the same column name
+	// into one. Two statements in one transaction say the same thing and read
+	// better: reap what is dead, then claim what is free.
+	ReapStaleClaim(ctx context.Context, arg ReapStaleClaimParams) (int64, error)
+	// ReleaseActiveAlertClaim hands a claim back when the post failed, so the next
+	// attempt does not have to wait out the staleness cutoff. Deleting is safe
+	// because posted_at IS NULL says no card was ever created under it.
+	ReleaseActiveAlertClaim(ctx context.Context, arg ReleaseActiveAlertClaimParams) error
 	// TakeLoginFlow redeems a state once: the row is gone whether or not it had
 	// expired, so a replayed callback finds nothing.
 	TakeLoginFlow(ctx context.Context, state string) (LoginFlow, error)
+	// TouchActiveAlert records that an existing card was updated. It matches on the
+	// message id so that a resolve-then-refire cycle, which replaces the card, does
+	// not have its newer row stamped by an update to the older one.
+	TouchActiveAlert(ctx context.Context, arg TouchActiveAlertParams) error
 	UpdateDestination(ctx context.Context, arg UpdateDestinationParams) error
 	UpdateRoute(ctx context.Context, arg UpdateRouteParams) error
 	UpdateTemplate(ctx context.Context, arg UpdateTemplateParams) error
-	UpsertActiveAlert(ctx context.Context, arg UpsertActiveAlertParams) error
 }
 
 var _ Querier = (*Queries)(nil)

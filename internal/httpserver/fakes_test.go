@@ -55,24 +55,33 @@ func newFakeStore() *fakeStore {
 }
 
 func (f *fakeStore) fail(methods ...string) *fakeStore {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	for _, method := range methods {
 		f.failOn[method] = true
 	}
 	return f
 }
 
+// failing is called with f.mu held: every method locks for its whole body, so
+// that a test may drive two goroutines through the fake without racing on the
+// maps behind it.
 func (f *fakeStore) failing(method string) error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
 	if f.failOn[method] {
 		return errStore
 	}
 	return nil
 }
 
-func (f *fakeStore) Close() error { return f.failing("Close") }
+func (f *fakeStore) Close() error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.failing("Close")
+}
 
 func (f *fakeStore) ListTemplates(ctx context.Context) ([]models.Template, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if err := f.failing("ListTemplates"); err != nil {
 		return nil, err
 	}
@@ -84,6 +93,8 @@ func (f *fakeStore) ListTemplates(ctx context.Context) ([]models.Template, error
 }
 
 func (f *fakeStore) CreateTemplate(ctx context.Context, t models.Template) (models.Template, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if err := f.failing("CreateTemplate"); err != nil {
 		return models.Template{}, err
 	}
@@ -95,6 +106,8 @@ func (f *fakeStore) CreateTemplate(ctx context.Context, t models.Template) (mode
 }
 
 func (f *fakeStore) UpdateTemplate(ctx context.Context, t models.Template) (models.Template, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if err := f.failing("UpdateTemplate"); err != nil {
 		return models.Template{}, err
 	}
@@ -103,6 +116,8 @@ func (f *fakeStore) UpdateTemplate(ctx context.Context, t models.Template) (mode
 }
 
 func (f *fakeStore) DeleteTemplate(ctx context.Context, id string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if err := f.failing("DeleteTemplate"); err != nil {
 		return err
 	}
@@ -111,6 +126,8 @@ func (f *fakeStore) DeleteTemplate(ctx context.Context, id string) error {
 }
 
 func (f *fakeStore) GetTemplate(ctx context.Context, id string) (models.Template, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if err := f.failing("GetTemplate"); err != nil {
 		return models.Template{}, err
 	}
@@ -122,6 +139,8 @@ func (f *fakeStore) GetTemplate(ctx context.Context, id string) (models.Template
 }
 
 func (f *fakeStore) ListDestinations(ctx context.Context) ([]models.Destination, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if err := f.failing("ListDestinations"); err != nil {
 		return nil, err
 	}
@@ -133,6 +152,8 @@ func (f *fakeStore) ListDestinations(ctx context.Context) ([]models.Destination,
 }
 
 func (f *fakeStore) CreateDestination(ctx context.Context, d models.Destination) (models.Destination, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if err := f.failing("CreateDestination"); err != nil {
 		return models.Destination{}, err
 	}
@@ -144,6 +165,8 @@ func (f *fakeStore) CreateDestination(ctx context.Context, d models.Destination)
 }
 
 func (f *fakeStore) UpdateDestination(ctx context.Context, d models.Destination) (models.Destination, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if err := f.failing("UpdateDestination"); err != nil {
 		return models.Destination{}, err
 	}
@@ -152,6 +175,8 @@ func (f *fakeStore) UpdateDestination(ctx context.Context, d models.Destination)
 }
 
 func (f *fakeStore) DeleteDestination(ctx context.Context, id string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if err := f.failing("DeleteDestination"); err != nil {
 		return err
 	}
@@ -160,6 +185,8 @@ func (f *fakeStore) DeleteDestination(ctx context.Context, id string) error {
 }
 
 func (f *fakeStore) GetDestination(ctx context.Context, id string) (models.Destination, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if err := f.failing("GetDestination"); err != nil {
 		return models.Destination{}, err
 	}
@@ -171,6 +198,8 @@ func (f *fakeStore) GetDestination(ctx context.Context, id string) (models.Desti
 }
 
 func (f *fakeStore) ListRoutes(ctx context.Context) ([]models.Route, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if err := f.failing("ListRoutes"); err != nil {
 		return nil, err
 	}
@@ -182,6 +211,8 @@ func (f *fakeStore) ListRoutes(ctx context.Context) ([]models.Route, error) {
 }
 
 func (f *fakeStore) CreateRoute(ctx context.Context, r models.Route) (models.Route, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if err := f.failing("CreateRoute"); err != nil {
 		return models.Route{}, err
 	}
@@ -193,6 +224,8 @@ func (f *fakeStore) CreateRoute(ctx context.Context, r models.Route) (models.Rou
 }
 
 func (f *fakeStore) UpdateRoute(ctx context.Context, r models.Route) (models.Route, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if err := f.failing("UpdateRoute"); err != nil {
 		return models.Route{}, err
 	}
@@ -201,6 +234,8 @@ func (f *fakeStore) UpdateRoute(ctx context.Context, r models.Route) (models.Rou
 }
 
 func (f *fakeStore) DeleteRoute(ctx context.Context, id string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if err := f.failing("DeleteRoute"); err != nil {
 		return err
 	}
@@ -209,6 +244,8 @@ func (f *fakeStore) DeleteRoute(ctx context.Context, id string) error {
 }
 
 func (f *fakeStore) GetRoute(ctx context.Context, id string) (models.Route, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if err := f.failing("GetRoute"); err != nil {
 		return models.Route{}, err
 	}
@@ -220,6 +257,8 @@ func (f *fakeStore) GetRoute(ctx context.Context, id string) (models.Route, erro
 }
 
 func (f *fakeStore) CreateSession(ctx context.Context, session models.Session) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if err := f.failing("CreateSession"); err != nil {
 		return err
 	}
@@ -228,6 +267,8 @@ func (f *fakeStore) CreateSession(ctx context.Context, session models.Session) e
 }
 
 func (f *fakeStore) GetSession(ctx context.Context, id string) (models.Session, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if err := f.failing("GetSession"); err != nil {
 		return models.Session{}, err
 	}
@@ -239,6 +280,8 @@ func (f *fakeStore) GetSession(ctx context.Context, id string) (models.Session, 
 }
 
 func (f *fakeStore) DeleteSession(ctx context.Context, id string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if err := f.failing("DeleteSession"); err != nil {
 		return err
 	}
@@ -247,10 +290,14 @@ func (f *fakeStore) DeleteSession(ctx context.Context, id string) error {
 }
 
 func (f *fakeStore) DeleteExpiredSessions(ctx context.Context) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	return f.failing("DeleteExpiredSessions")
 }
 
 func (f *fakeStore) CreateLoginFlow(ctx context.Context, flow models.LoginFlow) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if err := f.failing("CreateLoginFlow"); err != nil {
 		return err
 	}
@@ -259,6 +306,8 @@ func (f *fakeStore) CreateLoginFlow(ctx context.Context, flow models.LoginFlow) 
 }
 
 func (f *fakeStore) TakeLoginFlow(ctx context.Context, state string) (models.LoginFlow, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if err := f.failing("TakeLoginFlow"); err != nil {
 		return models.LoginFlow{}, err
 	}
@@ -275,17 +324,23 @@ func activeAlertKey(fingerprint, teamID, channelID string) string {
 	return fingerprint + "\x00" + teamID + "\x00" + channelID
 }
 
-func (f *fakeStore) Ping(ctx context.Context) error { return f.failing("Ping") }
+func (f *fakeStore) Ping(ctx context.Context) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.failing("Ping")
+}
 
 // WithTx runs fn against a copy and keeps the copy only when fn succeeds, which
 // is the behaviour the import depends on: a bundle rejected half way through
 // leaves the configuration as it was.
 func (f *fakeStore) WithTx(ctx context.Context, fn func(context.Context, store.Store) error) error {
+	// The lock is dropped before fn runs: fn reaches back into the store
+	// through the snapshot, and a mutex that is not reentrant would deadlock.
+	f.mu.Lock()
 	if err := f.failing("WithTx"); err != nil {
+		f.mu.Unlock()
 		return err
 	}
-
-	f.mu.Lock()
 	snapshot := &fakeStore{
 		templates:    maps.Clone(f.templates),
 		destinations: maps.Clone(f.destinations),
@@ -311,6 +366,8 @@ func (f *fakeStore) WithTx(ctx context.Context, fn func(context.Context, store.S
 }
 
 func (f *fakeStore) ListGrants(ctx context.Context) ([]models.Grant, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if err := f.failing("ListGrants"); err != nil {
 		return nil, err
 	}
@@ -323,6 +380,8 @@ func (f *fakeStore) ListGrants(ctx context.Context) ([]models.Grant, error) {
 }
 
 func (f *fakeStore) CreateGrant(ctx context.Context, g models.Grant) (models.Grant, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if err := f.failing("CreateGrant"); err != nil {
 		return models.Grant{}, err
 	}
@@ -336,6 +395,8 @@ func (f *fakeStore) CreateGrant(ctx context.Context, g models.Grant) (models.Gra
 }
 
 func (f *fakeStore) DeleteGrant(ctx context.Context, id string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if err := f.failing("DeleteGrant"); err != nil {
 		return err
 	}
@@ -343,15 +404,94 @@ func (f *fakeStore) DeleteGrant(ctx context.Context, id string) error {
 	return nil
 }
 
-func (f *fakeStore) UpsertActiveAlert(ctx context.Context, a models.ActiveAlert) error {
-	if err := f.failing("UpsertActiveAlert"); err != nil {
+// The claim methods run under the one mutex, which makes them atomic in the
+// same way the real store's single statements are. A fake that claimed in two
+// steps would pass tests the real thing would fail.
+func (f *fakeStore) ClaimActiveAlert(ctx context.Context, claim models.AlertClaim) (models.ActiveAlert, store.ClaimOutcome, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("ClaimActiveAlert"); err != nil {
+		return models.ActiveAlert{}, store.ClaimHeld, err
+	}
+
+	key := activeAlertKey(claim.Fingerprint, claim.TeamID, claim.ChannelID)
+	existing, found := f.activeAlerts[key]
+	switch {
+	case found && existing.Posted():
+		return existing, store.ClaimPosted, nil
+	case found && existing.ClaimedAt.After(claim.StaleBefore):
+		return existing, store.ClaimHeld, nil
+	}
+
+	card := models.ActiveAlert{
+		Fingerprint: claim.Fingerprint,
+		Status:      claim.Status,
+		TeamID:      claim.TeamID,
+		ChannelID:   claim.ChannelID,
+		ClaimOwner:  claim.Owner,
+		ClaimedAt:   claim.At,
+		LastUpdate:  claim.At,
+	}
+	f.activeAlerts[key] = card
+	if found {
+		return card, store.ClaimRecovered, nil
+	}
+	return card, store.ClaimAcquired, nil
+}
+
+func (f *fakeStore) CompleteActiveAlertClaim(ctx context.Context, claim models.AlertClaim, messageID string, at time.Time) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("CompleteActiveAlertClaim"); err != nil {
 		return err
 	}
-	f.activeAlerts[activeAlertKey(a.Fingerprint, a.TeamID, a.ChannelID)] = a
+
+	key := activeAlertKey(claim.Fingerprint, claim.TeamID, claim.ChannelID)
+	existing, found := f.activeAlerts[key]
+	if !found || existing.Posted() || existing.ClaimOwner != claim.Owner {
+		return store.ErrClaimLost
+	}
+	existing.MessageID = messageID
+	existing.Status = claim.Status
+	existing.PostedAt = at
+	existing.LastUpdate = at
+	f.activeAlerts[key] = existing
+	return nil
+}
+
+func (f *fakeStore) ReleaseActiveAlertClaim(ctx context.Context, claim models.AlertClaim) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("ReleaseActiveAlertClaim"); err != nil {
+		return err
+	}
+
+	key := activeAlertKey(claim.Fingerprint, claim.TeamID, claim.ChannelID)
+	if existing, found := f.activeAlerts[key]; found && !existing.Posted() && existing.ClaimOwner == claim.Owner {
+		delete(f.activeAlerts, key)
+	}
+	return nil
+}
+
+func (f *fakeStore) TouchActiveAlert(ctx context.Context, card models.ActiveAlert, status string, at time.Time) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("TouchActiveAlert"); err != nil {
+		return err
+	}
+
+	key := activeAlertKey(card.Fingerprint, card.TeamID, card.ChannelID)
+	if existing, found := f.activeAlerts[key]; found && existing.MessageID == card.MessageID {
+		existing.Status = status
+		existing.LastUpdate = at
+		f.activeAlerts[key] = existing
+	}
 	return nil
 }
 
 func (f *fakeStore) ListActiveAlerts(ctx context.Context, fingerprint string) ([]models.ActiveAlert, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if err := f.failing("ListActiveAlerts"); err != nil {
 		return nil, err
 	}
@@ -371,15 +511,23 @@ func (f *fakeStore) ListActiveAlerts(ctx context.Context, fingerprint string) ([
 }
 
 func (f *fakeStore) CountActiveAlerts(ctx context.Context) (int64, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if err := f.failing("CountActiveAlerts"); err != nil {
 		return 0, err
 	}
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	return int64(len(f.activeAlerts)), nil
+	var cards int64
+	for _, a := range f.activeAlerts {
+		if a.Posted() {
+			cards++
+		}
+	}
+	return cards, nil
 }
 
 func (f *fakeStore) GetActiveAlert(ctx context.Context, fingerprint, teamID, channelID string) (models.ActiveAlert, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if err := f.failing("GetActiveAlert"); err != nil {
 		return models.ActiveAlert{}, err
 	}
@@ -390,11 +538,16 @@ func (f *fakeStore) GetActiveAlert(ctx context.Context, fingerprint, teamID, cha
 	return a, nil
 }
 
-func (f *fakeStore) DeleteActiveAlert(ctx context.Context, fingerprint, teamID, channelID string) error {
-	if err := f.failing("DeleteActiveAlert"); err != nil {
+func (f *fakeStore) DeleteActiveAlertCard(ctx context.Context, fingerprint, teamID, channelID, messageID string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("DeleteActiveAlertCard"); err != nil {
 		return err
 	}
-	delete(f.activeAlerts, activeAlertKey(fingerprint, teamID, channelID))
+	key := activeAlertKey(fingerprint, teamID, channelID)
+	if existing, found := f.activeAlerts[key]; found && existing.MessageID == messageID {
+		delete(f.activeAlerts, key)
+	}
 	return nil
 }
 
@@ -410,6 +563,17 @@ type updateCall struct {
 }
 
 type fakeMessenger struct {
+	mu sync.Mutex
+
+	// postGate, when set, holds every PostMessage until it is closed, and
+	// posting reports each arrival. Together they let a test schedule the
+	// interleaving it wants instead of hoping the scheduler produces it.
+	postGate chan struct{}
+	posting  chan struct{}
+	// messageIDs hands out a different id per post, which is how a test tells
+	// two cards apart when it wanted one.
+	messageIDs int
+
 	messageID string
 	postErr   error
 	// postErrFor limits postErr to one channel, which is how a partial fan-out
@@ -428,17 +592,36 @@ type fakeMessenger struct {
 }
 
 func (f *fakeMessenger) PostMessage(teamID, channelID string, msg graph.Message) (string, error) {
+	f.mu.Lock()
 	f.posts = append(f.posts, postCall{teamID: teamID, channelID: channelID, msg: msg})
-	if f.postErr != nil && (f.postErrFor == "" || f.postErrFor == channelID) {
-		return "", f.postErr
+	f.messageIDs++
+	id, postErr, gate, posting := f.messageID, f.postErr, f.postGate, f.posting
+	if f.postErr != nil && f.postErrFor != "" && f.postErrFor != channelID {
+		postErr = nil
 	}
-	if f.messageID == "" {
-		return "message-1", nil
+	if id == "" {
+		id = fmt.Sprintf("message-%d", f.messageIDs)
 	}
-	return f.messageID, nil
+	f.mu.Unlock()
+
+	// Outside the lock: the point of the gate is to hold this caller inside
+	// the Graph call while other callers reach the store.
+	if posting != nil {
+		posting <- struct{}{}
+	}
+	if gate != nil {
+		<-gate
+	}
+
+	if postErr != nil {
+		return "", postErr
+	}
+	return id, nil
 }
 
 func (f *fakeMessenger) ListTeams() ([]graph.Team, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.teamCalls++
 	if f.directoryErr != nil {
 		return nil, f.directoryErr
@@ -447,6 +630,8 @@ func (f *fakeMessenger) ListTeams() ([]graph.Team, error) {
 }
 
 func (f *fakeMessenger) ListChannels(teamID string) ([]graph.Channel, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.channelCalls++
 	if f.directoryErr != nil {
 		return nil, f.directoryErr
@@ -455,6 +640,8 @@ func (f *fakeMessenger) ListChannels(teamID string) ([]graph.Channel, error) {
 }
 
 func (f *fakeMessenger) UpdateMessage(teamID, channelID, messageID string, msg graph.Message) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.updates = append(f.updates, updateCall{
 		postCall:  postCall{teamID: teamID, channelID: channelID, msg: msg},
 		messageID: messageID,
