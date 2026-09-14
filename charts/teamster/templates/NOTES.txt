@@ -24,6 +24,7 @@ teamster is running as a {{ .Values.workload.kind }}, storing its state in
 
    kubectl --namespace {{ .Release.Namespace }} get secret {{ include "teamster.credentialsSecretName" . }} \
      -o jsonpath='{.data.TEAMSTER_WEBHOOK_TOKEN}' | base64 -d
+{{- $metrics := dig "metrics" (dict) (.Values.config.settings | default dict) }}
 {{- if include "teamster.metricsEnabled" . }}
 
 3. Metrics are on {{ include "teamster.metricsPath" . }}, port {{ include "teamster.metricsPort" . }} of the Service. The listener asks
@@ -31,6 +32,10 @@ teamster is running as a {{ .Values.workload.kind }}, storing its state in
 
    Prometheus needs --enable-feature=native-histograms to negotiate protobuf.
    Without it the scrape still succeeds and every histogram bucket is lost.
+{{- else if dig "enabled" false $metrics }}
+
+3. Metrics are pushed to {{ dig "otlp-endpoint" "" $metrics }} every {{ dig "otlp-interval" "60s" $metrics }}. Nothing is
+   served and no port is published: there is no listener in this shape.
 {{- end }}
 {{ if and .Values.credentials.adminPassword (eq .Values.credentials.adminPassword "change-me") }}
 WARNING: credentials.adminPassword is still the example value. The local login

@@ -148,14 +148,18 @@ and is noticed at three in the morning.
 
 ## Metrics
 
-Off, as in the application. Turning it on opens a **second listener** and publishes it as a
-`metrics` port on the Service:
+Off, as in the application. There are two shapes, and the chart renders only what the one you chose
+needs — a port exists when something listens on it, and not otherwise.
+
+### Scraped: the Prometheus exporter
+
+A **second listener**, published as a `metrics` port on the Service:
 
 ```yaml
 config:
   settings:
     metrics:
-      enabled: true
+      enabled: true        # prometheus: true is the default
 
 metrics:
   serviceMonitor:
@@ -166,16 +170,74 @@ metrics:
 
 Two settings, because they answer different questions: `config.settings.metrics` is teamster's own
 configuration, written into `config.yaml` verbatim; `metrics.serviceMonitor` is how Kubernetes is
-told to scrape it. The port on the Service, the container port and the ServiceMonitor's `port:
-metrics` all come from `config.settings.metrics.addr`, so they cannot drift.
+told to scrape it. The container port, the Service port and the ServiceMonitor's `port: metrics` all
+come from `config.settings.metrics.addr`, so they cannot drift.
 
 The listener **asks for no credentials**, exactly like the probes. The application binds it to
 `127.0.0.1` for that reason; in a pod that reaches nothing, so the chart binds all interfaces and
 **refuses a loopback `addr`** rather than publishing a Service port that resolves to silence. The
 boundary here is the pod network — use a NetworkPolicy admitting only Prometheus.
 
-An OTLP-only deployment (`prometheus: false` with an `otlp-endpoint`) serves nothing and publishes
-no port; the chart works that out for itself.
+### Pushed: OTLP to a collector
+
+Set an endpoint, and turn the exporter off if scraping is not also wanted:
+
+```yaml
+config:
+  settings:
+    metrics:
+      enabled: true
+      prometheus: false
+      otlp-endpoint: otel-collector.monitoring.svc:4318
+      otlp-protocol: http
+```
+
+Push-only renders **no container port, no Service port and no ServiceMonitor**: nothing listens, so
+publishing anything would point at a closed socket. `addr` is never read in this shape, and the
+loopback guard does not apply to it.
+
+Both at once is fine — leave `prometheus: true` and set an endpoint.
+
+### A collector in the pod
+
+`sidecars` puts one beside the service. A sidecar shares the pod's network namespace, which is what
+makes `localhost` the right endpoint there — nothing leaves the pod on the way to it:
+
+```yaml
+config:
+  settings:
+    metrics:
+      enabled: true
+      prometheus: false
+      otlp-endpoint: localhost:4318
+      otlp-insecure: true
+
+sidecars:
+  - name: otel-collector
+    image: otel/opentelemetry-collector-contrib:0.140.0
+    args: ["--config=/etc/otel/config.yaml"]
+    volumeMounts:
+      - name: otel-config
+        mountPath: /etc/otel
+
+volumes:
+  - name: otel-config
+    configMap:
+      name: my-collector-config
+```
+
+[`ci/otlp-values.yaml`](ci/otlp-values.yaml) is that shape end to end, collector config included.
+
+`otlp-insecure: true` is plaintext, which is what a loopback hop inside one pod wants. Across the
+cluster to a collector Service, leave it off.
+
+### What the chart refuses
+
+* a loopback `addr` while the exporter is on — unreachable, as above
+* `addr` naming the same port as `server.addr`, which the application rejects on startup
+* `enabled: true` with `prometheus: false` and no `otlp-endpoint` — collected and exported nowhere,
+  which the application also rejects on startup
+* `metrics.serviceMonitor.enabled` with no listener to scrape
 
 ### Native histograms
 
@@ -212,7 +274,9 @@ The [values.yaml](values.yaml) comments are the reference. The ones most often c
 | `service.port` | `8080` | Port the Service publishes. |
 | `ingress.enabled` / `httpRoute.enabled` | `false` | How the service is published. |
 | `config.settings.metrics.enabled` | `false` | Opens the metrics listener and publishes its port. |
+| `config.settings.metrics.otlp-endpoint` | unset | Push metrics to a collector instead of, or beside, being scraped. |
 | `metrics.serviceMonitor.enabled` | `false` | Render a ServiceMonitor for the Prometheus operator. |
+| `sidecars` | `[]` | Extra containers in the pod, e.g. an OTLP collector. |
 | `extraObjects` | `{}` | Extra resources, as a map or a list. |
 
 ## Testing a release

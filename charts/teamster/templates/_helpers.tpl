@@ -81,13 +81,22 @@ that cannot start or a database that silently corrupts.
 {{- end -}}
 {{- $metrics := dig "metrics" (dict) (.Values.config.settings | default dict) -}}
 {{- if dig "enabled" false $metrics -}}
+{{- /* Collecting with nowhere to send it is what teamster refuses on startup;
+       refusing it here costs a render instead of a crash loop. */ -}}
+{{- if and (not (dig "prometheus" true $metrics)) (not (dig "otlp-endpoint" "" $metrics)) -}}
+{{- fail "config.settings.metrics.enabled=true with prometheus=false and no otlp-endpoint: metrics would be collected and exported nowhere, which teamster refuses on startup. Leave prometheus on to be scraped, or set otlp-endpoint to push." -}}
+{{- end -}}
+{{- /* addr only matters when something listens on it. A push-only deployment
+       runs no listener, so its addr is never read and never wrong. */ -}}
+{{- if include "teamster.metricsEnabled" . -}}
 {{- $addr := dig "addr" ":9090" $metrics -}}
 {{- $host := splitList ":" $addr | first -}}
 {{- if or (eq $host "127.0.0.1") (eq $host "localhost") -}}
-{{- fail (printf "config.settings.metrics.addr=%s binds loopback, which nothing outside the pod can reach — not the Service, not a ServiceMonitor, not a sidecar in another container. Use \":%s\" and keep the listener private with a NetworkPolicy; it takes no credentials." $addr (include "teamster.metricsPort" .)) -}}
+{{- fail (printf "config.settings.metrics.addr=%s binds loopback, which nothing outside the pod can reach — not the Service, not a ServiceMonitor, not a collector sidecar. Use \":%s\" and keep the listener private with a NetworkPolicy; it takes no credentials. (A push-only deployment — prometheus=false with an otlp-endpoint — runs no listener and is free of this.)" $addr (include "teamster.metricsPort" .)) -}}
 {{- end -}}
 {{- if eq (include "teamster.metricsPort" .) (include "teamster.containerPort" .) -}}
 {{- fail (printf "config.settings.metrics.addr and server.addr both name port %s; the second listener would fail to bind and teamster would refuse the configuration." (include "teamster.metricsPort" .)) -}}
+{{- end -}}
 {{- end -}}
 {{- end -}}
 {{- if and (dig "serviceMonitor" "enabled" false (.Values.metrics | default dict)) (not (include "teamster.metricsEnabled" .)) -}}
@@ -294,6 +303,11 @@ spec:
         {{- with $.Values.volumeMounts }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
+    {{- /* A collector sidecar shares the pod's network namespace, which is what
+           makes otlp-endpoint: localhost:4318 the right answer there. */}}
+    {{- with $.Values.sidecars }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
   volumes:
     - name: config
       secret:
