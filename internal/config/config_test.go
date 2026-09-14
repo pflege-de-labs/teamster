@@ -72,7 +72,7 @@ func TestParseExampleConfig(t *testing.T) {
 			ShutdownTimeout: 5 * time.Second,
 			ServiceName:     "teamster",
 		},
-		Database: DatabaseConfig{Path: "teamster.db"},
+		Database: DatabaseConfig{Path: "teamster.db", Migrate: "auto"},
 		Webhook:  WebhookConfig{Token: "replace-with-shared-token"},
 		Admin:    AdminConfig{Username: "admin", Password: "change-me"},
 		Auth: AuthConfig{

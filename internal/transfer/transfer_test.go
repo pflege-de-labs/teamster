@@ -14,7 +14,7 @@ func configured(t *testing.T) *store.SQLiteStore {
 	ctx := t.Context()
 	t.Helper()
 
-	st, err := store.NewSQLiteStore(t.Context(), t.TempDir()+"/teamster.db")
+	st, err := store.NewSQLiteStore(t.Context(), t.TempDir()+"/teamster.db", store.MigrateAuto)
 	if err != nil {
 		t.Fatalf("open store: %v", err)
 	}

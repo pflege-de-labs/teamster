@@ -21,7 +21,7 @@ func seededDatabase(t *testing.T) *config.Config {
 	t.Helper()
 
 	path := filepath.Join(t.TempDir(), "teamster.db")
-	st, err := store.NewSQLiteStore(t.Context(), path)
+	st, err := store.NewSQLiteStore(t.Context(), path, store.MigrateAuto)
 	if err != nil {
 		t.Fatalf("open store: %v", err)
 	}
@@ -76,7 +76,7 @@ func TestImportCommandAppliesAnExport(t *testing.T) {
 		t.Fatalf("import: %v", err)
 	}
 
-	st, err := store.NewSQLiteStore(t.Context(), target.Database.Path)
+	st, err := store.NewSQLiteStore(t.Context(), target.Database.Path, store.MigrateAuto)
 	if err != nil {
 		t.Fatalf("open target: %v", err)
 	}
@@ -105,7 +105,7 @@ func TestImportCommandDryRunChangesNothing(t *testing.T) {
 		t.Fatalf("dry run: %v", err)
 	}
 
-	st, _ := store.NewSQLiteStore(t.Context(), cfg.Database.Path)
+	st, _ := store.NewSQLiteStore(t.Context(), cfg.Database.Path, store.MigrateAuto)
 	defer func() { _ = st.Close() }()
 	templates, _ := st.ListTemplates(ctx)
 	if len(templates) != 1 || templates[0].ID != "tmpl" {
