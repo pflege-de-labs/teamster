@@ -116,6 +116,23 @@ alert firing at the moment you cut over has a card in Teams the new instance has
 the next `firing` posts a second one, and the eventual `resolved` never edits the first. Resolve
 what you can first.
 
+## Shell completion
+
+```bash
+teamster completion bash > /etc/bash_completion.d/teamster
+teamster completion zsh  > "${fpath[1]}/_teamster"
+teamster completion fish > ~/.config/fish/completions/teamster.fish
+```
+
+The script is generated from the command tree itself, so it knows every command,
+every flag, and the values an enum flag accepts — `--database-driver <TAB>`
+offers `sqlite` and `postgres`. Regenerate it after upgrading and it picks up
+whatever the new release added.
+
+One gap worth knowing: in bash an enum flag completes to the value of its
+environment variable rather than to the enum's values. Commands and flags
+complete normally. zsh and fish offer the values.
+
 ## Schema migrations
 
 The schema is versioned. Starting the server applies whatever is missing, which is what a single
