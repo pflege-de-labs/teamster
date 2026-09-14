@@ -52,14 +52,16 @@ build:
 run:
 	go run ./cmd/teamster
 
+# -race throughout: the store is reached from every request goroutine, so a
+# data race here is a production bug rather than a test artefact.
 test:
-	go test ./...
+	go test -race ./...
 
 # -coverpkg attributes coverage across packages, so code exercised through
 # another package's tests counts; the templ output is then filtered out,
 # because generated code is not ours to test.
 coverage:
-	go test ./... -covermode=atomic -coverpkg=./... -coverprofile=$(COVERAGE_OUT).raw
+	go test -race ./... -covermode=atomic -coverpkg=./... -coverprofile=$(COVERAGE_OUT).raw
 	@grep -v '_templ\.go:' $(COVERAGE_OUT).raw > $(COVERAGE_OUT)
 	@go tool cover -func=$(COVERAGE_OUT) | tail -1
 	@total=$$(go tool cover -func=$(COVERAGE_OUT) | awk '/^total:/ {print $$3}' | tr -d '%'); \

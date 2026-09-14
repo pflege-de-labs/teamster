@@ -23,6 +23,20 @@ jobs:
         with:
           version: v2.13.2
 
+  # An out-of-date generated file is invisible in review and, for anything but
+  # templ, invisible to the compiler too: the build succeeds and the old code
+  # runs. Regenerating and diffing is the only thing that catches it.
+  generated:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version: stable
+      - run: make generate
+      - name: Fail when the committed output is not what the generators produce
+        run: git diff --exit-code
+
   test:
     runs-on: ubuntu-latest
     steps:
