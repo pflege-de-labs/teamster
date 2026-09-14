@@ -33,6 +33,24 @@ refuses() {
 	fi
 }
 
+# renders <description> <helm args...> — the render has to succeed. The guards
+# have to let the shapes through that are merely unusual, not wrong.
+renders() {
+	local description=$1
+	shift
+	if ! helm template teamster "$chart" --values "$chart/ci/statefulset-values.yaml" "$@" >/dev/null 2>&1; then
+		fail "$description: the chart refused it"
+	fi
+}
+
+# absent <rendered> <description> <pattern> — must not appear.
+absent() {
+	local rendered=$1 description=$2 pattern=$3
+	if grep -q -- "$pattern" <<<"$rendered"; then
+		fail "$description: $pattern is there and should not be"
+	fi
+}
+
 # counts <rendered> <description> <expected> <pattern> — exactly this many.
 counts() {
 	local rendered=$1 description=$2 expected=$3 pattern=$4
@@ -73,6 +91,14 @@ for values in "$chart"/ci/*-values.yaml; do
 		fail "$name: the Service publishes a metrics port the container does not open"
 	fi
 
+	# Push-only: no exporter listens, so there is nothing to publish and
+	# nothing to scrape. A port here would resolve to a closed socket.
+	if grep -q "prometheus: false" <<<"$rendered"; then
+		absent "$rendered" "$name push-only" "name: metrics"
+		absent "$rendered" "$name push-only" "kind: ServiceMonitor"
+		contains "$rendered" "$name push-only" "otlp-endpoint:"
+	fi
+
 	# A ServiceMonitor names a Service port by name, and asks for protobuf
 	# first, which is the only protocol native histograms travel over.
 	if grep -q "kind: ServiceMonitor" <<<"$rendered"; then
@@ -104,6 +130,17 @@ refuses "metrics sharing the server port" \
 	--set config.settings.metrics.addr=:8080
 refuses "a ServiceMonitor with no listener to scrape" \
 	--set metrics.serviceMonitor.enabled=true
+refuses "metrics collected and exported nowhere" \
+	--set config.settings.metrics.enabled=true \
+	--set config.settings.metrics.prometheus=false
+
+# The addr belongs to the listener. A push-only deployment runs none, so the
+# loopback guard must not fire on a value nothing reads.
+renders "a push-only deployment keeping the application's loopback default" \
+	--set config.settings.metrics.enabled=true \
+	--set config.settings.metrics.prometheus=false \
+	--set config.settings.metrics.otlp-endpoint=otel:4318 \
+	--set config.settings.metrics.addr=127.0.0.1:9090
 
 if [ "$failures" -gt 0 ]; then
 	echo "$failures assertion(s) failed" >&2

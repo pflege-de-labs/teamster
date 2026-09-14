@@ -1,0 +1,59 @@
+# Push-only: no exporter listening, metrics pushed to a collector sidecar. The
+# chart must publish no metrics port for this shape, and must not object to the
+# loopback endpoint — inside one pod, localhost is exactly right.
+credentials:
+  webhookToken: ci-token
+  adminUsername: admin
+  adminPassword: ci-password
+  graphClientSecret: ci-graph-secret
+
+config:
+  settings:
+    graph:
+      tenant-id: ci-tenant
+      client-id: ci-client
+    metrics:
+      enabled: true
+      prometheus: false
+      otlp-endpoint: localhost:4318
+      otlp-protocol: http
+      otlp-insecure: true
+
+sidecars:
+  - name: otel-collector
+    image: otel/opentelemetry-collector-contrib:0.140.0
+    args: ["--config=/etc/otel/config.yaml"]
+    ports:
+      - name: otlp-http
+        containerPort: 4318
+    volumeMounts:
+      - name: otel-config
+        mountPath: /etc/otel
+
+volumes:
+  - name: otel-config
+    configMap:
+      name: "{{ .Release.Name }}-teamster-otel"
+
+extraObjects:
+  otel-config: |
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: {{ .Release.Name }}-teamster-otel
+      labels:
+        {{- include "teamster.labels" . | nindent 8 }}
+    data:
+      config.yaml: |
+        receivers:
+          otlp:
+            protocols:
+              http:
+                endpoint: 127.0.0.1:4318
+        exporters:
+          debug: {}
+        service:
+          pipelines:
+            metrics:
+              receivers: [otlp]
+              exporters: [debug]
