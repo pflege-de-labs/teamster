@@ -180,6 +180,17 @@ func (s *Server) handleDestinationByID(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// writeRouteError keeps the distinction the separate validate call used to
+// make for free: a route the caller can fix is a 400, anything else is a 500.
+func writeRouteError(w http.ResponseWriter, err error) {
+	var invalid invalidRoute
+	if errors.As(err, &invalid) {
+		writeJSONError(w, http.StatusBadRequest, invalid.Error())
+		return
+	}
+	writeJSONError(w, http.StatusInternalServerError, err.Error())
+}
+
 func (s *Server) handleRoutes(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	switch r.Method {
@@ -196,10 +207,6 @@ func (s *Server) handleRoutes(w http.ResponseWriter, r *http.Request) {
 			writeJSONError(w, http.StatusBadRequest, "invalid JSON")
 			return
 		}
-		if err := s.validateRoute(ctx, rt); err != nil {
-			writeJSONError(w, http.StatusBadRequest, err.Error())
-			return
-		}
 		if allowed, err := s.mayDeliverToDestination(r, rt.DestinationID); err != nil {
 			writeJSONError(w, http.StatusInternalServerError, err.Error())
 			return
@@ -207,9 +214,9 @@ func (s *Server) handleRoutes(w http.ResponseWriter, r *http.Request) {
 			writeJSONError(w, http.StatusForbidden, errDeliveryRefused.Error())
 			return
 		}
-		created, err := s.store.CreateRoute(ctx, rt)
+		created, err := s.saveRouteChecked(ctx, rt)
 		if err != nil {
-			writeJSONError(w, http.StatusInternalServerError, err.Error())
+			writeRouteError(w, err)
 			return
 		}
 		writeJSON(w, http.StatusCreated, created)
@@ -245,10 +252,6 @@ func (s *Server) handleRouteByID(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		rt.ID = id
-		if err := s.validateRoute(ctx, rt); err != nil {
-			writeJSONError(w, http.StatusBadRequest, err.Error())
-			return
-		}
 		if allowed, err := s.mayDeliverToDestination(r, rt.DestinationID); err != nil {
 			writeJSONError(w, http.StatusInternalServerError, err.Error())
 			return
@@ -256,19 +259,15 @@ func (s *Server) handleRouteByID(w http.ResponseWriter, r *http.Request) {
 			writeJSONError(w, http.StatusForbidden, errDeliveryRefused.Error())
 			return
 		}
-		updated, err := s.store.UpdateRoute(ctx, rt)
+		updated, err := s.saveRouteChecked(ctx, rt)
 		if err != nil {
-			writeJSONError(w, http.StatusInternalServerError, err.Error())
+			writeRouteError(w, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, updated)
 	case http.MethodDelete:
-		if err := s.validateRouteDelete(ctx, id); err != nil {
-			writeJSONError(w, http.StatusBadRequest, err.Error())
-			return
-		}
-		if err := s.store.DeleteRoute(ctx, id); err != nil {
-			writeJSONError(w, http.StatusInternalServerError, err.Error())
+		if err := s.deleteRouteChecked(ctx, id); err != nil {
+			writeRouteError(w, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]string{"status": "deleted"})

@@ -167,19 +167,14 @@ func (s *Server) handleRoleGrants(w http.ResponseWriter, r *http.Request) {
 // channels is still far inside this.
 const maxScopeBytes = 1 << 20
 
+// replaceRoleGrants swaps a role's whole scope. The delete is a set operation
+// rather than a list and a loop: reading the grants and deleting them one at a
+// time let two admins saving this page at once each decide what to remove from
+// a list the other was already changing, and the result was the union of both.
 func (s *Server) replaceRoleGrants(ctx context.Context, role string, wanted []models.Grant) error {
 	return s.store.WithTx(ctx, func(ctx context.Context, tx store.Store) error {
-		existing, err := tx.ListGrants(ctx)
-		if err != nil {
+		if err := tx.DeleteGrantsForRole(ctx, role); err != nil {
 			return err
-		}
-		for _, grant := range existing {
-			if grant.Role != role {
-				continue
-			}
-			if err := tx.DeleteGrant(ctx, grant.ID); err != nil {
-				return err
-			}
 		}
 		for _, grant := range wanted {
 			if _, err := tx.CreateGrant(ctx, grant); err != nil {

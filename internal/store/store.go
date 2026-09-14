@@ -60,6 +60,16 @@ type Store interface {
 	// can be given its own deadline without touching every caller.
 	WithTx(ctx context.Context, fn func(ctx context.Context, tx Store) error) error
 
+	// WithSerializableTx is WithTx for the invariants no constraint can
+	// express -- "this route tree has no cycle", "this parent still has
+	// children" -- where a check and the write it guards must see the same
+	// world. That is write skew, which only serializable isolation prevents.
+	//
+	// fn may be run more than once, because a backend that detects the
+	// conflict rather than blocking reports it as a retryable failure. It must
+	// therefore not accumulate anything outside the transaction.
+	WithSerializableTx(ctx context.Context, fn func(ctx context.Context, tx Store) error) error
+
 	ListTemplates(ctx context.Context) ([]models.Template, error)
 	CreateTemplate(ctx context.Context, t models.Template) (models.Template, error)
 	UpdateTemplate(ctx context.Context, t models.Template) (models.Template, error)
@@ -81,6 +91,10 @@ type Store interface {
 	ListGrants(ctx context.Context) ([]models.Grant, error)
 	CreateGrant(ctx context.Context, g models.Grant) (models.Grant, error)
 	DeleteGrant(ctx context.Context, id string) error
+	// DeleteGrantsForRole removes a role's whole scope in one statement, which
+	// is what replacing it safely needs: listing and deleting one at a time
+	// lets a concurrent replacement interleave into the union of both.
+	DeleteGrantsForRole(ctx context.Context, role string) error
 
 	CreateSession(ctx context.Context, s models.Session) error
 	GetSession(ctx context.Context, id string) (models.Session, error)

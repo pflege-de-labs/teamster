@@ -3,6 +3,7 @@ package httpserver
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
 	"net/http"
 	"net/url"
 	"strings"
@@ -104,7 +105,7 @@ func urlQueryEscape(value string) string {
 }
 
 func isNotFound(err error) bool {
-	return err != nil && strings.Contains(err.Error(), store.ErrNotFound.Error())
+	return errors.Is(err, store.ErrNotFound)
 }
 
 // requireSession protects the browser-facing admin pages. The JSON API keeps

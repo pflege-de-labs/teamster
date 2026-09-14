@@ -299,6 +299,21 @@ The draining flag is set from a shutdown hook, which net/http runs in its own go
 therefore flips a moment after `Shutdown` is called rather than during it, which is immaterial
 against a probe interval and is why the test for it waits rather than assuming an order.
 
+## Invariants the database holds
+
+Two rules are enforced by the store rather than by the code above it, because a
+check and the write it guards are otherwise two steps that another writer can
+get between.
+
+A role granted the same scope twice is a duplicate, not a second permission, so
+`(role, team_id, channel_id)` is unique and replacing a role's scope is a set
+delete rather than a list and a loop. Route writes and deletes run their cycle
+and orphan checks inside `WithSerializableTx`, which is what stops two admins
+from each validating against a tree the other is about to change -- an orphaned
+child becomes a root, and a root matches the alerts its parent used to filter
+out. No constraint can express "this tree has no cycle", which is why that one
+is a transaction rather than an index.
+
 ## Queries
 
 The statements live in `internal/store/queries/<dialect>/` and the Go that runs them is generated

@@ -43,7 +43,10 @@ type sqliteTx struct {
 	sqliteQueries
 }
 
-func (sqliteTx) Close() error               { return errInTransaction }
+func (sqliteTx) Close() error { return errInTransaction }
+func (sqliteTx) WithSerializableTx(context.Context, func(context.Context, Store) error) error {
+	return errAlreadyInTransaction
+}
 func (sqliteTx) Ping(context.Context) error { return errInTransaction }
 func (sqliteTx) WithTx(context.Context, func(context.Context, Store) error) error {
 	return errAlreadyInTransaction
@@ -130,6 +133,13 @@ func (s *SQLiteStore) WithTx(ctx context.Context, fn func(ctx context.Context, t
 	}
 	committed = true
 	return nil
+}
+
+// WithSerializableTx is WithTx on SQLite. There is one writer, so a
+// transaction already sees a world nobody else is changing -- the distinction
+// exists for a backend where that is not free.
+func (s *SQLiteStore) WithSerializableTx(ctx context.Context, fn func(ctx context.Context, tx Store) error) error {
+	return s.WithTx(ctx, fn)
 }
 
 func (s sqliteQueries) ListTemplates(ctx context.Context) ([]models.Template, error) {
@@ -604,6 +614,13 @@ func (s sqliteQueries) CreateGrant(ctx context.Context, g models.Grant) (models.
 		return models.Grant{}, fmt.Errorf("create grant: %w", err)
 	}
 	return g, nil
+}
+
+func (s sqliteQueries) DeleteGrantsForRole(ctx context.Context, role string) error {
+	if err := s.q.DeleteGrantsForRole(ctx, role); err != nil {
+		return fmt.Errorf("delete grants for role: %w", err)
+	}
+	return nil
 }
 
 func (s sqliteQueries) DeleteGrant(ctx context.Context, id string) error {
