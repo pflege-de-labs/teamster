@@ -18,6 +18,12 @@ spec:
       {{- if and (eq .Values.service.type "NodePort") .Values.service.nodePort }}
       nodePort: {{ .Values.service.nodePort }}
       {{- end }}
+      {{- if include "teamster.metricsEnabled" . }}
+    - port: {{ include "teamster.metricsPort" . }}
+      targetPort: metrics
+      protocol: TCP
+      name: metrics
+      {{- end }}
   selector:
     {{- include "teamster.selectorLabels" . | nindent 4 }}
 {{- if eq .Values.workload.kind "StatefulSet" }}
@@ -37,6 +43,12 @@ spec:
       targetPort: http
       protocol: TCP
       name: http
+      {{- if include "teamster.metricsEnabled" . }}
+    - port: {{ include "teamster.metricsPort" . }}
+      targetPort: metrics
+      protocol: TCP
+      name: metrics
+      {{- end }}
   selector:
     {{- include "teamster.selectorLabels" . | nindent 4 }}
 {{- end }}

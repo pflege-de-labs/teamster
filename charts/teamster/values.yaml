@@ -104,6 +104,33 @@ service:
   nodePort: ""
   annotations: {}
 
+# How the metrics listener is scraped. Everything here needs
+# config.settings.metrics.enabled above; the port itself is published on the
+# Service automatically whenever the listener exists.
+metrics:
+  serviceMonitor:
+    # Requires the Prometheus operator's CRDs.
+    enabled: false
+    # Defaults to the release namespace.
+    namespace: ""
+    # Labels the operator's serviceMonitorSelector looks for.
+    labels: {}
+    annotations: {}
+    # Empty uses the Prometheus global.
+    interval: ""
+    scrapeTimeout: ""
+    # PrometheusProto FIRST is what gets native histograms out of this chart:
+    # it is the only protocol that carries them. Prometheus still needs
+    # --enable-feature=native-histograms, or it will not negotiate protobuf
+    # whatever this says.
+    scrapeProtocols:
+      - PrometheusProto
+      - OpenMetricsText1.0.0
+      - PrometheusText0.0.4
+    honorLabels: false
+    relabelings: []
+    metricRelabelings: []
+
 # The config file, mounted at /etc/xdg/teamster/config.yaml — the system-wide
 # XDG location teamster searches on startup.
 config:
@@ -150,6 +177,35 @@ config:
     # built-in wording; mount them if you use it.
     ui:
       language: en
+
+    # What teamster says about itself. Off by default, here as in the
+    # application: the attributes name routes, templates and channels.
+    #
+    # Turning `enabled` on opens a SECOND listener, on `addr`, serving the
+    # Prometheus exporter at `path`. It asks for no credentials, exactly like
+    # the probes. The application defaults it to 127.0.0.1 for that reason; in
+    # a pod that would put it out of reach of everything including the Service,
+    # so the chart binds all interfaces and the chart REFUSES a loopback addr.
+    # Keep it private with a NetworkPolicy instead — the pod network is the
+    # boundary here, not the loopback interface.
+    #
+    # The exporter emits NATIVE histograms. Prometheus needs
+    # `--enable-feature=native-histograms` to negotiate protobuf; without it the
+    # scrape does not fail, it silently loses every bucket. See the chart README.
+    metrics:
+      enabled: false
+      addr: ":9090"
+      path: /metrics
+      # Serve the Prometheus exporter. Off with an otlp-endpoint set is a
+      # push-only deployment: no listener, and the chart publishes no port.
+      prometheus: true
+      # Push to an OTLP collector as well, or instead.
+      # otlp-endpoint: otel-collector.monitoring.svc:4318
+      # otlp-protocol: http
+      # otlp-insecure: false
+      # otlp-interval: 60s
+      # shutdown-timeout: 5s
+      # service-name: teamster
 
 # Credentials, delivered as TEAMSTER_* environment variables from a Secret.
 #

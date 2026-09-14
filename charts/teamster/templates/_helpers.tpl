@@ -79,6 +79,20 @@ that cannot start or a database that silently corrupts.
 {{- if gt (int .Values.replicaCount) 1 -}}
 {{- fail "replicaCount must be 1: SQLite takes a single writer, and a second replica would serve a database of its own." -}}
 {{- end -}}
+{{- $metrics := dig "metrics" (dict) (.Values.config.settings | default dict) -}}
+{{- if dig "enabled" false $metrics -}}
+{{- $addr := dig "addr" ":9090" $metrics -}}
+{{- $host := splitList ":" $addr | first -}}
+{{- if or (eq $host "127.0.0.1") (eq $host "localhost") -}}
+{{- fail (printf "config.settings.metrics.addr=%s binds loopback, which nothing outside the pod can reach — not the Service, not a ServiceMonitor, not a sidecar in another container. Use \":%s\" and keep the listener private with a NetworkPolicy; it takes no credentials." $addr (include "teamster.metricsPort" .)) -}}
+{{- end -}}
+{{- if eq (include "teamster.metricsPort" .) (include "teamster.containerPort" .) -}}
+{{- fail (printf "config.settings.metrics.addr and server.addr both name port %s; the second listener would fail to bind and teamster would refuse the configuration." (include "teamster.metricsPort" .)) -}}
+{{- end -}}
+{{- end -}}
+{{- if and (dig "serviceMonitor" "enabled" false (.Values.metrics | default dict)) (not (include "teamster.metricsEnabled" .)) -}}
+{{- fail "metrics.serviceMonitor.enabled needs a listener to scrape: set config.settings.metrics.enabled=true and leave config.settings.metrics.prometheus on." -}}
+{{- end -}}
 {{- if and (eq .Values.workload.kind "Deployment") .Values.persistence.enabled (not .Values.persistence.existingClaim) (not .Values.persistence.create) -}}
 {{- fail "workload.kind=Deployment needs a volume that outlives the pod: set persistence.existingClaim, or persistence.create=true to have the chart manage the PersistentVolumeClaim." -}}
 {{- end -}}
@@ -145,6 +159,35 @@ probes and the server cannot drift apart.
 {{- end }}
 
 {{/*
+Whether a metrics port exists to expose. The listener runs only when metrics
+are on AND the Prometheus exporter is: an OTLP-only deployment pushes to a
+collector and serves nothing, so there is no port to publish.
+*/}}
+{{- define "teamster.metricsEnabled" -}}
+{{- $metrics := dig "metrics" (dict) (.Values.config.settings | default dict) -}}
+{{- if and (dig "enabled" false $metrics) (dig "prometheus" true $metrics) -}}
+true
+{{- end -}}
+{{- end }}
+
+{{/*
+Metrics port, taken from the configured listen address for the same reason the
+container port is: the Service, the ServiceMonitor and the server cannot drift.
+*/}}
+{{- define "teamster.metricsPort" -}}
+{{- $addr := dig "metrics" "addr" ":9090" (.Values.config.settings | default dict) -}}
+{{- $port := splitList ":" $addr | last -}}
+{{- default 9090 $port -}}
+{{- end }}
+
+{{/*
+Path the exporter is served at.
+*/}}
+{{- define "teamster.metricsPath" -}}
+{{- dig "metrics" "path" "/metrics" (.Values.config.settings | default dict) -}}
+{{- end }}
+
+{{/*
 Name of the claim carrying the SQLite file in Deployment mode.
 */}}
 {{- define "teamster.claimName" -}}
@@ -204,6 +247,11 @@ spec:
         - name: http
           containerPort: {{ include "teamster.containerPort" $ }}
           protocol: TCP
+        {{- if include "teamster.metricsEnabled" $ }}
+        - name: metrics
+          containerPort: {{ include "teamster.metricsPort" $ }}
+          protocol: TCP
+        {{- end }}
       envFrom:
         - secretRef:
             name: {{ include "teamster.credentialsSecretName" $ }}
@@ -225,10 +273,6 @@ spec:
       {{- end }}
       {{- with $.Values.readinessProbe }}
       readinessProbe:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with $.Values.startupProbe }}
-      startupProbe:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       {{- with $.Values.resources }}

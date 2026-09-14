@@ -462,7 +462,8 @@ from a second secret — `credentials.existingSecret` points at one the cluster 
 HTTPRoute, and `extraObjects` carries arbitrary resources alongside the release.
 
 There is no multi-replica mode: teamster keeps its state in SQLite, which takes a single writer.
-See the [chart README](charts/teamster/README.md) for the full set of values.
+See the [chart README](charts/teamster/README.md) for the full set of values. Metrics there are a values
+key and an optional ServiceMonitor; the chart publishes the port and refuses a loopback address.
 
 ## Development
 

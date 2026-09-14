@@ -138,9 +138,62 @@ and turn into a restart loop that never finishes it.
 
 `make chart-lint` renders the chart from each of the `ci/` value sets and
 asserts what comes out: both probes present on whichever workload was asked
-for, the port they name, the config mount and the data volume. A probe dropped
-because a values key was emptied or a helper refactored is the sort of change
-that deploys happily and is noticed at three in the morning.
+for, exactly one of each, the port they name, the config mount, the data
+volume, and a metrics port that either appears on both the container and the
+Service or on neither. It also checks that the guards still refuse a loopback
+metrics address, a metrics port colliding with the server's, and a
+ServiceMonitor with no listener to scrape. A probe dropped because a values key
+was emptied or a helper refactored is the sort of change that deploys happily
+and is noticed at three in the morning.
+
+## Metrics
+
+Off, as in the application. Turning it on opens a **second listener** and publishes it as a
+`metrics` port on the Service:
+
+```yaml
+config:
+  settings:
+    metrics:
+      enabled: true
+
+metrics:
+  serviceMonitor:
+    enabled: true          # needs the Prometheus operator's CRDs
+    labels:
+      release: kube-prometheus-stack
+```
+
+Two settings, because they answer different questions: `config.settings.metrics` is teamster's own
+configuration, written into `config.yaml` verbatim; `metrics.serviceMonitor` is how Kubernetes is
+told to scrape it. The port on the Service, the container port and the ServiceMonitor's `port:
+metrics` all come from `config.settings.metrics.addr`, so they cannot drift.
+
+The listener **asks for no credentials**, exactly like the probes. The application binds it to
+`127.0.0.1` for that reason; in a pod that reaches nothing, so the chart binds all interfaces and
+**refuses a loopback `addr`** rather than publishing a Service port that resolves to silence. The
+boundary here is the pod network — use a NetworkPolicy admitting only Prometheus.
+
+An OTLP-only deployment (`prometheus: false` with an `otlp-endpoint`) serves nothing and publishes
+no port; the chart works that out for itself.
+
+### Native histograms
+
+The exporter emits native histograms, which travel over **protobuf only**. The ServiceMonitor asks
+for `PrometheusProto` first, but Prometheus itself must be started with:
+
+```text
+--enable-feature=native-histograms
+```
+
+Without it the scrape does **not** fail. It falls back to text, and every histogram arrives with its
+buckets gone — `_sum` and `_count` and a single `+Inf`. Rates and averages keep working,
+`histogram_quantile` returns `NaN`, and the heatmaps are empty. The dashboard renders, which is
+worse than an outage. The rule that catches it:
+
+```promql
+count without(le) (http_server_request_duration_seconds_bucket) == 1
+```
 
 ## Values
 
@@ -158,6 +211,8 @@ The [values.yaml](values.yaml) comments are the reference. The ones most often c
 | `credentials.existingSecret` | `""` | Use a secret you manage. |
 | `service.port` | `8080` | Port the Service publishes. |
 | `ingress.enabled` / `httpRoute.enabled` | `false` | How the service is published. |
+| `config.settings.metrics.enabled` | `false` | Opens the metrics listener and publishes its port. |
+| `metrics.serviceMonitor.enabled` | `false` | Render a ServiceMonitor for the Prometheus operator. |
 | `extraObjects` | `{}` | Extra resources, as a map or a list. |
 
 ## Testing a release

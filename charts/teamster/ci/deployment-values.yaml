@@ -13,8 +13,16 @@ credentials:
   adminPassword: ci-password
   graphClientSecret: ci-graph-secret
 
+metrics:
+  serviceMonitor:
+    enabled: true
+    labels:
+      release: kube-prometheus-stack
+
 config:
   settings:
+    metrics:
+      enabled: true
     graph:
       tenant-id: ci-tenant
       client-id: ci-client

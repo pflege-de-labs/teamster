@@ -544,6 +544,10 @@ trade and the README carries the detection rule.
 feature off by default — the attributes name templates, routes and channels, so reaching them should
 take a deliberate act of plumbing.
 
+The Helm chart followed in chart 0.2.0: turning `config.settings.metrics.enabled` on publishes the
+port and can render a ServiceMonitor. It refuses a loopback address there, because in a pod that
+reaches nothing — the boundary is the pod network and a NetworkPolicy, not the loopback interface.
+
 Needs an ADR: it adds an export surface and a dependency that will be in every build.
 
 ## Milestone 12 — More than one instance, more than SQLite
