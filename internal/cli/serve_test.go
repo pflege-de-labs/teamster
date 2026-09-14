@@ -3,10 +3,13 @@ package cli
 import (
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -169,5 +172,92 @@ func TestServeErrors(t *testing.T) {
 				t.Errorf("Run() = %v, want an error containing %q", err, tt.wantErr)
 			}
 		})
+	}
+}
+
+// Metrics run beside the service: their own listener, scrapeable while it
+// serves, gone when it stops. The OTLP interval is an hour, so the only export
+// that can reach the collector is the one shutdown forces — which is what makes
+// this a test of the shutdown order and not just of the wiring.
+func TestServeExportsMetricsAndStopsThem(t *testing.T) {
+	t.Parallel()
+
+	var (
+		mu       sync.Mutex
+		exports  int
+		received = func() int { mu.Lock(); defer mu.Unlock(); return exports }
+	)
+	collector := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		exports++
+		mu.Unlock()
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer collector.Close()
+
+	cfg := validConfig(t)
+	cfg.Server.Addr = freePort(t)
+	cfg.Metrics = config.MetricsConfig{
+		Enabled:         true,
+		Addr:            freePort(t),
+		Path:            "/metrics",
+		Prometheus:      true,
+		OTLPEndpoint:    strings.TrimPrefix(collector.URL, "http://"),
+		OTLPProtocol:    "http",
+		OTLPInsecure:    true,
+		OTLPInterval:    time.Hour,
+		ShutdownTimeout: 5 * time.Second,
+		ServiceName:     "teamster-test",
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	done := make(chan error, 1)
+	go func() { done <- (&ServeCmd{}).Run(ctx, cfg) }()
+
+	waitForServer(t, cfg.Server.Addr)
+	waitForServer(t, cfg.Metrics.Addr)
+
+	// Drive one request so there is something to export, then scrape it.
+	if resp, err := http.Get(fmt.Sprintf("http://%s/healthz", cfg.Server.Addr)); err == nil {
+		_ = resp.Body.Close()
+	}
+
+	resp, err := http.Get(fmt.Sprintf("http://%s/metrics", cfg.Metrics.Addr))
+	if err != nil {
+		t.Fatalf("scrape: %v", err)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("GET /metrics = %d, want 200", resp.StatusCode)
+	}
+	// The gauge reads the store, so its presence proves the callback was
+	// registered against a database that is still open.
+	if !strings.Contains(string(body), "teamster_active_alerts") {
+		t.Errorf("the exposition carries no active alerts gauge:\n%s", body)
+	}
+
+	if got := received(); got != 0 {
+		t.Fatalf("the collector received %d exports before shutdown, want none", got)
+	}
+
+	cancel()
+
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Errorf("Run() = %v, want a clean shutdown", err)
+		}
+	case <-time.After(15 * time.Second):
+		t.Fatal("Run() did not return after the context was cancelled")
+	}
+
+	if got := received(); got == 0 {
+		t.Error("shutting down exported nothing, so the last window of metrics is lost")
+	}
+	if _, err := net.DialTimeout("tcp", cfg.Metrics.Addr, time.Second); err == nil {
+		t.Error("the metrics listener is still accepting connections after shutdown")
 	}
 }

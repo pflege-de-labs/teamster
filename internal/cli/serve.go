@@ -13,6 +13,7 @@ import (
 	"github.com/pflege-de-labs/teamster/internal/config"
 	"github.com/pflege-de-labs/teamster/internal/graph"
 	"github.com/pflege-de-labs/teamster/internal/httpserver"
+	"github.com/pflege-de-labs/teamster/internal/metrics"
 	"github.com/pflege-de-labs/teamster/internal/store"
 )
 
@@ -48,12 +49,53 @@ func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
 	}
 	defer func() { _ = sqlStore.Close() }()
 
-	graphClient, err := graph.NewClient(cfg.Graph)
+	// After the store, so that the deferred shutdown below — and the last
+	// collection it triggers — runs while the database is still open.
+	telemetry, err := metrics.New(cfg.Metrics)
+	if err != nil {
+		return fmt.Errorf("metrics: %w", err)
+	}
+	defer func() {
+		// A deadline of its own: by the time this runs, ctx is the cancelled
+		// one that started the shutdown, and a cancelled context abandons the
+		// final export — the window worth having after a crash.
+		shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), cfg.Metrics.ShutdownTimeout)
+		defer cancel()
+		if err := telemetry.Shutdown(shutdownCtx); err != nil {
+			log.Printf("metrics shutdown: %v", err)
+		}
+	}()
+
+	if err := telemetry.ObserveActiveAlerts(func(context.Context) (int64, error) {
+		return sqlStore.CountActiveAlerts()
+	}); err != nil {
+		return fmt.Errorf("active alerts gauge: %w", err)
+	}
+
+	// Binding here rather than in the goroutine, for the same reason the main
+	// listener does: an address already in use is an error to return, not a log
+	// line to lose.
+	metricsAddr, stopMetrics, err := telemetry.Start()
+	if err != nil {
+		return fmt.Errorf("metrics listener: %w", err)
+	}
+	if metricsAddr != "" {
+		log.Printf("metrics on http://%s%s", metricsAddr, cfg.Metrics.Path)
+	}
+	defer func() {
+		shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), cfg.Metrics.ShutdownTimeout)
+		defer cancel()
+		if err := stopMetrics(shutdownCtx); err != nil {
+			log.Printf("metrics listener shutdown: %v", err)
+		}
+	}()
+
+	graphClient, err := graph.NewClient(cfg.Graph, telemetry)
 	if err != nil {
 		return fmt.Errorf("graph client: %w", err)
 	}
 
-	srv, err := httpserver.NewServer(*cfg, sqlStore, graphClient)
+	srv, err := httpserver.NewServer(*cfg, sqlStore, graphClient, telemetry)
 	if err != nil {
 		return fmt.Errorf("http server: %w", err)
 	}

@@ -283,6 +283,66 @@ The bundle therefore carries the Team and channel names beside the ids, and the 
 the destinations this tenant cannot resolve — see
 [ADR 0013](docs/adr/0013-configuration-transfer.md).
 
+## Metrics
+
+Off by default. Turn them on and the service exports what it is doing — over OTLP, to a Prometheus
+scrape, or both:
+
+```yaml
+metrics:
+  enabled: true
+  addr: "127.0.0.1:9090"     # its own listener, unauthenticated, loopback by default
+  path: "/metrics"
+  prometheus: true
+  otlp-endpoint: ""          # host:port for grpc, a URL host for http; empty runs no OTLP
+  otlp-protocol: "http"
+  otlp-interval: "60s"
+```
+
+| Metric | Says |
+| --- | --- |
+| `http.server.request.duration` | how long this service took to answer, by route and status |
+| `http.client.request.duration` | how long Microsoft Graph took, by host and status |
+| `teamster.deliveries` | messages delivered, by route and outcome — posted, updated, failed |
+| `teamster.webhook.receipts` | alerts received, by source and status, including refused tokens |
+| `teamster.render.failures` | alerts that never became a message, by template and stage |
+| `teamster.active_alerts` | cards currently tracked, one per alert per channel |
+
+`teamster.active_alerts` counts rows in the database when it is collected. Because the listener takes
+no credentials, the answer is cached for a second, so scraping in a loop is not querying in a loop.
+
+Go runtime metrics come with them, under OpenTelemetry's names (`go_memory_used_bytes`) rather than
+the `go_memstats_*` an older dashboard may expect.
+
+The listener is separate from the one serving the admin UI, is not authenticated, and defaults to
+loopback: the attributes name routes, templates and channels. Route it to your collector
+deliberately.
+
+### Native histograms, and the scrape that silently loses them
+
+The Prometheus exporter emits **native** histograms. Prometheus has to negotiate protobuf to receive
+them:
+
+```bash
+prometheus --enable-feature=native-histograms
+```
+
+Without that flag the scrape does not fail — it degrades. A native histogram has no classic buckets,
+so the text exposition carries only the synthetic `+Inf` bucket, the sum and the count. Rates and
+averages keep working, every `histogram_quantile` returns `NaN`, and the dashboard renders while
+saying nothing. This alert fires exactly when that has happened:
+
+```promql
+count without(le) (http_server_request_duration_seconds_bucket) == 1
+```
+
+To check by hand, compare the two shapes:
+
+```bash
+curl -s localhost:9090/metrics | grep -c '_bucket'
+curl -s -H 'Accept: application/vnd.google.protobuf;proto=io.prometheus.client.MetricFamily;encoding=delimited'   localhost:9090/metrics | wc -c
+```
+
 ## Container
 
 ```bash

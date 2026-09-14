@@ -17,6 +17,7 @@ import (
 	"golang.org/x/text/collate"
 	"golang.org/x/text/language"
 
+	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
 
 	"github.com/pflege-de-labs/teamster/internal/config"
@@ -83,7 +84,14 @@ func (m Message) request() MessageRequest {
 	return req
 }
 
-func NewClient(cfg config.GraphConfig) (*Client, error) {
+// instrumentation wraps the transport this client calls Graph through. It lives
+// here rather than in the metrics package so that graph depends on nothing but
+// an interface — and so a test can pass one that does nothing.
+type instrumentation interface {
+	ClientTransport(base http.RoundTripper) http.RoundTripper
+}
+
+func NewClient(cfg config.GraphConfig, tel instrumentation) (*Client, error) {
 	oauthCfg := clientcredentials.Config{
 		ClientID:     cfg.ClientID,
 		ClientSecret: cfg.ClientSecret,
@@ -91,8 +99,23 @@ func NewClient(cfg config.GraphConfig) (*Client, error) {
 		Scopes:       []string{"https://graph.microsoft.com/.default"},
 	}
 
-	httpClient := oauthCfg.Client(context.Background())
-	httpClient.Timeout = time.Duration(cfg.TimeoutSec) * time.Second
+	// The instrumented transport goes underneath oauth2's, not around it. A
+	// token refresh happens inside oauth2's RoundTrip, so measuring from the
+	// outside would charge Entra's latency to Graph once an hour and would
+	// report a token endpoint that is down as a Graph failure. Underneath, both
+	// are measured and the address tells them apart.
+	timeout := time.Duration(cfg.TimeoutSec) * time.Second
+	base := &http.Client{
+		Transport: tel.ClientTransport(http.DefaultTransport),
+		Timeout:   timeout,
+	}
+
+	// The token source shares this context, so the token request goes through
+	// the same instrumented client — and gains the timeout it never had.
+	ctx := context.WithValue(context.Background(), oauth2.HTTPClient, base)
+
+	httpClient := oauthCfg.Client(ctx)
+	httpClient.Timeout = timeout
 
 	return &Client{
 		baseURL:    cfg.BaseURL,

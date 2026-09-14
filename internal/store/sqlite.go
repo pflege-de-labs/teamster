@@ -608,6 +608,14 @@ func (s *SQLiteStore) ListActiveAlerts(fingerprint string) ([]models.ActiveAlert
 	return out, rows.Err()
 }
 
+func (s *SQLiteStore) CountActiveAlerts() (int64, error) {
+	var count int64
+	if err := s.sql.QueryRow(`SELECT COUNT(*) FROM active_alerts`).Scan(&count); err != nil {
+		return 0, fmt.Errorf("count active alerts: %w", err)
+	}
+	return count, nil
+}
+
 func (s *SQLiteStore) GetActiveAlert(fingerprint, teamID, channelID string) (models.ActiveAlert, error) {
 	var a models.ActiveAlert
 	err := s.sql.QueryRow(`SELECT fingerprint, status, team_id, channel_id, message_id, last_update FROM active_alerts WHERE fingerprint = ? AND team_id = ? AND channel_id = ?`, fingerprint, teamID, channelID).

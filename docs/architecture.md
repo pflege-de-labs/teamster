@@ -248,6 +248,36 @@ both; `Close`, `Ping` and a nested `WithTx` are refused inside one.
 commands are three doors onto the same code. See
 [ADR 0013](adr/0013-configuration-transfer.md).
 
+## Metrics
+
+`internal/metrics` owns one OpenTelemetry pipeline and as many readers as the configuration asks for:
+the Prometheus exporter, an OTLP exporter, both, or neither — neither being the default. A disabled
+pipeline is a usable value backed by the no-op meter provider, so every call site records
+unconditionally; only the HTTP wrappers branch, because instrumentation does per-request work before
+it discovers the instrument is a no-op.
+
+One view, matched on instrument kind, aggregates every histogram as base-2 exponential. That is what
+the Prometheus exporter renders as a native histogram — it maps nothing else — and it means a
+histogram added later is native without anyone revisiting the decision. See
+[ADR 0017](adr/0017-metrics-through-opentelemetry.md).
+
+`otelhttp` records the two semantic-convention histograms: the server one wraps the whole handler
+chain, the client one sits **below** the Graph client's oauth2 transport so a token refresh is not
+billed to Graph. The route attribute needs `metrics.RouteTag` beside the mux: `otelhttp` reads
+`http.Request.Pattern`, `ServeMux` sets it in place, and the middleware in between hands the mux a
+copy — so the wrapper on the outside would see an empty pattern and record a metric with no route and
+no test failing. `RouteTag` writes into the labeler, which lives in the context and survives being
+copied.
+
+`/metrics` has a listener of its own and must keep it: the main mux's catch-all is behind
+`requireSession(authorize(…))`, so mounting it there would hide it from every scraper. The listener
+binds in `Start` rather than in a goroutine, so a port already in use is an error `serve` returns.
+
+Shutdown order is the reason the defers in `internal/cli/serve.go` are registered store → metrics →
+listener: LIFO runs them in reverse, so the server drains, the scrape endpoint closes, the final OTLP
+export goes out, and only then does the database close — which the active-alerts gauge reads on every
+collection.
+
 ## Probes
 
 `GET /healthz` and `GET /readyz` answer before any authentication, because a kubelet has no

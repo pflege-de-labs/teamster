@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/pflege-de-labs/teamster/internal/config"
+	"github.com/pflege-de-labs/teamster/internal/metrics"
 	"github.com/pflege-de-labs/teamster/internal/models"
 )
 
@@ -26,7 +27,7 @@ func newTestServer(t *testing.T, st *fakeStore, msg *fakeMessenger) *http.Server
 func mustServer(t *testing.T, cfg config.Config, st *fakeStore, msg *fakeMessenger) *http.Server {
 	t.Helper()
 
-	srv, err := NewServer(cfg, st, msg)
+	srv, err := NewServer(cfg, st, msg, metrics.Disabled())
 	if err != nil {
 		t.Fatalf("NewServer: %v", err)
 	}

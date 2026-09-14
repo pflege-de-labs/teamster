@@ -504,7 +504,7 @@ an empty element or panicking.
 
 Needs an ADR: it changes how every component in the UI is written.
 
-## Milestone 11 — Metrics worth alerting on
+## Milestone 11 — Metrics worth alerting on — done
 
 The service that routes alerts produces none of its own. Whether deliveries are failing, how long
 Graph is taking, how many alerts are in flight — none of it leaves the process except as log lines,
@@ -533,15 +533,16 @@ once against OpenTelemetry's metric API and attach two readers: the Prometheus e
 configured. That keeps a single set of instruments in the code and makes the choice a matter of
 configuration.
 
-The alternative — `prometheus/client_golang` directly, with OTLP bridged from it — is fewer
-dependencies for the common case and more work for the other one. The ADR picks, against the actual
-size the two pull in.
+**Shipped that way**, with one addition the plan did not have: histograms are aggregated as base-2
+exponential so the Prometheus exporter emits *native* histograms, which costs a scrape that cannot
+negotiate protobuf its buckets. [ADR 0017](adr/0017-metrics-through-opentelemetry.md) records the
+trade and the README carries the detection rule.
 
 ### Where it is exposed
 
-`/metrics` is unauthenticated like the probes, or behind the same basic auth as `/api` — an
-operator's answer depends on whether their network already isolates it. Configuration decides, and
-the default should be off, because the metrics name templates, routes and channels.
+`/metrics` shipped unauthenticated on a listener of its own, defaulting to loopback, with the whole
+feature off by default — the attributes name templates, routes and channels, so reaching them should
+take a deliberate act of plumbing.
 
 Needs an ADR: it adds an export surface and a dependency that will be in every build.
 
@@ -673,7 +674,7 @@ permissions table is the first thing to read when this milestone starts, not the
 | — | 8 Import and export | 7 for permissions | done |
 | — | 9 Card editor | 1.4 | done |
 | — | 10 Localizable UI | — | done |
-| 8 | 11 Metrics | — | ADR on OTEL versus Prometheus directly |
+| — | 11 Metrics | — | done |
 | 9 | 12 More than one instance | 11 helps | ADR, and a second backend |
 | 10 | 13 Alerts in a person's chat | — | ADR choosing the route; a Teams app registration |
 

@@ -3,12 +3,14 @@ package config
 import (
 	"fmt"
 	"net/url"
+	"strings"
 	"time"
 )
 
 type Config struct {
 	Server   ServerConfig   `embed:"" prefix:"server-"`
 	UI       UIConfig       `embed:"" prefix:"ui-"`
+	Metrics  MetricsConfig  `embed:"" prefix:"metrics-"`
 	Database DatabaseConfig `embed:"" prefix:"database-"`
 	Webhook  WebhookConfig  `embed:"" prefix:"webhook-"`
 	Admin    AdminConfig    `embed:"" prefix:"admin-"`
@@ -28,6 +30,25 @@ type ServerConfig struct {
 type UIConfig struct {
 	Language  string `help:"Language to use when a browser asks for none this build carries." default:"en"`
 	LocaleDir string `help:"Directory of catalog files that override the built-in text." name:"locale-dir"`
+}
+
+// MetricsConfig decides whether this service says anything about itself, and to
+// whom. It is off by default: the attributes name routes, templates and
+// channels, and the endpoint that carries them authenticates nobody.
+type MetricsConfig struct {
+	Enabled bool `help:"Collect metrics and export them." default:"false"`
+	// Loopback rather than every interface: the listener is unauthenticated and
+	// every collection asks the database how many alerts are open, so reaching
+	// it should take a deliberate act of plumbing.
+	Addr            string        `help:"Address of the unauthenticated metrics listener." default:"127.0.0.1:9090"`
+	Path            string        `help:"Path the Prometheus exporter is served at." default:"/metrics"`
+	Prometheus      bool          `help:"Serve the Prometheus exporter on the metrics listener." default:"true"`
+	OTLPEndpoint    string        `help:"OTLP collector endpoint; empty runs no OTLP exporter." name:"otlp-endpoint"`
+	OTLPProtocol    string        `help:"OTLP transport." name:"otlp-protocol" enum:"grpc,http" default:"http"`
+	OTLPInsecure    bool          `help:"Send OTLP without TLS." name:"otlp-insecure" default:"false"`
+	OTLPInterval    time.Duration `help:"How often metrics are pushed over OTLP." name:"otlp-interval" default:"60s"`
+	ShutdownTimeout time.Duration `help:"How long the final export and the listener drain may take." default:"5s"`
+	ServiceName     string        `help:"service.name reported with every metric." default:"teamster"`
 }
 
 type DatabaseConfig struct {
@@ -65,6 +86,35 @@ type GraphConfig struct {
 	TimeoutSec   int    `help:"Timeout in seconds for Graph API calls." default:"10"`
 }
 
+// validateMetrics refuses a configuration that would start a listener nobody
+// can scrape, or none at all while claiming to be enabled. Everything here is
+// gated on Enabled: a deployment that wants no metrics configures nothing.
+func validateMetrics(cfg Config) error {
+	if !cfg.Metrics.Enabled {
+		return nil
+	}
+	if !cfg.Metrics.Prometheus && cfg.Metrics.OTLPEndpoint == "" {
+		return fmt.Errorf("metrics are enabled with neither the Prometheus exporter nor an OTLP endpoint")
+	}
+	if cfg.Metrics.Prometheus {
+		if cfg.Metrics.Addr == "" {
+			return fmt.Errorf("metrics addr is required when the Prometheus exporter is enabled")
+		}
+		// Two listeners on one address fail at bind time with an error that
+		// names neither of them.
+		if cfg.Metrics.Addr == cfg.Server.Addr {
+			return fmt.Errorf("metrics addr %q is the address the server already listens on", cfg.Metrics.Addr)
+		}
+		if !strings.HasPrefix(cfg.Metrics.Path, "/") {
+			return fmt.Errorf("metrics path must start with a slash, not %q", cfg.Metrics.Path)
+		}
+	}
+	if cfg.Metrics.OTLPEndpoint != "" && cfg.Metrics.OTLPInterval <= 0 {
+		return fmt.Errorf("metrics otlp-interval must be positive, not %s", cfg.Metrics.OTLPInterval)
+	}
+	return nil
+}
+
 // Validate is a function rather than a method on Config: kong calls a
 // Validate() method on any embedded struct during Parse, which would force
 // every command to carry full credentials just to parse its flags.
@@ -77,6 +127,9 @@ func Validate(cfg Config) error {
 	}
 	if cfg.Webhook.Token == "" {
 		return fmt.Errorf("webhook token is required")
+	}
+	if err := validateMetrics(cfg); err != nil {
+		return err
 	}
 	// Failing closed: an issuer without accepted values would admit everyone the
 	// provider will authenticate.
