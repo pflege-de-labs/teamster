@@ -37,6 +37,11 @@ cancellation it calls `http.Server.Shutdown` with `server.shutdown-timeout` (def
 in-flight requests, then closes the store. A second signal kills the process outright. See
 [ADR 0003](adr/0003-kong-commands-and-graceful-shutdown.md).
 
+That context reaches the database as well as the handlers: every `store.Store` method takes one, so
+a cancelled request stops the query it started and a shutdown does not wait on one. A signal that
+arrives while the store is still opening ends the process cleanly rather than reporting a failure
+to start. See [ADR 0018](adr/0018-store-takes-a-context.md).
+
 Connections are bounded by `server.read-timeout`, `server.write-timeout` and
 `server.idle-timeout`, with the header deadline capped at ten seconds or the read timeout,
 whichever is shorter. Without them a slow client holds a connection indefinitely. The write timeout
@@ -240,9 +245,11 @@ that point outside the bundle, and cycles in the route tree, the last through
 writing templates and destinations before the routes that point at them and routes parents first. A
 dry run runs that same import and rolls it back, rather than computing the diff a second way.
 
-`store.Store` grows `WithTx(func(Store) error) error` for it. The SQLite implementation runs every
-statement against a `queryer`, which is the database or a transaction, so one set of methods serves
-both; `Close`, `Ping` and a nested `WithTx` are refused inside one.
+`store.Store` grows `WithTx(ctx, func(ctx, Store) error) error` for it. The SQLite implementation
+runs every statement against a `queryer`, which is the database or a transaction, so one set of
+methods serves both; `Close`, `Ping` and a nested `WithTx` are refused inside one. `WithTx` passes
+the context to the function rather than letting it close over the caller's, so a transaction can be
+given a deadline of its own without changing any caller.
 
 `GET /api/config/export`, `POST /api/config/import` and the `teamster export` / `teamster import`
 commands are three doors onto the same code. See
