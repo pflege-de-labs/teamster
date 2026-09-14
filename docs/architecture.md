@@ -10,7 +10,7 @@ that runs more than one instance. SQLite is the option with no other runtime dep
 | Package | Responsibility |
 | --- | --- |
 | `cmd/teamster` | Entry point. Installs the signal handler and hands the resulting context to the command tree. |
-| `internal/cli` | kong command tree and its wiring. `ServeCmd` is the default command: it opens the store, constructs the Graph client, serves HTTP and shuts down on cancellation. |
+| `internal/cli` | kong command tree and its wiring. `ServeCmd` is the default command: it opens the store, constructs the Graph client, serves HTTP and shuts down on cancellation. `completion` writes a shell completion script generated from the same model. |
 | `internal/config` | Configuration schema (kong tags), XDG config file search paths, validation. |
 | `internal/httpserver` | HTTP routing, webhook handlers, alert processing, admin JSON API, the server-rendered admin pages, basic auth and request logging middleware. |
 | `internal/httpserver/views` | templ components for the admin UI. The `*_templ.go` files beside them are generated and committed. |
