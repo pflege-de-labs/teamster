@@ -66,10 +66,11 @@ Images are published to `ghcr.io/<owner>/<repo>` for `linux/amd64` and `linux/ar
 build is tagged with its short commit sha, and branches and pull requests get moving tags
 ([ADR 0005](adr/0005-image-tagging-and-promotion.md)).
 
-Every image pushed from `main` is scanned with Trivy and the findings are reported to SecObserve,
-against the exact digest just built. Pull requests are not scanned, including same-repository ones
-that do push an image — see [ADR 0024](adr/0024-trivy-image-scanning.md) for why, and for the gap
-it leaves open: release images are not scanned yet.
+Every image pushed from `main`, and every release image, is scanned with Trivy and the findings
+are reported to SecObserve, against the exact digest just built. Pull requests are not scanned,
+including same-repository ones that do push an image. A release is reported under its own
+SecObserve branch, named after the tag, rather than folded into `main`'s — see
+[ADR 0024](adr/0024-trivy-image-scanning.md).
 
 A release rebuilds from the tag after re-running lint and tests, so the version and labels
 describe the release; all of its tags share that one build's digest. The image carries SPDX SBOM

@@ -134,6 +134,25 @@ jobs:
             echo "Tags: ${{ steps.meta.outputs.tags }}" | tr '\n' ' '
           } >> "$GITHUB_STEP_SUMMARY"
 
+      # Scans the exact digest that was just signed and verified, not a tag
+      # that could be repointed under it later. so_branch_name is the release
+      # tag itself, not "main": each release is tracked in SecObserve as its
+      # own branch, so a finding is attributed to the release it shipped in
+      # rather than blurred into the ongoing main history CI already reports.
+      - name: Scan the image with Trivy and upload results to SecObserve
+        uses: SecObserve/secobserve_actions_templates/actions/SCA/trivy_image@0a0f7d0981982a589f2a11c3f05c8e1c628fbd79 # v2026_08
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        with:
+          target: ${{ env.IMAGE }}@${{ env.DIGEST }}
+          report_name: trivy-image-report.cdx.json
+          so_api_base_url: https://webhooks.p4e.io/secobserve
+          so_api_token: ${{ secrets.SO_API_TOKEN }}
+          so_product_name: teamster
+          so_branch_name: ${{ github.ref_name }}
+          so_origin_service: teamster
+          so_origin_docker_image_name_tag: ${{ env.IMAGE }}:${{ github.ref_name }}
+
   binaries:
     needs: verify
     runs-on: ubuntu-latest
