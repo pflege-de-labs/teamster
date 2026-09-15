@@ -11,9 +11,10 @@ answered nowhere: not on a push to `main`, not on a release, not anywhere a huma
 before it shipped.
 
 SecObserve is the vulnerability-management service this organisation already runs findings
-through for other repositories, reachable at `https://webhooks.p4e.io/secobserve`. Its own action
-templates (`SecObserve/secobserve_actions_templates`) wrap Trivy and post the results there in one
-step, which is the pattern `~/github/tranquila/.github/workflows` already uses.
+through for other repositories, reachable at `https://webhooks.management.p4e.io/secobserve`.
+Its own action templates (`SecObserve/secobserve_actions_templates`) wrap Trivy and post
+the results there in one step, which is the pattern `~/github/tranquila/.github/workflows`
+already uses.
 
 ## Decision
 

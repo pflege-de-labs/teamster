@@ -212,7 +212,7 @@ jobs:
         with:
           target: ${{ env.IMAGE }}@${{ env.DIGEST }}
           report_name: trivy-image-report.cdx.json
-          so_api_base_url: https://webhooks.p4e.io/secobserve
+          so_api_base_url: https://webhooks.management.p4e.io/secobserve
           so_api_token: ${{ secrets.SO_API_TOKEN }}
           so_product_name: teamster
           so_branch_name: ${{ github.ref_name }}
