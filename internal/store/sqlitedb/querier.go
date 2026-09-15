@@ -25,7 +25,9 @@ type Querier interface {
 	CountActiveAlerts(ctx context.Context) (int64, error)
 	CreateDestination(ctx context.Context, arg CreateDestinationParams) error
 	CreateGrant(ctx context.Context, arg CreateGrantParams) error
+	CreateLinkFlow(ctx context.Context, arg CreateLinkFlowParams) error
 	CreateLoginFlow(ctx context.Context, arg CreateLoginFlowParams) error
+	CreateRecipient(ctx context.Context, arg CreateRecipientParams) error
 	CreateRoute(ctx context.Context, arg CreateRouteParams) error
 	CreateSession(ctx context.Context, arg CreateSessionParams) error
 	CreateTemplate(ctx context.Context, arg CreateTemplateParams) error
@@ -33,6 +35,7 @@ type Querier interface {
 	// that card: a resolve that raced a refire must not delete the new card's row.
 	DeleteActiveAlertCard(ctx context.Context, arg DeleteActiveAlertCardParams) error
 	DeleteDestination(ctx context.Context, id string) error
+	DeleteExpiredLinkFlows(ctx context.Context, expiresAt time.Time) error
 	DeleteExpiredLoginFlows(ctx context.Context, expiresAt time.Time) error
 	DeleteExpiredSessions(ctx context.Context, expiresAt time.Time) error
 	DeleteGrant(ctx context.Context, id string) error
@@ -40,11 +43,17 @@ type Querier interface {
 	// here. A set delete takes the locks the isolation level needs and cannot
 	// interleave with another writer's replacement into the union of both.
 	DeleteGrantsForRole(ctx context.Context, role string) error
+	DeleteRecipient(ctx context.Context, id string) error
 	DeleteRoute(ctx context.Context, id string) error
 	DeleteSession(ctx context.Context, id string) error
 	DeleteTemplate(ctx context.Context, id string) error
 	GetActiveAlert(ctx context.Context, arg GetActiveAlertParams) (ActiveAlert, error)
 	GetDestination(ctx context.Context, id string) (Destination, error)
+	GetRecipient(ctx context.Context, id string) (Recipient, error)
+	// GetRecipientBySubject is how the linking flow finds an existing binding for
+	// the person redeeming a code, so re-linking updates their row rather than
+	// failing on the unique index.
+	GetRecipientBySubject(ctx context.Context, subject string) (Recipient, error)
 	GetRoute(ctx context.Context, id string) (Route, error)
 	GetSession(ctx context.Context, id string) (Session, error)
 	GetTemplate(ctx context.Context, id string) (Template, error)
@@ -54,6 +63,7 @@ type Querier interface {
 	ListActiveAlerts(ctx context.Context, fingerprint string) ([]ActiveAlert, error)
 	ListDestinations(ctx context.Context) ([]Destination, error)
 	ListGrants(ctx context.Context) ([]Grant, error)
+	ListRecipients(ctx context.Context) ([]Recipient, error)
 	ListRoutes(ctx context.Context) ([]Route, error)
 	ListTemplates(ctx context.Context) ([]Template, error)
 	// ReapStaleClaim drops a claim a process took and never completed. It is
@@ -67,6 +77,10 @@ type Querier interface {
 	// attempt does not have to wait out the staleness cutoff. Deleting is safe
 	// because posted_at IS NULL says no card was ever created under it.
 	ReleaseActiveAlertClaim(ctx context.Context, arg ReleaseActiveAlertClaimParams) error
+	// TakeLinkFlow redeems a code once: the row is gone whether or not it had
+	// expired, so a code read over somebody's shoulder and typed twice binds
+	// nothing the second time.
+	TakeLinkFlow(ctx context.Context, code string) (LinkFlow, error)
 	// TakeLoginFlow redeems a state once: the row is gone whether or not it had
 	// expired, so a replayed callback finds nothing.
 	TakeLoginFlow(ctx context.Context, state string) (LoginFlow, error)
@@ -75,6 +89,10 @@ type Querier interface {
 	// not have its newer row stamped by an update to the older one.
 	TouchActiveAlert(ctx context.Context, arg TouchActiveAlertParams) error
 	UpdateDestination(ctx context.Context, arg UpdateDestinationParams) error
+	// The update deliberately leaves subject alone: it is who this binding belongs
+	// to, and moving it would point one person's link at another's alerts. What
+	// changes on a re-link is the conversation reference.
+	UpdateRecipient(ctx context.Context, arg UpdateRecipientParams) error
 	UpdateRoute(ctx context.Context, arg UpdateRouteParams) error
 	UpdateTemplate(ctx context.Context, arg UpdateTemplateParams) error
 }

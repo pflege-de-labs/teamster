@@ -39,11 +39,30 @@ type Grant struct {
 	UpdatedAt time.Time
 }
 
+type LinkFlow struct {
+	Code      string
+	Subject   string
+	ExpiresAt time.Time
+}
+
 type LoginFlow struct {
 	State     string
 	Verifier  string
 	Nonce     string
 	ExpiresAt time.Time
+}
+
+type Recipient struct {
+	ID             string
+	Subject        string
+	Name           string
+	AadObjectID    string
+	ConversationID string
+	ServiceUrl     string
+	BotChannelID   string
+	TenantID       string
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
 }
 
 type Route struct {
