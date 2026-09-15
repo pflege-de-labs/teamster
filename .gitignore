@@ -3,7 +3,7 @@ config.yaml
 
 bin/
 dist/
-*.db
+*.db*
 coverage.out
 coverage.out.raw
 coverage.html
