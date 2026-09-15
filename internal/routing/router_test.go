@@ -54,6 +54,36 @@ func (s stubStore) GetDestination(ctx context.Context, id string) (models.Destin
 	return models.Destination{}, store.ErrNotFound
 }
 
+func (s stubStore) ListRecipients(ctx context.Context) ([]models.Recipient, error) {
+	return nil, store.ErrNotFound
+}
+
+func (s stubStore) CreateRecipient(ctx context.Context, r models.Recipient) (models.Recipient, error) {
+	return models.Recipient{}, store.ErrNotFound
+}
+
+func (s stubStore) UpdateRecipient(ctx context.Context, r models.Recipient) (models.Recipient, error) {
+	return models.Recipient{}, store.ErrNotFound
+}
+
+func (s stubStore) DeleteRecipient(ctx context.Context, id string) error { return store.ErrNotFound }
+
+func (s stubStore) GetRecipient(ctx context.Context, id string) (models.Recipient, error) {
+	return models.Recipient{}, store.ErrNotFound
+}
+
+func (s stubStore) GetRecipientBySubject(ctx context.Context, subject string) (models.Recipient, error) {
+	return models.Recipient{}, store.ErrNotFound
+}
+
+func (s stubStore) CreateLinkFlow(ctx context.Context, f models.LinkFlow) error {
+	return store.ErrNotFound
+}
+
+func (s stubStore) TakeLinkFlow(ctx context.Context, code string) (models.LinkFlow, error) {
+	return models.LinkFlow{}, store.ErrNotFound
+}
+
 func (s stubStore) ListRoutes(ctx context.Context) ([]models.Route, error) {
 	return s.routes, s.err
 }

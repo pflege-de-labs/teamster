@@ -24,6 +24,38 @@ type Destination struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+// A Recipient is a person who asked for their alerts as a chat message, and the
+// Bot Framework conversation reference that makes it possible to send one
+// unprompted. Subject is the admin-UI session subject that proved the link, so a
+// recipient inherits whatever that session was already allowed to see; it is
+// unique, and re-linking replaces the row rather than adding a second one.
+//
+// The rest is the conversation reference, as Bot Framework spells it.
+// BotChannelID is a Bot Framework channel — "msteams" — and not a Teams channel,
+// which is what ChannelID means everywhere else in this package.
+type Recipient struct {
+	ID             string    `json:"id"`
+	Subject        string    `json:"subject"`
+	Name           string    `json:"name"`
+	AADObjectID    string    `json:"aad_object_id"`
+	ConversationID string    `json:"conversation_id"`
+	ServiceURL     string    `json:"service_url"`
+	BotChannelID   string    `json:"bot_channel_id"`
+	TenantID       string    `json:"tenant_id"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+}
+
+// A LinkFlow is a one-time code an authenticated admin-UI session generated, to
+// be typed at the bot in Teams. Redeeming it is what binds a conversation to
+// Subject: without it, anyone able to install the bot could opt into alerts
+// nobody granted them.
+type LinkFlow struct {
+	Code      string    `json:"code"`
+	Subject   string    `json:"subject"`
+	ExpiresAt time.Time `json:"expires_at"`
+}
+
 // A Route decides where an alert goes. Routes form a tree: a child refines its
 // parent's match, and delivers instead of its parent when Greedy, as well as it
 // when not. A child leaves DestinationID or TemplateID empty to inherit the

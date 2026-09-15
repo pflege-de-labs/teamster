@@ -17,8 +17,8 @@ that runs more than one instance. SQLite is the option with no other runtime dep
 | `internal/routing` | Selects a route for an alert's labels. |
 | `internal/templates` | Renders an Adaptive Card from a Go template plus alert data. |
 | `internal/graph` | Microsoft Graph client: OAuth2 client credentials, post and update channel messages. |
-| `internal/store` | `Store` interface, its SQLite and Postgres backends sharing one adapter; `internal/store/migrations` owns the schema for templates, destinations, routes and active alerts. |
-| `internal/models` | Shared data types: `Alert`, `Route`, `Template`, `Destination`, `ActiveAlert` and the two webhook payload shapes. |
+| `internal/store` | `Store` interface, its SQLite and Postgres backends sharing one adapter; `internal/store/migrations` owns the schema for templates, destinations, routes, recipients and active alerts. |
+| `internal/models` | Shared data types: `Alert`, `Route`, `Template`, `Destination`, `Recipient`, `ActiveAlert` and the two webhook payload shapes. |
 | `internal/httpserver/web` | Embedded static assets: icons, the web manifest and the Tailwind stylesheet built from `views/styles.css`. |
 
 Dependencies are injected through constructors — `store.NewSQLiteStore`, `graph.NewClient`,
@@ -306,13 +306,15 @@ against a probe interval and is why the test for it waits rather than assuming a
 
 ## Invariants the database holds
 
-Two rules are enforced by the store rather than by the code above it, because a
-check and the write it guards are otherwise two steps that another writer can
+Three rules are enforced by the store rather than by the code above it, because
+a check and the write it guards are otherwise two steps that another writer can
 get between.
 
 A role granted the same scope twice is a duplicate, not a second permission, so
 `(role, team_id, channel_id)` is unique and replacing a role's scope is a set
-delete rather than a list and a loop. Route writes and deletes run their cycle
+delete rather than a list and a loop. `recipients.subject` is unique for the
+same kind of reason: a person with two bindings would be sent every alert twice,
+so re-linking updates the row that exists. Route writes and deletes run their cycle
 and orphan checks inside `WithSerializableTx`, which is what stops two admins
 from each validating against a tree the other is about to change -- an orphaned
 child becomes a root, and a root matches the alerts its parent used to filter
@@ -361,6 +363,15 @@ builds performed on every open: add the columns a later release introduced, rebu
 if it still carries the old single-column key, and refuse a database whose timestamps are declared
 the wrong type. It runs once and is recorded, which is what retires the `PRAGMA` inspection that
 used to run on every start.
+
+`recipients` and `link_flows` were added later, by `0005` in SQLite and `0002` in Postgres. A
+recipient is a person who asked for their alerts as a chat message rather than only in a channel,
+and the row holds the Bot Framework conversation reference needed to send one unprompted. Its
+`bot_channel_id` is a Bot Framework channel — `msteams` — and not a Teams channel, which is what
+`channel_id` means in every other table. A link flow is the one-time code that binds a conversation
+to a person, redeemed by deleting the row exactly as `login_flows` is. Nothing delivers to a
+recipient yet: the storage lands before the routing and the bot that use it. The decision behind
+all of it is the ADR on alerts in a person's chat, in the [ADR index](adr/README.md).
 
 `database.migrate` decides what opening the store does about a schema that is behind: `auto`
 applies what is missing, `verify` refuses and names `teamster migrate up`, `off` asks nothing.

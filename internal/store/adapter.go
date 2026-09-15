@@ -196,6 +196,112 @@ func destinationOf(row sqlitedb.Destination) models.Destination {
 	}
 }
 
+func (s queryAdapter) ListRecipients(ctx context.Context) ([]models.Recipient, error) {
+	rows, err := s.q.ListRecipients(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list recipients: %w", err)
+	}
+	if len(rows) == 0 {
+		return nil, nil
+	}
+	out := make([]models.Recipient, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, recipientOf(row))
+	}
+	return out, nil
+}
+
+func (s queryAdapter) CreateRecipient(ctx context.Context, r models.Recipient) (models.Recipient, error) {
+	r.ID = newID(r.ID)
+	r.CreatedAt = nowUTC()
+	r.UpdatedAt = r.CreatedAt
+
+	err := s.q.CreateRecipient(ctx, sqlitedb.CreateRecipientParams{
+		ID:             r.ID,
+		Subject:        r.Subject,
+		Name:           r.Name,
+		AadObjectID:    r.AADObjectID,
+		ConversationID: r.ConversationID,
+		ServiceUrl:     r.ServiceURL,
+		BotChannelID:   r.BotChannelID,
+		TenantID:       r.TenantID,
+		CreatedAt:      r.CreatedAt,
+		UpdatedAt:      r.UpdatedAt,
+	})
+	if err != nil {
+		return models.Recipient{}, fmt.Errorf("create recipient: %w", err)
+	}
+	return r, nil
+}
+
+// The subject is not among the columns written: it is who the binding belongs
+// to, and a re-link changes the conversation, never the person.
+func (s queryAdapter) UpdateRecipient(ctx context.Context, r models.Recipient) (models.Recipient, error) {
+	if r.ID == "" {
+		return models.Recipient{}, errors.New("recipient id is required")
+	}
+	r.UpdatedAt = nowUTC()
+
+	err := s.q.UpdateRecipient(ctx, sqlitedb.UpdateRecipientParams{
+		Name:           r.Name,
+		AadObjectID:    r.AADObjectID,
+		ConversationID: r.ConversationID,
+		ServiceUrl:     r.ServiceURL,
+		BotChannelID:   r.BotChannelID,
+		TenantID:       r.TenantID,
+		UpdatedAt:      r.UpdatedAt,
+		ID:             r.ID,
+	})
+	if err != nil {
+		return models.Recipient{}, fmt.Errorf("update recipient: %w", err)
+	}
+	return r, nil
+}
+
+func (s queryAdapter) DeleteRecipient(ctx context.Context, id string) error {
+	if err := s.q.DeleteRecipient(ctx, id); err != nil {
+		return fmt.Errorf("delete recipient: %w", err)
+	}
+	return nil
+}
+
+func (s queryAdapter) GetRecipient(ctx context.Context, id string) (models.Recipient, error) {
+	row, err := s.q.GetRecipient(ctx, id)
+	if err != nil {
+		if err := notFound(err); errors.Is(err, ErrNotFound) {
+			return models.Recipient{}, err
+		}
+		return models.Recipient{}, fmt.Errorf("get recipient: %w", err)
+	}
+	return recipientOf(row), nil
+}
+
+func (s queryAdapter) GetRecipientBySubject(ctx context.Context, subject string) (models.Recipient, error) {
+	row, err := s.q.GetRecipientBySubject(ctx, subject)
+	if err != nil {
+		if err := notFound(err); errors.Is(err, ErrNotFound) {
+			return models.Recipient{}, err
+		}
+		return models.Recipient{}, fmt.Errorf("get recipient by subject: %w", err)
+	}
+	return recipientOf(row), nil
+}
+
+func recipientOf(row sqlitedb.Recipient) models.Recipient {
+	return models.Recipient{
+		ID:             row.ID,
+		Subject:        row.Subject,
+		Name:           row.Name,
+		AADObjectID:    row.AadObjectID,
+		ConversationID: row.ConversationID,
+		ServiceURL:     row.ServiceUrl,
+		BotChannelID:   row.BotChannelID,
+		TenantID:       row.TenantID,
+		CreatedAt:      row.CreatedAt,
+		UpdatedAt:      row.UpdatedAt,
+	}
+}
+
 func (s queryAdapter) ListRoutes(ctx context.Context) ([]models.Route, error) {
 	rows, err := s.q.ListRoutes(ctx)
 	if err != nil {
@@ -569,6 +675,9 @@ func (s queryAdapter) DeleteExpiredSessions(ctx context.Context) error {
 	if err := s.q.DeleteExpiredLoginFlows(ctx, now); err != nil {
 		return fmt.Errorf("sweep login flows: %w", err)
 	}
+	if err := s.q.DeleteExpiredLinkFlows(ctx, now); err != nil {
+		return fmt.Errorf("sweep link flows: %w", err)
+	}
 	return nil
 }
 
@@ -599,6 +708,36 @@ func (s queryAdapter) TakeLoginFlow(ctx context.Context, state string) (models.L
 		State:     row.State,
 		Verifier:  row.Verifier,
 		Nonce:     row.Nonce,
+		ExpiresAt: row.ExpiresAt,
+	})
+}
+
+func (s queryAdapter) CreateLinkFlow(ctx context.Context, flow models.LinkFlow) error {
+	err := s.q.CreateLinkFlow(ctx, sqlitedb.CreateLinkFlowParams{
+		Code:      flow.Code,
+		Subject:   flow.Subject,
+		ExpiresAt: flow.ExpiresAt,
+	})
+	if err != nil {
+		return fmt.Errorf("create link flow: %w", err)
+	}
+	return nil
+}
+
+// Taking the code spends it, in the same order TakeLoginFlow does: the row is
+// deleted first and judged afterwards, so an expired code cannot be retried
+// until it is guessed right.
+func (s queryAdapter) TakeLinkFlow(ctx context.Context, code string) (models.LinkFlow, error) {
+	row, err := s.q.TakeLinkFlow(ctx, code)
+	if err != nil {
+		if err := notFound(err); errors.Is(err, ErrNotFound) {
+			return models.LinkFlow{}, err
+		}
+		return models.LinkFlow{}, fmt.Errorf("take link flow: %w", err)
+	}
+	return liveLinkFlow(models.LinkFlow{
+		Code:      row.Code,
+		Subject:   row.Subject,
 		ExpiresAt: row.ExpiresAt,
 	})
 }
