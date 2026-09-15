@@ -181,7 +181,9 @@ jobs:
             type=ref,event=branch
             type=ref,event=pr
 
-      - uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
+      - name: Build the image
+        id: build
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
         with:
           context: .
           platforms: linux/amd64,linux/arm64
@@ -193,3 +195,26 @@ jobs:
           annotations: ${{ steps.meta.outputs.annotations }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # Skipped for pull_request builds entirely, not just forks: SecObserve
+      # auto-creates a "branch" per so_branch_name on first import, and a
+      # transient PR branch has no reason to leave a permanent-ish trace in a
+      # findings tool. This repository's CI only otherwise runs on push to
+      # main, so what remains is exactly the branch worth tracking over time.
+      #
+      # Scans the exact digest that was just pushed, not a tag that could be
+      # repointed under it before the scan runs.
+      - name: Scan the image with Trivy and upload results to SecObserve
+        if: github.event_name != 'pull_request'
+        uses: SecObserve/secobserve_actions_templates/actions/SCA/trivy_image@0a0f7d0981982a589f2a11c3f05c8e1c628fbd79 # v2026_08
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        with:
+          target: ${{ env.IMAGE }}@${{ env.DIGEST }}
+          report_name: trivy-image-report.cdx.json
+          so_api_base_url: https://webhooks.p4e.io/secobserve
+          so_api_token: ${{ secrets.SO_API_TOKEN }}
+          so_product_name: teamster
+          so_branch_name: ${{ github.ref_name }}
+          so_origin_service: teamster
+          so_origin_docker_image_name_tag: ${{ env.IMAGE }}:${{ steps.commit.outputs.short_sha }}
