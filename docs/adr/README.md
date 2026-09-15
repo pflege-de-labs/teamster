@@ -40,3 +40,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0023](0023-chart-deploys-either-shape.md) | The chart deploys either shape | Accepted |
 | [0024](0024-trivy-image-scanning.md) | Scan images with Trivy and report to SecObserve | Accepted |
 | [0025](0025-shell-completion.md) | Shell completion is generated from the command tree | Accepted |
+| [0026](0026-alerts-in-a-persons-chat.md) | Alerts reach a person's chat through a Bot Framework bot | Proposed |
