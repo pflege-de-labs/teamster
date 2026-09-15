@@ -30,19 +30,23 @@ commit sha as every other action in this repository is.
   repository's CI otherwise only runs on push to `main`, so what remains is exactly the branch
   worth tracking over time.
 * `so_product_name` and `so_origin_service` are both `teamster`; `so_branch_name` is
-  `github.ref_name`, which is `main` for the case that runs.
+  `github.ref_name`.
 
-Release images are not yet in scope — see Consequences.
+`release.yml` scans too, once the image is built, signed and its signature verified. There
+`github.ref_name` is the release tag itself (`v1.2.3`), not `main` — each release is tracked in
+SecObserve as its own branch, so a finding is attributed to the release it shipped in rather than
+blurred into the ongoing `main` history CI already reports. That also means a vulnerability found
+in a past release stays visible under that release's branch even after `main` has moved on and
+been rescanned clean.
 
 ## Consequences
 
 * A finding blocks nothing today: the step has no failure threshold and the job does not fail on
-  its result. SecObserve is where the finding is triaged, not the pipeline. Gating merges or
-  releases on severity is a later decision if the noise level in practice calls for it.
-* **Release images (`release.yml`, tags `v*`) are not scanned.** They are the artifact that is
-  actually deployed, and the gap is real: a vulnerability introduced between the last `main` scan
-  and a release would go unreported at the moment it matters most. `release.yml` already builds
-  with `sbom: true` and signs by digest, so extending this there is the same shape of change; it
-  is deferred pending a decision on whether SecObserve should track releases as their own branch
-  (by tag) or fold into `main`.
+  its result, in CI or in a release. SecObserve is where the finding is triaged, not the pipeline.
+  Gating merges or releases on severity is a later decision if the noise level in practice calls
+  for it.
+* SecObserve accumulates one branch per release tag, indefinitely — there is no pruning. That is
+  the intended shape (a released version's findings should not disappear because a newer one
+  shipped), but it means the branch list in SecObserve grows with every release, unlike `main`
+  which stays a single branch reused across every CI run.
 * Requires the `SO_API_TOKEN` secret, provisioned in the repository already.

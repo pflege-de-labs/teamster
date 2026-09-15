@@ -448,9 +448,10 @@ A release rebuilds from its tag, so the release tags share one digest of their o
 inside reports the version rather than a commit sha. Use a `<short-sha>` tag to deploy an exact
 CI build.
 
-Every `main` build is scanned with Trivy and the findings are reported to SecObserve; pull
-requests are not. Release images are not scanned yet — see
-[ADR 0024](docs/adr/0024-trivy-image-scanning.md).
+Every `main` build and every release is scanned with Trivy and the findings are reported to
+SecObserve; pull requests are not. A release is tracked as its own branch there, named after the
+tag, so its findings stay attributed to that release rather than blurred into `main`'s ongoing
+history — see [ADR 0024](docs/adr/0024-trivy-image-scanning.md).
 
 ### Verifying a release
 
