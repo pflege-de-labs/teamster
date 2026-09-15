@@ -224,6 +224,142 @@ func TestConformanceSessionsAndFlows(t *testing.T) {
 	})
 }
 
+func TestConformanceRecipients(t *testing.T) {
+	t.Parallel()
+
+	eachBackend(t, func(t *testing.T, open func(t *testing.T) store.Store) {
+		st := open(t)
+		ctx := t.Context()
+
+		created, err := st.CreateRecipient(ctx, models.Recipient{
+			Subject:        "alice@example.com",
+			Name:           "Alice",
+			AADObjectID:    "aad-1",
+			ConversationID: "conversation-1",
+			ServiceURL:     "https://smba.example.invalid/emea/",
+			BotChannelID:   "msteams",
+			TenantID:       "tenant-1",
+		})
+		if err != nil {
+			t.Fatalf("CreateRecipient: %v", err)
+		}
+		if created.ID == "" {
+			t.Error("CreateRecipient() returned no id, want one generated")
+		}
+
+		got, err := st.GetRecipient(ctx, created.ID)
+		if err != nil {
+			t.Fatalf("GetRecipient: %v", err)
+		}
+		if got.Name != created.Name || got.AADObjectID != created.AADObjectID ||
+			got.ConversationID != created.ConversationID || got.ServiceURL != created.ServiceURL ||
+			got.BotChannelID != created.BotChannelID || got.TenantID != created.TenantID {
+			t.Errorf("recipient = %+v, want the conversation reference round-tripped from %+v", got, created)
+		}
+		// Postgres keeps microseconds and SQLite nanoseconds, so the stamps are
+		// only equal once both are truncated -- and truncated rather than
+		// rounded, because Postgres truncates.
+		if !got.CreatedAt.Truncate(time.Microsecond).Equal(created.CreatedAt.Truncate(time.Microsecond)) {
+			t.Errorf("CreatedAt = %v, want %v", got.CreatedAt, created.CreatedAt)
+		}
+
+		bySubject, err := st.GetRecipientBySubject(ctx, "alice@example.com")
+		if err != nil {
+			t.Fatalf("GetRecipientBySubject: %v", err)
+		}
+		if bySubject.ID != created.ID {
+			t.Errorf("GetRecipientBySubject() = %q, want %q", bySubject.ID, created.ID)
+		}
+
+		// Re-linking replaces the conversation and leaves the person alone.
+		relinked := got
+		relinked.Subject = "someone-else@example.com"
+		relinked.ConversationID = "conversation-2"
+		if _, err := st.UpdateRecipient(ctx, relinked); err != nil {
+			t.Fatalf("UpdateRecipient: %v", err)
+		}
+		after, err := st.GetRecipient(ctx, created.ID)
+		if err != nil {
+			t.Fatalf("GetRecipient after update: %v", err)
+		}
+		if after.ConversationID != "conversation-2" {
+			t.Errorf("ConversationID = %q, want the re-linked conversation", after.ConversationID)
+		}
+		if after.Subject != "alice@example.com" {
+			t.Errorf("Subject = %q, want the update to have left it alone", after.Subject)
+		}
+
+		if err := st.DeleteRecipient(ctx, created.ID); err != nil {
+			t.Fatalf("DeleteRecipient: %v", err)
+		}
+		if _, err := st.GetRecipient(ctx, created.ID); !errors.Is(err, store.ErrNotFound) {
+			t.Errorf("after the delete = %v, want ErrNotFound", err)
+		}
+		if _, err := st.GetRecipientBySubject(ctx, "nobody"); !errors.Is(err, store.ErrNotFound) {
+			t.Errorf("GetRecipientBySubject(nobody) = %v, want ErrNotFound", err)
+		}
+	})
+}
+
+// One person, one binding: a second row for the same subject would deliver
+// every alert twice.
+func TestConformanceRecipientSubjectIsUnique(t *testing.T) {
+	t.Parallel()
+
+	eachBackend(t, func(t *testing.T, open func(t *testing.T) store.Store) {
+		st := open(t)
+		ctx := t.Context()
+		recipient := models.Recipient{Subject: "alice", ConversationID: "c", ServiceURL: "u", BotChannelID: "msteams"}
+
+		if _, err := st.CreateRecipient(ctx, recipient); err != nil {
+			t.Fatalf("CreateRecipient: %v", err)
+		}
+		if _, err := st.CreateRecipient(ctx, recipient); err == nil {
+			t.Error("the same subject twice = nil error, want the constraint to refuse it")
+		}
+	})
+}
+
+func TestConformanceLinkFlows(t *testing.T) {
+	t.Parallel()
+
+	eachBackend(t, func(t *testing.T, open func(t *testing.T) store.Store) {
+		st := open(t)
+		ctx := t.Context()
+
+		flow := models.LinkFlow{Code: "ABC123", Subject: "alice", ExpiresAt: time.Now().Add(time.Minute)}
+		if err := st.CreateLinkFlow(ctx, flow); err != nil {
+			t.Fatalf("CreateLinkFlow: %v", err)
+		}
+
+		taken, err := st.TakeLinkFlow(ctx, "ABC123")
+		if err != nil {
+			t.Fatalf("TakeLinkFlow: %v", err)
+		}
+		if taken.Subject != "alice" {
+			t.Errorf("Subject = %q, want the subject the code was issued to", taken.Subject)
+		}
+
+		// A code is spent by being taken, so one read over a shoulder binds
+		// nothing the second time.
+		if _, err := st.TakeLinkFlow(ctx, "ABC123"); !errors.Is(err, store.ErrNotFound) {
+			t.Errorf("taking a code twice = %v, want ErrNotFound", err)
+		}
+
+		expired := models.LinkFlow{Code: "OLD", Subject: "alice", ExpiresAt: time.Now().Add(-time.Minute)}
+		if err := st.CreateLinkFlow(ctx, expired); err != nil {
+			t.Fatalf("CreateLinkFlow(expired): %v", err)
+		}
+		if _, err := st.TakeLinkFlow(ctx, "OLD"); !errors.Is(err, store.ErrNotFound) {
+			t.Errorf("an expired code = %v, want ErrNotFound", err)
+		}
+		// Expired or not, taking it spent it: the row is gone.
+		if _, err := st.TakeLinkFlow(ctx, "OLD"); !errors.Is(err, store.ErrNotFound) {
+			t.Errorf("the expired code survived being taken: %v", err)
+		}
+	})
+}
+
 // The claim is the reason a second backend has to behave identically: if
 // Postgres let two writers acquire the same card, HA would post duplicates.
 func TestConformanceConcurrentClaims(t *testing.T) {

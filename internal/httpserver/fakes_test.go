@@ -25,11 +25,13 @@ type fakeStore struct {
 
 	templates    map[string]models.Template
 	destinations map[string]models.Destination
+	recipients   map[string]models.Recipient
 	routes       map[string]models.Route
 	activeAlerts map[string]models.ActiveAlert
 	grants       map[string]models.Grant
 	sessions     map[string]models.Session
 	loginFlows   map[string]models.LoginFlow
+	linkFlows    map[string]models.LinkFlow
 
 	failOn map[string]bool
 }
@@ -38,6 +40,7 @@ func newFakeStore() *fakeStore {
 	return &fakeStore{
 		templates:    map[string]models.Template{},
 		destinations: map[string]models.Destination{},
+		recipients:   map[string]models.Recipient{},
 		routes:       map[string]models.Route{},
 		activeAlerts: map[string]models.ActiveAlert{},
 		sessions: map[string]models.Session{
@@ -50,6 +53,7 @@ func newFakeStore() *fakeStore {
 		},
 		grants:     map[string]models.Grant{},
 		loginFlows: map[string]models.LoginFlow{},
+		linkFlows:  map[string]models.LinkFlow{},
 		failOn:     map[string]bool{},
 	}
 }
@@ -195,6 +199,107 @@ func (f *fakeStore) GetDestination(ctx context.Context, id string) (models.Desti
 		return models.Destination{}, store.ErrNotFound
 	}
 	return d, nil
+}
+
+func (f *fakeStore) ListRecipients(ctx context.Context) ([]models.Recipient, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("ListRecipients"); err != nil {
+		return nil, err
+	}
+	out := []models.Recipient{}
+	for _, r := range f.recipients {
+		out = append(out, r)
+	}
+	return out, nil
+}
+
+func (f *fakeStore) CreateRecipient(ctx context.Context, r models.Recipient) (models.Recipient, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("CreateRecipient"); err != nil {
+		return models.Recipient{}, err
+	}
+	if r.ID == "" {
+		r.ID = "generated"
+	}
+	f.recipients[r.ID] = r
+	return r, nil
+}
+
+func (f *fakeStore) UpdateRecipient(ctx context.Context, r models.Recipient) (models.Recipient, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("UpdateRecipient"); err != nil {
+		return models.Recipient{}, err
+	}
+	// The real store leaves the subject alone, so neither does this.
+	if existing, ok := f.recipients[r.ID]; ok {
+		r.Subject = existing.Subject
+	}
+	f.recipients[r.ID] = r
+	return r, nil
+}
+
+func (f *fakeStore) DeleteRecipient(ctx context.Context, id string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("DeleteRecipient"); err != nil {
+		return err
+	}
+	delete(f.recipients, id)
+	return nil
+}
+
+func (f *fakeStore) GetRecipient(ctx context.Context, id string) (models.Recipient, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("GetRecipient"); err != nil {
+		return models.Recipient{}, err
+	}
+	r, ok := f.recipients[id]
+	if !ok {
+		return models.Recipient{}, store.ErrNotFound
+	}
+	return r, nil
+}
+
+func (f *fakeStore) GetRecipientBySubject(ctx context.Context, subject string) (models.Recipient, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("GetRecipientBySubject"); err != nil {
+		return models.Recipient{}, err
+	}
+	for _, r := range f.recipients {
+		if r.Subject == subject {
+			return r, nil
+		}
+	}
+	return models.Recipient{}, store.ErrNotFound
+}
+
+func (f *fakeStore) CreateLinkFlow(ctx context.Context, flow models.LinkFlow) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("CreateLinkFlow"); err != nil {
+		return err
+	}
+	f.linkFlows[flow.Code] = flow
+	return nil
+}
+
+func (f *fakeStore) TakeLinkFlow(ctx context.Context, code string) (models.LinkFlow, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("TakeLinkFlow"); err != nil {
+		return models.LinkFlow{}, err
+	}
+	flow, ok := f.linkFlows[code]
+	if !ok {
+		return models.LinkFlow{}, store.ErrNotFound
+	}
+	delete(f.linkFlows, code)
+	return flow, nil
 }
 
 func (f *fakeStore) ListRoutes(ctx context.Context) ([]models.Route, error) {

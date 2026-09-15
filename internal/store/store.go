@@ -82,6 +82,22 @@ type Store interface {
 	DeleteDestination(ctx context.Context, id string) error
 	GetDestination(ctx context.Context, id string) (models.Destination, error)
 
+	ListRecipients(ctx context.Context) ([]models.Recipient, error)
+	CreateRecipient(ctx context.Context, r models.Recipient) (models.Recipient, error)
+	// UpdateRecipient writes everything but the subject: a re-link replaces the
+	// conversation, never the person a binding belongs to.
+	UpdateRecipient(ctx context.Context, r models.Recipient) (models.Recipient, error)
+	DeleteRecipient(ctx context.Context, id string) error
+	GetRecipient(ctx context.Context, id string) (models.Recipient, error)
+	// GetRecipientBySubject is what makes re-linking an update rather than a
+	// duplicate: the subject is unique, and somebody who reinstalls the bot
+	// arrives with a new conversation and the same session.
+	GetRecipientBySubject(ctx context.Context, subject string) (models.Recipient, error)
+
+	CreateLinkFlow(ctx context.Context, f models.LinkFlow) error
+	// TakeLinkFlow redeems a code once, whether or not it had expired.
+	TakeLinkFlow(ctx context.Context, code string) (models.LinkFlow, error)
+
 	ListRoutes(ctx context.Context) ([]models.Route, error)
 	CreateRoute(ctx context.Context, r models.Route) (models.Route, error)
 	UpdateRoute(ctx context.Context, r models.Route) (models.Route, error)

@@ -60,6 +60,15 @@ func liveFlow(flow models.LoginFlow) (models.LoginFlow, error) {
 	return flow, nil
 }
 
+// liveLinkFlow is liveFlow for the one-time code that binds a chat to a person,
+// and is used the same way round.
+func liveLinkFlow(flow models.LinkFlow) (models.LinkFlow, error) {
+	if !flow.ExpiresAt.After(time.Now()) {
+		return models.LinkFlow{}, ErrNotFound
+	}
+	return flow, nil
+}
+
 // A selector is stored as JSON text. Corruption reads back as "matches
 // everything", which is the same thing an empty selector means, because a
 // route that silently stops matching is harder to notice than one that matches
