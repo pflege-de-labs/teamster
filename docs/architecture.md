@@ -508,13 +508,28 @@ or the shared `https://login.microsoftonline.com/botframework.com/oauth2/v2.0/to
 unless `bot-token-url` overrides it — a multi-tenant bot registration authenticates through that
 shared tenant rather than its own, and getting this wrong 401s every send.
 
-`ServeCmd` constructs a `bot.Client` unconditionally — `NewClient` never fails on an empty
-configuration — and hands it to `httpserver.NewServer`. What is conditional is the inbound route:
-`POST /bot/messages` is registered only when `botConfigured` reports all of `bot-client-id`,
-`bot-client-secret` and (for a single-tenant registration) `bot-tenant-id` are set, so a deployment
-that never turns the feature on exposes no unauthenticated path at all. See
-[Inbound bot messages](#inbound-bot-messages) for what validates a request once the route exists,
-and [Linking a chat](#linking-a-chat) for how a person ends up receiving anything through it.
+`config.BotConfig.Configured()` is the single place that decides whether the feature is on: the same
+three-field check `botConfigured` (`internal/httpserver/bot_auth.go`) used to run inline now lives on
+the config type so both the HTTP layer and `ServeCmd` share it rather than risking two gates drifting
+apart. `ServeCmd` constructs a `bot.Client` only when it reports true — unlike an earlier version of
+this code, which built one unconditionally on the reasoning that `NewClient` never fails on an empty
+configuration. Building it regardless left `httpserver`'s `if s.bot == nil` guards
+(`bot_messages.go`'s `replyText`/`notifyConversationDisplaced`, `notifications_page.go`'s
+`notifyUnlinked`) dead outside a test that deliberately passes `nil`, and meant an unconfigured
+deployment's unlink button issued a real `clientcredentials` token request against three empty
+strings, and logged a failure, on every use. `ServeCmd` holds the client in a locally declared
+interface variable with `botSender`'s exact method set rather than a `*bot.Client`, left as a true nil
+interface when the feature is off: assigning a nil `*bot.Client` to `httpserver.NewServer`'s
+`botSender` parameter directly would instead produce a non-nil interface holding a nil pointer, which
+compares unequal to `nil` on the other side and would defeat every one of those guards the same way.
+
+What is conditional on the same switch is every route this feature adds: `POST /bot/messages`, and
+`/admin/notifications` with its actions and nav link (see
+[Self-service: /admin/notifications](#self-service-adminnotifications)) — a deployment that never
+turns the feature on exposes no unauthenticated path and offers nobody a page instructing them to
+talk to a bot that isn't there. See [Inbound bot messages](#inbound-bot-messages) for what validates
+a request once the route exists, and [Linking a chat](#linking-a-chat) for how a person ends up
+receiving anything through it.
 
 ## Inbound bot messages
 
@@ -649,8 +664,96 @@ Redemption also carries two updates for whoever already held the subject's link:
 absent tenant (Teams omits it for some activity shapes) never overwrites a previously-known-good
 one, and a redemption that moves the conversation — the shape a leaked code takes when it hijacks
 someone else's alert stream — sends the *previous* conversation a notice that it was displaced, via
-the bot client, once the new binding has committed. There is deliberately no unlink command; see
-[ADR 0026](adr/0026-alerts-in-a-persons-chat.md).
+the bot client, once the new binding has committed. See [ADR 0026](adr/0026-alerts-in-a-persons-chat.md)
+for why this feature exists at all; unlinking, below, is what an adversarial review of the previous
+PR found missing from it.
+
+### Self-service: `/admin/notifications`
+
+`GET /admin/notifications` is a page like any other under `requireSession`, offered to `viewer` and
+up: linking or unlinking a chat is a person managing their own membership, not administering
+anyone else's, which is why it is not folded into `/admin` or gated behind `CanManage` the way the
+configuration and permissions panels are. It, its two POST actions and the nav link to it
+(`layout.templ`, gated on `Viewer.NotificationsEnabled`) are registered/rendered only when
+`config.BotConfig.Configured()` reports the bot is on — see the bot configuration section above for
+why: a code minted here can never be redeemed on a deployment that never registered the endpoint it
+would be typed into.
+
+`handleNotificationsPage`, `handleMintLink`, `cancelLink` and `unlinkNotifications`
+(`internal/httpserver/notifications_page.go`) resolve *who* is asking from `currentSession(r).Subject`
+— never from the principal a middleware already attached, and never from an id a form carries — for
+the same reason `handleLinkRecipient` does: `basicAuth` authenticates every script as the configured
+admin username, and nothing under `/admin/` treats it as a session in the first place, so a
+basic-auth-only request is redirected to sign in by `requireSession` before it ever reaches these
+handlers. `TestNotificationsHandlersResolveIdentityFromTheSessionNotThePrincipal` pins this by calling
+the handlers directly with a principal manufactured to disagree with the session — through the real
+mux the two are always equal, since `requireSession` is the only thing that ever sets the principal
+and always sets it from that same session, so no request built through the mux can tell a
+`currentSession(r)` implementation apart from a `principalSubject(r)` one.
+
+`requestAuthorization` maps every path that is `/admin/notifications` or starts with
+`/admin/notifications/` — anchored on the trailing slash, not a bare prefix, so an unrelated future
+path merely starting with the same characters (`/admin/notification-rules`, say) does not inherit
+this mapping by accident — to `Recipient`. A `GET` falls through to the generic method-based mapping
+below it and gets `authz.ActionView`, the same as any other page a viewer may read; only the two POSTs
+(mint, and unlink) plus the cancel action get `authz.ActionLink`, the mapping `/api/recipients/link`
+already used. Mapping the read to `view` rather than `link` matters for a deployment that defines
+its own role and permits `view` without `link`: that role sees the nav link (unguarded, since it is
+offered to every signed-in person) and must not then get a bare `403` reading it.
+
+The page never renders `Recipient.ConversationID` or `.AADObjectID`: both are opaque Bot Framework
+and Azure AD identifiers with no reason to be in a screenshot or a support ticket. `Recipient.Name`
+— Teams' display name for whoever last redeemed a code, attacker-controlled and unbounded — is
+truncated to `maxDisplayNameLength` (80 runes) before it reaches the page. What it shows is the
+truncated name, `CreatedAt` ("linked since") and, only when it differs from `CreatedAt`, `UpdatedAt`
+("last changed") — worded to say plainly that a service-url refresh (`refreshRecipientServiceURL`)
+updates the same field a new redemption does, so a change there alone is not proof of a takeover,
+only something worth noticing. What it offers is a button that calls `handleMintLink`, one that
+posts to `cancelLink`, and — only once linked — one that posts to `unlinkNotifications`.
+
+Every response `renderNotifications` writes carries `Cache-Control: no-store` and `Pragma:
+no-cache`. This matters for the same reason minting renders inline rather than through a redirect (see
+below): a code shown once is still in the response *body*, and no-store is what actually keeps a body
+out of a shared machine's disk cache and a signed-out browser's Back button, neither of which the URL
+staying clean or an access log staying quiet does anything about.
+
+Minting renders the result **in the same response**, not through the redirect-with-notice pattern
+every other admin form in this package uses (`formPost`/`redirectTo`, `internal/httpserver/admin_ui.go`).
+A minted code is live for ten minutes; putting it in a redirect's query string would leave it sitting
+in the URL and any access log for that whole window, which a page showing a person their own
+credential should not do. `formPostTo` generalises `formPost` to redirect somewhere other than
+`/admin`, which is what `cancelLink` and `unlinkNotifications` use — there is nothing sensitive in
+either notice, so the ordinary pattern applies there.
+
+`?notice=` and `?error=` on this page are a **closed set**, unlike `admin_ui.go`'s `Page`, whose
+same-named parameters carry whatever text a handler in that file composed and are rendered verbatim.
+`notificationsQueryNotice`/`notificationsQueryError` map a handful of recognised values (`unlinked`,
+`canceled`, `nothing_to_unlink`, `unlink_failed`, `cancel_failed`, `sign_in_required`) to catalog text
+and render nothing for anything else. This page's entire purpose is instructing someone to type a
+credential into a chat, which is exactly the shape a phishing link takes — "click here, then send the
+code below to the bot" — rendered in this page's own trusted `role="alert"` styling to whoever follows
+it while signed in; `cancelLink` and `unlinkNotifications` therefore return one of the recognised keys
+above, never catalog text, so nothing free-form ever reaches the query string this page reads back.
+
+A lookup failure and "not linked" look the same through `Recipient == nil` alone, which is the wrong
+thing to tell someone who is actually linked but whose lookup just failed. `notificationsPage` sets
+`Notifications.StatusUnknown` alongside `Error` in that case, and the template renders a third,
+distinct message rather than falling back to "not linked". `handleMintLink` checks the same flag
+before touching `page.Notice`/`page.Error`: a load failure the page already reported is left alone
+by a mint outcome that says nothing about whether that earlier lookup can be trusted, whether the
+mint itself then succeeds or fails.
+
+`cancelLink` calls `DeleteLinkFlowsForSubject(session.Subject)` and is offered regardless of whether
+the caller is currently linked. It is the only way to invalidate a code once minted: `createLinkFlow`
+already retires a subject's outstanding code the moment a new one is drawn, but that is no help if a
+code was pasted into the wrong window and nobody wants a replacement yet — until now there was no way
+to kill it before its ten-minute TTL ran out.
+
+`unlinkNotifications` deletes exactly the row `GetRecipientBySubject(session.Subject)` resolves,
+then best-effort tells that conversation it was unlinked via the bot client — the same
+fire-and-forget shape `notifyConversationDisplaced` already uses for a displaced link, logged rather
+than surfaced on failure since the unlink itself has already committed. Naming another row's id in
+the form, or on the query string, reaches nothing: nothing here reads one.
 
 [`manifest/`](../manifest/) holds the Teams app package -- `manifest.json` plus two icons -- that
 an operator uploads to Teams admin center so the bot can be installed at all. It is packaging

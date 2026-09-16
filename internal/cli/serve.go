@@ -116,13 +116,26 @@ func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
 		return fmt.Errorf("graph client: %w", err)
 	}
 
-	// Built unconditionally: NewClient never fails on an empty configuration,
-	// and the inbound route it backs is only ever registered once the bot is
-	// actually configured. See BotConfig's comment for why this credential is
-	// a second, separate Entra registration from Graph's.
-	botClient, err := bot.NewClient(cfg.Bot, telemetry)
-	if err != nil {
-		return fmt.Errorf("bot client: %w", err)
+	// Built only when the bot is configured -- unlike graphClient above,
+	// which NewServer always needs. Constructing it regardless used to leave
+	// httpserver's "if s.bot == nil" guards dead outside a test that deliberately
+	// passes nil, and meant an unconfigured deployment's unlink button issued a
+	// real client-credentials token request against three empty strings, and
+	// logged a failure, every single time. botClient is left as a true nil
+	// interface rather than a nil *bot.Client assigned to it: the latter would
+	// still compare unequal to nil on the other side of NewServer's interface
+	// parameter, defeating every one of those guards the same way. See
+	// BotConfig's comment for why this credential is a second, separate Entra
+	// registration from Graph's.
+	var botClient interface {
+		SendMessage(ctx context.Context, ref bot.ConversationReference, msg bot.Message) (string, error)
+	}
+	if cfg.Bot.Configured() {
+		client, err := bot.NewClient(cfg.Bot, telemetry)
+		if err != nil {
+			return fmt.Errorf("bot client: %w", err)
+		}
+		botClient = client
 	}
 
 	srv, err := httpserver.NewServer(*cfg, sqlStore, graphClient, botClient, telemetry)

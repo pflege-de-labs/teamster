@@ -144,6 +144,16 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger, botC
 	adminMux.HandleFunc("/api/config/export", api.handleExport)
 	adminMux.HandleFunc("/api/config/import", api.handleImport)
 	adminMux.HandleFunc("/api/recipients/link", api.handleLinkRecipient)
+	// Registered only alongside /bot/messages: a code minted here can never be
+	// redeemed on a deployment that never registered the endpoint it would be
+	// typed into, so offering the page (and the nav link to it, in
+	// layout.templ) would tell someone to talk to a bot that does not exist.
+	if botConfigured(cfg.Bot) {
+		adminMux.HandleFunc("/admin/notifications", api.handleNotificationsPage)
+		adminMux.HandleFunc("/admin/notifications/link", api.handleMintLink)
+		adminMux.HandleFunc("/admin/notifications/cancel", api.formPostTo("/admin/notifications", api.cancelLink))
+		adminMux.HandleFunc("/admin/notifications/unlink", api.formPostTo("/admin/notifications", api.unlinkNotifications))
+	}
 	adminMux.HandleFunc("/api/grants", api.handleGrants)
 	adminMux.HandleFunc("/api/grants/role", api.handleRoleGrants)
 	adminMux.HandleFunc("/api/grants/", api.handleGrantByID)

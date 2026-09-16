@@ -165,6 +165,21 @@ type BotConfig struct {
 	TimeoutSec  int    `help:"Timeout in seconds for Bot Connector API calls." default:"10"`
 }
 
+// Configured is the single place that decides whether the feature is on at
+// all, shared by the HTTP layer (whether to register the inbound route, the
+// notifications UI and its nav link) and ServeCmd (whether to construct a
+// bot.Client in the first place, rather than one that would sit unused and
+// still attempt a token request the moment something called it).
+func (c BotConfig) Configured() bool {
+	if c.ClientID == "" || c.ClientSecret == "" || c.MetadataURL == "" {
+		return false
+	}
+	// A multi-tenant registration authenticates through the shared
+	// botframework.com tenant and needs no tenant id of its own; see
+	// validateBot for the same rule applied to config validation.
+	return c.TenantType == "multi" || c.TenantID != ""
+}
+
 // validateDatabase checks what the chosen driver needs, and deliberately does
 // not check the other one's settings. The container image sets
 // TEAMSTER_DATABASE_PATH whatever the driver is, so rejecting a path under

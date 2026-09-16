@@ -57,18 +57,14 @@ const (
 	keyFetchBurst = 4
 )
 
-// botConfigured mirrors validateBot's rule for whether the feature is on at
-// all: a deployment that never set bot-client-id, bot-client-secret or
-// bot-metadata-url gets no route, and therefore no unauthenticated path
-// reachable from the internet.
+// botConfigured is config.BotConfig.Configured, named for its call sites
+// here: a deployment that never set bot-client-id, bot-client-secret or
+// bot-metadata-url gets no inbound route and none of the notifications UI
+// either, so it exposes no unauthenticated path reachable from the internet
+// and offers nobody a page instructing them to talk to a bot that was never
+// registered.
 func botConfigured(cfg config.BotConfig) bool {
-	if cfg.ClientID == "" || cfg.ClientSecret == "" || cfg.MetadataURL == "" {
-		return false
-	}
-	// A multi-tenant registration authenticates through the shared
-	// botframework.com tenant and needs no tenant id of its own; see
-	// validateBot for the same rule applied to config validation.
-	return cfg.TenantType == "multi" || cfg.TenantID != ""
+	return cfg.Configured()
 }
 
 // botMetadata is the two fields this service needs out of the Bot Framework's

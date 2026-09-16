@@ -341,6 +341,12 @@ func (s *Server) redeemLinkCode(ctx context.Context, activity botActivity, code 
 const linkDisplacedReply = "This chat has been unlinked: a link code for the same account was just " +
 	"redeemed elsewhere. If that wasn't expected, ask an admin for a new code."
 
+// linkRemovedReply tells a conversation it was unlinked deliberately, from the
+// notifications page, so nobody watching it wonders why alerts stopped
+// without warning.
+const linkRemovedReply = "This chat has been unlinked from Teamster alerts. Visit the " +
+	"Notifications page in the admin UI and mint a new code if you want them again."
+
 // notifyConversationDisplaced is best-effort, like replyText: the redemption
 // that displaced this conversation has already succeeded, so a failure to
 // notify here is logged rather than allowed to undo it.

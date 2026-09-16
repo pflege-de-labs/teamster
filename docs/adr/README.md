@@ -42,3 +42,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0025](0025-shell-completion.md) | Shell completion is generated from the command tree | Accepted |
 | [0026](0026-alerts-in-a-persons-chat.md) | Alerts reach a person's chat through a Bot Framework bot | Accepted |
 | [0027](0027-notify-on-link-displacement.md) | A displaced recipient conversation is notified, not left silent | Accepted |
+| [0028](0028-self-service-unlink-and-code-cancellation.md) | Self-service unlink resolves from the session, and a code can be cancelled | Accepted |

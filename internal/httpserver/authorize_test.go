@@ -212,6 +212,18 @@ func TestRequestAuthorization(t *testing.T) {
 		{method: http.MethodPost, path: "/api/routing/match", wantAction: authz.ActionView, wantResource: "Routing"},
 		{method: http.MethodPost, path: "/api/templates/preview", wantAction: authz.ActionView, wantResource: "Template"},
 		{method: http.MethodPost, path: "/api/recipients/link", wantAction: authz.ActionLink, wantResource: "Recipient"},
+		// A GET is a read -- whether a chat is linked -- not a bigger ask than
+		// any other page, so it maps to view rather than link: a deployment's
+		// own read-only role permits the former and not the latter.
+		{method: http.MethodGet, path: "/admin/notifications", wantAction: authz.ActionView, wantResource: "Recipient"},
+		{method: http.MethodPost, path: "/admin/notifications/link", wantAction: authz.ActionLink, wantResource: "Recipient"},
+		{method: http.MethodPost, path: "/admin/notifications/cancel", wantAction: authz.ActionLink, wantResource: "Recipient"},
+		{method: http.MethodPost, path: "/admin/notifications/unlink", wantAction: authz.ActionLink, wantResource: "Recipient"},
+		// The prefix is anchored on a slash: an unregistered path that merely
+		// starts with the same characters must not inherit the looser "link"
+		// mapping and fall instead to the generic Page/edit a POST gets by
+		// default.
+		{method: http.MethodPost, path: "/admin/notifications-anything", wantAction: authz.ActionEdit, wantResource: "Page"},
 	}
 
 	for _, tt := range tests {

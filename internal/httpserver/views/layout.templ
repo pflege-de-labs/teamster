@@ -30,6 +30,9 @@ templ Layout(title string, viewer *Viewer) {
 						<nav class="flex items-center gap-4 text-sm">
 							<a href="/admin" class="text-slate-600 hover:text-slate-900">{ i18n.T(ctx, "nav.configuration") }</a>
 							<a href="/admin/routing" class="text-slate-600 hover:text-slate-900">{ i18n.T(ctx, "nav.routing") }</a>
+							if viewer.NotificationsEnabled {
+								<a href="/admin/notifications" class="text-slate-600 hover:text-slate-900">{ i18n.T(ctx, "nav.notifications") }</a>
+							}
 							if viewer.CanManage {
 								<a href="/admin/permissions" class="text-slate-600 hover:text-slate-900">{ i18n.T(ctx, "nav.permissions") }</a>
 							}
