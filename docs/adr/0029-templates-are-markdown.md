@@ -108,10 +108,16 @@ unchanged.
 
 The consequence is worth naming: anyone who can POST a webhook can put a link, with arbitrary link
 text, into a Teams channel or chat. Link text can differ from its destination, which is a phishing
-primitive. The webhook endpoint is authenticated by a shared token, so this is an escalation
-available to something that can already send alerts, not to the public — but a deployment that
-treats its webhook token as low-value should know that it carries this. The misleading comment is
-corrected in the same change.
+primitive — delivered by a service the recipients trust, during an incident, which is close to the
+worst context in which to ask somebody to check a URL first. The webhook endpoint is authenticated
+by a shared token, so this is an escalation available to something that can already send alerts,
+not to the public.
+
+Since the allowlist is not the control here, **the token is**, and that is documented where an
+operator configuring one will meet it: "What the webhook token protects" in the README, and the
+deployment expectations in `SECURITY.md`. Both say plainly that sanitizing makes alert data
+non-executable rather than inert. The misleading comment in `sanitize.go` is corrected in the same
+change.
 
 ## Consequences
 

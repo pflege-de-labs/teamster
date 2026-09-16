@@ -46,7 +46,19 @@ token. All three are credentials:
   credentials to a cross-site post, and there is no session to hold a CSRF token.
 * The webhook endpoints are unauthenticated apart from that token. Treat it as a password, give
   each sender its own deployment if you need separate trust boundaries, and rotate it by changing
-  the config and restarting.
+  the config and restarting. Do not expose them beyond the senders that need them: Alertmanager
+  posting from inside the same cluster needs no ingress at all.
+* **Alert data reaches a Teams message, and the token is what bounds who can put it there.** Labels
+  and annotations are interpolated into templates and rendered to a channel card or a chat message.
+  Rendered markup is sanitized — a closed tag allowlist, `script` and `style` dropped with their
+  contents, every attribute but a link's `href` discarded, and an `href` only for `http`, `https`
+  and `mailto` — so scripts, images and `javascript:` links cannot get through.
+
+  Links can, and that is deliberate: templates link to runbooks. The consequence is that whoever
+  holds the webhook token can deliver a link with arbitrary text to a channel or a 1:1 chat, from a
+  service the recipients trust, in the middle of an incident. Sanitizing does not make alert data
+  inert; it makes it non-executable. Treat the token accordingly, and alert on the refused-token
+  counter (`teamster.webhook.receipts`, status `refused`) so guessing at it is visible.
 * The service needs no privileges: the container image runs as uid 65532 and the only path it
   writes is the SQLite database. The base image still ships a world-writable `/tmp`, so run the
   container with a read-only root filesystem and keep `/data` as the one writable mount:
