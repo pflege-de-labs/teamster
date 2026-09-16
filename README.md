@@ -254,6 +254,41 @@ changes an installation.
 
 `POST /webhook/universal` with `X-Teamster-Token` header.
 
+### What the webhook token protects
+
+The webhook endpoints are authenticated by one shared token and nothing else. It is worth being
+concrete about what somebody holding it can do, because it is more than "file a spurious alert".
+
+Alert labels and annotations are interpolated into templates, and the rendered text reaches a Teams
+channel or a person's chat. The sanitizer bounds that: the markup allowlist is closed, `script` and
+`style` are dropped with their contents, every attribute except a link's `href` is discarded, and an
+`href` survives only for `http`, `https` and `mailto`. No scripts, no images, no pixel trackers, no
+`javascript:`.
+
+What it does **not** bound is links themselves. Message text is Markdown, so an annotation
+containing `[Open the runbook](https://evil.example/login)` renders as exactly that: a link whose
+visible text says one thing and whose destination is another, delivered by a service your people
+trust, in a channel or a 1:1 chat they are on call for. That is a workable phishing setup, and
+three-in-the-morning alert traffic is close to the worst context in which to ask somebody to check a
+URL before clicking.
+
+Links are deliberately kept — templates link to runbooks and dashboards, which is most of what
+message text is for — so the control is the token, not the allowlist:
+
+- **Treat the token as a credential, not a formality.** It is the whole boundary. Rotate it by
+  changing the config and restarting.
+- **Do not expose the webhook endpoints to the internet** if only in-cluster senders need them.
+  Alertmanager posting from inside the same cluster needs no ingress at all.
+- **Give separate senders separate deployments** if they belong to different trust boundaries. One
+  token means one boundary.
+- **Terminate TLS in front of Teamster.** The token travels in a header on every request.
+- A refused token is counted (`teamster.webhook.receipts`, status `refused`), so a token being
+  guessed at is visible rather than silent. Alert on it.
+
+The same reasoning applies to anyone who can edit templates, who can of course write whatever link
+they like — but that is an authenticated admin action, scoped by permission grants, and a far
+smaller group than "whatever can reach the webhook port".
+
 Payload shape:
 
 ```json
@@ -358,11 +393,10 @@ The same sanitized text reaches both transports: a Team channel gets the HTML, a
 gets Markdown emitted from that sanitized HTML rather than from the template source. One sanitizer
 covers both.
 
-An alert annotation ends up in that text, so it cannot be trusted to be markup-free. Note what that
-means now the format is Markdown: an annotation containing `[text](https://example.com)` produces a
-link, with link text that need not match where it goes. That was already reachable by writing
-`<a href>` in an annotation, and the scheme allowlist still refuses `javascript:` and `data:` — but
-it is worth knowing that whoever can POST a webhook can put a link in a message.
+An alert annotation ends up in that text, so it cannot be trusted to be markup-free. Sanitizing
+bounds what it can do — no scripts, no images, no `javascript:` or `data:` links — but it does not
+make alert data inert. Anyone who can POST a webhook can put a **link** in a message, with link text
+that need not match where it leads. See [what the webhook token protects](#what-the-webhook-token-protects).
 
 ## Template data
 
