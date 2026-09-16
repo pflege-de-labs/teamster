@@ -52,17 +52,29 @@ type WebhookEndpoint struct {
 // BotChannelID is a Bot Framework channel — "msteams" — and not a Teams channel,
 // which is what ChannelID means everywhere else in this package.
 type Recipient struct {
-	ID             string    `json:"id"`
-	Subject        string    `json:"subject"`
-	Name           string    `json:"name"`
-	AADObjectID    string    `json:"aad_object_id"`
-	ConversationID string    `json:"conversation_id"`
-	ServiceURL     string    `json:"service_url"`
-	BotChannelID   string    `json:"bot_channel_id"`
-	TenantID       string    `json:"tenant_id"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	ID             string `json:"id"`
+	Subject        string `json:"subject"`
+	Name           string `json:"name"`
+	AADObjectID    string `json:"aad_object_id"`
+	ConversationID string `json:"conversation_id"`
+	ServiceURL     string `json:"service_url"`
+	BotChannelID   string `json:"bot_channel_id"`
+	TenantID       string `json:"tenant_id"`
+	// BlockedAt and BlockedReason are informational and self-healing, not a
+	// delivery gate (ADR 0026): a permanent send failure sets them, any
+	// successful send or update clears them, and delivery is attempted either
+	// way. Gating on this flag would trade a visible problem for an invisible
+	// one -- a person who reinstalled the bot would silently never receive
+	// alerts again until an admin noticed and cleared it by hand.
+	BlockedAt     time.Time `json:"blocked_at,omitempty"`
+	BlockedReason string    `json:"blocked_reason,omitempty"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }
+
+// Blocked reports whether this recipient's bot conversation is known broken,
+// mirroring ActiveAlert.Posted.
+func (r Recipient) Blocked() bool { return !r.BlockedAt.IsZero() }
 
 // A LinkFlow is a one-time code an authenticated admin-UI session generated, to
 // be typed at the bot in Teams. Redeeming it is what binds a conversation to

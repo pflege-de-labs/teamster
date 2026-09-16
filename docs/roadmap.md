@@ -629,11 +629,11 @@ question.
 | Outbound client (`internal/bot`) | done | |
 | Inbound endpoint and the linking flow | done | |
 | A route delivers to a person | done | routes gain a second target; message text becomes Markdown ([ADR 0029](adr/0029-templates-are-markdown.md)) |
-| Recipient admin page | to do | including the durable "this recipient is broken" flag a permanent send failure currently only reports as a metric |
+| Recipient admin page | done | `/admin/recipients`, plus the durable "this recipient is broken" flag a permanent send failure used to only report as a metric — informational and self-healing, never a delivery gate |
 | Chart `bot-*` values | to do | |
 
-Parked rather than forgotten: an unlink command, and handling `membersRemoved` so uninstalling the
-bot retires the link on its own.
+Parked rather than forgotten: handling `membersRemoved` so uninstalling the bot retires the link on
+its own. An unlink command shipped with the recipient admin page instead of staying parked.
 
 ### Why this is not another endpoint on the Graph client
 

@@ -227,6 +227,8 @@ func (s queryAdapter) CreateRecipient(ctx context.Context, r models.Recipient) (
 		TenantID:       r.TenantID,
 		CreatedAt:      r.CreatedAt,
 		UpdatedAt:      r.UpdatedAt,
+		BlockedAt:      nullTime(r.BlockedAt),
+		BlockedReason:  r.BlockedReason,
 	})
 	if err != nil {
 		return models.Recipient{}, fmt.Errorf("create recipient: %w", err)
@@ -250,6 +252,8 @@ func (s queryAdapter) UpdateRecipient(ctx context.Context, r models.Recipient) (
 		BotChannelID:   r.BotChannelID,
 		TenantID:       r.TenantID,
 		UpdatedAt:      r.UpdatedAt,
+		BlockedAt:      nullTime(r.BlockedAt),
+		BlockedReason:  r.BlockedReason,
 		ID:             r.ID,
 	})
 	if err != nil {
@@ -297,6 +301,8 @@ func recipientOf(row sqlitedb.Recipient) models.Recipient {
 		ServiceURL:     row.ServiceUrl,
 		BotChannelID:   row.BotChannelID,
 		TenantID:       row.TenantID,
+		BlockedAt:      row.BlockedAt.Time,
+		BlockedReason:  row.BlockedReason,
 		CreatedAt:      row.CreatedAt,
 		UpdatedAt:      row.UpdatedAt,
 	}
@@ -1019,4 +1025,33 @@ func (s queryAdapter) TakeLinkFlow(ctx context.Context, code string) (models.Lin
 		Subject:   row.Subject,
 		ExpiresAt: row.ExpiresAt,
 	})
+}
+
+// MarkRecipientBlocked and ClearRecipientBlocked write only the two blocked
+// columns, never the rest of the row: delivery -- the only caller of either --
+// has a conversation reference it read for sending, not one it is safe to
+// write back over whatever an admin or a re-link may have changed since.
+func (s queryAdapter) MarkRecipientBlocked(ctx context.Context, id string, at time.Time, reason string) error {
+	if err := s.q.MarkRecipientBlocked(ctx, sqlitedb.MarkRecipientBlockedParams{
+		BlockedAt:     sql.NullTime{Time: at, Valid: true},
+		BlockedReason: reason,
+		ID:            id,
+	}); err != nil {
+		return fmt.Errorf("mark recipient blocked: %w", err)
+	}
+	return nil
+}
+
+func (s queryAdapter) ClearRecipientBlocked(ctx context.Context, id string) error {
+	if err := s.q.ClearRecipientBlocked(ctx, id); err != nil {
+		return fmt.Errorf("clear recipient blocked: %w", err)
+	}
+	return nil
+}
+
+// nullTime is the zero-value convention every nullable timestamp in this
+// adapter follows: a zero time.Time means "unset," which is NULL in the
+// database, and any other value is a real stamp.
+func nullTime(t time.Time) sql.NullTime {
+	return sql.NullTime{Time: t, Valid: !t.IsZero()}
 }

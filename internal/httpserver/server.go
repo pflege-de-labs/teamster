@@ -154,6 +154,11 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger, botC
 	adminMux.HandleFunc("/api/config/export", api.handleExport)
 	adminMux.HandleFunc("/api/config/import", api.handleImport)
 	adminMux.HandleFunc("/api/recipients/link", api.handleLinkRecipient)
+	// Unconditional, unlike the self-service page below: turning the bot off
+	// does not delete the recipients a deployment already linked, and an admin
+	// still has to be able to see and unlink them.
+	adminMux.HandleFunc("/api/recipients", api.handleRecipients)
+	adminMux.HandleFunc("/api/recipients/", api.handleRecipientByID)
 	// Registered only alongside /bot/messages: a code minted here can never be
 	// redeemed on a deployment that never registered the endpoint it would be
 	// typed into, so offering the page (and the nav link to it, in
@@ -164,6 +169,8 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger, botC
 		adminMux.HandleFunc("/admin/notifications/cancel", api.formPostTo("/admin/notifications", api.cancelLink))
 		adminMux.HandleFunc("/admin/notifications/unlink", api.formPostTo("/admin/notifications", api.unlinkNotifications))
 	}
+	adminMux.HandleFunc("/admin/recipients", api.handleRecipientsPage)
+	adminMux.HandleFunc("/admin/recipients/delete", api.formPostTo("/admin/recipients", api.deleteRecipientForm))
 	adminMux.HandleFunc("/api/grants", api.handleGrants)
 	adminMux.HandleFunc("/api/grants/role", api.handleRoleGrants)
 	adminMux.HandleFunc("/api/grants/", api.handleGrantByID)

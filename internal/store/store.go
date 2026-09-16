@@ -98,6 +98,15 @@ type Store interface {
 	// duplicate: the subject is unique, and somebody who reinstalls the bot
 	// arrives with a new conversation and the same session.
 	GetRecipientBySubject(ctx context.Context, subject string) (models.Recipient, error)
+	// MarkRecipientBlocked and ClearRecipientBlocked write only the two
+	// blocked columns, on purpose: they are called from delivery, which reads
+	// a recipient to send to it and must not clobber a conversation reference
+	// it never loaded by going through the full UpdateRecipient. The flag they
+	// set is informational and self-healing, never a delivery gate -- see
+	// ADR 0026. ClearRecipientBlocked is a no-op, not an error, on a recipient
+	// that was never blocked.
+	MarkRecipientBlocked(ctx context.Context, id string, at time.Time, reason string) error
+	ClearRecipientBlocked(ctx context.Context, id string) error
 
 	ListWebhookEndpoints(ctx context.Context) ([]models.WebhookEndpoint, error)
 	// CreateWebhookEndpoint and UpdateWebhookEndpoint write the endpoint but

@@ -147,10 +147,16 @@ rather than superseding this record.
   *transient* failure — 429, any 5xx, a transport error — fails that delivery exactly as a channel
   failure does and leaves the row, so the sender's retry is what puts it right.
 
-  A durable "this recipient is broken" flag, with an admin surface showing it, is deliberately
-  **not** part of this: PR 5 builds the page that would show it, and half a mechanism now is worse
-  than a whole one there. Until then a blocked recipient is visible as a metric, and the next alert
-  attempts delivery again.
+  PR 5 built the durable flag this deferred: `recipients.blocked_at` and `.blocked_reason`, set by
+  the narrow `MarkRecipientBlocked` statement on a permanent failure and read back on
+  `/admin/recipients`, the admin page that PR also added. The flag is **informational and
+  self-healing, not a delivery gate** — `ClearRecipientBlocked` runs after every successful send or
+  update, and a blocked recipient is attempted again on the next alert exactly like one that never
+  was. Gating delivery on it was rejected: a person who reinstalled the bot would then receive
+  nothing again until an admin happened to notice the flag and clear it by hand, trading one visible
+  problem (the flag, and the metric behind it) for an invisible one. The admin page also lists which
+  routes target a recipient and lets an admin unlink one, which PR 5 built as well — see
+  [Managing recipients](../architecture.md#managing-recipients) in the architecture document.
 
 * **A resolved alert sends a new message; a re-fire edits the existing one in place.** An edit in
   Teams shows an "Edited" marker and does not re-notify, so an in-place resolve would be silent —

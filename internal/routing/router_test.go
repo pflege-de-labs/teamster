@@ -106,6 +106,14 @@ func (s stubStore) GetWebhookEndpointBySlug(ctx context.Context, teamSlug, chann
 	return models.WebhookEndpoint{}, store.ErrNotFound
 }
 
+func (s stubStore) MarkRecipientBlocked(ctx context.Context, id string, at time.Time, reason string) error {
+	return store.ErrNotFound
+}
+
+func (s stubStore) ClearRecipientBlocked(ctx context.Context, id string) error {
+	return store.ErrNotFound
+}
+
 func (s stubStore) CreateLinkFlow(ctx context.Context, f models.LinkFlow) error {
 	return store.ErrNotFound
 }

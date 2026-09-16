@@ -447,6 +447,10 @@ nor a `channel_id` for that table's CHECK to hold. Both changes are additive, so
 release runs against the new schema unchanged. The decision behind all of it is the ADR on alerts in
 a person's chat, in the [ADR index](adr/README.md).
 
+`0007` in SQLite and `0004` in Postgres add `recipients.blocked_at` (nullable) and `.blocked_reason`
+(`NOT NULL DEFAULT ''`), both additive. See [Alert lifecycle](#alert-lifecycle) for what the flag
+means and [Managing recipients](#managing-recipients) for where it is read.
+
 `webhook_endpoints` followed, by `0008` in SQLite and `0005` in Postgres. A row is one Teams V2
 webhook URL: the two slugs that name it, the destination it posts into, and a SHA-256 digest of the
 token the sender puts in the path. The pair of slugs is unique, because the pair is the URL. The
@@ -500,6 +504,17 @@ is dropped and the delivery counted under its own `blocked` outcome, so it stops
 within that alert and is visible as more than noise. Everything else — 429, any 5xx, a transport
 error — fails that delivery as a channel failure does and leaves the row for the sender's retry.
 
+A permanent failure also stamps `recipients.blocked_at` and `.blocked_reason` (the API error's own
+code, e.g. `MessageWritesBlocked`), through the narrow `MarkRecipientBlocked` statement rather than
+the general-purpose `UpdateRecipient` — delivery only ever read the conversation reference, and a
+narrow statement is what stops a delivery failure from clobbering a field it never loaded. The flag
+is informational and self-healing, never a gate: `ClearRecipientBlocked` runs after every
+successful send or update, and a blocked recipient is attempted again on the next alert exactly like
+one that never was. Gating delivery on it would trade a visible problem for an invisible one — a
+person who reinstalled the bot would otherwise receive nothing again until an admin happened to
+notice the flag and clear it by hand. `/admin/recipients` is where an admin reads it; see
+[Managing recipients](#managing-recipients).
+
 A database whose `active_alerts` is keyed by fingerprint alone is rebuilt on the next start; SQLite
 cannot change a primary key in place. The rows survive.
 
@@ -540,6 +555,23 @@ the request to prove its origin, because basic auth credentials travel with a cr
 there is no session to hold a CSRF token. See
 [ADR 0008](adr/0008-templ-tailwind-admin-ui.md).
 
+`formPost` takes the redirect target as a parameter rather than always answering `/admin`: a page of
+its own — `/admin/recipients`, like `/admin/permissions` — posts to its own `/delete` endpoint and
+lands back on itself with the notice, not on the unrelated configuration page.
+
+### Managing recipients
+
+`/admin/recipients` lists every recipient, the routes that target them by name, and the blocked
+state described in [Alert lifecycle](#alert-lifecycle). Viewing needs `authz.ActionView` and
+unlinking `authz.ActionEdit`, both on `authz.Resource{Type: "Recipient"}` — no new Cedar action, the
+existing admin/editor/viewer policies already cover both on any resource type. `POST
+/admin/recipients/delete` unlinks through `formPost`, and is permitted even when a route still names
+the recipient: the page having just shown which routes do is what makes that an informed choice,
+matching how deleting a destination already works. `GET /api/recipients` and `DELETE
+/api/recipients/{id}` are the same two operations over the API, behind the same authorization; the
+response type omits `ConversationID`, `ServiceURL`, `AADObjectID` and `TenantID` — the Bot Framework
+conversation reference is operational plumbing an admin unlinking someone has no use for.
+
 `POST /api/templates/preview` renders a template body against a built-in sample alert through the
 same `templates.Render` the delivery path uses, and returns the Adaptive Card JSON. The browser
 draws it with the vendored renderer in `web/vendor`. A template that fails to render comes back as
@@ -569,8 +601,10 @@ Everything outside `/webhook/*`, `/teamsv2/*` and `/bot/messages` sits behind HT
 `/api/destinations`, `/api/routes` and `/api/webhooks` (plus their `/{id}` variants) provide CRUD
 over the stored configuration. `POST /api/webhooks/{id}/rotate` mints a new token, and is the only
 other place one is ever readable: creating and rotating answer with the token and the full URL,
-every later read leaves both empty. `POST /api/recipients/link` is the exception that requires a
-session specifically — see [Linking a chat](#linking-a-chat).
+every later read leaves both empty. `GET /api/recipients` and `DELETE /api/recipients/{id}` list and
+unlink recipients — see [Managing recipients](#managing-recipients) — and
+`POST /api/recipients/link` is the exception that requires a session specifically — see
+[Linking a chat](#linking-a-chat).
 
 ## Configuration
 
@@ -758,7 +792,8 @@ one, and a redemption that moves the conversation — the shape a leaked code ta
 someone else's alert stream — sends the *previous* conversation a notice that it was displaced, via
 the bot client, once the new binding has committed. See [ADR 0026](adr/0026-alerts-in-a-persons-chat.md)
 for why this feature exists at all; unlinking, below, is what an adversarial review of the previous
-PR found missing from it.
+PR found missing from it. A person can unlink themselves there; an admin can unlink anyone from
+[Managing recipients](#managing-recipients).
 
 ### Self-service: `/admin/notifications`
 
