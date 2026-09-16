@@ -115,6 +115,14 @@ func TestValidate(t *testing.T) {
 			wantErr: "which the bundle does not carry",
 		},
 		{
+			// A link binds one person to one conversation in one tenant, so it
+			// cannot travel. Importing the route inert would look like it
+			// delivers to somebody and silently never do so.
+			name:    "a route delivering to a person",
+			mutate:  func(b *Bundle) { b.Routes[0].RecipientID = "person" },
+			wantErr: "a bundle cannot carry",
+		},
+		{
 			name:    "a duplicated id",
 			mutate:  func(b *Bundle) { b.Templates = append(b.Templates, b.Templates[0]) },
 			wantErr: "appears twice",

@@ -604,3 +604,102 @@ func TestRoutingMatchExplainsAGreedyChild(t *testing.T) {
 		t.Errorf("explanation = %q, want it to say the child delivers instead of its parent", payload.Explanation)
 	}
 }
+
+// The picture has to agree with routing, and routing now fans a route out to
+// two targets. A graph that drew only the channel would show half the delivery.
+func TestRoutingGraphDrawsARecipientSink(t *testing.T) {
+	t.Parallel()
+
+	st := routingStore()
+	st.recipients["person"] = models.Recipient{ID: "person", Subject: "oncall@example.com", Name: "On Call"}
+	st.routes["critical"] = models.Route{
+		ID: "critical", Name: "Critical to ops", TemplateID: "tmpl",
+		DestinationID: "dest", RecipientID: "person",
+		LabelSelector: map[string]string{"severity": "critical"}, Priority: 100,
+	}
+
+	nodes, links := graphFrom(t, newTestServer(t, st, &fakeMessenger{}).Handler)
+
+	got := nodes["recipient:person"]
+	if got.Kind != "recipient" || got.Label != "On Call" || got.Detail != "oncall@example.com" {
+		t.Errorf("recipient node = %+v, want the person as their own kind of sink", got)
+	}
+
+	targets := map[string]bool{}
+	for _, link := range links {
+		if link.Source == "route:critical" {
+			targets[link.Target] = true
+		}
+	}
+	if !targets["destination:dest"] || !targets["recipient:person"] {
+		t.Errorf("route targets = %v, want both the channel and the person", targets)
+	}
+}
+
+// A person who was deleted is the same broken state a deleted destination is,
+// and the view exists to show it rather than to hide it.
+func TestRoutingGraphMarksAMissingRecipient(t *testing.T) {
+	t.Parallel()
+
+	st := routingStore()
+	st.routes["critical"] = models.Route{
+		ID: "critical", Name: "Critical to ops", TemplateID: "tmpl", RecipientID: "gone",
+		LabelSelector: map[string]string{"severity": "critical"}, Priority: 100,
+	}
+
+	nodes, _ := graphFrom(t, newTestServer(t, st, &fakeMessenger{}).Handler)
+
+	got := nodes["recipient:gone"]
+	if !got.Missing || got.Detail != "gone" {
+		t.Errorf("node = %+v, want it marked missing and naming the id", got)
+	}
+}
+
+// A child inherits a person the same way it inherits a channel, and the second
+// walk that draws the picture has to agree with the one that routes.
+func TestRoutingGraphInheritsARecipient(t *testing.T) {
+	t.Parallel()
+
+	st := newFakeStore()
+	st.templates["tmpl"] = models.Template{ID: "tmpl", Name: "Critical card"}
+	st.destinations["dest"] = models.Destination{ID: "dest", Name: "Ops channel"}
+	st.recipients["person"] = models.Recipient{ID: "person", Subject: "oncall@example.com"}
+	st.routes["parent"] = models.Route{
+		ID: "parent", Name: "Parent", TemplateID: "tmpl", DestinationID: "dest", RecipientID: "person",
+		LabelSelector: map[string]string{"severity": "critical"},
+	}
+	st.routes["child"] = models.Route{
+		ID: "child", Name: "Child", ParentID: "parent",
+		LabelSelector: map[string]string{"team": "payments"},
+	}
+
+	_, links := graphFrom(t, newTestServer(t, st, &fakeMessenger{}).Handler)
+
+	targets := map[string]bool{}
+	for _, link := range links {
+		if link.Source == "route:child" {
+			targets[link.Target] = true
+		}
+	}
+	if !targets["recipient:person"] {
+		t.Errorf("child targets = %v, want the inherited person among them", targets)
+	}
+}
+
+// A person with no display name is still somebody the picture has to name.
+func TestRoutingGraphNamesAnUnnamedRecipient(t *testing.T) {
+	t.Parallel()
+
+	st := routingStore()
+	st.recipients["person"] = models.Recipient{ID: "person", Subject: "oncall@example.com"}
+	st.routes["critical"] = models.Route{
+		ID: "critical", Name: "Critical to ops", TemplateID: "tmpl", RecipientID: "person",
+		LabelSelector: map[string]string{"severity": "critical"}, Priority: 100,
+	}
+
+	nodes, _ := graphFrom(t, newTestServer(t, st, &fakeMessenger{}).Handler)
+
+	if got := nodes["recipient:person"].Label; got != "oncall@example.com" {
+		t.Errorf("label = %q, want the subject when there is no name", got)
+	}
+}

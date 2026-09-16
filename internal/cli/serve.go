@@ -129,6 +129,7 @@ func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
 	// registration from Graph's.
 	var botClient interface {
 		SendMessage(ctx context.Context, ref bot.ConversationReference, msg bot.Message) (string, error)
+		UpdateMessage(ctx context.Context, ref bot.ConversationReference, activityID string, msg bot.Message) error
 	}
 	if cfg.Bot.Configured() {
 		client, err := bot.NewClient(cfg.Bot, telemetry)

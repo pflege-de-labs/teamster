@@ -29,8 +29,17 @@ func (p pgQueries) ClaimActiveAlert(ctx context.Context, arg sqlitedb.ClaimActiv
 	return sqlitedb.ActiveAlert(row), err
 }
 
+func (p pgQueries) ClaimActiveAlertRecipient(ctx context.Context, arg sqlitedb.ClaimActiveAlertRecipientParams) (sqlitedb.ActiveAlertRecipient, error) {
+	row, err := p.q.ClaimActiveAlertRecipient(ctx, pgdb.ClaimActiveAlertRecipientParams(arg))
+	return sqlitedb.ActiveAlertRecipient(row), err
+}
+
 func (p pgQueries) CompleteActiveAlertClaim(ctx context.Context, arg sqlitedb.CompleteActiveAlertClaimParams) (string, error) {
 	return p.q.CompleteActiveAlertClaim(ctx, pgdb.CompleteActiveAlertClaimParams(arg))
+}
+
+func (p pgQueries) CompleteActiveAlertRecipientClaim(ctx context.Context, arg sqlitedb.CompleteActiveAlertRecipientClaimParams) (string, error) {
+	return p.q.CompleteActiveAlertRecipientClaim(ctx, pgdb.CompleteActiveAlertRecipientClaimParams(arg))
 }
 
 func (p pgQueries) CountActiveAlerts(ctx context.Context) (int64, error) {
@@ -75,6 +84,10 @@ func (p pgQueries) CreateWebhookEndpoint(ctx context.Context, arg sqlitedb.Creat
 
 func (p pgQueries) DeleteActiveAlertCard(ctx context.Context, arg sqlitedb.DeleteActiveAlertCardParams) error {
 	return p.q.DeleteActiveAlertCard(ctx, pgdb.DeleteActiveAlertCardParams(arg))
+}
+
+func (p pgQueries) DeleteActiveAlertRecipientCard(ctx context.Context, arg sqlitedb.DeleteActiveAlertRecipientCardParams) error {
+	return p.q.DeleteActiveAlertRecipientCard(ctx, pgdb.DeleteActiveAlertRecipientCardParams(arg))
 }
 
 func (p pgQueries) DeleteDestination(ctx context.Context, id string) error {
@@ -130,6 +143,11 @@ func (p pgQueries) GetActiveAlert(ctx context.Context, arg sqlitedb.GetActiveAle
 	return sqlitedb.ActiveAlert(row), err
 }
 
+func (p pgQueries) GetActiveAlertRecipient(ctx context.Context, arg sqlitedb.GetActiveAlertRecipientParams) (sqlitedb.ActiveAlertRecipient, error) {
+	row, err := p.q.GetActiveAlertRecipient(ctx, pgdb.GetActiveAlertRecipientParams(arg))
+	return sqlitedb.ActiveAlertRecipient(row), err
+}
+
 func (p pgQueries) GetDestination(ctx context.Context, id string) (sqlitedb.Destination, error) {
 	row, err := p.q.GetDestination(ctx, id)
 	return sqlitedb.Destination(row), err
@@ -178,6 +196,18 @@ func (p pgQueries) ListActiveAlerts(ctx context.Context, fingerprint string) ([]
 	out := make([]sqlitedb.ActiveAlert, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, sqlitedb.ActiveAlert(row))
+	}
+	return out, nil
+}
+
+func (p pgQueries) ListActiveAlertRecipients(ctx context.Context, fingerprint string) ([]sqlitedb.ActiveAlertRecipient, error) {
+	rows, err := p.q.ListActiveAlertRecipients(ctx, fingerprint)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]sqlitedb.ActiveAlertRecipient, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, sqlitedb.ActiveAlertRecipient(row))
 	}
 	return out, nil
 }
@@ -258,8 +288,16 @@ func (p pgQueries) ReapStaleClaim(ctx context.Context, arg sqlitedb.ReapStaleCla
 	return p.q.ReapStaleClaim(ctx, pgdb.ReapStaleClaimParams(arg))
 }
 
+func (p pgQueries) ReapStaleClaimRecipient(ctx context.Context, arg sqlitedb.ReapStaleClaimRecipientParams) (int64, error) {
+	return p.q.ReapStaleClaimRecipient(ctx, pgdb.ReapStaleClaimRecipientParams(arg))
+}
+
 func (p pgQueries) ReleaseActiveAlertClaim(ctx context.Context, arg sqlitedb.ReleaseActiveAlertClaimParams) error {
 	return p.q.ReleaseActiveAlertClaim(ctx, pgdb.ReleaseActiveAlertClaimParams(arg))
+}
+
+func (p pgQueries) ReleaseActiveAlertRecipientClaim(ctx context.Context, arg sqlitedb.ReleaseActiveAlertRecipientClaimParams) error {
+	return p.q.ReleaseActiveAlertRecipientClaim(ctx, pgdb.ReleaseActiveAlertRecipientClaimParams(arg))
 }
 
 func (p pgQueries) RotateWebhookEndpointToken(ctx context.Context, arg sqlitedb.RotateWebhookEndpointTokenParams) error {
@@ -278,6 +316,10 @@ func (p pgQueries) TakeLoginFlow(ctx context.Context, state string) (sqlitedb.Lo
 
 func (p pgQueries) TouchActiveAlert(ctx context.Context, arg sqlitedb.TouchActiveAlertParams) error {
 	return p.q.TouchActiveAlert(ctx, pgdb.TouchActiveAlertParams(arg))
+}
+
+func (p pgQueries) TouchActiveAlertRecipient(ctx context.Context, arg sqlitedb.TouchActiveAlertRecipientParams) error {
+	return p.q.TouchActiveAlertRecipient(ctx, pgdb.TouchActiveAlertRecipientParams(arg))
 }
 
 func (p pgQueries) UpdateDestination(ctx context.Context, arg sqlitedb.UpdateDestinationParams) error {

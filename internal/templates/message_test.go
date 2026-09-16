@@ -70,12 +70,38 @@ func TestRenderMessage(t *testing.T) {
 			wantText: "<p>HighCPU</p>",
 		},
 		{
+			// The one place ADR 0029 is visible to an existing template: a
+			// fragment that is only inline markup is not a CommonMark HTML
+			// block, so it becomes the paragraph it always implied. Block-level
+			// HTML -- which is what a template that formats anything is made of
+			// -- passes through byte for byte, as the case above shows.
 			name:      "all three parts render together",
 			template:  models.Template{Title: "T", Text: "<b>bold</b>", Body: `{"type":"AdaptiveCard"}`},
 			alert:     sampleAlert(),
 			wantTitle: "T",
-			wantText:  "<b>bold</b>",
+			wantText:  "<p><b>bold</b></p>",
 			wantCard:  `{"type":"AdaptiveCard"}`,
+		},
+		{
+			// Authored as Markdown rather than HTML, which is what ADR 0029
+			// makes the documented format.
+			name:     "a markdown template renders to html",
+			template: models.Template{Text: "**{{ .Alert.Labels.alertname }}** is _{{ .Alert.Status }}_"},
+			alert:    sampleAlert(),
+			wantText: "<p><strong>HighCPU</strong> is <em>firing</em></p>",
+		},
+		{
+			// The sanitizer still runs after the Markdown parser, so raw HTML
+			// passing through is not raw HTML arriving.
+			name:     "markdown does not get an annotation around the sanitizer",
+			template: models.Template{Text: "{{ .Alert.Annotations.summary }}"},
+			alert: models.Alert{Annotations: map[string]string{
+				"summary": "<script>alert(1)</script>ok",
+			}},
+			// No paragraph wrapper: "<script" opens a CommonMark raw-HTML
+			// block, so the line reaches Sanitize verbatim -- and Sanitize
+			// drops the script with its contents, which is the assertion.
+			wantText: "ok",
 		},
 	}
 

@@ -76,14 +76,18 @@ type LinkFlow struct {
 
 // A Route decides where an alert goes. Routes form a tree: a child refines its
 // parent's match, and delivers instead of its parent when Greedy, as well as it
-// when not. A child leaves DestinationID or TemplateID empty to inherit the
-// nearest ancestor's.
+// when not. A child leaves DestinationID, RecipientID or TemplateID empty to
+// inherit the nearest ancestor's. DestinationID and RecipientID are
+// independent targets, not alternatives: a route naming both fans out to a
+// channel card and a chat message, the same fan-out nested routes already
+// produce (see ADR 0026).
 type Route struct {
 	ID            string            `json:"id"`
 	Name          string            `json:"name"`
 	ParentID      string            `json:"parent_id"`
 	LabelSelector map[string]string `json:"label_selector"`
 	DestinationID string            `json:"destination_id"`
+	RecipientID   string            `json:"recipient_id"`
 	TemplateID    string            `json:"template_id"`
 	IsDefault     bool              `json:"is_default"`
 	Greedy        bool              `json:"greedy"`
@@ -130,6 +134,43 @@ type AlertClaim struct {
 	At          time.Time
 	// StaleBefore is the age at which a claim is presumed abandoned, because
 	// whatever took it died between claiming and posting.
+	StaleBefore time.Time
+}
+
+// An ActiveAlertRecipient is AlertClaim's card mirrored for a chat delivery: one
+// message a bot sent to one person for one alert, kept up to date until it
+// resolves. It is a parallel table to ActiveAlert rather than a wider key on
+// it, because a person has neither a Team nor a channel for that table's CHECK
+// to hold (see ADR 0026 and ADR 0021).
+//
+// Unlike ActiveAlert, an empty MessageID does not always mean "claimed, not
+// posted": bot.SendMessage returning ("", nil) is a documented success --
+// delivered, but with nothing to name it by for a later edit. PostedAt is the
+// only reliable state machine here.
+type ActiveAlertRecipient struct {
+	Fingerprint string    `json:"fingerprint"`
+	Status      string    `json:"status"`
+	RecipientID string    `json:"recipient_id"`
+	MessageID   string    `json:"message_id"`
+	ClaimOwner  string    `json:"claim_owner,omitempty"`
+	ClaimedAt   time.Time `json:"claimed_at,omitempty"`
+	PostedAt    time.Time `json:"posted_at,omitempty"`
+	LastUpdate  time.Time `json:"last_update"`
+}
+
+// Posted reports whether a card exists for this row, as opposed to a claim on
+// the right to post one.
+func (a ActiveAlertRecipient) Posted() bool { return !a.PostedAt.IsZero() }
+
+// A RecipientClaim is AlertClaim's counterpart for a chat delivery: the right
+// to send or update one person's message, asked for before the Bot Connector
+// call and completed after it.
+type RecipientClaim struct {
+	Fingerprint string
+	RecipientID string
+	Status      string
+	Owner       string
+	At          time.Time
 	StaleBefore time.Time
 }
 

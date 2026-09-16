@@ -24,7 +24,7 @@ Architectural decisions are recorded here, one file per decision, in
 | [0007](0007-renovate-dependency-updates.md) | Dependency updates run through Renovate | Accepted |
 | [0008](0008-templ-tailwind-admin-ui.md) | The admin UI is server-rendered with templ and Tailwind | Accepted |
 | [0009](0009-admin-authentication.md) | Admin authentication by Keycloak login or local credentials | Accepted |
-| [0010](0010-message-shape.md) | A template decides the title, text and card of a message | Accepted |
+| [0010](0010-message-shape.md) | A template decides the title, text and card of a message | Superseded by 0028 |
 | [0011](0011-nested-routes.md) | Routes form a tree and an alert can fan out | Accepted |
 | [0012](0012-role-based-authorization.md) | Roles are authorized with Cedar, evaluated in-process | Accepted |
 | [0013](0013-configuration-transfer.md) | Configuration moves as a versioned JSON bundle | Accepted |
@@ -43,5 +43,6 @@ Architectural decisions are recorded here, one file per decision, in
 | [0026](0026-alerts-in-a-persons-chat.md) | Alerts reach a person's chat through a Bot Framework bot | Accepted |
 | [0027](0027-notify-on-link-displacement.md) | A displaced recipient conversation is notified, not left silent | Accepted |
 | [0028](0028-self-service-unlink-and-code-cancellation.md) | Self-service unlink resolves from the session, and a code can be cancelled | Accepted |
+| [0029](0029-templates-are-markdown.md) | Message text is authored as Markdown and sanitized once for both transports | Accepted |
 | [0030](0030-teams-v2-compatible-webhooks.md) | Accept the payloads a Teams V2 webhook accepts | Accepted |
 | [0031](0031-vendored-browser-libraries-pinned-and-verified.md) | Vendored browser libraries are pinned in a manifest and verified in CI | Accepted |

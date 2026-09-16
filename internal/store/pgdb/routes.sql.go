@@ -11,8 +11,8 @@ import (
 )
 
 const createRoute = `-- name: CreateRoute :exec
-INSERT INTO routes (id, name, parent_id, greedy, label_selector, destination_id, template_id, is_default, priority, created_at, updated_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+INSERT INTO routes (id, name, parent_id, greedy, label_selector, destination_id, template_id, is_default, priority, created_at, updated_at, recipient_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 `
 
 type CreateRouteParams struct {
@@ -27,6 +27,7 @@ type CreateRouteParams struct {
 	Priority      int64
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
+	RecipientID   string
 }
 
 func (q *Queries) CreateRoute(ctx context.Context, arg CreateRouteParams) error {
@@ -42,6 +43,7 @@ func (q *Queries) CreateRoute(ctx context.Context, arg CreateRouteParams) error 
 		arg.Priority,
 		arg.CreatedAt,
 		arg.UpdatedAt,
+		arg.RecipientID,
 	)
 	return err
 }
@@ -56,7 +58,7 @@ func (q *Queries) DeleteRoute(ctx context.Context, id string) error {
 }
 
 const getRoute = `-- name: GetRoute :one
-SELECT id, name, parent_id, greedy, label_selector, destination_id, template_id, is_default, priority, created_at, updated_at
+SELECT id, name, parent_id, greedy, label_selector, destination_id, template_id, is_default, priority, created_at, updated_at, recipient_id
 FROM routes
 WHERE id = $1
 `
@@ -76,13 +78,14 @@ func (q *Queries) GetRoute(ctx context.Context, id string) (Route, error) {
 		&i.Priority,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.RecipientID,
 	)
 	return i, err
 }
 
 const listRoutes = `-- name: ListRoutes :many
 
-SELECT id, name, parent_id, greedy, label_selector, destination_id, template_id, is_default, priority, created_at, updated_at
+SELECT id, name, parent_id, greedy, label_selector, destination_id, template_id, is_default, priority, created_at, updated_at, recipient_id
 FROM routes
 ORDER BY priority DESC, name
 `
@@ -112,6 +115,7 @@ func (q *Queries) ListRoutes(ctx context.Context) ([]Route, error) {
 			&i.Priority,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.RecipientID,
 		); err != nil {
 			return nil, err
 		}
@@ -128,8 +132,8 @@ func (q *Queries) ListRoutes(ctx context.Context) ([]Route, error) {
 
 const updateRoute = `-- name: UpdateRoute :exec
 UPDATE routes
-SET name = $1, parent_id = $2, greedy = $3, label_selector = $4, destination_id = $5, template_id = $6, is_default = $7, priority = $8, updated_at = $9
-WHERE id = $10
+SET name = $1, parent_id = $2, greedy = $3, label_selector = $4, destination_id = $5, template_id = $6, is_default = $7, priority = $8, updated_at = $9, recipient_id = $10
+WHERE id = $11
 `
 
 type UpdateRouteParams struct {
@@ -142,6 +146,7 @@ type UpdateRouteParams struct {
 	IsDefault     bool
 	Priority      int64
 	UpdatedAt     time.Time
+	RecipientID   string
 	ID            string
 }
 
@@ -156,6 +161,7 @@ func (q *Queries) UpdateRoute(ctx context.Context, arg UpdateRouteParams) error 
 		arg.IsDefault,
 		arg.Priority,
 		arg.UpdatedAt,
+		arg.RecipientID,
 		arg.ID,
 	)
 	return err

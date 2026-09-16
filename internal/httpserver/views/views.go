@@ -64,6 +64,7 @@ type Login struct {
 type Page struct {
 	Templates        []models.Template
 	Destinations     []models.Destination
+	Recipients       []models.Recipient
 	Routes           []models.Route
 	WebhookEndpoints []models.WebhookEndpoint
 	Notice           string
@@ -296,6 +297,21 @@ func destinationOptions(p Page) []option {
 	out := make([]option, 0, len(p.Destinations))
 	for _, d := range p.Destinations {
 		out = append(out, option{Value: d.ID, Label: d.Name})
+	}
+	return out
+}
+
+// recipientOptions offers the people who have linked a chat. The list is empty
+// until somebody redeems a code, which is why a route can leave it unset --
+// unlike a destination, nothing an admin can do creates one.
+func recipientOptions(p Page) []option {
+	out := make([]option, 0, len(p.Recipients))
+	for _, r := range p.Recipients {
+		label := r.Name
+		if label == "" {
+			label = r.Subject
+		}
+		out = append(out, option{Value: r.ID, Label: label})
 	}
 	return out
 }

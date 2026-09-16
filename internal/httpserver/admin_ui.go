@@ -62,6 +62,9 @@ func (s *Server) adminPage(r *http.Request, notice, errText string) views.Page {
 		page.Error = err.Error()
 	}
 	// A destination in a channel this session may not see is not theirs to read.
+	if page.Recipients, err = s.store.ListRecipients(ctx); err != nil {
+		page.Error = err.Error()
+	}
 	if page.Destinations, err = s.visibleDestinations(r, page.Destinations); err != nil {
 		page.Error = err.Error()
 	}
@@ -280,6 +283,7 @@ func (s *Server) saveRoute(r *http.Request) (string, error) {
 		ParentID:      r.PostFormValue("parent_id"),
 		LabelSelector: selector,
 		DestinationID: r.PostFormValue("destination_id"),
+		RecipientID:   r.PostFormValue("recipient_id"),
 		TemplateID:    r.PostFormValue("template_id"),
 		IsDefault:     r.PostFormValue("is_default") == "true",
 		Greedy:        r.PostFormValue("greedy") == "true",
@@ -287,6 +291,11 @@ func (s *Server) saveRoute(r *http.Request) (string, error) {
 	}
 	// A route is how an alert reaches a channel, so pointing one at a
 	// destination outside the grants is the same escape as creating it there.
+	//
+	// There is deliberately no matching check for the recipient. ADR 0026: any
+	// admin or editor who may edit routes may target any existing recipient,
+	// because a recipient only exists once that person proved the account is
+	// theirs. Grants scope Teams and channels, which a person is neither.
 	allowed, err := s.mayDeliverToDestination(r, route.DestinationID)
 	if err != nil {
 		return "", err

@@ -633,3 +633,265 @@ func TestConformanceTransactionsRollBack(t *testing.T) {
 		}
 	})
 }
+
+// The chat claim is the channel claim's twin against a different table, so it
+// earns the same two tests: HA posting duplicates to a person's chat is the
+// failure this protocol exists to prevent.
+func TestConformanceConcurrentRecipientClaims(t *testing.T) {
+	t.Parallel()
+
+	eachBackend(t, func(t *testing.T, open func(t *testing.T) store.Store) {
+		st := open(t)
+		ctx := t.Context()
+		now := time.Now().UTC()
+
+		const writers = 8
+		outcomes := make([]store.ClaimOutcome, writers)
+		errs := make([]error, writers)
+		start := make(chan struct{})
+
+		var wg sync.WaitGroup
+		for i := range writers {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				<-start
+				_, outcome, err := st.ClaimActiveAlertRecipient(ctx, models.RecipientClaim{
+					Fingerprint: "fp",
+					RecipientID: "person",
+					Status:      "firing",
+					Owner:       fmt.Sprintf("owner-%d", i),
+					At:          now,
+					StaleBefore: now.Add(-time.Minute),
+				})
+				outcomes[i], errs[i] = outcome, err
+			}()
+		}
+		close(start)
+		wg.Wait()
+
+		var acquired int
+		for i, outcome := range outcomes {
+			if errs[i] != nil {
+				t.Errorf("writer %d: %v", i, errs[i])
+				continue
+			}
+			if outcome == store.ClaimAcquired {
+				acquired++
+			}
+		}
+		if acquired != 1 {
+			t.Errorf("%d writers acquired the message, want exactly 1", acquired)
+		}
+	})
+}
+
+func TestConformanceRecipientClaimLifecycle(t *testing.T) {
+	t.Parallel()
+
+	eachBackend(t, func(t *testing.T, open func(t *testing.T) store.Store) {
+		st := open(t)
+		ctx := t.Context()
+		now := time.Now().UTC().Truncate(time.Microsecond)
+
+		claim := models.RecipientClaim{
+			Fingerprint: "fp", RecipientID: "person", Status: "firing",
+			Owner: "mine", At: now, StaleBefore: now.Add(-time.Minute),
+		}
+
+		card, outcome, err := st.ClaimActiveAlertRecipient(ctx, claim)
+		if err != nil || outcome != store.ClaimAcquired {
+			t.Fatalf("claim = %v/%v, want acquired", outcome, err)
+		}
+		if card.Posted() {
+			t.Error("a fresh claim reports a message, want none yet")
+		}
+
+		if err := st.CompleteActiveAlertRecipientClaim(ctx, claim, "activity-1", now); err != nil {
+			t.Fatalf("CompleteActiveAlertRecipientClaim: %v", err)
+		}
+
+		theirs := claim
+		theirs.Owner = "theirs"
+		existing, outcome, err := st.ClaimActiveAlertRecipient(ctx, theirs)
+		if err != nil || outcome != store.ClaimPosted {
+			t.Fatalf("claim over a message = %v/%v, want posted", outcome, err)
+		}
+		if existing.MessageID != "activity-1" {
+			t.Errorf("MessageID = %q, want the message that exists", existing.MessageID)
+		}
+		if got := existing.PostedAt.Truncate(time.Microsecond); !got.Equal(now) {
+			t.Errorf("PostedAt = %v, want %v", got, now)
+		}
+
+		if err := st.CompleteActiveAlertRecipientClaim(ctx, theirs, "activity-2", now); !errors.Is(err, store.ErrClaimLost) {
+			t.Errorf("completing a lost claim = %v, want ErrClaimLost", err)
+		}
+
+		// Touch matches on the message id, so an update meant for an older
+		// message cannot restamp a newer one.
+		later := now.Add(time.Minute)
+		if err := st.TouchActiveAlertRecipient(ctx, existing, "firing", later); err != nil {
+			t.Fatalf("TouchActiveAlertRecipient: %v", err)
+		}
+		listed, err := st.ListActiveAlertRecipients(ctx, "fp")
+		if err != nil {
+			t.Fatalf("ListActiveAlertRecipients: %v", err)
+		}
+		if len(listed) != 1 {
+			t.Fatalf("listed %d messages, want 1", len(listed))
+		}
+		if got := listed[0].LastUpdate.Truncate(time.Microsecond); !got.Equal(later.Truncate(time.Microsecond)) {
+			t.Errorf("LastUpdate = %v, want %v", got, later)
+		}
+
+		if err := st.DeleteActiveAlertRecipientCard(ctx, "fp", "person", "activity-1"); err != nil {
+			t.Fatalf("DeleteActiveAlertRecipientCard: %v", err)
+		}
+		listed, err = st.ListActiveAlertRecipients(ctx, "fp")
+		if err != nil {
+			t.Fatalf("ListActiveAlertRecipients: %v", err)
+		}
+		if len(listed) != 0 {
+			t.Errorf("after the delete %d messages remain, want 0", len(listed))
+		}
+	})
+}
+
+// bot.SendMessage returning ("", nil) is a documented success: delivered, but
+// with nothing to name it by for a later edit. The channel table's CHECK would
+// read that row as never posted and the next firing would send a duplicate, so
+// this table's CHECK has to admit it -- and the row has to stay reachable.
+func TestConformanceRecipientMessageWithoutAnActivityID(t *testing.T) {
+	t.Parallel()
+
+	eachBackend(t, func(t *testing.T, open func(t *testing.T) store.Store) {
+		st := open(t)
+		ctx := t.Context()
+		now := time.Now().UTC().Truncate(time.Microsecond)
+
+		claim := models.RecipientClaim{
+			Fingerprint: "fp", RecipientID: "person", Status: "firing",
+			Owner: "mine", At: now, StaleBefore: now.Add(-time.Minute),
+		}
+		if _, _, err := st.ClaimActiveAlertRecipient(ctx, claim); err != nil {
+			t.Fatalf("ClaimActiveAlertRecipient: %v", err)
+		}
+		if err := st.CompleteActiveAlertRecipientClaim(ctx, claim, "", now); err != nil {
+			t.Fatalf("completing with no activity id: %v", err)
+		}
+
+		// The next firing must find a posted message rather than a free slot.
+		theirs := claim
+		theirs.Owner = "theirs"
+		existing, outcome, err := st.ClaimActiveAlertRecipient(ctx, theirs)
+		if err != nil {
+			t.Fatalf("second claim: %v", err)
+		}
+		if outcome != store.ClaimPosted {
+			t.Fatalf("second claim = %v, want posted -- an empty activity id is delivered, not unposted", outcome)
+		}
+		if !existing.Posted() {
+			t.Error("Posted() = false for a delivered message with no activity id")
+		}
+
+		// And an empty id is an ordinary equality here, not a NULL, so the row
+		// stays reachable by both of the statements keyed on it.
+		if err := st.TouchActiveAlertRecipient(ctx, existing, "firing", now.Add(time.Minute)); err != nil {
+			t.Fatalf("TouchActiveAlertRecipient: %v", err)
+		}
+		if err := st.DeleteActiveAlertRecipientCard(ctx, "fp", "person", ""); err != nil {
+			t.Fatalf("DeleteActiveAlertRecipientCard: %v", err)
+		}
+		listed, err := st.ListActiveAlertRecipients(ctx, "fp")
+		if err != nil {
+			t.Fatalf("ListActiveAlertRecipients: %v", err)
+		}
+		if len(listed) != 0 {
+			t.Errorf("%d messages remain, want 0", len(listed))
+		}
+	})
+}
+
+// A released claim frees the slot rather than making the next attempt wait out
+// the staleness cutoff, and a claim released by somebody else's owner is not
+// released at all.
+func TestConformanceRecipientClaimRelease(t *testing.T) {
+	t.Parallel()
+
+	eachBackend(t, func(t *testing.T, open func(t *testing.T) store.Store) {
+		st := open(t)
+		ctx := t.Context()
+		now := time.Now().UTC()
+
+		claim := models.RecipientClaim{
+			Fingerprint: "fp", RecipientID: "person", Status: "firing",
+			Owner: "mine", At: now, StaleBefore: now.Add(-time.Minute),
+		}
+		if _, _, err := st.ClaimActiveAlertRecipient(ctx, claim); err != nil {
+			t.Fatalf("ClaimActiveAlertRecipient: %v", err)
+		}
+
+		notMine := claim
+		notMine.Owner = "theirs"
+		if err := st.ReleaseActiveAlertRecipientClaim(ctx, notMine); err != nil {
+			t.Fatalf("ReleaseActiveAlertRecipientClaim: %v", err)
+		}
+		if _, outcome, err := st.ClaimActiveAlertRecipient(ctx, notMine); err != nil || outcome != store.ClaimHeld {
+			t.Fatalf("after a foreign release = %v/%v, want the claim still held", outcome, err)
+		}
+
+		if err := st.ReleaseActiveAlertRecipientClaim(ctx, claim); err != nil {
+			t.Fatalf("ReleaseActiveAlertRecipientClaim: %v", err)
+		}
+		if _, outcome, err := st.ClaimActiveAlertRecipient(ctx, notMine); err != nil || outcome != store.ClaimAcquired {
+			t.Fatalf("after releasing our own = %v/%v, want acquirable", outcome, err)
+		}
+	})
+}
+
+// The two tables are independent: one alert can be live in a channel and in a
+// chat at once, and resolving one must not disturb the other.
+func TestConformanceChannelAndChatClaimsAreIndependent(t *testing.T) {
+	t.Parallel()
+
+	eachBackend(t, func(t *testing.T, open func(t *testing.T) store.Store) {
+		st := open(t)
+		ctx := t.Context()
+		now := time.Now().UTC()
+
+		channel := models.AlertClaim{
+			Fingerprint: "fp", TeamID: "team", ChannelID: "channel", Status: "firing",
+			Owner: "mine", At: now, StaleBefore: now.Add(-time.Minute),
+		}
+		chat := models.RecipientClaim{
+			Fingerprint: "fp", RecipientID: "person", Status: "firing",
+			Owner: "mine", At: now, StaleBefore: now.Add(-time.Minute),
+		}
+
+		if _, _, err := st.ClaimActiveAlert(ctx, channel); err != nil {
+			t.Fatalf("ClaimActiveAlert: %v", err)
+		}
+		if _, _, err := st.ClaimActiveAlertRecipient(ctx, chat); err != nil {
+			t.Fatalf("ClaimActiveAlertRecipient: %v", err)
+		}
+		if err := st.CompleteActiveAlertClaim(ctx, channel, "message-1", now); err != nil {
+			t.Fatalf("CompleteActiveAlertClaim: %v", err)
+		}
+		if err := st.CompleteActiveAlertRecipientClaim(ctx, chat, "activity-1", now); err != nil {
+			t.Fatalf("CompleteActiveAlertRecipientClaim: %v", err)
+		}
+
+		// Resolving the chat leaves the card alone.
+		if err := st.DeleteActiveAlertRecipientCard(ctx, "fp", "person", "activity-1"); err != nil {
+			t.Fatalf("DeleteActiveAlertRecipientCard: %v", err)
+		}
+		cards, err := st.ListActiveAlerts(ctx, "fp")
+		if err != nil {
+			t.Fatalf("ListActiveAlerts: %v", err)
+		}
+		if len(cards) != 1 {
+			t.Errorf("%d cards remain, want the channel card untouched", len(cards))
+		}
+	})
+}

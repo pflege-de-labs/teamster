@@ -1,6 +1,6 @@
 # 0010. Let a template decide the message, not just the card
 
-* Status: Accepted
+* Status: Superseded by [0028](0029-templates-are-markdown.md)
 * Date: 2026-09-11
 
 ## Context

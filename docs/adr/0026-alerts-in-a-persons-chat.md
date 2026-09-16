@@ -135,16 +135,45 @@ so the schema-compatibility rule this repository already follows — migrations 
 pods do, so within a release only additive changes are safe — is not tested by this milestone in a
 new way.
 
-Two things are deliberately left open rather than guessed at, and are flagged here rather than
-resolved:
+Two things were deliberately left open rather than guessed at. Both were decided when delivery was
+implemented. Neither changes a component boundary and both are reversible, so they are recorded here
+rather than superseding this record.
 
-* **What happens when a recipient's conversation reference goes stale** — the person uninstalled
-  the bot, or Bot Framework returns an error indicating the conversation no longer exists. Candidate
-  answers include silent failure (matching how a broken `Destination` already just fails at render
-  time today) or some hybrid fallback to an Activity Feed notification (route C, repurposed as a
-  degradation path rather than the primary mechanism). Not decided now; the PR implementing delivery
-  to a recipient must pick one and either update this ADR's successor or add a follow-up ADR if the
-  choice changes how a component is structured.
-* **Whether a plain-text chat message updates in place the way a channel card does**, or whether a
-  resolved alert instead sends a new message. The roadmap flags the same unresolved question for
-  chat delivery generally; it is inherited here rather than answered.
+* **A stale conversation reference.** A *permanent* failure — `*bot.APIError` carrying
+  `MessageWritesBlocked`, or `ConversationBlockedByUser` one level in, meaning the person
+  uninstalled or blocked the bot — deletes the claim row and is counted under its own delivery
+  outcome (`blocked`). It therefore stops re-attempting within that alert and is visible in the
+  metrics milestone 11 added, rather than disappearing into the transient-failure noise. A
+  *transient* failure — 429, any 5xx, a transport error — fails that delivery exactly as a channel
+  failure does and leaves the row, so the sender's retry is what puts it right.
+
+  A durable "this recipient is broken" flag, with an admin surface showing it, is deliberately
+  **not** part of this: PR 5 builds the page that would show it, and half a mechanism now is worse
+  than a whole one there. Until then a blocked recipient is visible as a metric, and the next alert
+  attempts delivery again.
+
+* **A resolved alert sends a new message; a re-fire edits the existing one in place.** An edit in
+  Teams shows an "Edited" marker and does not re-notify, so an in-place resolve would be silent —
+  and being told the alert cleared is the one thing the person on call is waiting for. A re-fire is
+  the opposite case: it is the same alert saying the same thing, so editing is right and a second
+  notification would be noise.
+
+  This turns out simpler than the channel path as well as better: the resolve branch sends and then
+  deletes the row, and never needs the stored activity id.
+
+One further consequence of that second decision is worth naming. `bot.SendMessage` returning
+`("", nil)` is a documented success — delivered, but with nothing to name it by for a later edit.
+`active_alerts` asserts `(posted_at IS NULL) = (message_id = '')`, which would classify such a row
+as never posted and send the person a duplicate on the next firing. `active_alert_recipients`
+therefore carries a deliberately different `CHECK`, admitting a posted row with an empty activity
+id, and the update path skips the edit when there is no id rather than failing.
+
+Route-edit permission is what governs targeting a person: any admin or editor who may edit routes
+may target any existing recipient, and there is deliberately no new Cedar action. Grants scope Teams
+and channels, and a person is neither; a recipient only exists at all once that person proved the
+account is theirs. `mayDeliverToDestination` is unchanged and has no recipient counterpart.
+
+Recipients are excluded from configuration export by design — a link binds one person to one
+conversation in one tenant, so it cannot mean anything in the installation a bundle is carried to.
+A bundle naming a non-empty `recipient_id` is therefore **rejected on import** rather than imported
+inert, which would look like it delivers to somebody and silently never do so.

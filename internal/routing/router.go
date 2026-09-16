@@ -35,14 +35,27 @@ const (
 	ReasonNoRoutes Reason = "no-routes"
 )
 
+// A DeliveryKind says which transport a Delivery goes out through, since a
+// route may now name a channel, a person, or both (ADR 0026).
+type DeliveryKind string
+
+const (
+	DeliveryChannel   DeliveryKind = "channel"
+	DeliveryRecipient DeliveryKind = "recipient"
+)
+
 // A Delivery is one message this alert produces: where it goes and what renders
-// it, with the destination and template already resolved through inheritance.
+// it, with the target and template already resolved through inheritance. Kind
+// says which of DestinationID or RecipientID is the one that applies; the
+// other is left zero.
 type Delivery struct {
-	RouteID       string `json:"route_id"`
-	RouteName     string `json:"route_name"`
-	DestinationID string `json:"destination_id"`
-	TemplateID    string `json:"template_id"`
-	Reason        Reason `json:"reason"`
+	RouteID       string       `json:"route_id"`
+	RouteName     string       `json:"route_name"`
+	Kind          DeliveryKind `json:"kind"`
+	DestinationID string       `json:"destination_id,omitempty"`
+	RecipientID   string       `json:"recipient_id,omitempty"`
+	TemplateID    string       `json:"template_id"`
+	Reason        Reason       `json:"reason"`
 }
 
 // A Result is what an alert's labels produce: the deliveries, and why the tree
@@ -95,7 +108,7 @@ func (r *Router) Plan(ctx context.Context, labels map[string]string) (Result, er
 		return Result{Reason: ReasonNone}, nil
 	}
 
-	plan := collect(root, reason, children, labels, root.DestinationID, root.TemplateID, 0)
+	plan := collect(root, reason, children, labels, root.DestinationID, root.TemplateID, root.RecipientID, 0)
 	if len(plan) == 0 {
 		return Result{Reason: ReasonNone}, nil
 	}
@@ -120,14 +133,21 @@ func selectRoot(roots []models.Route, labels map[string]string) (models.Route, R
 }
 
 // collect walks the matching part of the tree. A route delivers unless one of
-// its matching children is greedy, and an unset destination or template is
-// inherited from the nearest ancestor that set one.
-func collect(route models.Route, reason Reason, children map[string][]models.Route, labels map[string]string, destinationID, templateID string, depth int) []Delivery {
+// its matching children is greedy, and an unset destination, recipient or
+// template is inherited from the nearest ancestor that set one. A route
+// fans out to one Delivery per target that ends up set -- a channel, a
+// recipient, both or neither -- rather than always producing exactly one, so a
+// route with nothing left to deliver to (inherited or its own) delivers
+// nothing.
+func collect(route models.Route, reason Reason, children map[string][]models.Route, labels map[string]string, destinationID, templateID, recipientID string, depth int) []Delivery {
 	if route.DestinationID != "" {
 		destinationID = route.DestinationID
 	}
 	if route.TemplateID != "" {
 		templateID = route.TemplateID
+	}
+	if route.RecipientID != "" {
+		recipientID = route.RecipientID
 	}
 
 	var (
@@ -140,21 +160,39 @@ func collect(route models.Route, reason Reason, children map[string][]models.Rou
 				continue
 			}
 			if child.Greedy {
+				// A greedy child takes both of its parent's deliveries with
+				// it, not just the one it happens to share a target kind
+				// with -- one flag governs both below.
 				suppressed = true
 			}
-			fromChildren = append(fromChildren, collect(child, ReasonRefined, children, labels, destinationID, templateID, depth+1)...)
+			fromChildren = append(fromChildren, collect(child, ReasonRefined, children, labels, destinationID, templateID, recipientID, depth+1)...)
 		}
 	}
 
-	plan := make([]Delivery, 0, len(fromChildren)+1)
+	plan := make([]Delivery, 0, len(fromChildren)+2)
 	if !suppressed {
-		plan = append(plan, Delivery{
-			RouteID:       route.ID,
-			RouteName:     route.Name,
-			DestinationID: destinationID,
-			TemplateID:    templateID,
-			Reason:        reason,
-		})
+		if destinationID != "" {
+			plan = append(plan, Delivery{
+				RouteID:       route.ID,
+				RouteName:     route.Name,
+				Kind:          DeliveryChannel,
+				DestinationID: destinationID,
+				TemplateID:    templateID,
+				Reason:        reason,
+			})
+		}
+		if recipientID != "" {
+			// Channel before recipient, so a mixed plan orders the same way
+			// every time and Deliveries[1] means something stable.
+			plan = append(plan, Delivery{
+				RouteID:     route.ID,
+				RouteName:   route.Name,
+				Kind:        DeliveryRecipient,
+				RecipientID: recipientID,
+				TemplateID:  templateID,
+				Reason:      reason,
+			})
+		}
 	}
 	return append(plan, fromChildren...)
 }
@@ -183,8 +221,8 @@ func ValidateRoute(candidate models.Route, existing []models.Route) error {
 	if len(candidate.LabelSelector) == 0 {
 		return fmt.Errorf("a child route needs a label selector to refine its parent")
 	}
-	if candidate.DestinationID == "" && candidate.TemplateID == "" {
-		return fmt.Errorf("a child route that inherits both its destination and its template changes nothing")
+	if candidate.DestinationID == "" && candidate.TemplateID == "" && candidate.RecipientID == "" {
+		return fmt.Errorf("a child route that inherits its destination, recipient and template changes nothing")
 	}
 	if candidate.IsDefault {
 		return fmt.Errorf("only a root route can be the default")

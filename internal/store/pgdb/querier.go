@@ -15,11 +15,20 @@ type Querier interface {
 	// working on, and a row that already carries a card, both leave this returning
 	// nothing, and the caller reads the row to find out which.
 	ClaimActiveAlert(ctx context.Context, arg ClaimActiveAlertParams) (ActiveAlert, error)
+	// ClaimActiveAlertRecipient takes the right to send or update the message for
+	// one recipient. A row comes back only when the claim is ours; see
+	// ClaimActiveAlert for what a caller does with the two ways this can come back
+	// empty.
+	ClaimActiveAlertRecipient(ctx context.Context, arg ClaimActiveAlertRecipientParams) (ActiveAlertRecipient, error)
 	// CompleteActiveAlertClaim records the card the claim produced. The guard is
 	// what makes a lost claim visible: zero rows means somebody else's card is
 	// recorded under this key, so the one just posted is an orphan and the caller
 	// has to say so rather than overwrite them.
 	CompleteActiveAlertClaim(ctx context.Context, arg CompleteActiveAlertClaimParams) (string, error)
+	// CompleteActiveAlertRecipientClaim records the message the claim produced.
+	// See CompleteActiveAlertClaim: zero rows means somebody else's message is
+	// recorded under this key, so the one just sent is an orphan.
+	CompleteActiveAlertRecipientClaim(ctx context.Context, arg CompleteActiveAlertRecipientClaimParams) (string, error)
 	// CountActiveAlerts counts cards, not claims: a claim in flight is not yet
 	// something this service is keeping up to date.
 	CountActiveAlerts(ctx context.Context) (int64, error)
@@ -47,6 +56,10 @@ type Querier interface {
 	// DeleteActiveAlertCard removes the row for one card, and only if it is still
 	// that card: a resolve that raced a refire must not delete the new card's row.
 	DeleteActiveAlertCard(ctx context.Context, arg DeleteActiveAlertCardParams) error
+	// DeleteActiveAlertRecipientCard removes the row for one message, and only if
+	// it is still that message: a resolve that raced a refire must not delete the
+	// new message's row.
+	DeleteActiveAlertRecipientCard(ctx context.Context, arg DeleteActiveAlertRecipientCardParams) error
 	DeleteDestination(ctx context.Context, id string) error
 	DeleteExpiredLinkFlows(ctx context.Context, expiresAt time.Time) error
 	DeleteExpiredLoginFlows(ctx context.Context, expiresAt time.Time) error
@@ -66,6 +79,7 @@ type Querier interface {
 	DeleteTemplate(ctx context.Context, id string) error
 	DeleteWebhookEndpoint(ctx context.Context, id string) error
 	GetActiveAlert(ctx context.Context, arg GetActiveAlertParams) (ActiveAlert, error)
+	GetActiveAlertRecipient(ctx context.Context, arg GetActiveAlertRecipientParams) (ActiveAlertRecipient, error)
 	GetDestination(ctx context.Context, id string) (Destination, error)
 	GetRecipient(ctx context.Context, id string) (Recipient, error)
 	// GetRecipientBySubject is how the linking flow finds an existing binding for
@@ -80,6 +94,9 @@ type Querier interface {
 	// only lookup a sender can reach, so it matches on the pair alone and leaves
 	// the token to a constant-time comparison outside SQL.
 	GetWebhookEndpointBySlug(ctx context.Context, arg GetWebhookEndpointBySlugParams) (WebhookEndpoint, error)
+	// ListActiveAlertRecipients returns every message sent for an alert, one per
+	// recipient it fanned out to, and any claim still in flight.
+	ListActiveAlertRecipients(ctx context.Context, fingerprint string) ([]ActiveAlertRecipient, error)
 	// ListActiveAlerts returns every card posted for an alert, one per channel it
 	// fanned out to, and any claim still in flight. The order is stable so that
 	// delivery, and its tests, see them the same way every time.
@@ -125,10 +142,21 @@ type Querier interface {
 	// into one. Two statements in one transaction say the same thing and read
 	// better: reap what is dead, then claim what is free.
 	ReapStaleClaim(ctx context.Context, arg ReapStaleClaimParams) (int64, error)
+	// Code generated from ../sqlite by internal/store/queries/gen. DO NOT EDIT.
+	//
+	// The statements are the SQLite ones with ? replaced by $n. Edit the SQLite
+	// file and run make generate.
+	// ReapStaleClaimRecipient is ReapStaleClaim mirrored for a chat delivery; see
+	// active_alerts.sql for why it is a statement of its own rather than folded
+	// into the claim below.
+	ReapStaleClaimRecipient(ctx context.Context, arg ReapStaleClaimRecipientParams) (int64, error)
 	// ReleaseActiveAlertClaim hands a claim back when the post failed, so the next
 	// attempt does not have to wait out the staleness cutoff. Deleting is safe
 	// because posted_at IS NULL says no card was ever created under it.
 	ReleaseActiveAlertClaim(ctx context.Context, arg ReleaseActiveAlertClaimParams) error
+	// ReleaseActiveAlertRecipientClaim hands a claim back when the send failed, so
+	// the next attempt does not have to wait out the staleness cutoff.
+	ReleaseActiveAlertRecipientClaim(ctx context.Context, arg ReleaseActiveAlertRecipientClaimParams) error
 	RotateWebhookEndpointToken(ctx context.Context, arg RotateWebhookEndpointTokenParams) error
 	// TakeLinkFlow redeems a code once: the row is gone whether or not it had
 	// expired, so a code read over somebody's shoulder and typed twice binds
@@ -141,6 +169,13 @@ type Querier interface {
 	// message id so that a resolve-then-refire cycle, which replaces the card, does
 	// not have its newer row stamped by an update to the older one.
 	TouchActiveAlert(ctx context.Context, arg TouchActiveAlertParams) error
+	// TouchActiveAlertRecipient records that an existing message was updated. It
+	// matches on the message id, like TouchActiveAlert, so a resolve-then-refire
+	// cycle does not have its newer row stamped by an update meant for the older
+	// one. Matching an empty message id against an empty message id is an
+	// ordinary equality, not a NULL comparison, so a card whose send returned no
+	// id is still reachable here.
+	TouchActiveAlertRecipient(ctx context.Context, arg TouchActiveAlertRecipientParams) error
 	UpdateDestination(ctx context.Context, arg UpdateDestinationParams) error
 	// The update deliberately leaves subject alone: it is who this binding belongs
 	// to, and moving it would point one person's link at another's alerts. What

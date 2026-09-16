@@ -23,12 +23,14 @@ type messenger interface {
 	ListChannels(teamID string) ([]graph.Channel, error)
 }
 
-// botSender is the slice of the Bot Connector client the inbound handlers
-// depend on: replying in the same chat a code or an install came from. Taking
-// an interface rather than *bot.Client keeps this package depending on the
-// shape of a reply, not on how it is authenticated or sent.
+// botSender is the slice of the Bot Connector client the inbound handlers and
+// chat delivery depend on: replying in the same chat a code or an install came
+// from, and sending or editing the message an alert produces. Taking an
+// interface rather than *bot.Client keeps this package depending on the shape
+// of a reply, not on how it is authenticated or sent.
 type botSender interface {
 	SendMessage(ctx context.Context, ref bot.ConversationReference, msg bot.Message) (string, error)
+	UpdateMessage(ctx context.Context, ref bot.ConversationReference, activityID string, msg bot.Message) error
 }
 
 // telemetry is what this server records against. It is an interface so the

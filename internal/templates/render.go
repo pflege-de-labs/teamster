@@ -22,15 +22,21 @@ type RenderData struct {
 // Message is a template rendered against an alert. Title is the line the Teams
 // activity feed previews — a message that is only a card previews as "Card" —
 // and Card is nil for a template that sends text alone.
+//
+// Text is sanitized HTML, whatever the template was authored in. A chat
+// delivery converts it with ToMarkdown rather than carrying a second field:
+// one field means one sanitizer, and the chat path cannot then be given
+// something the channel path never checked.
 type Message struct {
 	Title string          `json:"title,omitempty"`
 	Text  string          `json:"text,omitempty"`
 	Card  json.RawMessage `json:"card,omitempty"`
 }
 
-// RenderMessage renders the three parts of a template. The text is sanitized
-// here rather than at the Graph client, so every caller — delivery, preview and
-// any future one — gets the same guarantee.
+// RenderMessage renders the three parts of a template. The text is rendered
+// from Markdown and sanitized here rather than at the Graph client, so every
+// caller — channel delivery, chat delivery, preview and any future one — gets
+// the same guarantee.
 func RenderMessage(t models.Template, data RenderData) (Message, error) {
 	var msg Message
 
@@ -54,7 +60,14 @@ func RenderMessage(t models.Template, data RenderData) (Message, error) {
 		if err != nil {
 			return Message{}, fmt.Errorf("text: %w", err)
 		}
-		safe, err := Sanitize(text)
+		// Authored as Markdown, carried on as HTML: raw HTML passes the parser
+		// through untouched, so a template written before ADR 0029 renders as
+		// it always did, and Sanitize is still the only trust boundary.
+		markup, err := renderMarkdown(text)
+		if err != nil {
+			return Message{}, fmt.Errorf("text: %w", err)
+		}
+		safe, err := Sanitize(markup)
 		if err != nil {
 			return Message{}, fmt.Errorf("text: %w", err)
 		}

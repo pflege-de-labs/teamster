@@ -444,6 +444,7 @@ func (s queryAdapter) CreateRoute(ctx context.Context, r models.Route) (models.R
 		Greedy:        r.Greedy,
 		LabelSelector: serializeSelector(r.LabelSelector),
 		DestinationID: r.DestinationID,
+		RecipientID:   r.RecipientID,
 		TemplateID:    r.TemplateID,
 		IsDefault:     r.IsDefault,
 		Priority:      int64(r.Priority),
@@ -468,6 +469,7 @@ func (s queryAdapter) UpdateRoute(ctx context.Context, r models.Route) (models.R
 		Greedy:        r.Greedy,
 		LabelSelector: serializeSelector(r.LabelSelector),
 		DestinationID: r.DestinationID,
+		RecipientID:   r.RecipientID,
 		TemplateID:    r.TemplateID,
 		IsDefault:     r.IsDefault,
 		Priority:      int64(r.Priority),
@@ -506,6 +508,7 @@ func routeOf(row sqlitedb.Route) models.Route {
 		Greedy:        row.Greedy,
 		LabelSelector: parseSelector(row.LabelSelector),
 		DestinationID: row.DestinationID,
+		RecipientID:   row.RecipientID,
 		TemplateID:    row.TemplateID,
 		IsDefault:     row.IsDefault,
 		Priority:      int(row.Priority),
@@ -667,6 +670,154 @@ func (s queryAdapter) DeleteActiveAlertCard(ctx context.Context, fingerprint, te
 		return fmt.Errorf("delete active alert card: %w", err)
 	}
 	return nil
+}
+
+// ClaimActiveAlertRecipient is ClaimActiveAlert mirrored for a chat delivery;
+// see that method's comment for why reaping and claiming are two statements
+// rather than one.
+func (s queryAdapter) ClaimActiveAlertRecipient(ctx context.Context, claim models.RecipientClaim) (models.ActiveAlertRecipient, ClaimOutcome, error) {
+	reaped, err := s.q.ReapStaleClaimRecipient(ctx, sqlitedb.ReapStaleClaimRecipientParams{
+		Fingerprint: claim.Fingerprint,
+		RecipientID: claim.RecipientID,
+		ClaimedAt:   sql.NullTime{Time: claim.StaleBefore, Valid: true},
+	})
+	if err != nil {
+		return models.ActiveAlertRecipient{}, ClaimHeld, fmt.Errorf("reap stale claim recipient: %w", err)
+	}
+
+	row, err := s.q.ClaimActiveAlertRecipient(ctx, sqlitedb.ClaimActiveAlertRecipientParams{
+		Fingerprint: claim.Fingerprint,
+		RecipientID: claim.RecipientID,
+		Status:      claim.Status,
+		ClaimOwner:  claim.Owner,
+		ClaimedAt:   sql.NullTime{Time: claim.At, Valid: true},
+		LastUpdate:  claim.At,
+	})
+	switch {
+	case err == nil:
+		if reaped > 0 {
+			return activeAlertRecipientOf(row), ClaimRecovered, nil
+		}
+		return activeAlertRecipientOf(row), ClaimAcquired, nil
+	case !errors.Is(notFound(err), ErrNotFound):
+		return models.ActiveAlertRecipient{}, ClaimHeld, fmt.Errorf("claim active alert recipient: %w", err)
+	}
+
+	existing, err := s.getActiveAlertRecipient(ctx, claim.Fingerprint, claim.RecipientID)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return models.ActiveAlertRecipient{}, ClaimHeld, nil
+		}
+		return models.ActiveAlertRecipient{}, ClaimHeld, err
+	}
+	if existing.Posted() {
+		return existing, ClaimPosted, nil
+	}
+	return existing, ClaimHeld, nil
+}
+
+func (s queryAdapter) CompleteActiveAlertRecipientClaim(ctx context.Context, claim models.RecipientClaim, messageID string, at time.Time) error {
+	_, err := s.q.CompleteActiveAlertRecipientClaim(ctx, sqlitedb.CompleteActiveAlertRecipientClaimParams{
+		Fingerprint: claim.Fingerprint,
+		RecipientID: claim.RecipientID,
+		Status:      claim.Status,
+		MessageID:   messageID,
+		ClaimOwner:  claim.Owner,
+		ClaimedAt:   sql.NullTime{Time: claim.At, Valid: true},
+		PostedAt:    sql.NullTime{Time: at, Valid: true},
+		LastUpdate:  at,
+	})
+	switch {
+	case err == nil:
+		return nil
+	case errors.Is(notFound(err), ErrNotFound):
+		return ErrClaimLost
+	default:
+		return fmt.Errorf("complete active alert recipient claim: %w", err)
+	}
+}
+
+func (s queryAdapter) ReleaseActiveAlertRecipientClaim(ctx context.Context, claim models.RecipientClaim) error {
+	err := s.q.ReleaseActiveAlertRecipientClaim(ctx, sqlitedb.ReleaseActiveAlertRecipientClaimParams{
+		Fingerprint: claim.Fingerprint,
+		RecipientID: claim.RecipientID,
+		ClaimOwner:  claim.Owner,
+	})
+	if err != nil {
+		return fmt.Errorf("release active alert recipient claim: %w", err)
+	}
+	return nil
+}
+
+func (s queryAdapter) TouchActiveAlertRecipient(ctx context.Context, card models.ActiveAlertRecipient, status string, at time.Time) error {
+	err := s.q.TouchActiveAlertRecipient(ctx, sqlitedb.TouchActiveAlertRecipientParams{
+		Status:      status,
+		LastUpdate:  at,
+		Fingerprint: card.Fingerprint,
+		RecipientID: card.RecipientID,
+		MessageID:   card.MessageID,
+	})
+	if err != nil {
+		return fmt.Errorf("touch active alert recipient: %w", err)
+	}
+	return nil
+}
+
+func (s queryAdapter) ListActiveAlertRecipients(ctx context.Context, fingerprint string) ([]models.ActiveAlertRecipient, error) {
+	rows, err := s.q.ListActiveAlertRecipients(ctx, fingerprint)
+	if err != nil {
+		return nil, fmt.Errorf("list active alert recipients: %w", err)
+	}
+	if len(rows) == 0 {
+		return nil, nil
+	}
+	out := make([]models.ActiveAlertRecipient, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, activeAlertRecipientOf(row))
+	}
+	return out, nil
+}
+
+// getActiveAlertRecipient is not part of Store: it exists only to let
+// ClaimActiveAlertRecipient read the row an insert conflicted against, the
+// same role GetActiveAlert plays for ClaimActiveAlert.
+func (s queryAdapter) getActiveAlertRecipient(ctx context.Context, fingerprint, recipientID string) (models.ActiveAlertRecipient, error) {
+	row, err := s.q.GetActiveAlertRecipient(ctx, sqlitedb.GetActiveAlertRecipientParams{
+		Fingerprint: fingerprint,
+		RecipientID: recipientID,
+	})
+	if err != nil {
+		if err := notFound(err); errors.Is(err, ErrNotFound) {
+			return models.ActiveAlertRecipient{}, err
+		}
+		return models.ActiveAlertRecipient{}, fmt.Errorf("get active alert recipient: %w", err)
+	}
+	return activeAlertRecipientOf(row), nil
+}
+
+func (s queryAdapter) DeleteActiveAlertRecipientCard(ctx context.Context, fingerprint, recipientID, messageID string) error {
+	err := s.q.DeleteActiveAlertRecipientCard(ctx, sqlitedb.DeleteActiveAlertRecipientCardParams{
+		Fingerprint: fingerprint,
+		RecipientID: recipientID,
+		MessageID:   messageID,
+	})
+	if err != nil {
+		return fmt.Errorf("delete active alert recipient card: %w", err)
+	}
+	return nil
+}
+
+func activeAlertRecipientOf(row sqlitedb.ActiveAlertRecipient) models.ActiveAlertRecipient {
+	return models.ActiveAlertRecipient{
+		Fingerprint: row.Fingerprint,
+		Status:      row.Status,
+		RecipientID: row.RecipientID,
+		MessageID:   row.MessageID,
+		ClaimOwner:  row.ClaimOwner,
+		ClaimedAt:   row.ClaimedAt.Time,
+		PostedAt:    row.PostedAt.Time,
+		LastUpdate:  row.LastUpdate,
+	}
 }
 
 func activeAlertOf(row sqlitedb.ActiveAlert) models.ActiveAlert {
