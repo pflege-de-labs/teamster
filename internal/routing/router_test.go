@@ -3,6 +3,8 @@ package routing
 import (
 	"context"
 	"errors"
+	"fmt"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -161,6 +163,33 @@ func (s stubStore) GetActiveAlert(ctx context.Context, fingerprint, teamID, chan
 }
 
 func (s stubStore) DeleteActiveAlertCard(ctx context.Context, _, _, _, _ string) error {
+	return store.ErrNotFound
+}
+
+// The chat half of the claim protocol. Routing never reaches it -- planning is
+// what this package does, delivery is the server's -- but Store is one
+// interface, so it is implemented here for the compiler.
+func (s stubStore) ClaimActiveAlertRecipient(ctx context.Context, _ models.RecipientClaim) (models.ActiveAlertRecipient, store.ClaimOutcome, error) {
+	return models.ActiveAlertRecipient{}, store.ClaimHeld, store.ErrNotFound
+}
+
+func (s stubStore) CompleteActiveAlertRecipientClaim(ctx context.Context, _ models.RecipientClaim, _ string, _ time.Time) error {
+	return store.ErrNotFound
+}
+
+func (s stubStore) ReleaseActiveAlertRecipientClaim(ctx context.Context, _ models.RecipientClaim) error {
+	return store.ErrNotFound
+}
+
+func (s stubStore) TouchActiveAlertRecipient(ctx context.Context, _ models.ActiveAlertRecipient, _ string, _ time.Time) error {
+	return store.ErrNotFound
+}
+
+func (s stubStore) ListActiveAlertRecipients(ctx context.Context, fingerprint string) ([]models.ActiveAlertRecipient, error) {
+	return nil, store.ErrNotFound
+}
+
+func (s stubStore) DeleteActiveAlertRecipientCard(ctx context.Context, _, _, _ string) error {
 	return store.ErrNotFound
 }
 
@@ -565,4 +594,165 @@ func equalStrings(got, want []string) bool {
 		}
 	}
 	return true
+}
+
+// deliveredTo describes a plan as "which route, to what" so a fan-out across
+// two transports reads as one list.
+func deliveredTo(result Result) []string {
+	out := make([]string, 0, len(result.Deliveries))
+	for _, delivery := range result.Deliveries {
+		target := delivery.DestinationID
+		if delivery.Kind == DeliveryRecipient {
+			target = delivery.RecipientID
+		}
+		out = append(out, fmt.Sprintf("%s→%s:%s", delivery.RouteID, delivery.Kind, target))
+	}
+	return out
+}
+
+// A route now has two independent targets, so one route can produce two
+// deliveries -- and the order between them has to be stable, because callers
+// index into the slice.
+func TestPlanFansOutToBothTargets(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		routes []models.Route
+		labels map[string]string
+		want   []string
+	}{
+		{
+			name: "a route naming both delivers twice, channel first",
+			routes: []models.Route{
+				{ID: "r", Name: "r", LabelSelector: map[string]string{"a": "b"}, DestinationID: "d1", RecipientID: "p1", TemplateID: "t1"},
+			},
+			labels: map[string]string{"a": "b"},
+			want:   []string{"r→channel:d1", "r→recipient:p1"},
+		},
+		{
+			name: "a route naming only a person delivers once",
+			routes: []models.Route{
+				{ID: "r", Name: "r", LabelSelector: map[string]string{"a": "b"}, RecipientID: "p1", TemplateID: "t1"},
+			},
+			labels: map[string]string{"a": "b"},
+			want:   []string{"r→recipient:p1"},
+		},
+		{
+			// Neither target set anywhere up the tree: there is nothing to
+			// deliver to, so nothing is delivered rather than a Delivery
+			// pointing at "".
+			name: "a route naming no target at all delivers nothing",
+			routes: []models.Route{
+				{ID: "r", Name: "r", LabelSelector: map[string]string{"a": "b"}, TemplateID: "t1"},
+			},
+			labels: map[string]string{"a": "b"},
+			want:   []string{},
+		},
+		{
+			name: "a child inherits both targets from its parent",
+			routes: []models.Route{
+				{ID: "p", Name: "p", LabelSelector: map[string]string{"a": "b"}, DestinationID: "d1", RecipientID: "p1", TemplateID: "t1"},
+				{ID: "c", Name: "c", ParentID: "p", LabelSelector: map[string]string{"x": "y"}, TemplateID: "t2"},
+			},
+			labels: map[string]string{"a": "b", "x": "y"},
+			want: []string{
+				"p→channel:d1", "p→recipient:p1",
+				"c→channel:d1", "c→recipient:p1",
+			},
+		},
+		{
+			// Overriding one target must not disturb the other.
+			name: "a child overriding only the recipient keeps its parent's channel",
+			routes: []models.Route{
+				{ID: "p", Name: "p", LabelSelector: map[string]string{"a": "b"}, DestinationID: "d1", RecipientID: "p1", TemplateID: "t1"},
+				{ID: "c", Name: "c", ParentID: "p", LabelSelector: map[string]string{"x": "y"}, RecipientID: "p2"},
+			},
+			labels: map[string]string{"a": "b", "x": "y"},
+			want: []string{
+				"p→channel:d1", "p→recipient:p1",
+				"c→channel:d1", "c→recipient:p2",
+			},
+		},
+		{
+			// The one ADR 0026 is explicit about: greedy is one flag per
+			// parent frame, so it takes both of the parent's deliveries or
+			// neither. Suppressing only the matching kind would leave the
+			// parent still delivering to the other.
+			name: "a greedy child suppresses both of its parent's deliveries",
+			routes: []models.Route{
+				{ID: "p", Name: "p", LabelSelector: map[string]string{"a": "b"}, DestinationID: "d1", RecipientID: "p1", TemplateID: "t1"},
+				{ID: "c", Name: "c", ParentID: "p", Greedy: true, LabelSelector: map[string]string{"x": "y"}, DestinationID: "d2"},
+			},
+			labels: map[string]string{"a": "b", "x": "y"},
+			want:   []string{"c→channel:d2", "c→recipient:p1"},
+		},
+		{
+			// A greedy child that names only a person still takes the parent's
+			// channel delivery with it.
+			name: "a greedy child naming only a person still suppresses the channel",
+			routes: []models.Route{
+				{ID: "p", Name: "p", LabelSelector: map[string]string{"a": "b"}, DestinationID: "d1", TemplateID: "t1"},
+				{ID: "c", Name: "c", ParentID: "p", Greedy: true, LabelSelector: map[string]string{"x": "y"}, RecipientID: "p1"},
+			},
+			labels: map[string]string{"a": "b", "x": "y"},
+			want:   []string{"c→channel:d1", "c→recipient:p1"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := deliveredTo(planOf(t, tt.routes, tt.labels))
+			if !slices.Equal(got, tt.want) {
+				t.Errorf("deliveries = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+// Every delivery says which transport it goes out through, because the two are
+// told apart nowhere else: a chat delivery carries no destination and a channel
+// delivery carries no recipient.
+func TestDeliveryKindIsAlwaysSet(t *testing.T) {
+	t.Parallel()
+
+	result := planOf(t, []models.Route{
+		{ID: "r", Name: "r", LabelSelector: map[string]string{"a": "b"}, DestinationID: "d1", RecipientID: "p1", TemplateID: "t1"},
+	}, map[string]string{"a": "b"})
+
+	if len(result.Deliveries) != 2 {
+		t.Fatalf("deliveries = %d, want 2", len(result.Deliveries))
+	}
+	channel, recipient := result.Deliveries[0], result.Deliveries[1]
+	if channel.Kind != DeliveryChannel || channel.RecipientID != "" {
+		t.Errorf("channel delivery = %+v, want kind channel and no recipient", channel)
+	}
+	if recipient.Kind != DeliveryRecipient || recipient.DestinationID != "" {
+		t.Errorf("recipient delivery = %+v, want kind recipient and no destination", recipient)
+	}
+}
+
+// A child that sets only a recipient does change something, so the clause that
+// rejects a child changing nothing has to be an AND over all three targets.
+func TestValidateRouteAcceptsARecipientOnlyChild(t *testing.T) {
+	t.Parallel()
+
+	existing := []models.Route{{ID: "p", Name: "p", DestinationID: "d1", TemplateID: "t1"}}
+
+	child := models.Route{
+		ID: "c", Name: "c", ParentID: "p",
+		LabelSelector: map[string]string{"x": "y"},
+		RecipientID:   "p1",
+	}
+	if err := ValidateRoute(child, existing); err != nil {
+		t.Errorf("a child setting only a recipient = %v, want accepted", err)
+	}
+
+	// And one that still sets nothing is still rejected.
+	nothing := models.Route{ID: "c2", Name: "c2", ParentID: "p", LabelSelector: map[string]string{"x": "y"}}
+	if err := ValidateRoute(nothing, existing); err == nil {
+		t.Error("a child inheriting all three targets = nil, want rejected")
+	}
 }

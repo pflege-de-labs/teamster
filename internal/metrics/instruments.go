@@ -18,10 +18,16 @@ const gaugeTTL = time.Second
 // Delivery outcomes. A card is either new in its channel or an edit of one that
 // is already there, and telling them apart is how "nothing is being delivered"
 // is distinguished from "nothing new is happening".
+//
+// OutcomeBlocked is its own outcome rather than a failure because it is the
+// only one that will not come right on its own: the person uninstalled or
+// blocked the bot, so every later attempt fails the same way until somebody
+// acts. Counting it with the transient failures would hide that in the noise.
 const (
 	OutcomePosted  = "posted"
 	OutcomeUpdated = "updated"
 	OutcomeFailed  = "failed"
+	OutcomeBlocked = "blocked"
 )
 
 // Rendering stages, so a failure says which lookup or which template broke
@@ -29,6 +35,7 @@ const (
 const (
 	StageTemplate    = "template"
 	StageDestination = "destination"
+	StageRecipient   = "recipient"
 	StageRender      = "render"
 )
 

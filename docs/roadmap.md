@@ -620,6 +620,21 @@ An alert reaches a channel. Somebody on call at three in the morning is not read
 want the thing in front of them. The ask is an opt-in: a person says "send my alerts to me" and they
 arrive as a chat rather than only in Teams they happen to watch.
 
+**Status: route B, in progress.** [ADR 0026](adr/0026-alerts-in-a-persons-chat.md) chose the bot,
+sending as itself. The analysis below is kept as the record of how that was decided, not as an open
+question.
+
+| | | |
+| --- | --- | --- |
+| Outbound client (`internal/bot`) | done | |
+| Inbound endpoint and the linking flow | done | |
+| A route delivers to a person | done | routes gain a second target; message text becomes Markdown ([ADR 0029](adr/0029-templates-are-markdown.md)) |
+| Recipient admin page | to do | including the durable "this recipient is broken" flag a permanent send failure currently only reports as a metric |
+| Chart `bot-*` values | to do | |
+
+Parked rather than forgotten: an unlink command, and handling `membersRemoved` so uninstalling the
+bot retires the link on its own.
+
 ### Why this is not another endpoint on the Graph client
 
 Teamster authenticates to Microsoft with **client credentials** — an application identity, no user.
@@ -712,7 +727,7 @@ permissions table is the first thing to read when this milestone starts, not the
 | — | 10 Localizable UI | — | done |
 | — | 11 Metrics | — | done |
 | — | 12 More than one instance | 11 helps | done |
-| 10 | 13 Alerts in a person's chat | — | ADR choosing the route; a Teams app registration |
+| 10 | 13 Alerts in a person's chat | — | in progress; see the status table above |
 | — | 14 Teams V2 compatible webhooks | — | done |
 
 1.3 sat after 1.4 because it was the only item waiting on someone else to grant a permission.

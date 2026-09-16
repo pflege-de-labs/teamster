@@ -21,7 +21,18 @@ type fakeBotClient struct {
 		ref bot.ConversationReference
 		msg bot.Message
 	}
+	updated []struct {
+		ref        bot.ConversationReference
+		activityID string
+		msg        bot.Message
+	}
 	err error
+
+	// updateErr fails the edit rather than the send, which is what a re-fire
+	// reaches; emptySendID makes SendMessage report the documented "delivered,
+	// not updatable" success instead of an activity id.
+	updateErr   error
+	emptySendID bool
 }
 
 func (f *fakeBotClient) SendMessage(_ context.Context, ref bot.ConversationReference, msg bot.Message) (string, error) {
@@ -31,7 +42,21 @@ func (f *fakeBotClient) SendMessage(_ context.Context, ref bot.ConversationRefer
 		ref bot.ConversationReference
 		msg bot.Message
 	}{ref, msg})
+	if f.emptySendID {
+		return "", f.err
+	}
 	return "activity-id", f.err
+}
+
+func (f *fakeBotClient) UpdateMessage(_ context.Context, ref bot.ConversationReference, activityID string, msg bot.Message) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.updated = append(f.updated, struct {
+		ref        bot.ConversationReference
+		activityID string
+		msg        bot.Message
+	}{ref, activityID, msg})
+	return f.updateErr
 }
 
 func (f *fakeBotClient) sentTexts() []string {

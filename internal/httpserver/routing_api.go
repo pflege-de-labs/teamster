@@ -69,12 +69,12 @@ func (s *Server) handleRoutingGraph(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	routes, destinations, templates, err := s.routingConfiguration(ctx, w)
+	cfg, err := s.routingConfiguration(ctx, w)
 	if err != nil {
 		return
 	}
 
-	nodes, links := buildGraph(routes, destinations, templates, s.channelNamer(destinations))
+	nodes, links := buildGraph(cfg.routes, cfg.destinations, cfg.recipients, cfg.templates, s.channelNamer(cfg.destinations))
 	writeJSON(w, http.StatusOK, map[string]any{"nodes": nodes, "links": links})
 }
 
@@ -90,34 +90,49 @@ func (s *Server) handleTemplateGraph(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	routes, _, templates, err := s.routingConfiguration(ctx, w)
+	cfg, err := s.routingConfiguration(ctx, w)
 	if err != nil {
 		return
 	}
 
-	nodes, links := buildTemplateGraph(routes, templates)
+	nodes, links := buildTemplateGraph(cfg.routes, cfg.templates)
 	writeJSON(w, http.StatusOK, map[string]any{"nodes": nodes, "links": links})
 }
 
 // routingConfiguration reads what both pictures are drawn from, reporting the
 // failure itself so each handler stays about its own graph.
-func (s *Server) routingConfiguration(ctx context.Context, w http.ResponseWriter) ([]models.Route, []models.Destination, []models.Template, error) {
+type routingConfig struct {
+	routes       []models.Route
+	destinations []models.Destination
+	recipients   []models.Recipient
+	templates    []models.Template
+}
+
+func (s *Server) routingConfiguration(ctx context.Context, w http.ResponseWriter) (routingConfig, error) {
+	var cfg routingConfig
+
 	routes, err := s.store.ListRoutes(ctx)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
-		return nil, nil, nil, err
+		return cfg, err
 	}
 	destinations, err := s.store.ListDestinations(ctx)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
-		return nil, nil, nil, err
+		return cfg, err
+	}
+	recipients, err := s.store.ListRecipients(ctx)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return cfg, err
 	}
 	templates, err := s.store.ListTemplates(ctx)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
-		return nil, nil, nil, err
+		return cfg, err
 	}
-	return routes, destinations, templates, nil
+	cfg = routingConfig{routes: routes, destinations: destinations, recipients: recipients, templates: templates}
+	return cfg, nil
 }
 
 // buildGraph draws the path an alert can take: the webhook, the routes in
@@ -125,7 +140,7 @@ func (s *Server) routingConfiguration(ctx context.Context, w http.ResponseWriter
 // they deliver to. A route pointing at something deleted becomes a node marked
 // missing rather than a dropped link, because that broken state is exactly what
 // the view exists to show.
-func buildGraph(routes []models.Route, destinations []models.Destination, templates []models.Template, channelName func(teamID, channelID string) string) ([]graphNode, []graphLink) {
+func buildGraph(routes []models.Route, destinations []models.Destination, recipients []models.Recipient, templates []models.Template, channelName func(teamID, channelID string) string) ([]graphNode, []graphLink) {
 	nodes := []graphNode{}
 	links := []graphLink{}
 	index := map[string]bool{}
@@ -210,7 +225,8 @@ func buildGraph(routes []models.Route, destinations []models.Destination, templa
 	}
 
 	sinkColumn := (2 + maxDepth) * columnGap
-	for row, destination := range destinations {
+	row := 0
+	for _, destination := range destinations {
 		add(graphNode{
 			ID:     "destination:" + destination.ID,
 			Kind:   "destination",
@@ -219,33 +235,64 @@ func buildGraph(routes []models.Route, destinations []models.Destination, templa
 			X:      sinkColumn,
 			Y:      row * rowGap,
 		})
+		row++
 	}
 
-	missingTop := len(destinations)*rowGap + groupGap
-	missing := 0
-	for _, route := range ordered {
-		target := effective[route.ID].destinationID
-		if target == "" {
-			continue
-		}
+	// A person is a sink like a channel is, and a separate kind because it is
+	// reached through a different transport and drawn differently.
+	for _, recipient := range recipients {
+		add(graphNode{
+			ID:     "recipient:" + recipient.ID,
+			Kind:   "recipient",
+			Label:  recipientLabel(recipient),
+			Detail: recipient.Subject,
+			X:      sinkColumn,
+			Y:      row * rowGap,
+		})
+		row++
+	}
 
-		nodeID := "destination:" + target
-		if !index[nodeID] {
-			add(graphNode{
-				ID:      nodeID,
-				Kind:    "destination",
-				Label:   "missing destination",
-				Detail:  target,
-				Missing: true,
-				X:       sinkColumn,
-				Y:       missingTop + missing*rowGap,
-			})
-			missing++
+	missingTop := row*rowGap + groupGap
+	missing := 0
+	// One route can now deliver twice, so both targets are walked and each
+	// draws its own link -- the same fan-out routing.collect produces.
+	for _, route := range ordered {
+		targets := effective[route.ID]
+		for _, target := range []struct{ prefix, id, label string }{
+			{"destination:", targets.destinationID, "missing destination"},
+			{"recipient:", targets.recipientID, "missing recipient"},
+		} {
+			if target.id == "" {
+				continue
+			}
+			nodeID := target.prefix + target.id
+			if !index[nodeID] {
+				add(graphNode{
+					ID:      nodeID,
+					Kind:    strings.TrimSuffix(target.prefix, ":"),
+					Label:   target.label,
+					Detail:  target.id,
+					Missing: true,
+					X:       sinkColumn,
+					Y:       missingTop + missing*rowGap,
+				})
+				missing++
+			}
+			links = append(links, graphLink{Source: "route:" + route.ID, Target: nodeID, Kind: linkDelivers})
 		}
-		links = append(links, graphLink{Source: "route:" + route.ID, Target: nodeID, Kind: linkDelivers})
 	}
 
 	return nodes, links
+}
+
+// recipientLabel is what a person is called in the picture. Name is what an
+// operator recognises, but it comes from Teams and nothing guarantees it is
+// set, so the subject that identifies them is the fallback.
+func recipientLabel(recipient models.Recipient) string {
+	if recipient.Name != "" {
+		return recipient.Name
+	}
+	return recipient.Subject
 }
 
 // buildTemplateGraph pairs each template with the routes that render with it.
@@ -415,12 +462,18 @@ func routeDepths(routes []models.Route) map[string]int {
 
 type routeTargets struct {
 	destinationID string
+	recipientID   string
 	templateID    string
 }
 
-// inheritedTargets resolves every route's destination and template through its
-// ancestors, stopping at a parent that is missing or at MaxDepth so a broken
-// tree cannot loop here.
+// inheritedTargets resolves every route's destination, recipient and template
+// through its ancestors, stopping at a parent that is missing or at MaxDepth so
+// a broken tree cannot loop here.
+//
+// This is the second implementation of the walk routing.collect does, because
+// the picture is drawn from the whole tree rather than from one alert's path
+// through it. The two have to agree: a graph that disagrees with routing is a
+// picture of a system nobody is running.
 func inheritedTargets(routes []models.Route) map[string]routeTargets {
 	byID := map[string]models.Route{}
 	for _, route := range routes {
@@ -429,16 +482,23 @@ func inheritedTargets(routes []models.Route) map[string]routeTargets {
 
 	effective := map[string]routeTargets{}
 	for _, route := range routes {
-		targets := routeTargets{destinationID: route.DestinationID, templateID: route.TemplateID}
+		targets := routeTargets{
+			destinationID: route.DestinationID,
+			recipientID:   route.RecipientID,
+			templateID:    route.TemplateID,
+		}
 		parent, ok := byID[route.ParentID]
 		for depth := 0; ok && depth < routing.MaxDepth; depth++ {
 			if targets.destinationID == "" {
 				targets.destinationID = parent.DestinationID
 			}
+			if targets.recipientID == "" {
+				targets.recipientID = parent.RecipientID
+			}
 			if targets.templateID == "" {
 				targets.templateID = parent.TemplateID
 			}
-			if targets.destinationID != "" && targets.templateID != "" {
+			if targets.destinationID != "" && targets.recipientID != "" && targets.templateID != "" {
 				break
 			}
 			parent, ok = byID[parent.ParentID]
@@ -531,10 +591,18 @@ func deliveryAnswers(result routing.Result, byID map[string]models.Route) []map[
 	answers := make([]map[string]any, 0, len(result.Deliveries))
 	for _, delivery := range result.Deliveries {
 		answer := map[string]any{
-			"route":          routeAnswer(byID[delivery.RouteID]),
-			"destination_id": delivery.DestinationID,
-			"template_id":    delivery.TemplateID,
-			"reason":         delivery.Reason,
+			"route":       routeAnswer(byID[delivery.RouteID]),
+			"kind":        delivery.Kind,
+			"template_id": delivery.TemplateID,
+			"reason":      delivery.Reason,
+		}
+		// Only the one its kind names: a chat delivery has no destination, and
+		// reporting an empty one reads as "delivers nowhere".
+		if delivery.DestinationID != "" {
+			answer["destination_id"] = delivery.DestinationID
+		}
+		if delivery.RecipientID != "" {
+			answer["recipient_id"] = delivery.RecipientID
 		}
 		answers = append(answers, answer)
 	}
@@ -549,6 +617,9 @@ func matchedNodes(result routing.Result) []string {
 		nodes = append(nodes, "route:"+delivery.RouteID)
 		if delivery.DestinationID != "" {
 			nodes = append(nodes, "destination:"+delivery.DestinationID)
+		}
+		if delivery.RecipientID != "" {
+			nodes = append(nodes, "recipient:"+delivery.RecipientID)
 		}
 	}
 	return nodes

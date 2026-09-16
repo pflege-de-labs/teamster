@@ -99,9 +99,9 @@ rejected at startup rather than registering a route that would never validate an
 feature on also registers `POST /bot/messages`, the endpoint the bot receives Teams activities on,
 and `/admin/notifications` and its actions, described below, along with the nav link to them; leaving
 it off registers none of that, so an unconfigured deployment exposes nothing new and offers nobody a
-page that instructs them to talk to a bot that does not exist. Alert delivery does not reach a
-person's chat yet — wiring that into routing is a later change — but a person can already link their
-chat, below.
+page that instructs them to talk to a bot that does not exist. Once a chat is linked, point a route
+at that person and alerts arrive there — see the routing notes for how a route addresses a channel
+and a person at the same time.
 
 #### Linking your chat
 
@@ -121,10 +121,15 @@ chat, below.
    the code, mention markup and all — pasting it after `@`-mentioning the bot works.
 3. The bot confirms in the same chat. The code is single-use and expires after ten minutes; an
    expired or already-used one gets a reply that does not say which.
+4. An admin edits a route and picks that person in **Person**, beside the destination. A route can
+   name a channel, a person, or both; naming both sends one card and one chat message.
 
 Redeeming a code for a subject that is already linked moves the alert stream to the new chat and
 tells the *old* chat it was displaced — a code that leaks does not silently steal someone else's
 alerts without them finding out.
+
+In the chat, a repeated firing edits the message that is already there and a resolution arrives as a
+new message, so the notification that matters is the one saying it cleared.
 
 **Notifications** also shows whether a chat is linked already — the display name captured at link
 time (truncated if Teams handed back an implausibly long one — that name is whoever redeemed the
@@ -339,11 +344,25 @@ exists. A card without a title keeps the summary line this service always sent �
 `annotations.summary`, then `labels.alertname`, then `Alert update` — so existing templates are
 unaffected. Text without a title is left alone: the feed previews the text itself.
 
-Message text is HTML, and it is sanitized before it is sent: `p`, `br`, `b`, `strong`, `i`, `em`,
-`u`, `s`, `code`, `pre`, `blockquote`, `ul`, `ol`, `li`, `h1`–`h3` and `a` survive, `script` and
-`style` are dropped with their contents, anything else is unwrapped to its text, and a link keeps
-its `href` only for `http`, `https` and `mailto`. An alert annotation ends up in that text, so it
-cannot be trusted to be markup-free.
+Message text is **Markdown**. It is rendered to HTML and sanitized before it is sent: `p`, `br`,
+`b`, `strong`, `i`, `em`, `u`, `s`, `code`, `pre`, `blockquote`, `ul`, `ol`, `li`, `h1`–`h3` and `a`
+survive, `script` and `style` are dropped with their contents, anything else is unwrapped to its
+text, and a link keeps its `href` only for `http`, `https` and `mailto`.
+
+Raw HTML passes through the Markdown parser, so **a template written as HTML keeps working** and
+needs no migration — that is what the passthrough is for. The one visible difference is that a
+fragment which is only inline markup, like `<b>bold</b>` with no block element around it, becomes
+the paragraph it always implied.
+
+The same sanitized text reaches both transports: a Team channel gets the HTML, and a person's chat
+gets Markdown emitted from that sanitized HTML rather than from the template source. One sanitizer
+covers both.
+
+An alert annotation ends up in that text, so it cannot be trusted to be markup-free. Note what that
+means now the format is Markdown: an annotation containing `[text](https://example.com)` produces a
+link, with link text that need not match where it goes. That was already reachable by writing
+`<a href>` in an annotation, and the scheme allowlist still refuses `javascript:` and `data:` — but
+it is worth knowing that whoever can POST a webhook can put a link in a message.
 
 ## Template data
 
@@ -361,16 +380,30 @@ Helper functions:
 
 - Route selection matches label selectors exactly; highest priority wins.
 - Routes nest. A child refines its parent's match and sends the alert somewhere else — *as well as*
-  its parent, or *instead of* it when marked greedy. A child that names no destination or template
-  inherits the nearest ancestor's, so "the same card, one more channel" is a one-field route.
+  its parent, or *instead of* it when marked greedy. A child that names no destination, person or
+  template inherits the nearest ancestor's, so "the same card, one more channel" is a one-field
+  route. A greedy child takes *both* of its parent's deliveries with it, not just the one it shares
+  a kind with.
+- A route has two targets and they are independent, not alternatives: a destination for a Team
+  channel and, optionally, a person for a chat. A route naming both sends both — one card and one
+  chat message, each claimed and tracked on its own, so one failing does not cost the other its
+  message. A route naming neither delivers nothing.
+- Delivering to a person needs a linked chat and a configured bot; see the recipient section. Any
+  admin or editor who may edit routes may point one at any linked person — grants scope Teams and
+  channels, and a person is neither.
 - A route with children cannot be deleted; remove or reparent them first, because an orphan becomes
   a root that matches alerts its parent used to filter out.
 - A database file written before the `DATETIME` timestamp fix cannot be read. Migrating it fails
   and names the file; delete it and start again to recreate the schema.
 - A default route is used if no labels match.
-- Active alerts are tracked per channel, so an alert that fans out updates and resolves every card
-  it posted. One channel failing does not stop the others; the response is a `502` and the sender's
-  retry updates what already landed rather than duplicating it.
+- Active alerts are tracked per channel and per person, so an alert that fans out updates and
+  resolves every message it sent. One target failing does not stop the others; the response is a
+  `502` and the sender's retry updates what already landed rather than duplicating it.
+- In a chat, a repeated `firing` edits the message in place, and a `resolved` sends a new one.
+  Teams does not re-notify on an edit, so resolving in place would leave whoever is on call never
+  told that it cleared.
+- If somebody uninstalls or blocks the bot, that delivery is counted as `blocked` rather than
+  `failed` and stops being retried for that alert. The next alert tries again.
 - The right to post a card is claimed before the card is posted, so two deliveries of the same
   alert to the same channel produce one card rather than two. The one that loses gets a `502`, and
   its retry edits the card the winner made. A claim left behind by a process that died is taken
@@ -495,13 +528,19 @@ Route nodes show the labels they filter for and name the template they render wi
 is inherited. A dashed arrow between two routes is a refinement, labelled *as well as* or *instead
 of* depending on whether the child is greedy. A second graph below pairs templates with the routes
 that use them; a template with nothing beside it is used by no route. A route pointing at a deleted
-destination shows up as a missing node rather than disappearing.
+destination — or a deleted person — shows up as a missing node rather than disappearing. A route
+that delivers to both draws an arrow to each.
 
 ## Backup and migration
 
 The configuration — templates, destinations, routes and permission grants — moves as one JSON
 bundle. It carries **no credentials** and no runtime state, so it can live in a repository beside
-the rest of a deployment's configuration:
+the rest of a deployment's configuration.
+
+Linked people are **not** carried: a link binds one person to one conversation in one tenant, so it
+would mean nothing where the bundle lands. A bundle whose route names a person is refused on import
+rather than imported as a route that looks like it delivers there and never does — clear the route's
+person before exporting.
 
 ```bash
 teamster export -o teamster.json          # reads the database directly, server or no server

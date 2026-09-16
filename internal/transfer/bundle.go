@@ -156,6 +156,14 @@ func (b Bundle) Validate() error {
 		if route.DestinationID != "" && !destinations[route.DestinationID] {
 			return fmt.Errorf("route %q delivers to destination %q, which the bundle does not carry", route.Name, route.DestinationID)
 		}
+		// Recipients are deliberately not exported: a link binds one person to
+		// one conversation in one tenant, so it cannot mean anything in the
+		// installation a bundle is carried to. A route naming one is therefore
+		// rejected rather than imported inert, which would look like it
+		// delivers to somebody and silently never do so.
+		if route.RecipientID != "" {
+			return fmt.Errorf("route %q delivers to a person, which a bundle cannot carry; clear its recipient before exporting", route.Name)
+		}
 		routes = append(routes, route)
 	}
 

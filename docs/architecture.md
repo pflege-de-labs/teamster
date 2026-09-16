@@ -113,21 +113,33 @@ POST /webhook/alertmanager        POST /webhook/universal
               fingerprint (payload value, else SHA-256 of
               source + generator + start time + sorted labels)
                                  │
-                 routing.SelectRoute(alert.Labels)
+                     routing.Plan(alert.Labels)
                                  │
-             store.GetTemplate + store.GetDestination
+                 one Delivery per target, kind=channel
+                      or kind=recipient (0-2 per route)
                                  │
-                 templates.Render → Adaptive Card JSON
+                       store.GetTemplate
+                                 │
+              templates.RenderMessage → title, text, card
                                  │
               ┌──────────────────┴───────────────────┐
-        status=firing                          status=resolved
+         kind=channel                          kind=recipient
+    store.GetDestination                    store.GetRecipient
+    text as sanitized HTML             text via templates.ToMarkdown
               │                                      │
-   active alert known?                     active alert known?
-     yes → graph.UpdateMessage               yes → graph.UpdateMessage
-     no  → graph.PostMessage                       + store.DeleteActiveAlert
-              │                                 no → no-op
-     store.UpsertActiveAlert
+   ┌──────────┴──────────┐              ┌────────────┴────────────┐
+ firing              resolved         firing                 resolved
+   │                    │                │                       │
+ card known?        card known?      message known?          message known?
+ yes → graph.Update yes → graph.Update yes → bot.Update       yes → bot.Send
+ no  → graph.Post        + delete row  no  → bot.Send              + delete row
 ```
+
+A route names up to two targets, so one route produces up to two deliveries and each is claimed,
+sent and recorded on its own. A chat resolution **sends** rather than edits, because an edit in
+Teams does not re-notify and a silent resolve is the one thing the person on call must not get; a
+chat re-fire edits, for the mirror-image reason. See
+[ADR 0026](adr/0026-alerts-in-a-persons-chat.md).
 
 Any other `status` value is rejected. Handler errors map to `400` for malformed JSON, `401` for a
 bad token, and `502` when routing, rendering, the store or Graph fails.
@@ -256,8 +268,14 @@ because that is what the Teams activity feed previews, and an untitled card fall
 Rendered text is sanitized in `templates.Sanitize` — parsed with `golang.org/x/net/html` and
 written back through an allowlist — before it reaches the Graph client, so every caller gets the
 same guarantee. `graph.Message` carries the three parts, and the Graph client assembles the body
-with an explicit `<attachment id="1">` where the card goes. See
-[ADR 0010](adr/0010-message-shape.md).
+with an explicit `<attachment id="1">` where the card goes.
+
+Message text is **authored as Markdown**, rendered to HTML with raw HTML passing through, and
+sanitized — which is what keeps templates written before that change working, since `Text` was
+documented as HTML. The sanitized HTML is what `graph.Message.Text` carries, exactly as before, and
+what `templates.ToMarkdown` emits Bot Framework's Markdown subset from for a chat. One sanitizer,
+one trust boundary, two transports. See [ADR 0010](adr/0010-message-shape.md) and its successor
+[ADR 0029](adr/0029-templates-are-markdown.md).
 
 ## Routing rules
 
@@ -268,13 +286,20 @@ then walks that root's children.
 
 A child is evaluated only once its parent matched, and applies when its own selector matches. Every
 matching child delivers; a greedy one delivers *instead of* its parent, a non-greedy one *as well
-as* it. An unset destination or template is inherited from the nearest ancestor that sets one, so
-"the same card, one more channel" is a route with a single field. The walk stops at
+as* it. An unset destination, recipient or template is inherited from the nearest ancestor that sets
+one, so "the same card, one more channel" is a route with a single field. The walk stops at
 `routing.MaxDepth`.
 
+A route has **two independent targets**, not a choice between them: a `destination_id` for a Team
+channel and a `recipient_id` for a person's chat. A route naming both fans out to two deliveries —
+channel first, then recipient, an order callers index into — and one naming neither, inherited or
+its own, delivers nothing at all. Greedy remains one flag per parent: a greedy child suppresses
+**both** of its parent's deliveries, never one of them.
+
 `Plan` returns a `Result`: the reason, the root that matched, and one `Delivery` per message with
-its destination and template resolved. `routing.ValidateRoute` and `ValidateDelete` are called from
-both write paths and keep the tree acyclic, bounded and free of children that could never fire. See
+its `Kind`, its target and its template resolved. `routing.ValidateRoute` and `ValidateDelete` are
+called from both write paths and keep the tree acyclic, bounded and free of children that could
+never fire. See
 [ADR 0011](adr/0011-nested-routes.md).
 
 ## Configuration transfer
@@ -282,6 +307,10 @@ both write paths and keep the tree acyclic, bounded and free of children that co
 `internal/transfer` reads the configuration into a versioned bundle and writes one back. It carries
 templates, destinations, routes and grants — no credentials, no sessions, no alert state — and
 preserves ids, so a bundle re-imported where it came from changes nothing.
+
+Recipients are excluded on purpose: a link binds one person to one conversation in one tenant, so it
+means nothing in the installation a bundle is carried to. A bundle whose route names a recipient is
+rejected on import rather than imported inert.
 
 An import validates the whole bundle before writing anything: the version, duplicate ids, references
 that point outside the bundle, and cycles in the route tree, the last through
@@ -409,8 +438,14 @@ and the row holds the Bot Framework conversation reference needed to send one un
 `bot_channel_id` is a Bot Framework channel — `msteams` — and not a Teams channel, which is what
 `channel_id` means in every other table. A link flow is the one-time code that binds a conversation
 to a person, redeemed by deleting the row exactly as `login_flows` is. Nothing delivers to a
-recipient yet: the storage lands before the routing and the bot that use it. The decision behind
-all of it is the ADR on alerts in a person's chat, in the [ADR index](adr/README.md).
+recipient is a person who asked for their alerts as a chat message rather than only in a channel.
+
+`0006` in SQLite and `0003` in Postgres then join the two: `routes` gains a nullable-by-default
+`recipient_id`, and `active_alert_recipients` carries the claim protocol for chat delivery. It is a
+sibling of `active_alerts` rather than a wider key on it because a person has neither a `team_id`
+nor a `channel_id` for that table's CHECK to hold. Both changes are additive, so the previous
+release runs against the new schema unchanged. The decision behind all of it is the ADR on alerts in
+a person's chat, in the [ADR index](adr/README.md).
 
 `webhook_endpoints` followed, by `0008` in SQLite and `0005` in Postgres. A row is one Teams V2
 webhook URL: the two slugs that name it, the destination it posts into, and a SHA-256 digest of the
@@ -446,11 +481,24 @@ there is no reaper. A caller that finds a claim in flight is refused with a 502,
 retry lands on the card the winner created. See
 [ADR 0021](adr/0021-claim-a-card-before-posting.md).
 
-Delivery is best effort per destination: one channel failing does not cost the others their message,
-and the failures are reported together as a `502`. That is safe because each delivery records its
-own message id, so a retry updates the cards that made it rather than duplicating them. Resolution
-walks the stored cards rather than the plan, so a card in a channel the routes no longer name still
-stops claiming the alert is firing.
+Delivery is best effort per target: one channel or one person failing does not cost the others their
+message, and the failures are reported together as a `502`. That is safe because each delivery
+records its own message id, so a retry updates the messages that made it rather than duplicating
+them. Resolution walks the stored rows rather than the plan — **both tables** — so a message the
+routes no longer name still stops claiming the alert is firing.
+
+`active_alert_recipients` keys `(fingerprint, recipient_id)` and mirrors that protocol statement for
+statement, with one deliberate difference. `bot.SendMessage` returning `("", nil)` is a documented
+success — delivered, but with nothing to name it by for a later edit — so this table's CHECK admits
+a posted row with an empty activity id, where `active_alerts` would read it as never posted and send
+a duplicate on the next firing. The update path skips the edit when there is no id rather than
+failing.
+
+A chat failure is sorted into permanent and transient. `MessageWritesBlocked`, or
+`ConversationBlockedByUser` one level in, means the person uninstalled or blocked the bot: the row
+is dropped and the delivery counted under its own `blocked` outcome, so it stops re-attempting
+within that alert and is visible as more than noise. Everything else — 429, any 5xx, a transport
+error — fails that delivery as a channel failure does and leaves the row for the sender's retry.
 
 A database whose `active_alerts` is keyed by fingerprint alone is rebuilt on the next start; SQLite
 cannot change a primary key in place. The rows survive.

@@ -12,7 +12,13 @@ import (
 // A template renders into a Teams message, and its data comes from whoever sent
 // the alert. Rendered markup is therefore reduced to the formatting Teams
 // understands: anything else is either unwrapped to its text or dropped, so a
-// crafted annotation cannot put a link, an image or a script into a channel.
+// crafted annotation cannot put an image or a script into a channel.
+//
+// A link it can: atom.A is on this list and safeHref admits http, https and
+// mailto, so an annotation carrying markup — or, since ADR 0029, Markdown —
+// that spells a link produces one. That is accepted rather than overlooked.
+// Templates link to runbooks, and the schemes that execute rather than
+// navigate are what the allowlist is actually holding back.
 var allowedTags = map[atom.Atom]bool{
 	atom.P: true, atom.Br: true, atom.B: true, atom.Strong: true,
 	atom.I: true, atom.Em: true, atom.U: true, atom.S: true,

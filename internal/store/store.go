@@ -170,4 +170,18 @@ type Store interface {
 	// DeleteActiveAlertCard forgets one card, and only if it is still that
 	// card: a resolve racing a refire must not delete the new card's row.
 	DeleteActiveAlertCard(ctx context.Context, fingerprint, teamID, channelID, messageID string) error
+
+	// The six methods below are the claim protocol above, mirrored for a chat
+	// delivery against active_alert_recipients rather than active_alerts: a
+	// person has no Team or channel to key on, so it is a parallel table
+	// rather than a wider key (ADR 0026). See ADR 0021 for the protocol these
+	// mirror.
+	ClaimActiveAlertRecipient(ctx context.Context, claim models.RecipientClaim) (models.ActiveAlertRecipient, ClaimOutcome, error)
+	CompleteActiveAlertRecipientClaim(ctx context.Context, claim models.RecipientClaim, messageID string, at time.Time) error
+	ReleaseActiveAlertRecipientClaim(ctx context.Context, claim models.RecipientClaim) error
+	TouchActiveAlertRecipient(ctx context.Context, card models.ActiveAlertRecipient, status string, at time.Time) error
+	ListActiveAlertRecipients(ctx context.Context, fingerprint string) ([]models.ActiveAlertRecipient, error)
+	// DeleteActiveAlertRecipientCard forgets one card, and only if it is still
+	// that card: a resolve racing a refire must not delete the new card's row.
+	DeleteActiveAlertRecipientCard(ctx context.Context, fingerprint, recipientID, messageID string) error
 }

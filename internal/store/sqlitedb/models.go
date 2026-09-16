@@ -21,6 +21,17 @@ type ActiveAlert struct {
 	LastUpdate  time.Time
 }
 
+type ActiveAlertRecipient struct {
+	Fingerprint string
+	Status      string
+	RecipientID string
+	MessageID   string
+	ClaimOwner  string
+	ClaimedAt   sql.NullTime
+	PostedAt    sql.NullTime
+	LastUpdate  time.Time
+}
+
 type Destination struct {
 	ID        string
 	Name      string
@@ -77,6 +88,7 @@ type Route struct {
 	Priority      int64
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
+	RecipientID   string
 }
 
 type Session struct {

@@ -13,6 +13,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/pflege-de-labs/teamster/internal/bot"
 	"github.com/pflege-de-labs/teamster/internal/graph"
 	"github.com/pflege-de-labs/teamster/internal/metrics"
 	"github.com/pflege-de-labs/teamster/internal/models"
@@ -152,7 +153,12 @@ func (s *Server) claimTTL() time.Duration {
 	return 30 * time.Second
 }
 
-// deliver posts or updates the one card this delivery names.
+// deliver posts or updates the one message this delivery names, in whichever
+// transport its kind says. A route may name a channel, a person or both, and
+// each target is its own Delivery with its own claim -- so one failing does not
+// cost the other its message.
+//
+// deliverToChannel below is the original path, unchanged in substance.
 //
 // The card is claimed before the Graph call and the claim completed after it,
 // with no transaction spanning the two: a transaction held across a network
@@ -161,10 +167,22 @@ func (s *Server) claimTTL() time.Duration {
 // record that a post was in flight, which is what lets the next attempt take
 // over rather than wait forever or post a second card.
 func (s *Server) deliver(ctx context.Context, alert models.Alert, delivery routing.Delivery) error {
-	destination, msg, err := s.render(ctx, alert, delivery)
+	if delivery.Kind == routing.DeliveryRecipient {
+		return s.deliverToRecipient(ctx, alert, delivery)
+	}
+	return s.deliverToChannel(ctx, alert, delivery)
+}
+
+func (s *Server) deliverToChannel(ctx context.Context, alert models.Alert, delivery routing.Delivery) error {
+	rendered, err := s.renderMessage(ctx, alert, delivery)
 	if err != nil {
 		return err
 	}
+	destination, err := s.channelTarget(ctx, delivery)
+	if err != nil {
+		return err
+	}
+	msg := channelMessage(rendered)
 
 	now := s.now()
 	claim := models.AlertClaim{
@@ -223,13 +241,20 @@ func (s *Server) deliver(ctx context.Context, alert models.Alert, delivery routi
 	return nil
 }
 
-// resolveAlert walks the cards that were posted rather than the plan, because
+// resolveAlert walks the messages that went out rather than the plan, because
 // the routes may have changed since: a card in a channel the plan no longer
-// names still has to stop saying the alert is firing.
+// names still has to stop saying the alert is firing. Both tables are walked
+// for that reason -- a chat message is as stranded as a card is.
 func (s *Server) resolveAlert(ctx context.Context, alert models.Alert, plan []routing.Delivery) error {
+	failures := s.resolveChannelCards(ctx, alert, plan)
+	failures = append(failures, s.resolveChatMessages(ctx, alert, plan)...)
+	return errors.Join(failures...)
+}
+
+func (s *Server) resolveChannelCards(ctx context.Context, alert models.Alert, plan []routing.Delivery) []error {
 	active, err := s.store.ListActiveAlerts(ctx, alert.Fingerprint)
 	if err != nil {
-		return fmt.Errorf("active alert lookup: %w", err)
+		return []error{fmt.Errorf("active alert lookup: %w", err)}
 	}
 
 	var failures []error
@@ -245,38 +270,122 @@ func (s *Server) resolveAlert(ctx context.Context, alert models.Alert, plan []ro
 			continue
 		}
 
-		delivery, err := s.deliveryFor(ctx, card, plan)
+		delivery, err := s.channelDeliveryFor(ctx, card, plan)
 		if err != nil {
 			failures = append(failures, err)
 			continue
 		}
 
-		_, msg, err := s.render(ctx, alert, delivery)
+		rendered, err := s.renderMessage(ctx, alert, delivery)
 		if err != nil {
 			failures = append(failures, err)
 			continue
 		}
+		msg := channelMessage(rendered)
 		// The row outlives a failed update on purpose: it is the only record that
 		// this channel still holds a card claiming the alert fires, and the
 		// sender's retry is what puts that right.
 		if err := s.graph.UpdateMessage(card.TeamID, card.ChannelID, card.MessageID, msg); err != nil {
+			s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeFailed)
 			failures = append(failures, fmt.Errorf("graph update: %w", err))
 			continue
 		}
+		s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeUpdated)
 		// Deleting by message id, so a resolve that raced a refire forgets the
 		// card it just edited rather than the newer one that replaced it.
 		if err := s.store.DeleteActiveAlertCard(ctx, card.Fingerprint, card.TeamID, card.ChannelID, card.MessageID); err != nil {
 			failures = append(failures, err)
 		}
 	}
-	return errors.Join(failures...)
+	return failures
+}
+
+// resolveChatMessages sends the resolution rather than editing the message the
+// firing produced. ADR 0026: an edit in Teams shows an "Edited" marker and does
+// not re-notify, so an in-place resolve would be silent -- and the one thing
+// the person on call is waiting for is being told it cleared. Sending also
+// means this path never needs the stored activity id.
+func (s *Server) resolveChatMessages(ctx context.Context, alert models.Alert, plan []routing.Delivery) []error {
+	active, err := s.store.ListActiveAlertRecipients(ctx, alert.Fingerprint)
+	if err != nil {
+		return []error{fmt.Errorf("active alert recipient lookup: %w", err)}
+	}
+	if len(active) > 0 && s.bot == nil {
+		return []error{errNoBotConfigured}
+	}
+
+	var failures []error
+	for _, card := range active {
+		// A claim in flight has nothing sent under it yet; the same reasoning
+		// as the channel path above.
+		if !card.Posted() {
+			failures = append(failures, fmt.Errorf("recipient %s: %w", card.RecipientID, errCardInFlight))
+			continue
+		}
+
+		delivery, err := recipientDeliveryFor(card.RecipientID, plan)
+		if err != nil {
+			failures = append(failures, err)
+			continue
+		}
+
+		recipient, err := s.store.GetRecipient(ctx, card.RecipientID)
+		if err != nil {
+			failures = append(failures, fmt.Errorf("recipient %s: %w", card.RecipientID, err))
+			continue
+		}
+
+		rendered, err := s.renderMessage(ctx, alert, delivery)
+		if err != nil {
+			failures = append(failures, err)
+			continue
+		}
+		msg, err := chatMessage(rendered)
+		if err != nil {
+			failures = append(failures, err)
+			continue
+		}
+
+		if _, err := s.bot.SendMessage(ctx, conversationRef(recipient), msg); err != nil {
+			if recipientBlocked(err) {
+				// Nothing will reach this person until somebody acts, so the
+				// row goes rather than being retried into the same error on
+				// every later alert.
+				s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeBlocked)
+				if forget := s.store.DeleteActiveAlertRecipientCard(ctx, card.Fingerprint, card.RecipientID, card.MessageID); forget != nil {
+					logError("forget blocked recipient card", forget)
+				}
+				failures = append(failures, fmt.Errorf("bot send: %w", err))
+				continue
+			}
+			// The row outlives a failed send for the channel path's reason: it
+			// is the only record that this person was told the alert fires.
+			s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeFailed)
+			failures = append(failures, fmt.Errorf("bot send: %w", err))
+			continue
+		}
+		s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomePosted)
+
+		// Deleting by message id, so a resolve that raced a refire forgets the
+		// row it just resolved rather than the newer one that replaced it.
+		if err := s.store.DeleteActiveAlertRecipientCard(ctx, card.Fingerprint, card.RecipientID, card.MessageID); err != nil {
+			failures = append(failures, err)
+		}
+	}
+	return failures
 }
 
 // The delivery that owns a card is the one pointing at its channel; a card the
 // plan no longer covers is rendered with the first template the plan names,
 // which is better than leaving it claiming the alert still fires.
-func (s *Server) deliveryFor(ctx context.Context, card models.ActiveAlert, plan []routing.Delivery) (routing.Delivery, error) {
-	for _, delivery := range plan {
+//
+// The fallback stays inside the kind. A plan that fans out to a channel and a
+// person has deliveries of both, and handing a channel card the recipient one
+// would render it against a template chosen for a chat -- picked, at that, by
+// nothing better than position in the slice.
+func (s *Server) channelDeliveryFor(ctx context.Context, card models.ActiveAlert, plan []routing.Delivery) (routing.Delivery, error) {
+	channels := deliveriesOfKind(plan, routing.DeliveryChannel)
+	for _, delivery := range channels {
 		destination, err := s.store.GetDestination(ctx, delivery.DestinationID)
 		if err != nil {
 			continue
@@ -285,22 +394,49 @@ func (s *Server) deliveryFor(ctx context.Context, card models.ActiveAlert, plan 
 			return delivery, nil
 		}
 	}
-	if len(plan) == 0 {
+	if len(channels) == 0 {
 		return routing.Delivery{}, fmt.Errorf("no route renders the card in channel %s", card.ChannelID)
 	}
-	return plan[0], nil
+	return channels[0], nil
 }
 
-func (s *Server) render(ctx context.Context, alert models.Alert, delivery routing.Delivery) (models.Destination, graph.Message, error) {
+// recipientDeliveryFor is the same for a chat message, and needs no store
+// lookup: a delivery names the recipient the row is keyed by directly.
+func recipientDeliveryFor(recipientID string, plan []routing.Delivery) (routing.Delivery, error) {
+	recipients := deliveriesOfKind(plan, routing.DeliveryRecipient)
+	for _, delivery := range recipients {
+		if delivery.RecipientID == recipientID {
+			return delivery, nil
+		}
+	}
+	if len(recipients) == 0 {
+		return routing.Delivery{}, fmt.Errorf("no route renders the message to recipient %s", recipientID)
+	}
+	return recipients[0], nil
+}
+
+func deliveriesOfKind(plan []routing.Delivery, kind routing.DeliveryKind) []routing.Delivery {
+	out := make([]routing.Delivery, 0, len(plan))
+	for _, delivery := range plan {
+		if delivery.Kind == kind {
+			out = append(out, delivery)
+		}
+	}
+	return out
+}
+
+// renderMessage renders the template a delivery names. It is separate from
+// resolving the target because the two no longer go together: a channel
+// delivery resolves a destination, a chat delivery a recipient, and both render
+// the same way.
+//
+// The summary line is the template's to decide; templates.RenderMessage falls
+// back to the one this service used to hardcode.
+func (s *Server) renderMessage(ctx context.Context, alert models.Alert, delivery routing.Delivery) (templates.Message, error) {
 	template, err := s.store.GetTemplate(ctx, delivery.TemplateID)
 	if err != nil {
 		s.metrics.RenderFailed(ctx, delivery.TemplateID, metrics.StageTemplate)
-		return models.Destination{}, graph.Message{}, fmt.Errorf("template: %w", err)
-	}
-	destination, err := s.store.GetDestination(ctx, delivery.DestinationID)
-	if err != nil {
-		s.metrics.RenderFailed(ctx, delivery.TemplateID, metrics.StageDestination)
-		return models.Destination{}, graph.Message{}, fmt.Errorf("destination: %w", err)
+		return templates.Message{}, fmt.Errorf("template: %w", err)
 	}
 
 	rendered, err := templates.RenderMessage(template, templates.RenderData{
@@ -309,16 +445,183 @@ func (s *Server) render(ctx context.Context, alert models.Alert, delivery routin
 	})
 	if err != nil {
 		s.metrics.RenderFailed(ctx, delivery.TemplateID, metrics.StageRender)
-		return models.Destination{}, graph.Message{}, fmt.Errorf("render: %w", err)
+		return templates.Message{}, fmt.Errorf("render: %w", err)
 	}
+	return rendered, nil
+}
 
-	// The summary line is the template's to decide now; templates.RenderMessage
-	// falls back to the one this service used to hardcode.
+func (s *Server) channelTarget(ctx context.Context, delivery routing.Delivery) (models.Destination, error) {
+	destination, err := s.store.GetDestination(ctx, delivery.DestinationID)
+	if err != nil {
+		s.metrics.RenderFailed(ctx, delivery.TemplateID, metrics.StageDestination)
+		return models.Destination{}, fmt.Errorf("destination: %w", err)
+	}
+	return destination, nil
+}
+
+func (s *Server) recipientTarget(ctx context.Context, delivery routing.Delivery) (models.Recipient, error) {
+	recipient, err := s.store.GetRecipient(ctx, delivery.RecipientID)
+	if err != nil {
+		s.metrics.RenderFailed(ctx, delivery.TemplateID, metrics.StageRecipient)
+		return models.Recipient{}, fmt.Errorf("recipient: %w", err)
+	}
+	return recipient, nil
+}
+
+// chatMessage is the rendered template on its way to a chat rather than a
+// channel. Text is converted from the sanitized HTML rather than re-rendered
+// from the template, so the one sanitizer covers both transports -- see
+// templates.ToMarkdown.
+// channelMessage is chatMessage's counterpart for a channel. graph.Message
+// carries a slice because a Teams V2 payload may bring several cards; a
+// template renders exactly one.
+func channelMessage(rendered templates.Message) graph.Message {
 	msg := graph.Message{Title: rendered.Title, Text: rendered.Text}
 	if len(rendered.Card) > 0 {
 		msg.Cards = []json.RawMessage{rendered.Card}
 	}
-	return destination, msg, nil
+	return msg
+}
+
+func chatMessage(rendered templates.Message) (bot.Message, error) {
+	text, err := templates.ToMarkdown(rendered.Text)
+	if err != nil {
+		return bot.Message{}, fmt.Errorf("markdown: %w", err)
+	}
+	return bot.Message{Title: rendered.Title, Text: text, Card: rendered.Card}, nil
+}
+
+func conversationRef(recipient models.Recipient) bot.ConversationReference {
+	return bot.ConversationReference{
+		ServiceURL:     recipient.ServiceURL,
+		ConversationID: recipient.ConversationID,
+		BotChannelID:   recipient.BotChannelID,
+		TenantID:       recipient.TenantID,
+		AADObjectID:    recipient.AADObjectID,
+	}
+}
+
+// errNoBotConfigured is what a route pointing at a person means in a deployment
+// that never configured the bot. It is an error rather than a skip: the alert
+// was meant to reach somebody and did not.
+var errNoBotConfigured = errors.New("this route delivers to a person, but no bot is configured")
+
+// recipientBlocked distinguishes the one failure that will not come right on
+// its own. The Bot Connector says so in two places -- MessageWritesBlocked at
+// the top level, ConversationBlockedByUser one level in -- and both mean the
+// person uninstalled or blocked the bot, so re-attempting within this alert
+// only produces the same error again.
+//
+// Everything else, including a 429 and any 5xx, is transient and fails this
+// delivery exactly as a channel failure does.
+func recipientBlocked(err error) bool {
+	var apiErr *bot.APIError
+	if !errors.As(err, &apiErr) {
+		return false
+	}
+	return apiErr.Code == "MessageWritesBlocked" || apiErr.InnerCode == "ConversationBlockedByUser"
+}
+
+// deliverToRecipient is deliverToChannel's counterpart for a person's chat, and
+// claims the same way for the same reason -- see deliver above.
+//
+// Two things differ, both from ADR 0026. A permanent failure drops the claim
+// row and is counted under its own outcome, so it stops re-attempting within
+// this alert and is visible as something other than noise. And an activity id
+// of "" is a documented success, not a claim in flight: the message was
+// delivered but cannot be edited later, so the next firing touches the row
+// rather than sending a second copy.
+func (s *Server) deliverToRecipient(ctx context.Context, alert models.Alert, delivery routing.Delivery) error {
+	if s.bot == nil {
+		return errNoBotConfigured
+	}
+
+	rendered, err := s.renderMessage(ctx, alert, delivery)
+	if err != nil {
+		return err
+	}
+	recipient, err := s.recipientTarget(ctx, delivery)
+	if err != nil {
+		return err
+	}
+	msg, err := chatMessage(rendered)
+	if err != nil {
+		return err
+	}
+	ref := conversationRef(recipient)
+
+	now := s.now()
+	claim := models.RecipientClaim{
+		Fingerprint: alert.Fingerprint,
+		RecipientID: recipient.ID,
+		Status:      alert.Status,
+		Owner:       uuid.NewString(),
+		At:          now,
+		StaleBefore: now.Add(-s.claimTTL()),
+	}
+
+	card, outcome, err := s.store.ClaimActiveAlertRecipient(ctx, claim)
+	if err != nil {
+		return fmt.Errorf("claim active alert recipient: %w", err)
+	}
+
+	switch outcome {
+	case store.ClaimPosted:
+		// A re-fire edits the message in place. Teams marks it edited and does
+		// not re-notify, which is what a repeated firing should do.
+		if card.MessageID == "" {
+			// Delivered, but the Connector named nothing to edit. Sending again
+			// would be a second copy of a message the person already has, so
+			// the row is only restamped.
+			s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeUpdated)
+			return s.store.TouchActiveAlertRecipient(ctx, card, alert.Status, s.now())
+		}
+		if err := s.bot.UpdateMessage(ctx, ref, card.MessageID, msg); err != nil {
+			if recipientBlocked(err) {
+				s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeBlocked)
+				if forget := s.store.DeleteActiveAlertRecipientCard(ctx, card.Fingerprint, card.RecipientID, card.MessageID); forget != nil {
+					logError("forget blocked recipient card", forget)
+				}
+				return fmt.Errorf("bot update: %w", err)
+			}
+			s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeFailed)
+			return fmt.Errorf("bot update: %w", err)
+		}
+		s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeUpdated)
+		return s.store.TouchActiveAlertRecipient(ctx, card, alert.Status, s.now())
+	case store.ClaimHeld:
+		s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeFailed)
+		return errCardInFlight
+	}
+
+	activityID, err := s.bot.SendMessage(ctx, ref, msg)
+	if err != nil {
+		failure := metrics.OutcomeFailed
+		if recipientBlocked(err) {
+			failure = metrics.OutcomeBlocked
+		}
+		s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), failure)
+		// The claim is ours and nothing was sent under it, so it goes back now
+		// rather than making the next attempt wait out the cutoff. That is the
+		// same row a permanent failure has to drop, so one release covers both.
+		if release := s.store.ReleaseActiveAlertRecipientClaim(ctx, claim); release != nil {
+			logError("release recipient claim", release)
+		}
+		return fmt.Errorf("bot send: %w", err)
+	}
+	s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomePosted)
+
+	if err := s.store.CompleteActiveAlertRecipientClaim(ctx, claim, activityID, s.now()); err != nil {
+		if errors.Is(err, store.ErrClaimLost) {
+			// The same window deliverToChannel cannot close: the message was
+			// sent, and by the time it was recorded the row was somebody
+			// else's. It can only be reported.
+			logError("orphaned chat message", fmt.Errorf("recipient %s activity %s: %w",
+				recipient.ID, activityID, err))
+		}
+		return err
+	}
+	return nil
 }
 
 // routeLabel is what a delivery is counted under. The name is what an operator
