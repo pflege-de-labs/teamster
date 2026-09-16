@@ -33,6 +33,7 @@ templ Layout(title string, viewer *Viewer) {
 							if viewer.NotificationsEnabled {
 								<a href="/admin/notifications" class="text-slate-600 hover:text-slate-900">{ i18n.T(ctx, "nav.notifications") }</a>
 							}
+							<a href="/admin/recipients" class="text-slate-600 hover:text-slate-900">{ i18n.T(ctx, "nav.recipients") }</a>
 							if viewer.CanManage {
 								<a href="/admin/permissions" class="text-slate-600 hover:text-slate-900">{ i18n.T(ctx, "nav.permissions") }</a>
 							}
@@ -55,14 +56,17 @@ templ Layout(title string, viewer *Viewer) {
 	</html>
 }
 
-templ notice(page Page) {
-	if page.Error != "" {
+// notice takes the two strings rather than a Page, so a page of its own --
+// Recipients, say -- can show the outcome of its own form post the same way
+// without depending on Page's shape.
+templ notice(errorText, noticeText string) {
+	if errorText != "" {
 		<div role="alert" class="rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800">
-			{ page.Error }
+			{ errorText }
 		</div>
-	} else if page.Notice != "" {
+	} else if noticeText != "" {
 		<div role="status" class="rounded-md border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-			{ page.Notice }
+			{ noticeText }
 		</div>
 	}
 }

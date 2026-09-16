@@ -350,8 +350,11 @@ func (s *Server) resolveChatMessages(ctx context.Context, alert models.Alert, pl
 			if recipientBlocked(err) {
 				// Nothing will reach this person until somebody acts, so the
 				// row goes rather than being retried into the same error on
-				// every later alert.
+				// every later alert. The flag records why for an admin --
+				// informational only, per ADR 0026: it never stops the next
+				// alert from trying again.
 				s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeBlocked)
+				s.markRecipientBlocked(ctx, card.RecipientID, err)
 				if forget := s.store.DeleteActiveAlertRecipientCard(ctx, card.Fingerprint, card.RecipientID, card.MessageID); forget != nil {
 					logError("forget blocked recipient card", forget)
 				}
@@ -365,6 +368,7 @@ func (s *Server) resolveChatMessages(ctx context.Context, alert models.Alert, pl
 			continue
 		}
 		s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomePosted)
+		s.clearRecipientBlocked(ctx, card.RecipientID)
 
 		// Deleting by message id, so a resolve that raced a refire forgets the
 		// row it just resolved rather than the newer one that replaced it.
@@ -522,6 +526,43 @@ func recipientBlocked(err error) bool {
 	return apiErr.Code == "MessageWritesBlocked" || apiErr.InnerCode == "ConversationBlockedByUser"
 }
 
+// blockedReason is what MarkRecipientBlocked records. The Bot Connector's own
+// code names the failure precisely -- "MessageWritesBlocked" tells an admin
+// more than a bare "blocked" would -- so it is read off the same error
+// recipientBlocked already classified, preferring the top-level Code and
+// falling back to InnerCode for the case recipientBlocked itself treats as
+// equivalent.
+func blockedReason(err error) string {
+	var apiErr *bot.APIError
+	if !errors.As(err, &apiErr) {
+		return "blocked"
+	}
+	if apiErr.Code != "" {
+		return apiErr.Code
+	}
+	return apiErr.InnerCode
+}
+
+// markRecipientBlocked and clearRecipientBlocked are best effort, exactly like
+// the DeleteActiveAlertRecipientCard calls beside them: the flag is
+// informational (ADR 0026), so a failure to write it must not fail the
+// delivery it describes, nor undo a send or update that already succeeded.
+func (s *Server) markRecipientBlocked(ctx context.Context, recipientID string, cause error) {
+	if err := s.store.MarkRecipientBlocked(ctx, recipientID, s.now(), blockedReason(cause)); err != nil {
+		logError("mark recipient blocked", err)
+	}
+}
+
+// clearRecipientBlocked runs after every successful send or update, not only
+// after one that follows a recovery: the flag must always describe now, and
+// clearing a recipient that was never blocked is a no-op in the store, not a
+// reason to check first.
+func (s *Server) clearRecipientBlocked(ctx context.Context, recipientID string) {
+	if err := s.store.ClearRecipientBlocked(ctx, recipientID); err != nil {
+		logError("clear recipient blocked", err)
+	}
+}
+
 // deliverToRecipient is deliverToChannel's counterpart for a person's chat, and
 // claims the same way for the same reason -- see deliver above.
 //
@@ -574,11 +615,13 @@ func (s *Server) deliverToRecipient(ctx context.Context, alert models.Alert, del
 			// would be a second copy of a message the person already has, so
 			// the row is only restamped.
 			s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeUpdated)
+			s.clearRecipientBlocked(ctx, card.RecipientID)
 			return s.store.TouchActiveAlertRecipient(ctx, card, alert.Status, s.now())
 		}
 		if err := s.bot.UpdateMessage(ctx, ref, card.MessageID, msg); err != nil {
 			if recipientBlocked(err) {
 				s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeBlocked)
+				s.markRecipientBlocked(ctx, card.RecipientID, err)
 				if forget := s.store.DeleteActiveAlertRecipientCard(ctx, card.Fingerprint, card.RecipientID, card.MessageID); forget != nil {
 					logError("forget blocked recipient card", forget)
 				}
@@ -588,6 +631,7 @@ func (s *Server) deliverToRecipient(ctx context.Context, alert models.Alert, del
 			return fmt.Errorf("bot update: %w", err)
 		}
 		s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeUpdated)
+		s.clearRecipientBlocked(ctx, card.RecipientID)
 		return s.store.TouchActiveAlertRecipient(ctx, card, alert.Status, s.now())
 	case store.ClaimHeld:
 		s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeFailed)
@@ -599,6 +643,7 @@ func (s *Server) deliverToRecipient(ctx context.Context, alert models.Alert, del
 		failure := metrics.OutcomeFailed
 		if recipientBlocked(err) {
 			failure = metrics.OutcomeBlocked
+			s.markRecipientBlocked(ctx, recipient.ID, err)
 		}
 		s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), failure)
 		// The claim is ours and nothing was sent under it, so it goes back now
@@ -610,6 +655,7 @@ func (s *Server) deliverToRecipient(ctx context.Context, alert models.Alert, del
 		return fmt.Errorf("bot send: %w", err)
 	}
 	s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomePosted)
+	s.clearRecipientBlocked(ctx, recipient.ID)
 
 	if err := s.store.CompleteActiveAlertRecipientClaim(ctx, claim, activityID, s.now()); err != nil {
 		if errors.Is(err, store.ErrClaimLost) {

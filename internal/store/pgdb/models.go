@@ -74,6 +74,8 @@ type Recipient struct {
 	TenantID       string
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
+	BlockedAt      sql.NullTime
+	BlockedReason  string
 }
 
 type Route struct {

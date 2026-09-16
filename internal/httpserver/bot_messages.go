@@ -292,6 +292,10 @@ func (s *Server) redeemLinkCode(ctx context.Context, activity botActivity, code 
 	var recipient models.Recipient
 	var displaced *models.Recipient
 	err = s.store.WithSerializableTx(ctx, func(ctx context.Context, tx store.Store) error {
+		// BlockedAt and BlockedReason are left at their zero value, which
+		// UpdateRecipient writes through on a re-link: a person who just
+		// proved the chat works by redeeming a code here is not blocked,
+		// whatever an earlier delivery may have recorded.
 		conversation := models.Recipient{
 			Subject:        flow.Subject,
 			Name:           activity.From.Name,

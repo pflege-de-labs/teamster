@@ -407,6 +407,47 @@ func (f *fakeStore) GetWebhookEndpointBySlug(ctx context.Context, teamSlug, chan
 	return models.WebhookEndpoint{}, store.ErrNotFound
 }
 
+// MarkRecipientBlocked and ClearRecipientBlocked mutate only the blocked
+// fields on the map entry, mirroring the real store's narrow statements: a
+// fake that routed these through a full update could pass a test the real
+// store would fail if a caller ever handed it a stale recipient.
+func (f *fakeStore) MarkRecipientBlocked(ctx context.Context, id string, at time.Time, reason string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("MarkRecipientBlocked"); err != nil {
+		return err
+	}
+	// An UPDATE matching no row is not an error in the real store either, so
+	// a recipient deleted between the send and this call is silently a no-op
+	// rather than a failure the caller has to handle.
+	r, ok := f.recipients[id]
+	if !ok {
+		return nil
+	}
+	r.BlockedAt = at
+	r.BlockedReason = reason
+	f.recipients[id] = r
+	return nil
+}
+
+func (f *fakeStore) ClearRecipientBlocked(ctx context.Context, id string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("ClearRecipientBlocked"); err != nil {
+		return err
+	}
+	r, ok := f.recipients[id]
+	if !ok {
+		// A no-op, like the real store's UPDATE matching zero rows: clearing a
+		// recipient that does not exist, or was never blocked, is not an error.
+		return nil
+	}
+	r.BlockedAt = time.Time{}
+	r.BlockedReason = ""
+	f.recipients[id] = r
+	return nil
+}
+
 func (f *fakeStore) CreateLinkFlow(ctx context.Context, flow models.LinkFlow) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()

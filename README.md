@@ -156,6 +156,27 @@ checked before anything in the request body is acted on.
 
 [bot-auth-spec]: https://learn.microsoft.com/en-us/azure/bot-service/rest-api/bot-framework-rest-connector-authentication
 
+#### Managing recipients
+
+**Recipients** (`/admin/recipients`) lists everybody who has linked a chat: their display name (or
+subject, when Teams gave no name), when they linked, and which routes deliver to them by name — so
+an admin about to unlink somebody can see what stops arriving before doing it, not after. Viewing
+needs the `viewer` role and up; unlinking needs `editor` and up, the same split every other admin
+list uses, and the button is hidden from a viewer rather than merely refused. Unlinking removes the
+recipient even if a route still names them — the same as deleting a destination — and a route left
+pointing at nobody shows up as a "missing recipient" in `/admin/routing` rather than failing
+silently.
+
+A permanent send failure — the person uninstalled or blocked the bot — is recorded on the row as
+**blocked**, with the reason and when, shown plainly rather than as an icon to hover over. This flag
+is informational only: it never stops the next alert from being attempted, and a successful send or
+update clears it automatically. Treating it as a switch that turns delivery off would trade a
+visible problem (this flag, and the metric behind it) for an invisible one — a person who
+reinstalled the bot would otherwise receive nothing again until an admin happened to notice and
+clear it by hand. `GET /api/recipients` and `DELETE /api/recipients/{id}` are the same list and
+unlink action over the API; the response omits the Bot Framework conversation reference, since
+nothing an admin does with this API needs it.
+
 Turning this on also needs a Teams app package: [`manifest/`](manifest/) holds the `manifest.json`
 and icons an operator uploads to Teams admin center so the bot can be installed at all, separate
 from the runtime configuration above. See [`manifest/README.md`](manifest/README.md) for what to

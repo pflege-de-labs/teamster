@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/pflege-de-labs/teamster/internal/bot"
 	"github.com/pflege-de-labs/teamster/internal/config"
@@ -277,6 +278,87 @@ func TestChatTransientEditFailureKeepsTheRow(t *testing.T) {
 
 	if _, ok := chatRow(t, st, "fp-1", "person"); !ok {
 		t.Error("row dropped on a transient failure, want it kept for the retry")
+	}
+}
+
+// A permanent send failure marks the recipient blocked -- the durable,
+// visible trace ADR 0026 deferred to this PR -- in addition to the existing
+// metric and dropped row.
+func TestPermanentSendFailureMarksRecipientBlocked(t *testing.T) {
+	t.Parallel()
+
+	botClient := &fakeBotClient{err: &bot.APIError{StatusCode: 403, Code: "MessageWritesBlocked"}}
+	st, handler := chatServer(t, botClient, nil)
+
+	rec := postWebhook(t, handler, "/webhook/universal", "token", `{"status":"firing","labels":{},"fingerprint":"fp-1"}`)
+	if rec.Code != http.StatusBadGateway {
+		t.Fatalf("POST = %d, want 502", rec.Code)
+	}
+
+	recipient, err := st.GetRecipient(t.Context(), "person")
+	if err != nil {
+		t.Fatalf("GetRecipient: %v", err)
+	}
+	if !recipient.Blocked() {
+		t.Error("Blocked() = false after a permanent send failure, want true")
+	}
+	if recipient.BlockedReason != "MessageWritesBlocked" {
+		t.Errorf("BlockedReason = %q, want the API error's own code", recipient.BlockedReason)
+	}
+}
+
+// The flag is self-healing: a successful send clears it, without anyone
+// having to notice and clear it by hand.
+func TestSuccessfulSendClearsRecipientBlocked(t *testing.T) {
+	t.Parallel()
+
+	botClient := &fakeBotClient{}
+	st, handler := chatServer(t, botClient, nil)
+
+	blocked := st.recipients["person"]
+	blocked.BlockedAt = time.Now().Add(-time.Hour)
+	blocked.BlockedReason = "MessageWritesBlocked"
+	st.recipients["person"] = blocked
+
+	rec := postWebhook(t, handler, "/webhook/universal", "token", `{"status":"firing","labels":{},"fingerprint":"fp-1"}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("POST = %d, want 200 (body %s)", rec.Code, rec.Body.String())
+	}
+
+	recipient, err := st.GetRecipient(t.Context(), "person")
+	if err != nil {
+		t.Fatalf("GetRecipient: %v", err)
+	}
+	if recipient.Blocked() {
+		t.Error("Blocked() = true after a successful send, want the flag cleared")
+	}
+	if recipient.BlockedReason != "" {
+		t.Errorf("BlockedReason = %q after a successful send, want empty", recipient.BlockedReason)
+	}
+}
+
+// The decision most likely to be silently inverted later: the flag is
+// informational, not a delivery gate (ADR 0026). A recipient already marked
+// blocked is still attempted on the next alert, exactly like one that never
+// was -- gating on it would mean a person who reinstalled the bot never
+// receives another alert until an admin notices and clears the flag by hand.
+func TestBlockedRecipientIsStillAttempted(t *testing.T) {
+	t.Parallel()
+
+	botClient := &fakeBotClient{}
+	st, handler := chatServer(t, botClient, nil)
+
+	blocked := st.recipients["person"]
+	blocked.BlockedAt = time.Now().Add(-time.Hour)
+	blocked.BlockedReason = "MessageWritesBlocked"
+	st.recipients["person"] = blocked
+
+	rec := postWebhook(t, handler, "/webhook/universal", "token", `{"status":"firing","labels":{},"fingerprint":"fp-1"}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("POST = %d, want 200 -- a blocked recipient must still be attempted", rec.Code)
+	}
+	if len(botClient.sent) != 1 {
+		t.Fatalf("sent %d messages, want 1: a blocked recipient must not be skipped", len(botClient.sent))
 	}
 }
 

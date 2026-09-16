@@ -155,6 +155,11 @@ func requestAuthorization(r *http.Request) (string, authz.Resource) {
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
 			return authz.ActionLink, resource
 		}
+	// Everything else under /recipients -- the admin page, listing and
+	// unlinking -- is an ordinary view/edit on a Recipient, which the existing
+	// admin/editor/viewer policies already cover: no new Cedar action.
+	case strings.HasPrefix(path, "/api/recipients"), strings.HasPrefix(path, "/admin/recipients"):
+		resource.Type = "Recipient"
 	case strings.HasPrefix(path, "/api/templates"), strings.HasPrefix(path, "/admin/templates"):
 		resource.Type = "Template"
 	case strings.HasPrefix(path, "/api/destinations"), strings.HasPrefix(path, "/admin/destinations"):

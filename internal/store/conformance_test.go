@@ -430,6 +430,73 @@ func TestConformanceRecipientSubjectIsUnique(t *testing.T) {
 	})
 }
 
+// The blocked flag round-trips through both backends, and clearing a
+// recipient that was never blocked is a no-op rather than an error -- delivery
+// calls ClearRecipientBlocked after every success, not only a recovery.
+func TestConformanceRecipientBlocked(t *testing.T) {
+	t.Parallel()
+
+	eachBackend(t, func(t *testing.T, open func(t *testing.T) store.Store) {
+		st := open(t)
+		ctx := t.Context()
+
+		created, err := st.CreateRecipient(ctx, models.Recipient{
+			Subject: "alice", ConversationID: "c", ServiceURL: "u", BotChannelID: "msteams",
+		})
+		if err != nil {
+			t.Fatalf("CreateRecipient: %v", err)
+		}
+		if created.Blocked() {
+			t.Error("a freshly created recipient reports Blocked(), want it unset")
+		}
+
+		// Clearing a recipient that was never blocked must not fail: delivery
+		// calls this after every success, not only a recovery.
+		if err := st.ClearRecipientBlocked(ctx, created.ID); err != nil {
+			t.Fatalf("ClearRecipientBlocked on a never-blocked recipient: %v", err)
+		}
+
+		blockedAt := time.Now().Add(-time.Minute)
+		if err := st.MarkRecipientBlocked(ctx, created.ID, blockedAt, "MessageWritesBlocked"); err != nil {
+			t.Fatalf("MarkRecipientBlocked: %v", err)
+		}
+
+		got, err := st.GetRecipient(ctx, created.ID)
+		if err != nil {
+			t.Fatalf("GetRecipient: %v", err)
+		}
+		if !got.Blocked() {
+			t.Error("Blocked() = false after MarkRecipientBlocked, want true")
+		}
+		if got.BlockedReason != "MessageWritesBlocked" {
+			t.Errorf("BlockedReason = %q, want the reason it was marked with", got.BlockedReason)
+		}
+		if !got.BlockedAt.Truncate(time.Microsecond).Equal(blockedAt.Truncate(time.Microsecond)) {
+			t.Errorf("BlockedAt = %v, want %v", got.BlockedAt, blockedAt)
+		}
+		// Marking must not touch the conversation reference: it is the whole
+		// reason MarkRecipientBlocked is a narrow statement rather than a call
+		// through UpdateRecipient.
+		if got.ConversationID != created.ConversationID {
+			t.Errorf("ConversationID = %q, want it untouched by MarkRecipientBlocked", got.ConversationID)
+		}
+
+		if err := st.ClearRecipientBlocked(ctx, created.ID); err != nil {
+			t.Fatalf("ClearRecipientBlocked: %v", err)
+		}
+		cleared, err := st.GetRecipient(ctx, created.ID)
+		if err != nil {
+			t.Fatalf("GetRecipient after clear: %v", err)
+		}
+		if cleared.Blocked() {
+			t.Error("Blocked() = true after ClearRecipientBlocked, want false")
+		}
+		if cleared.BlockedReason != "" {
+			t.Errorf("BlockedReason = %q after clear, want empty", cleared.BlockedReason)
+		}
+	})
+}
+
 func TestConformanceLinkFlows(t *testing.T) {
 	t.Parallel()
 

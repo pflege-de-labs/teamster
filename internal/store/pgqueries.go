@@ -341,3 +341,11 @@ func (p pgQueries) UpdateTemplate(ctx context.Context, arg sqlitedb.UpdateTempla
 func (p pgQueries) UpdateWebhookEndpoint(ctx context.Context, arg sqlitedb.UpdateWebhookEndpointParams) error {
 	return p.q.UpdateWebhookEndpoint(ctx, pgdb.UpdateWebhookEndpointParams(arg))
 }
+
+func (p pgQueries) ClearRecipientBlocked(ctx context.Context, id string) error {
+	return p.q.ClearRecipientBlocked(ctx, id)
+}
+
+func (p pgQueries) MarkRecipientBlocked(ctx context.Context, arg sqlitedb.MarkRecipientBlockedParams) error {
+	return p.q.MarkRecipientBlocked(ctx, pgdb.MarkRecipientBlockedParams(arg))
+}

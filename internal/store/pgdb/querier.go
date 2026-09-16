@@ -20,6 +20,11 @@ type Querier interface {
 	// ClaimActiveAlert for what a caller does with the two ways this can come back
 	// empty.
 	ClaimActiveAlertRecipient(ctx context.Context, arg ClaimActiveAlertRecipientParams) (ActiveAlertRecipient, error)
+	// ClearRecipientBlocked is MarkRecipientBlocked's mirror, run after a
+	// successful send or update. It is a no-op, not an error, on a recipient that
+	// was never blocked: delivery calls it after every success, not only after a
+	// recovery.
+	ClearRecipientBlocked(ctx context.Context, id string) error
 	// CompleteActiveAlertClaim records the card the claim produced. The guard is
 	// what makes a lost claim visible: zero rows means somebody else's card is
 	// recorded under this key, so the one just posted is an orphan and the caller
@@ -131,6 +136,11 @@ type Querier interface {
 	// The statements are the SQLite ones with ? replaced by $n. Edit the SQLite
 	// file and run make generate.
 	ListWebhookEndpoints(ctx context.Context) ([]WebhookEndpoint, error)
+	// MarkRecipientBlocked records a permanent send failure. It is a narrow
+	// statement, not a call through UpdateRecipient, so a delivery failure --
+	// which only ever reads the conversation reference, never the rest of the row
+	// -- cannot clobber a field it never loaded.
+	MarkRecipientBlocked(ctx context.Context, arg MarkRecipientBlockedParams) error
 	// Code generated from ../sqlite by internal/store/queries/gen. DO NOT EDIT.
 	//
 	// The statements are the SQLite ones with ? replaced by $n. Edit the SQLite
@@ -180,6 +190,11 @@ type Querier interface {
 	// The update deliberately leaves subject alone: it is who this binding belongs
 	// to, and moving it would point one person's link at another's alerts. What
 	// changes on a re-link is the conversation reference.
+	//
+	// blocked_at and blocked_reason are written here too, not left to the narrow
+	// statements below: a re-link is the person proving the chat works again, so
+	// whatever redeems the code passes the zero value for both and the flag
+	// clears itself, the same self-healing rule a successful delivery follows.
 	UpdateRecipient(ctx context.Context, arg UpdateRecipientParams) error
 	UpdateRoute(ctx context.Context, arg UpdateRouteParams) error
 	UpdateTemplate(ctx context.Context, arg UpdateTemplateParams) error
