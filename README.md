@@ -92,8 +92,44 @@ The whole feature is off by default. Leave all three empty and nothing else in t
 matters; set all three together to turn it on, since setting only one is rejected at startup.
 `bot.tenant-type` distinguishes a registration that only ever signs in this tenant's users
 (`single`, the default) from one registered to accept any tenant's users (`multi`), which
-authenticates through a shared Microsoft endpoint rather than this tenant's own. Nothing in this
-release sends a message through it yet; wiring it into delivery is a later change.
+authenticates through a shared Microsoft endpoint rather than this tenant's own. `bot.metadata-url`
+defaults to Microsoft's public endpoint and must stay `https`: it is the trust anchor every inbound
+activity is checked against, so turning the feature on with it cleared or pointed at plain `http` is
+rejected at startup rather than registering a route that would never validate anything. Turning the
+feature on also registers `POST /bot/messages`, the endpoint the bot receives Teams activities on;
+leaving it off registers no route there at all, so an unconfigured deployment exposes nothing new.
+Alert delivery does not reach a person's chat yet — wiring that into routing is a later change — but
+a person can already link their chat, below.
+
+#### Linking your chat
+
+1. An admin (or anyone holding `viewer` or above) signs in to the admin UI and calls
+   `POST /api/recipients/link`, which returns a short-lived code:
+
+   ```json
+   { "code": "AB3D-EFGH-J2MN", "expires_at": "2026-09-16T10:30:00Z" }
+   ```
+
+   Basic auth is refused here even though it works everywhere else in the admin API: it
+   authenticates every script as the same configured admin username, and a code has to bind the
+   person who is actually asking, not whoever holds that shared password.
+2. That person opens a 1:1 chat with the bot in Teams (adding it first if they have not) and sends
+   the code, mention markup and all — pasting it after `@`-mentioning the bot works.
+3. The bot confirms in the same chat. The code is single-use and expires after ten minutes; an
+   expired or already-used one gets a reply that does not say which.
+
+Redeeming a code for a subject that is already linked moves the alert stream to the new chat and
+tells the *old* chat it was displaced — a code that leaks does not silently steal someone else's
+alerts without them finding out.
+
+Nothing about this endpoint is authenticated by teamster's own webhook token, admin password or
+session cookie: `POST /bot/messages` is public, and every request on it is authenticated entirely
+by **Microsoft's** own signature, checked against the Bot Framework's published metadata document
+(`bot.metadata-url`) per its [authentication spec][bot-auth-spec]. Issuer, audience, signature,
+expiry, the activity's `serviceUrl` claim and the channel the signing key is endorsed for are all
+checked before anything in the request body is acted on.
+
+[bot-auth-spec]: https://learn.microsoft.com/en-us/azure/bot-service/rest-api/bot-framework-rest-connector-authentication
 
 Turning this on also needs a Teams app package: [`manifest/`](manifest/) holds the `manifest.json`
 and icons an operator uploads to Teams admin center so the bot can be installed at all, separate
@@ -304,7 +340,7 @@ Three roles, in order: `admin`, `editor`, `viewer`.
 | --- | --- |
 | `admin` | everything, including whatever later releases add |
 | `editor` | read the configuration and change it |
-| `viewer` | read it, and nothing else |
+| `viewer` | read it, and nothing else, plus [link their own chat](#linking-your-chat) |
 
 **Every role in the claim is mapped one to one, by name.** A client or realm role called `admin`,
 `editor` or `viewer` **is** that role here, and one called `auditor` arrives as `auditor`. There is

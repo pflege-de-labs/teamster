@@ -357,6 +357,31 @@ func TestConformanceLinkFlows(t *testing.T) {
 		if _, err := st.TakeLinkFlow(ctx, "OLD"); !errors.Is(err, store.ErrNotFound) {
 			t.Errorf("the expired code survived being taken: %v", err)
 		}
+
+		// A colliding code is a caller's cue to mint another, not a server error.
+		dup := models.LinkFlow{Code: "DUP1", Subject: "bob", ExpiresAt: time.Now().Add(time.Minute)}
+		if err := st.CreateLinkFlow(ctx, dup); err != nil {
+			t.Fatalf("CreateLinkFlow(dup): %v", err)
+		}
+		if err := st.CreateLinkFlow(ctx, dup); !errors.Is(err, store.ErrConflict) {
+			t.Errorf("colliding code = %v, want ErrConflict", err)
+		}
+
+		// Minting a new code retires whatever the subject already had, so an
+		// old one guessed later finds nothing.
+		second := models.LinkFlow{Code: "SEC2", Subject: "bob", ExpiresAt: time.Now().Add(time.Minute)}
+		if err := st.CreateLinkFlow(ctx, second); err != nil {
+			t.Fatalf("CreateLinkFlow(second): %v", err)
+		}
+		if err := st.DeleteLinkFlowsForSubject(ctx, "bob"); err != nil {
+			t.Fatalf("DeleteLinkFlowsForSubject: %v", err)
+		}
+		if _, err := st.TakeLinkFlow(ctx, "DUP1"); !errors.Is(err, store.ErrNotFound) {
+			t.Errorf("retired code DUP1 = %v, want ErrNotFound", err)
+		}
+		if _, err := st.TakeLinkFlow(ctx, "SEC2"); !errors.Is(err, store.ErrNotFound) {
+			t.Errorf("retired code SEC2 = %v, want ErrNotFound", err)
+		}
 	})
 }
 

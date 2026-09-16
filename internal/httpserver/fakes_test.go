@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/pflege-de-labs/teamster/internal/graph"
 	"github.com/pflege-de-labs/teamster/internal/models"
 	"github.com/pflege-de-labs/teamster/internal/store"
@@ -34,6 +36,13 @@ type fakeStore struct {
 	linkFlows    map[string]models.LinkFlow
 
 	failOn map[string]bool
+
+	// subjectLookupDelay, when set, is slept in GetRecipientBySubject after
+	// its map read and its lock have both been released -- a test hook that
+	// widens the check-then-act window between the lookup and a later
+	// CreateRecipient/UpdateRecipient, the way a real network round trip
+	// would, so a check-then-act race is reproducible instead of hoped for.
+	subjectLookupDelay time.Duration
 }
 
 func newFakeStore() *fakeStore {
@@ -221,7 +230,10 @@ func (f *fakeStore) CreateRecipient(ctx context.Context, r models.Recipient) (mo
 		return models.Recipient{}, err
 	}
 	if r.ID == "" {
-		r.ID = "generated"
+		// Unique per call, like the real store's newID(""): a constant here
+		// would let two duplicate creates collapse onto one map entry and
+		// mask exactly the race a caller-side transaction exists to prevent.
+		r.ID = uuid.NewString()
 	}
 	f.recipients[r.ID] = r
 	return r, nil
@@ -266,16 +278,29 @@ func (f *fakeStore) GetRecipient(ctx context.Context, id string) (models.Recipie
 
 func (f *fakeStore) GetRecipientBySubject(ctx context.Context, subject string) (models.Recipient, error) {
 	f.mu.Lock()
-	defer f.mu.Unlock()
 	if err := f.failing("GetRecipientBySubject"); err != nil {
+		f.mu.Unlock()
 		return models.Recipient{}, err
 	}
+	var found models.Recipient
+	var ok bool
 	for _, r := range f.recipients {
 		if r.Subject == subject {
-			return r, nil
+			found, ok = r, true
+			break
 		}
 	}
-	return models.Recipient{}, store.ErrNotFound
+	delay := f.subjectLookupDelay
+	f.mu.Unlock()
+
+	if delay > 0 {
+		time.Sleep(delay)
+	}
+
+	if !ok {
+		return models.Recipient{}, store.ErrNotFound
+	}
+	return found, nil
 }
 
 func (f *fakeStore) CreateLinkFlow(ctx context.Context, flow models.LinkFlow) error {
@@ -284,10 +309,20 @@ func (f *fakeStore) CreateLinkFlow(ctx context.Context, flow models.LinkFlow) er
 	if err := f.failing("CreateLinkFlow"); err != nil {
 		return err
 	}
+	// The real store's primary key raises ErrConflict on a collision rather
+	// than silently overwriting the row, which is what the code-minting retry
+	// loop depends on.
+	if _, exists := f.linkFlows[flow.Code]; exists {
+		return store.ErrConflict
+	}
 	f.linkFlows[flow.Code] = flow
 	return nil
 }
 
+// TakeLinkFlow matches the real store's liveLinkFlow check: the row is deleted
+// either way, but an expired one is reported as ErrNotFound rather than handed
+// back as live. Without this an "expired code is refused" test would pass
+// against production and fail against the fake.
 func (f *fakeStore) TakeLinkFlow(ctx context.Context, code string) (models.LinkFlow, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -299,7 +334,24 @@ func (f *fakeStore) TakeLinkFlow(ctx context.Context, code string) (models.LinkF
 		return models.LinkFlow{}, store.ErrNotFound
 	}
 	delete(f.linkFlows, code)
+	if !flow.ExpiresAt.After(time.Now()) {
+		return models.LinkFlow{}, store.ErrNotFound
+	}
 	return flow, nil
+}
+
+func (f *fakeStore) DeleteLinkFlowsForSubject(ctx context.Context, subject string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("DeleteLinkFlowsForSubject"); err != nil {
+		return err
+	}
+	for code, flow := range f.linkFlows {
+		if flow.Subject == subject {
+			delete(f.linkFlows, code)
+		}
+	}
+	return nil
 }
 
 func (f *fakeStore) ListRoutes(ctx context.Context) ([]models.Route, error) {
@@ -438,13 +490,6 @@ func (f *fakeStore) Ping(ctx context.Context) error {
 // WithTx runs fn against a copy and keeps the copy only when fn succeeds, which
 // is the behaviour the import depends on: a bundle rejected half way through
 // leaves the configuration as it was.
-// The fake serialises everything through one mutex, so the two transaction
-// flavours are the same thing here; the distinction is a promise to a backend
-// that has to work for it.
-func (f *fakeStore) WithSerializableTx(ctx context.Context, fn func(context.Context, store.Store) error) error {
-	return f.WithTx(ctx, fn)
-}
-
 func (f *fakeStore) WithTx(ctx context.Context, fn func(context.Context, store.Store) error) error {
 	// The lock is dropped before fn runs: fn reaches back into the store
 	// through the snapshot, and a mutex that is not reentrant would deadlock.
@@ -456,12 +501,16 @@ func (f *fakeStore) WithTx(ctx context.Context, fn func(context.Context, store.S
 	snapshot := &fakeStore{
 		templates:    maps.Clone(f.templates),
 		destinations: maps.Clone(f.destinations),
+		recipients:   maps.Clone(f.recipients),
 		routes:       maps.Clone(f.routes),
 		grants:       maps.Clone(f.grants),
 		activeAlerts: maps.Clone(f.activeAlerts),
 		sessions:     maps.Clone(f.sessions),
 		loginFlows:   maps.Clone(f.loginFlows),
+		linkFlows:    maps.Clone(f.linkFlows),
 		failOn:       maps.Clone(f.failOn),
+
+		subjectLookupDelay: f.subjectLookupDelay,
 	}
 	f.mu.Unlock()
 
@@ -472,8 +521,47 @@ func (f *fakeStore) WithTx(ctx context.Context, fn func(context.Context, store.S
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.templates, f.destinations, f.routes = snapshot.templates, snapshot.destinations, snapshot.routes
-	f.grants, f.activeAlerts = snapshot.grants, snapshot.activeAlerts
-	f.sessions, f.loginFlows = snapshot.sessions, snapshot.loginFlows
+	f.recipients, f.grants, f.activeAlerts = snapshot.recipients, snapshot.grants, snapshot.activeAlerts
+	f.sessions, f.loginFlows, f.linkFlows = snapshot.sessions, snapshot.loginFlows, snapshot.linkFlows
+	return nil
+}
+
+// WithSerializableTx holds the lock for fn's whole duration instead of
+// dropping it the way WithTx does, which is what actually serialises two
+// concurrent callers rather than merely cloning and hoping: a redemption that
+// checks GetRecipientBySubject and then creates or updates depends on nothing
+// else running between the two. It still clones and writes back only on
+// success, so a failure inside fn rolls back everything fn did, the same
+// atomicity WithSerializableTx buys against the real backends.
+func (f *fakeStore) WithSerializableTx(ctx context.Context, fn func(context.Context, store.Store) error) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("WithSerializableTx"); err != nil {
+		return err
+	}
+
+	snapshot := &fakeStore{
+		templates:    maps.Clone(f.templates),
+		destinations: maps.Clone(f.destinations),
+		recipients:   maps.Clone(f.recipients),
+		routes:       maps.Clone(f.routes),
+		grants:       maps.Clone(f.grants),
+		activeAlerts: maps.Clone(f.activeAlerts),
+		sessions:     maps.Clone(f.sessions),
+		loginFlows:   maps.Clone(f.loginFlows),
+		linkFlows:    maps.Clone(f.linkFlows),
+		failOn:       maps.Clone(f.failOn),
+
+		subjectLookupDelay: f.subjectLookupDelay,
+	}
+
+	if err := fn(ctx, snapshot); err != nil {
+		return err
+	}
+
+	f.templates, f.destinations, f.routes = snapshot.templates, snapshot.destinations, snapshot.routes
+	f.recipients, f.grants, f.activeAlerts = snapshot.recipients, snapshot.grants, snapshot.activeAlerts
+	f.sessions, f.loginFlows, f.linkFlows = snapshot.sessions, snapshot.loginFlows, snapshot.linkFlows
 	return nil
 }
 

@@ -34,6 +34,15 @@ permit (
   resource
 );
 
+// Linking a chat binds the caller's own subject, nobody else's, so a viewer
+// may do it without being handed edit on anything the link touches. Admin and
+// editor inherit it through the Role nesting above.
+permit (
+  principal in Role::"viewer",
+  action == Action::"link",
+  resource
+);
+
 // Where a role may deliver, and what it may see of the directory.
 //
 // A role with no grant is unrestricted: an installation nobody has narrowed

@@ -32,6 +32,17 @@ func TestAllow(t *testing.T) {
 		{name: "a viewer may view", roles: []Role{RoleViewer}, action: ActionView, resource: Resource{Type: "Destination"}, want: true},
 		{name: "a viewer may not edit", roles: []Role{RoleViewer}, action: ActionEdit, resource: Resource{Type: "Destination", ID: "d1"}, want: false},
 		{
+			// Linking a chat binds the caller's own subject, so the on-call
+			// viewer this feature exists for needs it without edit on anything.
+			name: "a viewer may link", roles: []Role{RoleViewer}, action: ActionLink,
+			resource: Resource{Type: "Recipient"}, want: true,
+		},
+		{
+			name: "a user with no role may not link", roles: nil, action: ActionLink,
+			resource: Resource{Type: "Recipient"}, want: false,
+		},
+		{name: "an admin may link", roles: []Role{RoleAdmin}, action: ActionLink, resource: Resource{Type: "Recipient"}, want: true},
+		{
 			// A role this build does not know must not fall through to allowed.
 			name: "an unknown role decides nothing", roles: []Role{Role("superuser")}, action: ActionView,
 			resource: Resource{Type: "Template"}, want: false,

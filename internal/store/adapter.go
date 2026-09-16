@@ -712,6 +712,9 @@ func (s queryAdapter) TakeLoginFlow(ctx context.Context, state string) (models.L
 	})
 }
 
+// CreateLinkFlow reports ErrConflict on a colliding code rather than a raw
+// constraint violation, so a caller minting one can retry with a new code
+// instead of treating a one-in-however-many collision as a server error.
 func (s queryAdapter) CreateLinkFlow(ctx context.Context, flow models.LinkFlow) error {
 	err := s.q.CreateLinkFlow(ctx, sqlitedb.CreateLinkFlowParams{
 		Code:      flow.Code,
@@ -719,7 +722,17 @@ func (s queryAdapter) CreateLinkFlow(ctx context.Context, flow models.LinkFlow) 
 		ExpiresAt: flow.ExpiresAt,
 	})
 	if err != nil {
+		if isPrimaryKeyConflict(err) {
+			return ErrConflict
+		}
 		return fmt.Errorf("create link flow: %w", err)
+	}
+	return nil
+}
+
+func (s queryAdapter) DeleteLinkFlowsForSubject(ctx context.Context, subject string) error {
+	if err := s.q.DeleteLinkFlowsForSubject(ctx, subject); err != nil {
+		return fmt.Errorf("delete link flows for subject: %w", err)
 	}
 	return nil
 }

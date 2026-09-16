@@ -12,3 +12,9 @@ RETURNING code, subject, expires_at;
 
 -- name: DeleteExpiredLinkFlows :exec
 DELETE FROM link_flows WHERE expires_at <= ?;
+
+-- Minting a new code for a subject retires whatever it had outstanding, so a
+-- guess only ever has to beat one live code rather than every one ever handed
+-- out before the hourly sweep catches up.
+-- name: DeleteLinkFlowsForSubject :exec
+DELETE FROM link_flows WHERE subject = ?;

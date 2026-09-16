@@ -32,10 +32,13 @@ const (
 
 // Actions. View is every read, Edit every write; Administer is reserved for the
 // grant management a later milestone adds, and today only an admin has it.
+// Link is minting a code that binds the caller's own subject to a chat, which
+// a viewer needs without being handed edit on anything else.
 const (
 	ActionView       = "view"
 	ActionEdit       = "edit"
 	ActionAdminister = "administer"
+	ActionLink       = "link"
 )
 
 // A Resource is what an action is attempted on. Type is a Cedar entity type —
