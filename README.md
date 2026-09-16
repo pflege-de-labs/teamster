@@ -96,23 +96,27 @@ authenticates through a shared Microsoft endpoint rather than this tenant's own.
 defaults to Microsoft's public endpoint and must stay `https`: it is the trust anchor every inbound
 activity is checked against, so turning the feature on with it cleared or pointed at plain `http` is
 rejected at startup rather than registering a route that would never validate anything. Turning the
-feature on also registers `POST /bot/messages`, the endpoint the bot receives Teams activities on;
-leaving it off registers no route there at all, so an unconfigured deployment exposes nothing new.
-Alert delivery does not reach a person's chat yet — wiring that into routing is a later change — but
-a person can already link their chat, below.
+feature on also registers `POST /bot/messages`, the endpoint the bot receives Teams activities on,
+and `/admin/notifications` and its actions, described below, along with the nav link to them; leaving
+it off registers none of that, so an unconfigured deployment exposes nothing new and offers nobody a
+page that instructs them to talk to a bot that does not exist. Alert delivery does not reach a
+person's chat yet — wiring that into routing is a later change — but a person can already link their
+chat, below.
 
 #### Linking your chat
 
-1. An admin (or anyone holding `viewer` or above) signs in to the admin UI and calls
-   `POST /api/recipients/link`, which returns a short-lived code:
+1. Any signed-in person — `viewer` and up — opens **Notifications** (`/admin/notifications`) in the
+   admin UI and asks for a code. The same thing is available to a script as `POST
+   /api/recipients/link`, which returns the code as JSON:
 
    ```json
    { "code": "AB3D-EFGH-J2MN", "expires_at": "2026-09-16T10:30:00Z" }
    ```
 
-   Basic auth is refused here even though it works everywhere else in the admin API: it
-   authenticates every script as the same configured admin username, and a code has to bind the
-   person who is actually asking, not whoever holds that shared password.
+   Basic auth is refused on both — the API endpoint and the page's own controls — even though it
+   works everywhere else in the admin API: it authenticates every script as the same configured admin
+   username, and a code has to bind the person who is actually asking, not whoever holds that shared
+   password.
 2. That person opens a 1:1 chat with the bot in Teams (adding it first if they have not) and sends
    the code, mention markup and all — pasting it after `@`-mentioning the bot works.
 3. The bot confirms in the same chat. The code is single-use and expires after ten minutes; an
@@ -121,6 +125,22 @@ a person can already link their chat, below.
 Redeeming a code for a subject that is already linked moves the alert stream to the new chat and
 tells the *old* chat it was displaced — a code that leaks does not silently steal someone else's
 alerts without them finding out.
+
+**Notifications** also shows whether a chat is linked already — the display name captured at link
+time (truncated if Teams handed back an implausibly long one — that name is whoever redeemed the
+code, not something this person chose), when the link was first established, and when it last
+changed, worded to make clear that a service-url refresh updates the same field a new redemption
+does, so a change there alone is not proof of a takeover. It never shows the raw Bot Framework
+conversation id or Azure AD object id, which are opaque identifiers with no reason to be in a
+screenshot or a support ticket. It offers **Unlink**, which removes the caller's own recipient and
+stops delivery there, resolved from the signed-in session, not from anything the form carries, so it
+can only ever remove the caller's own link. It also offers **Cancel my code**, available whether or
+not the caller is currently linked, which invalidates every code outstanding for their subject —
+minting a new one already supersedes an old one, but only once the replacement exists, which is no
+help if a code was pasted into the wrong window and nobody wants a replacement yet. Every response on
+this page is sent `Cache-Control: no-store`, including the page itself: it can show a live code or
+who currently holds one, and unlike the URL or an access log, the response body is what a shared
+machine's cache or a signed-out browser's Back button would otherwise replay.
 
 Nothing about this endpoint is authenticated by teamster's own webhook token, admin password or
 session cookie: `POST /bot/messages` is public, and every request on it is authenticated entirely
@@ -340,7 +360,7 @@ Three roles, in order: `admin`, `editor`, `viewer`.
 | --- | --- |
 | `admin` | everything, including whatever later releases add |
 | `editor` | read the configuration and change it |
-| `viewer` | read it, and nothing else, plus [link their own chat](#linking-your-chat) |
+| `viewer` | read it, and nothing else, plus [link or unlink their own chat](#linking-your-chat) |
 
 **Every role in the claim is mapped one to one, by name.** A client or realm role called `admin`,
 `editor` or `viewer` **is** that role here, and one called `auditor` arrives as `auditor`. There is

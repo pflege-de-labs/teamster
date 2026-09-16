@@ -107,6 +107,53 @@ func TestServeShutsDownWhenTheContextIsCancelled(t *testing.T) {
 	}
 }
 
+// bot.NewClient is only reached once cfg.Bot.Configured() reports true; this
+// pins that ServeCmd actually takes that branch, and that the anonymous
+// botSender-shaped interface variable it assigns the client through compiles
+// and serves without error, rather than only ever exercising the "bot left
+// nil" path every other serve test uses.
+func TestServeConstructsABotClientWhenConfigured(t *testing.T) {
+	t.Parallel()
+
+	cfg := validConfig(t)
+	cfg.Server.Addr = freePort(t)
+	cfg.Bot = config.BotConfig{
+		TenantID:     "tenant",
+		ClientID:     "bot-client",
+		ClientSecret: "secret",
+		TimeoutSec:   10,
+		MetadataURL:  "https://bot.invalid/.well-known/openid-configuration",
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	done := make(chan error, 1)
+	go func() { done <- (&ServeCmd{}).Run(ctx, cfg) }()
+
+	waitForServer(t, cfg.Server.Addr)
+
+	resp, err := http.Get(fmt.Sprintf("http://%s/healthz", cfg.Server.Addr))
+	if err != nil {
+		t.Fatalf("GET /healthz: %v", err)
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("GET /healthz = %d, want 200", resp.StatusCode)
+	}
+
+	cancel()
+
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Errorf("Run() = %v, want a clean shutdown", err)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("Run() did not return after the context was cancelled")
+	}
+}
+
 func TestServeReturnsImmediatelyOnAnAlreadyCancelledContext(t *testing.T) {
 	t.Parallel()
 

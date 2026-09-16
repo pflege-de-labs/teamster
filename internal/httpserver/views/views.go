@@ -26,6 +26,13 @@ type Viewer struct {
 	// CanManage decides whether the permissions tab is offered. The page
 	// refuses the request either way; this is what keeps it out of the nav.
 	CanManage bool
+	// NotificationsEnabled decides whether the nav offers the notifications
+	// page. Unlike CanManage this is not a per-viewer permission -- the page
+	// itself is offered to every role -- but a deployment-wide switch: the
+	// route behind the link exists only when the bot is configured, so
+	// linking to it otherwise would send someone to mint a code for a bot
+	// that was never registered to receive it.
+	NotificationsEnabled bool
 }
 
 // roleLabel reads the roles the way an operator would say them, and says so

@@ -99,10 +99,17 @@ func (s *Server) loadForEditing(ctx context.Context, page *views.Page, section, 
 	}
 }
 
-// formPost guards the state-changing form endpoints. Basic auth credentials
-// ride along on any cross-site form post, so the request has to prove it came
-// from this origin; there is no session to hang a CSRF token on.
+// formPost guards the state-changing form endpoints that redirect back to
+// /admin. Basic auth credentials ride along on any cross-site form post, so
+// the request has to prove it came from this origin; there is no session to
+// hang a CSRF token on.
 func (s *Server) formPost(handler func(*http.Request) (string, error)) http.HandlerFunc {
+	return s.formPostTo("/admin", handler)
+}
+
+// formPostTo is formPost for the endpoints that land somewhere other than
+// /admin -- the notifications page's own unlink control, most immediately.
+func (s *Server) formPostTo(target string, handler func(*http.Request) (string, error)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			w.Header().Set("Allow", http.MethodPost)
@@ -114,16 +121,16 @@ func (s *Server) formPost(handler func(*http.Request) (string, error)) http.Hand
 			return
 		}
 		if err := r.ParseForm(); err != nil {
-			redirectToAdmin(w, r, "", "invalid form submission")
+			redirectTo(target, w, r, "", "invalid form submission")
 			return
 		}
 
 		notice, err := handler(r)
 		if err != nil {
-			redirectToAdmin(w, r, "", err.Error())
+			redirectTo(target, w, r, "", err.Error())
 			return
 		}
-		redirectToAdmin(w, r, notice, "")
+		redirectTo(target, w, r, notice, "")
 	}
 }
 
@@ -149,18 +156,18 @@ func sameOrigin(r *http.Request) bool {
 	return parsed.Host == r.Host
 }
 
-func redirectToAdmin(w http.ResponseWriter, r *http.Request, notice, message string) {
-	target := &url.URL{Path: "/admin"}
-	query := target.Query()
+func redirectTo(target string, w http.ResponseWriter, r *http.Request, notice, message string) {
+	dest := &url.URL{Path: target}
+	query := dest.Query()
 	if notice != "" {
 		query.Set("notice", notice)
 	}
 	if message != "" {
 		query.Set("error", message)
 	}
-	target.RawQuery = query.Encode()
+	dest.RawQuery = query.Encode()
 
-	http.Redirect(w, r, target.String(), http.StatusSeeOther)
+	http.Redirect(w, r, dest.String(), http.StatusSeeOther)
 }
 
 func (s *Server) saveTemplate(r *http.Request) (string, error) {

@@ -51,6 +51,7 @@ func (s *Server) viewerFor(r *http.Request) views.Viewer {
 	viewer := viewerOf(r)
 	subject, roles := principalOf(r)
 	viewer.CanManage = s.authz.Allow(subject, roles, authz.ActionAdminister, authz.Resource{Type: "Grant"})
+	viewer.NotificationsEnabled = botConfigured(s.cfg.Bot)
 	return viewer
 }
 
@@ -136,6 +137,24 @@ func requestAuthorization(r *http.Request) (string, authz.Resource) {
 	// the default case below would otherwise refuse them.
 	case path == "/api/recipients/link":
 		return authz.ActionLink, authz.Resource{Type: "Recipient"}
+	// The self-service page shares the mapping for its two POSTs -- minting
+	// and unlinking (and cancelling a mint) bind or touch only the caller's
+	// own subject too, so neither is a bigger ask than the API endpoint
+	// above. Exact-match or a slash-anchored prefix, never a bare
+	// HasPrefix("/admin/notifications"): that would also loosen a future
+	// "/admin/notification-rules" or similar path to this mapping by
+	// accident, the same way an unanchored prefix would confuse
+	// "/admin/notifications" with itself plus anything typed after it.
+	// Reading the page is a plain read, not a bigger ask than any other page
+	// a viewer may look at, so a GET is deliberately left to fall through to
+	// the method-based mapping below rather than being forced to ActionLink
+	// here -- a deployment that defines its own read-only role and permits
+	// only ActionView would otherwise see the nav link and get a 403.
+	case path == "/admin/notifications" || strings.HasPrefix(path, "/admin/notifications/"):
+		resource.Type = "Recipient"
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			return authz.ActionLink, resource
+		}
 	case strings.HasPrefix(path, "/api/templates"), strings.HasPrefix(path, "/admin/templates"):
 		resource.Type = "Template"
 	case strings.HasPrefix(path, "/api/destinations"), strings.HasPrefix(path, "/admin/destinations"):

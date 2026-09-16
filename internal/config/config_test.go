@@ -482,6 +482,79 @@ func TestValidateBot(t *testing.T) {
 	}
 }
 
+// Configured is the gate the HTTP layer and ServeCmd share for whether the
+// bot feature is on at all -- registering routes and the nav link, and
+// whether to construct a bot.Client in the first place. It is deliberately
+// its own check rather than a byproduct of Validate: a caller may hold a
+// BotConfig that never went through Validate (most of this package's own
+// tests do), and Configured must still answer sensibly.
+func TestBotConfigConfigured(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		cfg  BotConfig
+		want bool
+	}{
+		{name: "zero value", cfg: BotConfig{}, want: false},
+		{
+			name: "fully configured, single tenant",
+			cfg: BotConfig{
+				TenantID: "tenant", ClientID: "client", ClientSecret: "secret",
+				MetadataURL: "https://bot.example/.well-known/openidconfiguration",
+			},
+			want: true,
+		},
+		{
+			name: "multi tenant needs no tenant id",
+			cfg: BotConfig{
+				ClientID: "client", ClientSecret: "secret", TenantType: "multi",
+				MetadataURL: "https://bot.example/.well-known/openidconfiguration",
+			},
+			want: true,
+		},
+		{
+			name: "single tenant without a tenant id is not configured",
+			cfg: BotConfig{
+				ClientID: "client", ClientSecret: "secret",
+				MetadataURL: "https://bot.example/.well-known/openidconfiguration",
+			},
+			want: false,
+		},
+		{
+			name: "missing client id",
+			cfg: BotConfig{
+				TenantID: "tenant", ClientSecret: "secret",
+				MetadataURL: "https://bot.example/.well-known/openidconfiguration",
+			},
+			want: false,
+		},
+		{
+			name: "missing client secret",
+			cfg: BotConfig{
+				TenantID: "tenant", ClientID: "client",
+				MetadataURL: "https://bot.example/.well-known/openidconfiguration",
+			},
+			want: false,
+		},
+		{
+			name: "missing metadata url",
+			cfg:  BotConfig{TenantID: "tenant", ClientID: "client", ClientSecret: "secret"},
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := tt.cfg.Configured(); got != tt.want {
+				t.Errorf("Configured() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestValidateRefusesIncompleteOIDC(t *testing.T) {
 	t.Parallel()
 

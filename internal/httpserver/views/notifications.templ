@@ -1,0 +1,151 @@
+package views
+
+import (
+	"github.com/pflege-de-labs/teamster/internal/i18n"
+	"github.com/pflege-de-labs/teamster/internal/models"
+	"time"
+)
+
+// Notifications is the self-service page: whether this session's own chat is
+// linked, and the controls to link or unlink it. Ownership is the session's
+// subject, matched server-side against Recipient.Subject -- nothing rendered
+// here, or read back from a form it draws, ever names a row by id.
+type Notifications struct {
+	Viewer Viewer
+	Notice string
+	Error  string
+
+	// StatusUnknown is set when Recipient is nil because the lookup failed,
+	// not because this subject is actually unlinked -- the two look the same
+	// through a nil pointer alone, and telling someone who is linked that they
+	// are not is worse than saying nothing.
+	StatusUnknown bool
+
+	// Recipient is nil when this subject has not linked a chat. Its
+	// ConversationID and AADObjectID are opaque Teams identifiers with no
+	// use to a reader and no reason to be in a screenshot or a support
+	// ticket, so the template below never renders them.
+	Recipient *models.Recipient
+
+	// Minted is set only in the response to the mint action itself: the code
+	// is shown once, in that response, rather than round-tripped through the
+	// redirect-with-notice pattern the rest of the admin UI uses. A live,
+	// ten-minute-valid code sitting in a redirect's query string would sit in
+	// the URL, the browser history and any access log for its whole
+	// lifetime -- and unlike either of those, the response body itself is
+	// also what a Back button replays after signing out, which is why
+	// handleNotificationsPage and handleMintLink both mark every response
+	// no-store rather than relying on this alone.
+	Minted *MintedLink
+}
+
+// A MintedLink is a freshly generated code, grouped for display.
+type MintedLink struct {
+	Code      string
+	ExpiresAt time.Time
+}
+
+// maxDisplayNameLength bounds Recipient.Name in the page. It is not this
+// person's own choice of display name: it is activity.From.Name, the Teams
+// display name of whoever last redeemed a code for this subject, captured
+// verbatim by redeemLinkCode. A guest tenant or a compromised account can make
+// it almost anything, so it is truncated before it reaches the page rather
+// than trusted to behave like an ordinary short name.
+const maxDisplayNameLength = 80
+
+func truncatedName(name string) string {
+	runes := []rune(name)
+	if len(runes) <= maxDisplayNameLength {
+		return name
+	}
+	return string(runes[:maxDisplayNameLength]) + "…"
+}
+
+templ NotificationsPage(page Notifications) {
+	@Layout(i18n.T(ctx, "page.notifications"), &page.Viewer) {
+		@notificationsNotice(page)
+		<p class="text-sm text-slate-600">{ i18n.T(ctx, "notifications.explainer") }</p>
+		@notificationsStatus(page)
+		if page.Minted != nil {
+			@notificationsMinted(*page.Minted)
+		}
+	}
+}
+
+templ notificationsNotice(page Notifications) {
+	if page.Error != "" {
+		<div role="alert" class="rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800">
+			{ page.Error }
+		</div>
+	} else if page.Notice != "" {
+		<div role="status" class="rounded-md border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+			{ page.Notice }
+		</div>
+	}
+}
+
+templ notificationsStatus(page Notifications) {
+	<section class="rounded-lg border border-slate-200 bg-white shadow-sm">
+		<h2 class="border-b border-slate-200 px-6 py-4 text-lg font-semibold">{ i18n.T(ctx, "notifications.heading") }</h2>
+		<div class="space-y-4 px-6 py-6">
+			if page.Recipient != nil {
+				<p class="text-sm text-slate-700">{ i18n.T(ctx, "notifications.linked_as", truncatedName(page.Recipient.Name)) }</p>
+				<p class="text-xs text-slate-500">{ i18n.T(ctx, "notifications.linked_since", page.Recipient.CreatedAt.Format("2006-01-02 15:04")) }</p>
+				if !page.Recipient.UpdatedAt.Equal(page.Recipient.CreatedAt) {
+					<p class="text-xs text-slate-500">{ i18n.T(ctx, "notifications.last_updated", page.Recipient.UpdatedAt.Format("2006-01-02 15:04")) }</p>
+				}
+			} else if page.StatusUnknown {
+				<p class="text-sm text-slate-600">{ i18n.T(ctx, "notifications.status_unknown") }</p>
+			} else {
+				<p class="text-sm text-slate-600">{ i18n.T(ctx, "notifications.not_linked") }</p>
+			}
+			<div class="flex flex-wrap gap-3">
+				if page.Recipient == nil {
+					<form method="post" action="/admin/notifications/link">
+						<button
+							type="submit"
+							class="rounded-md bg-sky-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-sky-700"
+						>
+							{ i18n.T(ctx, "notifications.mint") }
+						</button>
+					</form>
+				}
+				<form method="post" action="/admin/notifications/cancel">
+					<button
+						type="submit"
+						class="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:border-red-400 hover:bg-red-50 hover:text-red-700"
+					>
+						{ i18n.T(ctx, "notifications.cancel_code") }
+					</button>
+				</form>
+				if page.Recipient != nil {
+					<form method="post" action="/admin/notifications/unlink">
+						<button
+							type="submit"
+							class="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:border-red-400 hover:bg-red-50 hover:text-red-700"
+						>
+							{ i18n.T(ctx, "notifications.unlink") }
+						</button>
+					</form>
+				}
+			</div>
+		</div>
+	</section>
+}
+
+templ notificationsMinted(minted MintedLink) {
+	<section class="rounded-lg border border-slate-200 bg-white shadow-sm">
+		<h2 class="border-b border-slate-200 px-6 py-4 text-lg font-semibold">{ i18n.T(ctx, "notifications.code_heading") }</h2>
+		<div class="space-y-3 px-6 py-6">
+			<p class="rounded-md border border-slate-300 bg-slate-50 px-4 py-3 text-center font-mono text-2xl tracking-widest">
+				{ minted.Code }
+			</p>
+			<ol class="list-decimal space-y-1 pl-5 text-sm text-slate-700">
+				<li>{ i18n.T(ctx, "notifications.step_install") }</li>
+				<li>{ i18n.T(ctx, "notifications.step_chat") }</li>
+				<li>{ i18n.T(ctx, "notifications.step_send") }</li>
+			</ol>
+			<p class="text-xs text-slate-500">{ i18n.T(ctx, "notifications.code_expires", minted.ExpiresAt.Format("2006-01-02 15:04")) }</p>
+		</div>
+	</section>
+}
