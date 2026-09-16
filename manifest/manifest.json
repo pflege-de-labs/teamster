@@ -32,6 +32,5 @@
       "supportsVideo": false
     }
   ],
-  "permissions": ["identity", "messageTeamMembers"],
   "validDomains": []
 }

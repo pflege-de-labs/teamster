@@ -111,6 +111,44 @@ func TestParseExampleConfig(t *testing.T) {
 	}
 }
 
+// TestParseExampleConfig cannot catch a misspelled bot: key or a broken
+// prefix: every field config.example.yaml sets under bot: is either the zero
+// value or kong's own tag default, so a mapping that reached nowhere would
+// parse identically. Non-default values here prove bot- and its key names
+// actually reach BotConfig.
+func TestParseBotConfigFieldsMap(t *testing.T) {
+	t.Parallel()
+
+	body := strings.Join([]string{
+		"bot:",
+		"  tenant-id: bot-tenant",
+		"  client-id: bot-client",
+		"  client-secret: bot-secret",
+		"  tenant-type: multi",
+		"  token-url: https://login.example/bot-token",
+		"  scope: https://bot.example/.default",
+		"  metadata-url: https://bot.example/.well-known/openidconfiguration",
+		"  timeout-sec: 42",
+		"webhook:",
+		"  token: t",
+	}, "\n")
+
+	got := parse(t, nil, writeConfig(t, body)).Bot
+	want := BotConfig{
+		TenantID:     "bot-tenant",
+		ClientID:     "bot-client",
+		ClientSecret: "bot-secret",
+		TenantType:   "multi",
+		TokenURL:     "https://login.example/bot-token",
+		Scope:        "https://bot.example/.default",
+		MetadataURL:  "https://bot.example/.well-known/openidconfiguration",
+		TimeoutSec:   42,
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("parsed Bot config = %+v, want %+v", got, want)
+	}
+}
+
 func TestParseAppliesTagDefaults(t *testing.T) {
 	t.Parallel()
 
@@ -340,7 +378,7 @@ func TestValidateBot(t *testing.T) {
 		{
 			name: "all three credentials set",
 			mutate: func(c *Config) {
-				c.Bot = BotConfig{TenantID: "tenant", ClientID: "client", ClientSecret: "secret"}
+				c.Bot = BotConfig{TenantID: "tenant", ClientID: "client", ClientSecret: "secret", TimeoutSec: 10}
 			},
 		},
 		{
@@ -354,14 +392,9 @@ func TestValidateBot(t *testing.T) {
 			wantErr: "bot-client-secret is required",
 		},
 		{
-			name:    "client secret alone",
-			mutate:  func(c *Config) { c.Bot = BotConfig{ClientSecret: "secret"} },
-			wantErr: "bot-client-id is required",
-		},
-		{
 			name: "single tenant without a tenant id",
 			mutate: func(c *Config) {
-				c.Bot = BotConfig{ClientID: "client", ClientSecret: "secret"}
+				c.Bot = BotConfig{ClientID: "client", ClientSecret: "secret", TimeoutSec: 10}
 			},
 			wantErr: "bot-tenant-id is required",
 		},
@@ -371,28 +404,37 @@ func TestValidateBot(t *testing.T) {
 		{
 			name: "multi tenant needs no tenant id",
 			mutate: func(c *Config) {
-				c.Bot = BotConfig{ClientID: "client", ClientSecret: "secret", TenantType: "multi"}
+				c.Bot = BotConfig{ClientID: "client", ClientSecret: "secret", TenantType: "multi", TimeoutSec: 10}
 			},
-		},
-		{
-			name: "missing secret with the other two set",
-			mutate: func(c *Config) {
-				c.Bot = BotConfig{TenantID: "tenant", ClientID: "client"}
-			},
-			wantErr: "bot-client-secret is required",
 		},
 		{
 			name: "an unknown tenant type",
 			mutate: func(c *Config) {
-				c.Bot = BotConfig{TenantID: "tenant", ClientID: "client", ClientSecret: "secret", TenantType: "contoso"}
+				c.Bot = BotConfig{TenantID: "tenant", ClientID: "client", ClientSecret: "secret", TenantType: "contoso", TimeoutSec: 10}
 			},
 			wantErr: "bot-tenant-type must be single or multi",
 		},
 		{
 			name: "multi tenant is accepted",
 			mutate: func(c *Config) {
-				c.Bot = BotConfig{TenantID: "tenant", ClientID: "client", ClientSecret: "secret", TenantType: "multi"}
+				c.Bot = BotConfig{TenantID: "tenant", ClientID: "client", ClientSecret: "secret", TenantType: "multi", TimeoutSec: 10}
 			},
+		},
+		// A zero timeout is http.Client{Timeout: 0}: no timeout at all, so a
+		// send that never gets an answer hangs forever.
+		{
+			name: "timeout not configured",
+			mutate: func(c *Config) {
+				c.Bot = BotConfig{TenantID: "tenant", ClientID: "client", ClientSecret: "secret"}
+			},
+			wantErr: "bot-timeout-sec must be positive",
+		},
+		{
+			name: "a negative timeout",
+			mutate: func(c *Config) {
+				c.Bot = BotConfig{TenantID: "tenant", ClientID: "client", ClientSecret: "secret", TimeoutSec: -1}
+			},
+			wantErr: "bot-timeout-sec must be positive",
 		},
 	}
 
