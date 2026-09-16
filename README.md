@@ -95,6 +95,11 @@ matters; set all three together to turn it on, since setting only one is rejecte
 authenticates through a shared Microsoft endpoint rather than this tenant's own. Nothing in this
 release sends a message through it yet; wiring it into delivery is a later change.
 
+Turning this on also needs a Teams app package: [`manifest/`](manifest/) holds the `manifest.json`
+and icons an operator uploads to Teams admin center so the bot can be installed at all, separate
+from the runtime configuration above. See [`manifest/README.md`](manifest/README.md) for what to
+replace before packaging and how to build the zip.
+
 ## Storage
 
 | `database.driver` | What it is |

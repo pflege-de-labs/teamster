@@ -505,3 +505,8 @@ Nothing constructs a `bot.Client` yet: `internal/cli` does not wire it into `Ser
 is no inbound HTTP endpoint. Both land in a later change, which is also where
 `bot-metadata-url` — the Bot Framework OpenID configuration document — is first read, to validate
 the signature on an inbound request.
+
+[`manifest/`](../manifest/) holds the Teams app package -- `manifest.json` plus two icons -- that
+an operator uploads to Teams admin center so the bot can be installed at all. It is packaging
+metadata for the Teams catalog, not something `internal/config` reads at startup; see
+[`manifest/README.md`](../manifest/README.md) for what to replace before packaging.

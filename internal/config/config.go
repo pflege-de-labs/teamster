@@ -148,8 +148,12 @@ type BotConfig struct {
 	ClientSecret string `help:"Microsoft Entra client secret for the bot registration."`
 
 	// Bot Framework issues its own multi-tenant token when a bot is registered
-	// to accept any tenant's users, which single-tenant apps never need.
-	TenantType string `help:"Whether the bot registration is single or multi tenant." enum:"single,multi" default:"single"`
+	// to accept any tenant's users, which single-tenant apps never need. The
+	// trailing empty enum member, matching AuthConfig.DefaultRole, is what
+	// lets TEAMSTER_BOT_TENANT_TYPE="" parse at all for a deployment that
+	// leaves the feature off -- without it kong rejects the empty string
+	// before validateBot's own "" case is ever reached.
+	TenantType string `help:"Whether the bot registration is single or multi tenant." enum:"single,multi," default:"single"`
 
 	// The token endpoint cannot have a static default because it carries the
 	// tenant id, so an empty value means the one TenantType derives. A
@@ -250,6 +254,12 @@ func validateBot(cfg BotConfig) error {
 	// demanding a tenant id there would be asking for a value with no meaning.
 	if cfg.TenantType != "multi" && cfg.TenantID == "" {
 		return fmt.Errorf("bot-tenant-id is required when the bot is configured, unless bot-tenant-type is multi")
+	}
+	// Zero means http.Client{Timeout: 0}: no timeout at all, so a send that
+	// never gets an answer hangs forever instead of failing. A negative value
+	// gives a negative duration, which is equally meaningless.
+	if cfg.TimeoutSec <= 0 {
+		return fmt.Errorf("bot-timeout-sec must be positive when the bot is configured, not %d", cfg.TimeoutSec)
 	}
 	return nil
 }

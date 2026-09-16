@@ -1,6 +1,6 @@
 # 0026. Alerts reach a person's chat through a Bot Framework bot
 
-* Status: Proposed
+* Status: Accepted
 * Date: 2026-09-15
 
 ## Context
@@ -148,9 +148,3 @@ resolved:
 * **Whether a plain-text chat message updates in place the way a channel card does**, or whether a
   resolved alert instead sends a new message. The roadmap flags the same unresolved question for
   chat delivery generally; it is inherited here rather than answered.
-
-The ADR number for this document is not stable: the next free number on `main` at the time of
-writing is also claimed by `feat/shell-completion`, an open PR for an unrelated decision. Whichever
-of the two merges second is responsible for renumbering its own file and its entry in the index;
-nothing outside this file and [the index](README.md) should hardcode the number `0024` as a
-cross-reference.

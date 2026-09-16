@@ -48,8 +48,38 @@ type ConversationReference struct {
 // formats and are otherwise unrelated.
 type Message struct {
 	Title string
-	Text  string
-	Card  json.RawMessage
+	// Text is plain text or Bot Framework's Markdown subset -- unlike
+	// graph.Message.Text, which is HTML. Feeding it HTML shows up as literal
+	// "<p><b>" in the chat rather than being rendered.
+	Text string
+	Card json.RawMessage
+}
+
+// markdownMetachars are the ASCII punctuation characters CommonMark gives
+// meaning to; backslash-escaping each one turns it back into a literal
+// character rather than italics, a link, a header or a rule.
+const markdownMetachars = "\\`*_{}[]()#+-.!|~<>"
+
+// escapeMarkdown neutralizes Title before it is embedded in markdown. Title
+// is plain text handed to us by a template or an alert label, not something
+// the caller composed as markdown on purpose, so a stray "*", "[" or
+// backtick in it must not restyle or break the message. A newline is
+// replaced rather than escaped because backslash-newline is itself markdown
+// for a hard line break, which would not fix the problem.
+func escapeMarkdown(s string) string {
+	s = strings.ReplaceAll(s, "\r\n", " ")
+	s = strings.ReplaceAll(s, "\n", " ")
+	s = strings.ReplaceAll(s, "\r", " ")
+
+	var b strings.Builder
+	b.Grow(len(s))
+	for _, r := range s {
+		if strings.ContainsRune(markdownMetachars, r) {
+			b.WriteByte('\\')
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
 }
 
 // activityAttachment is a Bot Framework activity attachment. Unlike Graph's,
@@ -75,14 +105,19 @@ type ResourceResponse struct {
 
 // activity renders the message as a Bot Framework activity. A bold markdown
 // first line stands in for Title, the closest chat equivalent of the preview
-// line a Teams channel post gets from its own title; the attachment is
-// omitted entirely rather than left empty when there is no card.
+// line a Teams channel post gets from its own title; Title is escaped because
+// it is plain text being embedded in markdown, while Text is left alone
+// because the caller composed it as markdown on purpose. The title and body
+// are separated by a blank line rather than a single newline because some
+// Teams clients collapse a lone newline, which would run the bold title into
+// the body; the attachment is omitted entirely rather than left empty when
+// there is no card.
 func (m Message) activity() activity {
 	var text strings.Builder
 	if m.Title != "" {
 		text.WriteString("**")
-		text.WriteString(m.Title)
-		text.WriteString("**\n")
+		text.WriteString(escapeMarkdown(m.Title))
+		text.WriteString("**\n\n")
 	}
 	text.WriteString(m.Text)
 
@@ -104,54 +139,82 @@ type APIError struct {
 	StatusCode int
 	// Code is error.code from the response body, e.g. "MessageWritesBlocked".
 	Code string
-	// SubCode is error.innerHttpError.code, or a top-level subCode -- the
-	// Bot Connector uses both shapes depending on where the failure occurred.
-	SubCode string
+	// Message is error.message, the Bot Connector's human-readable cause.
+	Message string
+	// InnerStatusCode is error.innerHttpError.statusCode: the status of the
+	// downstream call the Connector was proxying when it failed.
+	InnerStatusCode int
+	// InnerCode is error.innerHttpError.body.error.code -- documented as an
+	// arbitrary Object, but in practice another {error:{code,message}}
+	// wrapper one level deeper, carrying the actionable code (e.g.
+	// "ConversationBlockedByUser") that Code alone does not.
+	InnerCode string
 	// RetryAfter is the Retry-After header, set only on a 429.
 	RetryAfter string
-	// Body is the raw response body, kept for logging when neither field
-	// above parsed out of it.
+	// Body is the raw response body, kept for logging when nothing above
+	// parsed out of it.
 	Body string
 }
 
 func (e *APIError) Error() string {
+	msg := fmt.Sprintf("bot connector call failed: %d", e.StatusCode)
 	switch {
-	case e.Code != "" && e.SubCode != "":
-		return fmt.Sprintf("bot connector call failed: %d %s (%s)", e.StatusCode, e.Code, e.SubCode)
+	case e.Code != "" && e.InnerCode != "":
+		msg += fmt.Sprintf(" %s (%s)", e.Code, e.InnerCode)
 	case e.Code != "":
-		return fmt.Sprintf("bot connector call failed: %d %s", e.StatusCode, e.Code)
-	case e.RetryAfter != "":
-		return fmt.Sprintf("bot connector call failed: %d, retry after %s", e.StatusCode, e.RetryAfter)
+		msg += " " + e.Code
 	default:
-		return fmt.Sprintf("bot connector call failed: %d: %s", e.StatusCode, e.Body)
+		// Nothing parsed out of the body; keep it for whoever reads the log.
+		msg += ": " + e.Body
 	}
+	if e.Message != "" {
+		msg += ": " + e.Message
+	}
+	if e.RetryAfter != "" {
+		msg += ", retry after " + e.RetryAfter
+	}
+	return msg
 }
 
 // newAPIError parses what the Bot Connector will tell us, if anything: a
 // response that fails to parse still yields a usable error carrying the
-// status and raw body.
+// status and raw body. The shape follows the documented Error object --
+// {code, message, innerHttpError: {statusCode, body}} -- rather than the
+// {innerHttpError: {code}} / top-level subCode shape the Connector does not
+// actually emit; the nested code callers want (e.g. "MessageWritesBlocked" vs
+// "ConversationBlockedByUser") lives at error.innerHttpError.body.error.code.
 func newAPIError(resp *http.Response, body []byte) *APIError {
 	apiErr := &APIError{StatusCode: resp.StatusCode, Body: string(body), RetryAfter: resp.Header.Get("Retry-After")}
 
 	var parsed struct {
 		Error *struct {
 			Code           string `json:"code"`
+			Message        string `json:"message"`
 			InnerHTTPError *struct {
-				Code string `json:"code"`
+				StatusCode int             `json:"statusCode"`
+				Body       json.RawMessage `json:"body"`
 			} `json:"innerHttpError"`
 		} `json:"error"`
-		SubCode string `json:"subCode"`
 	}
-	if err := json.Unmarshal(body, &parsed); err == nil {
-		if parsed.Error != nil {
-			apiErr.Code = parsed.Error.Code
-			if parsed.Error.InnerHTTPError != nil {
-				apiErr.SubCode = parsed.Error.InnerHTTPError.Code
-			}
-		}
-		if parsed.SubCode != "" {
-			apiErr.SubCode = parsed.SubCode
-		}
+	if err := json.Unmarshal(body, &parsed); err != nil || parsed.Error == nil {
+		return apiErr
+	}
+	apiErr.Code = parsed.Error.Code
+	apiErr.Message = parsed.Error.Message
+
+	inner := parsed.Error.InnerHTTPError
+	if inner == nil {
+		return apiErr
+	}
+	apiErr.InnerStatusCode = inner.StatusCode
+
+	var nested struct {
+		Error *struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal(inner.Body, &nested); err == nil && nested.Error != nil {
+		apiErr.InnerCode = nested.Error.Code
 	}
 	return apiErr
 }
@@ -220,8 +283,11 @@ func NewClient(cfg config.BotConfig, tel instrumentation) (*Client, error) {
 // id, or "" when the Bot Connector answered without one -- which means the
 // activity was delivered but cannot be updated later, not that sending failed.
 func (c *Client) SendMessage(ctx context.Context, ref ConversationReference, msg Message) (string, error) {
-	endpoint := conversationEndpoint(ref) + "/activities"
-	resBody, err := c.doRequest(ctx, http.MethodPost, endpoint, msg.activity())
+	endpoint, err := conversationEndpoint(ref)
+	if err != nil {
+		return "", err
+	}
+	resBody, err := c.doRequest(ctx, http.MethodPost, endpoint+"/activities", msg.activity())
 	if err != nil {
 		return "", err
 	}
@@ -242,8 +308,11 @@ func (c *Client) SendMessage(ctx context.Context, ref ConversationReference, msg
 
 // UpdateMessage replaces the content of a previously sent activity.
 func (c *Client) UpdateMessage(ctx context.Context, ref ConversationReference, activityID string, msg Message) error {
-	endpoint := conversationEndpoint(ref) + "/activities/" + url.PathEscape(activityID)
-	_, err := c.doRequest(ctx, http.MethodPut, endpoint, msg.activity())
+	endpoint, err := conversationEndpoint(ref)
+	if err != nil {
+		return err
+	}
+	_, err = c.doRequest(ctx, http.MethodPut, endpoint+"/activities/"+url.PathEscape(activityID), msg.activity())
 	return err
 }
 
@@ -253,9 +322,29 @@ func (c *Client) UpdateMessage(ctx context.Context, ref ConversationReference, a
 // concatenation would give "//v3/...". The conversation id is percent-escaped
 // because it routinely contains ":" and "@" (e.g. a meeting chat's
 // "19:meeting_abc@thread.v2").
-func conversationEndpoint(ref ConversationReference) string {
-	return fmt.Sprintf("%s/v3/conversations/%s", strings.TrimSuffix(ref.ServiceURL, "/"), url.PathEscape(ref.ConversationID))
+//
+// ServiceURL is not configuration: it arrives on an inbound activity and is
+// stored per recipient, so it is attacker-influenced data. Both callers carry
+// the bot's bearer token in an Authorization header, and Microsoft's own auth
+// guidance is explicit that the token must never go out over an unsecured
+// channel, so anything other than https is refused here rather than sent.
+func conversationEndpoint(ref ConversationReference) (string, error) {
+	trimmed := strings.TrimSuffix(ref.ServiceURL, "/")
+	u, err := url.Parse(trimmed)
+	if err != nil {
+		return "", fmt.Errorf("parse conversation service url: %w", err)
+	}
+	if u.Scheme != "https" {
+		return "", fmt.Errorf("conversation service url %q must use https, not send the bot token over %q", ref.ServiceURL, u.Scheme)
+	}
+	return fmt.Sprintf("%s/v3/conversations/%s", trimmed, url.PathEscape(ref.ConversationID)), nil
 }
+
+// maxResponseBody caps how much of a Bot Connector response this client will
+// read. The response comes from ServiceURL -- attacker-influenced data, see
+// conversationEndpoint -- so reading it without a limit lets that host exhaust
+// memory with an arbitrarily large body.
+const maxResponseBody = 1 << 20 // 1 MiB
 
 func (c *Client) doRequest(ctx context.Context, method, endpoint string, body any) ([]byte, error) {
 	data, err := json.Marshal(body)
@@ -275,7 +364,7 @@ func (c *Client) doRequest(ctx context.Context, method, endpoint string, body an
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	resBody, err := io.ReadAll(resp.Body)
+	resBody, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBody))
 	if err != nil {
 		return nil, fmt.Errorf("read response: %w", err)
 	}
