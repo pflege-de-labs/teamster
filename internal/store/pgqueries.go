@@ -97,6 +97,10 @@ func (p pgQueries) DeleteGrantsForRole(ctx context.Context, role string) error {
 	return p.q.DeleteGrantsForRole(ctx, role)
 }
 
+func (p pgQueries) DeleteLinkFlowsForSubject(ctx context.Context, subject string) error {
+	return p.q.DeleteLinkFlowsForSubject(ctx, subject)
+}
+
 func (p pgQueries) DeleteRecipient(ctx context.Context, id string) error {
 	return p.q.DeleteRecipient(ctx, id)
 }

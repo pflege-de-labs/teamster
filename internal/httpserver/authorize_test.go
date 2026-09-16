@@ -211,6 +211,7 @@ func TestRequestAuthorization(t *testing.T) {
 		{method: http.MethodGet, path: "/api/graph/teams", wantAction: authz.ActionView, wantResource: "Directory"},
 		{method: http.MethodPost, path: "/api/routing/match", wantAction: authz.ActionView, wantResource: "Routing"},
 		{method: http.MethodPost, path: "/api/templates/preview", wantAction: authz.ActionView, wantResource: "Template"},
+		{method: http.MethodPost, path: "/api/recipients/link", wantAction: authz.ActionLink, wantResource: "Recipient"},
 	}
 
 	for _, tt := range tests {

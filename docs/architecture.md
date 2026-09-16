@@ -17,16 +17,16 @@ that runs more than one instance. SQLite is the option with no other runtime dep
 | `internal/routing` | Selects a route for an alert's labels. |
 | `internal/templates` | Renders an Adaptive Card from a Go template plus alert data. |
 | `internal/graph` | Microsoft Graph client: OAuth2 client credentials, post and update channel messages. |
-| `internal/bot` | Bot Framework Connector client: a second, separate OAuth2 client credentials flow, send and update activities in a person's chat. Nothing wires it up yet; see [Bot configuration](#bot-configuration). |
+| `internal/bot` | Bot Framework Connector client: a second, separate OAuth2 client credentials flow, send and update activities in a person's chat. See [Bot configuration](#bot-configuration) and [Inbound bot messages](#inbound-bot-messages). |
 | `internal/store` | `Store` interface, its SQLite and Postgres backends sharing one adapter; `internal/store/migrations` owns the schema for templates, destinations, routes, recipients and active alerts. |
 | `internal/models` | Shared data types: `Alert`, `Route`, `Template`, `Destination`, `Recipient`, `ActiveAlert` and the two webhook payload shapes. |
 | `internal/httpserver/web` | Embedded static assets: icons, the web manifest and the Tailwind stylesheet built from `views/styles.css`. |
 
 Dependencies are injected through constructors — `store.NewSQLiteStore`, `graph.NewClient`,
-`routing.New`, `httpserver.NewServer(cfg, store, graphClient)` — so every component can be
-exercised with a substitute in tests. There is no package-level mutable state. `NewServer` takes
-the unexported `messenger` interface rather than `*graph.Client`, see
-[ADR 0002](adr/0002-messenger-interface.md).
+`routing.New`, `httpserver.NewServer(cfg, store, graphClient, botClient, telemetry)` — so every
+component can be exercised with a substitute in tests. There is no package-level mutable state.
+`NewServer` takes the unexported `messenger` and `botSender` interfaces rather than `*graph.Client`
+and `*bot.Client`, see [ADR 0002](adr/0002-messenger-interface.md).
 
 ## Process lifecycle
 
@@ -149,7 +149,10 @@ an admin is an editor and an editor is a viewer.
 One middleware, `httpserver.authorize`, wraps the admin mux and is the only place a permission is
 enforced. It maps the path to a resource type and the method to an action, counting
 `POST /api/templates/preview` and `POST /api/routing/match` as reads because they answer a question
-and change nothing. The UI hides what a role may not do, which is a courtesy rather than a control.
+and change nothing. `POST /api/recipients/link` is mapped to its own action, `link`, permitted to
+`viewer` and up: it binds only the caller's own subject, so a viewer needs it without edit on
+anything else — see [Linking a chat](#linking-a-chat). The UI hides what a role may not do, which is
+a courtesy rather than a control.
 
 `/api` accepts a session as well as the local credentials; a state-changing call authenticated by a
 cookie has to pass the same origin check as a form post, because a cookie travels with a cross-site
@@ -471,9 +474,11 @@ committed, so building the service does not.
 
 ## Admin API
 
-Everything outside `/webhook/*` sits behind HTTP basic auth using `admin-username` and
-`admin-password`. `/admin` serves the UI; `/api/templates`, `/api/destinations` and `/api/routes`
-(plus their `/{id}` variants) provide CRUD over the stored configuration.
+Everything outside `/webhook/*` and `/bot/messages` sits behind HTTP basic auth using
+`admin-username` and `admin-password`, or a session. `/admin` serves the UI; `/api/templates`,
+`/api/destinations` and `/api/routes` (plus their `/{id}` variants) provide CRUD over the stored
+configuration. `POST /api/recipients/link` is the exception that requires a session specifically —
+see [Linking a chat](#linking-a-chat).
 
 ## Configuration
 
@@ -491,7 +496,9 @@ See [README](../README.md#configuration) for the concrete paths and
 ([ADR 0026](adr/0026-alerts-in-a-persons-chat.md)). `config.Validate` gates the whole feature on
 `bot-tenant-id`, `bot-client-id` and `bot-client-secret` being set together — all three empty
 turns the feature off, and setting only one is a startup error — mirroring how metrics are gated
-on `metrics.enabled` today.
+on `metrics.enabled` today. Once the feature is on, `bot-metadata-url` is required and must be
+`https`: it is the trust anchor every inbound activity is checked against, so an empty or
+non-`https` value is refused at startup rather than registering a route that would 502 forever.
 
 `internal/bot.NewClient` mirrors `graph.NewClient`: an `oauth2/clientcredentials` flow with the
 instrumented transport injected below oauth2's, so a token refresh is measured against the token
@@ -501,10 +508,149 @@ or the shared `https://login.microsoftonline.com/botframework.com/oauth2/v2.0/to
 unless `bot-token-url` overrides it — a multi-tenant bot registration authenticates through that
 shared tenant rather than its own, and getting this wrong 401s every send.
 
-Nothing constructs a `bot.Client` yet: `internal/cli` does not wire it into `ServeCmd`, and there
-is no inbound HTTP endpoint. Both land in a later change, which is also where
-`bot-metadata-url` — the Bot Framework OpenID configuration document — is first read, to validate
-the signature on an inbound request.
+`ServeCmd` constructs a `bot.Client` unconditionally — `NewClient` never fails on an empty
+configuration — and hands it to `httpserver.NewServer`. What is conditional is the inbound route:
+`POST /bot/messages` is registered only when `botConfigured` reports all of `bot-client-id`,
+`bot-client-secret` and (for a single-tenant registration) `bot-tenant-id` are set, so a deployment
+that never turns the feature on exposes no unauthenticated path at all. See
+[Inbound bot messages](#inbound-bot-messages) for what validates a request once the route exists,
+and [Linking a chat](#linking-a-chat) for how a person ends up receiving anything through it.
+
+## Inbound bot messages
+
+`POST /bot/messages` is authenticated by **Microsoft's** signature, not by any of teamster's own
+credentials — the webhook token and the admin session/basic-auth both mean nothing here. It sits on
+the plain mux beside `/webhook/*`, registered without a method in its pattern so its own internal
+check produces a `405` for a `GET`: the mux's catch-all `/` route (`requireSession`) would otherwise
+answer a non-`POST` with a redirect to the login page rather than a `405`.
+
+`internal/httpserver/bot_auth.go` implements the [Bot Framework authentication
+spec](https://learn.microsoft.com/en-us/azure/bot-service/rest-api/bot-framework-rest-connector-authentication)
+end to end. Order matters, and the reasons are in the code:
+
+```text
+POST /bot/messages
+        │
+http.MaxBytesReader (256 KiB)
+        │
+decode JSON, then the cheap gates (no bearer token touched yet):
+  channelId == "msteams", type in {message, conversationUpdate},
+  conversation.conversationType == "personal",
+  channelData.tenant.id (if present) matches bot-tenant-id (single-tenant only)
+        │
+parse "Authorization: Bearer <token>"
+        │
+fetch bot-metadata-url once, cache issuer + jwks_uri (like oidc.go's discovery)
+        │
+oidc.NewVerifier(issuer, rateLimitedKeySet(RemoteKeySet), ClientID, RS256, Now = time.Now()-5m)
+        │
+claims.serviceurl: reject if empty, else trim one trailing slash and compare == activity.ServiceURL (same trim)
+        │
+fetch the raw JWKS once, cache kid → endorsements; refetch once on an unknown kid
+        │
+activity.ChannelID must appear in the signing key's endorsements (absent member = none)
+        │
+        ▼
+dispatchBotActivity (conversationUpdate / message)
+```
+
+The gates run before the bearer token because a JWT's `kid` header is attacker-controlled and read
+before any signature check; an unknown `kid` makes go-oidc's `RemoteKeySet` fetch this process's own
+JWKS cache from the network, so a request that never had a chance of being genuine (wrong channel,
+wrong type, wrong conversation type, wrong tenant) is refused before paying for that. A shape
+refusal answers `200` and drops the activity rather than `401`: Microsoft delivered and signed it
+correctly, and any status but 2xx reads to its tooling as "this bot's auth is broken" rather than
+"this bot ignores this activity" — each refusal reason is still counted separately under
+`metrics.WebhookReceived`. Backdating the verifier's clock five minutes covers Microsoft's stated
+clock-skew allowance for `exp`, which go-oidc otherwise gives zero leeway; the accepted side effect
+is that `nbf` — which go-oidc already gives five minutes — tolerates ten. The service URL comparison
+is `==`, never `HasPrefix` or `Contains`, and an empty claim is rejected before the comparison so it
+cannot match an equally empty body field: `ServiceURL` is concatenated into the outbound URL that
+carries this service's own Bot Connector bearer token, so a prefix match — or a no-op match on two
+absent values — would send that token to an attacker-chosen host.
+
+`rateLimitedKeySet` (`bot_auth.go`) wraps the `RemoteKeySet` go-oidc builds: go-oidc singleflights
+*concurrent* callers for the same kid but puts no floor between *sequential* ones, so a `kid` an
+attacker increments on every request would otherwise force one outbound JWKS fetch per request —
+enough to get this process throttled by Microsoft, taking genuine traffic down with it (a
+self-inflicted denial of service, unauthenticated). A kid that verifies is remembered so real
+traffic never pays again; an unrecognised kid is allowed through only `keyFetchBurst` times per
+`keyFetchFloor` window — a burst rather than a single one-ever attempt, because Microsoft keeps more
+than one signing key valid at once during a rotation, and the second, equally legitimate key of an
+ordinary overlap must not be treated as the flood this defends against. A kid denied by the floor
+fails closed. Similarly, `verifierFor` and `endorses` never hold their mutex across the network
+fetch that populates them (a mutex ignores context cancellation, so holding one across a 15s call
+would let disconnected clients' goroutines pile up without bound); concurrent callers on a cold
+cache wait on a channel instead, and a failed fetch is cached for `negativeCacheTTL` so a blackholed
+IdP costs one timeout every 30s rather than one per request.
+
+Every refusal is counted through `metrics.WebhookReceived(ctx, "bot", status)` with a distinct
+status string — a missing bearer, a failed signature/issuer/audience/expiry check, and an
+unendorsed channel are separately countable, the last one answering `403` rather than `401` because
+the signature is valid and the token simply does not speak for this channel. A metadata or JWKS
+fetch failure answers `502` rather than `401`, because it is this service's own egress that failed,
+not evidence of a forged request, and it is worth Bot Connector retrying. A JWKS key carrying no
+`endorsements` member speaks for no channel — the fail-closed reading. The live document was
+checked rather than reasoned about: all 220 keys at `login.botframework.com/v1/.well-known/keys`
+carry the member, none of them empty, and 74 endorse `msteams`. An absent member is therefore not
+something Microsoft serves, and reading it as "valid for every channel" could only ever weaken the
+one check the spec calls mandatory.
+
+Once every check passes, `dispatchBotActivity` always answers `200` — the Bot Connector retries
+anything else, and no failure past this point is the kind a retry fixes:
+
+* `conversationUpdate` with the bot's own id (its Teams id in this conversation, `28:<app-id>`, read
+  from `recipient.id` rather than the configured App ID) among `membersAdded` replies with
+  install instructions and writes nothing: an install is not consent.
+* `message` normalizes the text — strips `<at>...</at>` mention markup, using `entities[]` where
+  present; unescapes HTML entities; upper-cases; then finds the first run shaped like a link code —
+  and tries to redeem it. See [Linking a chat](#linking-a-chat).
+* Every activity that reaches this point (a `message`, and a `conversationUpdate` that is not the
+  bot's own install) refreshes a known recipient's `ServiceURL` from the activity, if the
+  conversation already belongs to one. This is the only signal Teams gives that a conversation moved
+  to a different regional endpoint, and `message` is what actually arrives for a personal-scope bot
+  — a `conversationUpdate` beyond the initial install is close to never.
+
+## Linking a chat
+
+`POST /api/recipients/link` mints a one-time code bound to the caller's own subject, for that
+person to type or paste to the bot in their 1:1 Teams chat. It requires a real session —
+`currentSession`, not the principal a middleware already attached to the request — because
+`basicAuth` authenticates every script as the *configured admin username*, and minting a code under
+that subject would bind a chat to "the admin account" rather than to whoever holds the shared
+password. A basic-auth caller gets a `403` naming the reason.
+
+Authorization maps the path to `authz.ActionLink` on a `Recipient` resource, permitted to
+`Role::"viewer"` and up — the on-call person this feature is for is typically not an editor.
+`requestAuthorization` special-cases the path; without that it would fall to the generic
+`Page`/`edit` mapping, which a viewer is refused.
+
+The code is twelve symbols from a 31-symbol alphabet excluding `0/O` and `1/I/L` (~59.4 bits), drawn
+with `crypto/rand` via `math/big.Int`'s rejection sampling — needed because 31 does not divide
+evenly into 256, and rejection sampling keeps the draw unbiased regardless — and displayed grouped
+as `XXXX-XXXX-XXXX`; stored and matched without the dashes. Minting one first deletes every code the
+subject already had outstanding — otherwise old ones pile up until the hourly sweep and each live
+one widens what a guess has to beat — and retries on a primary-key collision
+(`store.ErrConflict`) rather than surfacing it as a `500`. It expires after ten minutes, the
+transcript it sits in being reason enough to keep it short.
+
+Redemption spends the code first: `TakeLinkFlow` runs on the plain store, not inside a transaction,
+so the row is deleted whether or not anything after it succeeds — nesting it inside a transaction
+that could later roll back (an expired code, or a failure in the create/update that follows) would
+silently un-spend it, letting the same code be retried. `GetRecipientBySubject`, then an update or a
+create, then runs inside one `store.WithSerializableTx`: two live codes for the same subject
+redeemed concurrently would both miss the lookup and both try to insert, which only the unique index
+on `subject` catches, after the fact. `Subject` on the resulting `Recipient` comes from the redeemed
+`LinkFlow` alone, never from the activity, which is only ever the phone somebody happened to be
+holding. An unrecognised or expired code gets the same neutral reply either way, so a guess learns
+nothing about how close it was.
+
+Redemption also carries two updates for whoever already held the subject's link: `channelData`'s
+absent tenant (Teams omits it for some activity shapes) never overwrites a previously-known-good
+one, and a redemption that moves the conversation — the shape a leaked code takes when it hijacks
+someone else's alert stream — sends the *previous* conversation a notice that it was displaced, via
+the bot client, once the new binding has committed. There is deliberately no unlink command; see
+[ADR 0026](adr/0026-alerts-in-a-persons-chat.md).
 
 [`manifest/`](../manifest/) holds the Teams app package -- `manifest.json` plus two icons -- that
 an operator uploads to Teams admin center so the bot can be installed at all. It is packaging

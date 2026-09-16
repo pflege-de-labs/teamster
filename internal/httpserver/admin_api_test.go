@@ -26,8 +26,15 @@ func newTestServer(t *testing.T, st *fakeStore, msg *fakeMessenger) *http.Server
 // does not parse is a broken build, not a case under test.
 func mustServer(t *testing.T, cfg config.Config, st *fakeStore, msg *fakeMessenger) *http.Server {
 	t.Helper()
+	return mustServerWithBot(t, cfg, st, msg, nil)
+}
 
-	srv, err := NewServer(cfg, st, msg, metrics.Disabled())
+// mustServerWithBot is mustServer for the tests that need to see what the bot
+// client was asked to send, rather than just that the endpoint answered.
+func mustServerWithBot(t *testing.T, cfg config.Config, st *fakeStore, msg *fakeMessenger, botClient botSender) *http.Server {
+	t.Helper()
+
+	srv, err := NewServer(cfg, st, msg, botClient, metrics.Disabled())
 	if err != nil {
 		t.Fatalf("NewServer: %v", err)
 	}

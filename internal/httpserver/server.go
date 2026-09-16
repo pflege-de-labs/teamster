@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/pflege-de-labs/teamster/internal/authz"
+	"github.com/pflege-de-labs/teamster/internal/bot"
 	"github.com/pflege-de-labs/teamster/internal/config"
 	"github.com/pflege-de-labs/teamster/internal/graph"
 	"github.com/pflege-de-labs/teamster/internal/i18n"
@@ -20,6 +21,14 @@ type messenger interface {
 	UpdateMessage(teamID, channelID, messageID string, msg graph.Message) error
 	ListTeams() ([]graph.Team, error)
 	ListChannels(teamID string) ([]graph.Channel, error)
+}
+
+// botSender is the slice of the Bot Connector client the inbound handlers
+// depend on: replying in the same chat a code or an install came from. Taking
+// an interface rather than *bot.Client keeps this package depending on the
+// shape of a reply, not on how it is authenticated or sent.
+type botSender interface {
+	SendMessage(ctx context.Context, ref bot.ConversationReference, msg bot.Message) (string, error)
 }
 
 // telemetry is what this server records against. It is an interface so the
@@ -37,6 +46,7 @@ type Server struct {
 	cfg        config.Config
 	store      store.Store
 	graph      messenger
+	bot        botSender
 	router     *routing.Router
 	draining   atomic.Bool
 	authz      *authz.Authorizer
@@ -44,6 +54,7 @@ type Server struct {
 	text       *i18n.Bundle
 	directory  *directoryCache
 	oidc       *oidcProvider
+	botAuth    *botAuthenticator
 	httpServer *http.Server
 
 	// now is the clock delivery stamps claims from. It is a field so a test
@@ -65,7 +76,7 @@ func readHeaderTimeout(readTimeout time.Duration) time.Duration {
 // NewServer returns an error rather than starting without an authorizer: a
 // policy file that does not parse would otherwise leave every check to fall
 // through to whatever the zero value decides.
-func NewServer(cfg config.Config, store store.Store, graphClient messenger, tel telemetry) (*http.Server, error) {
+func NewServer(cfg config.Config, store store.Store, graphClient messenger, botClient botSender, tel telemetry) (*http.Server, error) {
 	registerMIMETypes()
 
 	authorizer, err := authz.New()
@@ -82,6 +93,7 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger, tel 
 		cfg:       cfg,
 		store:     store,
 		graph:     graphClient,
+		bot:       botClient,
 		router:    routing.New(store),
 		authz:     authorizer,
 		metrics:   tel,
@@ -99,6 +111,25 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger, tel 
 	mux.HandleFunc("/webhook/alertmanager", api.handleAlertmanager)
 	mux.HandleFunc("/webhook/universal", api.handleUniversal)
 
+	// Registered only when the bot is fully configured, so a deployment that
+	// wants no chat delivery exposes no unauthenticated path at all. It sits on
+	// the plain mux beside the webhooks, not behind requireSession: Microsoft
+	// authenticates this endpoint with its own signed token, and the catch-all
+	// "/" route below would otherwise answer with a redirect to the login page
+	// instead of a 405 or a 200.
+	//
+	// Registered without a method in the pattern, like the two webhooks above
+	// it and for the same reason: the plain mux's own catch-all "/" (below)
+	// matches every method, so "POST /bot/messages" would be the more specific
+	// pattern only for a POST -- a GET would match nothing but "/" and would
+	// be redirected to the login page after all. A literal, method-less
+	// "/bot/messages" is more specific than "/" for every method at that path,
+	// which is what lets handleBotMessages answer a GET with 405 itself.
+	if botConfigured(cfg.Bot) {
+		api.botAuth = newBotAuthenticator(cfg.Bot)
+		mux.HandleFunc("/bot/messages", api.handleBotMessages)
+	}
+
 	adminMux := http.NewServeMux()
 	adminMux.HandleFunc("/api/templates", api.handleTemplates)
 	adminMux.HandleFunc("/api/templates/", api.handleTemplateByID)
@@ -112,6 +143,7 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger, tel 
 	adminMux.HandleFunc("/api/routing/match", api.handleRoutingMatch)
 	adminMux.HandleFunc("/api/config/export", api.handleExport)
 	adminMux.HandleFunc("/api/config/import", api.handleImport)
+	adminMux.HandleFunc("/api/recipients/link", api.handleLinkRecipient)
 	adminMux.HandleFunc("/api/grants", api.handleGrants)
 	adminMux.HandleFunc("/api/grants/role", api.handleRoleGrants)
 	adminMux.HandleFunc("/api/grants/", api.handleGrantByID)

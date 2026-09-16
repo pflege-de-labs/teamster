@@ -75,7 +75,7 @@ func measuringServer(t *testing.T, st *fakeStore, msg *fakeMessenger) (http.Hand
 		Webhook: config.WebhookConfig{Token: "token"},
 		Admin:   config.AdminConfig{Username: "admin", Password: "pass"},
 	}
-	srv, err := NewServer(cfg, st, msg, tel)
+	srv, err := NewServer(cfg, st, msg, nil, tel)
 	if err != nil {
 		t.Fatalf("NewServer: %v", err)
 	}
@@ -239,7 +239,7 @@ func TestDeliveriesAreCounted(t *testing.T) {
 				Server:  config.ServerConfig{Addr: ":0"},
 				Webhook: config.WebhookConfig{Token: "token"},
 				Admin:   config.AdminConfig{Username: "admin", Password: "pass"},
-			}, st, msg, tel)
+			}, st, msg, nil, tel)
 			if err != nil {
 				t.Fatalf("NewServer: %v", err)
 			}
@@ -273,7 +273,7 @@ func TestARefusedTokenIsCounted(t *testing.T) {
 		Server:  config.ServerConfig{Addr: ":0"},
 		Webhook: config.WebhookConfig{Token: "token"},
 		Admin:   config.AdminConfig{Username: "admin", Password: "pass"},
-	}, st, msg, tel)
+	}, st, msg, nil, tel)
 	if err != nil {
 		t.Fatalf("NewServer: %v", err)
 	}

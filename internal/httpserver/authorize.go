@@ -131,6 +131,11 @@ func requestAuthorization(r *http.Request) (string, authz.Resource) {
 	// it, including who may deliver where. Both are the admin's.
 	case strings.HasPrefix(path, "/api/config/"):
 		return authz.ActionAdminister, transferResource()
+	// Minting a link code binds the caller's own subject, not anyone else's
+	// configuration, so it is the on-call viewer's action rather than an edit
+	// the default case below would otherwise refuse them.
+	case path == "/api/recipients/link":
+		return authz.ActionLink, authz.Resource{Type: "Recipient"}
 	case strings.HasPrefix(path, "/api/templates"), strings.HasPrefix(path, "/admin/templates"):
 		resource.Type = "Template"
 	case strings.HasPrefix(path, "/api/destinations"), strings.HasPrefix(path, "/admin/destinations"):

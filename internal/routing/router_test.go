@@ -84,6 +84,10 @@ func (s stubStore) TakeLinkFlow(ctx context.Context, code string) (models.LinkFl
 	return models.LinkFlow{}, store.ErrNotFound
 }
 
+func (s stubStore) DeleteLinkFlowsForSubject(ctx context.Context, subject string) error {
+	return nil
+}
+
 func (s stubStore) ListRoutes(ctx context.Context) ([]models.Route, error) {
 	return s.routes, s.err
 }

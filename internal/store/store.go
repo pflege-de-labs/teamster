@@ -14,6 +14,11 @@ var (
 	// else's card. Whatever it posted is unreachable: no row names it, so
 	// nothing will ever update or resolve it.
 	ErrClaimLost = errors.New("alert claim was taken by another writer")
+	// ErrConflict means a write collided with another row on a primary key or
+	// unique index, so the caller minting the key -- a link code, say -- can
+	// simply try again with a new one instead of surfacing a constraint
+	// violation as a 500.
+	ErrConflict = errors.New("conflicts with an existing row")
 )
 
 // A ClaimOutcome says what asking for the right to post found.
@@ -97,6 +102,11 @@ type Store interface {
 	CreateLinkFlow(ctx context.Context, f models.LinkFlow) error
 	// TakeLinkFlow redeems a code once, whether or not it had expired.
 	TakeLinkFlow(ctx context.Context, code string) (models.LinkFlow, error)
+	// DeleteLinkFlowsForSubject retires every code a subject has outstanding.
+	// Minting a new one calls this first, so a guessing attacker only ever
+	// faces the one code just handed out rather than every one issued since
+	// the last hourly sweep.
+	DeleteLinkFlowsForSubject(ctx context.Context, subject string) error
 
 	ListRoutes(ctx context.Context) ([]models.Route, error)
 	CreateRoute(ctx context.Context, r models.Route) (models.Route, error)

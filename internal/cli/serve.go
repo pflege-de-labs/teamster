@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/pflege-de-labs/teamster/internal/bot"
 	"github.com/pflege-de-labs/teamster/internal/config"
 	"github.com/pflege-de-labs/teamster/internal/graph"
 	"github.com/pflege-de-labs/teamster/internal/httpserver"
@@ -115,7 +116,16 @@ func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
 		return fmt.Errorf("graph client: %w", err)
 	}
 
-	srv, err := httpserver.NewServer(*cfg, sqlStore, graphClient, telemetry)
+	// Built unconditionally: NewClient never fails on an empty configuration,
+	// and the inbound route it backs is only ever registered once the bot is
+	// actually configured. See BotConfig's comment for why this credential is
+	// a second, separate Entra registration from Graph's.
+	botClient, err := bot.NewClient(cfg.Bot, telemetry)
+	if err != nil {
+		return fmt.Errorf("bot client: %w", err)
+	}
+
+	srv, err := httpserver.NewServer(*cfg, sqlStore, graphClient, botClient, telemetry)
 	if err != nil {
 		return fmt.Errorf("http server: %w", err)
 	}

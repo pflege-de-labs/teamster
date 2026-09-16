@@ -261,6 +261,16 @@ func validateBot(cfg BotConfig) error {
 	if cfg.TimeoutSec <= 0 {
 		return fmt.Errorf("bot-timeout-sec must be positive when the bot is configured, not %d", cfg.TimeoutSec)
 	}
+	// The trust anchor for every inbound activity: an empty value would still
+	// register the route (botConfigured checks it too) but 502 forever, and a
+	// non-https one would send the discovery request, and everything derived
+	// from its answer, in the clear.
+	if cfg.MetadataURL == "" {
+		return fmt.Errorf("bot-metadata-url is required when the bot is configured")
+	}
+	if parsed, err := url.Parse(cfg.MetadataURL); err != nil || parsed.Scheme != "https" {
+		return fmt.Errorf("bot-metadata-url must be an https URL, not %q", cfg.MetadataURL)
+	}
 	return nil
 }
 

@@ -40,6 +40,18 @@ func (q *Queries) DeleteExpiredLinkFlows(ctx context.Context, expiresAt time.Tim
 	return err
 }
 
+const deleteLinkFlowsForSubject = `-- name: DeleteLinkFlowsForSubject :exec
+DELETE FROM link_flows WHERE subject = $1
+`
+
+// Minting a new code for a subject retires whatever it had outstanding, so a
+// guess only ever has to beat one live code rather than every one ever handed
+// out before the hourly sweep catches up.
+func (q *Queries) DeleteLinkFlowsForSubject(ctx context.Context, subject string) error {
+	_, err := q.db.ExecContext(ctx, deleteLinkFlowsForSubject, subject)
+	return err
+}
+
 const takeLinkFlow = `-- name: TakeLinkFlow :one
 DELETE FROM link_flows
 WHERE code = $1

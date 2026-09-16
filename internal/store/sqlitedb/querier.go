@@ -43,6 +43,10 @@ type Querier interface {
 	// here. A set delete takes the locks the isolation level needs and cannot
 	// interleave with another writer's replacement into the union of both.
 	DeleteGrantsForRole(ctx context.Context, role string) error
+	// Minting a new code for a subject retires whatever it had outstanding, so a
+	// guess only ever has to beat one live code rather than every one ever handed
+	// out before the hourly sweep catches up.
+	DeleteLinkFlowsForSubject(ctx context.Context, subject string) error
 	DeleteRecipient(ctx context.Context, id string) error
 	DeleteRoute(ctx context.Context, id string) error
 	DeleteSession(ctx context.Context, id string) error

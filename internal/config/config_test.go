@@ -378,7 +378,10 @@ func TestValidateBot(t *testing.T) {
 		{
 			name: "all three credentials set",
 			mutate: func(c *Config) {
-				c.Bot = BotConfig{TenantID: "tenant", ClientID: "client", ClientSecret: "secret", TimeoutSec: 10}
+				c.Bot = BotConfig{
+					TenantID: "tenant", ClientID: "client", ClientSecret: "secret", TimeoutSec: 10,
+					MetadataURL: "https://bot.example/.well-known/openidconfiguration",
+				}
 			},
 		},
 		{
@@ -404,7 +407,10 @@ func TestValidateBot(t *testing.T) {
 		{
 			name: "multi tenant needs no tenant id",
 			mutate: func(c *Config) {
-				c.Bot = BotConfig{ClientID: "client", ClientSecret: "secret", TenantType: "multi", TimeoutSec: 10}
+				c.Bot = BotConfig{
+					ClientID: "client", ClientSecret: "secret", TenantType: "multi", TimeoutSec: 10,
+					MetadataURL: "https://bot.example/.well-known/openidconfiguration",
+				}
 			},
 		},
 		{
@@ -417,7 +423,10 @@ func TestValidateBot(t *testing.T) {
 		{
 			name: "multi tenant is accepted",
 			mutate: func(c *Config) {
-				c.Bot = BotConfig{TenantID: "tenant", ClientID: "client", ClientSecret: "secret", TenantType: "multi", TimeoutSec: 10}
+				c.Bot = BotConfig{
+					TenantID: "tenant", ClientID: "client", ClientSecret: "secret", TenantType: "multi", TimeoutSec: 10,
+					MetadataURL: "https://bot.example/.well-known/openidconfiguration",
+				}
 			},
 		},
 		// A zero timeout is http.Client{Timeout: 0}: no timeout at all, so a
@@ -435,6 +444,23 @@ func TestValidateBot(t *testing.T) {
 				c.Bot = BotConfig{TenantID: "tenant", ClientID: "client", ClientSecret: "secret", TimeoutSec: -1}
 			},
 			wantErr: "bot-timeout-sec must be positive",
+		},
+		{
+			name: "metadata url not configured",
+			mutate: func(c *Config) {
+				c.Bot = BotConfig{TenantID: "tenant", ClientID: "client", ClientSecret: "secret", TimeoutSec: 10}
+			},
+			wantErr: "bot-metadata-url is required",
+		},
+		{
+			name: "metadata url not https",
+			mutate: func(c *Config) {
+				c.Bot = BotConfig{
+					TenantID: "tenant", ClientID: "client", ClientSecret: "secret", TimeoutSec: 10,
+					MetadataURL: "http://bot.example/.well-known/openidconfiguration",
+				}
+			},
+			wantErr: "bot-metadata-url must be an https URL",
 		},
 	}
 
