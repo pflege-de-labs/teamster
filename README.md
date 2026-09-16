@@ -80,6 +80,21 @@ graph:
   scope: "http://127.0.0.1:18500/.default"
 ```
 
+### Sending alerts to a person's chat (optional)
+
+`bot.tenant-id`, `bot.client-id` and `bot.client-secret` configure a second, separate Entra
+registration for a Teams bot that can send an alert directly to a person rather than only to a
+channel (see [ADR 0026](docs/adr/0026-alerts-in-a-persons-chat.md)). This is unrelated to the
+`graph` credential above, which posts to channels: revoking or rotating one never touches the
+other.
+
+The whole feature is off by default. Leave all three empty and nothing else in the `bot:` block
+matters; set all three together to turn it on, since setting only one is rejected at startup.
+`bot.tenant-type` distinguishes a registration that only ever signs in this tenant's users
+(`single`, the default) from one registered to accept any tenant's users (`multi`), which
+authenticates through a shared Microsoft endpoint rather than this tenant's own. Nothing in this
+release sends a message through it yet; wiring it into delivery is a later change.
+
 ## Storage
 
 | `database.driver` | What it is |

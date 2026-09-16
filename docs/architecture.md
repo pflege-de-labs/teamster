@@ -17,6 +17,7 @@ that runs more than one instance. SQLite is the option with no other runtime dep
 | `internal/routing` | Selects a route for an alert's labels. |
 | `internal/templates` | Renders an Adaptive Card from a Go template plus alert data. |
 | `internal/graph` | Microsoft Graph client: OAuth2 client credentials, post and update channel messages. |
+| `internal/bot` | Bot Framework Connector client: a second, separate OAuth2 client credentials flow, send and update activities in a person's chat. Nothing wires it up yet; see [Bot configuration](#bot-configuration). |
 | `internal/store` | `Store` interface, its SQLite and Postgres backends sharing one adapter; `internal/store/migrations` owns the schema for templates, destinations, routes, recipients and active alerts. |
 | `internal/models` | Shared data types: `Alert`, `Route`, `Template`, `Destination`, `Recipient`, `ActiveAlert` and the two webhook payload shapes. |
 | `internal/httpserver/web` | Embedded static assets: icons, the web manifest and the Tailwind stylesheet built from `views/styles.css`. |
@@ -482,3 +483,25 @@ command line flags. Kong applies resolvers before env-backed defaults, so a conf
 beats the matching environment variable.
 See [README](../README.md#configuration) for the concrete paths and
 [ADR 0001](adr/0001-kong-xdg-configuration.md) for the reasoning.
+
+## Bot configuration
+
+`config.BotConfig` (`bot.*` / `TEAMSTER_BOT_*`) holds a second Entra registration, separate from
+`GraphConfig`, for the Bot Framework identity that will send alerts to a person's chat
+([ADR 0026](adr/0026-alerts-in-a-persons-chat.md)). `config.Validate` gates the whole feature on
+`bot-tenant-id`, `bot-client-id` and `bot-client-secret` being set together — all three empty
+turns the feature off, and setting only one is a startup error — mirroring how metrics are gated
+on `metrics.enabled` today.
+
+`internal/bot.NewClient` mirrors `graph.NewClient`: an `oauth2/clientcredentials` flow with the
+instrumented transport injected below oauth2's, so a token refresh is measured against the token
+endpoint rather than billed to the Bot Connector. `bot.TokenURL` derives
+`https://login.microsoftonline.com/<bot-tenant-id>/oauth2/v2.0/token` for `bot-tenant-type: single`,
+or the shared `https://login.microsoftonline.com/botframework.com/oauth2/v2.0/token` for `multi`,
+unless `bot-token-url` overrides it — a multi-tenant bot registration authenticates through that
+shared tenant rather than its own, and getting this wrong 401s every send.
+
+Nothing constructs a `bot.Client` yet: `internal/cli` does not wire it into `ServeCmd`, and there
+is no inbound HTTP endpoint. Both land in a later change, which is also where
+`bot-metadata-url` — the Bot Framework OpenID configuration document — is first read, to validate
+the signature on an inbound request.

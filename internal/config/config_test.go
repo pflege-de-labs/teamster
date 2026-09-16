@@ -96,6 +96,12 @@ func TestParseExampleConfig(t *testing.T) {
 			Scope:        "https://graph.microsoft.com/.default",
 			TimeoutSec:   10,
 		},
+		Bot: BotConfig{
+			TenantType:  "single",
+			Scope:       "https://api.botframework.com/.default",
+			MetadataURL: "https://login.botframework.com/v1/.well-known/openidconfiguration",
+			TimeoutSec:  10,
+		},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("parsed example config = %+v, want %+v", got, want)
@@ -298,6 +304,95 @@ func TestValidateMetrics(t *testing.T) {
 				c.Metrics = MetricsConfig{Enabled: true, OTLPEndpoint: "localhost:4318"}
 			},
 			wantErr: "otlp-interval must be positive",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := completeConfig()
+			tt.mutate(&cfg)
+
+			err := Validate(cfg)
+			switch {
+			case tt.wantErr == "" && err != nil:
+				t.Errorf("Validate() = %v, want it accepted", err)
+			case tt.wantErr != "" && (err == nil || !strings.Contains(err.Error(), tt.wantErr)):
+				t.Errorf("Validate() = %v, want an error containing %q", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+// Bot validation is gated on all three credentials, mirroring metrics'
+// Enabled gate: a deployment that wants no chat delivery configures none of
+// them, and one that wants it may not configure only part of it.
+func TestValidateBot(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		mutate  func(*Config)
+		wantErr string
+	}{
+		{name: "disabled, and nothing else set", mutate: func(*Config) {}},
+		{
+			name: "all three credentials set",
+			mutate: func(c *Config) {
+				c.Bot = BotConfig{TenantID: "tenant", ClientID: "client", ClientSecret: "secret"}
+			},
+		},
+		{
+			name:    "tenant id alone",
+			mutate:  func(c *Config) { c.Bot = BotConfig{TenantID: "tenant"} },
+			wantErr: "bot-client-id is required",
+		},
+		{
+			name:    "client id alone",
+			mutate:  func(c *Config) { c.Bot = BotConfig{ClientID: "client"} },
+			wantErr: "bot-client-secret is required",
+		},
+		{
+			name:    "client secret alone",
+			mutate:  func(c *Config) { c.Bot = BotConfig{ClientSecret: "secret"} },
+			wantErr: "bot-client-id is required",
+		},
+		{
+			name: "single tenant without a tenant id",
+			mutate: func(c *Config) {
+				c.Bot = BotConfig{ClientID: "client", ClientSecret: "secret"}
+			},
+			wantErr: "bot-tenant-id is required",
+		},
+		// A multi-tenant registration authenticates through the shared
+		// botframework.com tenant, so its own tenant id carries no meaning
+		// there and must not be demanded.
+		{
+			name: "multi tenant needs no tenant id",
+			mutate: func(c *Config) {
+				c.Bot = BotConfig{ClientID: "client", ClientSecret: "secret", TenantType: "multi"}
+			},
+		},
+		{
+			name: "missing secret with the other two set",
+			mutate: func(c *Config) {
+				c.Bot = BotConfig{TenantID: "tenant", ClientID: "client"}
+			},
+			wantErr: "bot-client-secret is required",
+		},
+		{
+			name: "an unknown tenant type",
+			mutate: func(c *Config) {
+				c.Bot = BotConfig{TenantID: "tenant", ClientID: "client", ClientSecret: "secret", TenantType: "contoso"}
+			},
+			wantErr: "bot-tenant-type must be single or multi",
+		},
+		{
+			name: "multi tenant is accepted",
+			mutate: func(c *Config) {
+				c.Bot = BotConfig{TenantID: "tenant", ClientID: "client", ClientSecret: "secret", TenantType: "multi"}
+			},
 		},
 	}
 

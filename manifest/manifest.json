@@ -1,0 +1,37 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/teams/v1.30/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.30",
+  "version": "1.0.0",
+  "id": "00000000-0000-0000-0000-000000000000",
+  "developer": {
+    "name": "REPLACE-WITH-YOUR-ORGANIZATION",
+    "websiteUrl": "https://example.invalid",
+    "privacyUrl": "https://example.invalid/privacy",
+    "termsOfUseUrl": "https://example.invalid/terms"
+  },
+  "name": {
+    "short": "Teamster",
+    "full": "Teamster Alerts"
+  },
+  "description": {
+    "short": "Sends your alerts to you directly.",
+    "full": "Teamster routes Prometheus Alertmanager and other alerts to Microsoft Teams. Linking this bot to your account lets an administrator send your alerts to this chat as well as, or instead of, a shared channel."
+  },
+  "icons": {
+    "color": "color.png",
+    "outline": "outline.png"
+  },
+  "accentColor": "#4B3B87",
+  "bots": [
+    {
+      "botId": "00000000-0000-0000-0000-000000000000",
+      "scopes": ["personal"],
+      "isNotificationOnly": false,
+      "supportsFiles": false,
+      "supportsCalling": false,
+      "supportsVideo": false
+    }
+  ],
+  "permissions": ["identity", "messageTeamMembers"],
+  "validDomains": []
+}
