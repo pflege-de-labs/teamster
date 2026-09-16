@@ -16,6 +16,7 @@ type Config struct {
 	Admin    AdminConfig    `embed:"" prefix:"admin-"`
 	Auth     AuthConfig     `embed:"" prefix:"auth-"`
 	Graph    GraphConfig    `embed:"" prefix:"graph-"`
+	Bot      BotConfig      `embed:"" prefix:"bot-"`
 }
 
 type ServerConfig struct {
@@ -137,6 +138,29 @@ type GraphConfig struct {
 	Scope    string `help:"OAuth2 scope requested for Graph." default:"https://graph.microsoft.com/.default"`
 }
 
+// BotConfig is a second, separate Entra registration for the Bot Framework
+// identity that sends chat messages, unrelated to GraphConfig's channel-posting
+// credential. It is off by default: a deployment that does not want alerts in a
+// person's chat configures nothing.
+type BotConfig struct {
+	TenantID     string `help:"Microsoft Entra tenant ID for the bot registration."`
+	ClientID     string `help:"Microsoft Entra application (client) ID for the bot registration."`
+	ClientSecret string `help:"Microsoft Entra client secret for the bot registration."`
+
+	// Bot Framework issues its own multi-tenant token when a bot is registered
+	// to accept any tenant's users, which single-tenant apps never need.
+	TenantType string `help:"Whether the bot registration is single or multi tenant." enum:"single,multi" default:"single"`
+
+	// The token endpoint cannot have a static default because it carries the
+	// tenant id, so an empty value means the one TenantType derives. A
+	// sovereign cloud needs this and metadata-url changed together; a test
+	// needs it to point somewhere it controls.
+	TokenURL    string `help:"OAuth2 token endpoint. Empty derives one from bot-tenant-id and bot-tenant-type." name:"token-url"`
+	Scope       string `help:"OAuth2 scope requested for the Bot Connector API." default:"https://api.botframework.com/.default"`
+	MetadataURL string `help:"Bot Framework OpenID configuration document, used to validate inbound requests." name:"metadata-url" default:"https://login.botframework.com/v1/.well-known/openidconfiguration"`
+	TimeoutSec  int    `help:"Timeout in seconds for Bot Connector API calls." default:"10"`
+}
+
 // validateDatabase checks what the chosen driver needs, and deliberately does
 // not check the other one's settings. The container image sets
 // TEAMSTER_DATABASE_PATH whatever the driver is, so rejecting a path under
@@ -202,6 +226,34 @@ func validateMetrics(cfg Config) error {
 	return nil
 }
 
+// validateBot gates the whole feature on all three bot credentials being set
+// together, mirroring validateMetrics: a deployment that wants no chat
+// delivery configures nothing, and a partial credential is refused rather than
+// silently authenticating as nobody.
+func validateBot(cfg BotConfig) error {
+	if cfg.TenantID == "" && cfg.ClientID == "" && cfg.ClientSecret == "" {
+		return nil
+	}
+	if cfg.ClientID == "" {
+		return fmt.Errorf("bot-client-id is required when the bot is configured")
+	}
+	if cfg.ClientSecret == "" {
+		return fmt.Errorf("bot-client-secret is required when the bot is configured")
+	}
+	switch cfg.TenantType {
+	case "", "single", "multi":
+	default:
+		return fmt.Errorf("bot-tenant-type must be single or multi, not %q", cfg.TenantType)
+	}
+	// Only a single-tenant registration authenticates through its own tenant. A
+	// multi-tenant bot goes through the shared botframework.com tenant, so
+	// demanding a tenant id there would be asking for a value with no meaning.
+	if cfg.TenantType != "multi" && cfg.TenantID == "" {
+		return fmt.Errorf("bot-tenant-id is required when the bot is configured, unless bot-tenant-type is multi")
+	}
+	return nil
+}
+
 // Validate is a function rather than a method on Config: kong calls a
 // Validate() method on any embedded struct during Parse, which would force
 // every command to carry full credentials just to parse its flags.
@@ -219,6 +271,9 @@ func Validate(cfg Config) error {
 		return fmt.Errorf("webhook token is required")
 	}
 	if err := validateMetrics(cfg); err != nil {
+		return err
+	}
+	if err := validateBot(cfg.Bot); err != nil {
 		return err
 	}
 	// Failing closed: an issuer without accepted values would admit everyone the
