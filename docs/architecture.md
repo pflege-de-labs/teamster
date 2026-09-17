@@ -496,6 +496,11 @@ there is no session to hold a CSRF token. See
 same `templates.Render` the delivery path uses, and returns the Adaptive Card JSON. The browser
 draws it with the vendored renderer in `web/vendor`. A template that fails to render comes back as
 an error field with status 200, because a broken template is the answer the operator asked for.
+That directory's contents are pinned by package and version in `manifest.json`, and
+`internal/httpserver/vendor_test.go` verifies each file's SHA-256 against it and that the directory
+and the manifest list the same files. `make vendor` re-downloads at the pinned versions, which CI
+runs on every push because a version bump alone leaves the stale file and its checksum agreeing
+with each other; see [ADR 0029](adr/0029-vendored-browser-libraries-pinned-and-verified.md).
 
 `GET /api/graph/teams` and `GET /api/graph/teams/{id}/channels` read the tenant's teams and
 channels through the Graph client, behind a five minute in-memory cache because the Graph throttles

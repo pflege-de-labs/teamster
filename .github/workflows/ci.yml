@@ -37,6 +37,22 @@ jobs:
       - name: Fail when the committed output is not what the generators produce
         run: git diff --exit-code
 
+  # Renovate can move the version in manifest.json but cannot download the
+  # library or compute its checksum, so a version-only bump leaves the
+  # committed file and the recorded sum agreeing with each other and
+  # vendor_test.go passing. Re-downloading at the pinned version here is the
+  # only thing that notices a half-done bump before it ships.
+  vendor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version: stable
+      - run: make vendor
+      - name: Fail when a fetched library does not match what is committed
+        run: git diff --exit-code
+
   test:
     runs-on: ubuntu-latest
     # The Postgres backend's tests skip when they are told of no server, and a

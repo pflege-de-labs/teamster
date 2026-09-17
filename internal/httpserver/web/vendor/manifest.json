@@ -1,0 +1,21 @@
+{
+  "registry": "https://unpkg.com",
+  "libraries": [
+    {
+      "file": "d3.min.js",
+      "package": "d3",
+      "version": "7.9.0",
+      "license": "ISC",
+      "path": "dist/d3.min.js",
+      "sha256": "f2094bbf6141b359722c4fe454eb6c4b0f0e42cc10cc7af921fc158fceb86539"
+    },
+    {
+      "file": "adaptivecards.min.js",
+      "package": "adaptivecards",
+      "version": "3.0.6",
+      "license": "MIT",
+      "path": "dist/adaptivecards.min.js",
+      "sha256": "5e7c13f3300ae7b89b34703501e08d709fbb6635f1c6755b92495577a77344f2"
+    }
+  ]
+}

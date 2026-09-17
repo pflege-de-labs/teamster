@@ -13,7 +13,7 @@ CHART        ?= charts/teamster
 CONTAINER_TOOL ?= $(shell command -v docker >/dev/null 2>&1 && echo docker || echo podman)
 VERSION      ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 
-.PHONY: all build run test test-postgres db-up db-down coverage coverage-html fmt lint tidy hooks tools generate icons image image-run chart-lint clean
+.PHONY: all build run test test-postgres db-up db-down coverage coverage-html fmt lint tidy hooks tools generate icons vendor vendor-record image image-run chart-lint clean
 
 # The admin UI wears logo 1; logo 2 is the README header.
 ICON_SOURCE := images/favicons/logo-teamster-1
@@ -65,6 +65,20 @@ generate: tools
 icons:
 	@for icon in $(SERVED_ICONS); do cp $(ICON_SOURCE)/$$icon internal/httpserver/web/icons/$$icon; done
 	cp $(ICON_SOURCE)/favicon.ico internal/httpserver/web/favicon.ico
+
+# The browser libraries under web/vendor are committed too, and nothing short
+# of a download and a hash proves the bytes are the version manifest.json
+# pins. This re-fetches at that version and refuses to write anything whose
+# checksum is not the recorded one — vendor_test.go is what notices if you
+# skip it.
+vendor:
+	go run ./tools/vendor verify
+
+# The half of a Renovate version bump a bot cannot do: it can move the
+# version in manifest.json, but only a run against the real download knows
+# the new checksum.
+vendor-record:
+	go run ./tools/vendor record
 
 build:
 	go build -ldflags "-X main.version=$(VERSION)" -o $(BINARY) ./cmd/teamster

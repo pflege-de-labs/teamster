@@ -125,6 +125,19 @@
         "major"
       ],
       "automerge": false
+    },
+    {
+      "description": "A vendor manifest bump only moves the version; the checksum still needs `make vendor-record` by hand, so this never merges itself.",
+      "matchManagers": [
+        "custom.regex"
+      ],
+      "matchFileNames": [
+        "internal/httpserver/web/vendor/manifest.json"
+      ],
+      "automerge": false,
+      "prBodyNotes": [
+        "Run `make vendor-record` on this branch, commit and push — CI's `vendor` job fails until the vendored file matches this version."
+      ]
     }
   ],
   "vulnerabilityAlerts": {
@@ -161,6 +174,17 @@
       ],
       "depNameTemplate": "sqlc-dev/sqlc",
       "datasourceTemplate": "github-releases"
+    },
+    {
+      "description": "The vendored browser libraries are pinned in manifest.json, which no manager reads on its own. internal/httpserver/vendor_test.go asserts this pattern still matches the file, so a reshuffled key blinds Renovate loudly instead of quietly.",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^internal/httpserver/web/vendor/manifest\\.json$/"
+      ],
+      "matchStrings": [
+        "\"package\":\\s*\"(?<depName>[^\"]+)\",\\s*\\n\\s*\"version\":\\s*\"(?<currentValue>[^\"]+)\""
+      ],
+      "datasourceTemplate": "npm"
     }
   ]
 }

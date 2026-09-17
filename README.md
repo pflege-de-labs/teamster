@@ -735,6 +735,8 @@ values.
 make hooks          # install the git hooks, once per clone
 make generate       # regenerate the queries, the templ components and the stylesheet
 make icons          # copy the favicon set the binary serves from images/
+make vendor         # verify the browser libraries under web/vendor against manifest.json
+make vendor-record  # re-record a checksum after bumping a version in manifest.json
 make test           # go test ./...
 make coverage       # coverage report, fails below 75%
 make coverage-html  # writes coverage.html
@@ -764,8 +766,9 @@ empty one, so the palette cannot offer something the renderer rejects. They also
 idiom worth copying: write `{{ toJSON .Alert.Annotations.summary }}` with no surrounding quotes
 rather than `"{{ .Alert.Annotations.summary }}"`, because `toJSON` adds the quotes and escapes what
 is inside them — an alert containing a quotation mark then produces a card instead of broken JSON.
-The renderer is vendored in `internal/httpserver/web/vendor`; see the README there to
-refresh it.
+The renderer is vendored in `internal/httpserver/web/vendor`, pinned by version and checksum in
+that directory's `manifest.json`; `make vendor` refreshes it and `make vendor-record` re-records a
+checksum after a version bump, see the README there.
 
 The favicon set is generated from a logo with `scripts/make-favicons.sh` into
 `images/favicons/<logo>/`, and the binary serves copies of it under
