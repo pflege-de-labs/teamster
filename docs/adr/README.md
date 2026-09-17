@@ -44,3 +44,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0027](0027-notify-on-link-displacement.md) | A displaced recipient conversation is notified, not left silent | Accepted |
 | [0028](0028-self-service-unlink-and-code-cancellation.md) | Self-service unlink resolves from the session, and a code can be cancelled | Accepted |
 | [0030](0030-teams-v2-compatible-webhooks.md) | Accept the payloads a Teams V2 webhook accepts | Accepted |
+| [0031](0031-vendored-browser-libraries-pinned-and-verified.md) | Vendored browser libraries are pinned in a manifest and verified in CI | Accepted |

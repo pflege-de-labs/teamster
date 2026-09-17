@@ -1,17 +1,18 @@
 # Vendored browser libraries
 
 Committed rather than fetched at page load, so the binary stays self-contained.
-Renovate cannot see these files; refresh them by hand.
 
-| File | Package | Version | License | SHA-256 |
-| --- | --- | --- | --- | --- |
-| `d3.min.js` | [d3](https://www.npmjs.com/package/d3) | 7.9.0 | ISC | `f2094bbf6141b359722c4fe454eb6c4b0f0e42cc10cc7af921fc158fceb86539` |
-| `adaptivecards.min.js` | [adaptivecards](https://www.npmjs.com/package/adaptivecards) | 3.0.6 | MIT | `5e7c13f3300ae7b89b34703501e08d709fbb6635f1c6755b92495577a77344f2` |
+`manifest.json` is the source of truth for what belongs here: which package and version each file
+is, and the SHA-256 it should hash to. `make vendor` re-downloads every library at the version the
+manifest pins and refuses to write anything whose checksum does not match what is recorded — a
+mismatch means either the version was just bumped and `make vendor-record` has not run yet, or the
+package changed under a version that should not have moved. `make vendor-record` is that other
+half: it re-downloads, writes the file, and updates the manifest's checksum, which is the part of a
+version bump nothing but a person running it can do.
 
-Refresh with:
+`internal/httpserver/vendor_test.go` fails if a file on disk drifts from its recorded checksum, or
+if the directory and the manifest disagree about what should be here, in either direction.
 
-```bash
-curl -fsSL -o internal/httpserver/web/vendor/adaptivecards.min.js \
-  https://unpkg.com/adaptivecards@<version>/dist/adaptivecards.min.js
-shasum -a 256 internal/httpserver/web/vendor/adaptivecards.min.js
-```
+Because the pins live in a JSON file rather than only in prose, Renovate now sees them and opens a
+pull request that bumps a version — the checksum still needs `make vendor-record` by hand, which
+is why that pull request never merges itself.
