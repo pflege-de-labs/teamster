@@ -64,6 +64,7 @@
   "noun.destination": "Ziel",
   "noun.route": "Route",
   "noun.template": "Vorlage",
+  "noun.webhook": "Webhook",
   "page.admin": "Teamster-Verwaltung",
   "page.login": "Anmelden — Teamster",
   "page.noaccess": "Kein Zugriff — Teamster",
@@ -143,5 +144,12 @@
   "templates.shape_empty": "leer",
   "templates.text_field": "Nachrichtentext (optional, eingeschränktes HTML)",
   "templates.title_field": "Titel für den Aktivitätsfeed",
-  "templates.updated": "geändert {0}"
+  "templates.updated": "geändert {0}",
+  "webhooks.channel_slug": "Kanalname in der URL",
+  "webhooks.empty": "Noch keine Teams-V2-Webhooks. Legen Sie einen an, damit ein Sender seine bisherige Nutzlast an eine URL schicken kann.",
+  "webhooks.hint": "Kleinbuchstaben, Ziffern und Bindestriche. Die URL lautet /teamsv2/<team>/<kanal>/<token>; das Token wird nur einmal angezeigt.",
+  "webhooks.new_url": "Kopieren Sie diese URL jetzt. Vom Token wird nur ein Hashwert gespeichert; es kann nicht erneut angezeigt werden.",
+  "webhooks.panel": "Teams-V2-Webhooks",
+  "webhooks.rotate": "Neues Token",
+  "webhooks.team_slug": "Teamname in der URL"
 }

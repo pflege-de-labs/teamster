@@ -28,6 +28,7 @@ type fakeStore struct {
 	templates    map[string]models.Template
 	destinations map[string]models.Destination
 	recipients   map[string]models.Recipient
+	webhooks     map[string]models.WebhookEndpoint
 	routes       map[string]models.Route
 	activeAlerts map[string]models.ActiveAlert
 	grants       map[string]models.Grant
@@ -50,6 +51,7 @@ func newFakeStore() *fakeStore {
 		templates:    map[string]models.Template{},
 		destinations: map[string]models.Destination{},
 		recipients:   map[string]models.Recipient{},
+		webhooks:     map[string]models.WebhookEndpoint{},
 		routes:       map[string]models.Route{},
 		activeAlerts: map[string]models.ActiveAlert{},
 		sessions: map[string]models.Session{
@@ -301,6 +303,104 @@ func (f *fakeStore) GetRecipientBySubject(ctx context.Context, subject string) (
 		return models.Recipient{}, store.ErrNotFound
 	}
 	return found, nil
+}
+
+func (f *fakeStore) ListWebhookEndpoints(ctx context.Context) ([]models.WebhookEndpoint, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("ListWebhookEndpoints"); err != nil {
+		return nil, err
+	}
+	out := []models.WebhookEndpoint{}
+	for _, e := range f.webhooks {
+		out = append(out, e)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].TeamSlug != out[j].TeamSlug {
+			return out[i].TeamSlug < out[j].TeamSlug
+		}
+		return out[i].ChannelSlug < out[j].ChannelSlug
+	})
+	return out, nil
+}
+
+func (f *fakeStore) CreateWebhookEndpoint(ctx context.Context, e models.WebhookEndpoint) (models.WebhookEndpoint, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("CreateWebhookEndpoint"); err != nil {
+		return models.WebhookEndpoint{}, err
+	}
+	if e.ID == "" {
+		e.ID = "generated"
+	}
+	f.webhooks[e.ID] = e
+	return e, nil
+}
+
+func (f *fakeStore) UpdateWebhookEndpoint(ctx context.Context, e models.WebhookEndpoint) (models.WebhookEndpoint, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("UpdateWebhookEndpoint"); err != nil {
+		return models.WebhookEndpoint{}, err
+	}
+	// The real store leaves the token alone, so neither does this.
+	if existing, ok := f.webhooks[e.ID]; ok {
+		e.TokenHash = existing.TokenHash
+	}
+	f.webhooks[e.ID] = e
+	return e, nil
+}
+
+func (f *fakeStore) RotateWebhookEndpointToken(ctx context.Context, id, tokenHash string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("RotateWebhookEndpointToken"); err != nil {
+		return err
+	}
+	e, ok := f.webhooks[id]
+	if !ok {
+		return store.ErrNotFound
+	}
+	e.TokenHash = tokenHash
+	f.webhooks[id] = e
+	return nil
+}
+
+func (f *fakeStore) DeleteWebhookEndpoint(ctx context.Context, id string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("DeleteWebhookEndpoint"); err != nil {
+		return err
+	}
+	delete(f.webhooks, id)
+	return nil
+}
+
+func (f *fakeStore) GetWebhookEndpoint(ctx context.Context, id string) (models.WebhookEndpoint, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("GetWebhookEndpoint"); err != nil {
+		return models.WebhookEndpoint{}, err
+	}
+	e, ok := f.webhooks[id]
+	if !ok {
+		return models.WebhookEndpoint{}, store.ErrNotFound
+	}
+	return e, nil
+}
+
+func (f *fakeStore) GetWebhookEndpointBySlug(ctx context.Context, teamSlug, channelSlug string) (models.WebhookEndpoint, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("GetWebhookEndpointBySlug"); err != nil {
+		return models.WebhookEndpoint{}, err
+	}
+	for _, e := range f.webhooks {
+		if e.TeamSlug == teamSlug && e.ChannelSlug == channelSlug {
+			return e, nil
+		}
+	}
+	return models.WebhookEndpoint{}, store.ErrNotFound
 }
 
 func (f *fakeStore) CreateLinkFlow(ctx context.Context, flow models.LinkFlow) error {
@@ -861,4 +961,14 @@ func (f *fakeMessenger) UpdateMessage(teamID, channelID, messageID string, msg g
 		messageID: messageID,
 	})
 	return f.updateErr
+}
+
+// cardOf is the one card a template renders, for a test that wants to compare
+// it as a string. graph.Message carries a slice because a Teams V2 payload may
+// bring several.
+func cardOf(msg graph.Message) string {
+	if len(msg.Cards) == 0 {
+		return ""
+	}
+	return string(msg.Cards[0])
 }

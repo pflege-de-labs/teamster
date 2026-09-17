@@ -28,10 +28,24 @@ func (s *Server) handleAdminPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	page := s.adminPage(r, r.URL.Query().Get("notice"), r.URL.Query().Get("error"))
+
+	if selected := r.URL.Query().Get("edit"); selected != "" {
+		s.loadForEditing(ctx, &page, selected, r.URL.Query().Get("id"))
+	}
+
+	s.renderAdmin(w, r, page)
+}
+
+// adminPage collects everything the admin page draws. It is separate from the
+// handler because the one post whose answer cannot be a redirect -- generating
+// a webhook token -- has to render the same page itself.
+func (s *Server) adminPage(r *http.Request, notice, errText string) views.Page {
+	ctx := r.Context()
 	_, roles := principalOf(r)
 	page := views.Page{
-		Notice:         r.URL.Query().Get("notice"),
-		Error:          r.URL.Query().Get("error"),
+		Notice:         notice,
+		Error:          errText,
 		PreviewSamples: previewSamples(),
 		Snippets:       cards.Snippets(),
 		Starter:        cards.Starter,
@@ -54,13 +68,19 @@ func (s *Server) handleAdminPage(w http.ResponseWriter, r *http.Request) {
 	if page.Routes, err = s.store.ListRoutes(ctx); err != nil {
 		page.Error = err.Error()
 	}
-
-	if selected := r.URL.Query().Get("edit"); selected != "" {
-		s.loadForEditing(ctx, &page, selected, r.URL.Query().Get("id"))
+	if page.WebhookEndpoints, err = s.store.ListWebhookEndpoints(ctx); err != nil {
+		page.Error = err.Error()
+	}
+	if page.WebhookEndpoints, err = s.visibleWebhookEndpoints(r, page.WebhookEndpoints); err != nil {
+		page.Error = err.Error()
 	}
 
+	return page
+}
+
+func (s *Server) renderAdmin(w http.ResponseWriter, r *http.Request, page views.Page) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := views.Admin(page).Render(ctx, w); err != nil {
+	if err := views.Admin(page).Render(r.Context(), w); err != nil {
 		log.Printf("render admin page: %v", err)
 	}
 }
@@ -90,6 +110,11 @@ func (s *Server) loadForEditing(ctx context.Context, page *views.Page, section, 
 		if route, err = s.store.GetRoute(ctx, id); err == nil {
 			page.EditRoute = &route
 		}
+	case "webhooks":
+		var endpoint models.WebhookEndpoint
+		if endpoint, err = s.store.GetWebhookEndpoint(ctx, id); err == nil {
+			page.EditWebhookEndpoint = &endpoint
+		}
 	default:
 		return
 	}
@@ -97,6 +122,27 @@ func (s *Server) loadForEditing(ctx context.Context, page *views.Page, section, 
 	if err != nil {
 		page.Error = err.Error()
 	}
+}
+
+// formGuard runs the checks a form post has to pass before anything is written,
+// and answers the request itself when one fails. It is separate from formPostTo
+// because not every form post can answer with a redirect. It takes the target
+// so that a rejection lands where the form it came from would have.
+func formGuard(target string, w http.ResponseWriter, r *http.Request) bool {
+	if r.Method != http.MethodPost {
+		w.Header().Set("Allow", http.MethodPost)
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return false
+	}
+	if !sameOrigin(r) {
+		http.Error(w, "cross-origin form post rejected", http.StatusForbidden)
+		return false
+	}
+	if err := r.ParseForm(); err != nil {
+		redirectTo(target, w, r, "", "invalid form submission")
+		return false
+	}
+	return true
 }
 
 // formPost guards the state-changing form endpoints that redirect back to
@@ -111,17 +157,7 @@ func (s *Server) formPost(handler func(*http.Request) (string, error)) http.Hand
 // /admin -- the notifications page's own unlink control, most immediately.
 func (s *Server) formPostTo(target string, handler func(*http.Request) (string, error)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			w.Header().Set("Allow", http.MethodPost)
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			return
-		}
-		if !sameOrigin(r) {
-			http.Error(w, "cross-origin form post rejected", http.StatusForbidden)
-			return
-		}
-		if err := r.ParseForm(); err != nil {
-			redirectTo(target, w, r, "", "invalid form submission")
+		if !formGuard(target, w, r) {
 			return
 		}
 

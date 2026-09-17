@@ -62,11 +62,12 @@ type Login struct {
 // Page carries everything the admin page renders. The lists come straight from
 // the store, and Notice reports the outcome of the last form submission.
 type Page struct {
-	Templates    []models.Template
-	Destinations []models.Destination
-	Routes       []models.Route
-	Notice       string
-	Error        string
+	Templates        []models.Template
+	Destinations     []models.Destination
+	Routes           []models.Route
+	WebhookEndpoints []models.WebhookEndpoint
+	Notice           string
+	Error            string
 
 	// Sample alerts the preview can render the template against.
 	PreviewSamples []string
@@ -87,9 +88,17 @@ type Page struct {
 	CanManage bool
 
 	// A nil Edit* means the matching form creates rather than updates.
-	EditTemplate    *models.Template
-	EditDestination *models.Destination
-	EditRoute       *models.Route
+	EditTemplate        *models.Template
+	EditDestination     *models.Destination
+	EditRoute           *models.Route
+	EditWebhookEndpoint *models.WebhookEndpoint
+
+	// NewWebhookURL is a secret this page is the only chance to read: only a
+	// digest of the token is stored, so nothing can show it again. It is shown
+	// in the response to the post that generated it rather than carried through
+	// a redirect, because a redirect would put the secret in a query string,
+	// and from there into the browser history and this server's own access log.
+	NewWebhookURL string
 }
 
 // A routeRow is a route as the list draws it: its place in the tree, and where
@@ -221,6 +230,13 @@ func (p Page) editingRoute() models.Route {
 		return models.Route{Priority: 100}
 	}
 	return *p.EditRoute
+}
+
+func (p Page) editingWebhookEndpoint() models.WebhookEndpoint {
+	if p.EditWebhookEndpoint == nil {
+		return models.WebhookEndpoint{}
+	}
+	return *p.EditWebhookEndpoint
 }
 
 // selectorJSON renders a selector back into the JSON the form accepts. A new

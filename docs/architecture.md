@@ -18,7 +18,7 @@ that runs more than one instance. SQLite is the option with no other runtime dep
 | `internal/templates` | Renders an Adaptive Card from a Go template plus alert data. |
 | `internal/graph` | Microsoft Graph client: OAuth2 client credentials, post and update channel messages. |
 | `internal/bot` | Bot Framework Connector client: a second, separate OAuth2 client credentials flow, send and update activities in a person's chat. See [Bot configuration](#bot-configuration) and [Inbound bot messages](#inbound-bot-messages). |
-| `internal/store` | `Store` interface, its SQLite and Postgres backends sharing one adapter; `internal/store/migrations` owns the schema for templates, destinations, routes, recipients and active alerts. |
+| `internal/store` | `Store` interface, its SQLite and Postgres backends sharing one adapter; `internal/store/migrations` owns the schema for templates, destinations, routes, recipients, webhook endpoints and active alerts. |
 | `internal/models` | Shared data types: `Alert`, `Route`, `Template`, `Destination`, `Recipient`, `ActiveAlert` and the two webhook payload shapes. |
 | `internal/httpserver/web` | Embedded static assets: icons, the web manifest and the Tailwind stylesheet built from `views/styles.css`. |
 
@@ -131,6 +131,35 @@ POST /webhook/alertmanager        POST /webhook/universal
 
 Any other `status` value is rejected. Handler errors map to `400` for malformed JSON, `401` for a
 bad token, and `502` when routing, rendering, the store or Graph fails.
+
+### Teams V2 webhooks
+
+A second ingest path answers the URL a Microsoft Teams webhook used to have, so a sender pointed at
+a Power Automate webhook moves by changing one URL rather than by being rewritten.
+
+```text
+POST /teamsv2/{team}/{channel}/{token}
+            │
+   store.GetWebhookEndpointBySlug  ── not configured ──► 404
+            │
+   SHA-256 of the token vs the stored digest ── mismatch ──► 401
+            │
+   teamsv2.Parse: V2 envelope | plain text | legacy MessageCard
+            │
+   store.GetDestination(endpoint.DestinationID)
+            │
+   graph.PostMessage ──────────────────────────────────► 200
+```
+
+There is no routing and no template: the sender has already decided what the message says and the
+URL has already decided where it goes. Nothing is written to `active_alerts` either, because there
+is no fingerprint and no status, so there is nothing later to update or resolve.
+
+An endpoint names a `Destination` rather than a Team and a channel of its own, which is what makes
+it inherit the Teams picker that filled the destination and the grants that bound who may choose
+it. Its token is per endpoint and stored only as a SHA-256 digest; it is shown once, in the answer
+to the post that generated it, and rotating it is its own form. See
+[ADR 0030](adr/0030-teams-v2-compatible-webhooks.md).
 
 ## Authorization
 
@@ -383,6 +412,12 @@ to a person, redeemed by deleting the row exactly as `login_flows` is. Nothing d
 recipient yet: the storage lands before the routing and the bot that use it. The decision behind
 all of it is the ADR on alerts in a person's chat, in the [ADR index](adr/README.md).
 
+`webhook_endpoints` followed, by `0008` in SQLite and `0005` in Postgres. A row is one Teams V2
+webhook URL: the two slugs that name it, the destination it posts into, and a SHA-256 digest of the
+token the sender puts in the path. The pair of slugs is unique, because the pair is the URL. The
+token itself is nowhere in the database, so rotating is the only way to recover from a URL that
+leaked.
+
 `database.migrate` decides what opening the store does about a schema that is behind: `auto`
 applies what is missing, `verify` refuses and names `teamster migrate up`, `off` asks nothing.
 `teamster export` always verifies — reading a database must not migrate it. A migration must leave
@@ -474,11 +509,13 @@ committed, so building the service does not.
 
 ## Admin API
 
-Everything outside `/webhook/*` and `/bot/messages` sits behind HTTP basic auth using
+Everything outside `/webhook/*`, `/teamsv2/*` and `/bot/messages` sits behind HTTP basic auth using
 `admin-username` and `admin-password`, or a session. `/admin` serves the UI; `/api/templates`,
-`/api/destinations` and `/api/routes` (plus their `/{id}` variants) provide CRUD over the stored
-configuration. `POST /api/recipients/link` is the exception that requires a session specifically —
-see [Linking a chat](#linking-a-chat).
+`/api/destinations`, `/api/routes` and `/api/webhooks` (plus their `/{id}` variants) provide CRUD
+over the stored configuration. `POST /api/webhooks/{id}/rotate` mints a new token, and is the only
+other place one is ever readable: creating and rotating answer with the token and the full URL,
+every later read leaves both empty. `POST /api/recipients/link` is the exception that requires a
+session specifically — see [Linking a chat](#linking-a-chat).
 
 ## Configuration
 

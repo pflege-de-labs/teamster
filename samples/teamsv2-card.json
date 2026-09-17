@@ -1,0 +1,28 @@
+{
+  "type": "message",
+  "attachments": [
+    {
+      "contentType": "application/vnd.microsoft.card.adaptive",
+      "contentUrl": null,
+      "content": {
+        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "type": "AdaptiveCard",
+        "version": "1.4",
+        "body": [
+          {"type": "TextBlock", "text": "Disk almost full", "weight": "bolder", "size": "medium", "wrap": true},
+          {"type": "TextBlock", "text": "node-3 is at 94% of the volume backing /var", "wrap": true},
+          {
+            "type": "FactSet",
+            "facts": [
+              {"title": "severity", "value": "critical"},
+              {"title": "cluster", "value": "eu-1"}
+            ]
+          }
+        ],
+        "actions": [
+          {"type": "Action.OpenUrl", "title": "Open runbook", "url": "https://example.test/runbook"}
+        ]
+      }
+    }
+  ]
+}

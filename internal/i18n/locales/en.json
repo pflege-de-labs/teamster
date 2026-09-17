@@ -64,6 +64,7 @@
   "noun.destination": "destination",
   "noun.route": "route",
   "noun.template": "template",
+  "noun.webhook": "webhook",
   "page.admin": "Teamster Admin",
   "page.login": "Sign in — Teamster",
   "page.noaccess": "No access — Teamster",
@@ -143,5 +144,12 @@
   "templates.shape_empty": "empty",
   "templates.text_field": "Message text (optional, limited HTML)",
   "templates.title_field": "Activity feed title",
-  "templates.updated": "updated {0}"
+  "templates.updated": "updated {0}",
+  "webhooks.channel_slug": "Channel name in the URL",
+  "webhooks.empty": "No Teams V2 webhooks yet. Add one to give a sender a URL it can post its existing payload to.",
+  "webhooks.hint": "Lower case letters, digits and hyphens. The URL becomes /teamsv2/<team>/<channel>/<token>, and the token is shown once when it is generated.",
+  "webhooks.new_url": "Copy this URL now. The token is stored only as a digest and cannot be shown again.",
+  "webhooks.panel": "Teams V2 webhooks",
+  "webhooks.rotate": "New token",
+  "webhooks.team_slug": "Team name in the URL"
 }

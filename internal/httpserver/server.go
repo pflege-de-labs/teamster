@@ -110,6 +110,12 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger, botC
 	mux.HandleFunc("/readyz", api.handleReady)
 	mux.HandleFunc("/webhook/alertmanager", api.handleAlertmanager)
 	mux.HandleFunc("/webhook/universal", api.handleUniversal)
+	// The one wildcard pattern in this server. Everything else registers a
+	// prefix and trims it, but this path has two meaningful segments and a
+	// secret, and naming them keeps r.Pattern -- and so the route label on
+	// every metric -- one string rather than one per endpoint.
+	mux.HandleFunc("/teamsv2/{team}/{channel}/{token}", api.handleTeamsV2)
+	mux.HandleFunc("/teamsv2/", api.handleTeamsV2Unknown)
 
 	// Registered only when the bot is fully configured, so a deployment that
 	// wants no chat delivery exposes no unauthenticated path at all. It sits on
@@ -137,6 +143,8 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger, botC
 	adminMux.HandleFunc("/api/destinations/", api.handleDestinationByID)
 	adminMux.HandleFunc("/api/routes", api.handleRoutes)
 	adminMux.HandleFunc("/api/routes/", api.handleRouteByID)
+	adminMux.HandleFunc("/api/webhooks", api.handleWebhookEndpoints)
+	adminMux.HandleFunc("/api/webhooks/", api.handleWebhookEndpointByID)
 	adminMux.HandleFunc("/api/templates/preview", api.handlePreview)
 	adminMux.HandleFunc("/api/routing/graph", api.handleRoutingGraph)
 	adminMux.HandleFunc("/api/routing/templates", api.handleTemplateGraph)
@@ -168,6 +176,9 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger, botC
 	adminMux.HandleFunc("/admin/destinations/delete", api.formPost(api.deleteDestination))
 	adminMux.HandleFunc("/admin/routes", api.formPost(api.saveRoute))
 	adminMux.HandleFunc("/admin/routes/delete", api.formPost(api.deleteRoute))
+	adminMux.HandleFunc("/admin/webhooks", api.handleWebhookForm)
+	adminMux.HandleFunc("/admin/webhooks/rotate", api.handleWebhookRotate)
+	adminMux.HandleFunc("/admin/webhooks/delete", api.formPost(api.deleteWebhookEndpoint))
 	adminMux.HandleFunc("/admin/grants", api.formPost(api.saveGrant))
 	adminMux.HandleFunc("/admin/grants/delete", api.formPost(api.deleteGrant))
 	adminMux.HandleFunc("/", api.handleAssets)

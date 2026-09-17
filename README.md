@@ -263,6 +263,67 @@ Payload shape:
 }
 ```
 
+### Teams V2 (Power Automate) webhook
+
+For migrating a sender that already posts to a Microsoft Teams "Workflows" webhook. It accepts the
+payloads that webhook accepts, so moving a sender is changing one URL rather than rewriting it.
+
+`POST /teamsv2/{team}/{channel}/{token}` — no header, because the URL is the credential, exactly as
+it was before.
+
+Create the endpoint under **Teams V2 webhooks** on `/admin`: pick the destination to post into and
+give the URL two readable segments (lower case letters, digits and hyphens). The full URL, token
+included, is shown once on the page that answers the form. Only a digest of the token is stored, so
+there is no way to show it again — if it is lost, or leaks, use **New token**, which replaces it and
+stops the old URL working.
+
+Three bodies are accepted, and the shape is recognised from the body itself:
+
+```json
+{
+  "type": "message",
+  "attachments": [
+    {
+      "contentType": "application/vnd.microsoft.card.adaptive",
+      "content": {"type": "AdaptiveCard", "version": "1.4", "body": []}
+    }
+  ]
+}
+```
+
+```json
+{"text": "something broke on node-3"}
+```
+
+```json
+{
+  "@type": "MessageCard",
+  "themeColor": "D70000",
+  "title": "Disk almost full",
+  "text": "node-3 is at 94%",
+  "sections": [{"facts": [{"name": "severity", "value": "critical"}]}],
+  "potentialAction": [
+    {"@type": "OpenUri", "name": "Open runbook", "targets": [{"os": "default", "uri": "https://example.test/runbook"}]}
+  ]
+}
+```
+
+An Adaptive Card is forwarded to Teams byte for byte. Text is sanitized against the same allow-list
+the templates use.
+
+A MessageCard is converted into one Adaptive Card, and loses two things in the process. Actions
+other than `OpenUri` — `HttpPOST`, `ActionCard`, `InvokeAddInCommand` — are dropped, because each
+needs the connector to call the sender back and nothing here can. `themeColor` becomes one of the
+five container styles Adaptive Cards has, chosen by hue: red reads as `attention`, orange and
+yellow as `warning`, green as `good`, blue and purple as `accent`, and a grey gets none.
+
+Nothing is tracked afterwards. There is no status and no fingerprint in these payloads, so a message
+sent this way is never updated or resolved — unlike an alert, which keeps its card up to date.
+
+Responses: `200` when the message was posted, `404` for a team and channel nobody configured, `401`
+for a wrong token, `400` for a body that carries neither text nor a card, `413` for a body over
+128 KiB, and `502` when Teams or the database fails.
+
 ## Templates
 
 A template is three optional parts, and needs at least one of them:
@@ -325,6 +386,9 @@ See the JSON examples in [samples](samples):
 - [samples/alertmanager-resolved.json](samples/alertmanager-resolved.json)
 - [samples/universal-firing.json](samples/universal-firing.json)
 - [samples/universal-resolved.json](samples/universal-resolved.json)
+- [samples/teamsv2-card.json](samples/teamsv2-card.json)
+- [samples/teamsv2-text.json](samples/teamsv2-text.json)
+- [samples/teamsv2-messagecard.json](samples/teamsv2-messagecard.json)
 
 ## Signing in
 

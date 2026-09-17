@@ -582,6 +582,36 @@ remains the default and remains one pod.
 Not a queue, not leader election, not sharding. Two or three instances behind a service, each able
 to take any request, sharing one database. Anything more is a different service.
 
+## Milestone 14 — Teams V2 compatible webhooks — done
+
+Teamster replaces the Teams webhooks a team already has, but until now moving onto it meant
+rewriting the sender: both ingest endpoints are alert-shaped and both run what arrives through
+routing and a template. A sender pointed at a Power Automate webhook has already decided what its
+message says and which channel it lands in, so there is nothing to route on and nothing to render.
+
+`POST /teamsv2/{team}/{channel}/{token}` takes the three payloads such a sender produces — the V2
+envelope, a bare `{"text": ...}`, and a legacy MessageCard — and posts them straight into the
+channel the slugs name. Migrating is changing one URL.
+
+### What it added
+
+* **`webhook_endpoints`**, a slug pair pointing at a `Destination`, with its own admin panel and
+  `/api/webhooks`. Naming a destination rather than a Team and a channel is what makes an endpoint
+  inherit the Teams picker and the grants that already bound who may deliver where.
+* **A per-endpoint token in the path**, because a sender that can only be handed a new URL cannot
+  set a header. Stored as a SHA-256 digest, shown once, rotated by its own form.
+* **`internal/teamsv2`**, which recognises the shape from the body and converts a MessageCard into
+  an Adaptive Card.
+* **`graph.Message.Cards`**, a slice, because a V2 payload may carry several attachments.
+
+See [ADR 0030](adr/0030-teams-v2-compatible-webhooks.md).
+
+### What it deliberately does not do
+
+Not a second routing path: nothing is matched, nothing is rendered, nothing is tracked in
+`active_alerts`. A message sent this way is never updated or resolved, because nothing in the
+payload identifies a later post as the same event.
+
 ## Milestone 13 — Alerts in a person's chat
 
 An alert reaches a channel. Somebody on call at three in the morning is not reading a channel; they
@@ -681,6 +711,7 @@ permissions table is the first thing to read when this milestone starts, not the
 | — | 11 Metrics | — | done |
 | — | 12 More than one instance | 11 helps | done |
 | 10 | 13 Alerts in a person's chat | — | ADR choosing the route; a Teams app registration |
+| — | 14 Teams V2 compatible webhooks | — | done |
 
 1.3 sat after 1.4 because it was the only item waiting on someone else to grant a permission.
 

@@ -24,6 +24,24 @@ type Destination struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+// A WebhookEndpoint is a Teams V2 webhook URL this service answers on behalf
+// of a channel. TeamSlug and ChannelSlug are the two readable path segments
+// that name it, and the pair is unique because the pair is the URL.
+//
+// The channel itself comes from the Destination, so an endpoint cannot name a
+// channel that was never configured. TokenHash is a SHA-256 digest of the
+// secret the sender puts in the path; the secret itself is shown once, when it
+// is generated, and is not recoverable from here.
+type WebhookEndpoint struct {
+	ID            string    `json:"id"`
+	TeamSlug      string    `json:"team_slug"`
+	ChannelSlug   string    `json:"channel_slug"`
+	DestinationID string    `json:"destination_id"`
+	TokenHash     string    `json:"-"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+}
+
 // A Recipient is a person who asked for their alerts as a chat message, and the
 // Bot Framework conversation reference that makes it possible to send one
 // unprompted. Subject is the admin-UI session subject that proved the link, so a
