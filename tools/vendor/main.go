@@ -12,6 +12,12 @@
 // cannot do — download at the pinned version, write it, and update the
 // manifest's checksum to match.
 //
+// Both modes fetch from the npm registry rather than from a CDN, and check the
+// tarball against the integrity the registry publishes for that exact version
+// before taking a single byte out of it. A CDN mirrors what the registry has;
+// it is not the thing that says what the registry has. Recording a checksum
+// from one would make whatever it happened to serve canonical forever.
+//
 // Go rather than shell and jq: jq is not a dependency of this repository and
 // is not on every developer's machine, while Go already is, and
 // internal/store/queries/gen is the existing precedent for a small go run
@@ -19,7 +25,12 @@
 package main
 
 import (
+	"archive/tar"
+	"bytes"
+	"compress/gzip"
 	"crypto/sha256"
+	"crypto/sha512"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -27,8 +38,11 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
+	"path"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -36,9 +50,18 @@ const vendorDir = "internal/httpserver/web/vendor"
 
 const manifestName = "manifest.json"
 
-// A library is a few hundred kilobytes; the cap is here because the response
-// comes from a third party and io.ReadAll would otherwise believe any length.
-const maxLibraryBytes = 8 << 20
+// A library is a few hundred kilobytes and its tarball a few megabytes. The
+// caps are here because the responses come from a third party and io.ReadAll
+// would otherwise believe any length.
+const (
+	maxLibraryBytes  = 8 << 20
+	maxTarballBytes  = 64 << 20
+	maxMetadataBytes = 4 << 20
+)
+
+// npm packs everything under this prefix, so a manifest path of
+// "dist/d3.min.js" is "package/dist/d3.min.js" inside the tarball.
+const tarballPrefix = "package"
 
 // Committed files are world readable. os.CreateTemp makes 0600, so without
 // this every refresh would quietly narrow the permissions of what it rewrites.
@@ -85,8 +108,122 @@ func main() {
 	}
 }
 
-func (l library) url(registry string) string {
-	return fmt.Sprintf("%s/%s@%s/%s", registry, l.Package, l.Version, l.Path)
+// metadataURL is the registry's record of one published version: where its
+// tarball is and what it must hash to.
+func (l library) metadataURL(registry string) string {
+	return fmt.Sprintf("%s/%s/%s", strings.TrimSuffix(registry, "/"), l.Package, l.Version)
+}
+
+// versionMetadata is the part of the registry's response this tool reads.
+type versionMetadata struct {
+	Dist struct {
+		Tarball   string `json:"tarball"`
+		Integrity string `json:"integrity"`
+	} `json:"dist"`
+}
+
+// fetchLibrary returns one library's bytes, having checked the tarball they
+// came out of against the integrity the registry publishes for that version.
+// Nothing is extracted before that check passes.
+func fetchLibrary(registry string, lib library) ([]byte, error) {
+	raw, err := download(lib.metadataURL(registry), maxMetadataBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	var meta versionMetadata
+	if err := json.Unmarshal(raw, &meta); err != nil {
+		return nil, fmt.Errorf("%s: %w", lib.metadataURL(registry), err)
+	}
+	if meta.Dist.Integrity == "" {
+		return nil, fmt.Errorf("%s@%s: the registry publishes no integrity for this version", lib.Package, lib.Version)
+	}
+	// The tarball URL comes out of the response, so it is only as trustworthy
+	// as the host that served it -- which must therefore be the same host.
+	if err := sameHost(registry, meta.Dist.Tarball); err != nil {
+		return nil, fmt.Errorf("%s@%s: %w", lib.Package, lib.Version, err)
+	}
+
+	tarball, err := download(meta.Dist.Tarball, maxTarballBytes)
+	if err != nil {
+		return nil, err
+	}
+	if err := checkIntegrity(tarball, meta.Dist.Integrity); err != nil {
+		return nil, fmt.Errorf("%s: %w", meta.Dist.Tarball, err)
+	}
+	return extract(tarball, lib.Path)
+}
+
+func sameHost(registry, tarball string) error {
+	base, err := url.Parse(registry)
+	if err != nil {
+		return fmt.Errorf("registry %q: %w", registry, err)
+	}
+	got, err := url.Parse(tarball)
+	if err != nil {
+		return fmt.Errorf("tarball %q: %w", tarball, err)
+	}
+	if got.Host != base.Host {
+		return fmt.Errorf("tarball %q is not served by %s", tarball, base.Host)
+	}
+	return nil
+}
+
+// checkIntegrity compares a tarball against a Subresource Integrity string.
+// Only sha512 is accepted: npm still publishes a sha1 "shasum" beside it, and
+// taking that one would be recording a digest nobody should rely on.
+func checkIntegrity(tarball []byte, integrity string) error {
+	const prefix = "sha512-"
+	if !strings.HasPrefix(integrity, prefix) {
+		return fmt.Errorf("integrity %q is not %s", integrity, prefix)
+	}
+	want, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(integrity, prefix))
+	if err != nil {
+		return fmt.Errorf("integrity %q: %w", integrity, err)
+	}
+
+	sum := sha512.Sum512(tarball)
+	if !bytes.Equal(sum[:], want) {
+		return fmt.Errorf("tarball does not match the published integrity %s", integrity)
+	}
+	return nil
+}
+
+// extract pulls one file out of an npm tarball. It reads rather than writes,
+// so a tarball naming a path outside itself has nowhere to escape to.
+func extract(tarball []byte, name string) ([]byte, error) {
+	gz, err := gzip.NewReader(bytes.NewReader(tarball))
+	if err != nil {
+		return nil, fmt.Errorf("tarball: %w", err)
+	}
+	defer func() { _ = gz.Close() }()
+
+	want := path.Join(tarballPrefix, name)
+	archive := tar.NewReader(gz)
+	for {
+		header, err := archive.Next()
+		if errors.Is(err, io.EOF) {
+			return nil, fmt.Errorf("tarball holds no %s", want)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("tarball: %w", err)
+		}
+		if path.Clean(header.Name) != want {
+			continue
+		}
+		if header.Typeflag != tar.TypeReg {
+			return nil, fmt.Errorf("%s in the tarball is not a regular file", want)
+		}
+
+		body, err := io.ReadAll(io.LimitReader(archive, maxLibraryBytes+1))
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", want, err)
+		}
+		if len(body) > maxLibraryBytes {
+			return nil, fmt.Errorf("%s is larger than %d bytes", want, maxLibraryBytes)
+		}
+		return body, nil
+	}
 }
 
 // verify downloads each library at its pinned version and compares the
@@ -102,8 +239,7 @@ func verify() error {
 
 	var failed int
 	for _, lib := range m.Libraries {
-		u := lib.url(m.Registry)
-		body, err := download(u)
+		body, err := fetchLibrary(m.Registry, lib)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s@%s: %v\n", lib.Package, lib.Version, err)
 			failed++
@@ -114,10 +250,10 @@ func verify() error {
 		if actual != lib.SHA256 {
 			fmt.Fprintf(os.Stderr,
 				"%s@%s: recorded checksum does not describe this version — run `make vendor-record` if the version was just bumped, otherwise the source has changed\n"+
-					"  url:      %s\n"+
+					"  source:   %s\n"+
 					"  expected: %s\n"+
 					"  actual:   %s\n",
-				lib.Package, lib.Version, u, lib.SHA256, actual)
+				lib.Package, lib.Version, lib.metadataURL(m.Registry), lib.SHA256, actual)
 			failed++
 			continue
 		}
@@ -152,7 +288,7 @@ func record() error {
 
 	bodies := make([][]byte, len(m.Libraries))
 	for i, lib := range m.Libraries {
-		body, err := download(lib.url(m.Registry))
+		body, err := fetchLibrary(m.Registry, lib)
 		if err != nil {
 			return fmt.Errorf("%s@%s: %w", lib.Package, lib.Version, err)
 		}
@@ -181,14 +317,14 @@ func record() error {
 	return writeManifest(root, m)
 }
 
-// download retries, because this runs in CI on every pull request and a
-// community CDN having a bad minute must not read as a library that changed
-// under us. A status the server will report the same way however often it is
+// download retries, because this runs in CI on every pull request and the
+// registry having a bad minute must not read as a library that changed under
+// us. A status the server will report the same way however often it is
 // asked -- a 404 for a version that does not exist -- is returned at once.
-func download(rawURL string) ([]byte, error) {
+func download(rawURL string, max int64) ([]byte, error) {
 	var lastErr error
 	for attempt := 1; attempt <= downloadAttempts; attempt++ {
-		body, err := get(rawURL)
+		body, err := get(rawURL, max)
 		if err == nil {
 			return body, nil
 		}
@@ -211,7 +347,7 @@ type permanentError struct{ err error }
 func (e permanentError) Error() string { return e.err.Error() }
 func (e permanentError) Unwrap() error { return e.err }
 
-func get(rawURL string) ([]byte, error) {
+func get(rawURL string, max int64) ([]byte, error) {
 	resp, err := httpClient.Get(rawURL)
 	if err != nil {
 		return nil, fmt.Errorf("GET %s: %w", rawURL, err)
@@ -226,12 +362,12 @@ func get(rawURL string) ([]byte, error) {
 		return nil, permanentError{fmt.Errorf("GET %s: %s", rawURL, resp.Status)}
 	}
 
-	body, err := io.ReadAll(io.LimitReader(resp.Body, maxLibraryBytes+1))
+	body, err := io.ReadAll(io.LimitReader(resp.Body, max+1))
 	if err != nil {
 		return nil, fmt.Errorf("GET %s: %w", rawURL, err)
 	}
-	if len(body) > maxLibraryBytes {
-		return nil, permanentError{fmt.Errorf("GET %s: larger than %d bytes", rawURL, maxLibraryBytes)}
+	if int64(len(body)) > max {
+		return nil, permanentError{fmt.Errorf("GET %s: larger than %d bytes", rawURL, max)}
 	}
 	return body, nil
 }
