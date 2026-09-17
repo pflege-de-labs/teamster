@@ -15,7 +15,7 @@ This file records intent, not commitments. It is edited as features land or plan
   browser fetches at page load is not. Vendored files go under
   `internal/httpserver/web/vendor/`, pinned in `manifest.json` so Renovate can bump the version;
   a person still has to run `make vendor-record` to re-record the checksum
-  ([ADR 0029](adr/0029-vendored-browser-libraries-pinned-and-verified.md)).
+  ([ADR 0031](adr/0031-vendored-browser-libraries-pinned-and-verified.md)).
 * Logic lives in Go where there is a choice, because that is what the 75% coverage gate measures.
   The browser gets rendering, not decisions.
 * The admin API stays the only way the UI reaches the service, so anything the UI can do is
@@ -774,7 +774,7 @@ more strings to extract later, so if a second language is actually wanted, pull 
 * pgbouncer in transaction-pooling mode: safe, or does the store hold session state? Prepared
   statements and advisory locks are session-scoped, so this needs an answer before it is documented
   as supported.
-* Answered at [ADR 0029](adr/0029-vendored-browser-libraries-pinned-and-verified.md):
+* Answered at [ADR 0031](adr/0031-vendored-browser-libraries-pinned-and-verified.md):
   `manifest.json` pins each vendored library's version and checksum, `make vendor` verifies and
   repairs the working tree against it, and `make vendor-record` re-records a checksum after a
   version bump. Renovate now sees the pins and opens a version-only pull request that a person
