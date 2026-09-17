@@ -50,8 +50,14 @@ jobs:
         with:
           go-version: stable
       - run: make vendor
-      - name: Fail when a fetched library does not match what is committed
-        run: git diff --exit-code
+      # make vendor already fails on a checksum mismatch. This catches the
+      # other half: a committed file that had drifted and was just repaired,
+      # and a manifest entry whose library was never committed at all --
+      # which a bare `git diff` would not see, because it is untracked.
+      - name: Fail when the committed libraries were not already correct
+        run: |
+          git status --porcelain
+          test -z "$(git status --porcelain)"
 
   test:
     runs-on: ubuntu-latest

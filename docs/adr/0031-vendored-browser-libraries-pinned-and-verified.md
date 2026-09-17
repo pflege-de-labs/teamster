@@ -59,7 +59,7 @@ the checksum in the manifest was never touched. A `packageRules` entry scoped to
 this file sets `automerge: false` explicitly, as documentation rather than as the only thing
 stopping it, and a `prBodyNotes` entry tells whoever reviews it to run `make vendor-record` on the
 branch. The `vendor` CI job exists for the case that instruction is skipped: it runs `make vendor`
-against the tip of every branch and fails on any diff, so a bumped version whose file was never
+on every pull request and on every push to `main`, so a bumped version whose file was never
 re-recorded fails CI rather than shipping.
 
 Alternatives considered:
@@ -95,3 +95,26 @@ in prose now finds it in `manifest.json` instead, which is where CI and Renovate
 Adding a third vendored library is now "add an entry to `manifest.json` and run
 `make vendor-record`" rather than "download it, hash it, and edit a Markdown table by hand" —
 the tool and the test both work over the list, not over the two files named today.
+
+Two things this deliberately does not solve, recorded so that nobody reads the checksums as more
+than they are.
+
+The first is that recording a checksum is trust on first use. `make vendor-record` takes whatever
+unpkg.com serves at that moment and makes it canonical, and unpkg is a community CDN rather than
+the registry itself. A sum recorded from a bad download is a sum that verifies forever. This is
+exactly the trust the previous hand-written recipe placed in the same host, so the change does not
+weaken anything — but it does not strengthen it either, and the honest fix is to fetch the tarball
+from `registry.npmjs.org` and check it against the packument's `dist.integrity` before extracting.
+That is the obvious next step if this matters more later.
+
+The second is that the `vendor` job reaches the network on every pull request, including the ones
+that touch nothing here, so an unpkg outage can redden a build that has nothing to do with the
+vendored files. The tool retries a 5xx, a 429 and a connection failure before giving up, and a 404
+fails at once because asking again cannot change it. Scoping the job with `paths:` was the
+alternative; it was rejected because a required check that is skipped stays pending on GitHub
+forever, which is worse than a rare retryable failure.
+
+`manifest.json` is embedded with the rest of `web/` and is therefore served, unauthenticated, at
+`/vendor/manifest.json`. It names the exact versions in use. That is accepted rather than
+overlooked: the libraries themselves sit beside it under the same public prefix and carry their own
+version strings, so the manifest discloses nothing the files do not.
