@@ -23,10 +23,20 @@ records for `bin/sqlc`: a version pinned somewhere no tool reads is a version no
 ## Decision
 
 We will replace the table with `manifest.json`, machine-readable and the single source of truth:
-for each library, its file name, package, version, license, download path and expected SHA-256
-sum. The README keeps only prose — what the manifest is for and how to act on it — because two
-records of the same versions and sums with nothing keeping them in sync is the drift this change
-removes.
+the registry to fetch from, and for each library its file name, package, version, license, the
+path it occupies inside that package's tarball, and the expected SHA-256 sum. The README keeps
+only prose — what the manifest is for and how to act on it — because two records of the same
+versions and sums with nothing keeping them in sync is the drift this change removes.
+
+**The bytes come from the npm registry, checked against what the registry published for that exact
+version.** `registry.npmjs.org/<package>/<version>` is the record of one published version: where
+its tarball is and what that tarball must hash to. Both modes of the tool fetch that record,
+download the tarball it names, compare the tarball against the `dist.integrity` it publishes, and
+only then extract the single file the manifest points at. `sha512` is the only algorithm accepted,
+because npm still publishes a legacy `shasum` beside the good digest and quietly taking that one
+would be recording a hash nobody should rely on. The tarball URL is itself read out of the metadata
+document, so it has to resolve to the registry's own host — otherwise a tampered document could
+redirect the download while the rest of the chain carried on looking correct.
 
 **A Go tool under `tools/vendor`, not a shell script with `jq`.** `jq` is not a dependency of this
 repository and does not ship with macOS, while Go already is required to build anything here, and
@@ -68,6 +78,14 @@ Alternatives considered:
   nothing else here needs a JSON-manipulation dependency the way the Tailwind and sqlc downloads
   need `curl` and `tar`, which are assumed present already. Go is already a hard requirement to
   build this repository; `jq` is not.
+* **Download each file from a CDN such as unpkg.com, as the hand-written `curl` recipe did.** One
+  URL per file, no tarball to unpack and no metadata document to read. Rejected because a CDN
+  mirrors what the registry has; it is not the thing that says what the registry has. It serves a
+  file with nothing to check that file against, so the only thing vouching for the bytes would be
+  a checksum recorded from an earlier download of the same host — trust on first use, where the
+  first use is the one thing that cannot be verified. The registry publishes `dist.integrity`, a
+  statement about the bytes made independently of the download; that is worth one extra request
+  and a tarball to unpack.
 * **Keep the README table, add a script that only checks it.** Leaves two hand-maintained records
   of the same fact. A script that reads Markdown to extract a version and a hex string is more
   fragile than one that reads JSON, for no benefit over replacing the table outright.
@@ -96,21 +114,18 @@ Adding a third vendored library is now "add an entry to `manifest.json` and run
 `make vendor-record`" rather than "download it, hash it, and edit a Markdown table by hand" —
 the tool and the test both work over the list, not over the two files named today.
 
-Two things this deliberately does not solve, recorded so that nobody reads the checksums as more
-than they are.
+The chain that vouches for a vendored file ends at the registry rather than at a mirror of it. A
+SHA-256 in `manifest.json` is a checksum of bytes that came out of a tarball the registry published
+an integrity for, not of whatever a CDN happened to serve the minute somebody ran the tool, so
+recording a sum is no longer trust on first use. Adopting this changed no committed file — both
+libraries' registry tarballs extract byte-for-byte to what was already in the directory — only
+what stands behind them.
 
-The first is that recording a checksum is trust on first use. `make vendor-record` takes whatever
-unpkg.com serves at that moment and makes it canonical, and unpkg is a community CDN rather than
-the registry itself. A sum recorded from a bad download is a sum that verifies forever. This is
-exactly the trust the previous hand-written recipe placed in the same host, so the change does not
-weaken anything — but it does not strengthen it either, and the honest fix is to fetch the tarball
-from `registry.npmjs.org` and check it against the packument's `dist.integrity` before extracting.
-That is the obvious next step if this matters more later.
-
-The second is that the `vendor` job reaches the network on every pull request, including the ones
-that touch nothing here, so an unpkg outage can redden a build that has nothing to do with the
-vendored files. The tool retries a 5xx, a 429 and a connection failure before giving up, and a 404
-fails at once because asking again cannot change it. Scoping the job with `paths:` was the
+One thing this deliberately does not solve, recorded so nobody reads it as an oversight. The
+`vendor` job reaches the network on every pull request, including the ones that touch nothing here,
+so a registry outage can redden a build that has nothing to do with the vendored files. The tool
+retries a 5xx, a 429 and a connection failure before giving up, and a 404 fails at once because
+asking again cannot change it. Scoping the job with `paths:` was the
 alternative; it was rejected because a required check that is skipped stays pending on GitHub
 forever, which is worse than a rare retryable failure.
 

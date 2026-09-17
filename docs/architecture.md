@@ -498,9 +498,11 @@ draws it with the vendored renderer in `web/vendor`. A template that fails to re
 an error field with status 200, because a broken template is the answer the operator asked for.
 That directory's contents are pinned by package and version in `manifest.json`, and
 `internal/httpserver/vendor_test.go` verifies each file's SHA-256 against it and that the directory
-and the manifest list the same files. `make vendor` re-downloads at the pinned versions, which CI
-runs on every push because a version bump alone leaves the stale file and its checksum agreeing
-with each other; see [ADR 0029](adr/0029-vendored-browser-libraries-pinned-and-verified.md).
+and the manifest list the same files. `make vendor` re-downloads at the pinned versions from the
+npm registry, checking each tarball against the `dist.integrity` the registry publishes for that
+version before extracting anything from it. CI runs it on every push because a version bump alone
+leaves the stale file and its checksum agreeing with each other; see
+[ADR 0029](adr/0029-vendored-browser-libraries-pinned-and-verified.md).
 
 `GET /api/graph/teams` and `GET /api/graph/teams/{id}/channels` read the tenant's teams and
 channels through the Graph client, behind a five minute in-memory cache because the Graph throttles

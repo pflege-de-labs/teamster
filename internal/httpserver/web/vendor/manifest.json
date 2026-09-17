@@ -1,5 +1,5 @@
 {
-  "registry": "https://unpkg.com",
+  "registry": "https://registry.npmjs.org",
   "libraries": [
     {
       "file": "d3.min.js",
