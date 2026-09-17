@@ -46,7 +46,64 @@ func readVendorManifest(t *testing.T) vendorManifest {
 	if err := json.Unmarshal(data, &m); err != nil {
 		t.Fatalf("unmarshal %s: %v", manifestPath, err)
 	}
+	// Every test here walks this list. An empty one would satisfy all of them
+	// by having nothing to disagree with.
+	if len(m.Libraries) == 0 {
+		t.Fatalf("%s lists no libraries", manifestPath)
+	}
 	return m
+}
+
+// The layout is what actually loads these files, so it is what decides which
+// ones have to exist. Without this the manifest and the directory could agree
+// with each other perfectly while the admin UI served 404s for its renderer.
+var vendorScriptPattern = regexp.MustCompile(`src="/vendor/([^"]+)"`)
+
+func TestTheManifestDescribesTheScriptsTheViewsLoad(t *testing.T) {
+	t.Parallel()
+
+	referenced := map[string]string{}
+	templates, err := filepath.Glob("views/*.templ")
+	if err != nil {
+		t.Fatalf("glob views: %v", err)
+	}
+	for _, name := range templates {
+		source, err := os.ReadFile(name)
+		if err != nil {
+			t.Fatalf("read %s: %v", name, err)
+		}
+		for _, match := range vendorScriptPattern.FindAllStringSubmatch(string(source), -1) {
+			referenced[match[1]] = name
+		}
+	}
+	if len(referenced) == 0 {
+		t.Fatal("no view loads anything from /vendor/, so this test proves nothing; it and the manifest are now unrelated")
+	}
+
+	listed := map[string]bool{}
+	for _, lib := range readVendorManifest(t).Libraries {
+		listed[lib.File] = true
+	}
+
+	t.Run("every script a view loads is in the manifest", func(t *testing.T) {
+		t.Parallel()
+
+		for file, source := range referenced {
+			if !listed[file] {
+				t.Errorf("%s loads /vendor/%s, which %s does not list: nothing verifies it", source, file, manifestPath)
+			}
+		}
+	})
+
+	t.Run("every library in the manifest is loaded by a view", func(t *testing.T) {
+		t.Parallel()
+
+		for file := range listed {
+			if _, ok := referenced[file]; !ok {
+				t.Errorf("%s lists %s, which no view loads: drop it, or load it", manifestPath, file)
+			}
+		}
+	})
 }
 
 // A drifted file is invisible until something hashes it — this is that check.
@@ -177,6 +234,29 @@ type renovateCustomManager struct {
 
 // The only thing that would catch a reordered key or a renamed field
 // silently blinding Renovate to a vendored pin.
+// The Renovate pattern matches the manifest's literal bytes, and
+// `make vendor-record` rewrites those bytes with json.MarshalIndent. If the
+// two ever disagree, a recorded checksum silently reformats the file out from
+// under the pattern and Renovate stops seeing the pins.
+func TestTheManifestIsWrittenTheWayRecordWritesIt(t *testing.T) {
+	t.Parallel()
+
+	raw, err := os.ReadFile(manifestPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", manifestPath, err)
+	}
+
+	encoded, err := json.MarshalIndent(readVendorManifest(t), "", "  ")
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	encoded = append(encoded, '\n')
+
+	if string(raw) != string(encoded) {
+		t.Errorf("%s is not what `make vendor-record` would write; run it, or match its two-space indent and trailing newline", manifestPath)
+	}
+}
+
 func TestRenovateSeesEveryVendoredPin(t *testing.T) {
 	t.Parallel()
 
@@ -206,8 +286,11 @@ func TestRenovateSeesEveryVendoredPin(t *testing.T) {
 	if manager == nil {
 		t.Fatalf("renovate.json has no customManager matching %s", manifestPath)
 	}
-	if len(manager.MatchStrings) == 0 {
-		t.Fatalf("the vendor manifest customManager has no matchStrings")
+	// Only the first pattern is checked below, so a second one added later
+	// would go unverified. Fail loudly instead of silently covering less.
+	if len(manager.MatchStrings) != 1 {
+		t.Fatalf("the vendor manifest customManager has %d matchStrings, want 1; extend this test before adding another",
+			len(manager.MatchStrings))
 	}
 
 	re, err := regexp.Compile(manager.MatchStrings[0])
