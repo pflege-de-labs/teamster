@@ -301,6 +301,116 @@ func TestConformanceRecipients(t *testing.T) {
 	})
 }
 
+func TestConformanceWebhookEndpoints(t *testing.T) {
+	t.Parallel()
+
+	eachBackend(t, func(t *testing.T, open func(t *testing.T) store.Store) {
+		st := open(t)
+		ctx := t.Context()
+
+		created, err := st.CreateWebhookEndpoint(ctx, models.WebhookEndpoint{
+			TeamSlug:      "platform",
+			ChannelSlug:   "alerts",
+			DestinationID: "dest-1",
+			TokenHash:     "digest-1",
+		})
+		if err != nil {
+			t.Fatalf("CreateWebhookEndpoint: %v", err)
+		}
+		if created.ID == "" {
+			t.Error("CreateWebhookEndpoint() returned no id, want one generated")
+		}
+
+		got, err := st.GetWebhookEndpoint(ctx, created.ID)
+		if err != nil {
+			t.Fatalf("GetWebhookEndpoint: %v", err)
+		}
+		if got.TeamSlug != "platform" || got.ChannelSlug != "alerts" ||
+			got.DestinationID != "dest-1" || got.TokenHash != "digest-1" {
+			t.Errorf("endpoint = %+v, want it round-tripped from %+v", got, created)
+		}
+		// Postgres keeps microseconds and SQLite nanoseconds, so the stamps are
+		// only equal once both are truncated.
+		if !got.CreatedAt.Truncate(time.Microsecond).Equal(created.CreatedAt.Truncate(time.Microsecond)) {
+			t.Errorf("CreatedAt = %v, want %v", got.CreatedAt, created.CreatedAt)
+		}
+
+		bySlug, err := st.GetWebhookEndpointBySlug(ctx, "platform", "alerts")
+		if err != nil {
+			t.Fatalf("GetWebhookEndpointBySlug: %v", err)
+		}
+		if bySlug.ID != created.ID {
+			t.Errorf("GetWebhookEndpointBySlug() = %q, want %q", bySlug.ID, created.ID)
+		}
+
+		// Editing an endpoint leaves the secret its sender is using alone.
+		moved := got
+		moved.ChannelSlug = "incidents"
+		moved.TokenHash = "digest-2"
+		if _, err := st.UpdateWebhookEndpoint(ctx, moved); err != nil {
+			t.Fatalf("UpdateWebhookEndpoint: %v", err)
+		}
+		after, err := st.GetWebhookEndpoint(ctx, created.ID)
+		if err != nil {
+			t.Fatalf("GetWebhookEndpoint after update: %v", err)
+		}
+		if after.ChannelSlug != "incidents" {
+			t.Errorf("ChannelSlug = %q, want the updated one", after.ChannelSlug)
+		}
+		if after.TokenHash != "digest-1" {
+			t.Errorf("TokenHash = %q, want the update to have left it alone", after.TokenHash)
+		}
+
+		if err := st.RotateWebhookEndpointToken(ctx, created.ID, "digest-3"); err != nil {
+			t.Fatalf("RotateWebhookEndpointToken: %v", err)
+		}
+		rotated, err := st.GetWebhookEndpoint(ctx, created.ID)
+		if err != nil {
+			t.Fatalf("GetWebhookEndpoint after rotate: %v", err)
+		}
+		if rotated.TokenHash != "digest-3" {
+			t.Errorf("TokenHash = %q, want the rotated digest", rotated.TokenHash)
+		}
+
+		list, err := st.ListWebhookEndpoints(ctx)
+		if err != nil {
+			t.Fatalf("ListWebhookEndpoints: %v", err)
+		}
+		if len(list) != 1 {
+			t.Errorf("ListWebhookEndpoints() returned %d items, want 1", len(list))
+		}
+
+		if err := st.DeleteWebhookEndpoint(ctx, created.ID); err != nil {
+			t.Fatalf("DeleteWebhookEndpoint: %v", err)
+		}
+		if _, err := st.GetWebhookEndpoint(ctx, created.ID); !errors.Is(err, store.ErrNotFound) {
+			t.Errorf("after the delete = %v, want ErrNotFound", err)
+		}
+		if _, err := st.GetWebhookEndpointBySlug(ctx, "platform", "incidents"); !errors.Is(err, store.ErrNotFound) {
+			t.Errorf("GetWebhookEndpointBySlug() after delete = %v, want ErrNotFound", err)
+		}
+	})
+}
+
+// The slug pair is the URL, so two endpoints cannot share one: the second would
+// be unreachable and the first would answer for it.
+func TestConformanceWebhookEndpointSlugIsUnique(t *testing.T) {
+	t.Parallel()
+
+	eachBackend(t, func(t *testing.T, open func(t *testing.T) store.Store) {
+		st := open(t)
+		ctx := t.Context()
+		endpoint := models.WebhookEndpoint{TeamSlug: "a", ChannelSlug: "b", DestinationID: "d", TokenHash: "h"}
+
+		if _, err := st.CreateWebhookEndpoint(ctx, endpoint); err != nil {
+			t.Fatalf("CreateWebhookEndpoint: %v", err)
+		}
+		if _, err := st.CreateWebhookEndpoint(ctx, endpoint); err == nil {
+			t.Error("the same slug pair twice = nil error, want the constraint to refuse it")
+		}
+	})
+}
+
 // One person, one binding: a second row for the same subject would deliver
 // every alert twice.
 func TestConformanceRecipientSubjectIsUnique(t *testing.T) {

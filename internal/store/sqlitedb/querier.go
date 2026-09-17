@@ -31,6 +31,7 @@ type Querier interface {
 	CreateRoute(ctx context.Context, arg CreateRouteParams) error
 	CreateSession(ctx context.Context, arg CreateSessionParams) error
 	CreateTemplate(ctx context.Context, arg CreateTemplateParams) error
+	CreateWebhookEndpoint(ctx context.Context, arg CreateWebhookEndpointParams) error
 	// DeleteActiveAlertCard removes the row for one card, and only if it is still
 	// that card: a resolve that raced a refire must not delete the new card's row.
 	DeleteActiveAlertCard(ctx context.Context, arg DeleteActiveAlertCardParams) error
@@ -51,6 +52,7 @@ type Querier interface {
 	DeleteRoute(ctx context.Context, id string) error
 	DeleteSession(ctx context.Context, id string) error
 	DeleteTemplate(ctx context.Context, id string) error
+	DeleteWebhookEndpoint(ctx context.Context, id string) error
 	GetActiveAlert(ctx context.Context, arg GetActiveAlertParams) (ActiveAlert, error)
 	GetDestination(ctx context.Context, id string) (Destination, error)
 	GetRecipient(ctx context.Context, id string) (Recipient, error)
@@ -61,6 +63,11 @@ type Querier interface {
 	GetRoute(ctx context.Context, id string) (Route, error)
 	GetSession(ctx context.Context, id string) (Session, error)
 	GetTemplate(ctx context.Context, id string) (Template, error)
+	GetWebhookEndpoint(ctx context.Context, id string) (WebhookEndpoint, error)
+	// GetWebhookEndpointBySlug is the request path, turned into a row. It is the
+	// only lookup a sender can reach, so it matches on the pair alone and leaves
+	// the token to a constant-time comparison outside SQL.
+	GetWebhookEndpointBySlug(ctx context.Context, arg GetWebhookEndpointBySlugParams) (WebhookEndpoint, error)
 	// ListActiveAlerts returns every card posted for an alert, one per channel it
 	// fanned out to, and any claim still in flight. The order is stable so that
 	// delivery, and its tests, see them the same way every time.
@@ -70,6 +77,7 @@ type Querier interface {
 	ListRecipients(ctx context.Context) ([]Recipient, error)
 	ListRoutes(ctx context.Context) ([]Route, error)
 	ListTemplates(ctx context.Context) ([]Template, error)
+	ListWebhookEndpoints(ctx context.Context) ([]WebhookEndpoint, error)
 	// ReapStaleClaim drops a claim a process took and never completed. It is
 	// separate from the claim below rather than a WHERE clause on it because the
 	// two need different timestamps -- the cutoff and the new claim's own -- and
@@ -81,6 +89,7 @@ type Querier interface {
 	// attempt does not have to wait out the staleness cutoff. Deleting is safe
 	// because posted_at IS NULL says no card was ever created under it.
 	ReleaseActiveAlertClaim(ctx context.Context, arg ReleaseActiveAlertClaimParams) error
+	RotateWebhookEndpointToken(ctx context.Context, arg RotateWebhookEndpointTokenParams) error
 	// TakeLinkFlow redeems a code once: the row is gone whether or not it had
 	// expired, so a code read over somebody's shoulder and typed twice binds
 	// nothing the second time.
@@ -99,6 +108,9 @@ type Querier interface {
 	UpdateRecipient(ctx context.Context, arg UpdateRecipientParams) error
 	UpdateRoute(ctx context.Context, arg UpdateRouteParams) error
 	UpdateTemplate(ctx context.Context, arg UpdateTemplateParams) error
+	// The token is written by its own statement, so editing an endpoint cannot
+	// silently rotate the secret the sender is using.
+	UpdateWebhookEndpoint(ctx context.Context, arg UpdateWebhookEndpointParams) error
 }
 
 var _ Querier = (*Queries)(nil)

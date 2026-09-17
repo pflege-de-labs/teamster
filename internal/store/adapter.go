@@ -302,6 +302,121 @@ func recipientOf(row sqlitedb.Recipient) models.Recipient {
 	}
 }
 
+func (s queryAdapter) ListWebhookEndpoints(ctx context.Context) ([]models.WebhookEndpoint, error) {
+	rows, err := s.q.ListWebhookEndpoints(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list webhook endpoints: %w", err)
+	}
+	if len(rows) == 0 {
+		return nil, nil
+	}
+	out := make([]models.WebhookEndpoint, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, webhookEndpointOf(row))
+	}
+	return out, nil
+}
+
+func (s queryAdapter) CreateWebhookEndpoint(ctx context.Context, e models.WebhookEndpoint) (models.WebhookEndpoint, error) {
+	e.ID = newID(e.ID)
+	e.CreatedAt = nowUTC()
+	e.UpdatedAt = e.CreatedAt
+
+	err := s.q.CreateWebhookEndpoint(ctx, sqlitedb.CreateWebhookEndpointParams{
+		ID:            e.ID,
+		TeamSlug:      e.TeamSlug,
+		ChannelSlug:   e.ChannelSlug,
+		DestinationID: e.DestinationID,
+		TokenHash:     e.TokenHash,
+		CreatedAt:     e.CreatedAt,
+		UpdatedAt:     e.UpdatedAt,
+	})
+	if err != nil {
+		return models.WebhookEndpoint{}, fmt.Errorf("create webhook endpoint: %w", err)
+	}
+	return e, nil
+}
+
+// The token hash is not among the columns written: a sender's secret changes
+// only when somebody asks for it to, through RotateWebhookEndpointToken.
+func (s queryAdapter) UpdateWebhookEndpoint(ctx context.Context, e models.WebhookEndpoint) (models.WebhookEndpoint, error) {
+	if e.ID == "" {
+		return models.WebhookEndpoint{}, errors.New("webhook endpoint id is required")
+	}
+	e.UpdatedAt = nowUTC()
+
+	err := s.q.UpdateWebhookEndpoint(ctx, sqlitedb.UpdateWebhookEndpointParams{
+		TeamSlug:      e.TeamSlug,
+		ChannelSlug:   e.ChannelSlug,
+		DestinationID: e.DestinationID,
+		UpdatedAt:     e.UpdatedAt,
+		ID:            e.ID,
+	})
+	if err != nil {
+		return models.WebhookEndpoint{}, fmt.Errorf("update webhook endpoint: %w", err)
+	}
+	return e, nil
+}
+
+func (s queryAdapter) RotateWebhookEndpointToken(ctx context.Context, id, tokenHash string) error {
+	if id == "" {
+		return errors.New("webhook endpoint id is required")
+	}
+	err := s.q.RotateWebhookEndpointToken(ctx, sqlitedb.RotateWebhookEndpointTokenParams{
+		TokenHash: tokenHash,
+		UpdatedAt: nowUTC(),
+		ID:        id,
+	})
+	if err != nil {
+		return fmt.Errorf("rotate webhook endpoint token: %w", err)
+	}
+	return nil
+}
+
+func (s queryAdapter) DeleteWebhookEndpoint(ctx context.Context, id string) error {
+	if err := s.q.DeleteWebhookEndpoint(ctx, id); err != nil {
+		return fmt.Errorf("delete webhook endpoint: %w", err)
+	}
+	return nil
+}
+
+func (s queryAdapter) GetWebhookEndpoint(ctx context.Context, id string) (models.WebhookEndpoint, error) {
+	row, err := s.q.GetWebhookEndpoint(ctx, id)
+	if err != nil {
+		if err := notFound(err); errors.Is(err, ErrNotFound) {
+			return models.WebhookEndpoint{}, err
+		}
+		return models.WebhookEndpoint{}, fmt.Errorf("get webhook endpoint: %w", err)
+	}
+	return webhookEndpointOf(row), nil
+}
+
+func (s queryAdapter) GetWebhookEndpointBySlug(ctx context.Context, teamSlug, channelSlug string) (models.WebhookEndpoint, error) {
+	row, err := s.q.GetWebhookEndpointBySlug(ctx, sqlitedb.GetWebhookEndpointBySlugParams{
+		TeamSlug:    teamSlug,
+		ChannelSlug: channelSlug,
+	})
+	if err != nil {
+		if err := notFound(err); errors.Is(err, ErrNotFound) {
+			return models.WebhookEndpoint{}, err
+		}
+		return models.WebhookEndpoint{}, fmt.Errorf("get webhook endpoint by slug: %w", err)
+	}
+	return webhookEndpointOf(row), nil
+}
+
+func webhookEndpointOf(row sqlitedb.WebhookEndpoint) models.WebhookEndpoint {
+	return models.WebhookEndpoint{
+		ID:            row.ID,
+		TeamSlug:      row.TeamSlug,
+		ChannelSlug:   row.ChannelSlug,
+		DestinationID: row.DestinationID,
+		TokenHash:     row.TokenHash,
+		CreatedAt:     row.CreatedAt,
+		UpdatedAt:     row.UpdatedAt,
+	}
+}
+
 func (s queryAdapter) ListRoutes(ctx context.Context) ([]models.Route, error) {
 	rows, err := s.q.ListRoutes(ctx)
 	if err != nil {

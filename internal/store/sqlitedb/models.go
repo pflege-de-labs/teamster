@@ -98,3 +98,13 @@ type Template struct {
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }
+
+type WebhookEndpoint struct {
+	ID            string
+	TeamSlug      string
+	ChannelSlug   string
+	DestinationID string
+	TokenHash     string
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+}

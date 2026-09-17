@@ -24,6 +24,20 @@ func openDB(t *testing.T, name string) *sql.DB {
 
 // latest is the highest migration this build carries. Asking rather than
 // hardcoding means adding a migration does not break these tests.
+// sourceCount is how many migrations there are, which is not the same as the
+// highest version number: versions are ordered, not contiguous. A release that
+// renumbers to stay out of another branch's way leaves a gap, and counting up
+// to the highest version would then expect migrations that do not exist.
+func sourceCount(t *testing.T, db *sql.DB) int {
+	t.Helper()
+
+	provider, err := New(SQLite, db)
+	if err != nil {
+		t.Fatalf("provider: %v", err)
+	}
+	return len(provider.ListSources())
+}
+
 func latest(t *testing.T, db *sql.DB) int64 {
 	t.Helper()
 
@@ -201,7 +215,7 @@ func TestConcurrentUpAppliesOnce(t *testing.T) {
 	if err := db.QueryRowContext(ctx, "SELECT count(*) FROM goose_db_version WHERE version_id > 0").Scan(&applied); err != nil {
 		t.Fatalf("count applied migrations: %v", err)
 	}
-	if want := int(latest(t, db)); applied != want {
+	if want := sourceCount(t, db); applied != want {
 		t.Errorf("applied = %d, want each of the %d migrations recorded once", applied, want)
 	}
 }

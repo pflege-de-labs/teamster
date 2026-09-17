@@ -99,6 +99,20 @@ type Store interface {
 	// arrives with a new conversation and the same session.
 	GetRecipientBySubject(ctx context.Context, subject string) (models.Recipient, error)
 
+	ListWebhookEndpoints(ctx context.Context) ([]models.WebhookEndpoint, error)
+	// CreateWebhookEndpoint and UpdateWebhookEndpoint write the endpoint but
+	// not its secret: rotating one is its own call, so editing a slug cannot
+	// break a sender by accident.
+	CreateWebhookEndpoint(ctx context.Context, e models.WebhookEndpoint) (models.WebhookEndpoint, error)
+	UpdateWebhookEndpoint(ctx context.Context, e models.WebhookEndpoint) (models.WebhookEndpoint, error)
+	RotateWebhookEndpointToken(ctx context.Context, id, tokenHash string) error
+	DeleteWebhookEndpoint(ctx context.Context, id string) error
+	GetWebhookEndpoint(ctx context.Context, id string) (models.WebhookEndpoint, error)
+	// GetWebhookEndpointBySlug resolves a request path. It is the one store
+	// call an unauthenticated caller can reach, and it matches on the slug
+	// pair alone -- the token is compared in constant time afterwards.
+	GetWebhookEndpointBySlug(ctx context.Context, teamSlug, channelSlug string) (models.WebhookEndpoint, error)
+
 	CreateLinkFlow(ctx context.Context, f models.LinkFlow) error
 	// TakeLinkFlow redeems a code once, whether or not it had expired.
 	TakeLinkFlow(ctx context.Context, code string) (models.LinkFlow, error)

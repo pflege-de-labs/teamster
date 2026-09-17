@@ -263,6 +263,19 @@ func TestUpdateRequiresID(t *testing.T) {
 	}
 }
 
+func TestWebhookEndpointUpdateRequiresID(t *testing.T) {
+	t.Parallel()
+
+	s := newTestStore(t)
+
+	if _, err := s.UpdateWebhookEndpoint(t.Context(), models.WebhookEndpoint{}); err == nil {
+		t.Error("UpdateWebhookEndpoint() without an id = nil error, want failure")
+	}
+	if err := s.RotateWebhookEndpointToken(t.Context(), "", "hash"); err == nil {
+		t.Error("RotateWebhookEndpointToken() without an id = nil error, want failure")
+	}
+}
+
 func TestActiveAlertLifecycle(t *testing.T) {
 	t.Parallel()
 
@@ -385,6 +398,22 @@ func TestStoreErrorsWhenDatabaseIsClosed(t *testing.T) {
 		{"UpdateRoute", func() error { _, err := s.UpdateRoute(t.Context(), models.Route{ID: "id"}); return err }},
 		{"DeleteRoute", func() error { return s.DeleteRoute(t.Context(), "id") }},
 		{"GetRoute", func() error { _, err := s.GetRoute(t.Context(), "id"); return err }},
+		{"ListWebhookEndpoints", func() error { _, err := s.ListWebhookEndpoints(t.Context()); return err }},
+		{"CreateWebhookEndpoint", func() error {
+			_, err := s.CreateWebhookEndpoint(t.Context(), models.WebhookEndpoint{})
+			return err
+		}},
+		{"UpdateWebhookEndpoint", func() error {
+			_, err := s.UpdateWebhookEndpoint(t.Context(), models.WebhookEndpoint{ID: "id"})
+			return err
+		}},
+		{"RotateWebhookEndpointToken", func() error { return s.RotateWebhookEndpointToken(t.Context(), "id", "hash") }},
+		{"DeleteWebhookEndpoint", func() error { return s.DeleteWebhookEndpoint(t.Context(), "id") }},
+		{"GetWebhookEndpoint", func() error { _, err := s.GetWebhookEndpoint(t.Context(), "id"); return err }},
+		{"GetWebhookEndpointBySlug", func() error {
+			_, err := s.GetWebhookEndpointBySlug(t.Context(), "team", "channel")
+			return err
+		}},
 		{"ClaimActiveAlert", func() error { _, _, err := s.ClaimActiveAlert(t.Context(), models.AlertClaim{}); return err }},
 		{"CompleteActiveAlertClaim", func() error {
 			return s.CompleteActiveAlertClaim(t.Context(), models.AlertClaim{}, "msg", time.Now())

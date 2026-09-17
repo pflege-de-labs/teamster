@@ -1,0 +1,26 @@
+{
+  "@type": "MessageCard",
+  "@context": "http://schema.org/extensions",
+  "themeColor": "D70000",
+  "summary": "Disk almost full",
+  "title": "Disk almost full",
+  "text": "node-3 is at 94% of the volume backing /var",
+  "sections": [
+    {
+      "activityTitle": "prometheus",
+      "activitySubtitle": "2 minutes ago",
+      "activityText": "threshold crossed",
+      "facts": [
+        {"name": "severity", "value": "critical"},
+        {"name": "cluster", "value": "eu-1"}
+      ]
+    }
+  ],
+  "potentialAction": [
+    {
+      "@type": "OpenUri",
+      "name": "Open runbook",
+      "targets": [{"os": "default", "uri": "https://example.test/runbook"}]
+    }
+  ]
+}

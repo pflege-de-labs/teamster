@@ -123,8 +123,8 @@ func TestUniversalWebhookPostsANewCard(t *testing.T) {
 	if msg.posts[0].msg.Title != "CPU spiking" {
 		t.Errorf("title = %q, want the annotation", msg.posts[0].msg.Title)
 	}
-	if string(msg.posts[0].msg.Card) != `{"text":"firing"}` {
-		t.Errorf("card = %s, want the rendered template", msg.posts[0].msg.Card)
+	if cardOf(msg.posts[0].msg) != `{"text":"firing"}` {
+		t.Errorf("card = %s, want the rendered template", cardOf(msg.posts[0].msg))
 	}
 
 	active, ok := st.activeAlerts[activeAlertKey("fp-1", "team", "channel")]
@@ -277,8 +277,8 @@ func TestTemplateWithoutACardPostsTextOnly(t *testing.T) {
 	if posted.Text != "<p>CPU spiking</p>" {
 		t.Errorf("text = %q, want it sanitized before it leaves the service", posted.Text)
 	}
-	if posted.Card != nil {
-		t.Errorf("card = %s, want none", posted.Card)
+	if len(posted.Cards) != 0 {
+		t.Errorf("cards = %s, want none", posted.Cards)
 	}
 }
 
@@ -474,8 +474,8 @@ func TestChildInheritsTheParentTemplate(t *testing.T) {
 		`{"status":"firing","labels":{"severity":"critical","team":"payments"},"fingerprint":"fp"}`)
 
 	for _, post := range msg.posts {
-		if string(post.msg.Card) != `{"text":"firing"}` {
-			t.Errorf("card in %s = %s, want the inherited template's", post.channelID, post.msg.Card)
+		if cardOf(post.msg) != `{"text":"firing"}` {
+			t.Errorf("card in %s = %s, want the inherited template's", post.channelID, cardOf(post.msg))
 		}
 	}
 }

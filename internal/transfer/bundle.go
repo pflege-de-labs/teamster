@@ -48,13 +48,18 @@ type Directory interface {
 }
 
 // Export reads the whole configuration. Sessions, login flows, link flows,
-// recipients and active alerts are runtime state and are deliberately absent, as
-// are all credentials: what comes back is what an operator configured, and
-// nothing that would be dangerous in a backup.
+// recipients, webhook endpoints and active alerts are runtime state and are
+// deliberately absent, as are all credentials: what comes back is what an
+// operator configured, and nothing that would be dangerous in a backup.
 //
 // A recipient is in that bucket rather than this one because it binds a chat to
 // one admin-UI session in one deployment's identity provider, neither of which
 // the installation a bundle is carried to has.
+//
+// A webhook endpoint is excluded because it carries a credential. Exporting one
+// without its token would produce an endpoint no sender could reach, and
+// exporting it with the token would put a live secret in a file whose whole
+// purpose is being copied around.
 func Export(ctx context.Context, st store.Store, directory Directory) (Bundle, error) {
 	templates, err := st.ListTemplates(ctx)
 	if err != nil {

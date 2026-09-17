@@ -76,6 +76,34 @@ func (s stubStore) GetRecipientBySubject(ctx context.Context, subject string) (m
 	return models.Recipient{}, store.ErrNotFound
 }
 
+func (s stubStore) ListWebhookEndpoints(ctx context.Context) ([]models.WebhookEndpoint, error) {
+	return nil, store.ErrNotFound
+}
+
+func (s stubStore) CreateWebhookEndpoint(ctx context.Context, e models.WebhookEndpoint) (models.WebhookEndpoint, error) {
+	return models.WebhookEndpoint{}, store.ErrNotFound
+}
+
+func (s stubStore) UpdateWebhookEndpoint(ctx context.Context, e models.WebhookEndpoint) (models.WebhookEndpoint, error) {
+	return models.WebhookEndpoint{}, store.ErrNotFound
+}
+
+func (s stubStore) RotateWebhookEndpointToken(ctx context.Context, id, tokenHash string) error {
+	return store.ErrNotFound
+}
+
+func (s stubStore) DeleteWebhookEndpoint(ctx context.Context, id string) error {
+	return store.ErrNotFound
+}
+
+func (s stubStore) GetWebhookEndpoint(ctx context.Context, id string) (models.WebhookEndpoint, error) {
+	return models.WebhookEndpoint{}, store.ErrNotFound
+}
+
+func (s stubStore) GetWebhookEndpointBySlug(ctx context.Context, teamSlug, channelSlug string) (models.WebhookEndpoint, error) {
+	return models.WebhookEndpoint{}, store.ErrNotFound
+}
+
 func (s stubStore) CreateLinkFlow(ctx context.Context, f models.LinkFlow) error {
 	return store.ErrNotFound
 }

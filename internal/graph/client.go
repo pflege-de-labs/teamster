@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 
 	"time"
@@ -52,16 +53,19 @@ type MessageRequest struct {
 // Teams activity feed previews, so a message without one previews as "Card" and
 // tells a reader nothing. Text is HTML and must already be sanitized by the
 // caller; Title is escaped here because it is one line of plain text.
+//
+// Cards is a slice because a Teams webhook payload may carry several
+// attachments, and a sender being migrated onto this service should not have to
+// find that out from a rejected request. A template renders exactly one.
 type Message struct {
 	Title string
 	Text  string
-	Card  json.RawMessage
+	Cards []json.RawMessage
 }
 
-const cardAttachmentID = "1"
-
-// The attachment is referenced from the body rather than left for Graph to
-// append, so the card sits below the text instead of above it.
+// The attachments are referenced from the body rather than left for Graph to
+// append, so the cards sit below the text instead of above it, in the order
+// they were given.
 func (m Message) request() MessageRequest {
 	var content strings.Builder
 	if m.Title != "" {
@@ -72,15 +76,19 @@ func (m Message) request() MessageRequest {
 	content.WriteString(m.Text)
 
 	req := MessageRequest{Body: ItemBody{ContentType: "html", Content: content.String()}}
-	if len(m.Card) > 0 {
-		content.WriteString(`<attachment id="` + cardAttachmentID + `"></attachment>`)
-		req.Body.Content = content.String()
-		req.Attachments = []Attachment{{
-			ID:          cardAttachmentID,
+	for i, card := range m.Cards {
+		if len(card) == 0 {
+			continue
+		}
+		id := strconv.Itoa(i + 1)
+		content.WriteString(`<attachment id="` + id + `"></attachment>`)
+		req.Attachments = append(req.Attachments, Attachment{
+			ID:          id,
 			ContentType: "application/vnd.microsoft.card.adaptive",
-			Content:     m.Card,
-		}}
+			Content:     card,
+		})
 	}
+	req.Body.Content = content.String()
 	return req
 }
 

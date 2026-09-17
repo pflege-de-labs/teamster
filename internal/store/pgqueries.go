@@ -69,6 +69,10 @@ func (p pgQueries) CreateTemplate(ctx context.Context, arg sqlitedb.CreateTempla
 	return p.q.CreateTemplate(ctx, pgdb.CreateTemplateParams(arg))
 }
 
+func (p pgQueries) CreateWebhookEndpoint(ctx context.Context, arg sqlitedb.CreateWebhookEndpointParams) error {
+	return p.q.CreateWebhookEndpoint(ctx, pgdb.CreateWebhookEndpointParams(arg))
+}
+
 func (p pgQueries) DeleteActiveAlertCard(ctx context.Context, arg sqlitedb.DeleteActiveAlertCardParams) error {
 	return p.q.DeleteActiveAlertCard(ctx, pgdb.DeleteActiveAlertCardParams(arg))
 }
@@ -117,6 +121,10 @@ func (p pgQueries) DeleteTemplate(ctx context.Context, id string) error {
 	return p.q.DeleteTemplate(ctx, id)
 }
 
+func (p pgQueries) DeleteWebhookEndpoint(ctx context.Context, id string) error {
+	return p.q.DeleteWebhookEndpoint(ctx, id)
+}
+
 func (p pgQueries) GetActiveAlert(ctx context.Context, arg sqlitedb.GetActiveAlertParams) (sqlitedb.ActiveAlert, error) {
 	row, err := p.q.GetActiveAlert(ctx, pgdb.GetActiveAlertParams(arg))
 	return sqlitedb.ActiveAlert(row), err
@@ -150,6 +158,16 @@ func (p pgQueries) GetSession(ctx context.Context, id string) (sqlitedb.Session,
 func (p pgQueries) GetTemplate(ctx context.Context, id string) (sqlitedb.Template, error) {
 	row, err := p.q.GetTemplate(ctx, id)
 	return sqlitedb.Template(row), err
+}
+
+func (p pgQueries) GetWebhookEndpoint(ctx context.Context, id string) (sqlitedb.WebhookEndpoint, error) {
+	row, err := p.q.GetWebhookEndpoint(ctx, id)
+	return sqlitedb.WebhookEndpoint(row), err
+}
+
+func (p pgQueries) GetWebhookEndpointBySlug(ctx context.Context, arg sqlitedb.GetWebhookEndpointBySlugParams) (sqlitedb.WebhookEndpoint, error) {
+	row, err := p.q.GetWebhookEndpointBySlug(ctx, pgdb.GetWebhookEndpointBySlugParams(arg))
+	return sqlitedb.WebhookEndpoint(row), err
 }
 
 func (p pgQueries) ListActiveAlerts(ctx context.Context, fingerprint string) ([]sqlitedb.ActiveAlert, error) {
@@ -224,12 +242,28 @@ func (p pgQueries) ListTemplates(ctx context.Context) ([]sqlitedb.Template, erro
 	return out, nil
 }
 
+func (p pgQueries) ListWebhookEndpoints(ctx context.Context) ([]sqlitedb.WebhookEndpoint, error) {
+	rows, err := p.q.ListWebhookEndpoints(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]sqlitedb.WebhookEndpoint, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, sqlitedb.WebhookEndpoint(row))
+	}
+	return out, nil
+}
+
 func (p pgQueries) ReapStaleClaim(ctx context.Context, arg sqlitedb.ReapStaleClaimParams) (int64, error) {
 	return p.q.ReapStaleClaim(ctx, pgdb.ReapStaleClaimParams(arg))
 }
 
 func (p pgQueries) ReleaseActiveAlertClaim(ctx context.Context, arg sqlitedb.ReleaseActiveAlertClaimParams) error {
 	return p.q.ReleaseActiveAlertClaim(ctx, pgdb.ReleaseActiveAlertClaimParams(arg))
+}
+
+func (p pgQueries) RotateWebhookEndpointToken(ctx context.Context, arg sqlitedb.RotateWebhookEndpointTokenParams) error {
+	return p.q.RotateWebhookEndpointToken(ctx, pgdb.RotateWebhookEndpointTokenParams(arg))
 }
 
 func (p pgQueries) TakeLinkFlow(ctx context.Context, code string) (sqlitedb.LinkFlow, error) {
@@ -260,4 +294,8 @@ func (p pgQueries) UpdateRoute(ctx context.Context, arg sqlitedb.UpdateRoutePara
 
 func (p pgQueries) UpdateTemplate(ctx context.Context, arg sqlitedb.UpdateTemplateParams) error {
 	return p.q.UpdateTemplate(ctx, pgdb.UpdateTemplateParams(arg))
+}
+
+func (p pgQueries) UpdateWebhookEndpoint(ctx context.Context, arg sqlitedb.UpdateWebhookEndpointParams) error {
+	return p.q.UpdateWebhookEndpoint(ctx, pgdb.UpdateWebhookEndpointParams(arg))
 }

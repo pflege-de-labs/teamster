@@ -78,7 +78,7 @@ func TestPostMessage(t *testing.T) {
 	id, err := client.PostMessage("team-1", "channel-1", Message{
 		Title: "CPU <spiking>",
 		Text:  "<p>worker is hot</p>",
-		Card:  json.RawMessage(`{"type":"AdaptiveCard"}`),
+		Cards: []json.RawMessage{json.RawMessage(`{"type":"AdaptiveCard"}`)},
 	})
 	if err != nil {
 		t.Fatalf("PostMessage: %v", err)
@@ -163,7 +163,7 @@ func TestPostMessageErrors(t *testing.T) {
 
 			client := newTestClient(t, tt.handler)
 
-			_, err := client.PostMessage("team", "channel", Message{Title: "summary", Card: json.RawMessage(`{}`)})
+			_, err := client.PostMessage("team", "channel", Message{Title: "summary", Cards: []json.RawMessage{json.RawMessage(`{}`)}})
 			if err == nil {
 				t.Fatalf("PostMessage() = nil error, want %q", tt.wantErr)
 			}
@@ -184,7 +184,7 @@ func TestUpdateMessage(t *testing.T) {
 		w.WriteHeader(http.StatusNoContent)
 	})
 
-	if err := client.UpdateMessage("team-1", "channel-1", "message-1", Message{Title: "summary", Card: json.RawMessage(`{}`)}); err != nil {
+	if err := client.UpdateMessage("team-1", "channel-1", "message-1", Message{Title: "summary", Cards: []json.RawMessage{json.RawMessage(`{}`)}}); err != nil {
 		t.Fatalf("UpdateMessage: %v", err)
 	}
 	if gotMethod != http.MethodPatch {
@@ -203,7 +203,7 @@ func TestUpdateMessageError(t *testing.T) {
 		_, _ = w.Write([]byte("message gone"))
 	})
 
-	err := client.UpdateMessage("team", "channel", "missing", Message{Title: "summary", Card: json.RawMessage(`{}`)})
+	err := client.UpdateMessage("team", "channel", "missing", Message{Title: "summary", Cards: []json.RawMessage{json.RawMessage(`{}`)}})
 	if err == nil || !strings.Contains(err.Error(), "message gone") {
 		t.Errorf("UpdateMessage() = %v, want the Graph error body to be surfaced", err)
 	}

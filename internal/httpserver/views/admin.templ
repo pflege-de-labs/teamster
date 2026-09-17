@@ -11,6 +11,7 @@ templ Admin(page Page) {
 		@readOnlyNotice(page)
 		@templates(page)
 		@destinations(page)
+		@webhooks(page)
 		@routes(page)
 		@grants(page)
 	}
@@ -126,6 +127,78 @@ templ destinations(page Page) {
 			}
 		</div>
 	}
+}
+
+templ webhooks(page Page) {
+	@panel(i18n.T(ctx, "webhooks.panel"), "webhooks") {
+		if page.CanEdit {
+			<form method="post" action="/admin/webhooks" class="space-y-3">
+				if page.EditWebhookEndpoint != nil {
+					<input type="hidden" name="id" value={ page.EditWebhookEndpoint.ID }/>
+				}
+				@textField("team_slug", i18n.T(ctx, "webhooks.team_slug"), "platform", page.editingWebhookEndpoint().TeamSlug)
+				@textField("channel_slug", i18n.T(ctx, "webhooks.channel_slug"), "alerts", page.editingWebhookEndpoint().ChannelSlug)
+				@selectField("destination_id", i18n.T(ctx, "routes.destination"), destinationOptions(page), page.editingWebhookEndpoint().DestinationID)
+				<p class="text-xs text-slate-500">{ i18n.T(ctx, "webhooks.hint") }</p>
+				<div class="flex items-center gap-2">
+					@submit(submitLabel(ctx, page.EditWebhookEndpoint != nil, "noun.webhook"))
+					if page.EditWebhookEndpoint != nil {
+						@cancelEdit()
+					}
+				</div>
+			</form>
+		}
+		<div>
+			if page.NewWebhookURL != "" {
+				@revealedWebhookURL(page.NewWebhookURL)
+			}
+			if len(page.WebhookEndpoints) == 0 {
+				@empty(i18n.T(ctx, "webhooks.empty"))
+			} else {
+				<ul class="divide-y divide-slate-200">
+					for _, e := range page.WebhookEndpoints {
+						<li class="flex items-center justify-between gap-4 py-3">
+							<div class="min-w-0">
+								<div class="truncate font-medium">/teamsv2/{ e.TeamSlug }/{ e.ChannelSlug }</div>
+								<div class="truncate text-xs text-slate-500">{ page.destinationName(e.DestinationID) }</div>
+							</div>
+							<div class="flex shrink-0 items-center gap-2">
+								if page.CanEdit {
+									@rotateButton(e.ID, e.TeamSlug+"/"+e.ChannelSlug)
+									@editLink("webhooks", e.ID, e.TeamSlug+"/"+e.ChannelSlug)
+									@deleteButton("/admin/webhooks/delete", e.ID, e.TeamSlug+"/"+e.ChannelSlug)
+								}
+							</div>
+						</li>
+					}
+				</ul>
+			}
+		</div>
+	}
+}
+
+// The URL is shown once, in the answer to the post that generated it. Only a
+// digest is stored, so there is no second chance to read it.
+templ revealedWebhookURL(url string) {
+	<div class="mb-4 rounded-md border border-amber-300 bg-amber-50 px-4 py-3">
+		<p class="text-sm font-medium text-amber-900">{ i18n.T(ctx, "webhooks.new_url") }</p>
+		<code class="mt-1 block break-all text-xs text-amber-900">{ url }</code>
+	</div>
+}
+
+// Rotating is its own form, so that saving an endpoint cannot change the secret
+// a sender is already using by accident.
+templ rotateButton(id, name string) {
+	<form method="post" action="/admin/webhooks/rotate">
+		<input type="hidden" name="id" value={ id }/>
+		<button
+			type="submit"
+			aria-label={ i18n.T(ctx, "webhooks.rotate") + " " + name }
+			class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:border-amber-400 hover:bg-amber-50 hover:text-amber-700"
+		>
+			{ i18n.T(ctx, "webhooks.rotate") }
+		</button>
+	</form>
 }
 
 templ routes(page Page) {

@@ -161,6 +161,8 @@ func requestAuthorization(r *http.Request) (string, authz.Resource) {
 		resource.Type = "Destination"
 	case strings.HasPrefix(path, "/api/routes"), strings.HasPrefix(path, "/admin/routes"):
 		resource.Type = "Route"
+	case strings.HasPrefix(path, "/api/webhooks"), strings.HasPrefix(path, "/admin/webhooks"):
+		resource.Type = "WebhookEndpoint"
 	case strings.HasPrefix(path, "/api/graph/"):
 		resource.Type = "Directory"
 	case strings.HasPrefix(path, "/api/routing/"):

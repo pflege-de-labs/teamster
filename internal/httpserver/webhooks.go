@@ -314,7 +314,11 @@ func (s *Server) render(ctx context.Context, alert models.Alert, delivery routin
 
 	// The summary line is the template's to decide now; templates.RenderMessage
 	// falls back to the one this service used to hardcode.
-	return destination, graph.Message{Title: rendered.Title, Text: rendered.Text, Card: rendered.Card}, nil
+	msg := graph.Message{Title: rendered.Title, Text: rendered.Text}
+	if len(rendered.Card) > 0 {
+		msg.Cards = []json.RawMessage{rendered.Card}
+	}
+	return destination, msg, nil
 }
 
 // routeLabel is what a delivery is counted under. The name is what an operator
