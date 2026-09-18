@@ -632,8 +632,9 @@ question.
 | Recipient admin page | done | `/admin/recipients`, plus the durable "this recipient is broken" flag a permanent send failure used to only report as a metric — informational and self-healing, never a delivery gate |
 | Chart `bot-*` values | to do | |
 
-Parked rather than forgotten: handling `membersRemoved` so uninstalling the bot retires the link on
-its own. An unlink command shipped with the recipient admin page instead of staying parked.
+Both parked items shipped: a chat command (`unlink`, `stop`, `unsubscribe`) and `membersRemoved`
+handling, so uninstalling the bot retires the link on its own
+([ADR 0032](adr/0032-retiring-a-link-from-the-chat.md)).
 
 ### Why this is not another endpoint on the Graph client
 

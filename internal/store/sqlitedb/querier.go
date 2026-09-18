@@ -89,6 +89,11 @@ type Querier interface {
 	GetActiveAlertRecipient(ctx context.Context, arg GetActiveAlertRecipientParams) (ActiveAlertRecipient, error)
 	GetDestination(ctx context.Context, id string) (Destination, error)
 	GetRecipient(ctx context.Context, id string) (Recipient, error)
+	// GetRecipientByConversation resolves the chat an inbound activity came from
+	// back to the person it belongs to. Ordered and limited rather than assuming
+	// one row: see the 0009 migration for the case where two subjects share a
+	// conversation.
+	GetRecipientByConversation(ctx context.Context, conversationID string) (Recipient, error)
 	// GetRecipientBySubject is how the linking flow finds an existing binding for
 	// the person redeeming a code, so re-linking updates their row rather than
 	// failing on the unique index.

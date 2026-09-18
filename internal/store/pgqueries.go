@@ -162,6 +162,11 @@ func (p pgQueries) GetRecipient(ctx context.Context, id string) (sqlitedb.Recipi
 	return sqlitedb.Recipient(row), err
 }
 
+func (p pgQueries) GetRecipientByConversation(ctx context.Context, conversationID string) (sqlitedb.Recipient, error) {
+	row, err := p.q.GetRecipientByConversation(ctx, conversationID)
+	return sqlitedb.Recipient(row), err
+}
+
 func (p pgQueries) GetRecipientBySubject(ctx context.Context, subject string) (sqlitedb.Recipient, error) {
 	row, err := p.q.GetRecipientBySubject(ctx, subject)
 	return sqlitedb.Recipient(row), err

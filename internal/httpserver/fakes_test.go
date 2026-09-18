@@ -287,6 +287,30 @@ func (f *fakeStore) GetRecipient(ctx context.Context, id string) (models.Recipie
 	return r, nil
 }
 
+func (f *fakeStore) GetRecipientByConversation(ctx context.Context, conversationID string) (models.Recipient, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("GetRecipientByConversation"); err != nil {
+		return models.Recipient{}, err
+	}
+	// Ordered, so a conversation two subjects share resolves the same way the
+	// real query's ORDER BY does rather than however the map iterates.
+	var found *models.Recipient
+	for _, r := range f.recipients {
+		if r.ConversationID != conversationID {
+			continue
+		}
+		if found == nil || r.CreatedAt.Before(found.CreatedAt) || (r.CreatedAt.Equal(found.CreatedAt) && r.ID < found.ID) {
+			match := r
+			found = &match
+		}
+	}
+	if found == nil {
+		return models.Recipient{}, store.ErrNotFound
+	}
+	return *found, nil
+}
+
 func (f *fakeStore) GetRecipientBySubject(ctx context.Context, subject string) (models.Recipient, error) {
 	f.mu.Lock()
 	if err := f.failing("GetRecipientBySubject"); err != nil {

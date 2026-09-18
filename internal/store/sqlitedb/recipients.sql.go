@@ -105,6 +105,38 @@ func (q *Queries) GetRecipient(ctx context.Context, id string) (Recipient, error
 	return i, err
 }
 
+const getRecipientByConversation = `-- name: GetRecipientByConversation :one
+SELECT id, subject, name, aad_object_id, conversation_id, service_url, bot_channel_id, tenant_id, created_at, updated_at, blocked_at, blocked_reason
+FROM recipients
+WHERE conversation_id = ?
+ORDER BY created_at, id
+LIMIT 1
+`
+
+// GetRecipientByConversation resolves the chat an inbound activity came from
+// back to the person it belongs to. Ordered and limited rather than assuming
+// one row: see the 0009 migration for the case where two subjects share a
+// conversation.
+func (q *Queries) GetRecipientByConversation(ctx context.Context, conversationID string) (Recipient, error) {
+	row := q.db.QueryRowContext(ctx, getRecipientByConversation, conversationID)
+	var i Recipient
+	err := row.Scan(
+		&i.ID,
+		&i.Subject,
+		&i.Name,
+		&i.AadObjectID,
+		&i.ConversationID,
+		&i.ServiceUrl,
+		&i.BotChannelID,
+		&i.TenantID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.BlockedAt,
+		&i.BlockedReason,
+	)
+	return i, err
+}
+
 const getRecipientBySubject = `-- name: GetRecipientBySubject :one
 SELECT id, subject, name, aad_object_id, conversation_id, service_url, bot_channel_id, tenant_id, created_at, updated_at, blocked_at, blocked_reason
 FROM recipients

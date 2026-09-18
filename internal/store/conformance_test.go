@@ -413,6 +413,66 @@ func TestConformanceWebhookEndpointSlugIsUnique(t *testing.T) {
 
 // One person, one binding: a second row for the same subject would deliver
 // every alert twice.
+func TestConformanceGetRecipientByConversation(t *testing.T) {
+	t.Parallel()
+
+	eachBackend(t, func(t *testing.T, open func(t *testing.T) store.Store) {
+		st := open(t)
+		ctx := t.Context()
+
+		want, err := st.CreateRecipient(ctx, models.Recipient{
+			Subject: "alice", Name: "Alice", ConversationID: "conv-1",
+			ServiceURL: "https://smba.example.invalid/emea/", BotChannelID: "msteams",
+		})
+		if err != nil {
+			t.Fatalf("CreateRecipient: %v", err)
+		}
+		if _, err := st.CreateRecipient(ctx, models.Recipient{
+			Subject: "bob", Name: "Bob", ConversationID: "conv-2",
+			ServiceURL: "https://smba.example.invalid/emea/", BotChannelID: "msteams",
+		}); err != nil {
+			t.Fatalf("CreateRecipient: %v", err)
+		}
+
+		got, err := st.GetRecipientByConversation(ctx, "conv-1")
+		if err != nil {
+			t.Fatalf("GetRecipientByConversation: %v", err)
+		}
+		if got.ID != want.ID || got.Subject != "alice" {
+			t.Errorf("recipient = %+v, want the one bound to conv-1", got)
+		}
+
+		if _, err := st.GetRecipientByConversation(ctx, "conv-nobody"); !errors.Is(err, store.ErrNotFound) {
+			t.Errorf("unknown conversation = %v, want ErrNotFound", err)
+		}
+	})
+}
+
+// Two admin-UI subjects -- a local login and an OIDC one -- can belong to the
+// same person and redeem a code from the same chat. The index is deliberately
+// not unique, so the second link must be accepted rather than refused.
+func TestConformanceTwoSubjectsMayShareAConversation(t *testing.T) {
+	t.Parallel()
+
+	eachBackend(t, func(t *testing.T, open func(t *testing.T) store.Store) {
+		st := open(t)
+		ctx := t.Context()
+
+		for _, subject := range []string{"alice-local", "alice-oidc"} {
+			if _, err := st.CreateRecipient(ctx, models.Recipient{
+				Subject: subject, Name: "Alice", ConversationID: "conv-shared",
+				ServiceURL: "https://smba.example.invalid/emea/", BotChannelID: "msteams",
+			}); err != nil {
+				t.Fatalf("CreateRecipient(%s): %v", subject, err)
+			}
+		}
+
+		if _, err := st.GetRecipientByConversation(ctx, "conv-shared"); err != nil {
+			t.Errorf("GetRecipientByConversation: %v, want one of the two", err)
+		}
+	})
+}
+
 func TestConformanceRecipientSubjectIsUnique(t *testing.T) {
 	t.Parallel()
 

@@ -580,3 +580,197 @@ func TestBotMessageRefreshesServiceURLOnPlainMessage(t *testing.T) {
 		t.Errorf("ServiceURL = %q, want it refreshed to %q by a plain message", got.ServiceURL, activity["serviceUrl"])
 	}
 }
+
+// seedRecipient links a conversation, so the unlink paths have something to
+// retire.
+func seedRecipient(t *testing.T, st *fakeStore, subject, conversationID string) models.Recipient {
+	t.Helper()
+
+	recipient, err := st.CreateRecipient(context.Background(), models.Recipient{
+		Subject: subject, Name: "Alice", ConversationID: conversationID,
+		ServiceURL: "https://smba.trafficmanager.net/teams/", BotChannelID: "msteams",
+	})
+	if err != nil {
+		t.Fatalf("seed recipient: %v", err)
+	}
+	return recipient
+}
+
+func TestBotUnlinkCommandRetiresTheLink(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		text string
+	}{
+		{name: "bare", text: "unlink"},
+		{name: "mentioned", text: "<at>Teamster</at>&nbsp;unlink"},
+		{name: "cased and padded", text: "  UnLink  "},
+		{name: "stop", text: "stop"},
+		{name: "unsubscribe", text: "unsubscribe"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			f := newBotFixture(t)
+			seedRecipient(t, f.store, "alice", "conv-1")
+
+			activity := botActivityFields()
+			activity["text"] = tt.text
+			activity["entities"] = []map[string]any{{"type": "mention", "text": "<at>Teamster</at>"}}
+
+			if rec := f.post(t, activity); rec.Code != http.StatusOK {
+				t.Fatalf("status = %d, want 200: %s", rec.Code, rec.Body.String())
+			}
+
+			recipients, err := f.store.ListRecipients(context.Background())
+			if err != nil {
+				t.Fatalf("ListRecipients: %v", err)
+			}
+			if len(recipients) != 0 {
+				t.Errorf("recipients = %d, want the link retired", len(recipients))
+			}
+			if f.botClient.count(unlinkConfirmedReply) != 1 {
+				t.Errorf("replies = %v, want one confirmation", f.botClient.sentTexts())
+			}
+		})
+	}
+}
+
+// "unlink" is an ordinary word. Only a message that is the command retires a
+// link -- one that merely contains it must not.
+func TestBotUnlinkCommandIsTheWholeMessage(t *testing.T) {
+	t.Parallel()
+
+	f := newBotFixture(t)
+	seedRecipient(t, f.store, "alice", "conv-1")
+
+	activity := botActivityFields()
+	activity["text"] = "how do I unlink this chat?"
+
+	if rec := f.post(t, activity); rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+
+	recipients, _ := f.store.ListRecipients(context.Background())
+	if len(recipients) != 1 {
+		t.Errorf("recipients = %d, want the link left alone", len(recipients))
+	}
+	if f.botClient.count(unlinkConfirmedReply) != 0 {
+		t.Errorf("replies = %v, want no unlink confirmation", f.botClient.sentTexts())
+	}
+}
+
+func TestBotUnlinkCommandOnAnUnlinkedChat(t *testing.T) {
+	t.Parallel()
+
+	f := newBotFixture(t)
+
+	activity := botActivityFields()
+	activity["text"] = "unlink"
+
+	if rec := f.post(t, activity); rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+	if f.botClient.count(unlinkNotLinkedReply) != 1 {
+		t.Errorf("replies = %v, want the nothing-to-unlink reply", f.botClient.sentTexts())
+	}
+}
+
+// The command retires the chat it was sent from, never anyone else's.
+func TestBotUnlinkCommandRetiresOnlyItsOwnConversation(t *testing.T) {
+	t.Parallel()
+
+	f := newBotFixture(t)
+	seedRecipient(t, f.store, "alice", "conv-1")
+	seedRecipient(t, f.store, "bob", "conv-2")
+
+	activity := botActivityFields()
+	activity["text"] = "unlink"
+
+	if rec := f.post(t, activity); rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+
+	recipients, _ := f.store.ListRecipients(context.Background())
+	if len(recipients) != 1 {
+		t.Fatalf("recipients = %d, want only the sender's retired", len(recipients))
+	}
+	if recipients[0].Subject != "bob" {
+		t.Errorf("remaining subject = %q, want bob's link untouched", recipients[0].Subject)
+	}
+}
+
+// Uninstalling the bot is the person saying they are done; the link should not
+// outlive it. There is nobody left to reply to.
+func TestBotRemovedRetiresTheLink(t *testing.T) {
+	t.Parallel()
+
+	f := newBotFixture(t)
+	seedRecipient(t, f.store, "alice", "conv-1")
+
+	activity := botActivityFields()
+	activity["type"] = "conversationUpdate"
+	activity["text"] = ""
+	activity["membersRemoved"] = []map[string]any{{"id": "28:bot-app-id", "name": "Teamster"}}
+
+	if rec := f.post(t, activity); rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200: %s", rec.Code, rec.Body.String())
+	}
+
+	recipients, _ := f.store.ListRecipients(context.Background())
+	if len(recipients) != 0 {
+		t.Errorf("recipients = %d, want the link retired", len(recipients))
+	}
+	if texts := f.botClient.sentTexts(); len(texts) != 0 {
+		t.Errorf("replies = %v, want none: the bot has just been removed", texts)
+	}
+}
+
+// Somebody else leaving is not the bot being uninstalled.
+func TestBotRemovedIgnoresAnotherMemberLeaving(t *testing.T) {
+	t.Parallel()
+
+	f := newBotFixture(t)
+	seedRecipient(t, f.store, "alice", "conv-1")
+
+	activity := botActivityFields()
+	activity["type"] = "conversationUpdate"
+	activity["text"] = ""
+	activity["membersRemoved"] = []map[string]any{{"id": "29:user-1", "name": "Alice"}}
+
+	if rec := f.post(t, activity); rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+
+	recipients, _ := f.store.ListRecipients(context.Background())
+	if len(recipients) != 1 {
+		t.Errorf("recipients = %d, want the link left alone", len(recipients))
+	}
+}
+
+// A store that cannot answer must not look like a successful unlink.
+func TestBotUnlinkCommandOnAStoreFailure(t *testing.T) {
+	t.Parallel()
+
+	f := newBotFixture(t)
+	seedRecipient(t, f.store, "alice", "conv-1")
+	f.store.fail("DeleteRecipient")
+
+	activity := botActivityFields()
+	activity["text"] = "unlink"
+
+	if rec := f.post(t, activity); rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+
+	recipients, _ := f.store.ListRecipients(context.Background())
+	if len(recipients) != 1 {
+		t.Errorf("recipients = %d, want the link intact", len(recipients))
+	}
+	if f.botClient.count(unlinkConfirmedReply) != 0 {
+		t.Errorf("replies = %v, want no confirmation of an unlink that failed", f.botClient.sentTexts())
+	}
+}

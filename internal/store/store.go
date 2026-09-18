@@ -105,6 +105,11 @@ type Store interface {
 	// set is informational and self-healing, never a delivery gate -- see
 	// ADR 0026. ClearRecipientBlocked is a no-op, not an error, on a recipient
 	// that was never blocked.
+	// GetRecipientByConversation resolves an inbound activity's conversation
+	// back to the recipient it belongs to. It is what lets the bot retire a
+	// link from the chat side -- an unlink command, or the bot being removed --
+	// where the only identity on hand is the conversation itself.
+	GetRecipientByConversation(ctx context.Context, conversationID string) (models.Recipient, error)
 	MarkRecipientBlocked(ctx context.Context, id string, at time.Time, reason string) error
 	ClearRecipientBlocked(ctx context.Context, id string) error
 

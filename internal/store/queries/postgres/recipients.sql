@@ -21,6 +21,17 @@ SELECT id, subject, name, aad_object_id, conversation_id, service_url, bot_chann
 FROM recipients
 WHERE subject = $1;
 
+-- GetRecipientByConversation resolves the chat an inbound activity came from
+-- back to the person it belongs to. Ordered and limited rather than assuming
+-- one row: see the 0009 migration for the case where two subjects share a
+-- conversation.
+-- name: GetRecipientByConversation :one
+SELECT id, subject, name, aad_object_id, conversation_id, service_url, bot_channel_id, tenant_id, created_at, updated_at, blocked_at, blocked_reason
+FROM recipients
+WHERE conversation_id = $1
+ORDER BY created_at, id
+LIMIT 1;
+
 -- name: CreateRecipient :exec
 INSERT INTO recipients (id, subject, name, aad_object_id, conversation_id, service_url, bot_channel_id, tenant_id, created_at, updated_at, blocked_at, blocked_reason)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12);
