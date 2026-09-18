@@ -90,6 +90,10 @@ func (p pgQueries) DeleteActiveAlertRecipientCard(ctx context.Context, arg sqlit
 	return p.q.DeleteActiveAlertRecipientCard(ctx, pgdb.DeleteActiveAlertRecipientCardParams(arg))
 }
 
+func (p pgQueries) DeleteActiveAlertRecipientsFor(ctx context.Context, recipientID string) error {
+	return p.q.DeleteActiveAlertRecipientsFor(ctx, recipientID)
+}
+
 func (p pgQueries) DeleteDestination(ctx context.Context, id string) error {
 	return p.q.DeleteDestination(ctx, id)
 }

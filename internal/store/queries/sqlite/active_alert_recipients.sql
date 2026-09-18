@@ -71,3 +71,13 @@ WHERE fingerprint = ? AND recipient_id = ?;
 -- name: DeleteActiveAlertRecipientCard :exec
 DELETE FROM active_alert_recipients
 WHERE fingerprint = ? AND recipient_id = ? AND message_id = ?;
+
+-- DeleteActiveAlertRecipientsFor removes every in-flight or posted row for one
+-- recipient, regardless of fingerprint or message id. It is what unlinking a
+-- recipient runs inside the same transaction as the delete itself: an alert
+-- claimed or posted to a person who no longer exists has nobody left to
+-- notify and nothing left to keep, and a stranded row would otherwise fail a
+-- resolve forever (see recipientMissing in webhooks.go for the mirror-image
+-- defence against a row that was stranded some other way).
+-- name: DeleteActiveAlertRecipientsFor :exec
+DELETE FROM active_alert_recipients WHERE recipient_id = ?;

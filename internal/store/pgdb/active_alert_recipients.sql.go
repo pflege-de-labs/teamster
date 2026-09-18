@@ -120,6 +120,22 @@ func (q *Queries) DeleteActiveAlertRecipientCard(ctx context.Context, arg Delete
 	return err
 }
 
+const deleteActiveAlertRecipientsFor = `-- name: DeleteActiveAlertRecipientsFor :exec
+DELETE FROM active_alert_recipients WHERE recipient_id = $1
+`
+
+// DeleteActiveAlertRecipientsFor removes every in-flight or posted row for one
+// recipient, regardless of fingerprint or message id. It is what unlinking a
+// recipient runs inside the same transaction as the delete itself: an alert
+// claimed or posted to a person who no longer exists has nobody left to
+// notify and nothing left to keep, and a stranded row would otherwise fail a
+// resolve forever (see recipientMissing in webhooks.go for the mirror-image
+// defence against a row that was stranded some other way).
+func (q *Queries) DeleteActiveAlertRecipientsFor(ctx context.Context, recipientID string) error {
+	_, err := q.db.ExecContext(ctx, deleteActiveAlertRecipientsFor, recipientID)
+	return err
+}
+
 const getActiveAlertRecipient = `-- name: GetActiveAlertRecipient :one
 SELECT fingerprint, status, recipient_id, message_id, claim_owner, claimed_at, posted_at, last_update
 FROM active_alert_recipients

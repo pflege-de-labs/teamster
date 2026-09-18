@@ -53,8 +53,14 @@ WHERE id = $3;
 -- ClearRecipientBlocked is MarkRecipientBlocked's mirror, run after a
 -- successful send or update. It is a no-op, not an error, on a recipient that
 -- was never blocked: delivery calls it after every success, not only after a
--- recovery.
+-- recovery. The blocked_at IS NOT NULL predicate is what makes that call
+-- unconditional and still cheap -- almost no recipient is ever blocked, so
+-- this matches zero rows, and no write and no WAL churn happen on the hot
+-- path for the common case. It has to be the predicate, not a Go-side check
+-- on the recipient this caller already loaded: that copy was read before the
+-- network call, so it can be stale, where the predicate is evaluated against
+-- the row as it is now.
 -- name: ClearRecipientBlocked :exec
 UPDATE recipients
 SET blocked_at = NULL, blocked_reason = ''
-WHERE id = $1;
+WHERE id = $1 AND blocked_at IS NOT NULL;
