@@ -123,6 +123,12 @@ func (s *PostgresStore) Ping(ctx context.Context) error {
 	return nil
 }
 
+// DeleteRecipient overrides queryAdapter's to cascade; see
+// deleteRecipientCascade for why both deletes have to commit together.
+func (s *PostgresStore) DeleteRecipient(ctx context.Context, id string) error {
+	return deleteRecipientCascade(ctx, s, id)
+}
+
 func (s *PostgresStore) WithTx(ctx context.Context, fn func(ctx context.Context, tx Store) error) error {
 	return s.runTx(ctx, sql.LevelReadCommitted, fn)
 }

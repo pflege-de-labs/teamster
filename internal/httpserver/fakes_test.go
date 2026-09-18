@@ -259,6 +259,10 @@ func (f *fakeStore) UpdateRecipient(ctx context.Context, r models.Recipient) (mo
 	return r, nil
 }
 
+// DeleteRecipient cascades to that recipient's active_alert_recipients rows,
+// mirroring the real store's SQLiteStore/PostgresStore override: an alert
+// claimed or posted to this person must not survive them, or a resolve would
+// fail against a row nothing will ever clear again.
 func (f *fakeStore) DeleteRecipient(ctx context.Context, id string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -266,6 +270,7 @@ func (f *fakeStore) DeleteRecipient(ctx context.Context, id string) error {
 		return err
 	}
 	delete(f.recipients, id)
+	f.deleteActiveAlertRecipientsForLocked(id)
 	return nil
 }
 
@@ -1017,6 +1022,27 @@ func (f *fakeStore) DeleteActiveAlertRecipientCard(ctx context.Context, fingerpr
 		delete(f.activeChats, key)
 	}
 	return nil
+}
+
+func (f *fakeStore) DeleteActiveAlertRecipientsFor(ctx context.Context, recipientID string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("DeleteActiveAlertRecipientsFor"); err != nil {
+		return err
+	}
+	f.deleteActiveAlertRecipientsForLocked(recipientID)
+	return nil
+}
+
+// deleteActiveAlertRecipientsForLocked is the unlocked body both
+// DeleteActiveAlertRecipientsFor and DeleteRecipient's cascade share -- f.mu
+// is not reentrant, so DeleteRecipient cannot simply call the locking method.
+func (f *fakeStore) deleteActiveAlertRecipientsForLocked(recipientID string) {
+	for key, card := range f.activeChats {
+		if card.RecipientID == recipientID {
+			delete(f.activeChats, key)
+		}
+	}
 }
 
 func (f *fakeStore) DeleteActiveAlertCard(ctx context.Context, fingerprint, teamID, channelID, messageID string) error {

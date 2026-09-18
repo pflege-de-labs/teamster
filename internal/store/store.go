@@ -193,4 +193,10 @@ type Store interface {
 	// DeleteActiveAlertRecipientCard forgets one card, and only if it is still
 	// that card: a resolve racing a refire must not delete the new card's row.
 	DeleteActiveAlertRecipientCard(ctx context.Context, fingerprint, recipientID, messageID string) error
+	// DeleteActiveAlertRecipientsFor forgets every row for one recipient,
+	// regardless of fingerprint or message id. SQLiteStore and PostgresStore
+	// call it inside the same transaction as DeleteRecipient, so unlinking
+	// someone cannot strand a claimed or posted row that a resolve would then
+	// fail against forever.
+	DeleteActiveAlertRecipientsFor(ctx context.Context, recipientID string) error
 }

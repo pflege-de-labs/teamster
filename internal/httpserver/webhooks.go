@@ -331,6 +331,20 @@ func (s *Server) resolveChatMessages(ctx context.Context, alert models.Alert, pl
 
 		recipient, err := s.store.GetRecipient(ctx, card.RecipientID)
 		if err != nil {
+			if errors.Is(err, store.ErrNotFound) {
+				// The recipient is gone -- unlinked since this row was
+				// claimed or posted, or a row stranded some other way before
+				// unlinking cascaded (DeleteRecipient in internal/store). This
+				// is not swallowing an error: the resolve itself has not
+				// failed, only the row it was about to act on no longer names
+				// anybody to notify or anything to keep, and forgetting it is
+				// what lets the alert resolve instead of failing against the
+				// same 404 on every retry.
+				if forget := s.store.DeleteActiveAlertRecipientCard(ctx, card.Fingerprint, card.RecipientID, card.MessageID); forget != nil {
+					logError("forget orphaned recipient card", forget)
+				}
+				continue
+			}
 			failures = append(failures, fmt.Errorf("recipient %s: %w", card.RecipientID, err))
 			continue
 		}

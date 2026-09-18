@@ -23,7 +23,13 @@ type Querier interface {
 	// ClearRecipientBlocked is MarkRecipientBlocked's mirror, run after a
 	// successful send or update. It is a no-op, not an error, on a recipient that
 	// was never blocked: delivery calls it after every success, not only after a
-	// recovery.
+	// recovery. The blocked_at IS NOT NULL predicate is what makes that call
+	// unconditional and still cheap -- almost no recipient is ever blocked, so
+	// this matches zero rows, and no write and no WAL churn happen on the hot
+	// path for the common case. It has to be the predicate, not a Go-side check
+	// on the recipient this caller already loaded: that copy was read before the
+	// network call, so it can be stale, where the predicate is evaluated against
+	// the row as it is now.
 	ClearRecipientBlocked(ctx context.Context, id string) error
 	// CompleteActiveAlertClaim records the card the claim produced. The guard is
 	// what makes a lost claim visible: zero rows means somebody else's card is
@@ -65,6 +71,14 @@ type Querier interface {
 	// it is still that message: a resolve that raced a refire must not delete the
 	// new message's row.
 	DeleteActiveAlertRecipientCard(ctx context.Context, arg DeleteActiveAlertRecipientCardParams) error
+	// DeleteActiveAlertRecipientsFor removes every in-flight or posted row for one
+	// recipient, regardless of fingerprint or message id. It is what unlinking a
+	// recipient runs inside the same transaction as the delete itself: an alert
+	// claimed or posted to a person who no longer exists has nobody left to
+	// notify and nothing left to keep, and a stranded row would otherwise fail a
+	// resolve forever (see recipientMissing in webhooks.go for the mirror-image
+	// defence against a row that was stranded some other way).
+	DeleteActiveAlertRecipientsFor(ctx context.Context, recipientID string) error
 	DeleteDestination(ctx context.Context, id string) error
 	DeleteExpiredLinkFlows(ctx context.Context, expiresAt time.Time) error
 	DeleteExpiredLoginFlows(ctx context.Context, expiresAt time.Time) error

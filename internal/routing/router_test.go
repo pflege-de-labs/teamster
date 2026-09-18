@@ -201,6 +201,10 @@ func (s stubStore) DeleteActiveAlertRecipientCard(ctx context.Context, _, _, _ s
 	return store.ErrNotFound
 }
 
+func (s stubStore) DeleteActiveAlertRecipientsFor(ctx context.Context, recipientID string) error {
+	return store.ErrNotFound
+}
+
 func (s stubStore) Ping(ctx context.Context) error { return nil }
 
 func (s stubStore) WithSerializableTx(ctx context.Context, _ func(context.Context, store.Store) error) error {

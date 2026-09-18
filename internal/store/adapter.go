@@ -269,6 +269,26 @@ func (s queryAdapter) DeleteRecipient(ctx context.Context, id string) error {
 	return nil
 }
 
+// deleteRecipientCascade is the store-level DeleteRecipient both SQLiteStore
+// and PostgresStore expose, overriding queryAdapter's single-statement one:
+// an alert claimed or posted to this recipient must not survive the person it
+// was claimed for, or a resolve would fail against a row nothing will ever
+// clear again (see internal/httpserver/webhooks.go's handling of a recipient
+// GetRecipient can no longer find, which is the defence for a row stranded
+// some other way). Running inside one transaction is what makes "unlinked but
+// still owes an alert" a state that cannot happen, rather than a race between
+// two statements.
+func deleteRecipientCascade(ctx context.Context, s interface {
+	WithTx(ctx context.Context, fn func(ctx context.Context, tx Store) error) error
+}, id string) error {
+	return s.WithTx(ctx, func(ctx context.Context, tx Store) error {
+		if err := tx.DeleteActiveAlertRecipientsFor(ctx, id); err != nil {
+			return err
+		}
+		return tx.DeleteRecipient(ctx, id)
+	})
+}
+
 func (s queryAdapter) GetRecipient(ctx context.Context, id string) (models.Recipient, error) {
 	row, err := s.q.GetRecipient(ctx, id)
 	if err != nil {
@@ -809,6 +829,13 @@ func (s queryAdapter) DeleteActiveAlertRecipientCard(ctx context.Context, finger
 	})
 	if err != nil {
 		return fmt.Errorf("delete active alert recipient card: %w", err)
+	}
+	return nil
+}
+
+func (s queryAdapter) DeleteActiveAlertRecipientsFor(ctx context.Context, recipientID string) error {
+	if err := s.q.DeleteActiveAlertRecipientsFor(ctx, recipientID); err != nil {
+		return fmt.Errorf("delete active alert recipients for: %w", err)
 	}
 	return nil
 }

@@ -497,6 +497,54 @@ func TestConformanceRecipientBlocked(t *testing.T) {
 	})
 }
 
+// Deleting a recipient must not strand a row an alert is still relying on:
+// resolveChatMessages in internal/httpserver/webhooks.go has no way to notify
+// or clean up a message claimed or posted to someone who no longer exists, so
+// the cascade has to happen in the same transaction as the delete itself.
+func TestConformanceDeletingARecipientCascadesActiveAlertRows(t *testing.T) {
+	t.Parallel()
+
+	eachBackend(t, func(t *testing.T, open func(t *testing.T) store.Store) {
+		st := open(t)
+		ctx := t.Context()
+		now := time.Now().UTC().Truncate(time.Microsecond)
+
+		recipient, err := st.CreateRecipient(ctx, models.Recipient{
+			Subject: "alice", ConversationID: "c", ServiceURL: "u", BotChannelID: "msteams",
+		})
+		if err != nil {
+			t.Fatalf("CreateRecipient: %v", err)
+		}
+
+		claim := models.RecipientClaim{
+			Fingerprint: "fp-1", RecipientID: recipient.ID, Status: "firing",
+			Owner: "owner", At: now, StaleBefore: now.Add(-time.Minute),
+		}
+		if _, outcome, err := st.ClaimActiveAlertRecipient(ctx, claim); err != nil || outcome != store.ClaimAcquired {
+			t.Fatalf("ClaimActiveAlertRecipient = %v/%v, want acquired", outcome, err)
+		}
+		if err := st.CompleteActiveAlertRecipientClaim(ctx, claim, "activity-1", now); err != nil {
+			t.Fatalf("CompleteActiveAlertRecipientClaim: %v", err)
+		}
+
+		if err := st.DeleteRecipient(ctx, recipient.ID); err != nil {
+			t.Fatalf("DeleteRecipient: %v", err)
+		}
+
+		rows, err := st.ListActiveAlertRecipients(ctx, "fp-1")
+		if err != nil {
+			t.Fatalf("ListActiveAlertRecipients: %v", err)
+		}
+		if len(rows) != 0 {
+			t.Errorf("active_alert_recipients = %+v after DeleteRecipient, want the cascade to have removed them", rows)
+		}
+
+		if _, err := st.GetRecipient(ctx, recipient.ID); !errors.Is(err, store.ErrNotFound) {
+			t.Errorf("GetRecipient after delete = %v, want ErrNotFound", err)
+		}
+	})
+}
+
 func TestConformanceLinkFlows(t *testing.T) {
 	t.Parallel()
 
