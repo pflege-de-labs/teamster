@@ -156,6 +156,20 @@ checked before anything in the request body is acted on.
 
 [bot-auth-spec]: https://learn.microsoft.com/en-us/azure/bot-service/rest-api/bot-framework-rest-connector-authentication
 
+#### Leaving
+
+Three ways out, and the two new ones need no admin UI at all:
+
+- **Send `unlink` to the bot** — or `stop`, or `unsubscribe`. The message has to *be* the word:
+  "how do I unlink this chat?" is a question, not a command, and is treated as one. The bot
+  confirms, and a new link code reconnects whenever you want it back.
+- **Uninstall the bot.** Teams reports the removal and the link retires itself, so alerts stop
+  rather than piling up as permanent send failures.
+- **Unlink in the admin UI** — your own chat from **Notifications**, or anyone's from
+  **Recipients** if you administer them.
+
+Whichever way, the recipient row and any alert cards still tracked for it go together.
+
 #### Managing recipients
 
 **Recipients** (`/admin/recipients`) lists everybody who has linked a chat: their display name (or

@@ -743,6 +743,13 @@ anything else, and no failure past this point is the kind a retry fixes:
 * `conversationUpdate` with the bot's own id (its Teams id in this conversation, `28:<app-id>`, read
   from `recipient.id` rather than the configured App ID) among `membersAdded` replies with
   install instructions and writes nothing: an install is not consent.
+* `conversationUpdate` naming the bot itself among `membersRemoved` retires the link for that
+  conversation and replies with nothing — the bot has just been removed, so there is nowhere to
+  reply to. Any other member leaving is ignored. See
+  [ADR 0032](adr/0032-retiring-a-link-from-the-chat.md).
+* `message` that *is* `unlink`, `stop` or `unsubscribe`, once the bot's mention is stripped,
+  retires the link for that conversation and confirms in the chat. Whole-message, not a search:
+  `unlink` is an ordinary word where a link code is not, so "how do I unlink this chat?" does not.
 * `message` normalizes the text — strips `<at>...</at>` mention markup, using `entities[]` where
   present; unescapes HTML entities; upper-cases; then finds the first run shaped like a link code —
   and tries to redeem it. See [Linking a chat](#linking-a-chat).
@@ -751,6 +758,12 @@ anything else, and no failure past this point is the kind a retry fixes:
   conversation already belongs to one. This is the only signal Teams gives that a conversation moved
   to a different regional endpoint, and `message` is what actually arrives for a personal-scope bot
   — a `conversationUpdate` beyond the initial install is close to never.
+
+Both retirement paths resolve the conversation to a recipient with
+`GetRecipientByConversation` and delete through `store.DeleteRecipient`, which cascades the
+active-alert rows in its own transaction. Controlling the chat is the whole authorization: linking
+grants and therefore needs a code minted by an admin-UI session, while unlinking only ever revokes,
+and only for the conversation the activity arrived on.
 
 ## Linking a chat
 

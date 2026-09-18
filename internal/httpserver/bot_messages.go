@@ -30,8 +30,12 @@ type botActivity struct {
 	From         botAccount      `json:"from"`
 	Recipient    botAccount      `json:"recipient"`
 	MembersAdded []botAccount    `json:"membersAdded,omitempty"`
-	Entities     []botEntity     `json:"entities,omitempty"`
-	ChannelData  botChannelData  `json:"channelData,omitempty"`
+	// MembersRemoved carries the bot itself when someone uninstalls it, which
+	// is the only chance to retire the link: after this activity there is no
+	// conversation left to send to.
+	MembersRemoved []botAccount   `json:"membersRemoved,omitempty"`
+	Entities       []botEntity    `json:"entities,omitempty"`
+	ChannelData    botChannelData `json:"channelData,omitempty"`
 }
 
 type botConversation struct {
@@ -179,6 +183,15 @@ func (s *Server) dispatchBotActivity(ctx context.Context, activity botActivity) 
 			s.replyText(ctx, activity, installInstructions)
 			return
 		}
+		if botWasRemoved(activity) {
+			// No reply: the bot has just been removed from this chat, so there
+			// is nothing left to send to. Uninstalling is the person saying
+			// they are done with it, and the link should not outlive that.
+			// Discarded deliberately: retireLink logs what went wrong, and
+			// there is nobody left in this conversation to tell either way.
+			_, _ = s.retireLink(ctx, activity.Conversation.ID, "bot removed")
+			return
+		}
 	case "message":
 		s.handleBotMessage(ctx, activity)
 	}
@@ -198,13 +211,35 @@ func botWasAdded(activity botActivity) bool {
 	return false
 }
 
+// botWasRemoved reports whether this conversationUpdate removed the bot
+// itself, rather than some other member. It compares against Recipient.ID --
+// who the activity was addressed to -- for the same reason botWasAdded does.
+func botWasRemoved(activity botActivity) bool {
+	for _, member := range activity.MembersRemoved {
+		if member.ID != "" && member.ID == activity.Recipient.ID {
+			return true
+		}
+	}
+	return false
+}
+
 const (
 	installInstructions = "Thanks for adding me! Ask an admin for a link code in the " +
 		"teamster admin UI, then send it to me here to connect your alerts to this chat."
 	linkNeutralReply = "That does not match an active link code. Ask an admin for a new " +
 		"one, or check the one you have for typos."
-	linkConfirmedReply = "You're linked. Alerts will start arriving in this chat."
+	linkConfirmedReply   = "You're linked. Alerts will start arriving in this chat."
+	unlinkConfirmedReply = "Unlinked. Alerts will stop arriving in this chat. Send a new " +
+		"link code whenever you want them back."
+	unlinkNotLinkedReply = "This chat is not linked to anyone's alerts, so there is nothing " +
+		"to unlink."
 )
+
+// unlinkCommands are the words that retire a link from the chat itself. They
+// are matched against the whole message rather than searched for inside it:
+// "unlink" is an ordinary word, unlike a link code, and nobody should lose
+// their alerts because they mentioned it in a sentence.
+var unlinkCommands = map[string]bool{"unlink": true, "stop": true, "unsubscribe": true}
 
 // mentionMarkup strips <at>...</at> mention tags Teams inserts around the
 // bot's own display name at the front of a message. It is a fallback for a
@@ -232,18 +267,38 @@ func buildLinkCodeRunPattern() string {
 // from the whole message first, as this used to, does not -- it turns "here
 // you go ABCD-EFGH-JKMN" into "hereyougoABCDEFGHJKMN".
 func normalizeLinkCode(text string, entities []botEntity) string {
+	text = strings.ToUpper(stripMentions(text, entities))
+	return strings.ReplaceAll(linkCodeRun.FindString(text), "-", "")
+}
+
+// stripMentions removes the bot's own @-mention from a message, by the entity
+// the client listed and then by any residual markup, and unescapes what Teams
+// encoded. It stops short of touching whitespace or case: what a caller does
+// with the remaining text differs, and only they know which.
+func stripMentions(text string, entities []botEntity) string {
 	for _, entity := range entities {
 		if entity.Type == "mention" && entity.Text != "" {
 			text = strings.ReplaceAll(text, entity.Text, "")
 		}
 	}
 	text = mentionMarkup.ReplaceAllString(text, "")
-	text = html.UnescapeString(text)
-	text = strings.ToUpper(text)
-	return strings.ReplaceAll(linkCodeRun.FindString(text), "-", "")
+	return html.UnescapeString(text)
 }
 
 func (s *Server) handleBotMessage(ctx context.Context, activity botActivity) {
+	if isUnlinkCommand(activity.Text, activity.Entities) {
+		retired, err := s.retireLink(ctx, activity.Conversation.ID, "unlink command")
+		switch {
+		case err != nil:
+			s.replyText(ctx, activity, linkNeutralReply)
+		case retired:
+			s.replyText(ctx, activity, unlinkConfirmedReply)
+		default:
+			s.replyText(ctx, activity, unlinkNotLinkedReply)
+		}
+		return
+	}
+
 	code := normalizeLinkCode(activity.Text, activity.Entities)
 	if code == "" {
 		s.replyText(ctx, activity, linkNeutralReply)
@@ -377,33 +432,64 @@ func (s *Server) notifyConversationDisplaced(ctx context.Context, previous model
 // by conversation id because the store exposes no such index; the list is
 // bounded by how many people asked for alerts in a chat, which is not a scale
 // where that matters.
+// isUnlinkCommand reports whether the whole message is one of the unlink
+// words, once the bot's own mention is stripped the way a link code has it
+// stripped. Whole-message, not a search: see unlinkCommands.
+func isUnlinkCommand(text string, entities []botEntity) bool {
+	return unlinkCommands[strings.ToLower(strings.TrimSpace(stripMentions(text, entities)))]
+}
+
+// retireLink deletes the recipient bound to one conversation, and reports
+// whether there was one. It is how a link ends from the Teams side -- the
+// unlink command, or the bot being uninstalled -- where the conversation is
+// the only identity available.
+//
+// Controlling the chat is the whole authorization. Linking needs a code minted
+// by an admin-UI session, because it grants someone alerts nobody gave them;
+// unlinking only ever stops delivery to the chat asking, so the person holding
+// that conversation is already entitled to it. See the ADR.
+//
+// store.DeleteRecipient cascades the active-alert rows inside its own
+// transaction, so nothing is stranded.
+func (s *Server) retireLink(ctx context.Context, conversationID, reason string) (bool, error) {
+	if conversationID == "" {
+		return false, nil
+	}
+
+	recipient, err := s.store.GetRecipientByConversation(ctx, conversationID)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return false, nil
+		}
+		logError("resolve conversation for "+reason, err)
+		return false, err
+	}
+	if err := s.store.DeleteRecipient(ctx, recipient.ID); err != nil {
+		logError("retire link on "+reason, err)
+		return false, err
+	}
+	return true, nil
+}
+
 func (s *Server) refreshRecipientServiceURL(ctx context.Context, activity botActivity) {
 	if activity.Conversation.ID == "" {
 		return
 	}
 
-	recipients, err := s.store.ListRecipients(ctx)
+	recipient, err := s.store.GetRecipientByConversation(ctx, activity.Conversation.ID)
 	if err != nil {
-		logError("list recipients for service url refresh", err)
+		if !errors.Is(err, store.ErrNotFound) {
+			logError("resolve conversation for service url refresh", err)
+		}
+		return
+	}
+	if recipient.ServiceURL == activity.ServiceURL {
 		return
 	}
 
-	// Deliberately the first match, not every match: a "personal" conversation
-	// is 1:1 by construction (activityShapeRefusal admits no other
-	// conversationType), so at most one recipient should ever carry a given
-	// ConversationID.
-	for _, recipient := range recipients {
-		if recipient.ConversationID != activity.Conversation.ID {
-			continue
-		}
-		if recipient.ServiceURL == activity.ServiceURL {
-			return
-		}
-		recipient.ServiceURL = activity.ServiceURL
-		if _, err := s.store.UpdateRecipient(ctx, recipient); err != nil {
-			logError("refresh recipient service url", err)
-		}
-		return
+	recipient.ServiceURL = activity.ServiceURL
+	if _, err := s.store.UpdateRecipient(ctx, recipient); err != nil {
+		logError("refresh recipient service url", err)
 	}
 }
 

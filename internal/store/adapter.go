@@ -1058,6 +1058,17 @@ func (s queryAdapter) TakeLinkFlow(ctx context.Context, code string) (models.Lin
 // columns, never the rest of the row: delivery -- the only caller of either --
 // has a conversation reference it read for sending, not one it is safe to
 // write back over whatever an admin or a re-link may have changed since.
+func (s queryAdapter) GetRecipientByConversation(ctx context.Context, conversationID string) (models.Recipient, error) {
+	row, err := s.q.GetRecipientByConversation(ctx, conversationID)
+	if err != nil {
+		if err := notFound(err); errors.Is(err, ErrNotFound) {
+			return models.Recipient{}, err
+		}
+		return models.Recipient{}, fmt.Errorf("get recipient by conversation: %w", err)
+	}
+	return recipientOf(row), nil
+}
+
 func (s queryAdapter) MarkRecipientBlocked(ctx context.Context, id string, at time.Time, reason string) error {
 	if err := s.q.MarkRecipientBlocked(ctx, sqlitedb.MarkRecipientBlockedParams{
 		BlockedAt:     sql.NullTime{Time: at, Valid: true},

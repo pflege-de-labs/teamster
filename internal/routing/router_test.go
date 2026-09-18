@@ -74,6 +74,10 @@ func (s stubStore) GetRecipient(ctx context.Context, id string) (models.Recipien
 	return models.Recipient{}, store.ErrNotFound
 }
 
+func (s stubStore) GetRecipientByConversation(ctx context.Context, conversationID string) (models.Recipient, error) {
+	return models.Recipient{}, store.ErrNotFound
+}
+
 func (s stubStore) GetRecipientBySubject(ctx context.Context, subject string) (models.Recipient, error) {
 	return models.Recipient{}, store.ErrNotFound
 }
