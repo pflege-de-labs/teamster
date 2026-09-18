@@ -196,6 +196,14 @@ config:
       client-id: ""
       base-url: https://graph.microsoft.com/v1.0
       timeout-sec: 10
+    # Alerts in a person's chat, off by default. tenant-id (unless
+    # tenant-type is multi), client-id and credentials.botClientSecret below
+    # are required together, or leave this section empty for none of it.
+    bot: {}
+      # tenant-id: ""
+      # client-id: ""
+      # tenant-type: single       # single or multi
+      # timeout-sec: 10
     # Who may administer the service. Leave oidc-discovery-url empty to use the
     # local login only.
     auth: {}
@@ -275,6 +283,7 @@ config:
 #   TEAMSTER_ADMIN_PASSWORD
 #   TEAMSTER_GRAPH_CLIENT_SECRET
 #   TEAMSTER_AUTH_OIDC_CLIENT_SECRET   (optional)
+#   TEAMSTER_BOT_CLIENT_SECRET         (optional)
 credentials:
   existingSecret: ""
   # Shared secret expected in the X-Teamster-Token header.
@@ -287,6 +296,9 @@ credentials:
   graphClientSecret: ""
   # Omit for a public OIDC client using PKCE, which is the recommended setup.
   oidcClientSecret: ""
+  # Microsoft Entra client secret for the bot registration. Alerts in a
+  # person's chat are off unless this and config.settings.bot are both set.
+  botClientSecret: ""
   # Postgres password, delivered as TEAMSTER_DATABASE_POSTGRES_PASSWORD.
   # Mutually exclusive with database.postgres.passwordFrom.
   databasePassword: ""

@@ -113,6 +113,7 @@ these four must not also appear under `config.settings`:
 | `credentials.adminPassword` | `TEAMSTER_ADMIN_PASSWORD` |
 | `credentials.graphClientSecret` | `TEAMSTER_GRAPH_CLIENT_SECRET` |
 | `credentials.oidcClientSecret` (optional) | `TEAMSTER_AUTH_OIDC_CLIENT_SECRET` |
+| `credentials.botClientSecret` (optional) | `TEAMSTER_BOT_CLIENT_SECRET` |
 | `credentials.databasePassword` | `TEAMSTER_DATABASE_POSTGRES_PASSWORD` |
 
 Set `credentials.existingSecret` to a secret you manage — sealed-secrets, external-secrets,
@@ -138,6 +139,10 @@ authenticating proxy or a network policy in front if that matters, and note that
 When OIDC is configured, `config.settings.auth.oidc-redirect-url` has to be the externally
 reachable `/admin/auth/callback` URL as registered with the provider. The chart cannot derive it:
 the hostname belongs to the Ingress or the HTTPRoute, and the scheme to whatever terminates TLS.
+
+The bot's inbound endpoint, `/bot/messages`, is reachable through the same Service and so needs
+the same exposure — there is no separate port or route for it, only the setting below that turns
+it on.
 
 ## extraObjects
 

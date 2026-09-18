@@ -136,6 +136,19 @@ for values in "$chart"/ci/*-values.yaml; do
 		contains "$monitor" "$name ServiceMonitor" "port: metrics" "- PrometheusProto"
 		contains "$services" "$name Service" "name: metrics"
 	fi
+
+	# The bot config and its credential travel together: a values file that
+	# sets one should render both, and a values file that sets neither should
+	# render neither. Drift here is a deployment that turns the feature on in
+	# the config and starts with an empty client secret, or the reverse.
+	botConfig=$(awk '/config.yaml: \|/,/^---$/' <<<"$rendered")
+	if grep -q "botClientSecret" "$values"; then
+		contains "$botConfig" "$name config" "    bot:"
+		contains "$rendered" "$name credentials" "TEAMSTER_BOT_CLIENT_SECRET"
+	else
+		absent "$botConfig" "$name config" "    bot:"
+		absent "$rendered" "$name credentials" "TEAMSTER_BOT_CLIENT_SECRET"
+	fi
 done
 
 # Probes render once each. The startupProbe is emitted from a `with` block, and
