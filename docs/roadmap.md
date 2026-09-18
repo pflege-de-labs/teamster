@@ -614,14 +614,14 @@ Not a second routing path: nothing is matched, nothing is rendered, nothing is t
 `active_alerts`. A message sent this way is never updated or resolved, because nothing in the
 payload identifies a later post as the same event.
 
-## Milestone 13 — Alerts in a person's chat
+## Milestone 13 — Alerts in a person's chat — done
 
 An alert reaches a channel. Somebody on call at three in the morning is not reading a channel; they
 want the thing in front of them. The ask is an opt-in: a person says "send my alerts to me" and they
 arrive as a chat rather than only in Teams they happen to watch.
 
-**Status: route B, in progress.** [ADR 0026](adr/0026-alerts-in-a-persons-chat.md) chose the bot,
-sending as itself. The analysis below is kept as the record of how that was decided, not as an open
+**Status: route B, done.** [ADR 0026](adr/0026-alerts-in-a-persons-chat.md) chose the bot, sending
+as itself. The analysis below is kept as the record of how that was decided, not as an open
 question.
 
 | | | |
@@ -630,7 +630,7 @@ question.
 | Inbound endpoint and the linking flow | done | |
 | A route delivers to a person | done | routes gain a second target; message text becomes Markdown ([ADR 0029](adr/0029-templates-are-markdown.md)) |
 | Recipient admin page | done | `/admin/recipients`, plus the durable "this recipient is broken" flag a permanent send failure used to only report as a metric — informational and self-healing, never a delivery gate |
-| Chart `bot-*` values | to do | |
+| Chart `bot-*` values | done | `config.settings.bot` and `credentials.botClientSecret`, the same shape as Graph and OIDC |
 
 Both parked items shipped: a chat command (`unlink`, `stop`, `unsubscribe`) and `membersRemoved`
 handling, so uninstalling the bot retires the link on its own
@@ -728,7 +728,7 @@ permissions table is the first thing to read when this milestone starts, not the
 | — | 10 Localizable UI | — | done |
 | — | 11 Metrics | — | done |
 | — | 12 More than one instance | 11 helps | done |
-| 10 | 13 Alerts in a person's chat | — | in progress; see the status table above |
+| 10 | 13 Alerts in a person's chat | — | done |
 | — | 14 Teams V2 compatible webhooks | — | done |
 
 1.3 sat after 1.4 because it was the only item waiting on someone else to grant a permission.
