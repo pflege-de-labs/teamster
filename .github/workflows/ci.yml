@@ -66,7 +66,7 @@ jobs:
     # The suite fails rather than skips when CI is set and the DSN is not.
     services:
       postgres:
-        image: postgres:18-alpine@sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2
+        image: postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
         env:
           POSTGRES_USER: teamster
           POSTGRES_PASSWORD: teamster
@@ -179,7 +179,7 @@ jobs:
           SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: echo "short_sha=${SHA:0:7}" >> "$GITHUB_OUTPUT"
 
-      - uses: docker/setup-buildx-action@594f3bf4285d9ea8dc53c9a0c9c4092420091003 # v4
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
 
       - name: Log in to GitHub Container Registry
         if: steps.push.outputs.enabled == 'true'
