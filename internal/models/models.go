@@ -1,6 +1,9 @@
 package models
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 // A Template renders into a Teams message. Title is the line the activity feed
 // previews, Text optional formatted prose, Body the Adaptive Card JSON — and a
@@ -226,6 +229,12 @@ type LoginFlow struct {
 	ExpiresAt time.Time `json:"expires_at"`
 }
 
+// Alert is the internal shape one webhook-delivered message takes, whether or
+// not it is alert-shaped. Title/Text/Card let a sender supply the message
+// directly rather than authoring a Template that pulls it back out of
+// Annotations; a route's own Template wins when it has one, so these are the
+// fallback for a route with none, never an override of one that exists. See
+// ADR 0035.
 type Alert struct {
 	Source      string            `json:"source"`
 	Status      string            `json:"status"`
@@ -235,6 +244,9 @@ type Alert struct {
 	EndsAt      time.Time         `json:"ends_at"`
 	Generator   string            `json:"generator"`
 	Fingerprint string            `json:"fingerprint"`
+	Title       string            `json:"title"`
+	Text        string            `json:"text"`
+	Card        json.RawMessage   `json:"card"`
 }
 
 type AlertmanagerPayload struct {
@@ -259,6 +271,12 @@ type AlertmanagerAlert struct {
 	Fingerprint  string            `json:"fingerprint"`
 }
 
+// UniversalWebhookPayload is deliberately not alert-shaped underneath: every
+// field but Labels and Annotations is optional. Status opts into the tracked
+// alert lifecycle (ADR 0033); Title/Text/Card let a sender supply the message
+// directly instead of authoring a Template (ADR 0035). A payload using
+// neither is just labels and annotations, routed through whichever route's
+// own Template renders it.
 type UniversalWebhookPayload struct {
 	Status      string            `json:"status"`
 	Labels      map[string]string `json:"labels"`
@@ -267,4 +285,7 @@ type UniversalWebhookPayload struct {
 	EndsAt      time.Time         `json:"ends_at"`
 	Generator   string            `json:"generator"`
 	Fingerprint string            `json:"fingerprint"`
+	Title       string            `json:"title"`
+	Text        string            `json:"text"`
+	Card        json.RawMessage   `json:"card"`
 }

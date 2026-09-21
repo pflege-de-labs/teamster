@@ -136,6 +136,82 @@ func TestUniversalWebhookPostsANewCard(t *testing.T) {
 	}
 }
 
+func TestUniversalWebhookDeliversDirectContentWithoutATemplate(t *testing.T) {
+	t.Parallel()
+
+	msg := &fakeMessenger{messageID: "graph-1"}
+	st, handler := seededServer(t, msg)
+	st.routes["direct"] = models.Route{
+		ID:            "direct",
+		LabelSelector: map[string]string{"team": "direct"},
+		DestinationID: "dest",
+		Priority:      10,
+	}
+
+	rec := postWebhook(t, handler, "/webhook/universal", "token",
+		`{"status":"firing","labels":{"team":"direct"},"fingerprint":"fp-direct",`+
+			`"title":"Disk full","text":"**disk** almost full","card":{"text":"raw card"}}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("POST = %d, want 200 (body %s)", rec.Code, rec.Body.String())
+	}
+
+	if len(msg.posts) != 1 {
+		t.Fatalf("posted %d messages, want 1", len(msg.posts))
+	}
+	if msg.posts[0].msg.Title != "Disk full" {
+		t.Errorf("title = %q, want the payload's title", msg.posts[0].msg.Title)
+	}
+	if msg.posts[0].msg.Text != "<p><strong>disk</strong> almost full</p>" {
+		t.Errorf("text = %q, want the sanitized markdown", msg.posts[0].msg.Text)
+	}
+	if cardOf(msg.posts[0].msg) != `{"text":"raw card"}` {
+		t.Errorf("card = %s, want the payload's card passed through", cardOf(msg.posts[0].msg))
+	}
+}
+
+func TestUniversalWebhookTemplateWinsOverDirectContent(t *testing.T) {
+	t.Parallel()
+
+	msg := &fakeMessenger{messageID: "graph-1"}
+	_, handler := seededServer(t, msg)
+
+	rec := postWebhook(t, handler, "/webhook/universal", "token",
+		`{"status":"firing","labels":{"alertname":"HighCPU"},"fingerprint":"fp-both",`+
+			`"title":"Ignored title","text":"ignored text","card":{"text":"ignored card"}}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("POST = %d, want 200 (body %s)", rec.Code, rec.Body.String())
+	}
+
+	if len(msg.posts) != 1 {
+		t.Fatalf("posted %d messages, want 1", len(msg.posts))
+	}
+	if cardOf(msg.posts[0].msg) != `{"text":"firing"}` {
+		t.Errorf("card = %s, want the route's template rendered, not the payload's card", cardOf(msg.posts[0].msg))
+	}
+}
+
+func TestUniversalWebhookRejectsAnEmptyDirectMessage(t *testing.T) {
+	t.Parallel()
+
+	msg := &fakeMessenger{messageID: "graph-1"}
+	st, handler := seededServer(t, msg)
+	st.routes["direct"] = models.Route{
+		ID:            "direct",
+		LabelSelector: map[string]string{"team": "direct"},
+		DestinationID: "dest",
+		Priority:      10,
+	}
+
+	rec := postWebhook(t, handler, "/webhook/universal", "token",
+		`{"status":"firing","labels":{"team":"direct"},"fingerprint":"fp-empty"}`)
+	if rec.Code != http.StatusBadGateway {
+		t.Fatalf("POST = %d, want 502 (body %s)", rec.Code, rec.Body.String())
+	}
+	if len(msg.posts) != 0 {
+		t.Fatalf("posted %d messages, want 0", len(msg.posts))
+	}
+}
+
 // testPostedAt stands in for "this card exists". A row carrying a message id
 // must carry a posting time too -- the schema's CHECK says so.
 var testPostedAt = time.Date(2026, 9, 8, 10, 0, 0, 0, time.UTC)

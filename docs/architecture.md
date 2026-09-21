@@ -130,9 +130,14 @@ POST /webhook/alertmanager        POST /webhook/universal
                  one Delivery per target, kind=channel
                       or kind=recipient (0-2 per route)
                                  │
-                       store.GetTemplate
-                                 │
-              templates.RenderMessage → title, text, card
+                    delivery.TemplateID set?
+                  yes │                  │ no
+         store.GetTemplate      alert.Title/Text/Card
+      templates.RenderMessage    (templates.RenderText
+                  │               sanitizes Text; Card
+                  │               passed through as-is)
+                  └────────┬─────────┘
+                    title, text, card
                                  │
               ┌──────────────────┴───────────────────┐
          kind=channel                          kind=recipient
@@ -146,6 +151,12 @@ POST /webhook/alertmanager        POST /webhook/universal
  yes → graph.Update yes → graph.Update yes → bot.Update       yes → bot.Send
  no  → graph.Post        + delete row  no  → bot.Send              + delete row
 ```
+
+A delivery whose route has no `TemplateID` renders from the payload's own `Title`/`Text`/`Card`
+instead of a stored template — the fallback `/webhook/universal` gives a sender that already knows
+what it wants to say. A route with a template always renders through it; the payload's own fields
+are read only when the route has none. See
+[ADR 0035](adr/0035-direct-content-when-a-route-has-no-template.md).
 
 A route names up to two targets, so one route produces up to two deliveries and each is claimed,
 sent and recorded on its own. A chat resolution **sends** rather than edits, because an edit in
@@ -276,6 +287,11 @@ A template renders into a title, formatted text and an Adaptive Card, each optio
 one required. `templates.RenderMessage` renders all three; the title is collapsed to one line
 because that is what the Teams activity feed previews, and an untitled card falls back to
 `templates.DefaultTitle`, the summary line this service sent before templates could name their own.
+
+A route with no template skips rendering entirely: `directMessage` builds the same `title, text,
+card` shape straight from `models.Alert.Title`/`Text`/`Card`, the fields a `/webhook/universal`
+payload may set directly (`ADR 0035`). It still requires at least one of the three, and still runs
+`Text` through the same Markdown sanitizer — the only step it skips is the template lookup.
 
 Rendered text is sanitized in `templates.Sanitize` — parsed with `golang.org/x/net/html` and
 written back through an allowlist — before it reaches the Graph client, so every caller gets the

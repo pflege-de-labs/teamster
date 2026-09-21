@@ -1,0 +1,17 @@
+{
+  "status": "firing",
+  "labels": {
+    "alertname": "DeployFinished",
+    "service": "worker"
+  },
+  "fingerprint": "deploy-42",
+  "title": "Deploy finished",
+  "text": "worker **v1.4.2** rolled out to all nodes",
+  "card": {
+    "type": "AdaptiveCard",
+    "version": "1.4",
+    "body": [
+      {"type": "TextBlock", "text": "worker v1.4.2 rolled out to all nodes", "wrap": true}
+    ]
+  }
+}

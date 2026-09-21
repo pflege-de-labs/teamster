@@ -991,7 +991,7 @@ func routes(page Page) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = selectField("template_id", i18n.T(ctx, "routes.template"), templateOptions(page), page.editingRoute().TemplateID).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = selectField("template_id", i18n.T(ctx, "routes.template"), routeTemplateOptions(ctx, page), page.editingRoute().TemplateID).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

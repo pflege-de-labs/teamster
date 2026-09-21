@@ -48,3 +48,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0031](0031-vendored-browser-libraries-pinned-and-verified.md) | Vendored browser libraries are pinned in a manifest and verified in CI | Accepted |
 | [0032](0032-retiring-a-link-from-the-chat.md) | A link can be retired from the chat it belongs to | Accepted |
 | [0033](0033-split-httproute-external-and-internal.md) | Split the chart's HTTPRoute into external and internal | Accepted |
+| [0035](0035-direct-content-when-a-route-has-no-template.md) | A route with no template sends the payload's own title, text and card | Accepted |

@@ -334,9 +334,19 @@ Payload shape:
   "starts_at": "2025-12-07T20:07:00Z",
   "ends_at": "0001-01-01T00:00:00Z",
   "generator": "custom",
-  "fingerprint": "optional-stable-id"
+  "fingerprint": "optional-stable-id",
+  "title": "optional, sent as-is when the route has no template",
+  "text": "optional, Markdown, sanitized the same way a template's text is",
+  "card": {"optional": "Adaptive Card JSON, sent as-is when the route has no template"}
 }
 ```
+
+`title`, `text` and `card` matter only for a route with no `TemplateID`: a route that has one
+renders through it exactly as before, and these three fields are ignored for that delivery. A
+route with no template sends them directly instead — at least one of the three is required in that
+case, or the delivery fails. This is what lets a sender that already knows what it wants to say
+skip writing a template. See [samples/universal-message.json](samples/universal-message.json) and
+[ADR 0035](docs/adr/0035-direct-content-when-a-route-has-no-template.md).
 
 ### Teams V2 (Power Automate) webhook
 
@@ -488,6 +498,8 @@ See the JSON examples in [samples](samples):
 - [samples/alertmanager-resolved.json](samples/alertmanager-resolved.json)
 - [samples/universal-firing.json](samples/universal-firing.json)
 - [samples/universal-resolved.json](samples/universal-resolved.json)
+- [samples/universal-message.json](samples/universal-message.json) — direct content, for a route
+  with no template
 - [samples/teamsv2-card.json](samples/teamsv2-card.json)
 - [samples/teamsv2-text.json](samples/teamsv2-text.json)
 - [samples/teamsv2-messagecard.json](samples/teamsv2-messagecard.json)

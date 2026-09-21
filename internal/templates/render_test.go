@@ -115,3 +115,39 @@ func TestRenderHelpers(t *testing.T) {
 		})
 	}
 }
+
+// RenderText is renderMarkdown+Sanitize, split out of RenderMessage's own
+// text step so a sender's own text -- never authored as Go template source --
+// still goes through the exact same trust boundary a stored template's text
+// does.
+func TestRenderText(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{name: "plain text", in: "deployment finished", want: "<p>deployment finished</p>"},
+		{name: "markdown", in: "**bold**", want: "<p><strong>bold</strong></p>"},
+		{
+			name: "a script tag does not survive, same trust boundary as a template's text",
+			in:   "before<script>alert(1)</script>after",
+			want: "<p>beforeafter</p>",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := RenderText(tt.in)
+			if err != nil {
+				t.Fatalf("RenderText: %v", err)
+			}
+			if got != tt.want {
+				t.Errorf("RenderText(%q) = %q, want %q", tt.in, got, tt.want)
+			}
+		})
+	}
+}

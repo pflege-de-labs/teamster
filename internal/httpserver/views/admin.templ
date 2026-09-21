@@ -213,7 +213,7 @@ templ routes(page Page) {
 				@textareaField("label_selector", i18n.T(ctx, "routes.selector"), selectorJSON(page), "3")
 				@selectField("destination_id", i18n.T(ctx, "routes.destination"), destinationOptions(page), page.editingRoute().DestinationID)
 				@selectField("recipient_id", i18n.T(ctx, "routes.recipient"), recipientOptions(page), page.editingRoute().RecipientID)
-				@selectField("template_id", i18n.T(ctx, "routes.template"), templateOptions(page), page.editingRoute().TemplateID)
+				@selectField("template_id", i18n.T(ctx, "routes.template"), routeTemplateOptions(ctx, page), page.editingRoute().TemplateID)
 				<label class="block">
 					<span class="text-sm font-medium">{ i18n.T(ctx, "routes.priority") }</span>
 					<input
