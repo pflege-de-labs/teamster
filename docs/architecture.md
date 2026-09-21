@@ -236,7 +236,7 @@ once per response rather than once per entry.
 
 ## Routing visualization
 
-`/admin/routing` draws the path an alert takes and answers which route a set of labels would take.
+`/admin/routing` draws the path an alert takes and answers which routes a set of labels would take.
 `GET /api/routing/graph` builds the graph server-side, resolving the identifiers a route stores
 into labelled nodes; a route pointing at something deleted becomes a node marked missing rather
 than a dropped link, because that broken state is what the view exists to show.
@@ -260,15 +260,15 @@ destination node its name together with the Team and channel **names**, resolved
 `directoryCache` the pickers use. That lookup is best effort: an unreachable Graph falls back to the
 stored ids rather than failing the request.
 
-Matching a label set highlights every path that alert takes rather than the winning route alone:
-the webhook, each route that delivers, the routes they were reached through, and the channels they
-land in are drawn in the match colour while everything else dims — so a fan-out is read off the same
-picture.
+Matching a label set highlights every path that message takes, not one winning route: the webhook,
+every route that matched or delivers, the routes they were reached through, and the channels they
+land in are drawn in the match colour while everything else dims — so a fan-out across several
+independent routes reads off the same picture as a fan-out through nested children does.
 
-`POST /api/routing/match` returns the winning route and **why** it won — `selector`, `default`,
-`none` or `no-routes`. That reason comes from `routing.Match`, which holds the rule in one place;
-`SelectRoute`, used by the delivery path, is a wrapper over it. The browser never re-implements
-selector matching, so the answer cannot drift from what actually delivers alerts.
+`POST /api/routing/match` returns every route that matched and **why** — `selector`, `default`,
+`none` or `no-routes`. That reason comes from `routing.Plan`, which holds the rule in one place; the
+delivery path calls the same function. The browser never re-implements selector matching, so the
+answer cannot drift from what actually delivers a message.
 
 ## Messages
 
@@ -291,10 +291,14 @@ one trust boundary, two transports. See [ADR 0010](adr/0010-message-shape.md) an
 
 ## Routing rules
 
-Routes form a tree. `routing.Plan` picks a **root** the way routing always worked — descending
-priority, ties on name, the first non-default route whose selector matches the alert exactly, every
-selector key present with the same value, an empty selector never matching, the default last — and
-then walks that root's children.
+Routes form a tree. `routing.Plan` enters **every root** whose selector matches — every selector key
+present with the same value, an empty selector never matching — in descending priority, ties on
+name, and walks each matched root's children. Nothing stops two independent roots both naming
+`severity=critical`; both fire. The default is a fallback rather than one more candidate: it is
+entered only when no non-default root matched at all, never alongside a real match. See
+[ADR 0034](adr/0034-fan-out-across-independent-routes.md), which extends
+[ADR 0011](adr/0011-nested-routes.md)'s fan-out — there, every matching *child* delivers rather than
+one winning; here, every matching *root* does.
 
 A child is evaluated only once its parent matched, and applies when its own selector matches. Every
 matching child delivers; a greedy one delivers *instead of* its parent, a non-greedy one *as well
@@ -308,11 +312,11 @@ channel first, then recipient, an order callers index into — and one naming ne
 its own, delivers nothing at all. Greedy remains one flag per parent: a greedy child suppresses
 **both** of its parent's deliveries, never one of them.
 
-`Plan` returns a `Result`: the reason, the root that matched, and one `Delivery` per message with
-its `Kind`, its target and its template resolved. `routing.ValidateRoute` and `ValidateDelete` are
-called from both write paths and keep the tree acyclic, bounded and free of children that could
-never fire. See
-[ADR 0011](adr/0011-nested-routes.md).
+`Plan` returns a `Result`: the reason, every root that matched, and one `Delivery` per message with
+its `Kind`, its target and its template resolved. Each `Delivery` already names its own route, root
+or child, so nothing downstream of `Plan` needs to know or care how many roots contributed to the
+list. `routing.ValidateRoute` and `ValidateDelete` are called from both write paths and keep the
+tree acyclic, bounded and free of children that could never fire.
 
 ## Configuration transfer
 

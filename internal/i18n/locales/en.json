@@ -142,7 +142,7 @@
   "routing.legend_missing": "missing",
   "routing.legend_route": "route",
   "routing.legend_webhook": "webhook",
-  "routing.match_heading": "Which route would an alert take?",
+  "routing.match_heading": "Which routes would a message take?",
   "routing.templates_heading": "Which routes render with which template?",
   "routing.templates_help": "Rendering is not a step an alert takes, so it has its own picture. A template with no route beside it is used by nothing.",
   "sample.firing": "firing alert",

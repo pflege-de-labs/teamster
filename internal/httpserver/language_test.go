@@ -50,7 +50,7 @@ func TestPagesRenderInTheRequestedLanguage(t *testing.T) {
 		},
 		{
 			name: "the routing page in German", path: "/admin/routing", language: "de-AT,de;q=0.9",
-			want: []string{"Welche Route nimmt ein Alarm?", `lang="de"`},
+			want: []string{"Welche Routen nimmt eine Nachricht?", `lang="de"`},
 		},
 		{
 			// Nothing this build carries: the configured fallback, not whichever

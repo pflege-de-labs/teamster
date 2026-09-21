@@ -3,6 +3,7 @@ package httpserver
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -212,18 +213,34 @@ func TestRoutingMatch(t *testing.T) {
 		store           func() *fakeStore
 		labels          string
 		wantReason      string
-		wantRoute       string
+		wantRoutes      []string
 		wantExplanation string
 	}{
 		{
 			name: "a selector matches", store: routingStore,
 			labels: `{"severity":"critical"}`, wantReason: "selector",
-			wantRoute: "route:critical", wantExplanation: "matched on severity=critical",
+			wantRoutes: []string{"route:critical"}, wantExplanation: "matched on severity=critical",
 		},
 		{
 			name: "the default takes it", store: routingStore,
 			labels: `{"severity":"warning"}`, wantReason: "default",
-			wantRoute: "route:fallback", wantExplanation: "no selector matched",
+			wantRoutes: []string{"route:fallback"}, wantExplanation: "no selector matched",
+		},
+		{
+			// The default is a fallback, not one more candidate, so it must
+			// not join a real match's answer.
+			name: "two selectors both match, and the default sits out",
+			store: func() *fakeStore {
+				st := routingStore()
+				st.routes["escalate"] = models.Route{
+					ID: "escalate", Name: "Escalate", TemplateID: "tmpl", DestinationID: "dest",
+					LabelSelector: map[string]string{"severity": "critical"}, Priority: 50,
+				}
+				return st
+			},
+			labels: `{"severity":"critical"}`, wantReason: "selector",
+			wantRoutes:      []string{"route:critical", "route:escalate"},
+			wantExplanation: "2 routes matched",
 		},
 		{
 			name: "no default to fall back on",
@@ -255,9 +272,9 @@ func TestRoutingMatch(t *testing.T) {
 			}
 
 			var answer struct {
-				Reason      string         `json:"reason"`
-				Explanation string         `json:"explanation"`
-				Route       map[string]any `json:"route"`
+				Reason      string           `json:"reason"`
+				Explanation string           `json:"explanation"`
+				Routes      []map[string]any `json:"routes"`
 			}
 			if err := json.Unmarshal(rec.Body.Bytes(), &answer); err != nil {
 				t.Fatalf("decode: %v", err)
@@ -269,14 +286,18 @@ func TestRoutingMatch(t *testing.T) {
 			if !strings.Contains(answer.Explanation, tt.wantExplanation) {
 				t.Errorf("explanation = %q, want it to mention %q", answer.Explanation, tt.wantExplanation)
 			}
-			if tt.wantRoute == "" {
-				if answer.Route != nil {
-					t.Errorf("route = %v, want none when nothing was chosen", answer.Route)
+			if tt.wantRoutes == nil {
+				if answer.Routes != nil {
+					t.Errorf("routes = %v, want none when nothing was chosen", answer.Routes)
 				}
 				return
 			}
-			if answer.Route["node"] != tt.wantRoute {
-				t.Errorf("route node = %v, want %q so the graph can highlight it", answer.Route["node"], tt.wantRoute)
+			gotNodes := make([]string, 0, len(answer.Routes))
+			for _, route := range answer.Routes {
+				gotNodes = append(gotNodes, fmt.Sprintf("%v", route["node"]))
+			}
+			if !slices.Equal(gotNodes, tt.wantRoutes) {
+				t.Errorf("route nodes = %v, want %v so the graph can highlight them", gotNodes, tt.wantRoutes)
 			}
 		})
 	}
