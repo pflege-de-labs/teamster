@@ -345,8 +345,9 @@ Payload shape:
 renders through it exactly as before, and these three fields are ignored for that delivery. A
 route with no template sends them directly instead — at least one of the three is required in that
 case, or the delivery fails. This is what lets a sender that already knows what it wants to say
-skip writing a template. See [samples/universal-message.json](samples/universal-message.json) and
-[ADR 0035](docs/adr/0035-direct-content-when-a-route-has-no-template.md).
+skip writing a template. See
+[samples/universal-direct-message.json](samples/universal-direct-message.json) and
+[ADR 0036](docs/adr/0036-direct-content-when-a-route-has-no-template.md).
 
 ### Teams V2 (Power Automate) webhook
 
@@ -498,8 +499,8 @@ See the JSON examples in [samples](samples):
 - [samples/alertmanager-resolved.json](samples/alertmanager-resolved.json)
 - [samples/universal-firing.json](samples/universal-firing.json)
 - [samples/universal-resolved.json](samples/universal-resolved.json)
-- [samples/universal-message.json](samples/universal-message.json) — direct content, for a route
-  with no template
+- [samples/universal-direct-message.json](samples/universal-direct-message.json) — direct
+  content, for a route with no template
 - [samples/teamsv2-card.json](samples/teamsv2-card.json)
 - [samples/teamsv2-text.json](samples/teamsv2-text.json)
 - [samples/teamsv2-messagecard.json](samples/teamsv2-messagecard.json)

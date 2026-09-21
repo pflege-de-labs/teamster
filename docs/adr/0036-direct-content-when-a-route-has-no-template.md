@@ -1,4 +1,4 @@
-# 0035. A route with no template sends the payload's own title, text and card
+# 0036. A route with no template sends the payload's own title, text and card
 
 * Status: Accepted
 * Date: 2026-09-21

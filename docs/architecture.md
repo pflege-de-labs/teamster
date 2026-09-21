@@ -156,7 +156,7 @@ A delivery whose route has no `TemplateID` renders from the payload's own `Title
 instead of a stored template — the fallback `/webhook/universal` gives a sender that already knows
 what it wants to say. A route with a template always renders through it; the payload's own fields
 are read only when the route has none. See
-[ADR 0035](adr/0035-direct-content-when-a-route-has-no-template.md).
+[ADR 0036](adr/0036-direct-content-when-a-route-has-no-template.md).
 
 A route names up to two targets, so one route produces up to two deliveries and each is claimed,
 sent and recorded on its own. A chat resolution **sends** rather than edits, because an edit in
@@ -290,7 +290,7 @@ because that is what the Teams activity feed previews, and an untitled card fall
 
 A route with no template skips rendering entirely: `directMessage` builds the same `title, text,
 card` shape straight from `models.Alert.Title`/`Text`/`Card`, the fields a `/webhook/universal`
-payload may set directly (`ADR 0035`). It still requires at least one of the three, and still runs
+payload may set directly (`ADR 0036`). It still requires at least one of the three, and still runs
 `Text` through the same Markdown sanitizer — the only step it skips is the template lookup.
 
 Rendered text is sanitized in `templates.Sanitize` — parsed with `golang.org/x/net/html` and

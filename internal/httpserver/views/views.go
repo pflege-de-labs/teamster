@@ -327,7 +327,7 @@ func templateOptions(p Page) []option {
 // routeTemplateOptions is templateOptions with a leading "none" choice, so a
 // route can be saved without one -- a select always submits some value, so
 // without this entry the form could never actually express "no template,
-// send the payload's own title/text/card directly" (ADR 0035).
+// send the payload's own title/text/card directly" (ADR 0036).
 func routeTemplateOptions(ctx context.Context, p Page) []option {
 	out := make([]option, 0, len(p.Templates)+1)
 	out = append(out, option{Value: "", Label: i18n.T(ctx, "routes.template_none")})

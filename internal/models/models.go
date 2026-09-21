@@ -234,7 +234,7 @@ type LoginFlow struct {
 // directly rather than authoring a Template that pulls it back out of
 // Annotations; a route's own Template wins when it has one, so these are the
 // fallback for a route with none, never an override of one that exists. See
-// ADR 0035.
+// ADR 0036.
 type Alert struct {
 	Source      string            `json:"source"`
 	Status      string            `json:"status"`
@@ -274,7 +274,7 @@ type AlertmanagerAlert struct {
 // UniversalWebhookPayload is deliberately not alert-shaped underneath: every
 // field but Labels and Annotations is optional. Status opts into the tracked
 // alert lifecycle (ADR 0033); Title/Text/Card let a sender supply the message
-// directly instead of authoring a Template (ADR 0035). A payload using
+// directly instead of authoring a Template (ADR 0036). A payload using
 // neither is just labels and annotations, routed through whichever route's
 // own Template renders it.
 type UniversalWebhookPayload struct {

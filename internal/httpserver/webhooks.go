@@ -455,7 +455,7 @@ func deliveriesOfKind(plan []routing.Delivery, kind routing.DeliveryKind) []rout
 // back to the one this service used to hardcode.
 // renderMessage produces the message one delivery sends. A route's own
 // Template wins whenever it has one, exactly as before; a route with none
-// falls back to whatever the payload itself supplied directly (ADR 0035) --
+// falls back to whatever the payload itself supplied directly (ADR 0036) --
 // the fallback for a template-less route, never an override of a route that
 // has one, so a client accidentally sending a blank Title cannot silently
 // blank out a working template.
