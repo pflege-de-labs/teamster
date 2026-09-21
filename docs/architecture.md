@@ -101,6 +101,18 @@ value rolls the pod. The service is published through an Ingress or a Gateway AP
 a render-time error, because a config file value beats the environment variable carrying it. See
 [ADR 0023](adr/0023-chart-deploys-either-shape.md).
 
+Gateway API mode renders up to two `HTTPRoute`s along the same trust boundary the server itself
+draws: `httpRoute.external` carries the self-authenticating paths (`/webhook/*`, `/teamsv2/*`,
+`/bot/messages`), `httpRoute.internal` carries the session- and basic-auth-gated admin UI and API.
+`httpRoute.internal` is off by default, and while it is, `httpRoute.external`'s rule set folds in
+`httpRoute.internal`'s catch-all, so one route reaches everything — the chart's original
+behaviour, kept as the default. Enabling `httpRoute.internal` splits the two onto their own
+`parentRefs`/hostnames, which is what lets the admin interface sit behind a private Gateway
+listener while the webhooks stay internet-reachable. The fallback runs one way only: enabling
+`httpRoute.internal` without `httpRoute.external` does not expose the webhooks. Ingress mode keeps
+its single-resource, all-paths shape; the split is Gateway API only. See
+[ADR 0033](adr/0033-split-httproute-external-and-internal.md).
+
 ## Request flow
 
 ```text

@@ -125,24 +125,39 @@ Both secrets are hashed into pod annotations, so changing either rolls the pod.
 
 ## Exposing the service
 
-Enable exactly one of the two, or neither and reach the service through `kubectl port-forward`:
+Enable one of the two, or neither and reach the service through `kubectl port-forward`:
 
-* `ingress.enabled=true` — a `networking.k8s.io/v1` Ingress.
-* `httpRoute.enabled=true` — a Gateway API `HTTPRoute`, attached to the gateways in
-  `httpRoute.parentRefs`. Needs the Gateway API CRDs and a controller.
+* `ingress.enabled=true` — a `networking.k8s.io/v1` Ingress. One resource, every path, the way
+  the Service has always been reachable: there is no way to publish the webhooks without
+  publishing `/admin`. Put an authenticating proxy or a network policy in front if that matters.
+* `httpRoute.external.enabled=true` and, separately, `httpRoute.internal.enabled=true` — Gateway
+  API `HTTPRoute`s. Needs the Gateway API CRDs and a controller.
 
-Both front the same Service, which carries the admin UI, the admin API and the two webhook
-endpoints. There is no way to publish the webhooks without publishing `/admin` — put an
-authenticating proxy or a network policy in front if that matters, and note that
-`/webhook/*` authenticates with the `X-Teamster-Token` header rather than with a session.
+  `httpRoute.external` carries the paths that authenticate themselves — `/webhook/alertmanager`,
+  `/webhook/universal`, `/teamsv2/*`, `/bot/messages` — a shared token, a URL token, or
+  Microsoft's own signature on a bot activity, never a session. `httpRoute.internal` carries
+  everything else: the admin UI and API, gated by a session or basic auth.
+
+  **`httpRoute.internal` is off by default, and while it is, `httpRoute.external` alone reaches
+  both** — its rule set folds in `httpRoute.internal`'s catch-all, so a deployment that wants one
+  route keeps exactly the all-in-one behaviour the chart used to have with a single `enabled`
+  flag. Turn `httpRoute.internal` on to put the admin interface on its own Gateway or hostname —
+  a private listener, a VPN-only DNS name — separate from whatever reaches the webhooks from the
+  internet. There is no fallback the other way: `httpRoute.internal.enabled=true` with
+  `httpRoute.external` left off does not expose the webhooks, because that would change what a
+  deployment publishes based on a flag named for the opposite purpose.
+
+  This split exists for HTTPRoute only. Ingress keeps its single-resource, all-paths shape; if the
+  split matters to you, use Gateway API.
+
+Either way, `/webhook/*` authenticates with the `X-Teamster-Token` header rather than with a
+session, and `/bot/messages` — reachable only when the bot is configured — authenticates with
+Microsoft's own signature.
 
 When OIDC is configured, `config.settings.auth.oidc-redirect-url` has to be the externally
 reachable `/admin/auth/callback` URL as registered with the provider. The chart cannot derive it:
-the hostname belongs to the Ingress or the HTTPRoute, and the scheme to whatever terminates TLS.
-
-The bot's inbound endpoint, `/bot/messages`, is reachable through the same Service and so needs
-the same exposure — there is no separate port or route for it, only the setting below that turns
-it on.
+the hostname belongs to the Ingress or the HTTPRoute carrying the admin interface, and the scheme
+to whatever terminates TLS.
 
 ## extraObjects
 
@@ -334,7 +349,9 @@ The [values.yaml](values.yaml) comments are the reference. The ones most often c
 | `credentials.existingSecret` | `""` | Use a secret you manage. |
 | `credentials.databasePassword` | `""` | The Postgres password, if not using `passwordFrom`. |
 | `service.port` | `8080` | Port the Service publishes. |
-| `ingress.enabled` / `httpRoute.enabled` | `false` | How the service is published. |
+| `ingress.enabled` | `false` | Publish everything through one Ingress. |
+| `httpRoute.external.enabled` | `false` | Publish the webhooks; also everything else, unless `internal` is on. |
+| `httpRoute.internal.enabled` | `false` | Split the admin interface onto its own route. |
 | `config.settings.metrics.enabled` | `false` | Opens the metrics listener and publishes its port. |
 | `config.settings.metrics.otlp-endpoint` | unset | Push metrics to a collector instead of, or beside, being scraped. |
 | `metrics.serviceMonitor.enabled` | `false` | Render a ServiceMonitor for the Prometheus operator. |

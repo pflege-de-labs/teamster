@@ -149,6 +149,26 @@ for values in "$chart"/ci/*-values.yaml; do
 		absent "$botConfig" "$name config" "    bot:"
 		absent "$rendered" "$name credentials" "TEAMSTER_BOT_CLIENT_SECRET"
 	fi
+
+	# httpRoute.external and .internal are two different resources; whether one
+	# is folded into the other is the whole point of the split, so assert it
+	# per values file rather than once generically.
+	if grep -qE "^ +external:" "$values" 2>/dev/null; then
+		external=$(awk '/name: .*-external$/,/^---$/' <<<"$rendered")
+		contains "$external" "$name external HTTPRoute" "value: /webhook/alertmanager" "value: /webhook/universal" "value: /teamsv2" "value: /bot/messages"
+
+		if grep -qE "^ +internal:" "$values" 2>/dev/null; then
+			# The split shape: internal owns the catch-all, so it must not also
+			# be folded into external, or the split is not actually a split.
+			contains "$rendered" "$name" "name: .*-internal"
+			absent "$external" "$name external HTTPRoute" "value: /$"
+		else
+			# The fallback shape: no internal route rendered, so external alone
+			# must still reach everything, the way the old single-route chart did.
+			absent "$rendered" "$name" "-internal"
+			contains "$external" "$name external HTTPRoute" "value: /$"
+		fi
+	fi
 done
 
 # Probes render once each. The startupProbe is emitted from a `with` block, and
@@ -184,6 +204,22 @@ renders "a push-only deployment keeping the application's loopback default" \
 	--set config.settings.metrics.prometheus=false \
 	--set config.settings.metrics.otlp-endpoint=otel:4318 \
 	--set config.settings.metrics.addr=127.0.0.1:9090
+
+# Off by default: neither block set (statefulset-values.yaml sets neither)
+# renders no HTTPRoute at all, the same as before the split existed.
+echo "checking the httpRoute default"
+noRoute=$(helm template teamster "$chart" --values "$chart/ci/statefulset-values.yaml")
+absent "$noRoute" "httpRoute off by default" "kind: HTTPRoute"
+
+# internal.enabled with no external does not expose the webhooks -- there is
+# no fallback in that direction, because that would change what a deployment
+# publishes based on a flag named for the opposite purpose.
+echo "checking the internal-only shape exposes no webhook path"
+internalOnly=$(helm template teamster "$chart" --values "$chart/ci/statefulset-values.yaml" \
+	--set httpRoute.internal.enabled=true)
+absent "$internalOnly" "internal-only render" "value: /webhook"
+contains "$internalOnly" "internal-only render" "name: teamster-internal"
+absent "$internalOnly" "internal-only render" "name: teamster-external"
 
 if [ "$failures" -gt 0 ]; then
 	echo "$failures assertion(s) failed" >&2
