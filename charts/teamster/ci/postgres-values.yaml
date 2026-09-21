@@ -23,7 +23,13 @@ config:
       tenant-id: ci-tenant
       client-id: ci-client
 
+# The split shape: webhooks and the admin interface on their own hostnames.
 httpRoute:
-  enabled: true
-  hostnames:
-    - teamster.ci
+  external:
+    enabled: true
+    hostnames:
+      - teamster.ci
+  internal:
+    enabled: true
+    hostnames:
+      - admin.teamster.ci

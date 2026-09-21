@@ -394,29 +394,79 @@ ingress:
 
 # Gateway API HTTPRoute, as an alternative to the Ingress above. Requires the
 # Gateway API CRDs and a controller (https://gateway-api.sigs.k8s.io/guides/).
+#
+# Two routes, because the paths behind them trust different things: external's
+# authenticate themselves (a shared token, a Teams V2 URL token, or Microsoft's
+# own signature on a bot activity), internal's rely on a session or basic auth.
+# A cluster that wants the webhooks reachable from the internet and the admin
+# interface reachable only through a private listener needs them on separate
+# Gateways or hostnames, which one HTTPRoute cannot express.
+#
+# internal is off by default, and while it is, external alone still reaches
+# everything: its rules fold in internal's catch-all, exactly like the single
+# all-in-one route this chart used to render. Turning internal on splits the
+# two apart. There is no fallback the other way — turning internal on without
+# external does not expose the webhooks; that would change what a deployment
+# publishes based on a flag named for the opposite purpose.
 httpRoute:
-  enabled: false
-  annotations: {}
-  # Which Gateways this route attaches to.
-  parentRefs:
-    - group: gateway.networking.k8s.io
-      kind: Gateway
-      name: gateway
-      sectionName: http
-      # namespace: default
-  hostnames:
-    - teamster.local
-  rules:
-    - matches:
-        - path:
-            type: PathPrefix
-            value: /
-      # filters:
-      #   - type: RequestHeaderModifier
-      #     requestHeaderModifier:
-      #       set:
-      #         - name: X-Forwarded-Proto
-      #           value: https
+  external:
+    enabled: false
+    annotations: {}
+    # Which Gateways this route attaches to.
+    parentRefs:
+      - group: gateway.networking.k8s.io
+        kind: Gateway
+        name: gateway
+        sectionName: http
+        # namespace: default
+    hostnames:
+      - teamster.local
+    # Every self-authenticating endpoint teamster serves. Narrow this if you
+    # want fewer of them reachable here; do not add /admin or /api -- that
+    # traffic belongs on httpRoute.internal, not here. /bot/messages is matched
+    # unconditionally: the chart has no separate "is the bot configured" flag,
+    # and matching a path the app has not registered is harmless -- the app
+    # decides what happens, this only decides which route the request arrives
+    # through.
+    matches:
+      - path:
+          type: Exact
+          value: /webhook/alertmanager
+      - path:
+          type: Exact
+          value: /webhook/universal
+      - path:
+          type: PathPrefix
+          value: /teamsv2
+      - path:
+          type: Exact
+          value: /bot/messages
+    filters: []
+    timeouts: {}
+    # filters:
+    #   - type: RequestHeaderModifier
+    #     requestHeaderModifier:
+    #       set:
+    #         - name: X-Forwarded-Proto
+    #           value: https
+
+  internal:
+    enabled: false
+    annotations: {}
+    parentRefs:
+      - group: gateway.networking.k8s.io
+        kind: Gateway
+        name: gateway
+        sectionName: http
+        # namespace: default
+    hostnames:
+      - teamster.local
+    matches:
+      - path:
+          type: PathPrefix
+          value: /
+    filters: []
+    timeouts: {}
 
 # A disruption budget for a multi-replica postgres release. A single-pod release
 # gets none: one-of-one blocks every node drain.

@@ -37,10 +37,13 @@ config:
       claim: realm_access.roles
       default-role: viewer
 
+# internal is off: this is the fallback shape, where external alone reaches
+# both the webhooks and the admin interface.
 httpRoute:
-  enabled: true
-  hostnames:
-    - teamster.ci
+  external:
+    enabled: true
+    hostnames:
+      - teamster.ci
 
 extraObjects:
   - apiVersion: v1

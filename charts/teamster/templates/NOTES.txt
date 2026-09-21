@@ -6,8 +6,12 @@ storing its state in {{ if .Values.persistence.enabled }}{{ include "teamster.da
 {{- end }}
 
 1. Reach the admin UI at /admin:
-{{- if .Values.httpRoute.enabled }}
-{{- range .Values.httpRoute.hostnames }}
+{{- if .Values.httpRoute.internal.enabled }}
+{{- range .Values.httpRoute.internal.hostnames }}
+   http://{{ . }}/admin
+{{- end }}
+{{- else if .Values.httpRoute.external.enabled }}
+{{- range .Values.httpRoute.external.hostnames }}
    http://{{ . }}/admin
 {{- end }}
 {{- else if .Values.ingress.enabled }}
