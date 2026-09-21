@@ -59,20 +59,24 @@ type Delivery struct {
 }
 
 // A Result is what an alert's labels produce: the deliveries, and why the tree
-// was entered where it was. The root is named because an explanation of a
-// fan-out starts with the route that matched first.
+// was entered where it was. Roots is every root whose selector matched — more
+// than one is normal, since nothing stops two independent routes both naming
+// `severity=critical` — in the order they were evaluated. RootName is not
+// carried here: every Delivery already names its own route, root or not, and
+// a caller that wants a root's name looks it up the same way it looks up any
+// other route's.
 type Result struct {
 	Reason     Reason     `json:"reason"`
-	RootID     string     `json:"root_id,omitempty"`
-	RootName   string     `json:"root_name,omitempty"`
+	Roots      []string   `json:"root_ids,omitempty"`
 	Deliveries []Delivery `json:"deliveries"`
 }
 
-// Plan is the routing rule in one place. A root route is chosen the way it
-// always was — highest priority first, ties by name, the default last — and its
-// matching children then refine it: a child delivers as well as its parent, or
-// instead of it when greedy. Only a failure to read the store is an error;
-// finding nothing is an answer.
+// Plan is the routing rule in one place. Every root whose selector matches is
+// entered — highest priority first, ties by name — and each one's matching
+// children then refine it: a child delivers as well as its parent, or instead
+// of it when greedy. The default is a fallback, not one more candidate: it is
+// entered only when no non-default root matched at all. Only a failure to
+// read the store is an error; finding nothing is an answer.
 func (r *Router) Plan(ctx context.Context, labels map[string]string) (Result, error) {
 	routes, err := r.store.ListRoutes(ctx)
 	if err != nil {
@@ -103,33 +107,46 @@ func (r *Router) Plan(ctx context.Context, labels map[string]string) (Result, er
 		sortRoutes(children[parent])
 	}
 
-	root, reason := selectRoot(roots, labels)
+	matched, reason := selectRoots(roots, labels)
 	if reason == ReasonNone {
 		return Result{Reason: ReasonNone}, nil
 	}
 
-	plan := collect(root, reason, children, labels, root.DestinationID, root.TemplateID, root.RecipientID, 0)
+	rootIDs := make([]string, 0, len(matched))
+	var plan []Delivery
+	for _, root := range matched {
+		rootIDs = append(rootIDs, root.ID)
+		plan = append(plan, collect(root, reason, children, labels, root.DestinationID, root.TemplateID, root.RecipientID, 0)...)
+	}
 	if len(plan) == 0 {
 		return Result{Reason: ReasonNone}, nil
 	}
-	return Result{Reason: reason, RootID: root.ID, RootName: root.Name, Deliveries: plan}, nil
+	return Result{Reason: reason, Roots: rootIDs, Deliveries: plan}, nil
 }
 
-func selectRoot(roots []models.Route, labels map[string]string) (models.Route, Reason) {
+// selectRoots returns every non-default root whose selector matches, in
+// evaluation order. The default is tried only when that set is empty — it is
+// what an alert falls back to, not one more route to add to a match, so it
+// never fires alongside a real one.
+func selectRoots(roots []models.Route, labels map[string]string) ([]models.Route, Reason) {
+	var matched []models.Route
 	for _, route := range roots {
 		if route.IsDefault {
 			continue
 		}
 		if labelsMatch(route.LabelSelector, labels) {
-			return route, ReasonSelector
+			matched = append(matched, route)
 		}
+	}
+	if len(matched) > 0 {
+		return matched, ReasonSelector
 	}
 	for _, route := range roots {
 		if route.IsDefault {
-			return route, ReasonDefault
+			return []models.Route{route}, ReasonDefault
 		}
 	}
-	return models.Route{}, ReasonNone
+	return nil, ReasonNone
 }
 
 // collect walks the matching part of the tree. A route delivers unless one of

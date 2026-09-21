@@ -446,6 +446,46 @@ func TestNestedRoutesFanOut(t *testing.T) {
 	}
 }
 
+// Two independent root routes -- no parent/child between them, unlike every
+// fan-out test above -- both selecting on the same label both deliver: the
+// headline behavior, proven end to end rather than only inside the router
+// package.
+func TestIndependentRoutesBothFire(t *testing.T) {
+	t.Parallel()
+
+	msg := &fakeMessenger{}
+	st := newFakeStore()
+	st.templates["tmpl"] = models.Template{ID: "tmpl", Body: `{"text":"{{ .Alert.Status }}"}`}
+	st.destinations["ops"] = models.Destination{ID: "ops", TeamID: "team", ChannelID: "ops-channel"}
+	st.destinations["audit"] = models.Destination{ID: "audit", TeamID: "team", ChannelID: "audit-channel"}
+	st.routes["ops"] = models.Route{
+		ID: "ops", Name: "ops", TemplateID: "tmpl", DestinationID: "ops",
+		LabelSelector: map[string]string{"team": "payments"}, Priority: 100,
+	}
+	st.routes["audit"] = models.Route{
+		ID: "audit", Name: "audit", TemplateID: "tmpl", DestinationID: "audit",
+		LabelSelector: map[string]string{"team": "payments"}, Priority: 50,
+	}
+	handler := newTestServer(t, st, msg).Handler
+
+	postWebhook(t, handler, "/webhook/universal", "token",
+		`{"status":"firing","labels":{"team":"payments"},"fingerprint":"fp"}`)
+
+	if len(msg.posts) != 2 {
+		t.Fatalf("posted %d messages, want one per matching route: %+v", len(msg.posts), msg.posts)
+	}
+	channels := map[string]bool{}
+	for _, post := range msg.posts {
+		channels[post.channelID] = true
+	}
+	if !channels["ops-channel"] || !channels["audit-channel"] {
+		t.Errorf("channels = %v, want both routes' own", channels)
+	}
+	if len(st.activeAlerts) != 2 {
+		t.Errorf("stored %d cards, want one per channel", len(st.activeAlerts))
+	}
+}
+
 func TestGreedyChildTakesDeliveryFromItsParent(t *testing.T) {
 	t.Parallel()
 

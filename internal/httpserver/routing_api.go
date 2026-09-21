@@ -569,10 +569,16 @@ func (s *Server) handleRoutingMatch(w http.ResponseWriter, r *http.Request) {
 		"deliveries":  deliveryAnswers(result, byID),
 		"nodes":       matchedNodes(result),
 	}
-	// The route that matched first, kept for a caller that wants one answer —
-	// even when a greedy child took the delivery away from it.
-	if root, ok := byID[result.RootID]; ok {
-		answer["route"] = routeAnswer(root)
+	// Every root whose selector matched, not just the first — nothing says two
+	// independent routes cannot both name `severity=critical`, and both fire.
+	if len(result.Roots) > 0 {
+		routes := make([]map[string]any, 0, len(result.Roots))
+		for _, id := range result.Roots {
+			if root, ok := byID[id]; ok {
+				routes = append(routes, routeAnswer(root))
+			}
+		}
+		answer["routes"] = routes
 	}
 	writeJSON(w, http.StatusOK, answer)
 }
@@ -625,36 +631,53 @@ func matchedNodes(result routing.Result) []string {
 	return nodes
 }
 
+// explainResult is the human-readable half of a match: the machine-readable
+// half is "reason" plus "deliveries", each carrying its own reason already.
+// One matched root is by far the common case, so it keeps the exact wording
+// this had before more than one root could match at all; two or more get
+// their own paragraph rather than picking one to feature over the rest, since
+// none of them is more the answer than another.
 func explainResult(result routing.Result, byID map[string]models.Route) string {
-	root := byID[result.RootID]
-
-	var opening string
 	switch result.Reason {
-	case routing.ReasonSelector:
-		opening = fmt.Sprintf("%q matched on %s, at priority %d", root.Name, selectorSummary(root.LabelSelector), root.Priority)
-	case routing.ReasonDefault:
-		opening = fmt.Sprintf("no selector matched, so the default route %q takes it", root.Name)
 	case routing.ReasonNoRoutes:
 		return "no routes are configured, so this alert would be rejected"
-	default:
+	case routing.ReasonNone:
 		return "no selector matched and no default route exists, so this alert would be rejected"
 	}
 
 	names := make([]string, 0, len(result.Deliveries))
-	rootDelivers := false
 	for _, delivery := range result.Deliveries {
 		names = append(names, fmt.Sprintf("%q", delivery.RouteName))
-		if delivery.RouteID == result.RootID {
-			rootDelivers = true
+	}
+
+	if len(result.Roots) == 1 {
+		root := byID[result.Roots[0]]
+		opening := fmt.Sprintf("%q matched on %s, at priority %d", root.Name, selectorSummary(root.LabelSelector), root.Priority)
+		if result.Reason == routing.ReasonDefault {
+			opening = fmt.Sprintf("no selector matched, so the default route %q takes it", root.Name)
+		}
+
+		rootDelivers := false
+		for _, delivery := range result.Deliveries {
+			if delivery.RouteID == result.Roots[0] {
+				rootDelivers = true
+				break
+			}
+		}
+		switch {
+		case len(result.Deliveries) == 1 && rootDelivers:
+			return opening
+		case rootDelivers:
+			return fmt.Sprintf("%s, and %d messages go out — from %s", opening, len(result.Deliveries), strings.Join(names, ", "))
+		default:
+			return fmt.Sprintf("%s, but a child route delivers instead of it — from %s", opening, strings.Join(names, ", "))
 		}
 	}
 
-	switch {
-	case len(result.Deliveries) == 1 && rootDelivers:
-		return opening
-	case rootDelivers:
-		return fmt.Sprintf("%s, and %d messages go out — from %s", opening, len(result.Deliveries), strings.Join(names, ", "))
-	default:
-		return fmt.Sprintf("%s, but a child route delivers instead of it — from %s", opening, strings.Join(names, ", "))
+	rootNames := make([]string, 0, len(result.Roots))
+	for _, id := range result.Roots {
+		rootNames = append(rootNames, fmt.Sprintf("%q", byID[id].Name))
 	}
+	return fmt.Sprintf("%d routes matched — %s — and %d messages go out: %s",
+		len(result.Roots), strings.Join(rootNames, ", "), len(result.Deliveries), strings.Join(names, ", "))
 }
