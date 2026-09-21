@@ -49,3 +49,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0032](0032-retiring-a-link-from-the-chat.md) | A link can be retired from the chat it belongs to | Accepted |
 | [0033](0033-split-httproute-external-and-internal.md) | Split the chart's HTTPRoute into external and internal | Accepted |
 | [0034](0034-fan-out-across-independent-routes.md) | Every matching root route delivers, not only the highest priority one | Accepted |
+| [0035](0035-a-message-without-a-status-is-delivered-once.md) | A message posted without a status is delivered once, not tracked | Accepted |

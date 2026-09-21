@@ -108,7 +108,7 @@ func TestTheCatalogsCarryThePaletteAndTheSamples(t *testing.T) {
 		keys = append(keys, snippet.LabelKey, snippet.HelpKey)
 	}
 	// The sample alerts the preview offers are named in the catalogs too.
-	keys = append(keys, "sample.firing", "sample.resolved")
+	keys = append(keys, "sample.firing", "sample.resolved", "sample.message")
 
 	for tag, catalog := range catalogs {
 		for _, key := range keys {

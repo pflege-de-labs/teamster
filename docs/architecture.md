@@ -153,8 +153,18 @@ Teams does not re-notify and a silent resolve is the one thing the person on cal
 chat re-fire edits, for the mirror-image reason. See
 [ADR 0026](adr/0026-alerts-in-a-persons-chat.md).
 
-Any other `status` value is rejected. Handler errors map to `400` for malformed JSON, `401` for a
-bad token, and `502` when routing, rendering, the store or Graph fails.
+The diagram above is `Status` in `{firing, resolved}` — the Alertmanager vocabulary, and the only
+values that put a message through the claim protocol at all. Any other `Status`, including none,
+takes a third, untracked path instead: render, resolve the destination or recipient, then
+`graph.PostMessage` or `bot.SendMessage` once, unconditionally. Nothing is claimed and nothing is
+written to `active_alerts` — there is no lifecycle to track, so a repeat post is a second message
+rather than an edit of the first. This is `/webhook/universal`'s general case; the firing/resolved
+lifecycle is the Alertmanager-shaped specialization of it, and `/webhook/alertmanager` only ever
+sends those two values, so its behaviour is unaffected. See
+[ADR 0035](adr/0035-a-message-without-a-status-is-delivered-once.md).
+
+Handler errors map to `400` for malformed JSON, `401` for a bad token, and `502` when routing,
+rendering, the store or Graph fails.
 
 ### Teams V2 webhooks
 

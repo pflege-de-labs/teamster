@@ -158,7 +158,7 @@ func buildGraph(routes []models.Route, destinations []models.Destination, recipi
 	add(graphNode{
 		ID:     sourceID,
 		Kind:   "source",
-		Label:  "Incoming alerts",
+		Label:  "Incoming messages",
 		Detail: "POST /webhook/alertmanager · /webhook/universal",
 	})
 
