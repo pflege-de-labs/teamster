@@ -136,6 +136,81 @@ func TestUniversalWebhookPostsANewCard(t *testing.T) {
 	}
 }
 
+// A message with no status is /webhook/universal's baseline case: routed and
+// rendered like an alert, but delivered once and tracked nowhere, because
+// nothing about it says there will be a later post to find and edit.
+func TestUniversalMessageWithoutAStatusPostsOnceAndIsNotTracked(t *testing.T) {
+	t.Parallel()
+
+	msg := &fakeMessenger{messageID: "graph-1"}
+	st, handler := seededServer(t, msg)
+
+	rec := postWebhook(t, handler, "/webhook/universal", "token", `{"labels":{"app":"checkout"},"annotations":{"summary":"Deployment finished"}}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("POST = %d, want 200 (body %s)", rec.Code, rec.Body.String())
+	}
+
+	if len(msg.posts) != 1 {
+		t.Fatalf("posted %d messages, want 1", len(msg.posts))
+	}
+	if msg.posts[0].msg.Title != "Deployment finished" {
+		t.Errorf("title = %q, want the annotation", msg.posts[0].msg.Title)
+	}
+
+	if len(st.activeAlerts) != 0 {
+		t.Errorf("active alerts = %d, want none: nothing is tracked for a status-less message", len(st.activeAlerts))
+	}
+}
+
+// The core guarantee of the untracked path: without a fingerprint to claim
+// against, a repeat post is a second message, not an edit of the first. This
+// is what rules out reusing the claim-and-update path for the baseline case --
+// two unrelated one-off messages that happened to compute the same fingerprint
+// would otherwise silently overwrite each other's card.
+func TestUniversalMessageWithoutAStatusPostsFreshEachTime(t *testing.T) {
+	t.Parallel()
+
+	msg := &fakeMessenger{messageID: "graph-1"}
+	_, handler := seededServer(t, msg)
+
+	body := `{"labels":{},"annotations":{"summary":"build finished"}}`
+	for range 2 {
+		rec := postWebhook(t, handler, "/webhook/universal", "token", body)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("POST = %d, want 200 (body %s)", rec.Code, rec.Body.String())
+		}
+	}
+
+	if len(msg.posts) != 2 {
+		t.Fatalf("posted %d messages, want 2 -- a second post, not an update of the first", len(msg.posts))
+	}
+	if len(msg.updates) != 0 {
+		t.Errorf("updates = %d, want none", len(msg.updates))
+	}
+}
+
+// A status the sender made up -- not "firing" or "resolved" -- is not an error
+// any more: it takes the same untracked path an absent status does. Reuses the
+// payload that used to be this test suite's "unknown status" failure case.
+func TestUniversalMessageWithAnUnrecognizedStatusIsOneShot(t *testing.T) {
+	t.Parallel()
+
+	msg := &fakeMessenger{messageID: "graph-1"}
+	st, handler := seededServer(t, msg)
+
+	rec := postWebhook(t, handler, "/webhook/universal", "token", `{"status":"flapping","labels":{},"fingerprint":"fp"}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("POST = %d, want 200 (body %s)", rec.Code, rec.Body.String())
+	}
+
+	if len(msg.posts) != 1 {
+		t.Fatalf("posted %d messages, want 1", len(msg.posts))
+	}
+	if len(st.activeAlerts) != 0 {
+		t.Errorf("active alerts = %d, want none: an unrecognized status is not the alert lifecycle", len(st.activeAlerts))
+	}
+}
+
 // testPostedAt stands in for "this card exists". A row carrying a message id
 // must carry a posting time too -- the schema's CHECK says so.
 var testPostedAt = time.Date(2026, 9, 8, 10, 0, 0, 0, time.UTC)
@@ -310,11 +385,6 @@ func TestProcessAlertFailures(t *testing.T) {
 		wantErr string
 	}{
 		{
-			name:    "unknown status",
-			body:    `{"status":"flapping","labels":{},"fingerprint":"fp"}`,
-			wantErr: "unknown status: flapping",
-		},
-		{
 			name:    "no route matches",
 			body:    `{"status":"firing","labels":{},"fingerprint":"fp"}`,
 			setup:   func(st *fakeStore, _ *fakeMessenger) { delete(st.routes, "route") },
@@ -343,6 +413,12 @@ func TestProcessAlertFailures(t *testing.T) {
 		{
 			name:    "graph rejects the post",
 			body:    `{"status":"firing","labels":{},"fingerprint":"fp"}`,
+			setup:   func(_ *fakeStore, msg *fakeMessenger) { msg.postErr = errors.New("graph down") },
+			wantErr: "graph post:",
+		},
+		{
+			name:    "graph rejects the one-shot post",
+			body:    `{"labels":{},"fingerprint":"fp"}`,
 			setup:   func(_ *fakeStore, msg *fakeMessenger) { msg.postErr = errors.New("graph down") },
 			wantErr: "graph post:",
 		},
