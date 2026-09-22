@@ -91,6 +91,9 @@ func (s *Server) handleUniversal(w http.ResponseWriter, r *http.Request) {
 		EndsAt:      payload.EndsAt,
 		Generator:   payload.Generator,
 		Fingerprint: payload.Fingerprint,
+		Title:       payload.Title,
+		Text:        payload.Text,
+		Card:        payload.Card,
 	}
 
 	s.metrics.WebhookReceived(ctx, model.Source, model.Status)
@@ -501,7 +504,22 @@ func deliveriesOfKind(plan []routing.Delivery, kind routing.DeliveryKind) []rout
 //
 // The summary line is the template's to decide; templates.RenderMessage falls
 // back to the one this service used to hardcode.
+// renderMessage produces the message one delivery sends. A route's own
+// Template wins whenever it has one, exactly as before; a route with none
+// falls back to whatever the payload itself supplied directly (ADR 0036) --
+// the fallback for a template-less route, never an override of a route that
+// has one, so a client accidentally sending a blank Title cannot silently
+// blank out a working template.
 func (s *Server) renderMessage(ctx context.Context, alert models.Alert, delivery routing.Delivery) (templates.Message, error) {
+	if delivery.TemplateID == "" {
+		msg, err := directMessage(alert)
+		if err != nil {
+			s.metrics.RenderFailed(ctx, delivery.TemplateID, metrics.StageRender)
+			return templates.Message{}, err
+		}
+		return msg, nil
+	}
+
 	template, err := s.store.GetTemplate(ctx, delivery.TemplateID)
 	if err != nil {
 		s.metrics.RenderFailed(ctx, delivery.TemplateID, metrics.StageTemplate)
@@ -517,6 +535,38 @@ func (s *Server) renderMessage(ctx context.Context, alert models.Alert, delivery
 		return templates.Message{}, fmt.Errorf("render: %w", err)
 	}
 	return rendered, nil
+}
+
+// directMessage builds a Message straight from what the sender supplied,
+// skipping template rendering entirely. Text still goes through
+// templates.RenderText -- the same Markdown-to-sanitized-HTML pipeline a
+// stored template's Text goes through -- because that sanitizer is a trust
+// boundary regardless of who authored the text, not something a sender gets
+// to skip by not using a template. The card is passed through as given, the
+// same way a template's rendered card is: valid JSON is required, the
+// contents are not otherwise validated.
+func directMessage(alert models.Alert) (templates.Message, error) {
+	if alert.Title == "" && alert.Text == "" && len(alert.Card) == 0 {
+		return templates.Message{}, errors.New(
+			"no template configured for this route, and the message carries no title, text or card to send directly")
+	}
+
+	msg := templates.Message{Title: alert.Title}
+	if alert.Text != "" {
+		safe, err := templates.RenderText(alert.Text)
+		if err != nil {
+			return templates.Message{}, fmt.Errorf("text: %w", err)
+		}
+		msg.Text = safe
+	}
+	if len(alert.Card) > 0 {
+		var probe any
+		if err := json.Unmarshal(alert.Card, &probe); err != nil {
+			return templates.Message{}, fmt.Errorf("card: not valid JSON: %w", err)
+		}
+		msg.Card = alert.Card
+	}
+	return msg, nil
 }
 
 func (s *Server) channelTarget(ctx context.Context, delivery routing.Delivery) (models.Destination, error) {

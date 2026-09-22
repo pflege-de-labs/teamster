@@ -60,14 +60,7 @@ func RenderMessage(t models.Template, data RenderData) (Message, error) {
 		if err != nil {
 			return Message{}, fmt.Errorf("text: %w", err)
 		}
-		// Authored as Markdown, carried on as HTML: raw HTML passes the parser
-		// through untouched, so a template written before ADR 0029 renders as
-		// it always did, and Sanitize is still the only trust boundary.
-		markup, err := renderMarkdown(text)
-		if err != nil {
-			return Message{}, fmt.Errorf("text: %w", err)
-		}
-		safe, err := Sanitize(markup)
+		safe, err := RenderText(text)
 		if err != nil {
 			return Message{}, fmt.Errorf("text: %w", err)
 		}
@@ -83,6 +76,23 @@ func RenderMessage(t models.Template, data RenderData) (Message, error) {
 	}
 
 	return msg, nil
+}
+
+// RenderText turns Markdown into the sanitized HTML every transport requires,
+// without going through a Go template first. It is renderMarkdown+Sanitize,
+// split out of RenderMessage's own text step and exported so a caller with
+// text that was never template source -- a webhook payload's own Text field,
+// not something authored in the admin UI -- gets exactly the same trust
+// boundary a stored template's Text goes through. Authored as Markdown,
+// carried on as HTML: raw HTML passes the parser through untouched, so text
+// written before ADR 0029 renders as it always did, and Sanitize is still the
+// only trust boundary.
+func RenderText(markdown string) (string, error) {
+	markup, err := renderMarkdown(markdown)
+	if err != nil {
+		return "", err
+	}
+	return Sanitize(markup)
 }
 
 // Validate rejects a template that would render to nothing a reader can see.

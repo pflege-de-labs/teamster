@@ -134,6 +134,7 @@
   "routes.selector": "Label-Selektor (JSON)",
   "routes.selector_none": "trifft für sich genommen auf nichts zu",
   "routes.template": "Vorlage",
+  "routes.template_none": "— keine, Titel/Text/Card der Nachricht selbst verwenden —",
   "routing.check": "Prüfen",
   "routing.graph_help": "Die Pfeile folgen einem Alarm vom Webhook über die zutreffenden Routen bis zu den Kanälen, in denen er landet. Ein gestrichelter Pfeil ist eine untergeordnete Route, die ihre übergeordnete verfeinert; die Beschriftung sagt, ob sie zusätzlich zu ihr oder statt ihrer zustellt. Prüfen Sie einen Satz Labels, um alle Wege hervorzuheben. Knoten lassen sich ziehen, Scrollen zoomt.",
   "routing.labels_field": "Labels, ein key=value pro Zeile",
