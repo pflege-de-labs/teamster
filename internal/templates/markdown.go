@@ -4,13 +4,16 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/yuin/goldmark"
-	goldmarkhtml "github.com/yuin/goldmark/renderer/html"
+	"github.com/yuin/goldmark/v2/parser"
+	goldmarkhtml "github.com/yuin/goldmark/v2/renderer/html"
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
 )
 
-// markdown renders a template's authored text to HTML on its way to Sanitize.
+// markdownParser and markdownRenderer replace v1's single goldmark.Markdown,
+// removed in v2 in favor of using the parser and renderer directly.
+// parser.New wires in the same default CommonMark parsing goldmark.New did
+// with no extensions passed.
 //
 // html.WithUnsafe passes raw HTML through instead of stripping it, which is
 // what keeps every template written before this change working: Text was
@@ -20,9 +23,12 @@ import (
 // Removing it does not make anything safer; it silently empties every deployed
 // HTML template.
 //
-// A goldmark.Markdown is immutable once built and safe for concurrent use, so
-// this is shared rather than rebuilt per render.
-var markdown = goldmark.New(goldmark.WithRendererOptions(goldmarkhtml.WithUnsafe()))
+// Both are immutable once built and safe for concurrent use, so they are
+// shared rather than rebuilt per render.
+var (
+	markdownParser   = parser.New()
+	markdownRenderer = goldmarkhtml.New(goldmarkhtml.WithUnsafe())
+)
 
 // renderMarkdown turns authored text into the HTML Sanitize expects. The
 // output is trimmed because goldmark terminates every block with a newline,
@@ -31,8 +37,10 @@ func renderMarkdown(source string) (string, error) {
 	if strings.TrimSpace(source) == "" {
 		return "", nil
 	}
+	b := []byte(source)
+	doc := markdownParser.Parse(b)
 	var out strings.Builder
-	if err := markdown.Convert([]byte(source), &out); err != nil {
+	if err := markdownRenderer.Render(&out, b, doc); err != nil {
 		return "", fmt.Errorf("render markdown: %w", err)
 	}
 	return strings.TrimSpace(out.String()), nil

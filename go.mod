@@ -12,7 +12,7 @@ require (
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/miekg/king v1.0.16
 	github.com/pressly/goose/v3 v3.28.0
-	github.com/yuin/goldmark v1.8.6
+	github.com/yuin/goldmark/v2 v2.1.5
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.71.0
 	golang.org/x/net v0.59.0
 	golang.org/x/oauth2 v0.37.0
