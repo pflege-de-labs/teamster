@@ -1,0 +1,10 @@
+{
+  "labels": {
+    "app": "checkout",
+    "environment": "production"
+  },
+  "annotations": {
+    "summary": "Deployment finished",
+    "description": "checkout v2.14.0 rolled out to production"
+  }
+}

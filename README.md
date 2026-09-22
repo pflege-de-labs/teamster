@@ -287,7 +287,13 @@ changes an installation.
 
 ### Universal webhook
 
-`POST /webhook/universal` with `X-Teamster-Token` header.
+`POST /webhook/universal` with `X-Teamster-Token` header. Routes on `labels` and renders
+`annotations` exactly like an Alertmanager alert does — `status` is what's optional. A `status` of
+`firing` or `resolved` opts into the tracked alert lifecycle: a repeat post with the same
+`fingerprint` edits the card in place, and `resolved` clears it. Any other `status` — including
+none at all, the shape for a sender with no such lifecycle — is delivered once and tracked
+nowhere, the same fire-and-forget contract the Teams V2 webhook below has, just routed and
+templated first.
 
 ### What the webhook token protects
 
@@ -324,7 +330,7 @@ The same reasoning applies to anyone who can edit templates, who can of course w
 they like — but that is an authenticated admin action, scoped by permission grants, and a far
 smaller group than "whatever can reach the webhook port".
 
-Payload shape:
+Payload shape, for an alert with a lifecycle:
 
 ```json
 {
@@ -340,6 +346,20 @@ Payload shape:
   "card": {"optional": "Adaptive Card JSON, sent as-is when the route has no template"}
 }
 ```
+
+`status`, `starts_at`, `ends_at`, `generator` and `fingerprint` are all optional. A general
+message needs only `labels` and `annotations`:
+
+```json
+{
+  "labels": {"app": "checkout", "environment": "production"},
+  "annotations": {"summary": "Deployment finished"}
+}
+```
+
+See [samples/universal-message.json](samples/universal-message.json) alongside
+[samples/universal-firing.json](samples/universal-firing.json) and
+[samples/universal-resolved.json](samples/universal-resolved.json).
 
 `title`, `text` and `card` matter only for a route with no `TemplateID`: a route that has one
 renders through it exactly as before, and these three fields are ignored for that delivery. A
@@ -499,6 +519,7 @@ See the JSON examples in [samples](samples):
 - [samples/alertmanager-resolved.json](samples/alertmanager-resolved.json)
 - [samples/universal-firing.json](samples/universal-firing.json)
 - [samples/universal-resolved.json](samples/universal-resolved.json)
+- [samples/universal-message.json](samples/universal-message.json)
 - [samples/universal-direct-message.json](samples/universal-direct-message.json) — direct
   content, for a route with no template
 - [samples/teamsv2-card.json](samples/teamsv2-card.json)

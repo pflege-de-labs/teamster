@@ -54,14 +54,14 @@ func (m *Metrics) instruments() error {
 
 	m.receipts, err = meter.Int64Counter(
 		"teamster.webhook.receipts",
-		metric.WithDescription("Alerts received on a webhook, by source and status."),
-		metric.WithUnit("{alert}"),
+		metric.WithDescription("Messages received on a webhook, by source and status."),
+		metric.WithUnit("{message}"),
 	)
 	errs = append(errs, err)
 
 	m.renderFails, err = meter.Int64Counter(
 		"teamster.render.failures",
-		metric.WithDescription("Alerts that could not be rendered, by template and stage."),
+		metric.WithDescription("Messages that could not be rendered, by template and stage."),
 		metric.WithUnit("{failure}"),
 	)
 	errs = append(errs, err)

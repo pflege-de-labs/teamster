@@ -104,7 +104,7 @@ endpoints together:
 ```json
 {
   "nodes": [
-    {"id": "source:webhook", "kind": "source", "label": "Incoming alerts",
+    {"id": "source:webhook", "kind": "source", "label": "Incoming messages",
      "detail": "POST /webhook/alertmanager · /webhook/universal", "x": 0, "y": 0},
     {"id": "route:abc", "kind": "route", "label": "Critical to ops",
      "selector": "severity=critical", "priority": 100, "default": false, "x": 300, "y": 0},

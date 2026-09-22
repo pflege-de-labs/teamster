@@ -60,7 +60,7 @@ func (s *Server) handlePreview(w http.ResponseWriter, r *http.Request) {
 }
 
 func previewSamples() []string {
-	return []string{"firing", "resolved"}
+	return []string{"firing", "resolved", "message"}
 }
 
 func previewAlert(name string) models.Alert {
@@ -85,6 +85,15 @@ func previewAlert(name string) models.Alert {
 	case "resolved":
 		alert.Status = "resolved"
 		alert.EndsAt = time.Date(2026, 2, 9, 10, 30, 0, 0, time.UTC)
+		return alert
+	case "message":
+		// A general message has no lifecycle: no status, no start time, no
+		// fingerprint -- exactly the fields a one-shot delivery never uses.
+		// Labels and annotations stay, since those are what routing and the
+		// template still see regardless.
+		alert.Status = ""
+		alert.StartsAt = time.Time{}
+		alert.Fingerprint = ""
 		return alert
 	default:
 		return alert

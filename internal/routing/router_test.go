@@ -269,9 +269,10 @@ func deliveredBy(result Result) []string {
 	return out
 }
 
-// Root selection is unchanged by nesting: highest priority first, ties by name,
-// the default last.
-func TestPlanPicksTheRoot(t *testing.T) {
+// Every non-default root whose selector matches delivers, in priority order,
+// ties by name; the default is a fallback and fires only when nothing else
+// matched at all.
+func TestPlanPicksEveryMatchingRoot(t *testing.T) {
 	t.Parallel()
 
 	routes := []models.Route{
@@ -289,12 +290,14 @@ func TestPlanPicksTheRoot(t *testing.T) {
 		wantRoutes []string
 	}{
 		{
-			name: "the highest priority selector wins", routes: routes,
+			// "critical" selects on severity alone, so it matches too -- an
+			// alert carrying an extra label is still every bit as critical.
+			name: "two selectors both matching both deliver, highest priority first", routes: routes,
 			labels:     map[string]string{"severity": "critical", "tier": "gold"},
-			wantReason: ReasonSelector, wantRoutes: []string{"critical-gold"},
+			wantReason: ReasonSelector, wantRoutes: []string{"critical-gold", "critical"},
 		},
 		{
-			name: "every selector label must match", routes: routes,
+			name: "one selector matches", routes: routes,
 			labels:     map[string]string{"severity": "critical"},
 			wantReason: ReasonSelector, wantRoutes: []string{"critical"},
 		},
@@ -327,6 +330,59 @@ func TestPlanPicksTheRoot(t *testing.T) {
 				t.Errorf("deliveries = %v, want %v", got, tt.wantRoutes)
 			}
 		})
+	}
+}
+
+// The headline behavior: two independent root routes, sharing nothing but one
+// label value, both fire -- nothing suppresses one in favour of the other the
+// way a single winning root used to.
+func TestPlanFansOutAcrossIndependentRoots(t *testing.T) {
+	t.Parallel()
+
+	routes := []models.Route{
+		{ID: "ops", Name: "ops", LabelSelector: map[string]string{"team": "ops"}, DestinationID: "d-ops", TemplateID: "t1", Priority: 100},
+		{ID: "audit", Name: "audit", LabelSelector: map[string]string{"team": "ops"}, DestinationID: "d-audit", TemplateID: "t2", Priority: 50},
+		{ID: "elsewhere", Name: "elsewhere", LabelSelector: map[string]string{"team": "payments"}, DestinationID: "d-elsewhere", TemplateID: "t3"},
+	}
+
+	result := planOf(t, routes, map[string]string{"team": "ops"})
+
+	if result.Reason != ReasonSelector {
+		t.Fatalf("reason = %q, want %q", result.Reason, ReasonSelector)
+	}
+	if !equalStrings(result.Roots, []string{"ops", "audit"}) {
+		t.Errorf("roots = %v, want both matched roots, priority order", result.Roots)
+	}
+	if got := deliveredBy(result); !equalStrings(got, []string{"ops", "audit"}) {
+		t.Errorf("deliveries = %v, want one from each matched root", got)
+	}
+	for i, wantDest := range []string{"d-ops", "d-audit"} {
+		if result.Deliveries[i].DestinationID != wantDest {
+			t.Errorf("delivery %d destination = %q, want %q", i, result.Deliveries[i].DestinationID, wantDest)
+		}
+		if result.Deliveries[i].Reason != ReasonSelector {
+			t.Errorf("delivery %d reason = %q, want %q", i, result.Deliveries[i].Reason, ReasonSelector)
+		}
+	}
+}
+
+// The default never adds itself alongside a real match -- it is what an alert
+// falls back to, not one more route with a low priority.
+func TestPlanDefaultDoesNotJoinARealMatch(t *testing.T) {
+	t.Parallel()
+
+	routes := []models.Route{
+		{ID: "default", Name: "default", IsDefault: true, DestinationID: "d-default", TemplateID: "t1"},
+		{ID: "critical", Name: "critical", LabelSelector: map[string]string{"severity": "critical"}, DestinationID: "d-critical", TemplateID: "t2"},
+	}
+
+	result := planOf(t, routes, map[string]string{"severity": "critical"})
+
+	if !equalStrings(result.Roots, []string{"critical"}) {
+		t.Errorf("roots = %v, want only the matched selector, not the default too", result.Roots)
+	}
+	if got := deliveredBy(result); !equalStrings(got, []string{"critical"}) {
+		t.Errorf("deliveries = %v, want only the matched selector's", got)
 	}
 }
 
@@ -466,8 +522,8 @@ func TestPlanReportsWhyEachDeliveryHappened(t *testing.T) {
 		{ID: "child", Name: "child", ParentID: "parent", LabelSelector: map[string]string{"team": "payments"}, DestinationID: "payments"},
 	}, map[string]string{"severity": "critical", "team": "payments"})
 
-	if result.RootID != "parent" || result.RootName != "parent" {
-		t.Errorf("root = %q/%q, want the route that matched first", result.RootID, result.RootName)
+	if !equalStrings(result.Roots, []string{"parent"}) {
+		t.Errorf("roots = %v, want the route that matched", result.Roots)
 	}
 	if result.Deliveries[0].Reason != ReasonSelector {
 		t.Errorf("parent reason = %q, want %q", result.Deliveries[0].Reason, ReasonSelector)

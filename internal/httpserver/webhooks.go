@@ -105,12 +105,19 @@ func (s *Server) handleUniversal(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
+// processAlert routes and delivers one message. Status decides the lifecycle,
+// not whether the message is accepted at all: "firing" and "resolved" are the
+// Alertmanager vocabulary and opt into the claim protocol below, because that
+// is what lets a repeat firing edit a card instead of posting a second one and
+// a resolve clear it. Any other value -- including none, which is the normal
+// case for a sender that has no such lifecycle -- is delivered once and
+// tracked nowhere: /webhook/universal is a general message hook first, and an
+// alert feed is one shape a message can take, not a requirement on all of
+// them. Rejecting anything unrecognised here would demand every sender speak
+// Alertmanager's vocabulary to use a "universal" endpoint.
 func (s *Server) processAlert(ctx context.Context, alert models.Alert) error {
 	if alert.Fingerprint == "" {
 		alert.Fingerprint = hashFingerprint(alert)
-	}
-	if alert.Status != "firing" && alert.Status != "resolved" {
-		return fmt.Errorf("unknown status: %s", alert.Status)
 	}
 
 	result, err := s.router.Plan(ctx, alert.Labels)
@@ -124,15 +131,24 @@ func (s *Server) processAlert(ctx context.Context, alert models.Alert) error {
 		return errors.New("no matching route and no default route")
 	}
 
-	if alert.Status == "resolved" {
+	switch alert.Status {
+	case "resolved":
 		return s.resolveAlert(ctx, alert, result.Deliveries)
+	case "firing":
+		return s.deliverAll(ctx, alert, result.Deliveries, s.deliver)
+	default:
+		return s.deliverAll(ctx, alert, result.Deliveries, s.deliverOnce)
 	}
+}
 
-	// One channel refusing the message must not cost the others theirs, so every
-	// delivery is attempted and the failures are reported together.
+// deliverAll attempts every delivery and reports failures together, so one
+// channel refusing the message does not cost the others theirs.
+func (s *Server) deliverAll(ctx context.Context, alert models.Alert, deliveries []routing.Delivery,
+	deliverFn func(context.Context, models.Alert, routing.Delivery) error,
+) error {
 	var failures []error
-	for _, delivery := range result.Deliveries {
-		if err := s.deliver(ctx, alert, delivery); err != nil {
+	for _, delivery := range deliveries {
+		if err := deliverFn(ctx, alert, delivery); err != nil {
 			failures = append(failures, fmt.Errorf("route %s: %w", delivery.RouteName, err))
 		}
 	}
@@ -174,6 +190,18 @@ func (s *Server) deliver(ctx context.Context, alert models.Alert, delivery routi
 		return s.deliverToRecipient(ctx, alert, delivery)
 	}
 	return s.deliverToChannel(ctx, alert, delivery)
+}
+
+// deliverOnce is deliver's counterpart for a message with no tracked
+// lifecycle: nothing identifies a later post as the same event, so there is
+// nothing to claim and nothing to update -- it is rendered and sent exactly
+// once, the same fire-and-forget contract /teamsv2/... already has, just
+// routed and templated first.
+func (s *Server) deliverOnce(ctx context.Context, alert models.Alert, delivery routing.Delivery) error {
+	if delivery.Kind == routing.DeliveryRecipient {
+		return s.deliverToRecipientOnce(ctx, alert, delivery)
+	}
+	return s.deliverToChannelOnce(ctx, alert, delivery)
 }
 
 func (s *Server) deliverToChannel(ctx context.Context, alert models.Alert, delivery routing.Delivery) error {
@@ -241,6 +269,29 @@ func (s *Server) deliverToChannel(ctx context.Context, alert models.Alert, deliv
 		}
 		return err
 	}
+	return nil
+}
+
+// deliverToChannelOnce is deliverToChannel without the claim: render, resolve
+// the destination, post. Nothing is written to active_alerts, so a second
+// message with the same fingerprint posts a second card rather than editing
+// this one -- the point of the untracked path, not an oversight of it.
+func (s *Server) deliverToChannelOnce(ctx context.Context, alert models.Alert, delivery routing.Delivery) error {
+	rendered, err := s.renderMessage(ctx, alert, delivery)
+	if err != nil {
+		return err
+	}
+	destination, err := s.channelTarget(ctx, delivery)
+	if err != nil {
+		return err
+	}
+	msg := channelMessage(rendered)
+
+	if _, err := s.graph.PostMessage(destination.TeamID, destination.ChannelID, msg); err != nil {
+		s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeFailed)
+		return fmt.Errorf("graph post: %w", err)
+	}
+	s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomePosted)
 	return nil
 }
 
@@ -731,6 +782,38 @@ func (s *Server) deliverToRecipient(ctx context.Context, alert models.Alert, del
 		}
 		return err
 	}
+	return nil
+}
+
+// deliverToRecipientOnce is deliverToRecipient without the claim: no
+// RecipientClaim, no ActiveAlertRecipient row, no blocked-flag bookkeeping --
+// that machinery exists to stop a *repeated* delivery failure from reading as
+// noise, and a message that is never repeated has no repeats to distinguish.
+// A failed send here is recorded and returned exactly like any other failure.
+func (s *Server) deliverToRecipientOnce(ctx context.Context, alert models.Alert, delivery routing.Delivery) error {
+	if s.bot == nil {
+		return errNoBotConfigured
+	}
+
+	rendered, err := s.renderMessage(ctx, alert, delivery)
+	if err != nil {
+		return err
+	}
+	recipient, err := s.recipientTarget(ctx, delivery)
+	if err != nil {
+		return err
+	}
+	msg, err := chatMessage(rendered)
+	if err != nil {
+		return err
+	}
+	ref := conversationRef(recipient)
+
+	if _, err := s.bot.SendMessage(ctx, ref, msg); err != nil {
+		s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeFailed)
+		return fmt.Errorf("bot send: %w", err)
+	}
+	s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomePosted)
 	return nil
 }
 

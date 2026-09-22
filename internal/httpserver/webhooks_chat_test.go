@@ -423,3 +423,41 @@ func TestChatDeliveryWithoutABotIsReported(t *testing.T) {
 		t.Fatalf("POST = %d, want 502", rec.Code)
 	}
 }
+
+// A message with no status reaches a person's chat the same untracked way it
+// reaches a channel: sent once, nothing claimed, no ActiveAlertRecipient row.
+func TestChatDeliveryOfAMessageWithoutAStatusIsNotTracked(t *testing.T) {
+	t.Parallel()
+
+	botClient := &fakeBotClient{}
+	st, handler := chatServer(t, botClient, nil)
+
+	rec := postWebhook(t, handler, "/webhook/universal", "token", `{"labels":{}}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("POST = %d, want 200 (body %s)", rec.Code, rec.Body.String())
+	}
+
+	if len(botClient.sent) != 1 {
+		t.Fatalf("sent %d messages, want 1", len(botClient.sent))
+	}
+	if got := botClient.sent[0].ref.ConversationID; got != "19:chat" {
+		t.Errorf("conversation = %q, want the recipient's", got)
+	}
+
+	if len(st.activeChats) != 0 {
+		t.Errorf("active chats = %d, want none: nothing is tracked for a status-less message", len(st.activeChats))
+	}
+}
+
+// deliverToRecipientOnce guards on a missing bot exactly like deliverToRecipient
+// does: an untracked send still has to go somewhere.
+func TestChatDeliveryOfAMessageWithoutAStatusAndWithoutABotIsReported(t *testing.T) {
+	t.Parallel()
+
+	_, handler := chatServer(t, nil, nil)
+
+	rec := postWebhook(t, handler, "/webhook/universal", "token", `{"labels":{}}`)
+	if rec.Code != http.StatusBadGateway {
+		t.Fatalf("POST = %d, want 502", rec.Code)
+	}
+}
