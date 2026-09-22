@@ -99,7 +99,7 @@ func sourceName(source *goose.Source) string {
 // itself when it changes.
 func withProvider(ctx context.Context, cfg *config.Config, fn func(*goose.Provider) error) error {
 	opts := storeOptions(cfg, store.MigrateOff)
-	driver, dsn, dialect := "sqlite", opts.Path, migrations.SQLite
+	driver, dsn, dialect := "sqlite", migrations.SQLiteDSN(opts.Path), migrations.SQLite
 	if cfg.Database.Driver == store.DriverPostgres {
 		driver, dsn, dialect = "pgx", opts.DSN, migrations.Postgres
 	}
