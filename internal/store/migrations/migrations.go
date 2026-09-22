@@ -10,6 +10,7 @@ import (
 	"embed"
 	"fmt"
 	"io/fs"
+	"strings"
 
 	"github.com/pressly/goose/v3"
 	"github.com/pressly/goose/v3/lock"
@@ -44,6 +45,12 @@ func New(dialect Dialect, db *sql.DB, opts ...goose.ProviderOption) (*goose.Prov
 	options := []goose.ProviderOption{goose.WithDisableGlobalRegistry(true)}
 	switch dialect {
 	case SQLite:
+		// No session locker: SQLite is a file, one instance at a time, mostly
+		// run by hand against a local database. Nothing here makes concurrent
+		// Up from two processes on the same file safe -- goose has no SQLite
+		// locker to give it one, and a busy_timeout pragma only avoids the
+		// easy failure, not the ledger race. Don't run `teamster migrate` and
+		// a live store's own migration against the same SQLite file at once.
 		options = append(options, goose.WithGoMigrations(legacySQLiteMigrations()...))
 	case Postgres:
 		// More than one instance may start at once, and they must not both
@@ -81,6 +88,21 @@ func gooseDialect(dialect Dialect) goose.Dialect {
 	default:
 		return goose.Dialect(dialect)
 	}
+}
+
+// SQLiteDSN adds the pragmas every caller opening a SQLite file needs: busy_timeout
+// so a second connection -- the store's own startup migration and an operator's
+// `teamster migrate` landing at nearly the same moment -- waits for the first's
+// lock instead of failing SQLITE_BUSY outright, WAL so a reader does not block
+// the writer, and foreign_keys since it is off per connection unless asked for.
+// This is best-effort, not a real cross-process lock; see the comment on New's
+// SQLite case for what it does not cover. A path that already looks like a DSN
+// is left alone, so an operator can pass options this does not know about.
+func SQLiteDSN(path string) string {
+	if strings.HasPrefix(path, "file:") || strings.Contains(path, "?") {
+		return path
+	}
+	return "file:" + path + "?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_pragma=foreign_keys(1)"
 }
 
 // Up applies everything pending.

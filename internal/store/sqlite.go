@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"strings"
 
 	_ "modernc.org/sqlite"
 
@@ -47,7 +46,7 @@ func (sqliteTx) WithTx(context.Context, func(context.Context, Store) error) erro
 // NewSQLiteStore opens the file and brings the schema to the version this
 // build expects, or checks that somebody else already did — see MigrateMode.
 func NewSQLiteStore(ctx context.Context, path string, migrate MigrateMode) (*SQLiteStore, error) {
-	db, err := sql.Open("sqlite", sqliteDSN(path))
+	db, err := sql.Open("sqlite", migrations.SQLiteDSN(path))
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite: %w", err)
 	}
@@ -69,21 +68,6 @@ func NewSQLiteStore(ctx context.Context, path string, migrate MigrateMode) (*SQL
 		db:           db,
 		path:         path,
 	}, nil
-}
-
-// sqliteDSN adds the pragmas that make a file usable by a long-running
-// service. busy_timeout covers the other process -- a CLI export, a backup --
-// that this connection limit cannot serialise; WAL keeps a reader from
-// blocking the writer; foreign_keys is off per connection unless asked for,
-// which would quietly make every foreign key decorative.
-//
-// A path that already looks like a DSN is left alone, so an operator can pass
-// options this does not know about.
-func sqliteDSN(path string) string {
-	if strings.HasPrefix(path, "file:") || strings.Contains(path, "?") {
-		return path
-	}
-	return "file:" + path + "?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_pragma=foreign_keys(1)"
 }
 
 // tx binds the queries to one transaction. It reaches for the concrete type
