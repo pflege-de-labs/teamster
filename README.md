@@ -496,6 +496,11 @@ Helper functions:
 - A database file written before the `DATETIME` timestamp fix cannot be read. Migrating it fails
   and names the file; delete it and start again to recreate the schema.
 - A default route is used if no labels match.
+- Where no route matches and there is no default route, the message goes to the **global default
+  destination**. The first destination you create becomes the global default, and an admin can
+  make another one the default from the Destinations list. Only one destination is the default at
+  a time. It cannot be deleted while other destinations remain, so switch the default first. The
+  route list and the routing page show it as a built-in route that cannot be edited.
 - Active alerts are tracked per channel and per person, so an alert that fans out updates and
   resolves every message it sent. One target failing does not stop the others; the response is a
   `502` and the sender's retry updates what already landed rather than duplicating it.

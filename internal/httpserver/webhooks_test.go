@@ -244,6 +244,28 @@ func TestUniversalWebhookDeliversDirectContentWithoutATemplate(t *testing.T) {
 	}
 }
 
+// A message no route claims, with no default route either, lands in the
+// global default destination instead of being rejected.
+func TestUniversalWebhookFallsBackToTheGlobalDefault(t *testing.T) {
+	t.Parallel()
+
+	msg := &fakeMessenger{messageID: "graph-1"}
+	st, handler := seededServer(t, msg)
+	delete(st.routes, "route")
+	st.destinations["dest"] = models.Destination{ID: "dest", TeamID: "team", ChannelID: "channel", IsDefault: true}
+
+	rec := postWebhook(t, handler, "/webhook/universal", "token", `{"labels":{"team":"nobody"},"title":"Unclaimed"}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("POST = %d, want 200 (body %s)", rec.Code, rec.Body.String())
+	}
+	if len(msg.posts) != 1 || msg.posts[0].channelID != "channel" {
+		t.Fatalf("posts = %+v, want one to the global default", msg.posts)
+	}
+	if msg.posts[0].msg.Title != "Unclaimed" {
+		t.Errorf("title = %q, want the payload's", msg.posts[0].msg.Title)
+	}
+}
+
 func TestUniversalWebhookTemplateWinsOverDirectContent(t *testing.T) {
 	t.Parallel()
 

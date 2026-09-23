@@ -136,6 +136,10 @@ func (s *Server) handleDestinationByID(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
+	if base, ok := strings.CutSuffix(id, "/default"); ok {
+		s.handleDefaultDestination(w, r, base)
+		return
+	}
 
 	switch r.Method {
 	case http.MethodGet:
@@ -171,13 +175,35 @@ func (s *Server) handleDestinationByID(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, updated)
 	case http.MethodDelete:
 		if err := s.store.DeleteDestination(ctx, id); err != nil {
-			writeJSONError(w, http.StatusInternalServerError, err.Error())
+			status := http.StatusInternalServerError
+			if errors.Is(err, store.ErrDefaultDestination) {
+				status = http.StatusConflict
+			}
+			writeJSONError(w, status, err.Error())
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
+}
+
+// handleDefaultDestination makes one destination the global default.
+func (s *Server) handleDefaultDestination(w http.ResponseWriter, r *http.Request, id string) {
+	if r.Method != http.MethodPost {
+		w.Header().Set("Allow", http.MethodPost)
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	if err := s.store.SetDefaultDestination(r.Context(), id); err != nil {
+		status := http.StatusInternalServerError
+		if errors.Is(err, store.ErrNotFound) {
+			status = http.StatusNotFound
+		}
+		writeJSONError(w, status, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "default"})
 }
 
 // writeRouteError keeps the distinction the separate validate call used to

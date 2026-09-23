@@ -112,10 +112,18 @@ templ destinations(page Page) {
 					for _, d := range page.Destinations {
 						<li class="flex items-center justify-between gap-4 py-3">
 							<div class="min-w-0">
-								<div class="truncate font-medium">{ d.Name }</div>
+								<div class="flex items-center gap-2">
+									<span class="truncate font-medium">{ d.Name }</span>
+									if d.IsDefault {
+										<span class="rounded bg-sky-100 px-1.5 py-0.5 text-xs font-medium text-sky-800">{ i18n.T(ctx, "destinations.badge_global_default") }</span>
+									}
+								</div>
 								<div class="truncate text-xs text-slate-500">team { d.TeamID } · channel { d.ChannelID }</div>
 							</div>
 							<div class="flex shrink-0 items-center gap-2">
+								if page.CanManage && !d.IsDefault {
+									@makeDefaultButton(d.ID, d.Name)
+								}
 								if page.CanEdit {
 									@editLink("destinations", d.ID, d.Name)
 									@deleteButton("/admin/destinations/delete", d.ID, d.Name)
@@ -127,6 +135,21 @@ templ destinations(page Page) {
 			}
 		</div>
 	}
+}
+
+// Switching the global default is its own form, like rotating a webhook token,
+// because it changes where every unclaimed message goes.
+templ makeDefaultButton(id, name string) {
+	<form method="post" action="/admin/destinations/default">
+		<input type="hidden" name="id" value={ id }/>
+		<button
+			type="submit"
+			aria-label={ i18n.T(ctx, "destinations.make_default") + " " + name }
+			class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:border-sky-400 hover:bg-sky-50 hover:text-sky-700"
+		>
+			{ i18n.T(ctx, "destinations.make_default") }
+		</button>
+	</form>
 }
 
 templ webhooks(page Page) {
@@ -236,7 +259,8 @@ templ routes(page Page) {
 		<div>
 			if len(page.Routes) == 0 {
 				@empty(i18n.T(ctx, "routes.empty"))
-			} else {
+			}
+			if len(page.Routes) > 0 || page.GlobalDefault != nil {
 				<ul class="divide-y divide-slate-200">
 					for _, r := range page.routeTree() {
 						<li class={ "flex items-start justify-between gap-4 py-3", indent(r.Depth) }>
@@ -269,10 +293,28 @@ templ routes(page Page) {
 							</div>
 						</li>
 					}
+					if page.GlobalDefault != nil {
+						@globalDefaultRoute(page)
+					}
 				</ul>
 			}
 		</div>
 	}
+}
+
+// The global default is drawn as the last route because that is where it is
+// evaluated. It is not stored, so it has nothing to edit or delete.
+templ globalDefaultRoute(page Page) {
+	<li class="flex items-start justify-between gap-4 py-3" data-synthetic-route="global-default">
+		<div class="min-w-0 space-y-1">
+			<div class="flex items-center gap-2">
+				<span class="truncate font-medium italic">{ i18n.T(ctx, "routes.global_default") }</span>
+				<span class="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-700">{ i18n.T(ctx, "routes.badge_synthetic") }</span>
+			</div>
+			<div class="truncate text-xs text-slate-500">{ page.destinationName(page.GlobalDefault.ID) }</div>
+			<div class="text-xs text-slate-500">{ i18n.T(ctx, "routes.global_default_hint") }</div>
+		</div>
+	</li>
 }
 
 // An inherited destination or template is shown in a lighter style, so what a

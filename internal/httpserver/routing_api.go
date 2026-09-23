@@ -25,6 +25,9 @@ type graphNode struct {
 	Default  bool   `json:"default,omitempty"`
 	Greedy   bool   `json:"greedy,omitempty"`
 	Missing  bool   `json:"missing,omitempty"`
+	// Synthetic marks the global default route, which is built in rather than
+	// stored.
+	Synthetic bool `json:"synthetic,omitempty"`
 
 	// A route renders with a template, but a template is not somewhere an alert
 	// goes, so it is a label on the route rather than a node of its own.
@@ -224,6 +227,26 @@ func buildGraph(routes []models.Route, destinations []models.Destination, recipi
 		links = append(links, graphLink{Source: sourceID, Target: "route:" + route.ID, Kind: linkEnters})
 	}
 
+	// The global default is evaluated last, after every root, default included.
+	var fallback string
+	for _, destination := range destinations {
+		if destination.IsDefault {
+			fallback = destination.ID
+		}
+	}
+	if fallback != "" {
+		add(graphNode{
+			ID:        "route:" + routing.GlobalDefaultRouteID,
+			Kind:      "route",
+			Label:     "Global default",
+			Detail:    "built in — catches what no route claims",
+			Synthetic: true,
+			X:         columnGap,
+			Y:         rows[0] * rowGap,
+		})
+		links = append(links, graphLink{Source: sourceID, Target: "route:" + routing.GlobalDefaultRouteID, Kind: linkEnters})
+	}
+
 	sinkColumn := (2 + maxDepth) * columnGap
 	row := 0
 	for _, destination := range destinations {
@@ -250,6 +273,14 @@ func buildGraph(routes []models.Route, destinations []models.Destination, recipi
 			Y:      row * rowGap,
 		})
 		row++
+	}
+
+	if fallback != "" {
+		links = append(links, graphLink{
+			Source: "route:" + routing.GlobalDefaultRouteID,
+			Target: "destination:" + fallback,
+			Kind:   linkDelivers,
+		})
 	}
 
 	missingTop := row*rowGap + groupGap
@@ -596,8 +627,12 @@ func routeAnswer(route models.Route) map[string]any {
 func deliveryAnswers(result routing.Result, byID map[string]models.Route) []map[string]any {
 	answers := make([]map[string]any, 0, len(result.Deliveries))
 	for _, delivery := range result.Deliveries {
+		route, ok := byID[delivery.RouteID]
+		if !ok && delivery.RouteID == routing.GlobalDefaultRouteID {
+			route = models.Route{ID: delivery.RouteID, Name: delivery.RouteName}
+		}
 		answer := map[string]any{
-			"route":       routeAnswer(byID[delivery.RouteID]),
+			"route":       routeAnswer(route),
 			"kind":        delivery.Kind,
 			"template_id": delivery.TemplateID,
 			"reason":      delivery.Reason,
@@ -640,9 +675,11 @@ func matchedNodes(result routing.Result) []string {
 func explainResult(result routing.Result, byID map[string]models.Route) string {
 	switch result.Reason {
 	case routing.ReasonNoRoutes:
-		return "no routes are configured, so this alert would be rejected"
+		return "no routes and no destinations are configured, so this alert would be rejected"
 	case routing.ReasonNone:
-		return "no selector matched and no default route exists, so this alert would be rejected"
+		return "no route delivers this alert and there is no global default destination, so it would be rejected"
+	case routing.ReasonGlobalDefault:
+		return "no route claimed this alert, so it goes to the global default destination"
 	}
 
 	names := make([]string, 0, len(result.Deliveries))

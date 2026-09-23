@@ -97,6 +97,14 @@ func TestValidate(t *testing.T) {
 	}{
 		{name: "a whole configuration", mutate: func(*Bundle) {}},
 		{
+			name: "two global defaults",
+			mutate: func(b *Bundle) {
+				b.Destinations[0].IsDefault = true
+				b.Destinations = append(b.Destinations, BundleDestination{Destination: models.Destination{ID: "other", Name: "Other", IsDefault: true}})
+			},
+			wantErr: "at most one",
+		},
+		{
 			name:    "a version this build does not know",
 			mutate:  func(b *Bundle) { b.Version = 99 },
 			wantErr: "bundle version 99",
@@ -386,5 +394,52 @@ func TestRoutesAreWrittenParentsFirst(t *testing.T) {
 	routes, _ := st.ListRoutes(ctx)
 	if len(routes) != 2 {
 		t.Fatalf("routes = %+v, want both", routes)
+	}
+}
+
+// The global default travels with a bundle; a bundle that names none keeps the
+// installation's, unless a replace deletes it.
+func TestImportSettlesTheGlobalDefault(t *testing.T) {
+	t.Parallel()
+
+	other := func(isDefault bool) BundleDestination {
+		return BundleDestination{Destination: models.Destination{ID: "other", Name: "Other", TeamID: "team", ChannelID: "other", IsDefault: isDefault}}
+	}
+	kept := BundleDestination{Destination: models.Destination{ID: "dest", Name: "Ops", TeamID: "team", ChannelID: "chan"}}
+
+	tests := []struct {
+		name         string
+		mode         Mode
+		destinations []BundleDestination
+		want         string
+	}{
+		{name: "the bundle names one", mode: ModeMerge, destinations: []BundleDestination{other(true)}, want: "other"},
+		{name: "merge naming none keeps it", mode: ModeMerge, destinations: []BundleDestination{other(false)}, want: "dest"},
+		{name: "replace keeping it keeps it", mode: ModeReplace, destinations: []BundleDestination{other(false), kept}, want: "dest"},
+		{name: "replace dropping it promotes the first", mode: ModeReplace, destinations: []BundleDestination{other(false)}, want: "other"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			st := configured(t)
+			bundle := Bundle{Version: Version, Destinations: tt.destinations}
+			if tt.mode == ModeReplace {
+				// The seeded route points at dest; a replace would otherwise
+				// refuse to leave it dangling or delete it along the way.
+				bundle.Templates = []models.Template{{ID: "tmpl", Name: "Critical card", Body: `{"type":"AdaptiveCard"}`}}
+			}
+			if _, err := Import(t.Context(), st, bundle, tt.mode, false); err != nil {
+				t.Fatalf("Import: %v", err)
+			}
+			got, err := st.GetDefaultDestination(t.Context())
+			if err != nil {
+				t.Fatalf("GetDefaultDestination: %v", err)
+			}
+			if got.ID != tt.want {
+				t.Errorf("default = %q, want %q", got.ID, tt.want)
+			}
+		})
 	}
 }

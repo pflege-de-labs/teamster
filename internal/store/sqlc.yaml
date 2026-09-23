@@ -22,6 +22,8 @@ sql:
             go_type: "bool"
           - column: "routes.is_default"
             go_type: "bool"
+          - column: "destinations.is_default"
+            go_type: "bool"
   - engine: "postgresql"
     schema: "migrations/postgres"
     queries: "queries/postgres"

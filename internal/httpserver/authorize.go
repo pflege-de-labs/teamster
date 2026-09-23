@@ -113,6 +113,13 @@ func (s *Server) authorize(next http.Handler) http.Handler {
 	})
 }
 
+// isDefaultDestinationPath is the form and the API endpoint that switch the
+// global default destination.
+func isDefaultDestinationPath(path string) bool {
+	return path == "/admin/destinations/default" ||
+		(strings.HasPrefix(path, "/api/destinations/") && strings.HasSuffix(path, "/default"))
+}
+
 // requestAuthorization turns a request into the question to ask about it. Paths
 // map to a resource type and methods to an action, with the two endpoints that
 // answer a question by POST — preview and match — counted as reads, because
@@ -132,6 +139,10 @@ func requestAuthorization(r *http.Request) (string, authz.Resource) {
 	// it, including who may deliver where. Both are the admin's.
 	case strings.HasPrefix(path, "/api/config/"):
 		return authz.ActionAdminister, transferResource()
+	// The global default decides where every unclaimed message lands, which is
+	// broader than any one destination an editor may change (ADR 0038).
+	case isDefaultDestinationPath(path) && r.Method != http.MethodGet && r.Method != http.MethodHead:
+		return authz.ActionAdminister, authz.Resource{Type: "Destination"}
 	// Minting a link code binds the caller's own subject, not anyone else's
 	// configuration, so it is the on-call viewer's action rather than an edit
 	// the default case below would otherwise refuse them.

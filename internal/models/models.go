@@ -19,10 +19,13 @@ type Template struct {
 }
 
 type Destination struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	TeamID    string    `json:"team_id"`
-	ChannelID string    `json:"channel_id"`
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	TeamID    string `json:"team_id"`
+	ChannelID string `json:"channel_id"`
+	// IsDefault marks the global default destination (ADR 0038). It is
+	// changed only through Store.SetDefaultDestination, never by an update.
+	IsDefault bool      `json:"is_default"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }

@@ -3,6 +3,7 @@ package httpserver
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"net/url"
@@ -71,6 +72,11 @@ func (s *Server) adminPage(r *http.Request, notice, errText string) views.Page {
 		page.Error = err.Error()
 	}
 	if page.Routes, err = s.store.ListRoutes(ctx); err != nil {
+		page.Error = err.Error()
+	}
+	if fallback, err := s.store.GetDefaultDestination(ctx); err == nil {
+		page.GlobalDefault = &fallback
+	} else if !errors.Is(err, store.ErrNotFound) {
 		page.Error = err.Error()
 	}
 	if page.WebhookEndpoints, err = s.store.ListWebhookEndpoints(ctx); err != nil {
@@ -332,6 +338,13 @@ func (s *Server) deleteTemplate(r *http.Request) (string, error) {
 		return "", err
 	}
 	return "Template deleted.", nil
+}
+
+func (s *Server) setDefaultDestination(r *http.Request) (string, error) {
+	if err := s.store.SetDefaultDestination(r.Context(), r.PostFormValue("id")); err != nil {
+		return "", err
+	}
+	return "Global default destination changed.", nil
 }
 
 func (s *Server) deleteDestination(r *http.Request) (string, error) {

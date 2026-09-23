@@ -288,9 +288,9 @@ land in are drawn in the match colour while everything else dims — so a fan-ou
 independent routes reads off the same picture as a fan-out through nested children does.
 
 `POST /api/routing/match` returns every route that matched and **why** — `selector`, `default`,
-`none` or `no-routes`. That reason comes from `routing.Plan`, which holds the rule in one place; the
-delivery path calls the same function. The browser never re-implements selector matching, so the
-answer cannot drift from what actually delivers a message.
+`global-default`, `none` or `no-routes`. That reason comes from `routing.Plan`, which holds the
+rule in one place; the delivery path calls the same function. The browser never re-implements
+selector matching, so the answer cannot drift from what actually delivers a message.
 
 ## Messages
 
@@ -326,6 +326,16 @@ entered only when no non-default root matched at all, never alongside a real mat
 [ADR 0034](adr/0034-fan-out-across-independent-routes.md), which extends
 [ADR 0011](adr/0011-nested-routes.md)'s fan-out — there, every matching *child* delivers rather than
 one winning; here, every matching *root* does.
+
+The last fallback is the **global default destination**. It is one destination with
+`is_default` set, and the first one created gets it. When nothing matched and there is no default
+route, which includes the case where no routes exist at all, `Plan` returns a single channel
+delivery to that destination. The reason is `global-default`, the route is the synthetic
+`routing.GlobalDefaultRouteID`, and there is no template. `none` and `no-routes` are now returned
+only when no destination exists. The admin route list and the routing picture draw the synthetic
+route last and offer no way to edit it. Only the admin role may choose a different default, and
+the current default cannot be deleted while other destinations remain. See
+[ADR 0038](adr/0038-global-default-destination.md).
 
 A child is evaluated only once its parent matched, and applies when its own selector matches. Every
 matching child delivers; a greedy one delivers *instead of* its parent, a non-greedy one *as well
@@ -499,6 +509,12 @@ webhook URL: the two slugs that name it, the destination it posts into, and a SH
 token the sender puts in the path. The pair of slugs is unique, because the pair is the URL. The
 token itself is nowhere in the database, so rotating is the only way to recover from a URL that
 leaked.
+
+`0011` in SQLite and `0008` in Postgres add `destinations.is_default`
+(`NOT NULL DEFAULT false`), a partial unique index `WHERE is_default` that allows at most one
+default, and a backfill that marks the oldest destination. `CreateDestination` sets the flag in the
+insert itself whenever no default exists, so the previous release can run against this schema and
+even delete the default. The next destination created then takes over.
 
 `database.migrate` decides what opening the store does about a schema that is behind: `auto`
 applies what is missing, `verify` refuses and names `teamster migrate up`, `off` asks nothing.

@@ -16,6 +16,9 @@ import (
 type stubStore struct {
 	routes []models.Route
 	err    error
+	// fallback is the global default destination; empty means there is none.
+	fallback   string
+	defaultErr error
 }
 
 func (s stubStore) Close() error { return nil }
@@ -54,6 +57,20 @@ func (s stubStore) DeleteDestination(ctx context.Context, id string) error { ret
 
 func (s stubStore) GetDestination(ctx context.Context, id string) (models.Destination, error) {
 	return models.Destination{}, store.ErrNotFound
+}
+
+func (s stubStore) GetDefaultDestination(ctx context.Context) (models.Destination, error) {
+	if s.defaultErr != nil {
+		return models.Destination{}, s.defaultErr
+	}
+	if s.fallback == "" {
+		return models.Destination{}, store.ErrNotFound
+	}
+	return models.Destination{ID: s.fallback, IsDefault: true}, nil
+}
+
+func (s stubStore) SetDefaultDestination(ctx context.Context, id string) error {
+	return store.ErrNotFound
 }
 
 func (s stubStore) ListRecipients(ctx context.Context) ([]models.Recipient, error) {
@@ -840,5 +857,72 @@ func TestValidateRouteAcceptsARecipientOnlyChild(t *testing.T) {
 	nothing := models.Route{ID: "c2", Name: "c2", ParentID: "p", LabelSelector: map[string]string{"x": "y"}}
 	if err := ValidateRoute(nothing, existing); err == nil {
 		t.Error("a child inheriting all three targets = nil, want rejected")
+	}
+}
+
+// The global default destination catches only what no route, default route
+// included, claimed.
+func TestPlanFallsBackToTheGlobalDefault(t *testing.T) {
+	t.Parallel()
+
+	critical := models.Route{ID: "critical", Name: "critical", LabelSelector: map[string]string{"severity": "critical"}, DestinationID: "d-critical"}
+	defaultRoute := models.Route{ID: "default", Name: "default", IsDefault: true, DestinationID: "d-default"}
+
+	cases := []struct {
+		name     string
+		routes   []models.Route
+		fallback string
+		labels   map[string]string
+		reason   Reason
+		want     string
+	}{
+		{name: "no routes", fallback: "d-global", reason: ReasonGlobalDefault, want: "d-global"},
+		{name: "no match, no default route", routes: []models.Route{critical}, fallback: "d-global",
+			labels: map[string]string{"severity": "info"}, reason: ReasonGlobalDefault, want: "d-global"},
+		{name: "default route wins", routes: []models.Route{critical, defaultRoute}, fallback: "d-global",
+			labels: map[string]string{"severity": "info"}, reason: ReasonDefault, want: "d-default"},
+		{name: "selector wins", routes: []models.Route{critical}, fallback: "d-global",
+			labels: map[string]string{"severity": "critical"}, reason: ReasonSelector, want: "d-critical"},
+		{name: "no routes, no destination", reason: ReasonNoRoutes},
+		{name: "no match, no destination", routes: []models.Route{critical},
+			labels: map[string]string{"severity": "info"}, reason: ReasonNone},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			result, err := New(stubStore{routes: tc.routes, fallback: tc.fallback}).Plan(t.Context(), tc.labels)
+			if err != nil {
+				t.Fatalf("Plan: %v", err)
+			}
+			if result.Reason != tc.reason {
+				t.Errorf("reason = %q, want %q", result.Reason, tc.reason)
+			}
+			if tc.want == "" {
+				if len(result.Deliveries) != 0 {
+					t.Errorf("deliveries = %+v, want none", result.Deliveries)
+				}
+				return
+			}
+			if len(result.Deliveries) != 1 || result.Deliveries[0].DestinationID != tc.want {
+				t.Fatalf("deliveries = %+v, want one to %q", result.Deliveries, tc.want)
+			}
+			if tc.reason == ReasonGlobalDefault {
+				got := result.Deliveries[0]
+				if got.RouteID != GlobalDefaultRouteID || got.TemplateID != "" || got.Kind != DeliveryChannel {
+					t.Errorf("delivery = %+v, want the synthetic route with no template", got)
+				}
+			}
+		})
+	}
+}
+
+func TestPlanReportsAGlobalDefaultReadFailure(t *testing.T) {
+	t.Parallel()
+
+	boom := errors.New("boom")
+	if _, err := New(stubStore{defaultErr: boom}).Plan(t.Context(), nil); !errors.Is(err, boom) {
+		t.Errorf("Plan = %v, want %v", err, boom)
 	}
 }

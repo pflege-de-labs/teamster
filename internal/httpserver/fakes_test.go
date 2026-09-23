@@ -181,6 +181,12 @@ func (f *fakeStore) CreateDestination(ctx context.Context, d models.Destination)
 	if d.ID == "" {
 		d.ID = "generated"
 	}
+	d.IsDefault = true
+	for _, other := range f.destinations {
+		if other.IsDefault {
+			d.IsDefault = false
+		}
+	}
 	f.destinations[d.ID] = d
 	return d, nil
 }
@@ -191,6 +197,7 @@ func (f *fakeStore) UpdateDestination(ctx context.Context, d models.Destination)
 	if err := f.failing("UpdateDestination"); err != nil {
 		return models.Destination{}, err
 	}
+	d.IsDefault = f.destinations[d.ID].IsDefault
 	f.destinations[d.ID] = d
 	return d, nil
 }
@@ -201,7 +208,40 @@ func (f *fakeStore) DeleteDestination(ctx context.Context, id string) error {
 	if err := f.failing("DeleteDestination"); err != nil {
 		return err
 	}
+	if f.destinations[id].IsDefault && len(f.destinations) > 1 {
+		return store.ErrDefaultDestination
+	}
 	delete(f.destinations, id)
+	return nil
+}
+
+func (f *fakeStore) GetDefaultDestination(ctx context.Context) (models.Destination, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("GetDefaultDestination"); err != nil {
+		return models.Destination{}, err
+	}
+	for _, d := range f.destinations {
+		if d.IsDefault {
+			return d, nil
+		}
+	}
+	return models.Destination{}, store.ErrNotFound
+}
+
+func (f *fakeStore) SetDefaultDestination(ctx context.Context, id string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("SetDefaultDestination"); err != nil {
+		return err
+	}
+	if _, ok := f.destinations[id]; !ok {
+		return store.ErrNotFound
+	}
+	for key, d := range f.destinations {
+		d.IsDefault = key == id
+		f.destinations[key] = d
+	}
 	return nil
 }
 

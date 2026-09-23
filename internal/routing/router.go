@@ -2,6 +2,7 @@ package routing
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 
@@ -33,6 +34,16 @@ const (
 	ReasonRefined  Reason = "refined"
 	ReasonNone     Reason = "none"
 	ReasonNoRoutes Reason = "no-routes"
+	// ReasonGlobalDefault is the global default destination catching what no
+	// route claimed, default route included (ADR 0038).
+	ReasonGlobalDefault Reason = "global-default"
+)
+
+// GlobalDefaultRouteID and GlobalDefaultRouteName name the synthetic route a
+// global-default delivery comes from. It is not stored and cannot be edited.
+const (
+	GlobalDefaultRouteID   = "global-default"
+	GlobalDefaultRouteName = "global default"
 )
 
 // A DeliveryKind says which transport a Delivery goes out through, since a
@@ -75,7 +86,8 @@ type Result struct {
 // entered — highest priority first, ties by name — and each one's matching
 // children then refine it: a child delivers as well as its parent, or instead
 // of it when greedy. The default is a fallback, not one more candidate: it is
-// entered only when no non-default root matched at all. Only a failure to
+// entered only when no non-default root matched at all, and the global default
+// destination only when there is no default route either. Only a failure to
 // read the store is an error; finding nothing is an answer.
 func (r *Router) Plan(ctx context.Context, labels map[string]string) (Result, error) {
 	routes, err := r.store.ListRoutes(ctx)
@@ -83,7 +95,7 @@ func (r *Router) Plan(ctx context.Context, labels map[string]string) (Result, er
 		return Result{}, err
 	}
 	if len(routes) == 0 {
-		return Result{Reason: ReasonNoRoutes}, nil
+		return r.globalDefault(ctx, ReasonNoRoutes)
 	}
 
 	byID := map[string]models.Route{}
@@ -109,7 +121,7 @@ func (r *Router) Plan(ctx context.Context, labels map[string]string) (Result, er
 
 	matched, reason := selectRoots(roots, labels)
 	if reason == ReasonNone {
-		return Result{Reason: ReasonNone}, nil
+		return r.globalDefault(ctx, ReasonNone)
 	}
 
 	rootIDs := make([]string, 0, len(matched))
@@ -122,6 +134,29 @@ func (r *Router) Plan(ctx context.Context, labels map[string]string) (Result, er
 		return Result{Reason: ReasonNone}, nil
 	}
 	return Result{Reason: reason, Roots: rootIDs, Deliveries: plan}, nil
+}
+
+// globalDefault is the last resort: one channel delivery to the global default
+// destination, with no template. Without any destination the answer is
+// fallback, the reason Plan would have given before.
+func (r *Router) globalDefault(ctx context.Context, fallback Reason) (Result, error) {
+	destination, err := r.store.GetDefaultDestination(ctx)
+	if errors.Is(err, store.ErrNotFound) {
+		return Result{Reason: fallback}, nil
+	}
+	if err != nil {
+		return Result{}, err
+	}
+	return Result{
+		Reason: ReasonGlobalDefault,
+		Deliveries: []Delivery{{
+			RouteID:       GlobalDefaultRouteID,
+			RouteName:     GlobalDefaultRouteName,
+			Kind:          DeliveryChannel,
+			DestinationID: destination.ID,
+			Reason:        ReasonGlobalDefault,
+		}},
+	}, nil
 }
 
 // selectRoots returns every non-default root whose selector matches, in

@@ -52,6 +52,7 @@
   // What the node filters for, or why it filters for nothing.
   function subtitle(node) {
     if (node.kind === "route") {
+      if (node.synthetic) return node.detail;
       if (node.selector) return node.selector;
       return node.default ? "no selector — catches the rest" : "no selector — matches nothing";
     }
@@ -72,7 +73,9 @@
     if (sub) parts.push(sub);
     const template = templateLine(node);
     if (template) parts.push(template);
-    if (node.kind === "route") {
+    if (node.synthetic) {
+      parts.push("built in; change it by making another destination the global default");
+    } else if (node.kind === "route") {
       parts.push("priority " + node.priority);
       if (node.default) parts.push("default route");
       if (node.greedy) parts.push("delivers instead of the route it refines");
@@ -227,7 +230,8 @@
       .attr("rx", 6)
       .attr("fill", (d) => (d.missing ? "#fef2f2" : "#ffffff"))
       .attr("stroke", (d) => (d.missing ? "#ef4444" : "#cbd5e1"))
-      .attr("stroke-width", 1);
+      .attr("stroke-width", 1)
+      .attr("stroke-dasharray", (d) => (d.synthetic ? "4 3" : null));
 
     // A coloured spine rather than a filled box: the label has to stay readable.
     node
@@ -270,7 +274,10 @@
       .attr("text-anchor", "end")
       .attr("font-size", 10)
       .attr("fill", "#64748b")
-      .text((d) => (d.default ? "default" : "p" + d.priority));
+      .text((d) => {
+        if (d.synthetic) return "built in";
+        return d.default ? "default" : "p" + d.priority;
+      });
 
     node.append("title").text((d) => tooltip(d));
 

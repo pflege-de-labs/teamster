@@ -179,3 +179,41 @@ func TestVerifyReportsAPendingSchema(t *testing.T) {
 		t.Errorf("Verify() after Up = %v, want nil", err)
 	}
 }
+
+// An installation that predates the global default gets its oldest
+// destination as the default, as though the rule had always applied.
+func TestUpBackfillsTheDefaultDestination(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	db := openDB(t, "backfill.db")
+	provider, err := New(SQLite, db)
+	if err != nil {
+		t.Fatalf("provider: %v", err)
+	}
+	if _, err := provider.UpTo(ctx, 10); err != nil {
+		t.Fatalf("up to 10: %v", err)
+	}
+	for _, row := range []struct{ id, created string }{
+		{"newer", "2026-02-01T00:00:00Z"},
+		{"oldest", "2026-01-01T00:00:00Z"},
+	} {
+		if _, err := db.ExecContext(ctx,
+			`INSERT INTO destinations (id, name, team_id, channel_id, created_at, updated_at) VALUES (?, ?, 't', 'c', ?, ?)`,
+			row.id, row.id, row.created, row.created); err != nil {
+			t.Fatalf("insert %s: %v", row.id, err)
+		}
+	}
+
+	if err := Up(ctx, SQLite, db); err != nil {
+		t.Fatalf("up: %v", err)
+	}
+
+	var got string
+	if err := db.QueryRowContext(ctx, `SELECT id FROM destinations WHERE is_default`).Scan(&got); err != nil {
+		t.Fatalf("read default: %v", err)
+	}
+	if got != "oldest" {
+		t.Errorf("default = %q, want the oldest destination", got)
+	}
+}

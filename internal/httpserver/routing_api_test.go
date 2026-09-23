@@ -256,7 +256,20 @@ func TestRoutingMatch(t *testing.T) {
 			name:   "nothing configured",
 			store:  newFakeStore,
 			labels: `{"severity":"critical"}`, wantReason: "no-routes",
-			wantExplanation: "no routes are configured",
+			wantExplanation: "no routes and no destinations",
+		},
+		{
+			name: "the global default takes what no route claims",
+			store: func() *fakeStore {
+				st := routingStore()
+				delete(st.routes, "fallback")
+				dest := st.destinations["dest"]
+				dest.IsDefault = true
+				st.destinations["dest"] = dest
+				return st
+			},
+			labels: `{"severity":"warning"}`, wantReason: "global-default",
+			wantExplanation: "global default destination",
 		},
 	}
 
@@ -722,5 +735,58 @@ func TestRoutingGraphNamesAnUnnamedRecipient(t *testing.T) {
 
 	if got := nodes["recipient:person"].Label; got != "oncall@example.com" {
 		t.Errorf("label = %q, want the subject when there is no name", got)
+	}
+}
+
+// The global default is drawn as a route of its own, evaluated last, and a
+// match it catches highlights it and its destination.
+func TestRoutingGraphDrawsTheGlobalDefault(t *testing.T) {
+	t.Parallel()
+
+	st := routingStore()
+	delete(st.routes, "fallback")
+	dest := st.destinations["dest"]
+	dest.IsDefault = true
+	st.destinations["dest"] = dest
+	handler := newTestServer(t, st, &fakeMessenger{}).Handler
+
+	nodes, links := graphFrom(t, handler)
+	synthetic, ok := nodes["route:global-default"]
+	if !ok || !synthetic.Synthetic {
+		t.Fatalf("nodes = %v, want a synthetic global-default route", nodes)
+	}
+	if synthetic.Y <= nodes["route:critical"].Y {
+		t.Errorf("global default at y=%d, want it below the stored roots", synthetic.Y)
+	}
+	want := graphLink{Source: "route:global-default", Target: "destination:dest", Kind: linkDelivers}
+	if !slices.Contains(links, want) {
+		t.Errorf("links = %v, want %v", links, want)
+	}
+
+	rec := postJSON(t, handler, "/api/routing/match", `{"labels":{"severity":"warning"}}`)
+	var answer struct {
+		Nodes      []string         `json:"nodes"`
+		Deliveries []map[string]any `json:"deliveries"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &answer); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if !slices.Equal(answer.Nodes, []string{"route:global-default", "destination:dest"}) {
+		t.Errorf("nodes = %v, want the synthetic route and its destination", answer.Nodes)
+	}
+	if len(answer.Deliveries) != 1 {
+		t.Fatalf("deliveries = %v, want one", answer.Deliveries)
+	}
+	if route, _ := answer.Deliveries[0]["route"].(map[string]any); route["name"] != "global default" {
+		t.Errorf("delivery route = %v, want the synthetic one named", answer.Deliveries[0]["route"])
+	}
+}
+
+func TestRoutingGraphOmitsTheGlobalDefaultWithoutADestination(t *testing.T) {
+	t.Parallel()
+
+	nodes, _ := graphFrom(t, newTestServer(t, routingStore(), &fakeMessenger{}).Handler)
+	if _, ok := nodes["route:global-default"]; ok {
+		t.Error("graph has a global default though no destination is marked default")
 	}
 }
