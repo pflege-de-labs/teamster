@@ -17,6 +17,9 @@ const DefaultTitle = `{{ default .Alert.Annotations.summary (default .Alert.Labe
 type RenderData struct {
 	Alert any
 	Now   string
+	// Payload is the request body as decoded JSON, for a sender whose shape
+	// Alert does not capture -- a Teams V2 MessageCard, say. Nil elsewhere.
+	Payload any
 }
 
 // Message is a template rendered against an alert. Title is the line the Teams

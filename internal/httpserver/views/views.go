@@ -343,6 +343,12 @@ func routeTemplateOptions(ctx context.Context, p Page) []option {
 	return append(out, templateOptions(p)...)
 }
 
+func webhookTemplateOptions(ctx context.Context, p Page) []option {
+	out := make([]option, 0, len(p.Templates)+1)
+	out = append(out, option{Value: "", Label: i18n.T(ctx, "webhooks.template_none")})
+	return append(out, templateOptions(p)...)
+}
+
 // selectorText renders a label selector the way an operator writes it.
 func selectorText(ctx context.Context, selector map[string]string) string {
 	if len(selector) == 0 {

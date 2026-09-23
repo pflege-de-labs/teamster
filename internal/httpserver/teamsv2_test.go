@@ -64,6 +64,77 @@ func TestTeamsV2PostsToTheConfiguredChannel(t *testing.T) {
 	if cardOf(post.msg) != `{"type":"AdaptiveCard"}` {
 		t.Errorf("card = %s, want the attachment forwarded unchanged", cardOf(post.msg))
 	}
+	if len(post.msg.Cards) != 2 || !strings.Contains(string(post.msg.Cards[1]), "No template is defined") {
+		t.Errorf("cards = %s, want the attachment followed by the hint card", post.msg.Cards)
+	}
+}
+
+// An endpoint naming a template renders it against the parsed payload and the
+// raw body, and sends no hint.
+func TestTeamsV2RendersTheEndpointsTemplate(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		template   *models.Template
+		fail       string
+		wantStatus int
+		wantTitle  string
+		wantCard   string
+	}{
+		{
+			name: "a template",
+			template: &models.Template{
+				ID: "tmpl", Title: "{{ .Payload.title }} ({{ .Alert.Source }})",
+				Body: `{"type":"AdaptiveCard","body":[{"type":"TextBlock","text":{{ toJSON .Payload.themeColor }}}]}`,
+			},
+			wantStatus: http.StatusOK, wantTitle: "Build failed (teamsv2)",
+			wantCard: `{"type":"AdaptiveCard","body":[{"type":"TextBlock","text":"FF0000"}]}`,
+		},
+		{name: "a template that is gone", wantStatus: http.StatusBadGateway},
+		{
+			name:       "a template that does not render",
+			template:   &models.Template{ID: "tmpl", Body: `not json`},
+			wantStatus: http.StatusBadGateway,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			msg := &fakeMessenger{messageID: "posted"}
+			st, handler := teamsV2Server(t, msg)
+			hook := st.webhooks["hook"]
+			hook.TemplateID = "tmpl"
+			st.webhooks["hook"] = hook
+			if tt.template != nil {
+				st.templates["tmpl"] = *tt.template
+			}
+
+			rec := postTeamsV2(t, handler, "/teamsv2/platform/alerts/"+testWebhookToken,
+				`{"@type":"MessageCard","themeColor":"FF0000","title":"Build failed","text":"branch main"}`)
+			if rec.Code != tt.wantStatus {
+				t.Fatalf("status = %d, want %d: %s", rec.Code, tt.wantStatus, rec.Body)
+			}
+			if tt.wantStatus != http.StatusOK {
+				if len(msg.posts) != 0 {
+					t.Errorf("posts = %d, want none", len(msg.posts))
+				}
+				return
+			}
+			if len(msg.posts) != 1 {
+				t.Fatalf("posts = %d, want 1", len(msg.posts))
+			}
+			posted := msg.posts[0].msg
+			if posted.Title != tt.wantTitle {
+				t.Errorf("title = %q, want %q", posted.Title, tt.wantTitle)
+			}
+			if len(posted.Cards) != 1 || string(posted.Cards[0]) != tt.wantCard {
+				t.Errorf("cards = %s, want only %s", posted.Cards, tt.wantCard)
+			}
+		})
+	}
 }
 
 func TestTeamsV2AcceptsEveryShape(t *testing.T) {
@@ -75,12 +146,13 @@ func TestTeamsV2AcceptsEveryShape(t *testing.T) {
 		wantCards int
 		wantTitle string
 	}{
-		{name: "v2 envelope", body: adaptiveCardBody, wantCards: 1},
-		{name: "plain text", body: `{"text":"something broke"}`},
+		// Each shape's own cards, then the hint that no template rendered them.
+		{name: "v2 envelope", body: adaptiveCardBody, wantCards: 2},
+		{name: "plain text", body: `{"text":"something broke"}`, wantCards: 1},
 		{
 			name:      "legacy message card",
 			body:      `{"@type":"MessageCard","themeColor":"FF0000","title":"Build failed","text":"branch main"}`,
-			wantCards: 1,
+			wantCards: 2,
 			wantTitle: "Build failed",
 		},
 	}

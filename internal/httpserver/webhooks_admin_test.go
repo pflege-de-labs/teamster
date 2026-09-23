@@ -166,6 +166,12 @@ func TestWebhookFormRefusals(t *testing.T) {
 			wantError: "needs a destination",
 		},
 		{
+			name:      "a template that does not exist",
+			path:      "/admin/webhooks",
+			form:      url.Values{"team_slug": {"platform"}, "channel_slug": {"alerts"}, "destination_id": {"dest"}, "template_id": {"missing"}},
+			wantError: "names a template that does not exist",
+		},
+		{
 			name:      "rotating one that is not there",
 			path:      "/admin/webhooks/rotate",
 			form:      url.Values{"id": {"missing"}},
@@ -302,6 +308,10 @@ func TestWebhookAPIRefusals(t *testing.T) {
 			name: "no destination", method: http.MethodPost, path: "/api/webhooks",
 			body: `{"team_slug":"a","channel_slug":"c"}`, wantStatus: http.StatusBadRequest,
 		},
+		{
+			name: "a template that does not exist", method: http.MethodPost, path: "/api/webhooks",
+			body: `{"team_slug":"a","channel_slug":"c","destination_id":"dest","template_id":"missing"}`, wantStatus: http.StatusBadRequest,
+		},
 		{name: "collection does not take PUT", method: http.MethodPut, path: "/api/webhooks", wantStatus: http.StatusMethodNotAllowed},
 		{name: "item does not take PATCH", method: http.MethodPatch, path: "/api/webhooks/hook", wantStatus: http.StatusMethodNotAllowed},
 		{name: "rotate does not take GET", method: http.MethodGet, path: "/api/webhooks/hook/rotate", wantStatus: http.StatusMethodNotAllowed},
@@ -378,4 +388,29 @@ func tokenFromPage(t *testing.T, body string) string {
 		t.Fatalf("URL %q has no token segment", rest)
 	}
 	return parts[2]
+}
+
+// An endpoint keeps the template it was saved with, and the page names it.
+func TestWebhookFormSavesATemplate(t *testing.T) {
+	t.Parallel()
+
+	st := seededUIStore()
+	handler := newTestServer(t, st, &fakeMessenger{}).Handler
+	form := url.Values{"team_slug": {"platform"}, "channel_slug": {"alerts"}, "destination_id": {"dest"}, "template_id": {"tmpl"}}
+	if rec := postForm(t, handler, "/admin/webhooks", form, map[string]string{"Sec-Fetch-Site": "same-origin"}); rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want the page revealing the new URL", rec.Code)
+	}
+
+	var saved models.WebhookEndpoint
+	for _, endpoint := range st.webhooks {
+		saved = endpoint
+	}
+	if saved.TemplateID != "tmpl" {
+		t.Errorf("TemplateID = %q, want tmpl", saved.TemplateID)
+	}
+
+	body := do(t, handler, http.MethodGet, "/admin", "").Body.String()
+	if !strings.Contains(body, `name="template_id"`) || !strings.Contains(body, "· Critical card") {
+		t.Error("page does not offer the template picker or name the endpoint's template")
+	}
 }

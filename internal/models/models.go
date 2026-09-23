@@ -39,13 +39,16 @@ type Destination struct {
 // secret the sender puts in the path; the secret itself is shown once, when it
 // is generated, and is not recoverable from here.
 type WebhookEndpoint struct {
-	ID            string    `json:"id"`
-	TeamSlug      string    `json:"team_slug"`
-	ChannelSlug   string    `json:"channel_slug"`
-	DestinationID string    `json:"destination_id"`
-	TokenHash     string    `json:"-"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	ID            string `json:"id"`
+	TeamSlug      string `json:"team_slug"`
+	ChannelSlug   string `json:"channel_slug"`
+	DestinationID string `json:"destination_id"`
+	// TemplateID is what the endpoint's messages render with; empty sends
+	// the payload as given, followed by a hint card (ADR 0040).
+	TemplateID string    `json:"template_id"`
+	TokenHash  string    `json:"-"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
 
 // A Recipient is a person who asked for their alerts as a chat message, and the

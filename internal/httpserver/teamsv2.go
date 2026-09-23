@@ -1,22 +1,27 @@
 package httpserver
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/pflege-de-labs/teamster/internal/graph"
 	"github.com/pflege-de-labs/teamster/internal/metrics"
 	"github.com/pflege-de-labs/teamster/internal/models"
 	"github.com/pflege-de-labs/teamster/internal/store"
 	"github.com/pflege-de-labs/teamster/internal/teamsv2"
+	"github.com/pflege-de-labs/teamster/internal/templates"
 )
 
 // The source these receipts are counted under, beside "alertmanager" and
@@ -35,11 +40,12 @@ var slugPattern = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,62}[a-z0-9])?$`)
 
 // handleTeamsV2 answers the URL a Microsoft Teams webhook used to have.
 //
-// It runs no routing and renders no template: the sender has already decided
-// what the message says and which channel it goes to, which is the whole
-// contract of the webhook this replaces. Nothing is written to active_alerts
-// either, because there is no fingerprint and no status -- there is nothing
-// later to update or resolve.
+// It runs no routing: the sender has already decided which channel the message
+// goes to, which is the whole contract of the webhook this replaces. It renders
+// the endpoint's template when it names one, and otherwise sends the payload as
+// given with a hint card after it (ADR 0040). Nothing is written to
+// active_alerts, because there is no fingerprint and no status -- there is
+// nothing later to update or resolve.
 func (s *Server) handleTeamsV2(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	if r.Method != http.MethodPost {
@@ -85,7 +91,12 @@ func (s *Server) handleTeamsV2(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	out := graph.Message{Title: msg.Title, Text: msg.Text, Cards: msg.Cards}
+	out, err := s.teamsV2Message(ctx, endpoint, body, msg)
+	if err != nil {
+		s.metrics.DeliveryRecorded(ctx, label, metrics.OutcomeFailed)
+		writeJSONError(w, http.StatusBadGateway, err.Error())
+		return
+	}
 	if _, err := s.graph.PostMessage(destination.TeamID, destination.ChannelID, out); err != nil {
 		s.metrics.DeliveryRecorded(ctx, label, metrics.OutcomeFailed)
 		writeJSONError(w, http.StatusBadGateway, err.Error())
@@ -94,6 +105,41 @@ func (s *Server) handleTeamsV2(w http.ResponseWriter, r *http.Request) {
 
 	s.metrics.DeliveryRecorded(ctx, label, metrics.OutcomePosted)
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+// teamsV2Message is what an endpoint posts: its template rendered against the
+// parsed payload, or the payload itself followed by the hint card.
+func (s *Server) teamsV2Message(ctx context.Context, endpoint models.WebhookEndpoint, body []byte, msg teamsv2.Message) (graph.Message, error) {
+	if endpoint.TemplateID == "" {
+		hint, err := templates.HintCard(s.cfg.Server.ExternalURL, "/admin?edit=webhooks&id="+url.QueryEscape(endpoint.ID)+"#webhooks")
+		if err != nil {
+			return graph.Message{}, fmt.Errorf("hint: %w", err)
+		}
+		return graph.Message{Title: msg.Title, Text: msg.Text, Cards: append(msg.Cards, hint)}, nil
+	}
+
+	template, err := s.store.GetTemplate(ctx, endpoint.TemplateID)
+	if err != nil {
+		s.metrics.RenderFailed(ctx, endpoint.TemplateID, metrics.StageTemplate)
+		return graph.Message{}, fmt.Errorf("template: %w", err)
+	}
+	// Parse already accepted the body, so it decodes.
+	var payload any
+	_ = json.Unmarshal(body, &payload)
+	alert := models.Alert{Source: teamsV2Source, Title: msg.Title, Text: msg.Text}
+	if len(msg.Cards) > 0 {
+		alert.Card = msg.Cards[0]
+	}
+	rendered, err := templates.RenderMessage(template, templates.RenderData{
+		Alert:   alert,
+		Now:     s.now().Format(time.RFC3339),
+		Payload: payload,
+	})
+	if err != nil {
+		s.metrics.RenderFailed(ctx, endpoint.TemplateID, metrics.StageRender)
+		return graph.Message{}, fmt.Errorf("render: %w", err)
+	}
+	return channelMessage(rendered), nil
 }
 
 // handleTeamsV2Unknown answers anything under /teamsv2/ that is not a complete

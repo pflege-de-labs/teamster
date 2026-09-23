@@ -259,3 +259,22 @@ func mustJSON(t *testing.T, value string) string {
 	}
 	return string(encoded)
 }
+
+// The Teams V2 sample gives a template both the parsed message and the raw
+// payload, as an endpoint's delivery does.
+func TestPreviewRendersTheTeamsV2Sample(t *testing.T) {
+	t.Parallel()
+
+	handler := newTestServer(t, newFakeStore(), &fakeMessenger{}).Handler
+	rec := postPreview(t, handler, `{"title":"{{ .Alert.Title }} / {{ .Payload.themeColor }} / {{ .Alert.Source }}","sample":"teamsv2"}`)
+	var answer struct {
+		Title string `json:"title"`
+		Error string `json:"error"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &answer); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if answer.Title != "Build failed / FF0000 / teamsv2" {
+		t.Errorf("title = %q (error %q), want the sample's title, payload and source", answer.Title, answer.Error)
+	}
+}

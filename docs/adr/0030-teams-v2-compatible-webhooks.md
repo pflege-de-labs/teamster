@@ -1,6 +1,7 @@
 # 0030. Accept the payloads a Teams V2 webhook accepts
 
-* Status: Accepted
+* Status: Accepted, amended by [0040](0040-teams-v2-endpoint-templates.md): an endpoint may
+  name a template
 * Date: 2026-09-16
 
 ## Context

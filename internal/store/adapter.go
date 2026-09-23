@@ -406,6 +406,7 @@ func (s queryAdapter) CreateWebhookEndpoint(ctx context.Context, e models.Webhoo
 		TokenHash:     e.TokenHash,
 		CreatedAt:     e.CreatedAt,
 		UpdatedAt:     e.UpdatedAt,
+		TemplateID:    e.TemplateID,
 	})
 	if err != nil {
 		return models.WebhookEndpoint{}, fmt.Errorf("create webhook endpoint: %w", err)
@@ -426,6 +427,7 @@ func (s queryAdapter) UpdateWebhookEndpoint(ctx context.Context, e models.Webhoo
 		ChannelSlug:   e.ChannelSlug,
 		DestinationID: e.DestinationID,
 		UpdatedAt:     e.UpdatedAt,
+		TemplateID:    e.TemplateID,
 		ID:            e.ID,
 	})
 	if err != nil {
@@ -487,6 +489,7 @@ func webhookEndpointOf(row sqlitedb.WebhookEndpoint) models.WebhookEndpoint {
 		TeamSlug:      row.TeamSlug,
 		ChannelSlug:   row.ChannelSlug,
 		DestinationID: row.DestinationID,
+		TemplateID:    row.TemplateID,
 		TokenHash:     row.TokenHash,
 		CreatedAt:     row.CreatedAt,
 		UpdatedAt:     row.UpdatedAt,

@@ -11,8 +11,8 @@ import (
 )
 
 const createWebhookEndpoint = `-- name: CreateWebhookEndpoint :exec
-INSERT INTO webhook_endpoints (id, team_slug, channel_slug, destination_id, token_hash, created_at, updated_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+INSERT INTO webhook_endpoints (id, team_slug, channel_slug, destination_id, token_hash, created_at, updated_at, template_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 `
 
 type CreateWebhookEndpointParams struct {
@@ -23,6 +23,7 @@ type CreateWebhookEndpointParams struct {
 	TokenHash     string
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
+	TemplateID    string
 }
 
 func (q *Queries) CreateWebhookEndpoint(ctx context.Context, arg CreateWebhookEndpointParams) error {
@@ -34,6 +35,7 @@ func (q *Queries) CreateWebhookEndpoint(ctx context.Context, arg CreateWebhookEn
 		arg.TokenHash,
 		arg.CreatedAt,
 		arg.UpdatedAt,
+		arg.TemplateID,
 	)
 	return err
 }
@@ -48,7 +50,7 @@ func (q *Queries) DeleteWebhookEndpoint(ctx context.Context, id string) error {
 }
 
 const getWebhookEndpoint = `-- name: GetWebhookEndpoint :one
-SELECT id, team_slug, channel_slug, destination_id, token_hash, created_at, updated_at
+SELECT id, team_slug, channel_slug, destination_id, token_hash, created_at, updated_at, template_id
 FROM webhook_endpoints
 WHERE id = $1
 `
@@ -64,12 +66,13 @@ func (q *Queries) GetWebhookEndpoint(ctx context.Context, id string) (WebhookEnd
 		&i.TokenHash,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.TemplateID,
 	)
 	return i, err
 }
 
 const getWebhookEndpointBySlug = `-- name: GetWebhookEndpointBySlug :one
-SELECT id, team_slug, channel_slug, destination_id, token_hash, created_at, updated_at
+SELECT id, team_slug, channel_slug, destination_id, token_hash, created_at, updated_at, template_id
 FROM webhook_endpoints
 WHERE team_slug = $1 AND channel_slug = $2
 `
@@ -93,13 +96,14 @@ func (q *Queries) GetWebhookEndpointBySlug(ctx context.Context, arg GetWebhookEn
 		&i.TokenHash,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.TemplateID,
 	)
 	return i, err
 }
 
 const listWebhookEndpoints = `-- name: ListWebhookEndpoints :many
 
-SELECT id, team_slug, channel_slug, destination_id, token_hash, created_at, updated_at
+SELECT id, team_slug, channel_slug, destination_id, token_hash, created_at, updated_at, template_id
 FROM webhook_endpoints
 ORDER BY team_slug, channel_slug
 `
@@ -125,6 +129,7 @@ func (q *Queries) ListWebhookEndpoints(ctx context.Context) ([]WebhookEndpoint, 
 			&i.TokenHash,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.TemplateID,
 		); err != nil {
 			return nil, err
 		}
@@ -158,8 +163,8 @@ func (q *Queries) RotateWebhookEndpointToken(ctx context.Context, arg RotateWebh
 
 const updateWebhookEndpoint = `-- name: UpdateWebhookEndpoint :exec
 UPDATE webhook_endpoints
-SET team_slug = $1, channel_slug = $2, destination_id = $3, updated_at = $4
-WHERE id = $5
+SET team_slug = $1, channel_slug = $2, destination_id = $3, updated_at = $4, template_id = $5
+WHERE id = $6
 `
 
 type UpdateWebhookEndpointParams struct {
@@ -167,6 +172,7 @@ type UpdateWebhookEndpointParams struct {
 	ChannelSlug   string
 	DestinationID string
 	UpdatedAt     time.Time
+	TemplateID    string
 	ID            string
 }
 
@@ -178,6 +184,7 @@ func (q *Queries) UpdateWebhookEndpoint(ctx context.Context, arg UpdateWebhookEn
 		arg.ChannelSlug,
 		arg.DestinationID,
 		arg.UpdatedAt,
+		arg.TemplateID,
 		arg.ID,
 	)
 	return err
