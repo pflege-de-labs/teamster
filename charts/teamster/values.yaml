@@ -221,6 +221,22 @@ config:
       # claim names none of them for; empty means no access.
       # default-role: viewer
       # session-ttl: 12h
+      # Delegated Teams/Channels in the Destinations picker, off by default. It
+      # needs Keycloak brokering the login against Entra, and
+      # credentials.brokerTokenEncryptionKey below -- never the key itself here.
+      # broker:
+      #   enabled: true
+      #   idp-alias: microsoft
+    # Label keys, label values and annotation keys remembered from incoming
+    # alerts, so the template and route editors can complete them. Annotation
+    # values are never stored. On by default; the values shown are the defaults.
+    # samples:
+    #   enabled: true
+    #   retention: 720h
+    #   max-values-per-key: 50
+    #   max-value-length: 200
+    #   lru-size: 4096
+    #   flush-interval: 5m
     # The admin UI's text. locale-dir points at catalog files that override the
     # built-in wording; mount them if you use it.
     ui:
@@ -288,6 +304,7 @@ config:
 #   TEAMSTER_GRAPH_CLIENT_SECRET
 #   TEAMSTER_AUTH_OIDC_CLIENT_SECRET   (optional)
 #   TEAMSTER_BOT_CLIENT_SECRET         (optional)
+#   TEAMSTER_AUTH_BROKER_TOKEN_ENCRYPTION_KEY   (optional)
 credentials:
   existingSecret: ""
   # Shared secret expected in the X-Teamster-Token header.
@@ -303,6 +320,10 @@ credentials:
   # Microsoft Entra client secret for the bot registration. Alerts in a
   # person's chat are off unless this and config.settings.bot are both set.
   botClientSecret: ""
+  # 32 random bytes, base64 (`openssl rand -base64 32`), sealing the Keycloak
+  # tokens stored for config.settings.auth.broker. Losing it only disables the
+  # delegated picker until the next login.
+  brokerTokenEncryptionKey: ""
   # Postgres password, delivered as TEAMSTER_DATABASE_POSTGRES_PASSWORD.
   # Mutually exclusive with database.postgres.passwordFrom.
   databasePassword: ""

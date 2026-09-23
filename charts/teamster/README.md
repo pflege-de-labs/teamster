@@ -114,6 +114,7 @@ these four must not also appear under `config.settings`:
 | `credentials.graphClientSecret` | `TEAMSTER_GRAPH_CLIENT_SECRET` |
 | `credentials.oidcClientSecret` (optional) | `TEAMSTER_AUTH_OIDC_CLIENT_SECRET` |
 | `credentials.botClientSecret` (optional) | `TEAMSTER_BOT_CLIENT_SECRET` |
+| `credentials.brokerTokenEncryptionKey` (optional) | `TEAMSTER_AUTH_BROKER_TOKEN_ENCRYPTION_KEY` |
 | `credentials.databasePassword` | `TEAMSTER_DATABASE_POSTGRES_PASSWORD` |
 
 Set `credentials.existingSecret` to a secret you manage — sealed-secrets, external-secrets,
