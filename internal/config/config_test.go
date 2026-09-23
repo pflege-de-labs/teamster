@@ -228,6 +228,9 @@ func TestValidate(t *testing.T) {
 		{name: "missing admin user", mutate: func(c *Config) { c.Admin.Username = "" }, wantErr: "admin username/password is required"},
 		{name: "missing admin password", mutate: func(c *Config) { c.Admin.Password = "" }, wantErr: "admin username/password is required"},
 		{name: "missing webhook token", mutate: func(c *Config) { c.Webhook.Token = "" }, wantErr: "webhook token is required"},
+		{name: "an external URL", mutate: func(c *Config) { c.Server.ExternalURL = "https://teamster.example.com" }},
+		{name: "a relative external URL", mutate: func(c *Config) { c.Server.ExternalURL = "/admin" }, wantErr: `server-external-url must be an absolute http or https URL, not "/admin"`},
+		{name: "an external URL of another scheme", mutate: func(c *Config) { c.Server.ExternalURL = "ftp://teamster.example.com" }, wantErr: `server-external-url must be an absolute http or https URL, not "ftp://teamster.example.com"`},
 	}
 
 	for _, tt := range tests {

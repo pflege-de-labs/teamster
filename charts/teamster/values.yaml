@@ -191,6 +191,10 @@ config:
       # is cut off before Graph itself gives up.
       write-timeout: 60s
       idle-timeout: 120s
+      # Where people reach the admin UI, e.g. https://teamster.example.com. A
+      # message sent without a template links here so that someone can
+      # create one.
+      external-url: ""
     graph:
       tenant-id: ""
       client-id: ""

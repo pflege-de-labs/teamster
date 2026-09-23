@@ -28,6 +28,7 @@ type ServerConfig struct {
 	ReadTimeout     time.Duration `help:"How long a client may take to send a request, headers and body." default:"15s"`
 	WriteTimeout    time.Duration `help:"How long a handler may take to answer; must exceed graph-timeout-sec." default:"60s"`
 	IdleTimeout     time.Duration `help:"How long an idle keep-alive connection is held open." default:"120s"`
+	ExternalURL     string        `help:"Absolute URL the admin UI is reachable at, used to link to it from messages." name:"external-url"`
 }
 
 // UIConfig is about the admin UI's text, not its behaviour.
@@ -346,6 +347,12 @@ func Validate(cfg Config) error {
 	}
 	if cfg.Webhook.Token == "" {
 		return fmt.Errorf("webhook token is required")
+	}
+	// A relative URL would reach Teams as a link that goes nowhere.
+	if cfg.Server.ExternalURL != "" {
+		if external, err := url.Parse(cfg.Server.ExternalURL); err != nil || !external.IsAbs() || (external.Scheme != "http" && external.Scheme != "https") {
+			return fmt.Errorf("server-external-url must be an absolute http or https URL, not %q", cfg.Server.ExternalURL)
+		}
 	}
 	if err := validateMetrics(cfg); err != nil {
 		return err

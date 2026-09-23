@@ -363,11 +363,15 @@ See [samples/universal-message.json](samples/universal-message.json) alongside
 
 `title`, `text` and `card` matter only for a route with no `TemplateID`: a route that has one
 renders through it exactly as before, and these three fields are ignored for that delivery. A
-route with no template sends them directly instead — at least one of the three is required in that
-case, or the delivery fails. This is what lets a sender that already knows what it wants to say
-skip writing a template. See
+route with no template sends them directly instead. This is what lets a sender that already knows
+what it wants to say skip writing a template. A message that has no template and carries none of the
+three still goes out, with teamster's built-in default: a title taken from `summary` or
+`alertname`, the status and description, and the alert as a JSON block. Every message sent without
+a template is followed by a small card saying so. Set `server.external-url` to the address people
+use for the admin UI, and that card links straight to where templates are created. See
 [samples/universal-direct-message.json](samples/universal-direct-message.json) and
-[ADR 0036](docs/adr/0036-direct-content-when-a-route-has-no-template.md).
+[ADR 0036](docs/adr/0036-direct-content-when-a-route-has-no-template.md) and
+[ADR 0039](docs/adr/0039-built-in-default-message.md).
 
 ### Teams V2 (Power Automate) webhook
 
@@ -820,6 +824,10 @@ docker run --rm -p 8080:8080 --read-only \
   -v teamster-data:/data \
   teamster:latest
 ```
+
+`server.external-url` is the address people reach the admin UI at, for example
+`https://teamster.example.com`. Messages sent without a template link there, and it must be an
+absolute `http` or `https` URL.
 
 Connections are bounded by `server.read-timeout`, `server.write-timeout` and
 `server.idle-timeout`. If you raise `graph.timeout-sec`, raise the write timeout past it, or a
