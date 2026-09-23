@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -408,7 +409,7 @@ func (s *Server) resolveChatMessages(ctx context.Context, alert models.Alert, pl
 			failures = append(failures, err)
 			continue
 		}
-		msg, err := chatMessage(rendered)
+		msg, err := s.chatMessage(rendered)
 		if err != nil {
 			failures = append(failures, err)
 			continue
@@ -509,10 +510,15 @@ func deliveriesOfKind(plan []routing.Delivery, kind routing.DeliveryKind) []rout
 // falls back to whatever the payload itself supplied directly (ADR 0036) --
 // the fallback for a template-less route, never an override of a route that
 // has one, so a client accidentally sending a blank Title cannot silently
-// blank out a working template.
+// blank out a working template. A payload with nothing direct to send gets
+// the built-in default, and every untemplated message carries the hint card
+// (ADR 0039).
 func (s *Server) renderMessage(ctx context.Context, alert models.Alert, delivery routing.Delivery) (templates.Message, error) {
 	if delivery.TemplateID == "" {
-		msg, err := directMessage(alert)
+		msg, err := untemplatedMessage(alert)
+		if err == nil {
+			msg.Notice, err = templates.HintCard(s.cfg.Server.ExternalURL, templatesPanelPath)
+		}
 		if err != nil {
 			s.metrics.RenderFailed(ctx, delivery.TemplateID, metrics.StageRender)
 			return templates.Message{}, err
@@ -537,6 +543,18 @@ func (s *Server) renderMessage(ctx context.Context, alert models.Alert, delivery
 	return rendered, nil
 }
 
+// templatesPanelPath is where the hint card sends someone to create a template.
+const templatesPanelPath = "/admin#templates"
+
+// untemplatedMessage is the payload's own content when it has any, and the
+// built-in default when it has none.
+func untemplatedMessage(alert models.Alert) (templates.Message, error) {
+	if alert.Title == "" && alert.Text == "" && len(alert.Card) == 0 {
+		return templates.Default(alert)
+	}
+	return directMessage(alert)
+}
+
 // directMessage builds a Message straight from what the sender supplied,
 // skipping template rendering entirely. Text still goes through
 // templates.RenderText -- the same Markdown-to-sanitized-HTML pipeline a
@@ -546,11 +564,6 @@ func (s *Server) renderMessage(ctx context.Context, alert models.Alert, delivery
 // same way a template's rendered card is: valid JSON is required, the
 // contents are not otherwise validated.
 func directMessage(alert models.Alert) (templates.Message, error) {
-	if alert.Title == "" && alert.Text == "" && len(alert.Card) == 0 {
-		return templates.Message{}, errors.New(
-			"no template configured for this route, and the message carries no title, text or card to send directly")
-	}
-
 	msg := templates.Message{Title: alert.Title}
 	if alert.Text != "" {
 		safe, err := templates.RenderText(alert.Text)
@@ -599,15 +612,28 @@ func channelMessage(rendered templates.Message) graph.Message {
 	if len(rendered.Card) > 0 {
 		msg.Cards = []json.RawMessage{rendered.Card}
 	}
+	if len(rendered.Notice) > 0 {
+		msg.Cards = append(msg.Cards, rendered.Notice)
+	}
 	return msg
 }
 
-func chatMessage(rendered templates.Message) (bot.Message, error) {
+// A chat message carries one card, so the notice takes the card's place only
+// when there is none, and is otherwise said in a line of text.
+func (s *Server) chatMessage(rendered templates.Message) (bot.Message, error) {
 	text, err := templates.ToMarkdown(rendered.Text)
 	if err != nil {
 		return bot.Message{}, fmt.Errorf("markdown: %w", err)
 	}
-	return bot.Message{Title: rendered.Title, Text: text, Card: rendered.Card}, nil
+	msg := bot.Message{Title: rendered.Title, Text: text, Card: rendered.Card}
+	if len(rendered.Notice) > 0 {
+		if len(msg.Card) == 0 {
+			msg.Card = rendered.Notice
+		} else {
+			msg.Text = strings.TrimSpace(msg.Text + "\n\n" + templates.HintText(s.cfg.Server.ExternalURL, templatesPanelPath))
+		}
+	}
+	return msg, nil
 }
 
 func conversationRef(recipient models.Recipient) bot.ConversationReference {
@@ -700,7 +726,7 @@ func (s *Server) deliverToRecipient(ctx context.Context, alert models.Alert, del
 	if err != nil {
 		return err
 	}
-	msg, err := chatMessage(rendered)
+	msg, err := s.chatMessage(rendered)
 	if err != nil {
 		return err
 	}
@@ -803,7 +829,7 @@ func (s *Server) deliverToRecipientOnce(ctx context.Context, alert models.Alert,
 	if err != nil {
 		return err
 	}
-	msg, err := chatMessage(rendered)
+	msg, err := s.chatMessage(rendered)
 	if err != nil {
 		return err
 	}

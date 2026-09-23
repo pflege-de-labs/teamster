@@ -643,9 +643,10 @@ that can never succeed. This milestone makes both cases deliver. It ships as thr
 1. **Global default destination — done.** The first destination becomes the global default. It
    catches whatever no route claims, the default route included, and is drawn as a built-in route.
    See [ADR 0038](adr/0038-global-default-destination.md).
-2. **Built-in default message.** A route with no template renders the payload as well as it can.
-   Title and text become a message, and the rest is shown as a JSON block. A hint card links to
-   the admin UI to create a template. This needs `server.external-url` to build the link.
+2. **Built-in default message — done.** A route with no template renders the payload as well as it
+   can. Title and text become a message, and the rest is shown as a JSON block. A hint card links
+   to the admin UI to create a template, using `server.external-url` to build the link. See
+   [ADR 0039](adr/0039-built-in-default-message.md).
 3. **Templates for Teams V2 endpoints.** An endpoint may name a template. One that does not sends
    the payload's card(s) as today, followed by the hint card.
 

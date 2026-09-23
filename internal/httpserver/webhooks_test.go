@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -8,7 +9,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pflege-de-labs/teamster/internal/config"
 	"github.com/pflege-de-labs/teamster/internal/models"
+	"github.com/pflege-de-labs/teamster/internal/templates"
 )
 
 func TestHashFingerprintDeterministic(t *testing.T) {
@@ -242,6 +245,9 @@ func TestUniversalWebhookDeliversDirectContentWithoutATemplate(t *testing.T) {
 	if cardOf(msg.posts[0].msg) != `{"text":"raw card"}` {
 		t.Errorf("card = %s, want the payload's card passed through", cardOf(msg.posts[0].msg))
 	}
+	if cards := msg.posts[0].msg.Cards; len(cards) != 2 || !strings.Contains(string(cards[1]), "No template is defined") {
+		t.Errorf("cards = %s, want the payload's card followed by the hint", cards)
+	}
 }
 
 // A message no route claims, with no default route either, lands in the
@@ -287,25 +293,67 @@ func TestUniversalWebhookTemplateWinsOverDirectContent(t *testing.T) {
 	}
 }
 
-func TestUniversalWebhookRejectsAnEmptyDirectMessage(t *testing.T) {
+// A message with no template and nothing direct to send gets the built-in
+// default rather than a 502, followed by the hint card.
+func TestUntemplatedMessageGetsTheBuiltInDefault(t *testing.T) {
 	t.Parallel()
 
-	msg := &fakeMessenger{messageID: "graph-1"}
-	st, handler := seededServer(t, msg)
-	st.routes["direct"] = models.Route{
-		ID:            "direct",
-		LabelSelector: map[string]string{"team": "direct"},
-		DestinationID: "dest",
-		Priority:      10,
+	tests := []struct {
+		name        string
+		externalURL string
+		wantLink    string
+	}{
+		{name: "with an external URL", externalURL: "https://teamster.example.com/", wantLink: `"url":"https://teamster.example.com/admin#templates"`},
+		{name: "without one"},
 	}
 
-	rec := postWebhook(t, handler, "/webhook/universal", "token",
-		`{"status":"firing","labels":{"team":"direct"},"fingerprint":"fp-empty"}`)
-	if rec.Code != http.StatusBadGateway {
-		t.Fatalf("POST = %d, want 502 (body %s)", rec.Code, rec.Body.String())
-	}
-	if len(msg.posts) != 0 {
-		t.Fatalf("posted %d messages, want 0", len(msg.posts))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			msg := &fakeMessenger{messageID: "graph-1"}
+			st, _ := seededServer(t, msg)
+			st.routes["direct"] = models.Route{
+				ID: "direct", LabelSelector: map[string]string{"team": "direct"}, DestinationID: "dest", Priority: 10,
+			}
+			cfg := config.Config{
+				Server:  config.ServerConfig{Addr: ":0", ExternalURL: tt.externalURL},
+				Webhook: config.WebhookConfig{Token: "token"},
+				Admin:   config.AdminConfig{Username: "admin", Password: "pass"},
+			}
+			handler := mustServer(t, cfg, st, msg).Handler
+
+			rec := postWebhook(t, handler, "/webhook/universal", "token",
+				`{"status":"firing","labels":{"team":"direct","alertname":"DiskFull"},"annotations":{"description":"disk *almost* full"},"fingerprint":"fp-empty"}`)
+			if rec.Code != http.StatusOK {
+				t.Fatalf("POST = %d, want 200 (body %s)", rec.Code, rec.Body.String())
+			}
+			if len(msg.posts) != 1 {
+				t.Fatalf("posted %d messages, want 1", len(msg.posts))
+			}
+			posted := msg.posts[0].msg
+			if posted.Title != "DiskFull" {
+				t.Errorf("title = %q, want the alertname", posted.Title)
+			}
+			for _, want := range []string{"<strong>Status:</strong> firing", "disk <em>almost</em> full", "<pre><code", "&#34;alertname&#34;: &#34;DiskFull&#34;"} {
+				if !strings.Contains(posted.Text, want) {
+					t.Errorf("text = %q, want it to contain %q", posted.Text, want)
+				}
+			}
+			if len(posted.Cards) != 1 {
+				t.Fatalf("cards = %d, want the hint card alone", len(posted.Cards))
+			}
+			hint := string(posted.Cards[0])
+			if !strings.Contains(hint, "No template is defined") {
+				t.Errorf("hint = %s, want it to say no template is defined", hint)
+			}
+			if tt.wantLink != "" && !strings.Contains(hint, tt.wantLink) {
+				t.Errorf("hint = %s, want %s", hint, tt.wantLink)
+			}
+			if tt.wantLink == "" && strings.Contains(hint, "Action.OpenUrl") {
+				t.Errorf("hint = %s, want no link without an external URL", hint)
+			}
+		})
 	}
 }
 
@@ -734,5 +782,62 @@ func TestOneFailedDeliveryDoesNotStopTheOthers(t *testing.T) {
 		if card.ChannelID != "channel" {
 			t.Errorf("stored card is for %q, want the channel that accepted it", card.ChannelID)
 		}
+	}
+}
+
+// A notice follows the card in a channel; a chat carries one card, so there the
+// notice takes the card's place or becomes a line of text.
+func TestTheNoticeRidesAlong(t *testing.T) {
+	t.Parallel()
+
+	notice := json.RawMessage(`{"notice":true}`)
+	card := json.RawMessage(`{"card":true}`)
+	cfg := config.Config{
+		Server:  config.ServerConfig{Addr: ":0", ExternalURL: "https://teamster.example.com"},
+		Webhook: config.WebhookConfig{Token: "token"},
+		Admin:   config.AdminConfig{Username: "admin", Password: "pass"},
+	}
+	srv := &Server{cfg: cfg}
+
+	tests := []struct {
+		name      string
+		rendered  templates.Message
+		wantCards []string
+		wantChat  string
+		wantText  string
+	}{
+		{name: "no notice", rendered: templates.Message{Card: card}, wantCards: []string{`{"card":true}`}, wantChat: `{"card":true}`},
+		{name: "a notice alone", rendered: templates.Message{Notice: notice}, wantCards: []string{`{"notice":true}`}, wantChat: `{"notice":true}`},
+		{
+			name: "a card and a notice", rendered: templates.Message{Text: "<p>hi</p>", Card: card, Notice: notice},
+			wantCards: []string{`{"card":true}`, `{"notice":true}`}, wantChat: `{"card":true}`,
+			wantText: "(https://teamster.example.com/admin#templates)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			channel := channelMessage(tt.rendered)
+			got := make([]string, 0, len(channel.Cards))
+			for _, c := range channel.Cards {
+				got = append(got, string(c))
+			}
+			if strings.Join(got, ",") != strings.Join(tt.wantCards, ",") {
+				t.Errorf("channel cards = %v, want %v", got, tt.wantCards)
+			}
+
+			chat, err := srv.chatMessage(tt.rendered)
+			if err != nil {
+				t.Fatalf("chatMessage: %v", err)
+			}
+			if string(chat.Card) != tt.wantChat {
+				t.Errorf("chat card = %s, want %s", chat.Card, tt.wantChat)
+			}
+			if !strings.Contains(chat.Text, tt.wantText) {
+				t.Errorf("chat text = %q, want it to contain %q", chat.Text, tt.wantText)
+			}
+		})
 	}
 }

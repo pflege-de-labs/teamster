@@ -1,6 +1,7 @@
 # 0036. A route with no template sends the payload's own title, text and card
 
-* Status: Accepted
+* Status: Superseded by [0039](0039-built-in-default-message.md) in part: an empty payload is
+  no longer an error
 * Date: 2026-09-21
 
 ## Context

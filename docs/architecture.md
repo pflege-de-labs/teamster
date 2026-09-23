@@ -301,8 +301,15 @@ because that is what the Teams activity feed previews, and an untitled card fall
 
 A route with no template skips rendering entirely: `directMessage` builds the same `title, text,
 card` shape straight from `models.Alert.Title`/`Text`/`Card`, the fields a `/webhook/universal`
-payload may set directly (`ADR 0036`). It still requires at least one of the three, and still runs
-`Text` through the same Markdown sanitizer — the only step it skips is the template lookup.
+payload may set directly (`ADR 0036`). It still runs `Text` through the same Markdown sanitizer;
+the only step it skips is the template lookup. A payload with none of the three gets
+`templates.Default` instead. That message has a best-effort title, the status and description, and
+the alert as a fenced JSON block. Every message without a template also carries
+`templates.Message.Notice`, a hint card that says no template is defined and links to
+`<server.external-url>/admin#templates` when that setting is configured. `channelMessage` appends
+the hint after the message's own card. A chat has room for only one card, so `chatMessage` uses the
+hint as the card when there is none and turns it into a line of Markdown otherwise. See
+[ADR 0039](adr/0039-built-in-default-message.md).
 
 Rendered text is sanitized in `templates.Sanitize` — parsed with `golang.org/x/net/html` and
 written back through an allowlist — before it reaches the Graph client, so every caller gets the
