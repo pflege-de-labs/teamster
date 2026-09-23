@@ -10,6 +10,13 @@
   const channelField = channelInput.closest("label");
   const channelHint = document.getElementById("destination-channel-hint");
 
+  // Set only when the server rendered the delegated-Teams toggle (ADR 0037):
+  // the feature is configured on and this session has a Keycloak login
+  // behind it. Absent that, this script behaves exactly as it did before the
+  // toggle existed.
+  const myTeamsAvailable = teamInput.dataset.pickerMyTeams === "true";
+  let mode = "all";
+
   // The words come from the field the server rendered, which knows the
   // language; this script does not, and a catalog shipped to the browser would
   // be a second place for the text to live.
@@ -18,6 +25,15 @@
       label: input.dataset.pickerLabel || "",
       placeholder: input.dataset.pickerPlaceholder || "",
     };
+  }
+
+  function teamsEndpoint() {
+    return mode === "mine" ? "/api/graph/my-teams" : "/api/graph/teams";
+  }
+
+  function channelsEndpoint(teamID) {
+    const base = mode === "mine" ? "/api/graph/my-teams/" : "/api/graph/teams/";
+    return base + encodeURIComponent(teamID) + "/channels";
   }
 
   function buildSelect(id, label, placeholder, items, current, input) {
@@ -83,7 +99,7 @@
   }
 
   async function loadChannels(teamID) {
-    const channels = await load("/api/graph/teams/" + encodeURIComponent(teamID) + "/channels", "channels");
+    const channels = await load(channelsEndpoint(teamID), "channels");
     if (!channels) {
       // Graph could not list them, so typing an id is the way through again.
       showChannelField();
@@ -111,16 +127,26 @@
     channelInput.type = "hidden";
   }
 
-  (async () => {
-    const teams = await load("/api/graph/teams", "teams");
-    if (!teams) return;
+  // loadTeams (re)builds the Team select for whatever `mode` currently is,
+  // called once at start and again whenever the toggle switches modes.
+  async function loadTeams() {
+    const teams = await load(teamsEndpoint(), "teams");
+    const existing = document.getElementById("destination-team-select");
 
+    if (!teams) {
+      if (existing) existing.remove();
+      teamInput.type = "text";
+      hideChannelField(channelInput.dataset.pickerRequiresTeam || "");
+      return;
+    }
+
+    const current = teamInput.value;
     const select = buildSelect(
       "destination-team-select",
       wordsOf(teamInput).label,
       wordsOf(teamInput).placeholder,
       teams,
-      teamInput.value,
+      current,
       teamInput,
     );
     select.addEventListener("change", () => {
@@ -132,6 +158,7 @@
       loadChannels(select.value);
     });
 
+    if (existing) existing.remove();
     teamInput.parentNode.insertBefore(select, teamInput);
     teamInput.type = "hidden";
 
@@ -140,7 +167,45 @@
       await loadChannels(select.value);
       return;
     }
-    // Nothing chosen yet, so there is no channel to choose from.
     hideChannelField(channelInput.dataset.pickerRequiresTeam || "");
+  }
+
+  // buildModeToggle renders "All Teams"/"My Teams" radios above the Team
+  // field, only when the server says the delegated list is available at all
+  // for this session (see views.Page.BrokerAvailable).
+  function buildModeToggle() {
+    if (!myTeamsAvailable) return null;
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "mt-1 flex gap-3 text-xs text-slate-600";
+
+    function radio(value, label, checked) {
+      const wrap = document.createElement("label");
+      wrap.className = "inline-flex items-center gap-1";
+      const input = document.createElement("input");
+      input.type = "radio";
+      input.name = "destination-team-mode";
+      input.value = value;
+      input.checked = checked;
+      input.className = "h-3 w-3";
+      input.addEventListener("change", () => {
+        if (!input.checked) return;
+        mode = value;
+        loadTeams();
+      });
+      wrap.appendChild(input);
+      wrap.appendChild(document.createTextNode(" " + label));
+      return wrap;
+    }
+
+    wrapper.appendChild(radio("all", teamInput.dataset.pickerAllTeamsLabel || "All Teams", true));
+    wrapper.appendChild(radio("mine", teamInput.dataset.pickerMyTeamsLabel || "My Teams", false));
+    return wrapper;
+  }
+
+  (async () => {
+    const toggle = buildModeToggle();
+    if (toggle) teamInput.parentNode.insertBefore(toggle, teamInput);
+    await loadTeams();
   })();
 })();

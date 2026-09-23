@@ -2,6 +2,8 @@ package httpserver
 
 import (
 	"context"
+	"encoding/base64"
+	"fmt"
 	"net/http"
 	"sync/atomic"
 	"time"
@@ -9,6 +11,7 @@ import (
 	"github.com/pflege-de-labs/teamster/internal/authz"
 	"github.com/pflege-de-labs/teamster/internal/bot"
 	"github.com/pflege-de-labs/teamster/internal/config"
+	"github.com/pflege-de-labs/teamster/internal/cryptutil"
 	"github.com/pflege-de-labs/teamster/internal/graph"
 	"github.com/pflege-de-labs/teamster/internal/i18n"
 	"github.com/pflege-de-labs/teamster/internal/routing"
@@ -21,6 +24,16 @@ type messenger interface {
 	UpdateMessage(teamID, channelID, messageID string, msg graph.Message) error
 	ListTeams() ([]graph.Team, error)
 	ListChannels(teamID string) ([]graph.Channel, error)
+}
+
+// brokerGraph is the slice of graph.BrokerClient the delegated Teams/Channels
+// handlers depend on -- Graph calls made per admin, with a bearer token this
+// service obtained through Keycloak's broker endpoint, rather than with the
+// app-only credential messenger uses. See ADR 0037 and broker.go.
+type brokerGraph interface {
+	EntraToken(ctx context.Context, issuer, alias, keycloakAccessToken string) (string, error)
+	MyTeams(ctx context.Context, entraToken string) ([]graph.Team, error)
+	MyChannels(ctx context.Context, entraToken, teamID string) ([]graph.Channel, error)
 }
 
 // botSender is the slice of the Bot Connector client the inbound handlers and
@@ -36,12 +49,18 @@ type botSender interface {
 // telemetry is what this server records against. It is an interface so the
 // package depends on the shape rather than the pipeline, and so a test can hand
 // it one that remembers what it was told.
+//
+// ClientTransport is the same method internal/graph's own instrumentation
+// interface declares, needed here so the broker client -- Graph calls made on
+// an admin's own behalf, see broker.go -- is measured the same way as one
+// made with the service's app-only credential.
 type telemetry interface {
 	ServerMiddleware(operation string) func(http.Handler) http.Handler
 	RouteTag(next http.Handler) http.Handler
 	DeliveryRecorded(ctx context.Context, route, outcome string)
 	WebhookReceived(ctx context.Context, source, status string)
 	RenderFailed(ctx context.Context, templateID, stage string)
+	ClientTransport(base http.RoundTripper) http.RoundTripper
 }
 
 type Server struct {
@@ -58,6 +77,12 @@ type Server struct {
 	oidc       *oidcProvider
 	botAuth    *botAuthenticator
 	httpServer *http.Server
+
+	// broker and sealer are nil unless auth.broker.enabled: a deployment that
+	// wants no delegated Teams/Channels constructs neither, and every code
+	// path that would use them checks the config flag first. See broker.go.
+	broker brokerGraph
+	sealer *cryptutil.Sealer
 
 	// now is the clock delivery stamps claims from. It is a field so a test
 	// can move time forward past a claim's staleness cutoff without waiting.
@@ -91,6 +116,24 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger, botC
 		return nil, err
 	}
 
+	// Both are nil unless the feature is on: config.Validate already refuses a
+	// deployment that enables it without a usable key, but this constructor
+	// has its own tests that build a Config by hand, so it checks again rather
+	// than trusting a Validate call it cannot see happened.
+	var sealer *cryptutil.Sealer
+	var brokerClient brokerGraph
+	if cfg.Auth.Broker.Enabled {
+		key, err := base64.StdEncoding.DecodeString(cfg.Auth.Broker.TokenEncryptionKey)
+		if err != nil {
+			return nil, fmt.Errorf("auth broker token encryption key: %w", err)
+		}
+		sealer, err = cryptutil.NewSealer(key)
+		if err != nil {
+			return nil, fmt.Errorf("auth broker sealer: %w", err)
+		}
+		brokerClient = graph.NewBrokerClient(cfg.Graph.BaseURL, tel, time.Duration(cfg.Graph.TimeoutSec)*time.Second)
+	}
+
 	api := &Server{
 		cfg:       cfg,
 		store:     store,
@@ -103,6 +146,8 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger, botC
 		now:       func() time.Time { return time.Now().UTC() },
 		directory: newDirectoryCache(directoryTTL),
 		oidc:      &oidcProvider{},
+		broker:    brokerClient,
+		sealer:    sealer,
 	}
 
 	mux := http.NewServeMux()
@@ -176,6 +221,8 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger, botC
 	adminMux.HandleFunc("/api/grants/", api.handleGrantByID)
 	adminMux.HandleFunc("/api/graph/teams", api.handleGraphTeams)
 	adminMux.HandleFunc("/api/graph/teams/", api.handleGraphChannels)
+	adminMux.HandleFunc("/api/graph/my-teams", api.handleMyTeams)
+	adminMux.HandleFunc("/api/graph/my-teams/", api.handleMyChannels)
 	adminMux.HandleFunc("/admin", api.handleAdminPage)
 	adminMux.HandleFunc("/admin/routing", api.handleRoutingPage)
 	adminMux.HandleFunc("/admin/permissions", api.handlePermissionsPage)

@@ -88,6 +88,12 @@ type Page struct {
 	// CanManage decides whether the way to the permissions page is offered.
 	CanManage bool
 
+	// BrokerAvailable decides whether the destination picker offers "my
+	// Teams" beside the tenant-wide list: the delegated-Teams feature (ADR
+	// 0037) must be configured on, and this session must be the kind with a
+	// Keycloak login behind it for there to be a broker token to ask for.
+	BrokerAvailable bool
+
 	// A nil Edit* means the matching form creates rather than updates.
 	EditTemplate        *models.Template
 	EditDestination     *models.Destination

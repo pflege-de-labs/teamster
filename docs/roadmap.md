@@ -614,6 +614,26 @@ Not a second routing path: nothing is matched, nothing is rendered, nothing is t
 `active_alerts`. A message sent this way is never updated or resolved, because nothing in the
 payload identifies a later post as the same event.
 
+## Milestone 15 — Delegated Teams/Channels for the Destinations picker — done
+
+The Destinations picker (1.3) lists every Team the app-only Graph credential can see, tenant-wide.
+For a large tenant that is every Team in the organisation, most of which the signed-in admin has no
+business posting to. This milestone adds an "All Teams"/"My Teams" toggle that lists the admin's
+own Teams instead, when Keycloak brokers the admin login against Microsoft Entra as an upstream
+identity provider.
+
+Unlike option A considered and parked under Milestone 13 — a delegated token per person, rejected
+partly because "the database now holds credentials [that] need encrypting at rest" — this does not
+mint Teamster a delegated Entra registration or a token of its own. Keycloak's broker endpoint
+(`GET {issuer}/broker/{alias}/token`) already returns the Entra token it stored when it federated
+the login, given the admin's own Keycloak access token; Teamster only has to keep that Keycloak
+token refreshable, not talk to Entra's token endpoint directly. The database does gain a credential
+either way — a live Keycloak bearer token per session, encrypted at rest — which is the same cost
+Milestone 13's option A named, taken on here for a narrower purpose: listing Teams and channels,
+never sending as the person.
+
+See [ADR 0037](adr/0037-delegated-teams-via-keycloak-broker-token.md).
+
 ## Milestone 13 — Alerts in a person's chat — done
 
 An alert reaches a channel. Somebody on call at three in the morning is not reading a channel; they
@@ -730,6 +750,7 @@ permissions table is the first thing to read when this milestone starts, not the
 | — | 12 More than one instance | 11 helps | done |
 | 10 | 13 Alerts in a person's chat | — | done |
 | — | 14 Teams V2 compatible webhooks | — | done |
+| — | 15 Delegated Teams/Channels picker | 1.3, 2 | done |
 
 1.3 sat after 1.4 because it was the only item waiting on someone else to grant a permission.
 

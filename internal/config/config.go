@@ -1,10 +1,13 @@
 package config
 
 import (
+	"encoding/base64"
 	"fmt"
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/pflege-de-labs/teamster/internal/cryptutil"
 )
 
 type Config struct {
@@ -121,6 +124,20 @@ type AuthConfig struct {
 	Claim            string        `help:"Dotted path of the claim carrying membership, e.g. realm_access.roles." default:"realm_access.roles"`
 	DefaultRole      string        `help:"Role for a user whose claim names none: admin, editor, viewer, or empty for no access." name:"default-role" enum:"admin,editor,viewer," default:""`
 	SessionTTL       time.Duration `help:"How long a login lasts." default:"12h"`
+
+	Broker BrokerConfig `embed:"" prefix:"broker-"`
+}
+
+// Broker is unrelated to OIDCScopes above: those are what Teamster asks
+// Keycloak for about itself, this is what lets Teamster ask Keycloak, on the
+// user's behalf, for the Entra token Keycloak already brokered and stored
+// (ADR 0037). It is off by default: a deployment that wants no delegated
+// Teams/Channels configures nothing, and none of Teamster's own login
+// depends on it.
+type BrokerConfig struct {
+	Enabled            bool   `help:"Fetch each admin's own Entra token from Keycloak to list their own Teams/Channels." default:"false"`
+	IdPAlias           string `help:"Keycloak identity provider alias the Entra login is federated through." name:"idp-alias"`
+	TokenEncryptionKey string `help:"32-byte base64 key encrypting stored Keycloak tokens at rest." name:"token-encryption-key"`
 }
 
 type GraphConfig struct {
@@ -289,6 +306,31 @@ func validateBot(cfg BotConfig) error {
 	return nil
 }
 
+// validateAuthBroker gates the whole feature on Broker.Enabled, mirroring
+// validateBot and validateMetrics: a deployment that wants no delegated
+// Teams/Channels configures nothing. Failing closed on the key: a wrong
+// length is caught here, at startup, rather than at the first Seal or Open
+// call against a live session.
+func validateAuthBroker(cfg AuthConfig) error {
+	if !cfg.Broker.Enabled {
+		return nil
+	}
+	if cfg.OIDCDiscoveryURL == "" {
+		return fmt.Errorf("auth-oidc-discovery-url is required when auth-broker-enabled is set: the broker token comes from the Keycloak login this configures")
+	}
+	if cfg.Broker.IdPAlias == "" {
+		return fmt.Errorf("auth-broker-idp-alias is required when auth-broker-enabled is set")
+	}
+	key, err := base64.StdEncoding.DecodeString(cfg.Broker.TokenEncryptionKey)
+	if err != nil {
+		return fmt.Errorf("auth-broker-token-encryption-key must be base64, not %q", cfg.Broker.TokenEncryptionKey)
+	}
+	if len(key) != cryptutil.KeySize {
+		return fmt.Errorf("auth-broker-token-encryption-key must decode to %d bytes, got %d", cryptutil.KeySize, len(key))
+	}
+	return nil
+}
+
 // Validate is a function rather than a method on Config: kong calls a
 // Validate() method on any embedded struct during Parse, which would force
 // every command to carry full credentials just to parse its flags.
@@ -336,6 +378,9 @@ func Validate(cfg Config) error {
 		if cfg.Auth.Claim == "" {
 			return fmt.Errorf("auth claim is required when a discovery URL is configured")
 		}
+	}
+	if err := validateAuthBroker(cfg.Auth); err != nil {
+		return err
 	}
 	return nil
 }

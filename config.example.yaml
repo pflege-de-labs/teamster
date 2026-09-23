@@ -118,6 +118,16 @@ auth:
   # administrator for a role.
   default-role: "viewer"
   session-ttl: "12h"
+  # Delegated Teams/Channels (ADR 0037): lets the Destinations picker offer an
+  # admin their own Teams alongside the tenant-wide list, using the Entra
+  # token Keycloak already stored when it brokered this login against Entra.
+  # Off by default, and only meaningful when Keycloak federates against
+  # Entra -- see docs/keycloak.md#delegated-teams-and-channels.
+  broker:
+    enabled: false
+    idp-alias: "microsoft"
+    # 32 random bytes, base64 -- e.g. `openssl rand -base64 32`.
+    token-encryption-key: ""
 
 # The Bot Framework identity used to send an alert to a person's chat, a
 # second and separate Entra registration from graph below: revoking or

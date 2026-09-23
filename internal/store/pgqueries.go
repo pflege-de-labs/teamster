@@ -46,6 +46,10 @@ func (p pgQueries) CountActiveAlerts(ctx context.Context) (int64, error) {
 	return p.q.CountActiveAlerts(ctx)
 }
 
+func (p pgQueries) CreateBrokerToken(ctx context.Context, arg sqlitedb.CreateBrokerTokenParams) error {
+	return p.q.CreateBrokerToken(ctx, pgdb.CreateBrokerTokenParams(arg))
+}
+
 func (p pgQueries) CreateDestination(ctx context.Context, arg sqlitedb.CreateDestinationParams) error {
 	return p.q.CreateDestination(ctx, pgdb.CreateDestinationParams(arg))
 }
@@ -92,6 +96,10 @@ func (p pgQueries) DeleteActiveAlertRecipientCard(ctx context.Context, arg sqlit
 
 func (p pgQueries) DeleteActiveAlertRecipientsFor(ctx context.Context, recipientID string) error {
 	return p.q.DeleteActiveAlertRecipientsFor(ctx, recipientID)
+}
+
+func (p pgQueries) DeleteBrokerToken(ctx context.Context, sessionID string) error {
+	return p.q.DeleteBrokerToken(ctx, sessionID)
 }
 
 func (p pgQueries) DeleteDestination(ctx context.Context, id string) error {
@@ -150,6 +158,11 @@ func (p pgQueries) GetActiveAlert(ctx context.Context, arg sqlitedb.GetActiveAle
 func (p pgQueries) GetActiveAlertRecipient(ctx context.Context, arg sqlitedb.GetActiveAlertRecipientParams) (sqlitedb.ActiveAlertRecipient, error) {
 	row, err := p.q.GetActiveAlertRecipient(ctx, pgdb.GetActiveAlertRecipientParams(arg))
 	return sqlitedb.ActiveAlertRecipient(row), err
+}
+
+func (p pgQueries) GetBrokerToken(ctx context.Context, sessionID string) (sqlitedb.BrokerToken, error) {
+	row, err := p.q.GetBrokerToken(ctx, sessionID)
+	return sqlitedb.BrokerToken(row), err
 }
 
 func (p pgQueries) GetDestination(ctx context.Context, id string) (sqlitedb.Destination, error) {
@@ -329,6 +342,10 @@ func (p pgQueries) TouchActiveAlert(ctx context.Context, arg sqlitedb.TouchActiv
 
 func (p pgQueries) TouchActiveAlertRecipient(ctx context.Context, arg sqlitedb.TouchActiveAlertRecipientParams) error {
 	return p.q.TouchActiveAlertRecipient(ctx, pgdb.TouchActiveAlertRecipientParams(arg))
+}
+
+func (p pgQueries) UpdateBrokerToken(ctx context.Context, arg sqlitedb.UpdateBrokerTokenParams) error {
+	return p.q.UpdateBrokerToken(ctx, pgdb.UpdateBrokerTokenParams(arg))
 }
 
 func (p pgQueries) UpdateDestination(ctx context.Context, arg sqlitedb.UpdateDestinationParams) error {

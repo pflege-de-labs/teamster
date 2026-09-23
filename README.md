@@ -552,6 +552,27 @@ back in if the provider is unreachable or the claim is wrong.
 `/api` accepts either a session or those same credentials as HTTP basic auth, so existing automation
 keeps working and the admin UI's own fetches work for a session that never saw the local password.
 
+### Delegated Teams/Channels (optional)
+
+When Keycloak brokers the OIDC login above against Microsoft Entra as an upstream identity
+provider, `auth.broker.enabled` lets the Destinations picker offer each admin their own Teams and
+channels alongside the tenant-wide list, using the Entra token Keycloak already stored for that
+login rather than a delegated Entra registration of Teamster's own — see
+[ADR 0037](docs/adr/0037-delegated-teams-via-keycloak-broker-token.md).
+
+```yaml
+auth:
+  broker:
+    enabled: true
+    idp-alias: "microsoft"                 # the Entra identity provider link's alias in Keycloak
+    token-encryption-key: "<32 random bytes, base64>"   # e.g. openssl rand -base64 32
+```
+
+It is off by default and needs `auth.oidc-discovery-url` configured; a local login, or an OIDC login
+through a realm with no Entra federation, never sees the "My Teams" toggle regardless. Setting up
+the Keycloak side — Store Tokens, Stored Tokens Readable, the delegated Entra scopes — is covered in
+[Configuring Keycloak](docs/keycloak.md#delegated-teams-and-channels).
+
 ## Roles
 
 Three roles, in order: `admin`, `editor`, `viewer`.

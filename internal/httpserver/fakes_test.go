@@ -33,11 +33,12 @@ type fakeStore struct {
 	activeAlerts map[string]models.ActiveAlert
 	// Keyed and cloned separately from activeAlerts, because the real store
 	// keeps chat messages in their own table for the reason ADR 0026 gives.
-	activeChats map[string]models.ActiveAlertRecipient
-	grants      map[string]models.Grant
-	sessions    map[string]models.Session
-	loginFlows  map[string]models.LoginFlow
-	linkFlows   map[string]models.LinkFlow
+	activeChats  map[string]models.ActiveAlertRecipient
+	grants       map[string]models.Grant
+	sessions     map[string]models.Session
+	brokerTokens map[string]models.BrokerToken
+	loginFlows   map[string]models.LoginFlow
+	linkFlows    map[string]models.LinkFlow
 
 	failOn map[string]bool
 
@@ -66,10 +67,11 @@ func newFakeStore() *fakeStore {
 				CreatedAt: time.Now(), ExpiresAt: time.Now().Add(time.Hour),
 			},
 		},
-		grants:     map[string]models.Grant{},
-		loginFlows: map[string]models.LoginFlow{},
-		linkFlows:  map[string]models.LinkFlow{},
-		failOn:     map[string]bool{},
+		grants:       map[string]models.Grant{},
+		brokerTokens: map[string]models.BrokerToken{},
+		loginFlows:   map[string]models.LoginFlow{},
+		linkFlows:    map[string]models.LinkFlow{},
+		failOn:       map[string]bool{},
 	}
 }
 
@@ -610,6 +612,8 @@ func (f *fakeStore) GetSession(ctx context.Context, id string) (models.Session, 
 	return session, nil
 }
 
+// DeleteSession also drops the session's broker token, mirroring the real
+// stores' deleteSessionCascade.
 func (f *fakeStore) DeleteSession(ctx context.Context, id string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -617,6 +621,7 @@ func (f *fakeStore) DeleteSession(ctx context.Context, id string) error {
 		return err
 	}
 	delete(f.sessions, id)
+	delete(f.brokerTokens, id)
 	return nil
 }
 
@@ -624,6 +629,52 @@ func (f *fakeStore) DeleteExpiredSessions(ctx context.Context) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.failing("DeleteExpiredSessions")
+}
+
+func (f *fakeStore) CreateBrokerToken(ctx context.Context, t models.BrokerToken) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("CreateBrokerToken"); err != nil {
+		return err
+	}
+	f.brokerTokens[t.SessionID] = t
+	return nil
+}
+
+func (f *fakeStore) GetBrokerToken(ctx context.Context, sessionID string) (models.BrokerToken, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("GetBrokerToken"); err != nil {
+		return models.BrokerToken{}, err
+	}
+	t, ok := f.brokerTokens[sessionID]
+	if !ok {
+		return models.BrokerToken{}, store.ErrNotFound
+	}
+	return t, nil
+}
+
+func (f *fakeStore) UpdateBrokerToken(ctx context.Context, t models.BrokerToken) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("UpdateBrokerToken"); err != nil {
+		return err
+	}
+	if _, ok := f.brokerTokens[t.SessionID]; !ok {
+		return store.ErrNotFound
+	}
+	f.brokerTokens[t.SessionID] = t
+	return nil
+}
+
+func (f *fakeStore) DeleteBrokerToken(ctx context.Context, sessionID string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("DeleteBrokerToken"); err != nil {
+		return err
+	}
+	delete(f.brokerTokens, sessionID)
+	return nil
 }
 
 func (f *fakeStore) CreateLoginFlow(ctx context.Context, flow models.LoginFlow) error {

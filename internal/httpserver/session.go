@@ -24,11 +24,14 @@ func newToken() (string, error) {
 	return base64.RawURLEncoding.EncodeToString(raw), nil
 }
 
-func (s *Server) startSession(w http.ResponseWriter, r *http.Request, subject, name, source string, roles []authz.Role) error {
+// startSession returns the session id it generated, alongside the error:
+// handleAuthCallback needs it to key the broker_tokens row it persists right
+// after, and the id did not exist before this call to hand in.
+func (s *Server) startSession(w http.ResponseWriter, r *http.Request, subject, name, source string, roles []authz.Role) (string, error) {
 	ctx := r.Context()
 	id, err := newToken()
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	now := time.Now().UTC()
@@ -36,7 +39,7 @@ func (s *Server) startSession(w http.ResponseWriter, r *http.Request, subject, n
 		ID: id, Subject: subject, Name: name, Source: source, Roles: authz.Encode(roles),
 		CreatedAt: now, ExpiresAt: now.Add(s.sessionTTL()),
 	}); err != nil {
-		return err
+		return "", err
 	}
 
 	http.SetCookie(w, &http.Cookie{
@@ -48,7 +51,7 @@ func (s *Server) startSession(w http.ResponseWriter, r *http.Request, subject, n
 		SameSite: http.SameSiteLaxMode,
 		Expires:  now.Add(s.sessionTTL()),
 	})
-	return nil
+	return id, nil
 }
 
 func (s *Server) sessionTTL() time.Duration {

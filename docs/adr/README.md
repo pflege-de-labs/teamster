@@ -51,3 +51,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0034](0034-fan-out-across-independent-routes.md) | Every matching root route delivers, not only the highest priority one | Accepted |
 | [0035](0035-a-message-without-a-status-is-delivered-once.md) | A message posted without a status is delivered once, not tracked | Accepted |
 | [0036](0036-direct-content-when-a-route-has-no-template.md) | A route with no template sends the payload's own title, text and card | Accepted |
+| [0037](0037-delegated-teams-via-keycloak-broker-token.md) | Delegated Teams/Channels via Keycloak broker token pass-through | Accepted |

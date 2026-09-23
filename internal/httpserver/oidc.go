@@ -28,9 +28,19 @@ var discoveryClient = &http.Client{Timeout: 15 * time.Second}
 
 // oidcProvider is discovered lazily so an unreachable identity provider delays
 // a login rather than preventing the service from starting.
+//
+// issuer is cached alongside the provider rather than read back out of it:
+// oidc.Provider retains the discovery document's raw claims only when built by
+// its own NewProvider(ctx, issuer), and this package instead builds one from a
+// ProviderConfig it fetched itself (see fetchProviderConfig, needed because a
+// provider is free to publish the document anywhere, not only at
+// {issuer}/.well-known/openid-configuration) -- so Provider.Claims has
+// nothing to read. broker.go's entraTokenFor is the one caller that needs the
+// issuer rather than just the provider.
 type oidcProvider struct {
 	mu       sync.Mutex
 	provider *oidc.Provider
+	issuer   string
 }
 
 func (s *Server) oidcEnabled() bool {
@@ -54,7 +64,18 @@ func (s *Server) discover(ctx context.Context) (*oidc.Provider, error) {
 	// tokens are then verified against it.
 	provider := config.NewProvider(ctx)
 	s.oidc.provider = provider
+	s.oidc.issuer = config.IssuerURL
 	return provider, nil
+}
+
+// discoveredIssuer returns the issuer discover cached alongside the provider.
+// It takes the lock again rather than trusting the caller's own call to
+// discover to have made the write visible: the two may run on different
+// goroutines.
+func (s *Server) discoveredIssuer() string {
+	s.oidc.mu.Lock()
+	defer s.oidc.mu.Unlock()
+	return s.oidc.issuer
 }
 
 // fetchProviderConfig reads the document the operator pointed at, rather than
@@ -193,10 +214,22 @@ func (s *Server) handleAuthCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.startSession(w, r, subject, name, "oidc", roles); err != nil {
+	sessionID, err := s.startSession(w, r, subject, name, "oidc", roles)
+	if err != nil {
 		logError("start session", err)
 		loginFailed(w, r, "could not start a session")
 		return
+	}
+
+	// Best-effort: the broker token is what makes "my Teams" work, not what
+	// makes login work. A failure here must not cost somebody who logged in
+	// correctly their session, so it is logged and the login still succeeds --
+	// the admin simply sees the delegated picker unavailable until the next
+	// login, or the next time the button is used, refreshes it.
+	if s.cfg.Auth.Broker.Enabled {
+		if err := s.storeBrokerToken(ctx, sessionID, token); err != nil {
+			logError("store broker token", err)
+		}
 	}
 
 	http.Redirect(w, r, "/admin", http.StatusFound)

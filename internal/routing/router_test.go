@@ -243,6 +243,20 @@ func (s stubStore) DeleteSession(ctx context.Context, _ string) error { return s
 
 func (s stubStore) DeleteExpiredSessions(ctx context.Context) error { return store.ErrNotFound }
 
+func (s stubStore) CreateBrokerToken(ctx context.Context, _ models.BrokerToken) error {
+	return store.ErrNotFound
+}
+
+func (s stubStore) GetBrokerToken(ctx context.Context, _ string) (models.BrokerToken, error) {
+	return models.BrokerToken{}, store.ErrNotFound
+}
+
+func (s stubStore) UpdateBrokerToken(ctx context.Context, _ models.BrokerToken) error {
+	return store.ErrNotFound
+}
+
+func (s stubStore) DeleteBrokerToken(ctx context.Context, _ string) error { return store.ErrNotFound }
+
 func (s stubStore) CreateLoginFlow(ctx context.Context, _ models.LoginFlow) error {
 	return store.ErrNotFound
 }

@@ -1,6 +1,8 @@
 # 0009. Admin authentication by Keycloak login or local credentials
 
-* Status: Accepted, authorization part superseded by [0012](0012-role-based-authorization.md)
+* Status: Accepted, authorization part superseded by [0012](0012-role-based-authorization.md);
+  "internal/graph and the Entra registration are untouched" amended by
+  [0037](0037-delegated-teams-via-keycloak-broker-token.md)
 * Date: 2026-09-10
 
 ## Context
