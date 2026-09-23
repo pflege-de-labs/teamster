@@ -15,6 +15,25 @@ jobs:
   # rather than relying on the CI run of whatever was pushed to main.
   verify:
     runs-on: ubuntu-latest
+    # Mirrors ci.yml's test job: the Postgres backend's conformance suite
+    # fails rather than skips when the DSN is unset, so a release without this
+    # service would fail make coverage the same way an unset DSN in CI does.
+    services:
+      postgres:
+        image: postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
+        env:
+          POSTGRES_USER: teamster
+          POSTGRES_PASSWORD: teamster
+          POSTGRES_DB: teamster
+        options: >-
+          --health-cmd "pg_isready -U teamster"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 5432:5432
+    env:
+      TEAMSTER_TEST_POSTGRES_DSN: postgres://teamster:teamster@127.0.0.1:5432/teamster?sslmode=disable
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
