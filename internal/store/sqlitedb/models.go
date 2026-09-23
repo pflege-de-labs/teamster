@@ -32,6 +32,14 @@ type ActiveAlertRecipient struct {
 	LastUpdate  time.Time
 }
 
+type BrokerToken struct {
+	SessionID    string
+	AccessToken  string
+	RefreshToken string
+	ExpiresAt    time.Time
+	UpdatedAt    time.Time
+}
+
 type Destination struct {
 	ID        string
 	Name      string

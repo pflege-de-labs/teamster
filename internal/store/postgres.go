@@ -129,6 +129,12 @@ func (s *PostgresStore) DeleteRecipient(ctx context.Context, id string) error {
 	return deleteRecipientCascade(ctx, s, id)
 }
 
+// DeleteSession overrides queryAdapter's to cascade; see deleteSessionCascade
+// for why both deletes have to commit together.
+func (s *PostgresStore) DeleteSession(ctx context.Context, id string) error {
+	return deleteSessionCascade(ctx, s, id)
+}
+
 func (s *PostgresStore) WithTx(ctx context.Context, fn func(ctx context.Context, tx Store) error) error {
 	return s.runTx(ctx, sql.LevelReadCommitted, fn)
 }

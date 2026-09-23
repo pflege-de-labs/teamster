@@ -152,8 +152,23 @@ type Store interface {
 
 	CreateSession(ctx context.Context, s models.Session) error
 	GetSession(ctx context.Context, id string) (models.Session, error)
+	// DeleteSession is overridden by SQLiteStore and PostgresStore to cascade
+	// into that session's broker_tokens row, if any: a live Keycloak token has
+	// no reason to outlive the session that fetched it. See
+	// deleteSessionCascade.
 	DeleteSession(ctx context.Context, id string) error
 	DeleteExpiredSessions(ctx context.Context) error
+
+	// CreateBrokerToken, GetBrokerToken and UpdateBrokerToken persist and
+	// refresh the live Keycloak token behind delegated Teams/Channels (ADR
+	// 0037). DeleteBrokerToken is called directly on a hard refresh failure --
+	// a revoked or expired refresh token -- so the next attempt fails fast
+	// rather than retrying it forever; deleteSessionCascade is what covers the
+	// ordinary case of the session itself ending.
+	CreateBrokerToken(ctx context.Context, t models.BrokerToken) error
+	GetBrokerToken(ctx context.Context, sessionID string) (models.BrokerToken, error)
+	UpdateBrokerToken(ctx context.Context, t models.BrokerToken) error
+	DeleteBrokerToken(ctx context.Context, sessionID string) error
 
 	CreateLoginFlow(ctx context.Context, f models.LoginFlow) error
 	TakeLoginFlow(ctx context.Context, state string) (models.LoginFlow, error)

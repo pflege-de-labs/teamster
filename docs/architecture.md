@@ -16,11 +16,12 @@ that runs more than one instance. SQLite is the option with no other runtime dep
 | `internal/httpserver/views` | templ components for the admin UI. The `*_templ.go` files beside them are generated and committed. |
 | `internal/routing` | Selects a route for an alert's labels. |
 | `internal/templates` | Renders an Adaptive Card from a Go template plus alert data. |
-| `internal/graph` | Microsoft Graph client: OAuth2 client credentials, post and update channel messages. |
+| `internal/graph` | Microsoft Graph client: OAuth2 client credentials, post and update channel messages. `BrokerClient` is the delegated-Teams half (ADR 0037): the same Graph endpoints, called with a per-request Entra bearer token instead of the app-only credential. |
 | `internal/bot` | Bot Framework Connector client: a second, separate OAuth2 client credentials flow, send and update activities in a person's chat. See [Bot configuration](#bot-configuration) and [Inbound bot messages](#inbound-bot-messages). |
-| `internal/store` | `Store` interface, its SQLite and Postgres backends sharing one adapter; `internal/store/migrations` owns the schema for templates, destinations, routes, recipients, webhook endpoints and active alerts. |
-| `internal/models` | Shared data types: `Alert`, `Route`, `Template`, `Destination`, `Recipient`, `ActiveAlert` and the two webhook payload shapes. |
+| `internal/store` | `Store` interface, its SQLite and Postgres backends sharing one adapter; `internal/store/migrations` owns the schema for templates, destinations, routes, recipients, webhook endpoints, active alerts and broker tokens. |
+| `internal/models` | Shared data types: `Alert`, `Route`, `Template`, `Destination`, `Recipient`, `ActiveAlert`, `BrokerToken` and the two webhook payload shapes. |
 | `internal/httpserver/web` | Embedded static assets: icons, the web manifest and the Tailwind stylesheet built from `views/styles.css`. |
+| `internal/cryptutil` | AES-256-GCM sealing for the one thing this service encrypts at rest: the live Keycloak token behind delegated Teams/Channels (ADR 0037). |
 
 Dependencies are injected through constructors — `store.NewSQLiteStore`, `graph.NewClient`,
 `routing.New`, `httpserver.NewServer(cfg, store, graphClient, botClient, telemetry)` — so every
@@ -632,6 +633,34 @@ and those lists barely change. Failures are not cached. The destination form shi
 Channel fields as ordinary text inputs and a script upgrades them to name-based selects once those
 endpoints answer, so a missing permission, a throttle or an outage costs the convenience rather
 than the ability to configure a destination.
+
+### Delegated Teams and channels
+
+`GET /api/graph/my-teams` and `GET /api/graph/my-teams/{id}/channels` are the tenant-wide pair
+above, mirrored for the signed-in admin's own Teams and channels rather than everything the
+app-only credential can see. Neither goes through `directoryCache`: the result is per admin, not
+tenant-wide, so caching it the same way would leak one admin's Teams into another's picker. Both
+require `auth-broker-enabled` and a session whose `Source` is `oidc` — a local login was never
+federated through Keycloak and has nothing to ask for — and answer `409` otherwise, which
+`pickers.js` treats as "offer only the tenant-wide list."
+
+The Entra token behind these calls is never obtained from Entra directly. Keycloak's Entra identity
+provider link, with **Store Tokens** enabled, keeps the upstream Entra token from the login that
+created each session; `GET {issuer}/broker/{alias}/token`, bearing that session's own Keycloak
+access token, returns it — refreshing it upstream itself if needed. `internal/httpserver/broker.go`
+keeps only a live Keycloak access and refresh token per session, in a new `broker_tokens` table
+keyed by session id, sealed with AES-256-GCM (`internal/cryptutil`) under a key from
+`auth-broker-token-encryption-key`, the session id as additional authenticated data so a row cannot
+be decrypted as if it belonged to a different session. Refreshing it is ordinary OAuth2 against
+Keycloak's own token endpoint (the same one `oidc.go` already discovered for login), and a
+refreshed token is written back re-encrypted so the next request does not refresh again for
+nothing. Keycloak firmly rejecting the refresh token — expired or revoked — deletes the row, so the
+next attempt fails fast rather than retrying a dead credential forever; a transient failure to
+reach Keycloak leaves it in place. `internal/graph.BrokerClient` is the Graph half: a plain
+`*http.Client` with a bearer header set per call from whatever Entra token was just obtained, kept
+separate from `Client`'s own `clientcredentials`-wrapped one because the two credential shapes do
+not mix. See [ADR 0037](adr/0037-delegated-teams-via-keycloak-broker-token.md) and
+[Configuring Keycloak](keycloak.md).
 
 Regenerating the UI needs `make generate`, which runs templ and Tailwind. Their output is
 committed, so building the service does not.

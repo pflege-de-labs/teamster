@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/base64"
 	"io"
 	"os"
 	"path/filepath"
@@ -11,6 +12,8 @@ import (
 
 	"github.com/alecthomas/kong"
 	kongyaml "github.com/alecthomas/kong-yaml"
+
+	"github.com/pflege-de-labs/teamster/internal/cryptutil"
 )
 
 // testCLI mirrors the flag layout of cmd/teamster so the tests exercise the real
@@ -87,6 +90,7 @@ func TestParseExampleConfig(t *testing.T) {
 			Claim:            "realm_access.roles",
 			DefaultRole:      "viewer",
 			SessionTTL:       12 * time.Hour,
+			Broker:           BrokerConfig{IdPAlias: "microsoft"},
 		},
 		Graph: GraphConfig{
 			TenantID:     "your-tenant-id",
@@ -461,6 +465,75 @@ func TestValidateBot(t *testing.T) {
 				}
 			},
 			wantErr: "bot-metadata-url must be an https URL",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := completeConfig()
+			tt.mutate(&cfg)
+
+			err := Validate(cfg)
+			switch {
+			case tt.wantErr == "" && err != nil:
+				t.Errorf("Validate() = %v, want it accepted", err)
+			case tt.wantErr != "" && (err == nil || !strings.Contains(err.Error(), tt.wantErr)):
+				t.Errorf("Validate() = %v, want an error containing %q", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+// Broker validation is gated on Broker.Enabled, mirroring TestValidateBot: a
+// deployment that wants no delegated Teams/Channels configures nothing.
+func TestValidateAuthBroker(t *testing.T) {
+	t.Parallel()
+
+	validKey := base64.StdEncoding.EncodeToString(make([]byte, cryptutil.KeySize))
+
+	tests := []struct {
+		name    string
+		mutate  func(*Config)
+		wantErr string
+	}{
+		{name: "disabled, and nothing else set", mutate: func(*Config) {}},
+		{
+			name: "enabled and fully configured",
+			mutate: func(c *Config) {
+				c.Auth.Broker = BrokerConfig{Enabled: true, IdPAlias: "entra", TokenEncryptionKey: validKey}
+			},
+		},
+		{
+			name: "enabled without an idp alias",
+			mutate: func(c *Config) {
+				c.Auth.Broker = BrokerConfig{Enabled: true, TokenEncryptionKey: validKey}
+			},
+			wantErr: "auth-broker-idp-alias is required",
+		},
+		{
+			name: "enabled without a discovery url",
+			mutate: func(c *Config) {
+				c.Auth.OIDCDiscoveryURL = ""
+				c.Auth.Broker = BrokerConfig{Enabled: true, IdPAlias: "entra", TokenEncryptionKey: validKey}
+			},
+			wantErr: "auth-oidc-discovery-url is required",
+		},
+		{
+			name: "the key is not base64",
+			mutate: func(c *Config) {
+				c.Auth.Broker = BrokerConfig{Enabled: true, IdPAlias: "entra", TokenEncryptionKey: "not base64!!"}
+			},
+			wantErr: "must be base64",
+		},
+		{
+			name: "the key decodes to the wrong length",
+			mutate: func(c *Config) {
+				short := base64.StdEncoding.EncodeToString(make([]byte, 16))
+				c.Auth.Broker = BrokerConfig{Enabled: true, IdPAlias: "entra", TokenEncryptionKey: short}
+			},
+			wantErr: "must decode to 32 bytes",
 		},
 	}
 

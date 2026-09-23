@@ -113,6 +113,66 @@ the mismatch is usually obvious without touching Keycloak. To see a token direct
 realm's account console and inspect the token, or enable Keycloak's event logging and read the
 `CODE_TO_TOKEN` events.
 
+## Delegated Teams and channels
+
+`auth-broker-enabled` lets the Destinations picker offer each admin their own Teams and channels
+alongside the tenant-wide list — see [ADR 0037](adr/0037-delegated-teams-via-keycloak-broker-token.md)
+for why and how. It only applies when Keycloak brokers the admin login against Microsoft Entra as
+an upstream identity provider, and needs configuration in three places: the Entra IdP link in
+Keycloak, the Entra app registration behind it, and Teamster itself.
+
+### The Entra identity provider link in Keycloak
+
+**Identity providers → Microsoft** (or your Entra OIDC/SAML link) → the realm's link → **Settings**:
+
+| Setting | Value |
+| --- | --- |
+| Store Tokens | **On** |
+| Stored Tokens Readable | **On** |
+
+Store Tokens is what makes the upstream Entra token available at all after the login that produced
+it finishes; Stored Tokens Readable is what lets `GET /broker/{alias}/token` hand it back out
+(without it, the endpoint answers `403`). The alias in that URL — `auth-broker-idp-alias` — is the
+link's own alias, shown in the identity provider list and in its settings URL.
+
+The login itself must additionally request whatever scope the delegated Graph permission below
+needs — `Team.ReadBasic.All` and `Channel.ReadBasic.All` are delegated permissions, not covered by
+`openid`/`profile`/`email` alone. Add them to the identity provider link's **Default Scopes** (or
+the mapper that sets them), so Keycloak asks Entra for them at every login, not only the first one
+an admin happens to grant consent for by hand.
+
+### The Entra app registration
+
+The Entra application backing the Keycloak IdP link needs delegated (not application) permissions:
+
+* `Team.ReadBasic.All`
+* `Channel.ReadBasic.All`
+
+Both need admin consent granted once for the tenant, the same as any other delegated Graph
+permission. This is a different concern from `graph-*`'s application permissions used for posting
+cards — a delegated permission is exercised as the signed-in user, an application permission as the
+app itself — and the two do not have to be, and generally are not, the same Entra app registration.
+
+### Teamster
+
+```yaml
+auth:
+  discovery-url: "https://<host>/realms/<realm>/.well-known/openid-configuration"
+  broker:
+    enabled: true
+    idp-alias: "microsoft"                 # the Entra IdP link's own alias
+    token-encryption-key: "<32 random bytes, base64>"
+```
+
+Generate the key once, e.g. `openssl rand -base64 32`, and keep it as durable as any other secret:
+losing it makes every already-stored broker token permanently unreadable, which fails the delegated
+picker closed — falling back to the tenant-wide list — rather than failing anyone's login or
+delivery.
+
+A local login, or an OIDC login through a realm with no Entra federation configured at all, simply
+never sees the "My Teams" toggle: `auth-broker-enabled` alone does not manufacture a delegated token
+where the login never produced one.
+
 ## Signing out
 
 `POST /admin/logout` ends the Teamster session and clears the cookie. It does not call Keycloak's

@@ -224,6 +224,115 @@ func TestConformanceSessionsAndFlows(t *testing.T) {
 	})
 }
 
+func TestConformanceBrokerTokens(t *testing.T) {
+	t.Parallel()
+
+	eachBackend(t, func(t *testing.T, open func(t *testing.T) store.Store) {
+		st := open(t)
+		ctx := t.Context()
+		now := time.Now().UTC().Truncate(time.Microsecond)
+
+		session := models.Session{ID: "sess-1", Subject: "s", ExpiresAt: now.Add(time.Hour)}
+		if err := st.CreateSession(ctx, session); err != nil {
+			t.Fatalf("CreateSession: %v", err)
+		}
+
+		if _, err := st.GetBrokerToken(ctx, session.ID); !errors.Is(err, store.ErrNotFound) {
+			t.Errorf("GetBrokerToken before any is stored = %v, want ErrNotFound", err)
+		}
+
+		token := models.BrokerToken{
+			SessionID: session.ID, AccessToken: "sealed-access-1", RefreshToken: "sealed-refresh-1",
+			ExpiresAt: now.Add(5 * time.Minute), UpdatedAt: now,
+		}
+		if err := st.CreateBrokerToken(ctx, token); err != nil {
+			t.Fatalf("CreateBrokerToken: %v", err)
+		}
+
+		got, err := st.GetBrokerToken(ctx, session.ID)
+		if err != nil {
+			t.Fatalf("GetBrokerToken: %v", err)
+		}
+		if got.AccessToken != token.AccessToken || got.RefreshToken != token.RefreshToken {
+			t.Errorf("GetBrokerToken() = %+v, want the row just created (%+v)", got, token)
+		}
+
+		updated := token
+		updated.AccessToken = "sealed-access-2"
+		updated.UpdatedAt = now.Add(time.Minute)
+		if err := st.UpdateBrokerToken(ctx, updated); err != nil {
+			t.Fatalf("UpdateBrokerToken: %v", err)
+		}
+		got, err = st.GetBrokerToken(ctx, session.ID)
+		if err != nil {
+			t.Fatalf("GetBrokerToken after update: %v", err)
+		}
+		if got.AccessToken != "sealed-access-2" {
+			t.Errorf("AccessToken after update = %q, want sealed-access-2", got.AccessToken)
+		}
+
+		if err := st.DeleteBrokerToken(ctx, session.ID); err != nil {
+			t.Fatalf("DeleteBrokerToken: %v", err)
+		}
+		if _, err := st.GetBrokerToken(ctx, session.ID); !errors.Is(err, store.ErrNotFound) {
+			t.Errorf("GetBrokerToken after delete = %v, want ErrNotFound", err)
+		}
+	})
+}
+
+// DeleteSession is overridden by both backends to cascade into broker_tokens:
+// this repo declares no SQL foreign keys, so a live Keycloak credential left
+// behind by a deleted session would otherwise never be reachable again.
+func TestConformanceDeletingASessionCascadesItsBrokerToken(t *testing.T) {
+	t.Parallel()
+
+	eachBackend(t, func(t *testing.T, open func(t *testing.T) store.Store) {
+		st := open(t)
+		ctx := t.Context()
+		now := time.Now().UTC().Truncate(time.Microsecond)
+
+		session := models.Session{ID: "sess-cascade", Subject: "s", ExpiresAt: now.Add(time.Hour)}
+		if err := st.CreateSession(ctx, session); err != nil {
+			t.Fatalf("CreateSession: %v", err)
+		}
+		token := models.BrokerToken{
+			SessionID: session.ID, AccessToken: "a", RefreshToken: "r",
+			ExpiresAt: now.Add(time.Minute), UpdatedAt: now,
+		}
+		if err := st.CreateBrokerToken(ctx, token); err != nil {
+			t.Fatalf("CreateBrokerToken: %v", err)
+		}
+
+		if err := st.DeleteSession(ctx, session.ID); err != nil {
+			t.Fatalf("DeleteSession: %v", err)
+		}
+
+		if _, err := st.GetBrokerToken(ctx, session.ID); !errors.Is(err, store.ErrNotFound) {
+			t.Errorf("GetBrokerToken after DeleteSession = %v, want the cascade to have removed it", err)
+		}
+	})
+}
+
+// Deleting a session with no broker token at all must not fail: most sessions
+// -- every local login, and every oidc one before the broker feature is
+// enabled -- never get one.
+func TestConformanceDeletingASessionWithoutABrokerTokenSucceeds(t *testing.T) {
+	t.Parallel()
+
+	eachBackend(t, func(t *testing.T, open func(t *testing.T) store.Store) {
+		st := open(t)
+		ctx := t.Context()
+
+		session := models.Session{ID: "sess-no-token", Subject: "s", ExpiresAt: time.Now().Add(time.Hour)}
+		if err := st.CreateSession(ctx, session); err != nil {
+			t.Fatalf("CreateSession: %v", err)
+		}
+		if err := st.DeleteSession(ctx, session.ID); err != nil {
+			t.Fatalf("DeleteSession without a broker token: %v", err)
+		}
+	})
+}
+
 func TestConformanceRecipients(t *testing.T) {
 	t.Parallel()
 

@@ -146,3 +146,95 @@ func (s *Server) handleGraphChannels(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusOK, map[string]any{"channels": visible})
 }
+
+// handleMyTeams and handleMyChannels are handleGraphTeams and
+// handleGraphChannels for delegated Teams/Channels (ADR 0037): the Entra
+// token behind them is the signed-in admin's own, obtained from Keycloak's
+// broker endpoint, rather than this service's app-only credential. There is
+// deliberately no directoryCache here -- the result is per admin, not
+// tenant-wide, so caching it the same way would leak one admin's Teams into
+// another's picker.
+func (s *Server) handleMyTeams(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.Header().Set("Allow", http.MethodGet)
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	session, ok := s.brokerSession(r)
+	if !ok {
+		writeJSONError(w, http.StatusConflict, "broker not available")
+		return
+	}
+
+	ctx := r.Context()
+	entraToken, err := s.entraTokenFor(ctx, session)
+	if err != nil {
+		writeJSONError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+
+	teams, err := s.broker.MyTeams(ctx, entraToken)
+	if err != nil {
+		writeJSONError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+
+	visible, err := s.visibleTeams(r, teams)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"teams": visible})
+}
+
+func (s *Server) handleMyChannels(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.Header().Set("Allow", http.MethodGet)
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	session, ok := s.brokerSession(r)
+	if !ok {
+		writeJSONError(w, http.StatusConflict, "broker not available")
+		return
+	}
+
+	// Same suffix check as handleGraphChannels, for the same reason: without
+	// it /api/graph/my-teams/channels would look up a team whose id is
+	// literally "channels".
+	path := strings.TrimPrefix(r.URL.Path, "/api/graph/my-teams/")
+	if !strings.HasSuffix(path, "/channels") {
+		writeJSONError(w, http.StatusNotFound, "expected /api/graph/my-teams/{id}/channels")
+		return
+	}
+
+	teamID := strings.TrimSuffix(path, "/channels")
+	if teamID == "" || strings.Contains(teamID, "/") {
+		writeJSONError(w, http.StatusNotFound, "team id is required")
+		return
+	}
+
+	ctx := r.Context()
+	entraToken, err := s.entraTokenFor(ctx, session)
+	if err != nil {
+		writeJSONError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+
+	channels, err := s.broker.MyChannels(ctx, entraToken, teamID)
+	if err != nil {
+		writeJSONError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+
+	visible, err := s.visibleChannels(r, teamID, channels)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"channels": visible})
+}

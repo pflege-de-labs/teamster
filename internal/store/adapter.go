@@ -966,6 +966,74 @@ func (s queryAdapter) DeleteSession(ctx context.Context, id string) error {
 	return nil
 }
 
+// deleteSessionCascade is DeleteRecipient's cascade pattern mirrored for a
+// session: a broker_tokens row is a live Keycloak credential, and it must not
+// survive the session it was fetched for. Both deletes run in one
+// transaction, and this repo declares no SQL foreign keys (see the sqlite
+// migration for why), so the cascade lives here rather than in the schema.
+func deleteSessionCascade(ctx context.Context, s interface {
+	WithTx(ctx context.Context, fn func(ctx context.Context, tx Store) error) error
+}, id string) error {
+	return s.WithTx(ctx, func(ctx context.Context, tx Store) error {
+		if err := tx.DeleteBrokerToken(ctx, id); err != nil {
+			return err
+		}
+		return tx.DeleteSession(ctx, id)
+	})
+}
+
+func (s queryAdapter) CreateBrokerToken(ctx context.Context, t models.BrokerToken) error {
+	err := s.q.CreateBrokerToken(ctx, sqlitedb.CreateBrokerTokenParams{
+		SessionID:    t.SessionID,
+		AccessToken:  t.AccessToken,
+		RefreshToken: t.RefreshToken,
+		ExpiresAt:    t.ExpiresAt,
+		UpdatedAt:    t.UpdatedAt,
+	})
+	if err != nil {
+		return fmt.Errorf("create broker token: %w", err)
+	}
+	return nil
+}
+
+func (s queryAdapter) GetBrokerToken(ctx context.Context, sessionID string) (models.BrokerToken, error) {
+	row, err := s.q.GetBrokerToken(ctx, sessionID)
+	if err != nil {
+		if err := notFound(err); errors.Is(err, ErrNotFound) {
+			return models.BrokerToken{}, err
+		}
+		return models.BrokerToken{}, fmt.Errorf("get broker token: %w", err)
+	}
+	return models.BrokerToken{
+		SessionID:    row.SessionID,
+		AccessToken:  row.AccessToken,
+		RefreshToken: row.RefreshToken,
+		ExpiresAt:    row.ExpiresAt,
+		UpdatedAt:    row.UpdatedAt,
+	}, nil
+}
+
+func (s queryAdapter) UpdateBrokerToken(ctx context.Context, t models.BrokerToken) error {
+	err := s.q.UpdateBrokerToken(ctx, sqlitedb.UpdateBrokerTokenParams{
+		AccessToken:  t.AccessToken,
+		RefreshToken: t.RefreshToken,
+		ExpiresAt:    t.ExpiresAt,
+		UpdatedAt:    t.UpdatedAt,
+		SessionID:    t.SessionID,
+	})
+	if err != nil {
+		return fmt.Errorf("update broker token: %w", err)
+	}
+	return nil
+}
+
+func (s queryAdapter) DeleteBrokerToken(ctx context.Context, sessionID string) error {
+	if err := s.q.DeleteBrokerToken(ctx, sessionID); err != nil {
+		return fmt.Errorf("delete broker token: %w", err)
+	}
+	return nil
+}
+
 func (s queryAdapter) DeleteExpiredSessions(ctx context.Context) error {
 	now := time.Now()
 	if err := s.q.DeleteExpiredSessions(ctx, now); err != nil {

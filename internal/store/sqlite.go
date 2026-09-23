@@ -86,6 +86,12 @@ func (s *SQLiteStore) DeleteRecipient(ctx context.Context, id string) error {
 	return deleteRecipientCascade(ctx, s, id)
 }
 
+// DeleteSession overrides queryAdapter's to cascade; see deleteSessionCascade
+// for why both deletes have to commit together.
+func (s *SQLiteStore) DeleteSession(ctx context.Context, id string) error {
+	return deleteSessionCascade(ctx, s, id)
+}
+
 // Ping is a round trip to the database rather than a look at a connection
 // struct: a file that has been deleted or a disk that has gone read-only shows
 // up here and nowhere else.

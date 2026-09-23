@@ -43,6 +43,11 @@ type Querier interface {
 	// CountActiveAlerts counts cards, not claims: a claim in flight is not yet
 	// something this service is keeping up to date.
 	CountActiveAlerts(ctx context.Context) (int64, error)
+	// Code generated from ../sqlite by internal/store/queries/gen. DO NOT EDIT.
+	//
+	// The statements are the SQLite ones with ? replaced by $n. Edit the SQLite
+	// file and run make generate.
+	CreateBrokerToken(ctx context.Context, arg CreateBrokerTokenParams) error
 	CreateDestination(ctx context.Context, arg CreateDestinationParams) error
 	CreateGrant(ctx context.Context, arg CreateGrantParams) error
 	// Code generated from ../sqlite by internal/store/queries/gen. DO NOT EDIT.
@@ -79,6 +84,7 @@ type Querier interface {
 	// resolve forever (see recipientMissing in webhooks.go for the mirror-image
 	// defence against a row that was stranded some other way).
 	DeleteActiveAlertRecipientsFor(ctx context.Context, recipientID string) error
+	DeleteBrokerToken(ctx context.Context, sessionID string) error
 	DeleteDestination(ctx context.Context, id string) error
 	DeleteExpiredLinkFlows(ctx context.Context, expiresAt time.Time) error
 	DeleteExpiredLoginFlows(ctx context.Context, expiresAt time.Time) error
@@ -99,6 +105,7 @@ type Querier interface {
 	DeleteWebhookEndpoint(ctx context.Context, id string) error
 	GetActiveAlert(ctx context.Context, arg GetActiveAlertParams) (ActiveAlert, error)
 	GetActiveAlertRecipient(ctx context.Context, arg GetActiveAlertRecipientParams) (ActiveAlertRecipient, error)
+	GetBrokerToken(ctx context.Context, sessionID string) (BrokerToken, error)
 	GetDestination(ctx context.Context, id string) (Destination, error)
 	GetRecipient(ctx context.Context, id string) (Recipient, error)
 	// GetRecipientByConversation resolves the chat an inbound activity came from
@@ -205,6 +212,7 @@ type Querier interface {
 	// ordinary equality, not a NULL comparison, so a card whose send returned no
 	// id is still reachable here.
 	TouchActiveAlertRecipient(ctx context.Context, arg TouchActiveAlertRecipientParams) error
+	UpdateBrokerToken(ctx context.Context, arg UpdateBrokerTokenParams) error
 	UpdateDestination(ctx context.Context, arg UpdateDestinationParams) error
 	// The update deliberately leaves subject alone: it is who this binding belongs
 	// to, and moving it would point one person's link at another's alerts. What

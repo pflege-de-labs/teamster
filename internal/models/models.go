@@ -229,6 +229,22 @@ type LoginFlow struct {
 	ExpiresAt time.Time `json:"expires_at"`
 }
 
+// A BrokerToken is the live Keycloak access and refresh token for one admin
+// session, custodied only because the delegated-Teams design (ADR 0037)
+// explicitly chose live pass-through over a safer, more limited alternative:
+// Teamster asks Keycloak's broker endpoint for the Entra token it already
+// stored, using the admin's own still-valid Keycloak token, rather than
+// talking to Entra's token endpoint directly. AccessToken and RefreshToken are
+// ciphertext, sealed by internal/cryptutil before they reach the store and
+// opened only in internal/httpserver/broker.go.
+type BrokerToken struct {
+	SessionID    string    `json:"-"`
+	AccessToken  string    `json:"-"`
+	RefreshToken string    `json:"-"`
+	ExpiresAt    time.Time `json:"-"`
+	UpdatedAt    time.Time `json:"-"`
+}
+
 // Alert is the internal shape one webhook-delivered message takes, whether or
 // not it is alert-shaped. Title/Text/Card let a sender supply the message
 // directly rather than authoring a Template that pulls it back out of
