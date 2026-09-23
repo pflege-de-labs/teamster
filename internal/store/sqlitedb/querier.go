@@ -20,6 +20,7 @@ type Querier interface {
 	// ClaimActiveAlert for what a caller does with the two ways this can come back
 	// empty.
 	ClaimActiveAlertRecipient(ctx context.Context, arg ClaimActiveAlertRecipientParams) (ActiveAlertRecipient, error)
+	ClearDefaultDestination(ctx context.Context) error
 	// ClearRecipientBlocked is MarkRecipientBlocked's mirror, run after a
 	// successful send or update. It is a no-op, not an error, on a recipient that
 	// was never blocked: delivery calls it after every success, not only after a
@@ -43,7 +44,10 @@ type Querier interface {
 	// CountActiveAlerts counts cards, not claims: a claim in flight is not yet
 	// something this service is keeping up to date.
 	CountActiveAlerts(ctx context.Context) (int64, error)
+	CountDestinations(ctx context.Context) (int64, error)
 	CreateBrokerToken(ctx context.Context, arg CreateBrokerTokenParams) error
+	// The first destination becomes the default in the same statement that
+	// creates it, so there is no window in which one exists without a default.
 	CreateDestination(ctx context.Context, arg CreateDestinationParams) error
 	CreateGrant(ctx context.Context, arg CreateGrantParams) error
 	CreateLinkFlow(ctx context.Context, arg CreateLinkFlowParams) error
@@ -90,6 +94,7 @@ type Querier interface {
 	GetActiveAlert(ctx context.Context, arg GetActiveAlertParams) (ActiveAlert, error)
 	GetActiveAlertRecipient(ctx context.Context, arg GetActiveAlertRecipientParams) (ActiveAlertRecipient, error)
 	GetBrokerToken(ctx context.Context, sessionID string) (BrokerToken, error)
+	GetDefaultDestination(ctx context.Context) (Destination, error)
 	GetDestination(ctx context.Context, id string) (Destination, error)
 	GetRecipient(ctx context.Context, id string) (Recipient, error)
 	// GetRecipientByConversation resolves the chat an inbound activity came from
@@ -122,6 +127,7 @@ type Querier interface {
 	ListRoutes(ctx context.Context) ([]Route, error)
 	ListTemplates(ctx context.Context) ([]Template, error)
 	ListWebhookEndpoints(ctx context.Context) ([]WebhookEndpoint, error)
+	MarkDefaultDestination(ctx context.Context, id string) (int64, error)
 	// MarkRecipientBlocked records a permanent send failure. It is a narrow
 	// statement, not a call through UpdateRecipient, so a delivery failure --
 	// which only ever reads the conversation reference, never the rest of the row

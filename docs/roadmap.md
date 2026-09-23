@@ -634,6 +634,21 @@ never sending as the person.
 
 See [ADR 0037](adr/0037-delegated-teams-via-keycloak-broker-token.md).
 
+## Milestone 16 — Nothing unrouted, nothing untemplated — in progress
+
+A message that no route claims is rejected, and so is a message on a route that has no template,
+unless its payload carries its own title, text or card. Both leave a sender retrying something
+that can never succeed. This milestone makes both cases deliver. It ships as three pull requests:
+
+1. **Global default destination — done.** The first destination becomes the global default. It
+   catches whatever no route claims, the default route included, and is drawn as a built-in route.
+   See [ADR 0038](adr/0038-global-default-destination.md).
+2. **Built-in default message.** A route with no template renders the payload as well as it can.
+   Title and text become a message, and the rest is shown as a JSON block. A hint card links to
+   the admin UI to create a template. This needs `server.external-url` to build the link.
+3. **Templates for Teams V2 endpoints.** An endpoint may name a template. One that does not sends
+   the payload's card(s) as today, followed by the hint card.
+
 ## Milestone 13 — Alerts in a person's chat — done
 
 An alert reaches a channel. Somebody on call at three in the morning is not reading a channel; they
@@ -751,6 +766,7 @@ permissions table is the first thing to read when this milestone starts, not the
 | 10 | 13 Alerts in a person's chat | — | done |
 | — | 14 Teams V2 compatible webhooks | — | done |
 | — | 15 Delegated Teams/Channels picker | 1.3, 2 | done |
+| 1 | 16 Nothing unrouted, nothing untemplated | 14 for its third part | — |
 
 1.3 sat after 1.4 because it was the only item waiting on someone else to grant a permission.
 
@@ -807,7 +823,9 @@ more strings to extract later, so if a second language is actually wanted, pull 
   removing?
 * Nothing stops two routes claiming `is_default`; `selectRoot` takes whichever sorts first. A
   partial unique index would express it, but it is a new rule rather than a race, and a migration
-  that fails on an installation which already has two needs its own thought.
+  that fails on an installation which already has two needs its own thought. Destinations already
+  have such an index, since the global default was introduced with it
+  ([ADR 0038](adr/0038-global-default-destination.md)).
 * pgbouncer in transaction-pooling mode: safe, or does the store hold session state? Prepared
   statements and advisory locks are session-scoped, so this needs an answer before it is documented
   as supported.

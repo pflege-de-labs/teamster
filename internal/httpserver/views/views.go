@@ -67,8 +67,11 @@ type Page struct {
 	Recipients       []models.Recipient
 	Routes           []models.Route
 	WebhookEndpoints []models.WebhookEndpoint
-	Notice           string
-	Error            string
+	// GlobalDefault is where a message no route claims goes; nil when there
+	// is no destination at all.
+	GlobalDefault *models.Destination
+	Notice        string
+	Error         string
 
 	// Sample alerts the preview can render the template against.
 	PreviewSamples []string

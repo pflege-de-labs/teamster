@@ -135,6 +135,20 @@ func (s *PostgresStore) DeleteSession(ctx context.Context, id string) error {
 	return deleteSessionCascade(ctx, s, id)
 }
 
+// DeleteDestination and SetDefaultDestination override queryAdapter's to run
+// their statements in one transaction, which is what keeps exactly one default.
+func (s *PostgresStore) DeleteDestination(ctx context.Context, id string) error {
+	return s.WithTx(ctx, func(ctx context.Context, tx Store) error {
+		return tx.DeleteDestination(ctx, id)
+	})
+}
+
+func (s *PostgresStore) SetDefaultDestination(ctx context.Context, id string) error {
+	return s.WithTx(ctx, func(ctx context.Context, tx Store) error {
+		return tx.SetDefaultDestination(ctx, id)
+	})
+}
+
 func (s *PostgresStore) WithTx(ctx context.Context, fn func(ctx context.Context, tx Store) error) error {
 	return s.runTx(ctx, sql.LevelReadCommitted, fn)
 }

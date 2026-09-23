@@ -129,6 +129,7 @@ func (b Bundle) Validate() error {
 	}
 
 	destinations := map[string]bool{}
+	defaults := 0
 	for _, destination := range b.Destinations {
 		if destination.ID == "" {
 			return fmt.Errorf("destination %q has no id", destination.Name)
@@ -137,6 +138,12 @@ func (b Bundle) Validate() error {
 			return fmt.Errorf("destination id %q appears twice", destination.ID)
 		}
 		destinations[destination.ID] = true
+		if destination.IsDefault {
+			defaults++
+		}
+	}
+	if defaults > 1 {
+		return fmt.Errorf("%d destinations are marked the global default, want at most one", defaults)
 	}
 
 	routes := make([]models.Route, 0, len(b.Routes))

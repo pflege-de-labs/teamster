@@ -134,6 +134,9 @@ func apply(ctx context.Context, tx store.Store, bundle Bundle, mode Mode) ([]Cha
 		}
 		changes = append(changes, Change{Kind: "destination", Action: action, ID: destination.ID, Name: destination.Name})
 	}
+	if err := settleDefaultDestination(ctx, tx, bundle, mode); err != nil {
+		return nil, err
+	}
 
 	routes, err := tx.ListRoutes(ctx)
 	if err != nil {
@@ -185,6 +188,33 @@ func apply(ctx context.Context, tx store.Store, bundle Bundle, mode Mode) ([]Cha
 	return append(changes, removals...), nil
 }
 
+// settleDefaultDestination applies the bundle's global default. A bundle that
+// names none keeps the installation's, unless a replace is about to delete it,
+// in which case the bundle's first destination takes over.
+func settleDefaultDestination(ctx context.Context, tx store.Store, bundle Bundle, mode Mode) error {
+	for _, destination := range bundle.Destinations {
+		if destination.IsDefault {
+			return tx.SetDefaultDestination(ctx, destination.ID)
+		}
+	}
+	if mode != ModeReplace || len(bundle.Destinations) == 0 {
+		return nil
+	}
+	current, err := tx.GetDefaultDestination(ctx)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil
+		}
+		return err
+	}
+	for _, destination := range bundle.Destinations {
+		if destination.ID == current.ID {
+			return nil
+		}
+	}
+	return tx.SetDefaultDestination(ctx, bundle.Destinations[0].ID)
+}
+
 func deleteUnmentioned(
 	ctx context.Context,
 	tx store.Store,
@@ -222,7 +252,13 @@ func deleteUnmentioned(
 	}
 
 	keepDestinations := idsOf(bundle.Destinations, func(d BundleDestination) string { return d.ID })
-	for _, entry := range byID(destinations) {
+	doomedDestinations := byID(destinations)
+	// The store refuses to delete the default while another destination is
+	// left, so an import emptying the installation removes it last.
+	sort.SliceStable(doomedDestinations, func(i, j int) bool {
+		return !doomedDestinations[i].Value.IsDefault && doomedDestinations[j].Value.IsDefault
+	})
+	for _, entry := range doomedDestinations {
 		if keepDestinations[entry.ID] {
 			continue
 		}

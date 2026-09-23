@@ -24,6 +24,10 @@ type pgQueries struct {
 	q *pgdb.Queries
 }
 
+func (p pgQueries) ClearDefaultDestination(ctx context.Context) error {
+	return p.q.ClearDefaultDestination(ctx)
+}
+
 func (p pgQueries) ClaimActiveAlert(ctx context.Context, arg sqlitedb.ClaimActiveAlertParams) (sqlitedb.ActiveAlert, error) {
 	row, err := p.q.ClaimActiveAlert(ctx, pgdb.ClaimActiveAlertParams(arg))
 	return sqlitedb.ActiveAlert(row), err
@@ -44,6 +48,10 @@ func (p pgQueries) CompleteActiveAlertRecipientClaim(ctx context.Context, arg sq
 
 func (p pgQueries) CountActiveAlerts(ctx context.Context) (int64, error) {
 	return p.q.CountActiveAlerts(ctx)
+}
+
+func (p pgQueries) CountDestinations(ctx context.Context) (int64, error) {
+	return p.q.CountDestinations(ctx)
 }
 
 func (p pgQueries) CreateBrokerToken(ctx context.Context, arg sqlitedb.CreateBrokerTokenParams) error {
@@ -163,6 +171,11 @@ func (p pgQueries) GetActiveAlertRecipient(ctx context.Context, arg sqlitedb.Get
 func (p pgQueries) GetBrokerToken(ctx context.Context, sessionID string) (sqlitedb.BrokerToken, error) {
 	row, err := p.q.GetBrokerToken(ctx, sessionID)
 	return sqlitedb.BrokerToken(row), err
+}
+
+func (p pgQueries) GetDefaultDestination(ctx context.Context) (sqlitedb.Destination, error) {
+	row, err := p.q.GetDefaultDestination(ctx)
+	return sqlitedb.Destination(row), err
 }
 
 func (p pgQueries) GetDestination(ctx context.Context, id string) (sqlitedb.Destination, error) {
@@ -304,6 +317,10 @@ func (p pgQueries) ListWebhookEndpoints(ctx context.Context) ([]sqlitedb.Webhook
 		out = append(out, sqlitedb.WebhookEndpoint(row))
 	}
 	return out, nil
+}
+
+func (p pgQueries) MarkDefaultDestination(ctx context.Context, id string) (int64, error) {
+	return p.q.MarkDefaultDestination(ctx, id)
 }
 
 func (p pgQueries) ReapStaleClaim(ctx context.Context, arg sqlitedb.ReapStaleClaimParams) (int64, error) {

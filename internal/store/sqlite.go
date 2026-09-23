@@ -92,6 +92,20 @@ func (s *SQLiteStore) DeleteSession(ctx context.Context, id string) error {
 	return deleteSessionCascade(ctx, s, id)
 }
 
+// DeleteDestination and SetDefaultDestination override queryAdapter's to run
+// their statements in one transaction, which is what keeps exactly one default.
+func (s *SQLiteStore) DeleteDestination(ctx context.Context, id string) error {
+	return s.WithTx(ctx, func(ctx context.Context, tx Store) error {
+		return tx.DeleteDestination(ctx, id)
+	})
+}
+
+func (s *SQLiteStore) SetDefaultDestination(ctx context.Context, id string) error {
+	return s.WithTx(ctx, func(ctx context.Context, tx Store) error {
+		return tx.SetDefaultDestination(ctx, id)
+	})
+}
+
 // Ping is a round trip to the database rather than a look at a connection
 // struct: a file that has been deleted or a disk that has gone read-only shows
 // up here and nowhere else.

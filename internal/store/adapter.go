@@ -145,7 +145,8 @@ func (s queryAdapter) CreateDestination(ctx context.Context, d models.Destinatio
 	if err != nil {
 		return models.Destination{}, fmt.Errorf("create destination: %w", err)
 	}
-	return d, nil
+	// The statement decided IsDefault; read back what it chose.
+	return s.GetDestination(ctx, d.ID)
 }
 
 func (s queryAdapter) UpdateDestination(ctx context.Context, d models.Destination) (models.Destination, error) {
@@ -164,12 +165,60 @@ func (s queryAdapter) UpdateDestination(ctx context.Context, d models.Destinatio
 	if err != nil {
 		return models.Destination{}, fmt.Errorf("update destination: %w", err)
 	}
+	// An update never moves the default, whatever d.IsDefault said.
+	d.IsDefault = false
+	if current, err := s.GetDestination(ctx, d.ID); err == nil {
+		d.IsDefault = current.IsDefault
+	}
 	return d, nil
 }
 
 func (s queryAdapter) DeleteDestination(ctx context.Context, id string) error {
+	d, err := s.GetDestination(ctx, id)
+	if errors.Is(err, ErrNotFound) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if d.IsDefault {
+		n, err := s.q.CountDestinations(ctx)
+		if err != nil {
+			return fmt.Errorf("count destinations: %w", err)
+		}
+		if n > 1 {
+			return ErrDefaultDestination
+		}
+	}
 	if err := s.q.DeleteDestination(ctx, id); err != nil {
 		return fmt.Errorf("delete destination: %w", err)
+	}
+	return nil
+}
+
+func (s queryAdapter) GetDefaultDestination(ctx context.Context) (models.Destination, error) {
+	row, err := s.q.GetDefaultDestination(ctx)
+	if err != nil {
+		if err := notFound(err); errors.Is(err, ErrNotFound) {
+			return models.Destination{}, err
+		}
+		return models.Destination{}, fmt.Errorf("get default destination: %w", err)
+	}
+	return destinationOf(row), nil
+}
+
+// SetDefaultDestination clears before it marks: the unique index is checked
+// row by row, so a single UPDATE could trip over the old default.
+func (s queryAdapter) SetDefaultDestination(ctx context.Context, id string) error {
+	if err := s.q.ClearDefaultDestination(ctx); err != nil {
+		return fmt.Errorf("clear default destination: %w", err)
+	}
+	n, err := s.q.MarkDefaultDestination(ctx, id)
+	if err != nil {
+		return fmt.Errorf("mark default destination: %w", err)
+	}
+	if n == 0 {
+		return ErrNotFound
 	}
 	return nil
 }
@@ -191,6 +240,7 @@ func destinationOf(row sqlitedb.Destination) models.Destination {
 		Name:      row.Name,
 		TeamID:    row.TeamID,
 		ChannelID: row.ChannelID,
+		IsDefault: row.IsDefault,
 		CreatedAt: row.CreatedAt,
 		UpdatedAt: row.UpdatedAt,
 	}

@@ -178,6 +178,77 @@ func TestConformanceRoutes(t *testing.T) {
 	})
 }
 
+// The first destination becomes the global default, exactly one stays the
+// default, and the default cannot be deleted while another could replace it.
+func TestConformanceDefaultDestination(t *testing.T) {
+	t.Parallel()
+
+	eachBackend(t, func(t *testing.T, open func(t *testing.T) store.Store) {
+		st := open(t)
+		ctx := t.Context()
+
+		if _, err := st.GetDefaultDestination(ctx); !errors.Is(err, store.ErrNotFound) {
+			t.Fatalf("GetDefaultDestination(empty) = %v, want ErrNotFound", err)
+		}
+
+		first, err := st.CreateDestination(ctx, models.Destination{Name: "first", TeamID: "t", ChannelID: "c1"})
+		if err != nil {
+			t.Fatalf("CreateDestination(first): %v", err)
+		}
+		second, err := st.CreateDestination(ctx, models.Destination{Name: "second", TeamID: "t", ChannelID: "c2"})
+		if err != nil {
+			t.Fatalf("CreateDestination(second): %v", err)
+		}
+		if !first.IsDefault || second.IsDefault {
+			t.Fatalf("defaults = %v, %v; want only the first", first.IsDefault, second.IsDefault)
+		}
+
+		updated, err := st.UpdateDestination(ctx, models.Destination{ID: second.ID, Name: "renamed", TeamID: "t", ChannelID: "c2", IsDefault: true})
+		if err != nil {
+			t.Fatalf("UpdateDestination: %v", err)
+		}
+		if updated.IsDefault {
+			t.Error("UpdateDestination moved the default, want it left alone")
+		}
+
+		if err := st.DeleteDestination(ctx, first.ID); !errors.Is(err, store.ErrDefaultDestination) {
+			t.Errorf("DeleteDestination(default) = %v, want ErrDefaultDestination", err)
+		}
+
+		if err := st.SetDefaultDestination(ctx, second.ID); err != nil {
+			t.Fatalf("SetDefaultDestination: %v", err)
+		}
+		got, err := st.GetDefaultDestination(ctx)
+		if err != nil || got.ID != second.ID {
+			t.Fatalf("GetDefaultDestination = %+v, %v; want %s", got, err, second.ID)
+		}
+		if err := st.SetDefaultDestination(ctx, "missing"); !errors.Is(err, store.ErrNotFound) {
+			t.Errorf("SetDefaultDestination(missing) = %v, want ErrNotFound", err)
+		}
+		if got, err := st.GetDefaultDestination(ctx); err != nil || got.ID != second.ID {
+			t.Errorf("a failed switch left default %+v, %v; want %s kept", got, err, second.ID)
+		}
+
+		if err := st.DeleteDestination(ctx, first.ID); err != nil {
+			t.Fatalf("DeleteDestination(no longer default): %v", err)
+		}
+		if err := st.DeleteDestination(ctx, second.ID); err != nil {
+			t.Errorf("DeleteDestination(last one) = %v, want it allowed", err)
+		}
+		if err := st.DeleteDestination(ctx, "missing"); err != nil {
+			t.Errorf("DeleteDestination(missing) = %v, want nil", err)
+		}
+
+		third, err := st.CreateDestination(ctx, models.Destination{Name: "third", TeamID: "t", ChannelID: "c3"})
+		if err != nil {
+			t.Fatalf("CreateDestination(third): %v", err)
+		}
+		if !third.IsDefault {
+			t.Error("a destination created when none is default = not default, want it to take over")
+		}
+	})
+}
+
 func TestConformanceGrantScopeIsUnique(t *testing.T) {
 	t.Parallel()
 

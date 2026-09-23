@@ -230,6 +230,7 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger, botC
 	adminMux.HandleFunc("/admin/templates/delete", api.formPost(api.deleteTemplate))
 	adminMux.HandleFunc("/admin/destinations", api.formPost(api.saveDestination))
 	adminMux.HandleFunc("/admin/destinations/delete", api.formPost(api.deleteDestination))
+	adminMux.HandleFunc("/admin/destinations/default", api.formPost(api.setDefaultDestination))
 	adminMux.HandleFunc("/admin/routes", api.formPost(api.saveRoute))
 	adminMux.HandleFunc("/admin/routes/delete", api.formPost(api.deleteRoute))
 	adminMux.HandleFunc("/admin/webhooks", api.handleWebhookForm)

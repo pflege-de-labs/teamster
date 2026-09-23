@@ -10,6 +10,9 @@ import (
 
 var (
 	ErrNotFound = errors.New("not found")
+	// ErrDefaultDestination refuses deleting the global default destination
+	// while another destination could take its place.
+	ErrDefaultDestination = errors.New("destination is the global default; choose another global default first")
 	// ErrClaimLost means the row this caller claimed now belongs to somebody
 	// else's card. Whatever it posted is unreachable: no row names it, so
 	// nothing will ever update or resolve it.
@@ -86,6 +89,11 @@ type Store interface {
 	UpdateDestination(ctx context.Context, d models.Destination) (models.Destination, error)
 	DeleteDestination(ctx context.Context, id string) error
 	GetDestination(ctx context.Context, id string) (models.Destination, error)
+	// GetDefaultDestination is where a message goes when no route claims it.
+	// ErrNotFound means there is no destination at all.
+	GetDefaultDestination(ctx context.Context) (models.Destination, error)
+	// SetDefaultDestination makes id the one global default.
+	SetDefaultDestination(ctx context.Context, id string) error
 
 	ListRecipients(ctx context.Context) ([]models.Recipient, error)
 	CreateRecipient(ctx context.Context, r models.Recipient) (models.Recipient, error)

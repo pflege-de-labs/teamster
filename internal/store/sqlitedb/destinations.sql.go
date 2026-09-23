@@ -10,9 +10,29 @@ import (
 	"time"
 )
 
+const clearDefaultDestination = `-- name: ClearDefaultDestination :exec
+UPDATE destinations SET is_default = FALSE WHERE is_default
+`
+
+func (q *Queries) ClearDefaultDestination(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, clearDefaultDestination)
+	return err
+}
+
+const countDestinations = `-- name: CountDestinations :one
+SELECT COUNT(*) FROM destinations
+`
+
+func (q *Queries) CountDestinations(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countDestinations)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createDestination = `-- name: CreateDestination :exec
-INSERT INTO destinations (id, name, team_id, channel_id, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?)
+INSERT INTO destinations (id, name, team_id, channel_id, created_at, updated_at, is_default)
+VALUES (?, ?, ?, ?, ?, ?, NOT EXISTS (SELECT 1 FROM destinations WHERE is_default))
 `
 
 type CreateDestinationParams struct {
@@ -24,6 +44,8 @@ type CreateDestinationParams struct {
 	UpdatedAt time.Time
 }
 
+// The first destination becomes the default in the same statement that
+// creates it, so there is no window in which one exists without a default.
 func (q *Queries) CreateDestination(ctx context.Context, arg CreateDestinationParams) error {
 	_, err := q.db.ExecContext(ctx, createDestination,
 		arg.ID,
@@ -45,8 +67,29 @@ func (q *Queries) DeleteDestination(ctx context.Context, id string) error {
 	return err
 }
 
+const getDefaultDestination = `-- name: GetDefaultDestination :one
+SELECT id, name, team_id, channel_id, created_at, updated_at, is_default
+FROM destinations
+WHERE is_default
+`
+
+func (q *Queries) GetDefaultDestination(ctx context.Context) (Destination, error) {
+	row := q.db.QueryRowContext(ctx, getDefaultDestination)
+	var i Destination
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.TeamID,
+		&i.ChannelID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.IsDefault,
+	)
+	return i, err
+}
+
 const getDestination = `-- name: GetDestination :one
-SELECT id, name, team_id, channel_id, created_at, updated_at
+SELECT id, name, team_id, channel_id, created_at, updated_at, is_default
 FROM destinations
 WHERE id = ?
 `
@@ -61,12 +104,13 @@ func (q *Queries) GetDestination(ctx context.Context, id string) (Destination, e
 		&i.ChannelID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.IsDefault,
 	)
 	return i, err
 }
 
 const listDestinations = `-- name: ListDestinations :many
-SELECT id, name, team_id, channel_id, created_at, updated_at
+SELECT id, name, team_id, channel_id, created_at, updated_at, is_default
 FROM destinations
 ORDER BY name
 `
@@ -87,6 +131,7 @@ func (q *Queries) ListDestinations(ctx context.Context) ([]Destination, error) {
 			&i.ChannelID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.IsDefault,
 		); err != nil {
 			return nil, err
 		}
@@ -99,6 +144,18 @@ func (q *Queries) ListDestinations(ctx context.Context) ([]Destination, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const markDefaultDestination = `-- name: MarkDefaultDestination :execrows
+UPDATE destinations SET is_default = TRUE WHERE id = ?
+`
+
+func (q *Queries) MarkDefaultDestination(ctx context.Context, id string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, markDefaultDestination, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const updateDestination = `-- name: UpdateDestination :exec
