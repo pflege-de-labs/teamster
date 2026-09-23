@@ -32,6 +32,15 @@ type ActiveAlertRecipient struct {
 	LastUpdate  time.Time
 }
 
+type AlertSample struct {
+	Kind      string
+	Key       string
+	Value     string
+	SeenCount int64
+	FirstSeen time.Time
+	LastSeen  time.Time
+}
+
 type BrokerToken struct {
 	SessionID    string
 	AccessToken  string

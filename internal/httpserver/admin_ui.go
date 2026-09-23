@@ -51,6 +51,7 @@ func (s *Server) adminPage(r *http.Request, notice, errText string) views.Page {
 		PreviewSamples:  previewSamples(),
 		Snippets:        cards.Snippets(),
 		Starter:         cards.Starter,
+		Vocabulary:      templates.EditorVocabulary(),
 		Viewer:          s.viewerFor(r),
 		CanEdit:         s.authz.Allow(principalSubject(r), roles, authz.ActionEdit, authz.Resource{Type: "Template"}),
 		CanManage:       s.authz.Allow(principalSubject(r), roles, authz.ActionAdminister, authz.Resource{Type: "Grant"}),

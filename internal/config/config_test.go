@@ -106,6 +106,14 @@ func TestParseExampleConfig(t *testing.T) {
 			MetadataURL: "https://login.botframework.com/v1/.well-known/openidconfiguration",
 			TimeoutSec:  10,
 		},
+		Samples: SamplesConfig{
+			Enabled:         true,
+			Retention:       720 * time.Hour,
+			MaxValuesPerKey: 50,
+			MaxValueLength:  200,
+			LRUSize:         4096,
+			FlushInterval:   5 * time.Minute,
+		},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("parsed example config = %+v, want %+v", got, want)
@@ -171,6 +179,13 @@ func TestParseAppliesTagDefaults(t *testing.T) {
 	}
 	if got.Graph.TimeoutSec != 10 {
 		t.Errorf("Graph.TimeoutSec = %d, want 10", got.Graph.TimeoutSec)
+	}
+	wantSamples := SamplesConfig{
+		Enabled: true, Retention: 720 * time.Hour, MaxValuesPerKey: 50,
+		MaxValueLength: 200, LRUSize: 4096, FlushInterval: 5 * time.Minute,
+	}
+	if got.Samples != wantSamples {
+		t.Errorf("Samples = %+v, want %+v", got.Samples, wantSamples)
 	}
 }
 
@@ -719,6 +734,43 @@ func TestValidateRequiresAnAbsoluteRedirectURL(t *testing.T) {
 			}
 			if !tt.wantErr && err != nil {
 				t.Errorf("Validate() = %v, want %q accepted", err, tt.redirect)
+			}
+		})
+	}
+}
+
+func TestValidateSamples(t *testing.T) {
+	t.Parallel()
+
+	valid := SamplesConfig{
+		Enabled: true, Retention: time.Hour, MaxValuesPerKey: 1,
+		MaxValueLength: 1, LRUSize: 1, FlushInterval: time.Minute,
+	}
+	tests := []struct {
+		name    string
+		mutate  func(*SamplesConfig)
+		wantErr string
+	}{
+		{name: "valid", mutate: func(*SamplesConfig) {}},
+		{name: "disabled ignores the bounds", mutate: func(c *SamplesConfig) { *c = SamplesConfig{} }},
+		{name: "retention", mutate: func(c *SamplesConfig) { c.Retention = 0 }, wantErr: "samples-retention"},
+		{name: "values per key", mutate: func(c *SamplesConfig) { c.MaxValuesPerKey = 0 }, wantErr: "samples-max-values-per-key"},
+		{name: "value length", mutate: func(c *SamplesConfig) { c.MaxValueLength = -1 }, wantErr: "samples-max-value-length"},
+		{name: "lru size", mutate: func(c *SamplesConfig) { c.LRUSize = 0 }, wantErr: "samples-lru-size"},
+		{name: "flush interval", mutate: func(c *SamplesConfig) { c.FlushInterval = 0 }, wantErr: "samples-flush-interval"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := valid
+			tt.mutate(&cfg)
+			err := validateSamples(cfg)
+			switch {
+			case tt.wantErr == "" && err != nil:
+				t.Errorf("validateSamples() = %v, want nil", err)
+			case tt.wantErr != "" && (err == nil || !strings.Contains(err.Error(), tt.wantErr)):
+				t.Errorf("validateSamples() = %v, want an error naming %s", err, tt.wantErr)
 			}
 		})
 	}

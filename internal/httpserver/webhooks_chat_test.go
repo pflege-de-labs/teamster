@@ -34,7 +34,7 @@ func chatServer(t *testing.T, botClient botSender, tel telemetry) (*fakeStore, h
 	if tel == nil {
 		tel = metrics.Disabled()
 	}
-	srv, err := NewServer(cfg, st, &fakeMessenger{}, botClient, tel)
+	srv, err := NewServer(cfg, st, &fakeMessenger{}, botClient, tel, nil)
 	if err != nil {
 		t.Fatalf("NewServer: %v", err)
 	}
@@ -386,7 +386,7 @@ func TestRouteFansOutToChannelAndChat(t *testing.T) {
 		Admin:   config.AdminConfig{Username: "admin", Password: "pass"},
 	}
 	msg := &fakeMessenger{}
-	srv, err := NewServer(cfg, st, msg, botClient, metrics.Disabled())
+	srv, err := NewServer(cfg, st, msg, botClient, metrics.Disabled(), nil)
 	if err != nil {
 		t.Fatalf("NewServer: %v", err)
 	}

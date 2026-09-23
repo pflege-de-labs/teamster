@@ -26,3 +26,9 @@ if the directory and the manifest disagree about what should be here, in either 
 Because the pins live in a JSON file rather than only in prose, Renovate now sees them and opens a
 pull request that bumps a version — the checksum still needs `make vendor-record` by hand, which
 is why that pull request never merges itself.
+
+The CodeMirror packages behind the admin UI's editors are ES modules, one file per package, and
+import each other by bare name (`@codemirror/state`). The import map in
+`internal/httpserver/views/layout.templ` resolves those names to the files here, and
+`vendor_test.go` fails when a module imports a name the map does not resolve — so a version bump
+that adds a dependency means one more manifest entry and one more line in the map.

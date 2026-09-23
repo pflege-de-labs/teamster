@@ -15,16 +15,18 @@ that runs more than one instance. SQLite is the option with no other runtime dep
 | `internal/httpserver` | HTTP routing, webhook handlers, alert processing, admin JSON API, the server-rendered admin pages, basic auth and request logging middleware. |
 | `internal/httpserver/views` | templ components for the admin UI. The `*_templ.go` files beside them are generated and committed. |
 | `internal/routing` | Selects a route for an alert's labels. |
-| `internal/templates` | Renders an Adaptive Card from a Go template plus alert data. |
+| `internal/templates` | Renders an Adaptive Card from a Go template plus alert data, and describes that data for the editor's completion (`EditorVocabulary`). |
+| `internal/samples` | Remembers the label keys, label values and annotation keys incoming alerts carry, for editor completion. See [Editor completion](#editor-completion). |
 | `internal/graph` | Microsoft Graph client: OAuth2 client credentials, post and update channel messages. `BrokerClient` is the delegated-Teams half (ADR 0037): the same Graph endpoints, called with a per-request Entra bearer token instead of the app-only credential. |
 | `internal/bot` | Bot Framework Connector client: a second, separate OAuth2 client credentials flow, send and update activities in a person's chat. See [Bot configuration](#bot-configuration) and [Inbound bot messages](#inbound-bot-messages). |
-| `internal/store` | `Store` interface, its SQLite and Postgres backends sharing one adapter; `internal/store/migrations` owns the schema for templates, destinations, routes, recipients, webhook endpoints, active alerts and broker tokens. |
-| `internal/models` | Shared data types: `Alert`, `Route`, `Template`, `Destination`, `Recipient`, `ActiveAlert`, `BrokerToken` and the two webhook payload shapes. |
-| `internal/httpserver/web` | Embedded static assets: icons, the web manifest and the Tailwind stylesheet built from `views/styles.css`. |
+| `internal/store` | `Store` interface, its SQLite and Postgres backends sharing one adapter; `internal/store/migrations` owns the schema for templates, destinations, routes, recipients, webhook endpoints, active alerts, broker tokens and alert samples. |
+| `internal/models` | Shared data types: `Alert`, `Route`, `Template`, `Destination`, `Recipient`, `ActiveAlert`, `BrokerToken`, `AlertSample` and the two webhook payload shapes. |
+| `internal/httpserver/web` | Embedded static assets: icons, the web manifest, the Tailwind stylesheet built from `views/styles.css`, the page scripts, and the vendored libraries under `vendor/` (ADR 0031). |
 | `internal/cryptutil` | AES-256-GCM sealing for the one thing this service encrypts at rest: the live Keycloak token behind delegated Teams/Channels (ADR 0037). |
 
 Dependencies are injected through constructors — `store.NewSQLiteStore`, `graph.NewClient`,
-`routing.New`, `httpserver.NewServer(cfg, store, graphClient, botClient, telemetry)` — so every
+`routing.New`, `samples.New`, `httpserver.NewServer(cfg, store, graphClient, botClient, telemetry,
+sampler)` — so every
 component can be exercised with a substitute in tests. There is no package-level mutable state.
 `NewServer` takes the unexported `messenger` and `botSender` interfaces rather than `*graph.Client`
 and `*bot.Client`, see [ADR 0002](adr/0002-messenger-interface.md).
@@ -39,6 +41,10 @@ that context and the parsed configuration.
 cancellation it calls `http.Server.Shutdown` with `server.shutdown-timeout` (default 15s) to drain
 in-flight requests, then closes the store. A second signal kills the process outright. See
 [ADR 0003](adr/0003-kong-commands-and-graceful-shutdown.md).
+
+The alert sampler's worker (see [Editor completion](#editor-completion)) is stopped only after that
+drain, so the alerts it delivers are sampled too, and is waited for before the store closes: its
+last act is writing the counts it still holds, within five seconds.
 
 That context reaches the database as well as the handlers: every `store.Store` method takes one, so
 a cancelled request stops the query it started and a shutdown does not wait on one. A signal that
@@ -125,6 +131,8 @@ POST /webhook/alertmanager        POST /webhook/universal
                                  │
               fingerprint (payload value, else SHA-256 of
               source + generator + start time + sorted labels)
+                                 │
+          samples.Observe (non-blocking; labels, annotation keys)
                                  │
                      routing.Plan(alert.Labels)
                                  │
@@ -531,6 +539,11 @@ default, and a backfill that marks the oldest destination. `CreateDestination` s
 insert itself whenever no default exists, so the previous release can run against this schema and
 even delete the default. The next destination created then takes over.
 
+`alert_samples` came with editor completion, by `0013` in SQLite and `0010` in Postgres: one row
+per label key and value, or per annotation key with an empty value, with a count and when it was
+first and last seen. It is a new table and nothing else, so the previous release ignores it. See
+[Editor completion](#editor-completion).
+
 `database.migrate` decides what opening the store does about a schema that is behind: `auto`
 applies what is missing, `verify` refuses and names `teamster migrate up`, `off` asks nothing.
 `teamster export` always verifies — reading a database must not migrate it. A migration must leave
@@ -633,6 +646,34 @@ there is no session to hold a CSRF token. See
 its own — `/admin/recipients`, like `/admin/permissions` — posts to its own `/delete` endpoint and
 lands back on itself with the notice, not on the unrelated configuration page.
 
+### Editor completion
+
+The template's title, text and card fields, a route's label selector and the routing page's check
+are upgraded by `web/editor.js` to CodeMirror 6 editors with completion. The layout carries an
+import map from CodeMirror's bare module names to the vendored files, and `editor.js` imports them
+only on a page that has a field marked `data-editor`. The field stays in the form, hidden, and is
+rewritten with an `input` event on every change, so posting, the preview and the route check read
+it as before; without JavaScript it is the plain field it always was. The card palette inserts
+through the editor by a cancelable `teamster:insert` event on the field.
+
+Inside `{{ … }}` the editor completes the fields of the template data, template functions and
+actions — all three from `templates.EditorVocabulary`, which the admin page embeds as JSON — and,
+after `.Alert.Labels.` or `.Alert.Annotations.`, the keys alerts actually carried. A card's JSON is
+parsed around the actions rather than through them, and nothing lints it. Outside actions it
+completes Adaptive Card element types, property names and enum values, read at page load from the
+vendored `adaptivecards` renderer's own registry and schemas. A selector completes label keys and
+then that key's recent values, and so does the routing check.
+
+The keys and values come from `GET /api/samples`, fed by `internal/samples`. `processAlert` hands
+every Alertmanager and universal alert to the sampler before routing; `Observe` copies the label
+pairs and the annotation keys — never annotation values — into a bounded queue without blocking,
+and drops the alert when the queue is full. One worker goroutine owns a `golang-lru` cache that
+writes a tuple only when it is new or its last write is `samples.flush-interval` old, carrying the
+count accumulated in between, and prunes hourly: anything not seen for `samples.retention`, and
+label values beyond the `samples.max-values-per-key` most recently seen per key. Replicas sharing
+Postgres add to the same counts and run the same idempotent prune. See
+[ADR 0041](adr/0041-editor-completion-from-sampled-labels.md).
+
 ### Managing recipients
 
 `/admin/recipients` lists every recipient, the routes that target them by name, and the blocked
@@ -706,7 +747,9 @@ other place one is ever readable: creating and rotating answer with the token an
 every later read leaves both empty. `GET /api/recipients` and `DELETE /api/recipients/{id}` list and
 unlink recipients — see [Managing recipients](#managing-recipients) — and
 `POST /api/recipients/link` is the exception that requires a session specifically — see
-[Linking a chat](#linking-a-chat).
+[Linking a chat](#linking-a-chat). `GET /api/samples` answers the label keys and values and the
+annotation keys the editors complete, to a caller who may edit templates or routes — see
+[Editor completion](#editor-completion).
 
 ## Configuration
 

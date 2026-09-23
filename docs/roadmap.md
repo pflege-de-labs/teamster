@@ -651,6 +651,24 @@ that can never succeed. This milestone makes both cases deliver. It ships as thr
    sends the payload's card(s) as before, followed by the hint card. See
    [ADR 0040](adr/0040-teams-v2-endpoint-templates.md).
 
+## Milestone 17 — Completion in the template and route editors — done
+
+Milestone 9 listed four awkward parts of writing a card and fixed three. The fourth, "an empty
+textarea with no hint of what an alert offers", is this one: which fields a template gets, which
+labels the senders actually use, which properties an Adaptive Card element takes, and — for a
+route — which values a label has.
+
+The fields became CodeMirror 6 editors, vendored one module per package like the other libraries,
+with the textarea kept underneath so nothing that reads it changed. Template syntax is parsed apart
+from the JSON it sits in, so `{{ range }}` in a card is not an error. The fields and functions come
+from Go, the card vocabulary from the renderer the preview already uses, and the labels from a new
+`alert_samples` table the webhook path feeds without waiting on it: label keys and values, and
+annotation keys only, capped, pruned and coalesced through an in-memory LRU.
+
+See [ADR 0041](adr/0041-editor-completion-from-sampled-labels.md). Not done: a preview alert built
+from the sampled labels, which would let the preview show what a template renders for the alerts a
+deployment really gets.
+
 ## Milestone 13 — Alerts in a person's chat — done
 
 An alert reaches a channel. Somebody on call at three in the morning is not reading a channel; they
@@ -769,6 +787,7 @@ permissions table is the first thing to read when this milestone starts, not the
 | — | 14 Teams V2 compatible webhooks | — | done |
 | — | 15 Delegated Teams/Channels picker | 1.3, 2 | done |
 | — | 16 Nothing unrouted, nothing untemplated | 14 for its third part | done |
+| — | 17 Editor completion | 9 | done |
 
 1.3 sat after 1.4 because it was the only item waiting on someone else to grant a permission.
 

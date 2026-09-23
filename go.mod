@@ -9,6 +9,7 @@ require (
 	github.com/cedar-policy/cedar-go v1.8.0
 	github.com/coreos/go-oidc/v3 v3.21.0
 	github.com/google/uuid v1.6.0
+	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/miekg/king v1.0.16
 	github.com/pressly/goose/v3 v3.28.0

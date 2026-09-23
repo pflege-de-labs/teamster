@@ -8,6 +8,7 @@ import (
 
 	_ "modernc.org/sqlite"
 
+	"github.com/pflege-de-labs/teamster/internal/models"
 	"github.com/pflege-de-labs/teamster/internal/store/migrations"
 	"github.com/pflege-de-labs/teamster/internal/store/sqlitedb"
 )
@@ -104,6 +105,11 @@ func (s *SQLiteStore) SetDefaultDestination(ctx context.Context, id string) erro
 	return s.WithTx(ctx, func(ctx context.Context, tx Store) error {
 		return tx.SetDefaultDestination(ctx, id)
 	})
+}
+
+// RecordAlertSamples overrides queryAdapter's to commit the batch at once.
+func (s *SQLiteStore) RecordAlertSamples(ctx context.Context, samples []models.AlertSample) error {
+	return recordAlertSamplesInTx(ctx, s, samples)
 }
 
 // Ping is a round trip to the database rather than a look at a connection

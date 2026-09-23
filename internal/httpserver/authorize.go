@@ -51,6 +51,7 @@ func (s *Server) viewerFor(r *http.Request) views.Viewer {
 	viewer := viewerOf(r)
 	subject, roles := principalOf(r)
 	viewer.CanManage = s.authz.Allow(subject, roles, authz.ActionAdminister, authz.Resource{Type: "Grant"})
+	viewer.CanComplete = s.cfg.Samples.Enabled && s.mayComplete(r)
 	viewer.NotificationsEnabled = botConfigured(s.cfg.Bot)
 	return viewer
 }
@@ -86,7 +87,8 @@ func (s *Server) authorize(next http.Handler) http.Handler {
 		subject, roles := principalOf(r)
 		action, resource := requestAuthorization(r)
 
-		if s.authz.Allow(subject, roles, action, resource) {
+		// Samples complete both editors, so editing routes admits as well.
+		if s.authz.Allow(subject, roles, action, resource) || (r.URL.Path == "/api/samples" && s.mayComplete(r)) {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -143,6 +145,10 @@ func requestAuthorization(r *http.Request) (string, authz.Resource) {
 	// broader than any one destination an editor may change (ADR 0038).
 	case isDefaultDestinationPath(path) && r.Method != http.MethodGet && r.Method != http.MethodHead:
 		return authz.ActionAdminister, authz.Resource{Type: "Destination"}
+	// A read, but one only an editor needs: label values say what runs where,
+	// and a viewer has nothing to complete. authorize also admits a route editor.
+	case path == "/api/samples":
+		return authz.ActionEdit, authz.Resource{Type: "Template"}
 	// Minting a link code binds the caller's own subject, not anyone else's
 	// configuration, so it is the on-call viewer's action rather than an edit
 	// the default case below would otherwise refuse them.

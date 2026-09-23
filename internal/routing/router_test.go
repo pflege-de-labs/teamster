@@ -274,6 +274,18 @@ func (s stubStore) UpdateBrokerToken(ctx context.Context, _ models.BrokerToken) 
 
 func (s stubStore) DeleteBrokerToken(ctx context.Context, _ string) error { return store.ErrNotFound }
 
+func (s stubStore) RecordAlertSamples(ctx context.Context, _ []models.AlertSample) error {
+	return store.ErrNotFound
+}
+
+func (s stubStore) ListAlertSamples(ctx context.Context, _ int) ([]models.AlertSample, error) {
+	return nil, store.ErrNotFound
+}
+
+func (s stubStore) PruneAlertSamples(ctx context.Context, _ time.Time, _ int) (int64, error) {
+	return 0, store.ErrNotFound
+}
+
 func (s stubStore) CreateLoginFlow(ctx context.Context, _ models.LoginFlow) error {
 	return store.ErrNotFound
 }

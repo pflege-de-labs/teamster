@@ -120,6 +120,11 @@ func (s *Server) processAlert(ctx context.Context, alert models.Alert) error {
 	if alert.Fingerprint == "" {
 		alert.Fingerprint = hashFingerprint(alert)
 	}
+	// Before routing, so an alert no route matches yet still teaches the
+	// editor the labels a route for it would select on.
+	if s.samples != nil {
+		s.samples.Observe(alert.Labels, alert.Annotations)
+	}
 
 	result, err := s.router.Plan(ctx, alert.Labels)
 	if err != nil {

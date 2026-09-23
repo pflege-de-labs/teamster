@@ -491,6 +491,40 @@ Helper functions:
 - `toJSON` to JSON-encode structures
 - `default` to provide fallbacks, including for a key an alert did not set
 
+## Editor completion
+
+The template fields, a route's label selector and the label box on `/admin/routing` are code
+editors with completion. Inside `{{ … }}` they offer the template data (`.Alert.Status`,
+`.Alert.Labels`, `.Now`, …), the functions above and text/template's own, and the actions (`if`,
+`range`, `end`, …). After `.Alert.Labels.` or `.Alert.Annotations.` they offer the keys that recent
+alerts actually carried; a key that cannot follow a dot, such as `app.kubernetes.io/name`, is
+inserted as `(index .Alert.Labels "app.kubernetes.io/name")`. In the card they offer Adaptive Card
+element types, property names and enum values, taken from the same renderer the preview uses. A
+label selector, and the routing check, offer label keys and then the recent values of the key
+chosen. `Ctrl-Space` asks for completion anywhere. Without JavaScript the fields are plain text
+boxes, as before.
+
+The label keys and values come from the alerts this service receives: every Alertmanager and
+universal alert is sampled, whether or not a route matches it, and the samples are kept in the
+`alert_samples` table. **Annotation values are never stored** — only annotation keys — because
+they are free text that may carry detail nobody asked this service to keep. Label values are stored,
+which is why only a role that may edit templates or routes can read them, at `GET /api/samples`.
+
+```yaml
+samples:
+  enabled: true              # sample incoming alerts at all
+  retention: "720h"          # forget a key or value not seen for this long
+  max-values-per-key: 50     # keep only the most recently seen values of each label key
+  max-value-length: 200      # do not sample a longer label value
+  lru-size: 4096             # tuples held in memory to coalesce writes
+  flush-interval: "5m"       # write a tuple already stored at most this often
+```
+
+Sampling never delays a delivery: alerts are handed to a background writer that drops them if it
+falls behind, and a label every alert carries is written once per `flush-interval` rather than once
+per alert. Counts are therefore approximate. Replicas sharing Postgres add to the same rows. Setting
+`enabled: false` stops sampling and serving; rows kept before stay in the table until deleted.
+
 ## Notes
 
 - Route selection matches label selectors exactly; highest priority wins.
@@ -953,8 +987,9 @@ empty one, so the palette cannot offer something the renderer rejects. They also
 idiom worth copying: write `{{ toJSON .Alert.Annotations.summary }}` with no surrounding quotes
 rather than `"{{ .Alert.Annotations.summary }}"`, because `toJSON` adds the quotes and escapes what
 is inside them — an alert containing a quotation mark then produces a card instead of broken JSON.
-The renderer is vendored in `internal/httpserver/web/vendor`, pinned by version and checksum in
-that directory's `manifest.json`; `make vendor` refreshes it and `make vendor-record` re-records a
+The renderer, and the CodeMirror modules behind the editors, are vendored in
+`internal/httpserver/web/vendor`, pinned by version and checksum in that directory's
+`manifest.json`; `make vendor` refreshes them and `make vendor-record` re-records a
 checksum after a version bump, see the README there.
 
 The favicon set is generated from a logo with `scripts/make-favicons.sh` into

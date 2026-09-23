@@ -63,6 +63,12 @@ type telemetry interface {
 	ClientTransport(base http.RoundTripper) http.RoundTripper
 }
 
+// sampler is what processAlert tells about every alert it sees, so the admin
+// UI can complete label keys and values (ADR 0041). It must not block.
+type sampler interface {
+	Observe(labels, annotations map[string]string)
+}
+
 type Server struct {
 	cfg        config.Config
 	store      store.Store
@@ -84,6 +90,9 @@ type Server struct {
 	broker brokerGraph
 	sealer *cryptutil.Sealer
 
+	// samples is nil when nothing samples, as in most tests.
+	samples sampler
+
 	// now is the clock delivery stamps claims from. It is a field so a test
 	// can move time forward past a claim's staleness cutoff without waiting.
 	now func() time.Time
@@ -103,7 +112,7 @@ func readHeaderTimeout(readTimeout time.Duration) time.Duration {
 // NewServer returns an error rather than starting without an authorizer: a
 // policy file that does not parse would otherwise leave every check to fall
 // through to whatever the zero value decides.
-func NewServer(cfg config.Config, store store.Store, graphClient messenger, botClient botSender, tel telemetry) (*http.Server, error) {
+func NewServer(cfg config.Config, store store.Store, graphClient messenger, botClient botSender, tel telemetry, samples sampler) (*http.Server, error) {
 	registerMIMETypes()
 
 	authorizer, err := authz.New()
@@ -148,6 +157,7 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger, botC
 		oidc:      &oidcProvider{},
 		broker:    brokerClient,
 		sealer:    sealer,
+		samples:   samples,
 	}
 
 	mux := http.NewServeMux()
@@ -196,6 +206,7 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger, botC
 	adminMux.HandleFunc("/api/routing/graph", api.handleRoutingGraph)
 	adminMux.HandleFunc("/api/routing/templates", api.handleTemplateGraph)
 	adminMux.HandleFunc("/api/routing/match", api.handleRoutingMatch)
+	adminMux.HandleFunc("/api/samples", api.handleSamples)
 	adminMux.HandleFunc("/api/config/export", api.handleExport)
 	adminMux.HandleFunc("/api/config/import", api.handleImport)
 	adminMux.HandleFunc("/api/recipients/link", api.handleLinkRecipient)
@@ -253,7 +264,7 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger, botC
 	// before anyone has a session, and none of them is sensitive.
 	for _, asset := range []string{
 		"/favicon.ico", "/site.webmanifest", "/styles.css",
-		"/preview.js", "/pickers.js", "/routing.js", "/language.js", "/permissions.js", "/icons/", "/vendor/",
+		"/preview.js", "/pickers.js", "/routing.js", "/language.js", "/permissions.js", "/editor.js", "/icons/", "/vendor/",
 	} {
 		mux.HandleFunc(asset, api.handleAssets)
 	}

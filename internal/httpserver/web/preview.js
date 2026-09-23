@@ -17,17 +17,30 @@
 
   // Inserting at the cursor rather than appending: an operator adding a fact
   // to a card wants it where they are looking, not at the end of the file.
+  // A fragment dropped between two array entries needs the comma that the
+  // person would otherwise have to remember; one dropped into an empty field
+  // does not.
+  function fragmentFor(text, before, after) {
+    const needsComma = /[}\]"]\s*$/.test(before) && !/^\s*[,\]}]/.test(after);
+    return (needsComma ? ",\n" : "") + text;
+  }
+
   function insertAtCursor(field, text) {
+    // editor.js cancels this when a code editor stands in for the field, and
+    // inserts at that editor's cursor instead.
+    const handled = !field.dispatchEvent(
+      new CustomEvent("teamster:insert", {
+        cancelable: true,
+        detail: { fragment: (before, after) => fragmentFor(text, before, after) },
+      }),
+    );
+    if (handled) return;
+
     const start = field.selectionStart === null ? field.value.length : field.selectionStart;
     const end = field.selectionEnd === null ? start : field.selectionEnd;
-
-    // A fragment dropped between two array entries needs the comma that the
-    // person would otherwise have to remember; one dropped into an empty field
-    // does not.
     const before = field.value.slice(0, start);
     const after = field.value.slice(end);
-    const needsComma = /[}\]"]\s*$/.test(before) && !/^\s*[,\]}]/.test(after);
-    const fragment = (needsComma ? ",\n" : "") + text;
+    const fragment = fragmentFor(text, before, after);
 
     field.value = before + fragment + after;
     const caret = start + fragment.length;

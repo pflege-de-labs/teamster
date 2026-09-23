@@ -253,7 +253,7 @@ func TestBotMessagesAuthentication(t *testing.T) {
 		Admin:   config.AdminConfig{Username: "admin", Password: "pass"},
 		Bot:     botTestConfig(idp, clientID),
 	}
-	srv, err := NewServer(cfg, newFakeStore(), &fakeMessenger{}, nil, newRecordingTelemetry())
+	srv, err := NewServer(cfg, newFakeStore(), &fakeMessenger{}, nil, newRecordingTelemetry(), nil)
 	if err != nil {
 		t.Fatalf("NewServer: %v", err)
 	}
@@ -494,7 +494,7 @@ func TestBotMessagesRejectsGet(t *testing.T) {
 		Admin:   config.AdminConfig{Username: "admin", Password: "pass"},
 		Bot:     botTestConfig(idp, "bot-client-id"),
 	}
-	srv, err := NewServer(cfg, newFakeStore(), &fakeMessenger{}, nil, newRecordingTelemetry())
+	srv, err := NewServer(cfg, newFakeStore(), &fakeMessenger{}, nil, newRecordingTelemetry(), nil)
 	if err != nil {
 		t.Fatalf("NewServer: %v", err)
 	}
@@ -519,7 +519,7 @@ func TestBotMessagesRouteAbsentWhenUnconfigured(t *testing.T) {
 		Webhook: config.WebhookConfig{Token: "token"},
 		Admin:   config.AdminConfig{Username: "admin", Password: "pass"},
 	}
-	srv, err := NewServer(cfg, newFakeStore(), &fakeMessenger{}, nil, newRecordingTelemetry())
+	srv, err := NewServer(cfg, newFakeStore(), &fakeMessenger{}, nil, newRecordingTelemetry(), nil)
 	if err != nil {
 		t.Fatalf("NewServer: %v", err)
 	}
@@ -547,7 +547,7 @@ func TestBotMessagesRefusalsAreCountedSeparately(t *testing.T) {
 		Bot:     botTestConfig(idp, clientID),
 	}
 	tel := newRecordingTelemetry()
-	srv, err := NewServer(cfg, newFakeStore(), &fakeMessenger{}, nil, tel)
+	srv, err := NewServer(cfg, newFakeStore(), &fakeMessenger{}, nil, tel, nil)
 	if err != nil {
 		t.Fatalf("NewServer: %v", err)
 	}
@@ -780,7 +780,7 @@ func TestBotMessagesMetadataUnreachableFailsClosed(t *testing.T) {
 			TenantType: "single", TimeoutSec: 10, MetadataURL: badMeta.URL,
 		},
 	}
-	srv, err := NewServer(cfg, newFakeStore(), &fakeMessenger{}, nil, newRecordingTelemetry())
+	srv, err := NewServer(cfg, newFakeStore(), &fakeMessenger{}, nil, newRecordingTelemetry(), nil)
 	if err != nil {
 		t.Fatalf("NewServer: %v", err)
 	}
@@ -832,7 +832,7 @@ func TestBotMessagesEndorsementsUnreachableFailsClosed(t *testing.T) {
 		Admin:   config.AdminConfig{Username: "admin", Password: "pass"},
 		Bot:     botTestConfig(idp, clientID),
 	}
-	srv, err := NewServer(cfg, newFakeStore(), &fakeMessenger{}, nil, newRecordingTelemetry())
+	srv, err := NewServer(cfg, newFakeStore(), &fakeMessenger{}, nil, newRecordingTelemetry(), nil)
 	if err != nil {
 		t.Fatalf("NewServer: %v", err)
 	}
@@ -939,7 +939,7 @@ func TestBotMessagesKeyWithNoEndorsementsMemberIsRefused(t *testing.T) {
 		Admin:   config.AdminConfig{Username: "admin", Password: "pass"},
 		Bot:     botTestConfig(idp, clientID),
 	}
-	srv, err := NewServer(cfg, newFakeStore(), &fakeMessenger{}, nil, newRecordingTelemetry())
+	srv, err := NewServer(cfg, newFakeStore(), &fakeMessenger{}, nil, newRecordingTelemetry(), nil)
 	if err != nil {
 		t.Fatalf("NewServer: %v", err)
 	}

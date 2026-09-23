@@ -16,6 +16,30 @@ templ Layout(title string, viewer *Viewer) {
 			<link rel="manifest" href="/site.webmanifest"/>
 			<meta name="theme-color" content="#79d0fd"/>
 			<link rel="stylesheet" href="/styles.css"/>
+			if viewer != nil && viewer.CanComplete {
+				<meta name="teamster-samples" content="/api/samples"/>
+			}
+			// Bare specifiers for the vendored CodeMirror modules editor.js imports; see ADR 0041.
+			<script type="importmap">
+				{
+					"imports": {
+						"@codemirror/autocomplete": "/vendor/codemirror-autocomplete.js",
+						"@codemirror/commands": "/vendor/codemirror-commands.js",
+						"@codemirror/lang-json": "/vendor/codemirror-lang-json.js",
+						"@codemirror/language": "/vendor/codemirror-language.js",
+						"@codemirror/state": "/vendor/codemirror-state.js",
+						"@codemirror/view": "/vendor/codemirror-view.js",
+						"@lezer/common": "/vendor/lezer-common.js",
+						"@lezer/highlight": "/vendor/lezer-highlight.js",
+						"@lezer/json": "/vendor/lezer-json.js",
+						"@lezer/lr": "/vendor/lezer-lr.js",
+						"@marijn/find-cluster-break": "/vendor/find-cluster-break.js",
+						"crelt": "/vendor/crelt.js",
+						"style-mod": "/vendor/style-mod.js",
+						"w3c-keyname": "/vendor/w3c-keyname.js"
+					}
+				}
+			</script>
 		</head>
 		<body class="min-h-screen bg-slate-50 text-slate-900">
 			<header class="border-b border-slate-200 bg-white">
@@ -52,6 +76,7 @@ templ Layout(title string, viewer *Viewer) {
 			<script src="/routing.js"></script>
 			<script src="/language.js"></script>
 			<script src="/permissions.js"></script>
+			<script type="module" src="/editor.js"></script>
 		</body>
 	</html>
 }

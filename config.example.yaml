@@ -173,3 +173,19 @@ graph:
   token-url: ""
   scope: "https://graph.microsoft.com/.default"
   timeout-sec: 10
+
+# What is remembered of incoming alerts so the template and route editors can
+# complete label keys, label values and annotation keys (ADR 0041). Annotation
+# values are never stored: they are free text and may carry sensitive detail.
+samples:
+  enabled: true
+  # A sample not seen for this long is forgotten.
+  retention: "720h"
+  # Only the most recently seen values of each label key are kept.
+  max-values-per-key: 50
+  # Longer label values are not sampled at all.
+  max-value-length: 200
+  # Held in memory so a label seen on every alert is written at most once per
+  # flush-interval rather than once per alert.
+  lru-size: 4096
+  flush-interval: "5m"

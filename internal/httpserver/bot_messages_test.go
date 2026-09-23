@@ -106,7 +106,7 @@ func newBotFixture(t *testing.T) *botFixture {
 		Admin:   config.AdminConfig{Username: "admin", Password: "pass"},
 		Bot:     botTestConfig(idp, clientID),
 	}
-	srv, err := NewServer(cfg, st, &fakeMessenger{}, botClient, newRecordingTelemetry())
+	srv, err := NewServer(cfg, st, &fakeMessenger{}, botClient, newRecordingTelemetry(), nil)
 	if err != nil {
 		t.Fatalf("NewServer: %v", err)
 	}

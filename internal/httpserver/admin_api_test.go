@@ -34,7 +34,7 @@ func mustServer(t *testing.T, cfg config.Config, st *fakeStore, msg *fakeMesseng
 func mustServerWithBot(t *testing.T, cfg config.Config, st *fakeStore, msg *fakeMessenger, botClient botSender) *http.Server {
 	t.Helper()
 
-	srv, err := NewServer(cfg, st, msg, botClient, metrics.Disabled())
+	srv, err := NewServer(cfg, st, msg, botClient, metrics.Disabled(), nil)
 	if err != nil {
 		t.Fatalf("NewServer: %v", err)
 	}

@@ -227,4 +227,16 @@ type Store interface {
 	// someone cannot strand a claimed or posted row that a resolve would then
 	// fail against forever.
 	DeleteActiveAlertRecipientsFor(ctx context.Context, recipientID string) error
+
+	// RecordAlertSamples adds each sample's SeenCount to what is stored for its
+	// kind, key and value, creating the row if there is none (ADR 0041).
+	// SQLiteStore and PostgresStore commit the whole batch in one transaction.
+	RecordAlertSamples(ctx context.Context, samples []models.AlertSample) error
+	// ListAlertSamples returns at most limit samples, grouped by kind and key
+	// and most recently seen first within each key.
+	ListAlertSamples(ctx context.Context, limit int) ([]models.AlertSample, error)
+	// PruneAlertSamples forgets samples last seen before cutoff, and label
+	// values beyond the keepPerKey most recently seen for each key. Replicas
+	// sharing a database may all run it: a second run finds nothing to delete.
+	PruneAlertSamples(ctx context.Context, cutoff time.Time, keepPerKey int) (int64, error)
 }

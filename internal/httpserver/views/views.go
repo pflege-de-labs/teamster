@@ -15,6 +15,7 @@ import (
 	"github.com/pflege-de-labs/teamster/internal/cards"
 	"github.com/pflege-de-labs/teamster/internal/i18n"
 	"github.com/pflege-de-labs/teamster/internal/models"
+	render "github.com/pflege-de-labs/teamster/internal/templates"
 )
 
 // A Viewer is who is looking at a page: the name the provider gave them and the
@@ -33,6 +34,9 @@ type Viewer struct {
 	// linking to it otherwise would send someone to mint a code for a bot
 	// that was never registered to receive it.
 	NotificationsEnabled bool
+	// CanComplete is whether the editors may fetch /api/samples; without it
+	// they still complete template syntax, but no label keys or values.
+	CanComplete bool
 }
 
 // roleLabel reads the roles the way an operator would say them, and says so
@@ -79,6 +83,9 @@ type Page struct {
 	// Snippets and Starter are what the card palette inserts.
 	Snippets []cards.Snippet
 	Starter  string
+
+	// Vocabulary is what the template editor completes inside {{ }}.
+	Vocabulary render.Vocabulary
 
 	// CanEdit hides what this session may not do. Hiding is not enforcing —
 	// the server refuses the post either way — but showing a viewer a Save

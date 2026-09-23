@@ -88,8 +88,14 @@ type Querier interface {
 	// resolve forever (see recipientMissing in webhooks.go for the mirror-image
 	// defence against a row that was stranded some other way).
 	DeleteActiveAlertRecipientsFor(ctx context.Context, recipientID string) error
+	DeleteAlertSamplesSeenBefore(ctx context.Context, lastSeen time.Time) (int64, error)
 	DeleteBrokerToken(ctx context.Context, sessionID string) error
 	DeleteDestination(ctx context.Context, id string) error
+	// Keeps the most recently seen values of each label key and deletes the rest.
+	// A correlated count rather than a window function in a subquery, because the
+	// same text has to run on SQLite and Postgres. The tie-break on value makes
+	// two rows seen at the same instant rank the same way on every run.
+	DeleteExcessAlertSampleValues(ctx context.Context, keep int64) (int64, error)
 	DeleteExpiredLinkFlows(ctx context.Context, expiresAt time.Time) error
 	DeleteExpiredLoginFlows(ctx context.Context, expiresAt time.Time) error
 	DeleteExpiredSessions(ctx context.Context, expiresAt time.Time) error
@@ -137,6 +143,9 @@ type Querier interface {
 	// fanned out to, and any claim still in flight. The order is stable so that
 	// delivery, and its tests, see them the same way every time.
 	ListActiveAlerts(ctx context.Context, fingerprint string) ([]ActiveAlert, error)
+	// The CAST keeps the parameter int64 in both dialects: Postgres would
+	// otherwise infer int32 for a LIMIT.
+	ListAlertSamples(ctx context.Context, maxRows int64) ([]AlertSample, error)
 	// Code generated from ../sqlite by internal/store/queries/gen. DO NOT EDIT.
 	//
 	// The statements are the SQLite ones with ? replaced by $n. Edit the SQLite
@@ -234,6 +243,14 @@ type Querier interface {
 	// The token is written by its own statement, so editing an endpoint cannot
 	// silently rotate the secret the sender is using.
 	UpdateWebhookEndpoint(ctx context.Context, arg UpdateWebhookEndpointParams) error
+	// Code generated from ../sqlite by internal/store/queries/gen. DO NOT EDIT.
+	//
+	// The statements are the SQLite ones with ? replaced by $n. Edit the SQLite
+	// file and run make generate.
+	// Adds to the count rather than replacing it, so replicas sharing one
+	// database each contribute what they saw. last_seen only moves forward, so a
+	// replica with a slow clock cannot make a key look older than it is.
+	UpsertAlertSample(ctx context.Context, arg UpsertAlertSampleParams) error
 }
 
 var _ Querier = (*Queries)(nil)
