@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/pflege-de-labs/teamster/internal/models"
+	"github.com/pflege-de-labs/teamster/internal/teamsv2"
 	"github.com/pflege-de-labs/teamster/internal/templates"
 )
 
@@ -44,10 +45,7 @@ func (s *Server) handlePreview(w http.ResponseWriter, r *http.Request) {
 		Title: req.Title,
 		Text:  req.Text,
 		Body:  req.Body,
-	}, templates.RenderData{
-		Alert: previewAlert(req.Sample),
-		Now:   time.Now().UTC().Format(time.RFC3339),
-	})
+	}, previewData(req.Sample))
 	if err != nil {
 		// A broken template is the answer the preview was asked for, not a server fault.
 		writeJSON(w, http.StatusOK, map[string]any{"error": err.Error()})
@@ -60,7 +58,31 @@ func (s *Server) handlePreview(w http.ResponseWriter, r *http.Request) {
 }
 
 func previewSamples() []string {
-	return []string{"firing", "resolved", "message"}
+	return []string{"firing", "resolved", "message", teamsV2Source}
+}
+
+// previewTeamsV2Body is what a Teams V2 sender posts, for previewing a
+// template meant for an endpoint (ADR 0040).
+const previewTeamsV2Body = `{"@type":"MessageCard","themeColor":"FF0000","summary":"Build failed",` +
+	`"title":"Build failed","text":"Pipeline **main** failed at step *test*.",` +
+	`"sections":[{"facts":[{"name":"Branch","value":"main"},{"name":"Commit","value":"4f2a91c"}]}]}`
+
+// previewData is what a sample renders against: an alert, and for a Teams V2
+// sample the payload a template reaches through .Payload.
+func previewData(name string) templates.RenderData {
+	now := time.Now().UTC().Format(time.RFC3339)
+	if name != teamsV2Source {
+		return templates.RenderData{Alert: previewAlert(name), Now: now}
+	}
+	// A constant, and TestPreviewRendersTheTeamsV2Sample proves it parses.
+	msg, _ := teamsv2.Parse([]byte(previewTeamsV2Body))
+	var payload any
+	_ = json.Unmarshal([]byte(previewTeamsV2Body), &payload)
+	alert := models.Alert{Source: teamsV2Source, Title: msg.Title, Text: msg.Text}
+	if len(msg.Cards) > 0 {
+		alert.Card = msg.Cards[0]
+	}
+	return templates.RenderData{Alert: alert, Now: now, Payload: payload}
 }
 
 func previewAlert(name string) models.Alert {

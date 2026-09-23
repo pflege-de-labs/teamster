@@ -44,7 +44,7 @@ Architectural decisions are recorded here, one file per decision, in
 | [0027](0027-notify-on-link-displacement.md) | A displaced recipient conversation is notified, not left silent | Accepted |
 | [0028](0028-self-service-unlink-and-code-cancellation.md) | Self-service unlink resolves from the session, and a code can be cancelled | Accepted |
 | [0029](0029-templates-are-markdown.md) | Message text is authored as Markdown and sanitized once for both transports | Accepted |
-| [0030](0030-teams-v2-compatible-webhooks.md) | Accept the payloads a Teams V2 webhook accepts | Accepted |
+| [0030](0030-teams-v2-compatible-webhooks.md) | Accept the payloads a Teams V2 webhook accepts | Accepted, amended by [0040](0040-teams-v2-endpoint-templates.md) |
 | [0031](0031-vendored-browser-libraries-pinned-and-verified.md) | Vendored browser libraries are pinned in a manifest and verified in CI | Accepted |
 | [0032](0032-retiring-a-link-from-the-chat.md) | A link can be retired from the chat it belongs to | Accepted |
 | [0033](0033-split-httproute-external-and-internal.md) | Split the chart's HTTPRoute into external and internal | Accepted |
@@ -54,3 +54,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0037](0037-delegated-teams-via-keycloak-broker-token.md) | Delegated Teams/Channels via Keycloak broker token pass-through | Accepted |
 | [0038](0038-global-default-destination.md) | Catch every unclaimed message in a global default destination | Accepted |
 | [0039](0039-built-in-default-message.md) | Send a built-in default message when nothing says what a message looks like | Accepted |
+| [0040](0040-teams-v2-endpoint-templates.md) | A Teams V2 endpoint may name a template | Accepted |

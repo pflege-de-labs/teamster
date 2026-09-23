@@ -194,12 +194,19 @@ POST /teamsv2/{team}/{channel}/{token}
             │
    store.GetDestination(endpoint.DestinationID)
             │
+   endpoint.TemplateID? ── yes ──► templates.RenderMessage ── fails ──► 502
+            │ no
+   payload cards + hint card
+            │
    graph.PostMessage ──────────────────────────────────► 200
 ```
 
-There is no routing and no template: the sender has already decided what the message says and the
-URL has already decided where it goes. Nothing is written to `active_alerts` either, because there
-is no fingerprint and no status, so there is nothing later to update or resolve.
+There is no routing, because the URL has already decided where the message goes. An endpoint may
+name a template. It renders with `.Alert` set to the parsed message and `.Payload` set to the raw
+body as decoded JSON. An endpoint without a template sends the payload as it came, followed by the
+hint card from [Messages](#messages), which links to that endpoint's form. See
+[ADR 0040](adr/0040-teams-v2-endpoint-templates.md). Nothing is written to `active_alerts`, because
+there is no fingerprint and no status, so there is nothing later to update or resolve.
 
 An endpoint names a `Destination` rather than a Team and a channel of its own, which is what makes
 it inherit the Teams picker that filled the destination and the grants that bound who may choose
@@ -515,7 +522,8 @@ means and [Managing recipients](#managing-recipients) for where it is read.
 webhook URL: the two slugs that name it, the destination it posts into, and a SHA-256 digest of the
 token the sender puts in the path. The pair of slugs is unique, because the pair is the URL. The
 token itself is nowhere in the database, so rotating is the only way to recover from a URL that
-leaked.
+leaked. `0012` in SQLite and `0009` in Postgres add `template_id` (`NOT NULL DEFAULT ''`). This
+additive column is where an endpoint names the template it renders with.
 
 `0011` in SQLite and `0008` in Postgres add `destinations.is_default`
 (`NOT NULL DEFAULT false`), a partial unique index `WHERE is_default` that allows at most one

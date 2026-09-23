@@ -156,6 +156,7 @@
   "sample.firing": "firing alert",
   "sample.message": "general message",
   "sample.resolved": "resolved alert",
+  "sample.teamsv2": "Teams V2 webhook",
   "templates.body_field": "Adaptive Card JSON (optional)",
   "templates.empty": "No templates yet. A route needs one to render its message.",
   "templates.name": "Name",
@@ -172,5 +173,7 @@
   "webhooks.new_url": "Copy this URL now. The token is stored only as a digest and cannot be shown again.",
   "webhooks.panel": "Teams V2 webhooks",
   "webhooks.rotate": "New token",
-  "webhooks.team_slug": "Team name in the URL"
+  "webhooks.team_slug": "Team name in the URL",
+  "webhooks.template": "Template (optional)",
+  "webhooks.template_none": "— none, send the payload as it came —"
 }

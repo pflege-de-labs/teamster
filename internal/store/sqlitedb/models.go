@@ -130,4 +130,5 @@ type WebhookEndpoint struct {
 	TokenHash     string
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
+	TemplateID    string
 }

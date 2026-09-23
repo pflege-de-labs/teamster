@@ -39,6 +39,10 @@ func (s *Server) handleWebhookForm(w http.ResponseWriter, r *http.Request) {
 		redirectTo("/admin", w, r, "", errDeliveryRefused.Error())
 		return
 	}
+	if err := s.endpointTemplateExists(r.Context(), endpoint); err != nil {
+		redirectTo("/admin", w, r, "", err.Error())
+		return
+	}
 
 	// An existing endpoint keeps its token, so its senders keep working.
 	if endpoint.ID != "" {
@@ -136,6 +140,7 @@ func webhookEndpointFromForm(r *http.Request) (models.WebhookEndpoint, error) {
 		TeamSlug:      strings.ToLower(strings.TrimSpace(r.PostFormValue("team_slug"))),
 		ChannelSlug:   strings.ToLower(strings.TrimSpace(r.PostFormValue("channel_slug"))),
 		DestinationID: r.PostFormValue("destination_id"),
+		TemplateID:    r.PostFormValue("template_id"),
 	}
 	if err := validateWebhookEndpoint(endpoint); err != nil {
 		return models.WebhookEndpoint{}, err
@@ -149,6 +154,23 @@ func validateWebhookEndpoint(endpoint models.WebhookEndpoint) error {
 	}
 	if endpoint.DestinationID == "" {
 		return errors.New("a webhook needs a destination to post into")
+	}
+	return nil
+}
+
+// errUnknownTemplate is an endpoint naming a template that is not there, which
+// would fail every message it receives.
+var errUnknownTemplate = errors.New("the webhook names a template that does not exist")
+
+func (s *Server) endpointTemplateExists(ctx context.Context, endpoint models.WebhookEndpoint) error {
+	if endpoint.TemplateID == "" {
+		return nil
+	}
+	if _, err := s.store.GetTemplate(ctx, endpoint.TemplateID); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return errUnknownTemplate
+		}
+		return err
 	}
 	return nil
 }

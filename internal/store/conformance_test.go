@@ -492,6 +492,7 @@ func TestConformanceWebhookEndpoints(t *testing.T) {
 			TeamSlug:      "platform",
 			ChannelSlug:   "alerts",
 			DestinationID: "dest-1",
+			TemplateID:    "tmpl-1",
 			TokenHash:     "digest-1",
 		})
 		if err != nil {
@@ -506,7 +507,7 @@ func TestConformanceWebhookEndpoints(t *testing.T) {
 			t.Fatalf("GetWebhookEndpoint: %v", err)
 		}
 		if got.TeamSlug != "platform" || got.ChannelSlug != "alerts" ||
-			got.DestinationID != "dest-1" || got.TokenHash != "digest-1" {
+			got.DestinationID != "dest-1" || got.TemplateID != "tmpl-1" || got.TokenHash != "digest-1" {
 			t.Errorf("endpoint = %+v, want it round-tripped from %+v", got, created)
 		}
 		// Postgres keeps microseconds and SQLite nanoseconds, so the stamps are
@@ -526,6 +527,7 @@ func TestConformanceWebhookEndpoints(t *testing.T) {
 		// Editing an endpoint leaves the secret its sender is using alone.
 		moved := got
 		moved.ChannelSlug = "incidents"
+		moved.TemplateID = ""
 		moved.TokenHash = "digest-2"
 		if _, err := st.UpdateWebhookEndpoint(ctx, moved); err != nil {
 			t.Fatalf("UpdateWebhookEndpoint: %v", err)
@@ -536,6 +538,9 @@ func TestConformanceWebhookEndpoints(t *testing.T) {
 		}
 		if after.ChannelSlug != "incidents" {
 			t.Errorf("ChannelSlug = %q, want the updated one", after.ChannelSlug)
+		}
+		if after.TemplateID != "" {
+			t.Errorf("TemplateID = %q, want it cleared", after.TemplateID)
 		}
 		if after.TokenHash != "digest-1" {
 			t.Errorf("TokenHash = %q, want the update to have left it alone", after.TokenHash)

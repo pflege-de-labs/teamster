@@ -169,6 +169,14 @@ func (s *Server) decodeWebhookEndpoint(w http.ResponseWriter, r *http.Request, i
 		writeJSONError(w, http.StatusForbidden, errDeliveryRefused.Error())
 		return models.WebhookEndpoint{}, false
 	}
+	if err := s.endpointTemplateExists(r.Context(), endpoint); err != nil {
+		status := http.StatusInternalServerError
+		if errors.Is(err, errUnknownTemplate) {
+			status = http.StatusBadRequest
+		}
+		writeJSONError(w, status, err.Error())
+		return models.WebhookEndpoint{}, false
+	}
 	return endpoint, true
 }
 

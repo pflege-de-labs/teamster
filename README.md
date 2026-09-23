@@ -427,12 +427,23 @@ needs the connector to call the sender back and nothing here can. `themeColor` b
 five container styles Adaptive Cards has, chosen by hue: red reads as `attention`, orange and
 yellow as `warning`, green as `good`, blue and purple as `accent`, and a grey gets none.
 
+By default the payload is posted as it came, with a small card after it saying that no template is
+defined. You can instead pick a **Template** for the endpoint in its form. The template then shapes
+the message:
+
+- `.Alert.Title`, `.Alert.Text` and `.Alert.Card` hold the parsed message, and `.Alert.Source` is
+  `teamsv2`. `Text` is already HTML.
+- `.Payload` is the body as it was sent, for fields the parsed form flattens, such as
+  `{{ .Payload.themeColor }}` or `{{ range .Payload.sections }}`.
+
+The template preview has a **Teams V2 webhook** sample to try this against.
+
 Nothing is tracked afterwards. There is no status and no fingerprint in these payloads, so a message
 sent this way is never updated or resolved — unlike an alert, which keeps its card up to date.
 
 Responses: `200` when the message was posted, `404` for a team and channel nobody configured, `401`
 for a wrong token, `400` for a body that carries neither text nor a card, `413` for a body over
-128 KiB, and `502` when Teams or the database fails.
+128 KiB, and `502` when Teams or the database fails, or the endpoint's template does not render.
 
 ## Templates
 

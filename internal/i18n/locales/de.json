@@ -156,6 +156,7 @@
   "sample.firing": "Alarm: ausgelöst",
   "sample.message": "Allgemeine Nachricht",
   "sample.resolved": "Alarm: behoben",
+  "sample.teamsv2": "Teams-V2-Webhook",
   "templates.body_field": "Adaptive-Card-JSON (optional)",
   "templates.empty": "Noch keine Vorlagen. Eine Route braucht eine, um ihre Nachricht zu erzeugen.",
   "templates.name": "Name",
@@ -172,5 +173,7 @@
   "webhooks.new_url": "Kopieren Sie diese URL jetzt. Vom Token wird nur ein Hashwert gespeichert; es kann nicht erneut angezeigt werden.",
   "webhooks.panel": "Teams-V2-Webhooks",
   "webhooks.rotate": "Neues Token",
-  "webhooks.team_slug": "Teamname in der URL"
+  "webhooks.team_slug": "Teamname in der URL",
+  "webhooks.template": "Vorlage (optional)",
+  "webhooks.template_none": "— keine, Nutzlast unverändert senden —"
 }

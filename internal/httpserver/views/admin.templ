@@ -162,6 +162,7 @@ templ webhooks(page Page) {
 				@textField("team_slug", i18n.T(ctx, "webhooks.team_slug"), "platform", page.editingWebhookEndpoint().TeamSlug)
 				@textField("channel_slug", i18n.T(ctx, "webhooks.channel_slug"), "alerts", page.editingWebhookEndpoint().ChannelSlug)
 				@selectField("destination_id", i18n.T(ctx, "routes.destination"), destinationOptions(page), page.editingWebhookEndpoint().DestinationID)
+				@selectField("template_id", i18n.T(ctx, "webhooks.template"), webhookTemplateOptions(ctx, page), page.editingWebhookEndpoint().TemplateID)
 				<p class="text-xs text-slate-500">{ i18n.T(ctx, "webhooks.hint") }</p>
 				<div class="flex items-center gap-2">
 					@submit(submitLabel(ctx, page.EditWebhookEndpoint != nil, "noun.webhook"))
@@ -183,7 +184,12 @@ templ webhooks(page Page) {
 						<li class="flex items-center justify-between gap-4 py-3">
 							<div class="min-w-0">
 								<div class="truncate font-medium">/teamsv2/{ e.TeamSlug }/{ e.ChannelSlug }</div>
-								<div class="truncate text-xs text-slate-500">{ page.destinationName(e.DestinationID) }</div>
+								<div class="truncate text-xs text-slate-500">
+									{ page.destinationName(e.DestinationID) }
+									if e.TemplateID != "" {
+										· { page.templateName(e.TemplateID) }
+									}
+								</div>
 							</div>
 							<div class="flex shrink-0 items-center gap-2">
 								if page.CanEdit {

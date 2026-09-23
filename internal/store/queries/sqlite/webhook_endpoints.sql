@@ -1,10 +1,10 @@
 -- name: ListWebhookEndpoints :many
-SELECT id, team_slug, channel_slug, destination_id, token_hash, created_at, updated_at
+SELECT id, team_slug, channel_slug, destination_id, token_hash, created_at, updated_at, template_id
 FROM webhook_endpoints
 ORDER BY team_slug, channel_slug;
 
 -- name: GetWebhookEndpoint :one
-SELECT id, team_slug, channel_slug, destination_id, token_hash, created_at, updated_at
+SELECT id, team_slug, channel_slug, destination_id, token_hash, created_at, updated_at, template_id
 FROM webhook_endpoints
 WHERE id = ?;
 
@@ -12,19 +12,19 @@ WHERE id = ?;
 -- only lookup a sender can reach, so it matches on the pair alone and leaves
 -- the token to a constant-time comparison outside SQL.
 -- name: GetWebhookEndpointBySlug :one
-SELECT id, team_slug, channel_slug, destination_id, token_hash, created_at, updated_at
+SELECT id, team_slug, channel_slug, destination_id, token_hash, created_at, updated_at, template_id
 FROM webhook_endpoints
 WHERE team_slug = ? AND channel_slug = ?;
 
 -- name: CreateWebhookEndpoint :exec
-INSERT INTO webhook_endpoints (id, team_slug, channel_slug, destination_id, token_hash, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?);
+INSERT INTO webhook_endpoints (id, team_slug, channel_slug, destination_id, token_hash, created_at, updated_at, template_id)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
 
 -- The token is written by its own statement, so editing an endpoint cannot
 -- silently rotate the secret the sender is using.
 -- name: UpdateWebhookEndpoint :exec
 UPDATE webhook_endpoints
-SET team_slug = ?, channel_slug = ?, destination_id = ?, updated_at = ?
+SET team_slug = ?, channel_slug = ?, destination_id = ?, updated_at = ?, template_id = ?
 WHERE id = ?;
 
 -- name: RotateWebhookEndpointToken :exec
