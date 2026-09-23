@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/jackc/pgx/v5/stdlib"
 
+	"github.com/pflege-de-labs/teamster/internal/models"
 	"github.com/pflege-de-labs/teamster/internal/store/migrations"
 	"github.com/pflege-de-labs/teamster/internal/store/pgdb"
 )
@@ -147,6 +148,11 @@ func (s *PostgresStore) SetDefaultDestination(ctx context.Context, id string) er
 	return s.WithTx(ctx, func(ctx context.Context, tx Store) error {
 		return tx.SetDefaultDestination(ctx, id)
 	})
+}
+
+// RecordAlertSamples overrides queryAdapter's to commit the batch at once.
+func (s *PostgresStore) RecordAlertSamples(ctx context.Context, samples []models.AlertSample) error {
+	return recordAlertSamplesInTx(ctx, s, samples)
 }
 
 func (s *PostgresStore) WithTx(ctx context.Context, fn func(ctx context.Context, tx Store) error) error {

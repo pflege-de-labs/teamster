@@ -15,6 +15,7 @@ import (
 	"github.com/pflege-de-labs/teamster/internal/graph"
 	"github.com/pflege-de-labs/teamster/internal/httpserver"
 	"github.com/pflege-de-labs/teamster/internal/metrics"
+	"github.com/pflege-de-labs/teamster/internal/samples"
 	"github.com/pflege-de-labs/teamster/internal/store"
 )
 
@@ -139,7 +140,12 @@ func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
 		botClient = client
 	}
 
-	srv, err := httpserver.NewServer(*cfg, sqlStore, graphClient, botClient, telemetry)
+	sampler, err := samples.New(sqlStore, cfg.Samples)
+	if err != nil {
+		return fmt.Errorf("samples: %w", err)
+	}
+
+	srv, err := httpserver.NewServer(*cfg, sqlStore, graphClient, botClient, telemetry, sampler)
 	if err != nil {
 		return fmt.Errorf("http server: %w", err)
 	}
@@ -155,6 +161,19 @@ func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
 	log.Printf("listening on %s", url.String())
 
 	go sweepSessions(ctx, sqlStore)
+
+	// Stopped only once the drain below is over, so the alerts it delivers are
+	// sampled too, and waited for before the store closes: its last act is a write.
+	samplerCtx, stopSampler := context.WithCancel(context.WithoutCancel(ctx))
+	samplerDone := make(chan struct{})
+	go func() {
+		defer close(samplerDone)
+		sampler.Run(samplerCtx)
+	}()
+	defer func() {
+		stopSampler()
+		<-samplerDone
+	}()
 
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- srv.Serve(listener) }()

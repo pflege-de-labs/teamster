@@ -1214,3 +1214,64 @@ func (s queryAdapter) ClearRecipientBlocked(ctx context.Context, id string) erro
 func nullTime(t time.Time) sql.NullTime {
 	return sql.NullTime{Time: t, Valid: !t.IsZero()}
 }
+
+func (s queryAdapter) RecordAlertSamples(ctx context.Context, samples []models.AlertSample) error {
+	for _, sample := range samples {
+		err := s.q.UpsertAlertSample(ctx, sqlitedb.UpsertAlertSampleParams{
+			Kind:      string(sample.Kind),
+			Key:       sample.Key,
+			Value:     sample.Value,
+			SeenCount: sample.SeenCount,
+			FirstSeen: sample.FirstSeen,
+			LastSeen:  sample.LastSeen,
+		})
+		if err != nil {
+			return fmt.Errorf("record alert sample %s %q: %w", sample.Kind, sample.Key, err)
+		}
+	}
+	return nil
+}
+
+// recordAlertSamplesInTx is the store-level RecordAlertSamples: one commit per
+// batch rather than per row, which on SQLite is one fsync instead of dozens.
+func recordAlertSamplesInTx(ctx context.Context, s interface {
+	WithTx(ctx context.Context, fn func(ctx context.Context, tx Store) error) error
+}, samples []models.AlertSample) error {
+	if len(samples) == 0 {
+		return nil
+	}
+	return s.WithTx(ctx, func(ctx context.Context, tx Store) error {
+		return tx.RecordAlertSamples(ctx, samples)
+	})
+}
+
+func (s queryAdapter) ListAlertSamples(ctx context.Context, limit int) ([]models.AlertSample, error) {
+	rows, err := s.q.ListAlertSamples(ctx, int64(limit))
+	if err != nil {
+		return nil, fmt.Errorf("list alert samples: %w", err)
+	}
+	out := make([]models.AlertSample, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, models.AlertSample{
+			Kind:      models.AlertSampleKind(row.Kind),
+			Key:       row.Key,
+			Value:     row.Value,
+			SeenCount: row.SeenCount,
+			FirstSeen: row.FirstSeen,
+			LastSeen:  row.LastSeen,
+		})
+	}
+	return out, nil
+}
+
+func (s queryAdapter) PruneAlertSamples(ctx context.Context, cutoff time.Time, keepPerKey int) (int64, error) {
+	expired, err := s.q.DeleteAlertSamplesSeenBefore(ctx, cutoff)
+	if err != nil {
+		return 0, fmt.Errorf("prune expired alert samples: %w", err)
+	}
+	excess, err := s.q.DeleteExcessAlertSampleValues(ctx, int64(keepPerKey))
+	if err != nil {
+		return expired, fmt.Errorf("prune excess alert sample values: %w", err)
+	}
+	return expired + excess, nil
+}

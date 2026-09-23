@@ -57,7 +57,8 @@ func readVendorManifest(t *testing.T) vendorManifest {
 // The layout is what actually loads these files, so it is what decides which
 // ones have to exist. Without this the manifest and the directory could agree
 // with each other perfectly while the admin UI served 404s for its renderer.
-var vendorScriptPattern = regexp.MustCompile(`src="/vendor/([^"]+)"`)
+// A module is loaded through the layout's import map rather than a src.
+var vendorScriptPattern = regexp.MustCompile(`(?:src=|":\s*)"/vendor/([^"]+)"`)
 
 func TestTheManifestDescribesTheScriptsTheViewsLoad(t *testing.T) {
 	t.Parallel()
@@ -334,6 +335,49 @@ func TestEveryVendoredFileIsServed(t *testing.T) {
 		}
 		if rec.Body.Len() == 0 {
 			t.Errorf("GET /vendor/%s served nothing", lib.File)
+		}
+	}
+}
+
+var (
+	importMapPattern    = regexp.MustCompile(`(?s)<script type="importmap">(.*?)</script>`)
+	moduleImportPattern = regexp.MustCompile(`(?m)(?:^(?:import|export)\s+(?:[\w*{}\s,$]+?\s+from\s+)?|\bimport\(\s*)['"]([^'"./][^'"]*)['"]`)
+)
+
+// A version bump that adds a dependency would otherwise fail only in a browser,
+// as an import the map cannot resolve.
+func TestTheImportMapResolvesEveryModuleImport(t *testing.T) {
+	t.Parallel()
+
+	layout, err := os.ReadFile("views/layout.templ")
+	if err != nil {
+		t.Fatalf("read layout: %v", err)
+	}
+	match := importMapPattern.FindSubmatch(layout)
+	if match == nil {
+		t.Fatal("views/layout.templ has no import map")
+	}
+	var importMap struct {
+		Imports map[string]string `json:"imports"`
+	}
+	if err := json.Unmarshal(match[1], &importMap); err != nil {
+		t.Fatalf("the import map is not JSON: %v", err)
+	}
+
+	modules := []string{"web/editor.js"}
+	for _, target := range importMap.Imports {
+		modules = append(modules, "web"+target)
+	}
+	for _, module := range modules {
+		source, err := os.ReadFile(module)
+		if err != nil {
+			t.Errorf("read %s: %v", module, err)
+			continue
+		}
+		for _, imported := range moduleImportPattern.FindAllStringSubmatch(string(source), -1) {
+			if _, ok := importMap.Imports[imported[1]]; !ok {
+				t.Errorf("%s imports %q, which the import map does not resolve", module, imported[1])
+			}
 		}
 	}
 }

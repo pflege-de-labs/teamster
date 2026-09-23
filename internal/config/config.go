@@ -20,6 +20,7 @@ type Config struct {
 	Auth     AuthConfig     `embed:"" prefix:"auth-"`
 	Graph    GraphConfig    `embed:"" prefix:"graph-"`
 	Bot      BotConfig      `embed:"" prefix:"bot-"`
+	Samples  SamplesConfig  `embed:"" prefix:"samples-"`
 }
 
 type ServerConfig struct {
@@ -196,6 +197,39 @@ func (c BotConfig) Configured() bool {
 	// botframework.com tenant and needs no tenant id of its own; see
 	// validateBot for the same rule applied to config validation.
 	return c.TenantType == "multi" || c.TenantID != ""
+}
+
+// SamplesConfig bounds what is remembered of incoming alerts so the admin UI
+// can complete label keys, label values and annotation keys (ADR 0041).
+// Annotation values are never kept, whatever these say.
+type SamplesConfig struct {
+	Enabled         bool          `help:"Remember label keys, label values and annotation keys of incoming alerts for editor completion." default:"true"`
+	Retention       time.Duration `help:"How long a sample is kept after it was last seen." default:"720h"`
+	MaxValuesPerKey int           `help:"How many of the most recently seen values are kept per label key." name:"max-values-per-key" default:"50"`
+	MaxValueLength  int           `help:"Label values longer than this many bytes are not sampled." name:"max-value-length" default:"200"`
+	LRUSize         int           `help:"How many samples are held in memory to coalesce writes." name:"lru-size" default:"4096"`
+	FlushInterval   time.Duration `help:"How long a sample already written waits before its count is written again." name:"flush-interval" default:"5m"`
+}
+
+// validateSamples refuses a bound of zero or less, which would either keep
+// nothing while claiming to sample or make the in-memory cache unusable.
+func validateSamples(cfg SamplesConfig) error {
+	if !cfg.Enabled {
+		return nil
+	}
+	switch {
+	case cfg.Retention <= 0:
+		return fmt.Errorf("samples-retention must be positive, not %s", cfg.Retention)
+	case cfg.MaxValuesPerKey <= 0:
+		return fmt.Errorf("samples-max-values-per-key must be positive, not %d", cfg.MaxValuesPerKey)
+	case cfg.MaxValueLength <= 0:
+		return fmt.Errorf("samples-max-value-length must be positive, not %d", cfg.MaxValueLength)
+	case cfg.LRUSize <= 0:
+		return fmt.Errorf("samples-lru-size must be positive, not %d", cfg.LRUSize)
+	case cfg.FlushInterval <= 0:
+		return fmt.Errorf("samples-flush-interval must be positive, not %s", cfg.FlushInterval)
+	}
+	return nil
 }
 
 // validateDatabase checks what the chosen driver needs, and deliberately does
@@ -389,5 +423,5 @@ func Validate(cfg Config) error {
 	if err := validateAuthBroker(cfg.Auth); err != nil {
 		return err
 	}
-	return nil
+	return validateSamples(cfg.Samples)
 }

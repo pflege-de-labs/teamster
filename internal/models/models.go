@@ -311,3 +311,23 @@ type UniversalWebhookPayload struct {
 	Text        string            `json:"text"`
 	Card        json.RawMessage   `json:"card"`
 }
+
+// AlertSampleKind says which half of an alert a sample came from.
+type AlertSampleKind string
+
+const (
+	SampleLabel      AlertSampleKind = "label"
+	SampleAnnotation AlertSampleKind = "annotation"
+)
+
+// An AlertSample is one label key and value, or one annotation key, that recent
+// alerts carried. The admin UI completes from these (ADR 0041). Value is always
+// empty for an annotation: annotation values are free text and are never kept.
+type AlertSample struct {
+	Kind      AlertSampleKind
+	Key       string
+	Value     string
+	SeenCount int64
+	FirstSeen time.Time
+	LastSeen  time.Time
+}

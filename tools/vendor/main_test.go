@@ -121,10 +121,23 @@ func TestChecksum(t *testing.T) {
 func TestLibraryMetadataURL(t *testing.T) {
 	t.Parallel()
 
-	lib := library{Package: "d3", Version: "7.9.0", Path: "dist/d3.min.js"}
-	const want = "https://registry.npmjs.org/d3/7.9.0"
-	if got := lib.metadataURL("https://registry.npmjs.org/"); got != want {
-		t.Errorf("metadataURL() = %q, want %q", got, want)
+	tests := []struct {
+		name string
+		lib  library
+		want string
+	}{
+		{"plain", library{Package: "d3", Version: "7.9.0"}, "https://registry.npmjs.org/d3/7.9.0"},
+		// The registry answers a scoped name with its slash left unescaped.
+		{"scoped", library{Package: "@codemirror/state", Version: "6.7.6"}, "https://registry.npmjs.org/@codemirror/state/6.7.6"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := tt.lib.metadataURL("https://registry.npmjs.org/"); got != tt.want {
+				t.Errorf("metadataURL() = %q, want %q", got, tt.want)
+			}
+		})
 	}
 }
 

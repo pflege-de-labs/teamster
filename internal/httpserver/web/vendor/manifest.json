@@ -16,6 +16,118 @@
       "license": "MIT",
       "path": "dist/adaptivecards.min.js",
       "sha256": "5e7c13f3300ae7b89b34703501e08d709fbb6635f1c6755b92495577a77344f2"
+    },
+    {
+      "file": "codemirror-state.js",
+      "package": "@codemirror/state",
+      "version": "6.7.6",
+      "license": "MIT",
+      "path": "dist/index.js",
+      "sha256": "cf4ffe7d177bf2c7c5da66c49be0811cc79a29e12cb658238876bbdcef12939c"
+    },
+    {
+      "file": "codemirror-view.js",
+      "package": "@codemirror/view",
+      "version": "6.43.13",
+      "license": "MIT",
+      "path": "dist/index.js",
+      "sha256": "5626b4f31cdf55fd6a92be66d28cd40e9446d2caeb10a5b3f3e6c1c02be42950"
+    },
+    {
+      "file": "codemirror-language.js",
+      "package": "@codemirror/language",
+      "version": "6.12.4",
+      "license": "MIT",
+      "path": "dist/index.js",
+      "sha256": "875ce988fbbed53c47cf4b2aad962afe1d6b23c15ecc40466cdc6be5b59d647e"
+    },
+    {
+      "file": "codemirror-autocomplete.js",
+      "package": "@codemirror/autocomplete",
+      "version": "6.20.3",
+      "license": "MIT",
+      "path": "dist/index.js",
+      "sha256": "2796fb2771a559ee9fbaa65367b96105368dd9ded1bb686df0e005be48801dcd"
+    },
+    {
+      "file": "codemirror-commands.js",
+      "package": "@codemirror/commands",
+      "version": "6.11.1",
+      "license": "MIT",
+      "path": "dist/index.js",
+      "sha256": "395c41fb17d4966162e8d29106e438278123bc3a3fa1b11825debdf1523594a4"
+    },
+    {
+      "file": "codemirror-lang-json.js",
+      "package": "@codemirror/lang-json",
+      "version": "6.0.2",
+      "license": "MIT",
+      "path": "dist/index.js",
+      "sha256": "5472a597498460db724d830a6852ed643eec267bfac3aab1498e8fd83cfd4e60"
+    },
+    {
+      "file": "lezer-common.js",
+      "package": "@lezer/common",
+      "version": "1.5.2",
+      "license": "MIT",
+      "path": "dist/index.js",
+      "sha256": "dab441db7948aae93b8a210d30a0481125bcb8943b129a8c5ebec1354a029e8d"
+    },
+    {
+      "file": "lezer-highlight.js",
+      "package": "@lezer/highlight",
+      "version": "1.2.3",
+      "license": "MIT",
+      "path": "dist/index.js",
+      "sha256": "01969c7657e12fa125543d7bfd1d6591f411fa92e5cae468ef00222a1018322f"
+    },
+    {
+      "file": "lezer-lr.js",
+      "package": "@lezer/lr",
+      "version": "1.4.10",
+      "license": "MIT",
+      "path": "dist/index.js",
+      "sha256": "8d9b94f7c47b5226914e60613ec8bb49c3c3043df4e8d78ee7d19852fe34d582"
+    },
+    {
+      "file": "lezer-json.js",
+      "package": "@lezer/json",
+      "version": "1.0.3",
+      "license": "MIT",
+      "path": "dist/index.js",
+      "sha256": "3310e7216620dc17c6bdfb1665f774e7b0b29918e761ccc74a7e2a83f039a735"
+    },
+    {
+      "file": "style-mod.js",
+      "package": "style-mod",
+      "version": "4.1.4",
+      "license": "MIT",
+      "path": "src/style-mod.js",
+      "sha256": "4bd6b34edda52f362553d33df7e3a10f31fbdc0c95125aabec89c4de6be80b0a"
+    },
+    {
+      "file": "w3c-keyname.js",
+      "package": "w3c-keyname",
+      "version": "2.2.8",
+      "license": "MIT",
+      "path": "index.js",
+      "sha256": "b649dec4f01c7c5eb05be4641b5b698c6938231ee50b38e17a2f0f822ca3df2e"
+    },
+    {
+      "file": "crelt.js",
+      "package": "crelt",
+      "version": "1.0.7",
+      "license": "MIT",
+      "path": "index.js",
+      "sha256": "924800defa2bf95a0bfd16dde589ecebbcd9e36b03635274da84968c77a3721e"
+    },
+    {
+      "file": "find-cluster-break.js",
+      "package": "@marijn/find-cluster-break",
+      "version": "1.0.4",
+      "license": "MIT",
+      "path": "src/index.js",
+      "sha256": "4e9e441fac9db54e09e4e3b1cb0b0393da207ebe943f2ff9efc577821fc03751"
     }
   ]
 }

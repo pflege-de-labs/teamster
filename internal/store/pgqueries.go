@@ -392,3 +392,27 @@ func (p pgQueries) ClearRecipientBlocked(ctx context.Context, id string) error {
 func (p pgQueries) MarkRecipientBlocked(ctx context.Context, arg sqlitedb.MarkRecipientBlockedParams) error {
 	return p.q.MarkRecipientBlocked(ctx, pgdb.MarkRecipientBlockedParams(arg))
 }
+
+func (p pgQueries) DeleteAlertSamplesSeenBefore(ctx context.Context, lastSeen time.Time) (int64, error) {
+	return p.q.DeleteAlertSamplesSeenBefore(ctx, lastSeen)
+}
+
+func (p pgQueries) DeleteExcessAlertSampleValues(ctx context.Context, keep int64) (int64, error) {
+	return p.q.DeleteExcessAlertSampleValues(ctx, keep)
+}
+
+func (p pgQueries) ListAlertSamples(ctx context.Context, maxRows int64) ([]sqlitedb.AlertSample, error) {
+	rows, err := p.q.ListAlertSamples(ctx, maxRows)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]sqlitedb.AlertSample, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, sqlitedb.AlertSample(row))
+	}
+	return out, nil
+}
+
+func (p pgQueries) UpsertAlertSample(ctx context.Context, arg sqlitedb.UpsertAlertSampleParams) error {
+	return p.q.UpsertAlertSample(ctx, pgdb.UpsertAlertSampleParams(arg))
+}

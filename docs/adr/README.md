@@ -55,3 +55,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0038](0038-global-default-destination.md) | Catch every unclaimed message in a global default destination | Accepted |
 | [0039](0039-built-in-default-message.md) | Send a built-in default message when nothing says what a message looks like | Accepted |
 | [0040](0040-teams-v2-endpoint-templates.md) | A Teams V2 endpoint may name a template | Accepted |
+| [0041](0041-editor-completion-from-sampled-labels.md) | Complete templates and routes from labels sampled off incoming alerts | Accepted |

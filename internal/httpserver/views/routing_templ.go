@@ -60,7 +60,7 @@ func RoutingPage(viewer Viewer) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = textareaField("labels", i18n.T(ctx, "routing.labels_field"), "severity=critical\nalertname=HighCPU", "6").Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = editorField("labels", i18n.T(ctx, "routing.labels_field"), "severity=critical\nalertname=HighCPU", "6", "match").Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

@@ -39,6 +39,7 @@ type fakeStore struct {
 	brokerTokens map[string]models.BrokerToken
 	loginFlows   map[string]models.LoginFlow
 	linkFlows    map[string]models.LinkFlow
+	samples      []models.AlertSample
 
 	failOn map[string]bool
 
@@ -1279,4 +1280,44 @@ func cardOf(msg graph.Message) string {
 		return ""
 	}
 	return string(msg.Cards[0])
+}
+
+// RecordAlertSamples merges by kind, key and value, as the upsert does.
+func (f *fakeStore) RecordAlertSamples(ctx context.Context, samples []models.AlertSample) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("RecordAlertSamples"); err != nil {
+		return err
+	}
+next:
+	for _, sample := range samples {
+		for i, existing := range f.samples {
+			if existing.Kind == sample.Kind && existing.Key == sample.Key && existing.Value == sample.Value {
+				f.samples[i].SeenCount += sample.SeenCount
+				f.samples[i].LastSeen = sample.LastSeen
+				continue next
+			}
+		}
+		f.samples = append(f.samples, sample)
+	}
+	return nil
+}
+
+func (f *fakeStore) ListAlertSamples(ctx context.Context, limit int) ([]models.AlertSample, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("ListAlertSamples"); err != nil {
+		return nil, err
+	}
+	out := append([]models.AlertSample(nil), f.samples...)
+	if len(out) > limit {
+		out = out[:limit]
+	}
+	return out, nil
+}
+
+func (f *fakeStore) PruneAlertSamples(ctx context.Context, cutoff time.Time, keepPerKey int) (int64, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return 0, f.failing("PruneAlertSamples")
 }

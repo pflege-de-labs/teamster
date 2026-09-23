@@ -50,14 +50,33 @@ templ selectField(name, label string, options []option, selected string) {
 	</label>
 }
 
-templ textareaField(name, label, value, rows string) {
+// editorField is a textarea editor.js upgrades to a code editor with
+// completion; mode picks what it completes (ADR 0041). Without JavaScript it
+// is the plain textarea it always was.
+templ editorField(name, label, value, rows, mode string) {
 	<label class="block">
 		<span class="text-sm font-medium">{ label }</span>
 		<textarea
 			name={ name }
 			rows={ rows }
+			data-editor={ mode }
 			class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 font-mono text-xs shadow-sm focus:border-sky-500 focus:outline-none"
 		>{ value }</textarea>
+	</label>
+}
+
+// editorLine is editorField for a single line.
+templ editorLine(name, label, placeholder, value, mode string) {
+	<label class="block">
+		<span class="text-sm font-medium">{ label }</span>
+		<input
+			type="text"
+			name={ name }
+			value={ value }
+			placeholder={ placeholder }
+			data-editor={ mode }
+			class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-sky-500 focus:outline-none"
+		/>
 	</label>
 }
 

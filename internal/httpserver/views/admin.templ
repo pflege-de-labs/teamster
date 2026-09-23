@@ -25,10 +25,11 @@ templ templates(page Page) {
 					<input type="hidden" name="id" value={ page.EditTemplate.ID }/>
 				}
 				@textField("name", i18n.T(ctx, "templates.name"), i18n.T(ctx, "templates.name_placeholder"), page.editingTemplate().Name)
-				@textField("title", i18n.T(ctx, "templates.title_field"), "{{ .Alert.Annotations.summary }}", page.editingTemplate().Title)
-				@textareaField("message_text", i18n.T(ctx, "templates.text_field"), page.editingTemplate().Text, "4")
+				@editorLine("title", i18n.T(ctx, "templates.title_field"), "{{ .Alert.Annotations.summary }}", page.editingTemplate().Title, "template-line")
+				@editorField("message_text", i18n.T(ctx, "templates.text_field"), page.editingTemplate().Text, "4", "template")
 				@cardPalette(page)
-				@textareaField("body", i18n.T(ctx, "templates.body_field"), page.editingTemplate().Body, "12")
+				@editorField("body", i18n.T(ctx, "templates.body_field"), page.editingTemplate().Body, "12", "card")
+				@templ.JSONScript("template-vocabulary", page.Vocabulary)
 				<div class="flex flex-wrap items-center gap-2">
 					@submit(submitLabel(ctx, page.EditTemplate != nil, "noun.template"))
 					<button
@@ -239,7 +240,7 @@ templ routes(page Page) {
 				}
 				@textField("name", i18n.T(ctx, "templates.name"), i18n.T(ctx, "routes.name_placeholder"), page.editingRoute().Name)
 				@selectField("parent_id", i18n.T(ctx, "routes.parent"), parentOptions(ctx, page), page.editingRoute().ParentID)
-				@textareaField("label_selector", i18n.T(ctx, "routes.selector"), selectorJSON(page), "3")
+				@editorField("label_selector", i18n.T(ctx, "routes.selector"), selectorJSON(page), "3", "selector")
 				@selectField("destination_id", i18n.T(ctx, "routes.destination"), destinationOptions(page), page.editingRoute().DestinationID)
 				@selectField("recipient_id", i18n.T(ctx, "routes.recipient"), recipientOptions(page), page.editingRoute().RecipientID)
 				@selectField("template_id", i18n.T(ctx, "routes.template"), routeTemplateOptions(ctx, page), page.editingRoute().TemplateID)
