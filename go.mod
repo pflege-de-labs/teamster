@@ -11,7 +11,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/jackc/pgx/v5 v5.11.0
-	github.com/miekg/king v1.0.16
+	github.com/miekg/king v1.0.17
 	github.com/pressly/goose/v3 v3.28.0
 	github.com/yuin/goldmark/v2 v2.1.5
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.71.0
