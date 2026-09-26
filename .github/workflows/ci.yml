@@ -21,7 +21,7 @@ jobs:
           go-version: stable
       - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9
         with:
-          version: v2.13.2
+          version: v2.14.0
 
   # An out-of-date generated file is invisible in review and, for anything but
   # templ, invisible to the compiler too: the build succeeds and the old code
