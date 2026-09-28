@@ -4,11 +4,11 @@
 -- file and run make generate.
 
 -- name: CreateSession :exec
-INSERT INTO sessions (id, subject, name, source, role, created_at, expires_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7);
+INSERT INTO sessions (id, subject, name, source, role, created_at, expires_at, identity)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
 
 -- name: GetSession :one
-SELECT id, subject, name, source, role, created_at, expires_at
+SELECT id, subject, name, source, role, created_at, expires_at, identity
 FROM sessions
 WHERE id = $1;
 

@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/pflege-de-labs/teamster/internal/authz"
 	"github.com/pflege-de-labs/teamster/internal/cards"
 	"github.com/pflege-de-labs/teamster/internal/i18n"
 	"github.com/pflege-de-labs/teamster/internal/models"
@@ -39,20 +40,28 @@ type Viewer struct {
 	CanComplete bool
 }
 
-// roleLabel reads the roles the way an operator would say them, and says so
-// plainly when there are none — that is the case where the page is empty and
-// the reason needs to be in front of them.
+// roleLabel names the highest built-in role, translated, and says so plainly
+// when there is none — that is the case where the page is empty and the reason
+// needs to be in front of them. Other claim values are on the user info page.
 func (v Viewer) roleLabel(ctx context.Context) string {
-	named := make([]string, 0, len(v.Roles))
+	roles := make([]authz.Role, 0, len(v.Roles))
 	for _, role := range v.Roles {
-		if role != "" && role != "none" {
-			named = append(named, role)
-		}
+		roles = append(roles, authz.Role(role))
 	}
-	if len(named) == 0 {
+	highest := authz.Highest(roles)
+	if highest == authz.RoleNone {
 		return i18n.T(ctx, "header.no_role")
 	}
-	return strings.Join(named, ", ")
+	return roleName(ctx, string(highest))
+}
+
+// roleName translates a built-in role and leaves one a deployment defined as
+// it is spelled.
+func roleName(ctx context.Context, role string) string {
+	if !authz.Valid(authz.Role(role)) {
+		return role
+	}
+	return i18n.T(ctx, "role."+role)
 }
 
 // Login carries what the sign-in page needs: which ways in are configured, and
@@ -396,4 +405,12 @@ func WithLanguageChoice(ctx context.Context, choice LanguageChoice) context.Cont
 func languageOf(ctx context.Context) LanguageChoice {
 	choice, _ := ctx.Value(languageContextKey{}).(LanguageChoice)
 	return choice
+}
+
+func roleNames(ctx context.Context, roles []string) []string {
+	names := make([]string, 0, len(roles))
+	for _, role := range roles {
+		names = append(names, roleName(ctx, role))
+	}
+	return names
 }

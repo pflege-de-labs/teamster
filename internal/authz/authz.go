@@ -206,3 +206,14 @@ func Valid(role Role) bool {
 func Known(role Role) bool {
 	return Valid(role) || role == RoleNone
 }
+
+// Highest is the most privileged built-in role among roles, or RoleNone. Roles
+// nest, so it alone says what the holder may do under the shipped policies.
+func Highest(roles []Role) Role {
+	for _, role := range []Role{RoleAdmin, RoleEditor, RoleViewer} {
+		if slices.Contains(roles, role) {
+			return role
+		}
+	}
+	return RoleNone
+}

@@ -10,9 +10,9 @@ import templruntime "github.com/a-h/templ/runtime"
 
 import "github.com/pflege-de-labs/teamster/internal/i18n"
 
-// The language picker sits in the header of every page, including the login
-// page: somebody reading that one in a language they do not speak has nowhere
-// else to change it.
+// The language picker sits in the header of the login page and in the user menu
+// of every other: somebody reading one in a language they do not speak has
+// nowhere else to change it.
 //
 // It is a form rather than a link, because it changes something. The button
 // submits it without JavaScript; language.js hides the button and submits on

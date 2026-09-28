@@ -1,9 +1,9 @@
 -- name: CreateSession :exec
-INSERT INTO sessions (id, subject, name, source, role, created_at, expires_at)
-VALUES (?, ?, ?, ?, ?, ?, ?);
+INSERT INTO sessions (id, subject, name, source, role, created_at, expires_at, identity)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: GetSession :one
-SELECT id, subject, name, source, role, created_at, expires_at
+SELECT id, subject, name, source, role, created_at, expires_at, identity
 FROM sessions
 WHERE id = ?;
 

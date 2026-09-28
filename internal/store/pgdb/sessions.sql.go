@@ -12,8 +12,8 @@ import (
 
 const createSession = `-- name: CreateSession :exec
 
-INSERT INTO sessions (id, subject, name, source, role, created_at, expires_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+INSERT INTO sessions (id, subject, name, source, role, created_at, expires_at, identity)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 `
 
 type CreateSessionParams struct {
@@ -24,6 +24,7 @@ type CreateSessionParams struct {
 	Role      string
 	CreatedAt time.Time
 	ExpiresAt time.Time
+	Identity  string
 }
 
 // Code generated from ../sqlite by internal/store/queries/gen. DO NOT EDIT.
@@ -39,6 +40,7 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) er
 		arg.Role,
 		arg.CreatedAt,
 		arg.ExpiresAt,
+		arg.Identity,
 	)
 	return err
 }
@@ -62,7 +64,7 @@ func (q *Queries) DeleteSession(ctx context.Context, id string) error {
 }
 
 const getSession = `-- name: GetSession :one
-SELECT id, subject, name, source, role, created_at, expires_at
+SELECT id, subject, name, source, role, created_at, expires_at, identity
 FROM sessions
 WHERE id = $1
 `
@@ -78,6 +80,7 @@ func (q *Queries) GetSession(ctx context.Context, id string) (Session, error) {
 		&i.Role,
 		&i.CreatedAt,
 		&i.ExpiresAt,
+		&i.Identity,
 	)
 	return i, err
 }

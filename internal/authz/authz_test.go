@@ -189,3 +189,27 @@ func TestValid(t *testing.T) {
 		}
 	}
 }
+
+func TestHighest(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		roles []Role
+		want  Role
+	}{
+		{"admin wins over the rest", []Role{RoleViewer, "auditor", RoleAdmin, RoleEditor}, RoleAdmin},
+		{"editor over viewer", []Role{RoleViewer, RoleEditor}, RoleEditor},
+		{"viewer among provider roles", []Role{"offline_access", RoleViewer}, RoleViewer},
+		{"only roles of the deployment's own", []Role{"auditor"}, RoleNone},
+		{"none at all", nil, RoleNone},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := Highest(tt.roles); got != tt.want {
+				t.Errorf("Highest(%v) = %q, want %q", tt.roles, got, tt.want)
+			}
+		})
+	}
+}

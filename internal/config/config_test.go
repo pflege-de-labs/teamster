@@ -88,6 +88,7 @@ func TestParseExampleConfig(t *testing.T) {
 			OIDCRedirectURL:  "https://teamster.example/admin/auth/callback",
 			OIDCScopes:       []string{"profile", "email", "roles"},
 			Claim:            "realm_access.roles",
+			GroupsClaim:      "groups",
 			DefaultRole:      "viewer",
 			SessionTTL:       12 * time.Hour,
 			Broker:           BrokerConfig{IdPAlias: "microsoft"},

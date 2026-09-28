@@ -124,6 +124,7 @@ type AuthConfig struct {
 	OIDCRedirectURL  string        `help:"Absolute URL of /admin/auth/callback as registered with the provider." name:"oidc-redirect-url"`
 	OIDCScopes       []string      `help:"Extra scopes to request beyond openid." name:"oidc-scopes" default:"profile,email,roles"`
 	Claim            string        `help:"Dotted path of the claim carrying membership, e.g. realm_access.roles." default:"realm_access.roles"`
+	GroupsClaim      string        `help:"Dotted path of the claim carrying group membership, shown on the user info page; empty to skip." name:"groups-claim" default:"groups"`
 	DefaultRole      string        `help:"Role for a user whose claim names none: admin, editor, viewer, or empty for no access." name:"default-role" enum:"admin,editor,viewer," default:""`
 	SessionTTL       time.Duration `help:"How long a login lasts." default:"12h"`
 

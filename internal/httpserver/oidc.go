@@ -207,14 +207,14 @@ func (s *Server) handleAuthCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	subject, name, roles, err := s.verifyIDToken(ctx, provider, token, flow.Nonce)
+	subject, name, roles, identity, err := s.verifyIDToken(ctx, provider, token, flow.Nonce)
 	if err != nil {
 		logError("oidc verify", err)
 		loginFailed(w, r, err.Error())
 		return
 	}
 
-	sessionID, err := s.startSession(w, r, subject, name, "oidc", roles)
+	sessionID, err := s.startSession(w, r, subject, name, "oidc", roles, identity)
 	if err != nil {
 		logError("start session", err)
 		loginFailed(w, r, "could not start a session")
@@ -235,35 +235,56 @@ func (s *Server) handleAuthCallback(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/admin", http.StatusFound)
 }
 
-func (s *Server) verifyIDToken(ctx context.Context, provider *oidc.Provider, token *oauth2.Token, nonce string) (string, string, []authz.Role, error) {
+func (s *Server) verifyIDToken(ctx context.Context, provider *oidc.Provider, token *oauth2.Token, nonce string) (string, string, []authz.Role, models.Identity, error) {
 	raw, ok := token.Extra("id_token").(string)
 	if !ok {
-		return "", "", nil, errors.New("the identity provider returned no id token")
+		return "", "", nil, models.Identity{}, errors.New("the identity provider returned no id token")
 	}
 
 	idToken, err := provider.Verifier(&oidc.Config{ClientID: s.cfg.Auth.OIDCClientID}).Verify(ctx, raw)
 	if err != nil {
-		return "", "", nil, fmt.Errorf("id token rejected: %w", err)
+		return "", "", nil, models.Identity{}, fmt.Errorf("id token rejected: %w", err)
 	}
 	if idToken.Nonce != nonce {
-		return "", "", nil, errors.New("id token nonce does not match this login")
+		return "", "", nil, models.Identity{}, errors.New("id token nonce does not match this login")
 	}
 
 	var claims map[string]any
 	if err := idToken.Claims(&claims); err != nil {
-		return "", "", nil, fmt.Errorf("read claims: %w", err)
+		return "", "", nil, models.Identity{}, fmt.Errorf("read claims: %w", err)
 	}
 
 	// Whether the claim names a role decides what this user may do, not whether
 	// they may sign in: a user with no role signs in and is told so, which is a
 	// better answer than a login that fails for reasons they cannot see.
-	values, _ := s.membership(ctx, provider, token, claims)
+	lookup := newClaimLookup(ctx, provider, token, claims)
+	values, source := lookup.find(s.cfg.Auth.Claim)
+	identity := models.Identity{
+		Issuer:      idToken.Issuer,
+		Scopes:      s.grantedScopes(token),
+		ClaimValues: values,
+		ClaimSource: source,
+	}
+	identity.Email, _ = claims["email"].(string)
+	if s.cfg.Auth.GroupsClaim != "" {
+		identity.Groups, identity.GroupsSource = lookup.find(s.cfg.Auth.GroupsClaim)
+	}
 
 	name, _ := claims["preferred_username"].(string)
 	if name == "" {
 		name, _ = claims["name"].(string)
 	}
-	return idToken.Subject, name, s.rolesFor(values), nil
+	return idToken.Subject, name, s.rolesFor(values), identity, nil
+}
+
+// grantedScopes are what the token response says was granted, which a provider
+// may narrow from what was asked; it may also leave the field out when the two
+// are the same (RFC 6749 section 5.1).
+func (s *Server) grantedScopes(token *oauth2.Token) []string {
+	if granted, ok := token.Extra("scope").(string); ok && granted != "" {
+		return strings.Fields(granted)
+	}
+	return append([]string{oidc.ScopeOpenID}, s.cfg.Auth.OIDCScopes...)
 }
 
 // rolesFor maps the claim onto roles by name — a provider role called "editor"
@@ -273,30 +294,58 @@ func (s *Server) rolesFor(values []string) []authz.Role {
 	return authz.RolesFor(values, authz.Role(s.cfg.Auth.DefaultRole))
 }
 
-// membership looks for the configured claim in the id token, then in userinfo,
-// then in the access token. Keycloak's role mappers add roles to the access
-// token by default and leave the id token without them, so an id-token-only
-// lookup rejects a correctly configured realm.
+// membership looks for the configured role claim; see claimLookup.
 func (s *Server) membership(ctx context.Context, provider *oidc.Provider, token *oauth2.Token, claims map[string]any) ([]string, string) {
-	if values := claimValues(claims, s.cfg.Auth.Claim); len(values) > 0 {
+	return newClaimLookup(ctx, provider, token, claims).find(s.cfg.Auth.Claim)
+}
+
+// A claimLookup looks for a claim in the id token, then in userinfo, then in
+// the access token. Keycloak's role mappers add roles to the access token by
+// default and leave the id token without them, so an id-token-only lookup
+// rejects a correctly configured realm. Userinfo is fetched at most once, however
+// many claims are looked up.
+type claimLookup struct {
+	ctx      context.Context
+	provider *oidc.Provider
+	token    *oauth2.Token
+	idToken  map[string]any
+
+	userInfo        map[string]any
+	userInfoFetched bool
+}
+
+func newClaimLookup(ctx context.Context, provider *oidc.Provider, token *oauth2.Token, idToken map[string]any) *claimLookup {
+	return &claimLookup{ctx: ctx, provider: provider, token: token, idToken: idToken}
+}
+
+func (l *claimLookup) find(path string) ([]string, string) {
+	if values := claimValues(l.idToken, path); len(values) > 0 {
 		return values, "the id token"
 	}
-
-	if info, err := provider.UserInfo(ctx, oauth2.StaticTokenSource(token)); err != nil {
-		logError("userinfo", err)
-	} else {
-		var infoClaims map[string]any
-		if err := info.Claims(&infoClaims); err != nil {
-			logError("userinfo claims", err)
-		} else if values := claimValues(infoClaims, s.cfg.Auth.Claim); len(values) > 0 {
-			return values, "userinfo"
-		}
+	if values := claimValues(l.userInfoClaims(), path); len(values) > 0 {
+		return values, "userinfo"
 	}
-
-	if values := claimValues(accessTokenClaims(token.AccessToken), s.cfg.Auth.Claim); len(values) > 0 {
+	if values := claimValues(accessTokenClaims(l.token.AccessToken), path); len(values) > 0 {
 		return values, "the access token"
 	}
 	return nil, ""
+}
+
+func (l *claimLookup) userInfoClaims() map[string]any {
+	if l.userInfoFetched {
+		return l.userInfo
+	}
+	l.userInfoFetched = true
+
+	info, err := l.provider.UserInfo(l.ctx, oauth2.StaticTokenSource(l.token))
+	if err != nil {
+		logError("userinfo", err)
+		return nil
+	}
+	if err := info.Claims(&l.userInfo); err != nil {
+		logError("userinfo claims", err)
+	}
+	return l.userInfo
 }
 
 // accessTokenClaims reads the payload without verifying it. The token came

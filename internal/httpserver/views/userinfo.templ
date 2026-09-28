@@ -1,0 +1,84 @@
+package views
+
+import (
+	"strings"
+	"time"
+
+	"github.com/pflege-de-labs/teamster/internal/i18n"
+	"github.com/pflege-de-labs/teamster/internal/models"
+)
+
+// UserInfo is what the session says about who is signed in, and what the
+// identity provider sent to say so.
+type UserInfo struct {
+	Viewer    Viewer
+	Subject   string
+	Source    string
+	ExpiresAt time.Time
+	Identity  models.Identity
+}
+
+// UserInfoPage explains a sign-in, so it is offered to a user with no role too:
+// they are the ones asking why.
+templ UserInfoPage(page UserInfo) {
+	@Layout(i18n.T(ctx, "page.userinfo"), &page.Viewer) {
+		<section class="rounded-lg border border-slate-200 bg-white shadow-sm">
+			<h2 class="border-b border-slate-200 px-6 py-4 text-lg font-semibold">{ i18n.T(ctx, "userinfo.heading") }</h2>
+			<div class="space-y-4 px-6 py-6">
+				if page.Source == "oidc" && len(page.Identity.Scopes) == 0 {
+					<p role="status" class="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+						{ i18n.T(ctx, "userinfo.sign_in_again") }
+					</p>
+				}
+				<dl class="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-[12rem_1fr]">
+					@userInfoRow("userinfo.name", page.Viewer.Name)
+					@userInfoRow("userinfo.subject", page.Subject)
+					@userInfoRow("userinfo.source", i18n.T(ctx, "userinfo.source_"+page.Source))
+					if page.Identity.Issuer != "" {
+						@userInfoRow("userinfo.issuer", page.Identity.Issuer)
+					}
+					if page.Identity.Email != "" {
+						@userInfoRow("userinfo.email", page.Identity.Email)
+					}
+					@userInfoRow("userinfo.expires", page.ExpiresAt.UTC().Format("2006-01-02 15:04 MST"))
+					@userInfoRow("userinfo.role", page.Viewer.roleLabel(ctx))
+					@userInfoList("userinfo.roles", roleNames(ctx, page.Viewer.Roles), "")
+					if page.Source == "oidc" {
+						@userInfoList("userinfo.scopes", page.Identity.Scopes, "")
+						@userInfoList("userinfo.groups", page.Identity.Groups, page.Identity.GroupsSource)
+						@userInfoList("userinfo.claim", page.Identity.ClaimValues, page.Identity.ClaimSource)
+					}
+				</dl>
+			</div>
+		</section>
+	}
+}
+
+templ userInfoRow(key, value string) {
+	<dt class="font-medium text-slate-700">{ i18n.T(ctx, key) }</dt>
+	<dd class="break-all text-slate-900">
+		if value != "" {
+			{ value }
+		} else {
+			—
+		}
+	</dd>
+}
+
+templ userInfoList(key string, values []string, source string) {
+	<dt class="font-medium text-slate-700">{ i18n.T(ctx, key) }</dt>
+	<dd class="text-slate-900">
+		if len(values) == 0 {
+			—
+		} else {
+			<ul class="flex flex-wrap gap-1.5">
+				for _, value := range values {
+					<li class="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-xs">{ value }</li>
+				}
+			</ul>
+			if source != "" {
+				<p class="mt-1 text-xs text-slate-500">{ i18n.T(ctx, "userinfo.found_in", i18n.T(ctx, "userinfo.token_"+strings.ReplaceAll(source, " ", "_"))) }</p>
+			}
+		}
+	</dd>
+}

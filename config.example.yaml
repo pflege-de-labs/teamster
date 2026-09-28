@@ -112,6 +112,10 @@ auth:
   # resource_access.<client>.roles. The claim is read from the id token, then
   # userinfo, then the access token, so Keycloak's default mappers suffice.
   claim: "realm_access.roles"
+  # groups-claim is looked up the same way and only shown on the user info
+  # page; it decides nothing. Keycloak sends it with a "Group Membership"
+  # mapper. Leave it empty to skip the lookup.
+  groups-claim: "groups"
   # Roles are read from that claim by name, one to one: a provider role called
   # admin, editor or viewer is that role here, and one called anything else
   # arrives under its own name for the Cedar policies to decide about. Those

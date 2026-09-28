@@ -7,6 +7,7 @@ import (
 	"math/rand/v2"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sync"
 	"testing"
 	"time"
@@ -279,6 +280,19 @@ func TestConformanceSessionsAndFlows(t *testing.T) {
 		}
 		if _, err := st.GetSession(ctx, "expired"); !errors.Is(err, store.ErrNotFound) {
 			t.Errorf("an expired session = %v, want ErrNotFound", err)
+		}
+
+		identity := models.Identity{Issuer: "https://idp.example", Scopes: []string{"openid"}, Groups: []string{"/ops"}, ClaimSource: "userinfo"}
+		live := models.Session{ID: "live", Subject: "s", Roles: "viewer", Identity: identity, ExpiresAt: time.Now().Add(time.Hour)}
+		if err := st.CreateSession(ctx, live); err != nil {
+			t.Fatalf("CreateSession: %v", err)
+		}
+		got, err := st.GetSession(ctx, "live")
+		if err != nil {
+			t.Fatalf("GetSession: %v", err)
+		}
+		if !reflect.DeepEqual(got.Identity, identity) {
+			t.Errorf("identity = %+v, want %+v", got.Identity, identity)
 		}
 
 		flow := models.LoginFlow{State: "state", Verifier: "v", Nonce: "n", ExpiresAt: time.Now().Add(time.Minute)}

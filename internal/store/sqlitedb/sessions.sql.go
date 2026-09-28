@@ -11,8 +11,8 @@ import (
 )
 
 const createSession = `-- name: CreateSession :exec
-INSERT INTO sessions (id, subject, name, source, role, created_at, expires_at)
-VALUES (?, ?, ?, ?, ?, ?, ?)
+INSERT INTO sessions (id, subject, name, source, role, created_at, expires_at, identity)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type CreateSessionParams struct {
@@ -23,6 +23,7 @@ type CreateSessionParams struct {
 	Role      string
 	CreatedAt time.Time
 	ExpiresAt time.Time
+	Identity  string
 }
 
 func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) error {
@@ -34,6 +35,7 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) er
 		arg.Role,
 		arg.CreatedAt,
 		arg.ExpiresAt,
+		arg.Identity,
 	)
 	return err
 }
@@ -57,7 +59,7 @@ func (q *Queries) DeleteSession(ctx context.Context, id string) error {
 }
 
 const getSession = `-- name: GetSession :one
-SELECT id, subject, name, source, role, created_at, expires_at
+SELECT id, subject, name, source, role, created_at, expires_at, identity
 FROM sessions
 WHERE id = ?
 `
@@ -73,6 +75,7 @@ func (q *Queries) GetSession(ctx context.Context, id string) (Session, error) {
 		&i.Role,
 		&i.CreatedAt,
 		&i.ExpiresAt,
+		&i.Identity,
 	)
 	return i, err
 }

@@ -264,7 +264,7 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger, botC
 	// before anyone has a session, and none of them is sensitive.
 	for _, asset := range []string{
 		"/favicon.ico", "/site.webmanifest", "/styles.css",
-		"/preview.js", "/pickers.js", "/routing.js", "/language.js", "/permissions.js", "/editor.js", "/icons/", "/vendor/",
+		"/preview.js", "/pickers.js", "/routing.js", "/language.js", "/nav.js", "/permissions.js", "/editor.js", "/icons/", "/vendor/",
 	} {
 		mux.HandleFunc(asset, api.handleAssets)
 	}
@@ -274,6 +274,8 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger, botC
 	mux.Handle("/admin/auth/", authMux)
 	mux.Handle("/admin/logout", authMux)
 	mux.Handle("/admin/language", authMux)
+	// Every signed-in user may read their own user info, role or not.
+	mux.Handle("/admin/userinfo", api.requireSession(http.HandlerFunc(api.handleUserInfoPage)))
 	mux.Handle("/admin", api.requireSession(api.authorize(adminMux)))
 	mux.Handle("/admin/", api.requireSession(api.authorize(adminMux)))
 	mux.Handle("/", api.requireSession(api.authorize(adminMux)))
