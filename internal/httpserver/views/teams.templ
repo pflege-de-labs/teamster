@@ -11,12 +11,7 @@ import (
 // and what stops arriving where it is not (ADR 0045).
 type Teams struct {
 	Viewer        Viewer
-	BotConfigured bool
-	// GraphLookups says whether Graph is asked about teams with no install
-	// event, which is what makes "unknown" rare.
-	GraphLookups bool
-	// InstallURL opens the app in Teams, where "Add to a team" is.
-	InstallURL     string
+	BotConfigured  bool
 	NeedsApp       []TeamRow
 	Installed      []TeamRow
 	Other          []TeamRow
@@ -70,17 +65,10 @@ templ installSteps(page Teams) {
 		<p class="font-medium">{ i18n.T(ctx, "teams.how_heading") }</p>
 		<ol class="mt-1 list-decimal space-y-1 pl-5">
 			<li>{ i18n.T(ctx, "teams.how_catalog") }</li>
-			<li>
-				{ i18n.T(ctx, "teams.how_add") }
-				if page.InstallURL != "" {
-					<a href={ templ.SafeURL(page.InstallURL) } class="text-sky-700 underline" target="_blank" rel="noopener">{ i18n.T(ctx, "teams.how_link") }</a>
-				}
-			</li>
+			<li>{ i18n.T(ctx, "teams.how_add") }</li>
 			<li>{ i18n.T(ctx, "teams.how_event") }</li>
 		</ol>
-		if !page.GraphLookups {
-			<p class="mt-2 text-xs text-slate-500">{ i18n.T(ctx, "teams.unknown_note") }</p>
-		}
+		<p class="mt-2 text-xs text-slate-500">{ i18n.T(ctx, "teams.unknown_note") }</p>
 	</div>
 }
 

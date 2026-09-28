@@ -52,7 +52,7 @@ func (c *installCache) markMissing(teamID string) {
 }
 
 // installStates answers for each team: a bot_teams row is installed; without
-// one Graph decides when bot.app-id is set; anything unanswered is unknown.
+// one Graph looks for the bot by its client id; anything unanswered is unknown.
 func (s *Server) installStates(ctx context.Context, teamIDs []string) map[string]string {
 	states := make(map[string]string, len(teamIDs))
 	for _, id := range teamIDs {
@@ -76,7 +76,7 @@ func (s *Server) installStates(ctx context.Context, teamIDs []string) map[string
 			states[id] = installInstalled
 		case s.installs.isMissing(id):
 			states[id] = installMissing
-		case s.cfg.Bot.AppID != "":
+		case s.cfg.Bot.ClientID != "":
 			pending = append(pending, id)
 		}
 	}
@@ -121,7 +121,7 @@ func (s *Server) lookUpInstalls(ctx context.Context, teamIDs []string) map[strin
 }
 
 func (s *Server) lookUpInstall(ctx context.Context, teamID string) string {
-	installed, err := s.graph.HasInstalledApp(teamID, s.cfg.Bot.AppID)
+	installed, err := s.graph.HasInstalledApp(teamID, s.cfg.Bot.ClientID)
 	if err != nil {
 		// Usually TeamsAppInstallation.ReadForTeam.All is not granted.
 		log.Printf("look up the Teams app in team %s: %v", teamID, err)

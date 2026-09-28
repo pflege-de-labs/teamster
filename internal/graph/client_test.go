@@ -358,36 +358,48 @@ func TestTokenURL(t *testing.T) {
 func TestHasInstalledApp(t *testing.T) {
 	t.Parallel()
 
+	const other = `{"teamsAppDefinition":{"bot":{"id":"someone-else"}}}`
+	const noBot = `{"teamsAppDefinition":{}}`
+	const ours = `{"teamsAppDefinition":{"bot":{"id":"BOT-1"}}}`
+
 	tests := []struct {
 		name    string
+		pages   map[string]string
 		status  int
-		body    string
 		want    bool
 		wantErr bool
 	}{
-		{name: "installed", status: http.StatusOK, body: `{"value":[{"id":"x"}]}`, want: true},
-		{name: "not installed", status: http.StatusOK, body: `{"value":[]}`},
-		{name: "permission not granted", status: http.StatusForbidden, body: `{"error":{"code":"Forbidden"}}`, wantErr: true},
-		{name: "undecodable", status: http.StatusOK, body: `nope`, wantErr: true},
+		{name: "installed", pages: map[string]string{"": `{"value":[` + noBot + `,` + ours + `]}`}, want: true},
+		{name: "not installed", pages: map[string]string{"": `{"value":[` + other + `,` + noBot + `]}`}},
+		{name: "on the second page", pages: map[string]string{"": `{"value":[` + other + `],"@odata.nextLink":"BASE/teams/t/installedApps?page=2"}`, "2": `{"value":[` + ours + `]}`}, want: true},
+		{name: "a link elsewhere is not followed", pages: map[string]string{"": `{"value":[],"@odata.nextLink":"https://evil.example/next"}`}},
+		{name: "permission not granted", status: http.StatusForbidden, wantErr: true},
+		{name: "undecodable", pages: map[string]string{"": `nope`}, wantErr: true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			var gotPath, gotFilter string
+			var base, gotExpand string
 			client := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
-				gotPath, gotFilter = r.URL.Path, r.URL.Query().Get("$filter")
-				w.WriteHeader(tt.status)
-				_, _ = w.Write([]byte(tt.body))
+				if r.URL.Query().Get("page") == "" {
+					gotExpand = r.URL.Query().Get("$expand")
+				}
+				if tt.status != 0 {
+					w.WriteHeader(tt.status)
+					return
+				}
+				_, _ = w.Write([]byte(strings.ReplaceAll(tt.pages[r.URL.Query().Get("page")], "BASE", base)))
 			})
+			base = client.baseURL
 
-			got, err := client.HasInstalledApp("team/1", "app-'id")
+			got, err := client.HasInstalledApp("t", "bot-1")
 			if (err != nil) != tt.wantErr || got != tt.want {
 				t.Fatalf("HasInstalledApp() = %v, %v; want %v, error %v", got, err, tt.want, tt.wantErr)
 			}
-			if gotPath != "/teams/team/1/installedApps" || gotFilter != "teamsApp/externalId eq 'app-''id'" {
-				t.Errorf("asked %s with filter %q", gotPath, gotFilter)
+			if gotExpand != "teamsAppDefinition($expand=bot)" {
+				t.Errorf("$expand = %q", gotExpand)
 			}
 		})
 	}

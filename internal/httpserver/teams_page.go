@@ -2,7 +2,6 @@ package httpserver
 
 import (
 	"net/http"
-	"net/url"
 	"sort"
 
 	"github.com/pflege-de-labs/teamster/internal/graph"
@@ -23,10 +22,6 @@ func (s *Server) handleTeamsPage(w http.ResponseWriter, r *http.Request) {
 	page := views.Teams{
 		Viewer:        s.viewerFor(r),
 		BotConfigured: botConfigured(s.cfg.Bot),
-		GraphLookups:  s.cfg.Bot.AppID != "",
-	}
-	if s.cfg.Bot.AppID != "" {
-		page.InstallURL = "https://teams.microsoft.com/l/app/" + url.PathEscape(s.cfg.Bot.AppID)
 	}
 
 	destinations, err := s.store.ListDestinations(ctx)

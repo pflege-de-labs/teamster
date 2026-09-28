@@ -118,9 +118,9 @@ installed in it, so the admin UI stops presenting every team as equal.
 * **Each team has an install state**: *installed*, *not installed* or *unknown*.
   * A `bot_teams` row means installed.
   * Without a row, the state comes from Graph when `TeamsAppInstallation.ReadForTeam.All` is
-    granted, via `GET /teams/{id}/installedApps` filtered by the manifest id (`bot.app-id`). An
-    installation found this way counts as installed, and delivery uses the fallback service URL
-    until the team sends an activity.
+    granted: `GET /teams/{id}/installedApps` with `teamsAppDefinition($expand=bot)`, matched on the
+    bot's id, which is `bot.client-id`. An installation found this way counts as installed, and
+    delivery uses the fallback service URL until the team sends an activity.
   * Without that permission, a team with no row is *unknown*.
   * Answers are cached like the pickers' lists, because checking every team costs one Graph call
     each.
@@ -133,8 +133,7 @@ installed in it, so the admin UI stops presenting every team as equal.
   offers, with:
   * its install state, and when teamster last heard from it
   * the destinations and routes that depend on it
-  * for a team without the app, how to install it: a link to the app in Teams
-    (`https://teams.microsoft.com/l/app/{app id}`) and the steps from the manifest README
+  * for a team without the app, how to install it: the steps from the manifest README
 * **Destinations and the routing graph** mark a destination whose team lacks the app, so a
   missing install shows up before an alert does.
 * **A delivery refused because the app is missing** is counted under its own reason in the
@@ -171,8 +170,8 @@ Alternatives we rejected:
 * The bot becomes required for any channel delivery, not an option for chats. Its registration and
   secret now carry all delivery. The Graph registration keeps only its read permissions
   (`Team.ReadBasic.All`, `Channel.ReadBasic.All`), plus the optional
-  `TeamsAppInstallation.ReadForTeam.All` for install state. Configuration gains `bot.app-id`, the
-  manifest id Graph filters on.
+  `TeamsAppInstallation.ReadForTeam.All` for install state. The app is found by its bot id, so no
+  setting is added for the manifest id.
 * Channel cards come from the bot's name and icon, from the manifest.
 * The schema changes are additive: one new table and one column with a default. The previous
   release ignores both.

@@ -14,9 +14,9 @@ import (
 	"github.com/pflege-de-labs/teamster/internal/models"
 )
 
-func installServer(st *fakeStore, msg *fakeMessenger, appID string) *Server {
+func installServer(st *fakeStore, msg *fakeMessenger, botID string) *Server {
 	return &Server{
-		cfg:      config.Config{Bot: config.BotConfig{TenantID: "bot-tenant", AppID: appID}},
+		cfg:      config.Config{Bot: config.BotConfig{TenantID: "bot-tenant", ClientID: botID}},
 		store:    st,
 		graph:    msg,
 		installs: newInstallCache(time.Minute),
@@ -29,7 +29,7 @@ func TestInstallStates(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		appID      string
+		botID      string
 		installed  map[string]bool
 		installErr error
 		failOn     string
@@ -37,10 +37,10 @@ func TestInstallStates(t *testing.T) {
 		wantRow    bool
 	}{
 		{name: "an install event recorded it", want: installInstalled, wantRow: true},
-		{name: "without an app id nothing asks Graph", want: installUnknown},
-		{name: "Graph finds it", appID: "app", installed: map[string]bool{"new": true}, want: installInstalled, wantRow: true},
-		{name: "Graph does not find it", appID: "app", want: installMissing},
-		{name: "Graph refuses to say", appID: "app", installErr: errors.New("403"), want: installUnknown},
+		{name: "without a bot nothing asks Graph", want: installUnknown},
+		{name: "Graph finds it", botID: "app", installed: map[string]bool{"new": true}, want: installInstalled, wantRow: true},
+		{name: "Graph does not find it", botID: "app", want: installMissing},
+		{name: "Graph refuses to say", botID: "app", installErr: errors.New("403"), want: installUnknown},
 		{name: "the store fails", failOn: "ListBotTeams", want: installUnknown},
 	}
 
@@ -54,7 +54,7 @@ func TestInstallStates(t *testing.T) {
 				st.botTeams[team] = models.BotTeam{TeamID: team, ServiceURL: "https://smba.example/"}
 			}
 			msg := &fakeMessenger{installed: tt.installed, installErr: tt.installErr}
-			s := installServer(st, msg, tt.appID)
+			s := installServer(st, msg, tt.botID)
 
 			if got := s.installStates(t.Context(), []string{team})[team]; got != tt.want {
 				t.Errorf("state = %q, want %q", got, tt.want)
@@ -63,7 +63,7 @@ func TestInstallStates(t *testing.T) {
 			if ok != tt.wantRow {
 				t.Errorf("bot team recorded = %v, want %v", ok, tt.wantRow)
 			}
-			if ok && tt.appID != "" && (row.ServiceURL != "" || row.TenantID != "bot-tenant") {
+			if ok && tt.botID != "" && (row.ServiceURL != "" || row.TenantID != "bot-tenant") {
 				t.Errorf("row from Graph = %+v, want no service URL and the bot's tenant", row)
 			}
 		})
@@ -123,7 +123,7 @@ func TestTeamsPage(t *testing.T) {
 		Server:  config.ServerConfig{Addr: ":0"},
 		Webhook: config.WebhookConfig{Token: "token"},
 		Admin:   config.AdminConfig{Username: "admin", Password: "pass"},
-		Bot:     config.BotConfig{AppID: "app-1"},
+		Bot:     config.BotConfig{ClientID: "bot-1"},
 	}
 	handler := mustServer(t, cfg, st, msg).Handler
 
@@ -134,7 +134,7 @@ func TestTeamsPage(t *testing.T) {
 	}
 	needs := strings.Index(body, "Used by destinations")
 	installed := strings.Index(body, "App installed")
-	for _, want := range []string{"Dev alerts", "critical", "Ops alerts", "2026-09-01 08:00", "Other teams (1)", "https://teams.microsoft.com/l/app/app-1", "The bot is not configured"} {
+	for _, want := range []string{"Dev alerts", "critical", "Ops alerts", "2026-09-01 08:00", "Other teams (1)", "The bot is not configured"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("page lacks %q", want)
 		}
