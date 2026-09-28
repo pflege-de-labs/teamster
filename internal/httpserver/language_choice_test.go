@@ -181,3 +181,62 @@ func TestLanguagePickerRejectsOtherMethods(t *testing.T) {
 		t.Errorf("GET /admin/language = %d, want 405", rec.Code)
 	}
 }
+
+// The user menu shows each language as its flag, named by the alt text, and
+// marks the one chosen. The flags are public like the other assets.
+func TestUserMenuOffersLanguagesAsFlags(t *testing.T) {
+	t.Parallel()
+
+	st := sessionAs(seededUIStore(), authz.RoleEditor)
+	handler := newTestServer(t, st, &fakeMessenger{}).Handler
+
+	tests := []struct {
+		name    string
+		cookie  string
+		want    []string
+		current string
+	}{
+		{
+			name:    "negotiated",
+			want:    []string{`src="/flags/browser.svg" alt="Browser default"`, `src="/flags/de.svg" alt="Deutsch"`, `src="/flags/gb.svg" alt="English"`},
+			current: `value="" title="Browser default" aria-current="true"`,
+		},
+		{
+			name:    "chosen",
+			cookie:  "de",
+			want:    []string{`alt="Deutsch"`, `alt="English"`, `alt="Browsereinstellung"`},
+			current: `value="de" title="Deutsch" aria-current="true"`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			req := httptest.NewRequest(http.MethodGet, "/admin", nil)
+			req.AddCookie(&http.Cookie{Name: sessionCookie, Value: testSessionID})
+			if tt.cookie != "" {
+				req.AddCookie(&http.Cookie{Name: languageCookie, Value: tt.cookie})
+			}
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+			body := rec.Body.String()
+
+			if !strings.Contains(body, `id="language-flags"`) || strings.Contains(body, `id="language-select"`) {
+				t.Fatal("the user menu does not offer flags in place of the select")
+			}
+			for _, want := range append(tt.want, tt.current) {
+				if !strings.Contains(body, want) {
+					t.Errorf("the flags lack %s", want)
+				}
+			}
+		})
+	}
+
+	for _, flag := range []string{"/flags/browser.svg", "/flags/de.svg", "/flags/gb.svg"} {
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, flag, nil))
+		if rec.Code != http.StatusOK || rec.Header().Get("Content-Type") != "image/svg+xml" {
+			t.Errorf("GET %s = %d %q, want 200 image/svg+xml", flag, rec.Code, rec.Header().Get("Content-Type"))
+		}
+	}
+}

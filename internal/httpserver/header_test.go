@@ -89,7 +89,7 @@ func TestHeaderNamesTheSignedInUser(t *testing.T) {
 					t.Errorf("the header shows %q", unwanted)
 				}
 			}
-			for _, want := range []string{`action="/admin/logout"`, `href="/admin/userinfo"`, `id="language-picker"`, `id="user-menu"`} {
+			for _, want := range []string{`action="/admin/logout"`, `href="/admin/userinfo"`, `id="language-flags"`, `id="user-menu"`} {
 				if !strings.Contains(body, want) {
 					t.Errorf("the user menu lacks %s", want)
 				}

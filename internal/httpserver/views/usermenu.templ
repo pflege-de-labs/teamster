@@ -30,7 +30,7 @@ templ userMenu(viewer Viewer) {
 				{ i18n.T(ctx, "header.userinfo") }
 			</a>
 			<div class="border-t border-slate-200 pt-3">
-				@languagePicker(languageOf(ctx))
+				@languageFlags(languageOf(ctx))
 			</div>
 			<form method="post" action="/admin/logout" class="border-t border-slate-200 pt-3">
 				<button

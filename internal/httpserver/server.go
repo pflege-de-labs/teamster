@@ -264,7 +264,7 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger, botC
 	// before anyone has a session, and none of them is sensitive.
 	for _, asset := range []string{
 		"/favicon.ico", "/site.webmanifest", "/styles.css",
-		"/preview.js", "/pickers.js", "/routing.js", "/language.js", "/nav.js", "/permissions.js", "/editor.js", "/icons/", "/vendor/",
+		"/preview.js", "/pickers.js", "/routing.js", "/language.js", "/nav.js", "/permissions.js", "/editor.js", "/flags/", "/icons/", "/vendor/",
 	} {
 		mux.HandleFunc(asset, api.handleAssets)
 	}
