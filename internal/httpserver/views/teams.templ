@@ -1,0 +1,130 @@
+package views
+
+import (
+	"strings"
+	"time"
+
+	"github.com/pflege-de-labs/teamster/internal/i18n"
+)
+
+// Teams is the page at /admin/teams: where the bot's Teams app is installed,
+// and what stops arriving where it is not (ADR 0045).
+type Teams struct {
+	Viewer        Viewer
+	BotConfigured bool
+	// GraphLookups says whether Graph is asked about teams with no install
+	// event, which is what makes "unknown" rare.
+	GraphLookups bool
+	// InstallURL opens the app in Teams, where "Add to a team" is.
+	InstallURL     string
+	NeedsApp       []TeamRow
+	Installed      []TeamRow
+	Other          []TeamRow
+	Error          string
+	DirectoryError string
+}
+
+// A TeamRow is one team and what depends on it.
+type TeamRow struct {
+	ID           string
+	Name         string
+	State        string
+	LastHeard    time.Time
+	Destinations []string
+	Routes       []string
+}
+
+templ TeamsPage(page Teams) {
+	@Layout(i18n.T(ctx, "page.teams"), &page.Viewer) {
+		@notice(page.Error, "")
+		if !page.BotConfigured {
+			<div role="alert" class="rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800">
+				{ i18n.T(ctx, "teams.no_bot") }
+			</div>
+		}
+		<section class="rounded-lg border border-slate-200 bg-white shadow-sm">
+			<h2 class="border-b border-slate-200 px-6 py-4 text-lg font-semibold">{ i18n.T(ctx, "teams.heading") }</h2>
+			<div class="space-y-6 px-6 py-6">
+				<p class="text-sm text-slate-600">{ i18n.T(ctx, "teams.explainer") }</p>
+				@installSteps(page)
+				if page.DirectoryError != "" {
+					<p class="text-xs text-slate-500">{ i18n.T(ctx, "teams.directory_error", page.DirectoryError) }</p>
+				}
+				@teamGroup(i18n.T(ctx, "teams.needs_app"), page.NeedsApp, i18n.T(ctx, "teams.needs_app_empty"))
+				@teamGroup(i18n.T(ctx, "teams.installed"), page.Installed, i18n.T(ctx, "teams.installed_empty"))
+				if len(page.Other) > 0 {
+					<details>
+						<summary class="cursor-pointer text-sm font-medium text-slate-700">{ i18n.T(ctx, "teams.other", len(page.Other)) }</summary>
+						<div class="mt-3">
+							@teamList(page.Other)
+						</div>
+					</details>
+				}
+			</div>
+		</section>
+	}
+}
+
+templ installSteps(page Teams) {
+	<div class="rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+		<p class="font-medium">{ i18n.T(ctx, "teams.how_heading") }</p>
+		<ol class="mt-1 list-decimal space-y-1 pl-5">
+			<li>{ i18n.T(ctx, "teams.how_catalog") }</li>
+			<li>
+				{ i18n.T(ctx, "teams.how_add") }
+				if page.InstallURL != "" {
+					<a href={ templ.SafeURL(page.InstallURL) } class="text-sky-700 underline" target="_blank" rel="noopener">{ i18n.T(ctx, "teams.how_link") }</a>
+				}
+			</li>
+			<li>{ i18n.T(ctx, "teams.how_event") }</li>
+		</ol>
+		if !page.GraphLookups {
+			<p class="mt-2 text-xs text-slate-500">{ i18n.T(ctx, "teams.unknown_note") }</p>
+		}
+	</div>
+}
+
+templ teamGroup(title string, rows []TeamRow, emptyText string) {
+	<div class="space-y-2">
+		<h3 class="text-sm font-semibold text-slate-800">{ title }</h3>
+		if len(rows) == 0 {
+			@empty(emptyText)
+		} else {
+			@teamList(rows)
+		}
+	</div>
+}
+
+templ teamList(rows []TeamRow) {
+	<ul class="divide-y divide-slate-200">
+		for _, row := range rows {
+			<li class="space-y-1 py-3">
+				<div class="flex items-center gap-2">
+					<span class="truncate font-medium">{ row.Name }</span>
+					@installBadge(row.State)
+				</div>
+				<div class="truncate text-xs text-slate-500">{ row.ID }</div>
+				if !row.LastHeard.IsZero() {
+					<div class="text-xs text-slate-500">{ i18n.T(ctx, "teams.last_heard", row.LastHeard.Format("2006-01-02 15:04")) }</div>
+				}
+				if len(row.Destinations) > 0 {
+					<div class="truncate text-xs text-slate-600">{ i18n.T(ctx, "teams.destinations", strings.Join(row.Destinations, ", ")) }</div>
+				}
+				if len(row.Routes) > 0 {
+					<div class="truncate text-xs text-slate-600">{ i18n.T(ctx, "teams.routes", strings.Join(row.Routes, ", ")) }</div>
+				}
+			</li>
+		}
+	</ul>
+}
+
+templ installBadge(state string) {
+	switch state {
+		case "installed":
+			<span class="rounded bg-emerald-100 px-1.5 py-0.5 text-xs font-medium text-emerald-800">{ i18n.T(ctx, "install.state_installed") }</span>
+		case "missing":
+			<span class="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-900">{ i18n.T(ctx, "install.state_missing") }</span>
+		default:
+			<span class="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-700">{ i18n.T(ctx, "install.state_unknown") }</span>
+	}
+}

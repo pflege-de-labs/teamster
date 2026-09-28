@@ -111,6 +111,10 @@ func (s stubStore) ListBotTeams(ctx context.Context) ([]models.BotTeam, error) {
 	return nil, store.ErrNotFound
 }
 
+func (s stubStore) CountDestinationsWithoutBotTeam(ctx context.Context) (int64, error) {
+	return 0, store.ErrNotFound
+}
+
 func (s stubStore) DeleteBotTeam(ctx context.Context, teamID string) error {
 	return store.ErrNotFound
 }

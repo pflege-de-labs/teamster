@@ -141,6 +141,8 @@ type Store interface {
 	GetBotTeam(ctx context.Context, teamID string) (models.BotTeam, error)
 	ListBotTeams(ctx context.Context) ([]models.BotTeam, error)
 	DeleteBotTeam(ctx context.Context, teamID string) error
+	// CountDestinationsWithoutBotTeam runs on every metrics collection.
+	CountDestinationsWithoutBotTeam(ctx context.Context) (int64, error)
 
 	ListAccessTokens(ctx context.Context) ([]models.AccessToken, error)
 	// CreateAccessToken reports ErrConflict when the name is taken.

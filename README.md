@@ -90,6 +90,7 @@ The `graph` registration signs in as the application itself (client credentials)
 | --- | --- |
 | `Team.ReadBasic.All` | the Team picker, and naming Teams in the routing graph, export and import |
 | `Channel.ReadBasic.All` | the channel picker, and naming channels in the same places |
+| `TeamsAppInstallation.ReadForTeam.All` (optional) | whether the bot's Teams app is installed in a team that has not told the bot itself; needs `bot.app-id` |
 
 **Graph does not post anything.** Microsoft Graph does not let an application post or edit
 channel messages:
@@ -120,6 +121,20 @@ team's regional Bot Connector endpoint. A team that installed the app before thi
 reached through `bot.service-url` (default `https://smba.trafficmanager.net/teams/`) until it
 sends the bot any activity. A post to a team without the app fails with a message asking whether
 it is installed.
+
+**`/admin/teams` shows where the app is installed**, and what depends on each team: its destinations
+and the routes that use them. Teams that destinations use but that lack the app come first, with the
+steps to install it and, when `bot.app-id` is set, a link that opens the app in Teams. The Team
+picker groups Teams the same way and warns when the chosen one lacks the app. The destinations list
+and the routing graph mark a destination whose team lacks the app. A team is:
+
+- **installed** once the bot has heard from it, or once Graph confirms the app is there;
+- **missing** when Graph says the app is not there;
+- **unknown** when neither can tell — without `bot.app-id` and `TeamsAppInstallation.ReadForTeam.All`,
+  that is every team that installed the app before Teamster was listening.
+
+Graph is asked at most eight teams at a time, for at most five seconds per page, and each answer is
+kept for five minutes.
 `bot.tenant-type` distinguishes a registration that only ever signs in this tenant's users
 (`single`, the default) from one registered to accept any tenant's users (`multi`), which
 authenticates through a shared Microsoft endpoint rather than this tenant's own. `bot.metadata-url`
@@ -872,13 +887,18 @@ metrics:
 | Metric | Says |
 | --- | --- |
 | `http.server.request.duration` | how long this service took to answer, by route and status |
-| `http.client.request.duration` | how long Microsoft Graph took, by host and status |
-| `teamster.deliveries` | messages delivered, by route and outcome — posted, updated, failed |
+| `http.client.request.duration` | how long Microsoft Graph and the Bot Connector took, by host and status |
+| `teamster.deliveries` | messages delivered, by route and outcome — posted, updated, failed, blocked, `app_missing` |
 | `teamster.webhook.receipts` | alerts received, by source and status, including refused tokens |
 | `teamster.render.failures` | alerts that never became a message, by template and stage |
 | `teamster.active_alerts` | cards currently tracked, one per alert per channel |
+| `teamster.destinations.without_app` | destinations in a team the bot's Teams app is not known to be installed in |
 
-`teamster.active_alerts` counts rows in the database when it is collected. Because the listener takes
+`app_missing` is a channel post the Bot Connector refused, which almost always means the Teams app is
+not installed in that team. Like `blocked`, it lasts until somebody acts, so alert on it and on
+`teamster.destinations.without_app`.
+
+Both gauges count rows in the database when they are collected. Because the listener takes
 no credentials, the answer is cached for a second, so scraping in a loop is not querying in a loop.
 
 Go runtime metrics come with them, under OpenTelemetry's names (`go_memory_used_bytes`) rather than

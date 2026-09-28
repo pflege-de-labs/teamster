@@ -543,6 +543,14 @@ func (s queryAdapter) DeleteBotTeam(ctx context.Context, teamID string) error {
 	return nil
 }
 
+func (s queryAdapter) CountDestinationsWithoutBotTeam(ctx context.Context) (int64, error) {
+	n, err := s.q.CountDestinationsWithoutBotTeam(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("count destinations without bot team: %w", err)
+	}
+	return n, nil
+}
+
 func botTeamOf(row sqlitedb.BotTeam) models.BotTeam {
 	return models.BotTeam{TeamID: row.TeamID, TenantID: row.TenantID, ServiceURL: row.ServiceUrl, UpdatedAt: row.UpdatedAt}
 }

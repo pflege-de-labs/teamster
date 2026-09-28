@@ -358,6 +358,29 @@ func TestObserveActiveAlerts(t *testing.T) {
 	}
 }
 
+func TestObserveDestinationsWithoutApp(t *testing.T) {
+	t.Parallel()
+
+	m := newTestMetrics(t, enabled())
+	for _, n := range []int64{9, 3} {
+		// Registering again replaces the first callback rather than adding one.
+		if err := m.ObserveDestinationsWithoutApp(func(context.Context) (int64, error) { return n, nil }); err != nil {
+			t.Fatalf("ObserveDestinationsWithoutApp: %v", err)
+		}
+	}
+
+	format := expfmt.NewFormat(expfmt.TypeProtoDelim)
+	rec := scrape(t, m, string(format))
+
+	family := families(t, rec.Body, format)["teamster_destinations_without_app"]
+	if family == nil {
+		t.Fatal("no destinations without app gauge in the exposition")
+	}
+	if got := family.Metric[0].Gauge.GetValue(); got != 3 {
+		t.Errorf("destinations without app = %v, want 3", got)
+	}
+}
+
 // The interval is an hour, so the only export that can happen is the one
 // Shutdown forces. If the defer that calls it ever loses its deadline, this is
 // what notices.

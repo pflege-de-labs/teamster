@@ -54,6 +54,10 @@ func (p pgQueries) CountDestinations(ctx context.Context) (int64, error) {
 	return p.q.CountDestinations(ctx)
 }
 
+func (p pgQueries) CountDestinationsWithoutBotTeam(ctx context.Context) (int64, error) {
+	return p.q.CountDestinationsWithoutBotTeam(ctx)
+}
+
 func (p pgQueries) CreateAccessToken(ctx context.Context, arg sqlitedb.CreateAccessTokenParams) error {
 	return p.q.CreateAccessToken(ctx, pgdb.CreateAccessTokenParams(arg))
 }

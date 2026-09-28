@@ -9,6 +9,10 @@
   // rather than leaving a label above nothing.
   const channelField = channelInput.closest("label");
   const channelHint = document.getElementById("destination-channel-hint");
+  // Says a chosen team lacks the bot's app (ADR 0045); its words and the group
+  // labels come from the server like the others.
+  const installHint = document.getElementById("destination-install-hint");
+  const installGroups = ["installed", "missing", "unknown"];
 
   // Set only when the server rendered the delegated-Teams toggle (ADR 0037):
   // the feature is configured on and this session has a Keycloak login
@@ -47,15 +51,39 @@
     empty.textContent = placeholder;
     select.appendChild(empty);
 
+    const grouped = installHint && items.some((item) => item.install_state);
+    const parents = {};
+    if (grouped) {
+      installGroups.forEach((state) => {
+        if (!items.some((item) => item.install_state === state)) return;
+        const group = document.createElement("optgroup");
+        group.label = installHint.dataset["group" + state[0].toUpperCase() + state.slice(1)] || state;
+        select.appendChild(group);
+        parents[state] = group;
+      });
+    }
+
     items.forEach((item) => {
       const option = document.createElement("option");
       option.value = item.id;
       option.textContent = item.name;
+      if (item.install_state) option.dataset.installState = item.install_state;
       if (current && current === item.id) option.selected = true;
-      select.appendChild(option);
+      (parents[item.install_state] || select).appendChild(option);
     });
 
     return select;
+  }
+
+  // A destination may be prepared before the install, so this warns rather
+  // than refuses.
+  function showInstallHint(select) {
+    if (!installHint) return;
+    const option = select.selectedOptions[0];
+    const state = option ? option.dataset.installState : "";
+    installHint.hidden = !state || state === "installed";
+    const text = installHint.querySelector("[data-install-text]");
+    if (text) text.textContent = installHint.dataset["text" + (state === "missing" ? "Missing" : "Unknown")] || "";
   }
 
   function showInput(input, selectID) {
@@ -151,6 +179,7 @@
     );
     select.addEventListener("change", () => {
       teamInput.value = select.value;
+      showInstallHint(select);
       if (!select.value) {
         hideChannelField(channelInput.dataset.pickerRequiresTeam || "");
         return;
@@ -161,6 +190,7 @@
     if (existing) existing.remove();
     teamInput.parentNode.insertBefore(select, teamInput);
     teamInput.type = "hidden";
+    showInstallHint(select);
 
     if (select.value) {
       teamInput.value = select.value;

@@ -54,6 +54,7 @@ templ sidebar(viewer Viewer) {
 			if viewer.NotificationsEnabled {
 				@navLink("/admin/notifications", "nav.notifications")
 			}
+			@navLink("/admin/teams", "nav.teams")
 			@navLink("/admin/recipients", "nav.recipients")
 			if viewer.CanManage {
 				@navLink("/admin/permissions", "nav.permissions")

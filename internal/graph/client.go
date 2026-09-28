@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
+	"strings"
 
 	"time"
 
@@ -94,6 +95,28 @@ func NewClient(cfg config.GraphConfig, tel instrumentation) (*Client, error) {
 		baseURL:    cfg.BaseURL,
 		httpClient: httpClient,
 	}, nil
+}
+
+// HasInstalledApp reports whether the Teams app whose manifest id is appID is
+// installed in the team. It needs TeamsAppInstallation.ReadForTeam.All.
+func (c *Client) HasInstalledApp(teamID, appID string) (bool, error) {
+	query := url.Values{
+		"$expand": {"teamsApp"},
+		"$filter": {"teamsApp/externalId eq '" + strings.ReplaceAll(appID, "'", "''") + "'"},
+	}
+	endpoint := fmt.Sprintf("%s/teams/%s/installedApps?%s", c.baseURL, url.PathEscape(teamID), query.Encode())
+	resBody, err := c.get(endpoint)
+	if err != nil {
+		return false, err
+	}
+
+	var res struct {
+		Value []json.RawMessage `json:"value"`
+	}
+	if err := json.Unmarshal(resBody, &res); err != nil {
+		return false, fmt.Errorf("decode installed apps: %w", err)
+	}
+	return len(res.Value) > 0, nil
 }
 
 // Team is the subset of a Microsoft Teams team the admin UI needs.

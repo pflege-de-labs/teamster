@@ -28,6 +28,9 @@ const (
 	OutcomeUpdated = "updated"
 	OutcomeFailed  = "failed"
 	OutcomeBlocked = "blocked"
+	// OutcomeAppMissing is a channel whose team lacks the bot's Teams app: like
+	// blocked, it lasts until somebody installs it (ADR 0045).
+	OutcomeAppMissing = "app_missing"
 )
 
 // Rendering stages, so a failure says which lookup or which template broke
@@ -73,6 +76,13 @@ func (m *Metrics) instruments() error {
 	)
 	errs = append(errs, err)
 
+	m.withoutApp, err = meter.Int64ObservableGauge(
+		"teamster.destinations.without_app",
+		metric.WithDescription("Destinations in a team the bot's Teams app is not known to be installed in."),
+		metric.WithUnit("{destination}"),
+	)
+	errs = append(errs, err)
+
 	return errors.Join(errs...)
 }
 
@@ -108,18 +118,28 @@ func (m *Metrics) RenderFailed(ctx context.Context, templateID, stage string) {
 // collection. The callback runs on the collecting goroutine, so it has to be a
 // count and not a scan.
 func (m *Metrics) ObserveActiveAlerts(count func(context.Context) (int64, error)) error {
+	return m.observe(m.activeAlerts, &m.registration, count)
+}
+
+// ObserveDestinationsWithoutApp asks the store how many destinations lack the
+// bot's app, once per collection, so a missing install can be alerted on.
+func (m *Metrics) ObserveDestinationsWithoutApp(count func(context.Context) (int64, error)) error {
+	return m.observe(m.withoutApp, &m.appReg, count)
+}
+
+func (m *Metrics) observe(gauge metric.Int64ObservableGauge, current *metric.Registration, count func(context.Context) (int64, error)) error {
 	if !m.enabled {
 		return nil
 	}
 
 	// Registering twice would leave the first callback running against whatever
-	// it closed over, which for this gauge is a database somebody may be about
+	// it closed over, which for these gauges is a database somebody may be about
 	// to close.
-	if m.registration != nil {
-		if err := m.registration.Unregister(); err != nil {
+	if *current != nil {
+		if err := (*current).Unregister(); err != nil {
 			return err
 		}
-		m.registration = nil
+		*current = nil
 	}
 
 	// The callback runs on the collecting goroutine, once per scrape and once
@@ -134,16 +154,16 @@ func (m *Metrics) ObserveActiveAlerts(count func(context.Context) (int64, error)
 			if err != nil {
 				return err
 			}
-			observer.ObserveInt64(m.activeAlerts, open)
+			observer.ObserveInt64(gauge, open)
 			return nil
 		},
-		m.activeAlerts,
+		gauge,
 	)
 	if err != nil {
 		return err
 	}
 
-	m.registration = registration
+	*current = registration
 	return nil
 }
 

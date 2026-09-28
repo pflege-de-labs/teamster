@@ -106,7 +106,28 @@ func (s *Server) handleGraphTeams(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{"teams": visible})
+	writeJSON(w, http.StatusOK, map[string]any{"teams": s.withInstallState(r, visible)})
+}
+
+// pickerTeam is a team with whether the bot's app is installed in it, which
+// decides whether a destination there can receive anything (ADR 0045).
+type pickerTeam struct {
+	graph.Team
+	InstallState string `json:"install_state"`
+}
+
+func (s *Server) withInstallState(r *http.Request, teams []graph.Team) []pickerTeam {
+	ids := make([]string, len(teams))
+	for i, team := range teams {
+		ids[i] = team.ID
+	}
+	states := s.installStates(r.Context(), ids)
+
+	out := make([]pickerTeam, len(teams))
+	for i, team := range teams {
+		out[i] = pickerTeam{Team: team, InstallState: states[team.ID]}
+	}
+	return out
 }
 
 func (s *Server) handleGraphChannels(w http.ResponseWriter, r *http.Request) {
@@ -186,7 +207,7 @@ func (s *Server) handleMyTeams(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{"teams": visible})
+	writeJSON(w, http.StatusOK, map[string]any{"teams": s.withInstallState(r, visible)})
 }
 
 func (s *Server) handleMyChannels(w http.ResponseWriter, r *http.Request) {

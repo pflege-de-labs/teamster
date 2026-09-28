@@ -22,6 +22,7 @@ import (
 // reads: Graph cannot post to a channel as an application (ADR 0045).
 type messenger interface {
 	ListTeams() ([]graph.Team, error)
+	HasInstalledApp(teamID, appID string) (bool, error)
 	ListChannels(teamID string) ([]graph.Channel, error)
 }
 
@@ -80,6 +81,7 @@ type Server struct {
 	metrics    telemetry
 	text       *i18n.Bundle
 	directory  *directoryCache
+	installs   *installCache
 	oidc       *oidcProvider
 	botAuth    *botAuthenticator
 	httpServer *http.Server
@@ -159,6 +161,7 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger, botC
 		text:      text,
 		now:       func() time.Time { return time.Now().UTC() },
 		directory: newDirectoryCache(directoryTTL),
+		installs:  newInstallCache(directoryTTL),
 		oidc:      &oidcProvider{},
 		broker:    brokerClient,
 		sealer:    sealer,
@@ -232,6 +235,7 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger, botC
 		adminMux.HandleFunc("/admin/notifications/cancel", api.formPostTo("/admin/notifications", api.cancelLink))
 		adminMux.HandleFunc("/admin/notifications/unlink", api.formPostTo("/admin/notifications", api.unlinkNotifications))
 	}
+	adminMux.HandleFunc("/admin/teams", api.handleTeamsPage)
 	adminMux.HandleFunc("/admin/recipients", api.handleRecipientsPage)
 	adminMux.HandleFunc("/admin/recipients/delete", api.formPostTo("/admin/recipients", api.deleteRecipientForm))
 	adminMux.HandleFunc("/api/grants", api.handleGrants)

@@ -239,7 +239,7 @@ func (s *Server) deliverToChannel(ctx context.Context, alert models.Alert, deliv
 		// The card for this channel already exists, so the alert is an update
 		// to it rather than a second card.
 		if err := s.channels.UpdateInChannel(ctx, card.TeamID, card.ChannelID, cardOfRow(card), msg); err != nil {
-			s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeFailed)
+			s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), channelFailure(err))
 			return fmt.Errorf("channel update: %w", err)
 		}
 		s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeUpdated)
@@ -251,7 +251,7 @@ func (s *Server) deliverToChannel(ctx context.Context, alert models.Alert, deliv
 
 	posted, err := s.channels.PostToChannel(ctx, destination.TeamID, destination.ChannelID, msg)
 	if err != nil {
-		s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeFailed)
+		s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), channelFailure(err))
 		// The claim is ours and nothing was posted under it, so it goes back
 		// now rather than making the next attempt wait out the cutoff.
 		if release := s.store.ReleaseActiveAlertClaim(ctx, claim); release != nil {
@@ -304,7 +304,7 @@ func (s *Server) deliverToChannelOnce(ctx context.Context, alert models.Alert, d
 	msg := channelMessage(rendered)
 
 	if _, err := s.channels.PostToChannel(ctx, destination.TeamID, destination.ChannelID, msg); err != nil {
-		s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeFailed)
+		s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), channelFailure(err))
 		return fmt.Errorf("channel post: %w", err)
 	}
 	s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomePosted)
@@ -358,7 +358,7 @@ func (s *Server) resolveChannelCards(ctx context.Context, alert models.Alert, pl
 		// only forgotten.
 		if card.ConversationID != "" {
 			if err := s.channels.UpdateInChannel(ctx, card.TeamID, card.ChannelID, cardOfRow(card), msg); err != nil {
-				s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeFailed)
+				s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), channelFailure(err))
 				failures = append(failures, fmt.Errorf("channel update: %w", err))
 				continue
 			}

@@ -9,6 +9,7 @@ import (
 	"github.com/pflege-de-labs/teamster/internal/bot"
 	"github.com/pflege-de-labs/teamster/internal/config"
 	"github.com/pflege-de-labs/teamster/internal/graph"
+	"github.com/pflege-de-labs/teamster/internal/metrics"
 	"github.com/pflege-de-labs/teamster/internal/models"
 	"github.com/pflege-de-labs/teamster/internal/store"
 	"github.com/pflege-de-labs/teamster/internal/templates"
@@ -103,8 +104,13 @@ func (b *BotChannels) UpdateInChannel(ctx context.Context, teamID, _ string, car
 func (b *BotChannels) team(ctx context.Context, teamID string) (string, string, error) {
 	team, err := b.teams.GetBotTeam(ctx, teamID)
 	switch {
-	case err == nil:
+	case err == nil && team.ServiceURL != "":
 		return team.ServiceURL, team.TenantID, nil
+	case err == nil && b.serviceURL != "":
+		// Found through Graph; no activity from the team has named its URL.
+		return b.serviceURL, team.TenantID, nil
+	case err == nil:
+		return "", "", fmt.Errorf("team %s: no activity from it has named its Bot Connector endpoint, and bot.service-url is empty", teamID)
 	case !errors.Is(err, store.ErrNotFound):
 		return "", "", fmt.Errorf("bot team: %w", err)
 	case b.serviceURL == "":
@@ -114,14 +120,36 @@ func (b *BotChannels) team(ctx context.Context, teamID string) (string, string, 
 	}
 }
 
+// appNotInstalledError is a post the Connector refused in a team, which almost
+// always means the bot's app is not installed there.
+type appNotInstalledError struct {
+	teamID string
+	err    error
+}
+
+func (e *appNotInstalledError) Error() string {
+	return fmt.Sprintf("team %s refused the bot; is the Teams app installed there? %v", e.teamID, e.err)
+}
+
+func (e *appNotInstalledError) Unwrap() error { return e.err }
+
 // notInstalled says what a refused post most likely means, which a bare 403
 // from the Connector does not.
 func notInstalled(teamID string, err error) error {
 	var apiErr *bot.APIError
 	if errors.As(err, &apiErr) && apiErr.StatusCode == http.StatusForbidden {
-		return fmt.Errorf("team %s refused the bot; is the Teams app installed there? %w", teamID, err)
+		return &appNotInstalledError{teamID: teamID, err: err}
 	}
 	return err
+}
+
+// channelFailure is the outcome a failed channel post or edit is counted as.
+func channelFailure(err error) string {
+	var missing *appNotInstalledError
+	if errors.As(err, &missing) {
+		return metrics.OutcomeAppMissing
+	}
+	return metrics.OutcomeFailed
 }
 
 // botChannelMessage converts the sanitized HTML to the Markdown the Connector

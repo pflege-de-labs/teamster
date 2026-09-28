@@ -44,6 +44,8 @@ type Metrics struct {
 	renderFails  metric.Int64Counter
 	activeAlerts metric.Int64ObservableGauge
 	registration metric.Registration
+	withoutApp   metric.Int64ObservableGauge
+	appReg       metric.Registration
 }
 
 // New builds the pipeline the configuration asks for. It never returns a nil
@@ -116,9 +118,11 @@ func (m *Metrics) Shutdown(ctx context.Context) error {
 	// second would otherwise report the reader it already closed as an error.
 	m.stopped.Do(func() {
 		var errs []error
-		if m.registration != nil {
-			errs = append(errs, m.registration.Unregister())
-			m.registration = nil
+		for _, registration := range []*metric.Registration{&m.registration, &m.appReg} {
+			if *registration != nil {
+				errs = append(errs, (*registration).Unregister())
+				*registration = nil
+			}
 		}
 		if m.sdk != nil {
 			errs = append(errs, m.sdk.Shutdown(ctx))

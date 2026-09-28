@@ -185,6 +185,9 @@ type BotConfig struct {
 	TimeoutSec  int    `help:"Timeout in seconds for Bot Connector API calls." default:"10"`
 	// Used for a team no install event has named yet; see ADR 0045.
 	ServiceURL string `help:"Bot Connector endpoint for a team whose own is not yet known." name:"service-url" default:"https://smba.trafficmanager.net/teams/"`
+	// Graph finds the app in a team by it; empty leaves install state to the
+	// bot's own install events.
+	AppID string `help:"The Teams app's id, as the manifest and Teams admin center show it." name:"app-id"`
 }
 
 // Configured is the single place that decides whether the feature is on at

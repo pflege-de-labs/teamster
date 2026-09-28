@@ -45,6 +45,9 @@ type Querier interface {
 	// something this service is keeping up to date.
 	CountActiveAlerts(ctx context.Context) (int64, error)
 	CountDestinations(ctx context.Context) (int64, error)
+	// CountDestinationsWithoutBotTeam counts destinations in a team the bot is
+	// not known to be installed in, which is what a missing install alert reads.
+	CountDestinationsWithoutBotTeam(ctx context.Context) (int64, error)
 	CreateAccessToken(ctx context.Context, arg CreateAccessTokenParams) error
 	CreateBrokerToken(ctx context.Context, arg CreateBrokerTokenParams) error
 	// The first destination becomes the default in the same statement that

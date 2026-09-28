@@ -688,7 +688,7 @@ Not done, and additive whenever it is wanted:
 
 * Scope a token to one webhook, or to a role's delivery grants.
 
-## Milestone 19 — Channel delivery through the bot — in progress
+## Milestone 19 — Channel delivery through the bot — done
 
 Channel delivery does not work against a real tenant. It posts and edits cards through Microsoft
 Graph as an application, and Graph permits neither: posting as an application is reserved for
@@ -702,8 +702,7 @@ editing, so a resolve could no longer update its card. The Bot Framework bot fro
 do both: it posts to a channel as itself and edits its own messages. It needs its Teams app
 installed in each team it posts to.
 
-Designed in [ADR 0045](adr/0045-channel-delivery-through-the-bot.md). The first four points below
-are done; the admin UI's install state is next:
+Designed in [ADR 0045](adr/0045-channel-delivery-through-the-bot.md) and done:
 
 * The bot posts a channel card by creating a conversation in the channel, and edits it by its
   activity id. `active_alerts` gains the conversation id.
@@ -719,6 +718,14 @@ are done; the admin UI's install state is next:
   install events, or from Graph with the optional `TeamsAppInstallation.ReadForTeam.All`.
 
 Graph stays in use for reading: the pickers, and naming Teams and channels.
+
+Not done:
+
+* Installing the app into a team from Teamster, which Graph allows and a separate ADR would have to
+  decide.
+* Confirming, against a real tenant, that an edit through the returned conversation id updates the
+  channel post, whether an app upgrade re-sends install events, and whether a bot can post to
+  private and shared channels.
 
 ## Milestone 13 — Alerts in a person's chat — done
 
@@ -844,9 +851,7 @@ permissions table is the first thing to read when this milestone starts, not the
 | — | 16 Nothing unrouted, nothing untemplated | 14 for its third part | done |
 | — | 17 Editor completion | 9 | done |
 | — | 18 Webhook access tokens | — | done |
-| 1 | 19 Channel delivery through the bot | 13 | — |
-
-19 goes first because without it no channel delivery reaches a real tenant.
+| — | 19 Channel delivery through the bot | 13 | done |
 
 1.3 sat after 1.4 because it was the only item waiting on someone else to grant a permission.
 
