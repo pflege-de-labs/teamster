@@ -160,9 +160,8 @@ type GraphConfig struct {
 }
 
 // BotConfig is a second, separate Entra registration for the Bot Framework
-// identity that sends chat messages, unrelated to GraphConfig's channel-posting
-// credential. It is off by default: a deployment that does not want alerts in a
-// person's chat configures nothing.
+// identity that posts to channels and chats (ADR 0045), unrelated to
+// GraphConfig's directory-reading credential. Without it nothing is delivered.
 type BotConfig struct {
 	TenantID     string `help:"Microsoft Entra tenant ID for the bot registration."`
 	ClientID     string `help:"Microsoft Entra application (client) ID for the bot registration."`
@@ -184,6 +183,8 @@ type BotConfig struct {
 	Scope       string `help:"OAuth2 scope requested for the Bot Connector API." default:"https://api.botframework.com/.default"`
 	MetadataURL string `help:"Bot Framework OpenID configuration document, used to validate inbound requests." name:"metadata-url" default:"https://login.botframework.com/v1/.well-known/openidconfiguration"`
 	TimeoutSec  int    `help:"Timeout in seconds for Bot Connector API calls." default:"10"`
+	// Used for a team no install event has named yet; see ADR 0045.
+	ServiceURL string `help:"Bot Connector endpoint for a team whose own is not yet known." name:"service-url" default:"https://smba.trafficmanager.net/teams/"`
 }
 
 // Configured is the single place that decides whether the feature is on at
@@ -339,6 +340,11 @@ func validateBot(cfg BotConfig) error {
 	}
 	if parsed, err := url.Parse(cfg.MetadataURL); err != nil || parsed.Scheme != "https" {
 		return fmt.Errorf("bot-metadata-url must be an https URL, not %q", cfg.MetadataURL)
+	}
+	// The bot's token goes there with every channel post. Empty leaves only
+	// teams an install event has named.
+	if parsed, err := url.Parse(cfg.ServiceURL); cfg.ServiceURL != "" && (err != nil || parsed.Scheme != "https") {
+		return fmt.Errorf("bot-service-url must be an https URL, not %q", cfg.ServiceURL)
 	}
 	return nil
 }

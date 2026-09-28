@@ -25,7 +25,7 @@
   "bots": [
     {
       "botId": "00000000-0000-0000-0000-000000000000",
-      "scopes": ["personal"],
+      "scopes": ["personal", "team"],
       "isNotificationOnly": false,
       "supportsFiles": false,
       "supportsCalling": false,

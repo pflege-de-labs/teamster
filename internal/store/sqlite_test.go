@@ -306,7 +306,7 @@ func TestActiveAlertLifecycle(t *testing.T) {
 		t.Errorf("a fresh claim = %+v, want no card yet", card)
 	}
 
-	if err := s.CompleteActiveAlertClaim(t.Context(), claim, "msg-1", firstUpdate); err != nil {
+	if err := s.CompleteActiveAlertClaim(t.Context(), claim, "msg-1", "", firstUpdate); err != nil {
 		t.Fatalf("CompleteActiveAlertClaim: %v", err)
 	}
 
@@ -348,7 +348,7 @@ func TestActiveAlertLifecycle(t *testing.T) {
 	if _, _, err := s.ClaimActiveAlert(t.Context(), other); err != nil {
 		t.Fatalf("ClaimActiveAlert (second channel): %v", err)
 	}
-	if err := s.CompleteActiveAlertClaim(t.Context(), other, "msg-3", firstUpdate); err != nil {
+	if err := s.CompleteActiveAlertClaim(t.Context(), other, "msg-3", "", firstUpdate); err != nil {
 		t.Fatalf("CompleteActiveAlertClaim (second channel): %v", err)
 	}
 	cards, err := s.ListActiveAlerts(t.Context(), "fp")
@@ -416,7 +416,7 @@ func TestStoreErrorsWhenDatabaseIsClosed(t *testing.T) {
 		}},
 		{"ClaimActiveAlert", func() error { _, _, err := s.ClaimActiveAlert(t.Context(), models.AlertClaim{}); return err }},
 		{"CompleteActiveAlertClaim", func() error {
-			return s.CompleteActiveAlertClaim(t.Context(), models.AlertClaim{}, "msg", time.Now())
+			return s.CompleteActiveAlertClaim(t.Context(), models.AlertClaim{}, "msg", "", time.Now())
 		}},
 		{"ReleaseActiveAlertClaim", func() error { return s.ReleaseActiveAlertClaim(t.Context(), models.AlertClaim{}) }},
 		{"TouchActiveAlert", func() error {
@@ -631,7 +631,7 @@ INSERT INTO active_alerts VALUES ('fp', 'firing', 'team', 'channel', 'msg-1', '2
 	if _, _, err := store.ClaimActiveAlert(t.Context(), second); err != nil {
 		t.Fatalf("ClaimActiveAlert: %v", err)
 	}
-	if err := store.CompleteActiveAlertClaim(t.Context(), second, "msg-2", time.Now().UTC()); err != nil {
+	if err := store.CompleteActiveAlertClaim(t.Context(), second, "msg-2", "", time.Now().UTC()); err != nil {
 		t.Fatalf("CompleteActiveAlertClaim: %v", err)
 	}
 	cards, err := store.ListActiveAlerts(t.Context(), "fp")
@@ -987,11 +987,11 @@ func TestCompletingALostClaimIsRefused(t *testing.T) {
 	if _, outcome, err := s.ClaimActiveAlert(t.Context(), theirs); err != nil || outcome != ClaimRecovered {
 		t.Fatalf("takeover = %v/%v, want recovered", outcome, err)
 	}
-	if err := s.CompleteActiveAlertClaim(t.Context(), theirs, "their-message", theirs.At); err != nil {
+	if err := s.CompleteActiveAlertClaim(t.Context(), theirs, "their-message", "", theirs.At); err != nil {
 		t.Fatalf("CompleteActiveAlertClaim: %v", err)
 	}
 
-	if err := s.CompleteActiveAlertClaim(t.Context(), mine, "my-message", now); !errors.Is(err, ErrClaimLost) {
+	if err := s.CompleteActiveAlertClaim(t.Context(), mine, "my-message", "", now); !errors.Is(err, ErrClaimLost) {
 		t.Errorf("completing the lost claim = %v, want ErrClaimLost", err)
 	}
 

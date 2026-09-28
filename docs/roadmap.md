@@ -688,7 +688,7 @@ Not done, and additive whenever it is wanted:
 
 * Scope a token to one webhook, or to a role's delivery grants.
 
-## Milestone 19 — Channel delivery through the bot — next
+## Milestone 19 — Channel delivery through the bot — in progress
 
 Channel delivery does not work against a real tenant. It posts and edits cards through Microsoft
 Graph as an application, and Graph permits neither: posting as an application is reserved for
@@ -702,7 +702,8 @@ editing, so a resolve could no longer update its card. The Bot Framework bot fro
 do both: it posts to a channel as itself and edits its own messages. It needs its Teams app
 installed in each team it posts to.
 
-Designed in [ADR 0045](adr/0045-channel-delivery-through-the-bot.md), proposed:
+Designed in [ADR 0045](adr/0045-channel-delivery-through-the-bot.md). The first four points below
+are done; the admin UI's install state is next:
 
 * The bot posts a channel card by creating a conversation in the channel, and edits it by its
   activity id. `active_alerts` gains the conversation id.

@@ -610,6 +610,43 @@ func TestConformanceWebhookEndpointSlugIsUnique(t *testing.T) {
 	})
 }
 
+func TestConformanceBotTeams(t *testing.T) {
+	t.Parallel()
+
+	eachBackend(t, func(t *testing.T, open func(t *testing.T) store.Store) {
+		st := open(t)
+		ctx := t.Context()
+
+		if _, err := st.GetBotTeam(ctx, "team-1"); !errors.Is(err, store.ErrNotFound) {
+			t.Fatalf("GetBotTeam() before any install = %v, want ErrNotFound", err)
+		}
+
+		at := time.Date(2026, 9, 1, 12, 0, 0, 0, time.UTC)
+		for _, url := range []string{"https://smba.example/amer/", "https://smba.example/emea/"} {
+			if err := st.UpsertBotTeam(ctx, models.BotTeam{TeamID: "team-1", TenantID: "tenant", ServiceURL: url, UpdatedAt: at}); err != nil {
+				t.Fatalf("UpsertBotTeam: %v", err)
+			}
+		}
+		got, err := st.GetBotTeam(ctx, "team-1")
+		if err != nil {
+			t.Fatalf("GetBotTeam: %v", err)
+		}
+		if got.ServiceURL != "https://smba.example/emea/" || got.TenantID != "tenant" || !got.UpdatedAt.Equal(at) {
+			t.Errorf("GetBotTeam() = %+v, want the latest service URL", got)
+		}
+		if list, err := st.ListBotTeams(ctx); err != nil || len(list) != 1 {
+			t.Errorf("ListBotTeams() = %v, %v, want one team", list, err)
+		}
+
+		if err := st.DeleteBotTeam(ctx, "team-1"); err != nil {
+			t.Fatalf("DeleteBotTeam: %v", err)
+		}
+		if _, err := st.GetBotTeam(ctx, "team-1"); !errors.Is(err, store.ErrNotFound) {
+			t.Errorf("GetBotTeam() after removal = %v, want ErrNotFound", err)
+		}
+	})
+}
+
 func TestConformanceAccessTokens(t *testing.T) {
 	t.Parallel()
 
@@ -996,7 +1033,7 @@ func TestConformanceClaimLifecycle(t *testing.T) {
 			t.Error("a fresh claim reports a card, want none yet")
 		}
 
-		if err := st.CompleteActiveAlertClaim(ctx, claim, "message-1", now); err != nil {
+		if err := st.CompleteActiveAlertClaim(ctx, claim, "message-1", "conversation-1", now); err != nil {
 			t.Fatalf("CompleteActiveAlertClaim: %v", err)
 		}
 
@@ -1007,12 +1044,12 @@ func TestConformanceClaimLifecycle(t *testing.T) {
 		if err != nil || outcome != store.ClaimPosted {
 			t.Fatalf("claim over a card = %v/%v, want posted", outcome, err)
 		}
-		if existing.MessageID != "message-1" {
-			t.Errorf("MessageID = %q, want the card that exists", existing.MessageID)
+		if existing.MessageID != "message-1" || existing.ConversationID != "conversation-1" {
+			t.Errorf("card = %q in %q, want the card that exists", existing.MessageID, existing.ConversationID)
 		}
 
 		// And completing the claim they never had must not take it from us.
-		if err := st.CompleteActiveAlertClaim(ctx, theirs, "message-2", now); !errors.Is(err, store.ErrClaimLost) {
+		if err := st.CompleteActiveAlertClaim(ctx, theirs, "message-2", "", now); !errors.Is(err, store.ErrClaimLost) {
 			t.Errorf("completing a lost claim = %v, want ErrClaimLost", err)
 		}
 
@@ -1303,7 +1340,7 @@ func TestConformanceChannelAndChatClaimsAreIndependent(t *testing.T) {
 		if _, _, err := st.ClaimActiveAlertRecipient(ctx, chat); err != nil {
 			t.Fatalf("ClaimActiveAlertRecipient: %v", err)
 		}
-		if err := st.CompleteActiveAlertClaim(ctx, channel, "message-1", now); err != nil {
+		if err := st.CompleteActiveAlertClaim(ctx, channel, "message-1", "", now); err != nil {
 			t.Fatalf("CompleteActiveAlertClaim: %v", err)
 		}
 		if err := st.CompleteActiveAlertRecipientClaim(ctx, chat, "activity-1", now); err != nil {

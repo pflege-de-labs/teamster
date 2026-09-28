@@ -91,6 +91,7 @@ type Querier interface {
 	// defence against a row that was stranded some other way).
 	DeleteActiveAlertRecipientsFor(ctx context.Context, recipientID string) error
 	DeleteAlertSamplesSeenBefore(ctx context.Context, lastSeen time.Time) (int64, error)
+	DeleteBotTeam(ctx context.Context, teamID string) error
 	DeleteBrokerToken(ctx context.Context, sessionID string) error
 	DeleteDestination(ctx context.Context, id string) error
 	// Keeps the most recently seen values of each label key and deletes the rest.
@@ -121,6 +122,11 @@ type Querier interface {
 	GetAccessTokenByHash(ctx context.Context, tokenHash string) (AccessToken, error)
 	GetActiveAlert(ctx context.Context, arg GetActiveAlertParams) (ActiveAlert, error)
 	GetActiveAlertRecipient(ctx context.Context, arg GetActiveAlertRecipientParams) (ActiveAlertRecipient, error)
+	// Code generated from ../sqlite by internal/store/queries/gen. DO NOT EDIT.
+	//
+	// The statements are the SQLite ones with ? replaced by $n. Edit the SQLite
+	// file and run make generate.
+	GetBotTeam(ctx context.Context, teamID string) (BotTeam, error)
 	GetBrokerToken(ctx context.Context, sessionID string) (BrokerToken, error)
 	GetDefaultDestination(ctx context.Context) (Destination, error)
 	GetDestination(ctx context.Context, id string) (Destination, error)
@@ -157,6 +163,7 @@ type Querier interface {
 	// The CAST keeps the parameter int64 in both dialects: Postgres would
 	// otherwise infer int32 for a LIMIT.
 	ListAlertSamples(ctx context.Context, maxRows int64) ([]AlertSample, error)
+	ListBotTeams(ctx context.Context) ([]BotTeam, error)
 	// Code generated from ../sqlite by internal/store/queries/gen. DO NOT EDIT.
 	//
 	// The statements are the SQLite ones with ? replaced by $n. Edit the SQLite
@@ -263,6 +270,9 @@ type Querier interface {
 	// database each contribute what they saw. last_seen only moves forward, so a
 	// replica with a slow clock cannot make a key look older than it is.
 	UpsertAlertSample(ctx context.Context, arg UpsertAlertSampleParams) error
+	// UpsertBotTeam records an install, or a newer service URL for one: both come
+	// from the same authenticated activity, and the latest one wins.
+	UpsertBotTeam(ctx context.Context, arg UpsertBotTeamParams) error
 }
 
 var _ Querier = (*Queries)(nil)

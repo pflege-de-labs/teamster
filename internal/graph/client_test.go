@@ -2,8 +2,6 @@ package graph
 
 import (
 	"context"
-	"encoding/json"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -54,206 +52,6 @@ func TestNewClient(t *testing.T) {
 	}
 	if client.httpClient.Timeout != 7*time.Second {
 		t.Errorf("timeout = %v, want 7s", client.httpClient.Timeout)
-	}
-}
-
-func TestPostMessage(t *testing.T) {
-	t.Parallel()
-
-	var (
-		gotMethod string
-		gotPath   string
-		gotBody   MessageRequest
-	)
-
-	client := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
-		gotMethod = r.Method
-		gotPath = r.URL.Path
-		body, _ := io.ReadAll(r.Body)
-		_ = json.Unmarshal(body, &gotBody)
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"id":"message-1"}`))
-	})
-
-	id, err := client.PostMessage("team-1", "channel-1", Message{
-		Title: "CPU <spiking>",
-		Text:  "<p>worker is hot</p>",
-		Cards: []json.RawMessage{json.RawMessage(`{"type":"AdaptiveCard"}`)},
-	})
-	if err != nil {
-		t.Fatalf("PostMessage: %v", err)
-	}
-	if id != "message-1" {
-		t.Errorf("PostMessage() = %q, want %q", id, "message-1")
-	}
-	if gotMethod != http.MethodPost {
-		t.Errorf("method = %q, want POST", gotMethod)
-	}
-	if want := "/teams/team-1/channels/channel-1/messages"; gotPath != want {
-		t.Errorf("path = %q, want %q", gotPath, want)
-	}
-	want := `<p><b>CPU &lt;spiking&gt;</b></p><p>worker is hot</p><attachment id="1"></attachment>`
-	if gotBody.Body.Content != want {
-		t.Errorf("body = %q, want %q", gotBody.Body.Content, want)
-	}
-	if len(gotBody.Attachments) != 1 || gotBody.Attachments[0].ContentType != "application/vnd.microsoft.card.adaptive" {
-		t.Errorf("attachments = %+v, want a single adaptive card", gotBody.Attachments)
-	}
-}
-
-// A template that sends text alone has no attachment, and the body must not
-// reference one that is not there.
-func TestPostMessageWithoutACard(t *testing.T) {
-	t.Parallel()
-
-	var gotBody MessageRequest
-	client := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
-		body, _ := io.ReadAll(r.Body)
-		_ = json.Unmarshal(body, &gotBody)
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"id":"message-1"}`))
-	})
-
-	if _, err := client.PostMessage("team-1", "channel-1", Message{Title: "Disk filling", Text: "<p>92% used</p>"}); err != nil {
-		t.Fatalf("PostMessage: %v", err)
-	}
-	if want := "<p><b>Disk filling</b></p><p>92% used</p>"; gotBody.Body.Content != want {
-		t.Errorf("body = %q, want %q", gotBody.Body.Content, want)
-	}
-	if len(gotBody.Attachments) != 0 {
-		t.Errorf("attachments = %+v, want none", gotBody.Attachments)
-	}
-}
-
-func TestPostMessageErrors(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name    string
-		handler http.HandlerFunc
-		wantErr string
-	}{
-		{
-			name: "server rejects the request",
-			handler: func(w http.ResponseWriter, _ *http.Request) {
-				w.WriteHeader(http.StatusForbidden)
-				_, _ = w.Write([]byte(`{"error":"forbidden"}`))
-			},
-			wantErr: "failed",
-		},
-		{
-			name: "response is not JSON",
-			handler: func(w http.ResponseWriter, _ *http.Request) {
-				_, _ = w.Write([]byte("not json"))
-			},
-			wantErr: "decode post response",
-		},
-		{
-			name: "response has no id",
-			handler: func(w http.ResponseWriter, _ *http.Request) {
-				_, _ = w.Write([]byte(`{}`))
-			},
-			wantErr: "graph response missing id",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			client := newTestClient(t, tt.handler)
-
-			_, err := client.PostMessage("team", "channel", Message{Title: "summary", Cards: []json.RawMessage{json.RawMessage(`{}`)}})
-			if err == nil {
-				t.Fatalf("PostMessage() = nil error, want %q", tt.wantErr)
-			}
-			if !strings.Contains(err.Error(), tt.wantErr) {
-				t.Errorf("PostMessage() = %v, want an error containing %q", err, tt.wantErr)
-			}
-		})
-	}
-}
-
-func TestUpdateMessage(t *testing.T) {
-	t.Parallel()
-
-	var gotMethod, gotPath string
-	client := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
-		gotMethod = r.Method
-		gotPath = r.URL.Path
-		w.WriteHeader(http.StatusNoContent)
-	})
-
-	if err := client.UpdateMessage("team-1", "channel-1", "message-1", Message{Title: "summary", Cards: []json.RawMessage{json.RawMessage(`{}`)}}); err != nil {
-		t.Fatalf("UpdateMessage: %v", err)
-	}
-	if gotMethod != http.MethodPatch {
-		t.Errorf("method = %q, want PATCH", gotMethod)
-	}
-	if want := "/teams/team-1/channels/channel-1/messages/message-1"; gotPath != want {
-		t.Errorf("path = %q, want %q", gotPath, want)
-	}
-}
-
-func TestUpdateMessageError(t *testing.T) {
-	t.Parallel()
-
-	client := newTestClient(t, func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-		_, _ = w.Write([]byte("message gone"))
-	})
-
-	err := client.UpdateMessage("team", "channel", "missing", Message{Title: "summary", Cards: []json.RawMessage{json.RawMessage(`{}`)}})
-	if err == nil || !strings.Contains(err.Error(), "message gone") {
-		t.Errorf("UpdateMessage() = %v, want the Graph error body to be surfaced", err)
-	}
-}
-
-func TestDoRequestErrors(t *testing.T) {
-	t.Parallel()
-
-	client := newTestClient(t, func(http.ResponseWriter, *http.Request) {})
-
-	tests := []struct {
-		name    string
-		method  string
-		url     string
-		body    any
-		wantErr string
-	}{
-		{
-			name:    "unencodable body",
-			method:  http.MethodPost,
-			url:     client.baseURL,
-			body:    make(chan int),
-			wantErr: "encode request",
-		},
-		{
-			name:    "invalid method",
-			method:  "bad method",
-			url:     client.baseURL,
-			wantErr: "new request",
-		},
-		{
-			name:    "unreachable host",
-			method:  http.MethodPost,
-			url:     "http://127.0.0.1:1/teams",
-			wantErr: "graph request",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			_, err := client.doRequest(tt.method, tt.url, tt.body)
-			if err == nil {
-				t.Fatalf("doRequest() = nil error, want %q", tt.wantErr)
-			}
-			if !strings.Contains(err.Error(), tt.wantErr) {
-				t.Errorf("doRequest() = %v, want an error containing %q", err, tt.wantErr)
-			}
-		})
 	}
 }
 
@@ -465,7 +263,7 @@ func TestCallsAreMeasured(t *testing.T) {
 
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(tt.status)
-				_, _ = w.Write([]byte(`{"id":"message-1"}`))
+				_, _ = w.Write([]byte(`{"value":[]}`))
 			}))
 			t.Cleanup(srv.Close)
 
@@ -475,7 +273,7 @@ func TestCallsAreMeasured(t *testing.T) {
 					Transport: measuring{provider: provider}.ClientTransport(http.DefaultTransport),
 				},
 			}
-			_, _ = client.PostMessage("team", "channel", Message{Title: "hello"})
+			_, _ = client.ListTeams()
 
 			var collected metricdata.ResourceMetrics
 			if err := reader.Collect(context.Background(), &collected); err != nil {

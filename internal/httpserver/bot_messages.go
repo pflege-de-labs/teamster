@@ -36,6 +36,9 @@ type botActivity struct {
 	MembersRemoved []botAccount   `json:"membersRemoved,omitempty"`
 	Entities       []botEntity    `json:"entities,omitempty"`
 	ChannelData    botChannelData `json:"channelData,omitempty"`
+	// Action is an installationUpdate's add, remove, add-upgrade or
+	// remove-upgrade.
+	Action string `json:"action,omitempty"`
 }
 
 type botConversation struct {
@@ -69,6 +72,12 @@ type botChannelData struct {
 	Tenant struct {
 		ID string `json:"id"`
 	} `json:"tenant"`
+	// Team is present in a team's activities. AADGroupID is the Graph team id
+	// a destination stores; ID is Teams' own thread id and is not used.
+	Team struct {
+		AADGroupID string `json:"aadGroupId"`
+	} `json:"team"`
+	EventType string `json:"eventType,omitempty"`
 }
 
 // activityShapeRefusal is the cheap, non-secret gate applied before any bearer
@@ -78,12 +87,18 @@ func activityShapeRefusal(activity botActivity, bot config.BotConfig) string {
 	if activity.ChannelID != "msteams" {
 		return "unsupported-channel"
 	}
-	switch activity.Type {
-	case "message", "conversationUpdate":
+	switch activity.Conversation.ConversationType {
+	case "personal":
+		if activity.Type != "message" && activity.Type != "conversationUpdate" {
+			return "unsupported-type"
+		}
+	// A team is where the bot posts, never where it takes commands, so only
+	// its install and removal events are read (ADR 0045).
+	case "channel":
+		if activity.Type != "conversationUpdate" && activity.Type != "installationUpdate" {
+			return "unsupported-type"
+		}
 	default:
-		return "unsupported-type"
-	}
-	if activity.Conversation.ConversationType != "personal" {
 		return "unsupported-conversation"
 	}
 	// A single-tenant registration has exactly one tenant it should ever hear
@@ -177,6 +192,10 @@ func (s *Server) handleBotMessages(w http.ResponseWriter, r *http.Request) {
 // falls through -- message included, which is what actually arrives for a
 // personal-scope bot -- gets the service-url refresh below.
 func (s *Server) dispatchBotActivity(ctx context.Context, activity botActivity) {
+	if activity.Conversation.ConversationType == "channel" {
+		s.recordBotTeam(ctx, activity)
+		return
+	}
 	switch activity.Type {
 	case "conversationUpdate":
 		if botWasAdded(activity) {
@@ -469,6 +488,39 @@ func (s *Server) retireLink(ctx context.Context, conversationID, reason string) 
 		return false, err
 	}
 	return true, nil
+}
+
+// recordBotTeam keeps bot_teams in step with where the bot is installed. Any
+// other verified team activity refreshes the service URL, which is regional
+// and may move. An activity without a Graph team id names nothing to key on.
+func (s *Server) recordBotTeam(ctx context.Context, activity botActivity) {
+	teamID := activity.ChannelData.Team.AADGroupID
+	if teamID == "" {
+		return
+	}
+
+	if botLeftTeam(activity) {
+		if err := s.store.DeleteBotTeam(ctx, teamID); err != nil {
+			logError("forget bot team", err)
+		}
+		return
+	}
+
+	tenant := activity.ChannelData.Tenant.ID
+	if tenant == "" {
+		tenant = s.cfg.Bot.TenantID
+	}
+	err := s.store.UpsertBotTeam(ctx, models.BotTeam{TeamID: teamID, TenantID: tenant, ServiceURL: activity.ServiceURL, UpdatedAt: s.now()})
+	if err != nil {
+		logError("record bot team", err)
+	}
+}
+
+func botLeftTeam(activity botActivity) bool {
+	if activity.Type == "installationUpdate" {
+		return strings.HasPrefix(activity.Action, "remove")
+	}
+	return botWasRemoved(activity) || activity.ChannelData.EventType == "teamDeleted"
 }
 
 func (s *Server) refreshRecipientServiceURL(ctx context.Context, activity botActivity) {

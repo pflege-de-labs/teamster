@@ -140,14 +140,13 @@ auth:
     # 32 random bytes, base64 -- e.g. `openssl rand -base64 32`.
     token-encryption-key: ""
 
-# The Bot Framework identity used to send an alert to a person's chat, a
-# second and separate Entra registration from graph below: revoking or
-# rotating one never touches the other, and a deployment that does not want
-# alerts in someone's chat sets none of this.
+# The Bot Framework identity that posts every channel card and sends alerts
+# to a person's chat (ADR 0045), a second and separate Entra registration from
+# graph below: revoking or rotating one never touches the other.
 #
-# Leave tenant-id, client-id and client-secret all empty to turn the whole
-# feature off. Setting any one of the three without the other two is a
-# configuration error caught at startup.
+# Without it nothing reaches a channel. Setting any one of tenant-id,
+# client-id and client-secret without the other two is a configuration error
+# caught at startup.
 bot:
   # Not required when tenant-type is multi: that registration authenticates
   # through the shared botframework.com tenant rather than its own.
@@ -164,10 +163,12 @@ bot:
   # sovereign cloud changes this, metadata-url and scope together.
   token-url: ""
   scope: "https://api.botframework.com/.default"
-  # Where inbound Bot Framework requests are validated against; unused until
-  # the inbound endpoint ships.
+  # Where inbound Bot Framework requests are validated against.
   metadata-url: "https://login.botframework.com/v1/.well-known/openidconfiguration"
   timeout-sec: 10
+  # Bot Connector endpoint for a team that has not yet sent the bot an
+  # activity. A team's own endpoint replaces it once one arrives (ADR 0045).
+  service-url: "https://smba.trafficmanager.net/teams/"
 
 graph:
   tenant-id: "your-tenant-id"

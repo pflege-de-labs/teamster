@@ -17,7 +17,7 @@ INSERT INTO active_alerts (
 	claim_owner, claimed_at, posted_at, last_update)
 VALUES ($1, $2, $3, $4, '', $5, $6, NULL, $7)
 ON CONFLICT(fingerprint, team_id, channel_id) DO NOTHING
-RETURNING fingerprint, status, team_id, channel_id, message_id, claim_owner, claimed_at, posted_at, last_update
+RETURNING fingerprint, status, team_id, channel_id, message_id, claim_owner, claimed_at, posted_at, last_update, conversation_id
 `
 
 type ClaimActiveAlertParams struct {
@@ -55,6 +55,7 @@ func (q *Queries) ClaimActiveAlert(ctx context.Context, arg ClaimActiveAlertPara
 		&i.ClaimedAt,
 		&i.PostedAt,
 		&i.LastUpdate,
+		&i.ConversationID,
 	)
 	return i, err
 }
@@ -62,10 +63,11 @@ func (q *Queries) ClaimActiveAlert(ctx context.Context, arg ClaimActiveAlertPara
 const completeActiveAlertClaim = `-- name: CompleteActiveAlertClaim :one
 INSERT INTO active_alerts (
 	fingerprint, team_id, channel_id, status, message_id,
-	claim_owner, claimed_at, posted_at, last_update)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+	claim_owner, claimed_at, posted_at, last_update, conversation_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 ON CONFLICT(fingerprint, team_id, channel_id) DO UPDATE SET
 	message_id  = excluded.message_id,
+	conversation_id = excluded.conversation_id,
 	posted_at   = excluded.posted_at,
 	status      = excluded.status,
 	last_update = excluded.last_update
@@ -75,15 +77,16 @@ RETURNING message_id
 `
 
 type CompleteActiveAlertClaimParams struct {
-	Fingerprint string
-	TeamID      string
-	ChannelID   string
-	Status      string
-	MessageID   string
-	ClaimOwner  string
-	ClaimedAt   sql.NullTime
-	PostedAt    sql.NullTime
-	LastUpdate  time.Time
+	Fingerprint    string
+	TeamID         string
+	ChannelID      string
+	Status         string
+	MessageID      string
+	ClaimOwner     string
+	ClaimedAt      sql.NullTime
+	PostedAt       sql.NullTime
+	LastUpdate     time.Time
+	ConversationID string
 }
 
 // CompleteActiveAlertClaim records the card the claim produced. The guard is
@@ -101,6 +104,7 @@ func (q *Queries) CompleteActiveAlertClaim(ctx context.Context, arg CompleteActi
 		arg.ClaimedAt,
 		arg.PostedAt,
 		arg.LastUpdate,
+		arg.ConversationID,
 	)
 	var message_id string
 	err := row.Scan(&message_id)
@@ -145,7 +149,7 @@ func (q *Queries) DeleteActiveAlertCard(ctx context.Context, arg DeleteActiveAle
 }
 
 const getActiveAlert = `-- name: GetActiveAlert :one
-SELECT fingerprint, status, team_id, channel_id, message_id, claim_owner, claimed_at, posted_at, last_update
+SELECT fingerprint, status, team_id, channel_id, message_id, claim_owner, claimed_at, posted_at, last_update, conversation_id
 FROM active_alerts
 WHERE fingerprint = $1 AND team_id = $2 AND channel_id = $3
 `
@@ -169,12 +173,13 @@ func (q *Queries) GetActiveAlert(ctx context.Context, arg GetActiveAlertParams) 
 		&i.ClaimedAt,
 		&i.PostedAt,
 		&i.LastUpdate,
+		&i.ConversationID,
 	)
 	return i, err
 }
 
 const listActiveAlerts = `-- name: ListActiveAlerts :many
-SELECT fingerprint, status, team_id, channel_id, message_id, claim_owner, claimed_at, posted_at, last_update
+SELECT fingerprint, status, team_id, channel_id, message_id, claim_owner, claimed_at, posted_at, last_update, conversation_id
 FROM active_alerts
 WHERE fingerprint = $1
 ORDER BY team_id, channel_id
@@ -202,6 +207,7 @@ func (q *Queries) ListActiveAlerts(ctx context.Context, fingerprint string) ([]A
 			&i.ClaimedAt,
 			&i.PostedAt,
 			&i.LastUpdate,
+			&i.ConversationID,
 		); err != nil {
 			return nil, err
 		}

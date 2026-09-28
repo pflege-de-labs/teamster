@@ -18,10 +18,9 @@ import (
 	"github.com/pflege-de-labs/teamster/internal/store"
 )
 
-// messenger is the slice of the Graph client the handlers depend on.
+// messenger is the slice of the Graph client the handlers depend on. It only
+// reads: Graph cannot post to a channel as an application (ADR 0045).
 type messenger interface {
-	PostMessage(teamID, channelID string, msg graph.Message) (string, error)
-	UpdateMessage(teamID, channelID, messageID string, msg graph.Message) error
 	ListTeams() ([]graph.Team, error)
 	ListChannels(teamID string) ([]graph.Channel, error)
 }
@@ -74,6 +73,7 @@ type Server struct {
 	store      store.Store
 	graph      messenger
 	bot        botSender
+	channels   ChannelTransport
 	router     *routing.Router
 	draining   atomic.Bool
 	authz      *authz.Authorizer
@@ -112,7 +112,7 @@ func readHeaderTimeout(readTimeout time.Duration) time.Duration {
 // NewServer returns an error rather than starting without an authorizer: a
 // policy file that does not parse would otherwise leave every check to fall
 // through to whatever the zero value decides.
-func NewServer(cfg config.Config, store store.Store, graphClient messenger, botClient botSender, tel telemetry, samples sampler) (*http.Server, error) {
+func NewServer(cfg config.Config, store store.Store, graphClient messenger, botClient botSender, channels ChannelTransport, tel telemetry, samples sampler) (*http.Server, error) {
 	registerMIMETypes()
 
 	authorizer, err := authz.New()
@@ -143,11 +143,16 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger, botC
 		brokerClient = graph.NewBrokerClient(cfg.Graph.BaseURL, tel, time.Duration(cfg.Graph.TimeoutSec)*time.Second)
 	}
 
+	if channels == nil {
+		channels = noChannels{}
+	}
+
 	api := &Server{
 		cfg:       cfg,
 		store:     store,
 		graph:     graphClient,
 		bot:       botClient,
+		channels:  channels,
 		router:    routing.New(store),
 		authz:     authorizer,
 		metrics:   tel,

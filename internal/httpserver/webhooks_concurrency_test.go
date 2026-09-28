@@ -282,7 +282,7 @@ func TestClaimLostIsComparable(t *testing.T) {
 	st := newFakeStore()
 	claim := models.AlertClaim{Fingerprint: "fp", TeamID: "team", ChannelID: "channel", Owner: "nobody"}
 
-	err := st.CompleteActiveAlertClaim(t.Context(), claim, "message-1", time.Now())
+	err := st.CompleteActiveAlertClaim(t.Context(), claim, "message-1", "", time.Now())
 	if !errors.Is(err, store.ErrClaimLost) {
 		t.Errorf("completing a claim nobody holds = %v, want ErrClaimLost", err)
 	}

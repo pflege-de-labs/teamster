@@ -172,7 +172,7 @@ func TestEveryIncomingAlertIsSampled(t *testing.T) {
 			t.Parallel()
 
 			rec := &recordingSampler{}
-			srv, err := NewServer(samplesConfig(true), newFakeStore(), &fakeMessenger{}, nil, metrics.Disabled(), rec)
+			srv, err := NewServer(samplesConfig(true), newFakeStore(), &fakeMessenger{}, nil, &fakeMessenger{}, metrics.Disabled(), rec)
 			if err != nil {
 				t.Fatalf("NewServer: %v", err)
 			}

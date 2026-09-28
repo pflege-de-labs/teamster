@@ -1,0 +1,135 @@
+package httpserver
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"net/http"
+
+	"github.com/pflege-de-labs/teamster/internal/bot"
+	"github.com/pflege-de-labs/teamster/internal/config"
+	"github.com/pflege-de-labs/teamster/internal/graph"
+	"github.com/pflege-de-labs/teamster/internal/models"
+	"github.com/pflege-de-labs/teamster/internal/store"
+	"github.com/pflege-de-labs/teamster/internal/templates"
+)
+
+// channelCard is where a channel post landed, as an edit needs to address it.
+// An empty ConversationID is a card nothing can edit (ADR 0045).
+type channelCard struct {
+	ConversationID string
+	MessageID      string
+}
+
+// ChannelTransport posts and edits channel cards. graph.Message stays the
+// channel message shape: HTML text and any number of cards.
+type ChannelTransport interface {
+	PostToChannel(ctx context.Context, teamID, channelID string, msg graph.Message) (channelCard, error)
+	UpdateInChannel(ctx context.Context, teamID, channelID string, card channelCard, msg graph.Message) error
+}
+
+// errNoChannelTransport is every channel delivery on a deployment without the
+// bot: Graph cannot post to a channel as an application.
+var errNoChannelTransport = errors.New("channel delivery needs the bot to be configured (ADR 0045)")
+
+type noChannels struct{}
+
+func (noChannels) PostToChannel(context.Context, string, string, graph.Message) (channelCard, error) {
+	return channelCard{}, errNoChannelTransport
+}
+
+func (noChannels) UpdateInChannel(context.Context, string, string, channelCard, graph.Message) error {
+	return errNoChannelTransport
+}
+
+// channelBot is the slice of the Bot Connector client channel delivery uses.
+type channelBot interface {
+	PostToChannel(ctx context.Context, serviceURL, tenantID, channelID string, msg bot.Message) (bot.ChannelPost, error)
+	UpdateMessage(ctx context.Context, ref bot.ConversationReference, activityID string, msg bot.Message) error
+}
+
+type botTeams interface {
+	GetBotTeam(ctx context.Context, teamID string) (models.BotTeam, error)
+}
+
+// BotChannels delivers channel cards through the bot.
+type BotChannels struct {
+	bot        channelBot
+	teams      botTeams
+	serviceURL string
+	tenantID   string
+}
+
+// NewBotChannels uses the team's recorded service URL, else cfg.ServiceURL.
+// fallbackTenant names the tenant for a multi-tenant bot, which has none of
+// its own.
+func NewBotChannels(client channelBot, teams botTeams, cfg config.BotConfig, fallbackTenant string) *BotChannels {
+	tenant := cfg.TenantID
+	if tenant == "" {
+		tenant = fallbackTenant
+	}
+	return &BotChannels{bot: client, teams: teams, serviceURL: cfg.ServiceURL, tenantID: tenant}
+}
+
+func (b *BotChannels) PostToChannel(ctx context.Context, teamID, channelID string, msg graph.Message) (channelCard, error) {
+	serviceURL, tenantID, err := b.team(ctx, teamID)
+	if err != nil {
+		return channelCard{}, err
+	}
+	out, err := botChannelMessage(msg)
+	if err != nil {
+		return channelCard{}, err
+	}
+	post, err := b.bot.PostToChannel(ctx, serviceURL, tenantID, channelID, out)
+	if err != nil {
+		return channelCard{}, notInstalled(teamID, err)
+	}
+	return channelCard{ConversationID: post.ConversationID, MessageID: post.ActivityID}, nil
+}
+
+func (b *BotChannels) UpdateInChannel(ctx context.Context, teamID, _ string, card channelCard, msg graph.Message) error {
+	serviceURL, _, err := b.team(ctx, teamID)
+	if err != nil {
+		return err
+	}
+	out, err := botChannelMessage(msg)
+	if err != nil {
+		return err
+	}
+	ref := bot.ConversationReference{ServiceURL: serviceURL, ConversationID: card.ConversationID}
+	return notInstalled(teamID, b.bot.UpdateMessage(ctx, ref, card.MessageID, out))
+}
+
+func (b *BotChannels) team(ctx context.Context, teamID string) (string, string, error) {
+	team, err := b.teams.GetBotTeam(ctx, teamID)
+	switch {
+	case err == nil:
+		return team.ServiceURL, team.TenantID, nil
+	case !errors.Is(err, store.ErrNotFound):
+		return "", "", fmt.Errorf("bot team: %w", err)
+	case b.serviceURL == "":
+		return "", "", fmt.Errorf("team %s: no install event has named its Bot Connector endpoint, and bot.service-url is empty", teamID)
+	default:
+		return b.serviceURL, b.tenantID, nil
+	}
+}
+
+// notInstalled says what a refused post most likely means, which a bare 403
+// from the Connector does not.
+func notInstalled(teamID string, err error) error {
+	var apiErr *bot.APIError
+	if errors.As(err, &apiErr) && apiErr.StatusCode == http.StatusForbidden {
+		return fmt.Errorf("team %s refused the bot; is the Teams app installed there? %w", teamID, err)
+	}
+	return err
+}
+
+// botChannelMessage converts the sanitized HTML to the Markdown the Connector
+// renders, as chatMessage does, and keeps every card.
+func botChannelMessage(msg graph.Message) (bot.Message, error) {
+	text, err := templates.ToMarkdown(msg.Text)
+	if err != nil {
+		return bot.Message{}, fmt.Errorf("markdown: %w", err)
+	}
+	return bot.Message{Title: msg.Title, Text: text, Cards: msg.Cards}, nil
+}

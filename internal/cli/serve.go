@@ -135,12 +135,18 @@ func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
 		SendMessage(ctx context.Context, ref bot.ConversationReference, msg bot.Message) (string, error)
 		UpdateMessage(ctx context.Context, ref bot.ConversationReference, activityID string, msg bot.Message) error
 	}
+	// Nil for the same reason; NewServer then refuses every channel delivery
+	// with a reason, since Graph cannot post there (ADR 0045).
+	var channels httpserver.ChannelTransport
 	if cfg.Bot.Configured() {
 		client, err := bot.NewClient(cfg.Bot, telemetry)
 		if err != nil {
 			return fmt.Errorf("bot client: %w", err)
 		}
 		botClient = client
+		channels = httpserver.NewBotChannels(client, sqlStore, cfg.Bot, cfg.Graph.TenantID)
+	} else {
+		log.Printf("bot not configured: every channel delivery will fail, see ADR 0045")
 	}
 
 	sampler, err := samples.New(sqlStore, cfg.Samples)
@@ -148,7 +154,7 @@ func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
 		return fmt.Errorf("samples: %w", err)
 	}
 
-	srv, err := httpserver.NewServer(*cfg, sqlStore, graphClient, botClient, telemetry, sampler)
+	srv, err := httpserver.NewServer(*cfg, sqlStore, graphClient, botClient, channels, telemetry, sampler)
 	if err != nil {
 		return fmt.Errorf("http server: %w", err)
 	}

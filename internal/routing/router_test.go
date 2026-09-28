@@ -99,6 +99,22 @@ func (s stubStore) GetRecipientBySubject(ctx context.Context, subject string) (m
 	return models.Recipient{}, store.ErrNotFound
 }
 
+func (s stubStore) UpsertBotTeam(ctx context.Context, t models.BotTeam) error {
+	return store.ErrNotFound
+}
+
+func (s stubStore) GetBotTeam(ctx context.Context, teamID string) (models.BotTeam, error) {
+	return models.BotTeam{}, store.ErrNotFound
+}
+
+func (s stubStore) ListBotTeams(ctx context.Context) ([]models.BotTeam, error) {
+	return nil, store.ErrNotFound
+}
+
+func (s stubStore) DeleteBotTeam(ctx context.Context, teamID string) error {
+	return store.ErrNotFound
+}
+
 func (s stubStore) ListAccessTokens(ctx context.Context) ([]models.AccessToken, error) {
 	return nil, store.ErrNotFound
 }
@@ -189,7 +205,7 @@ func (s stubStore) ClaimActiveAlert(ctx context.Context, _ models.AlertClaim) (m
 	return models.ActiveAlert{}, store.ClaimHeld, store.ErrNotFound
 }
 
-func (s stubStore) CompleteActiveAlertClaim(ctx context.Context, _ models.AlertClaim, _ string, _ time.Time) error {
+func (s stubStore) CompleteActiveAlertClaim(ctx context.Context, _ models.AlertClaim, _, _ string, _ time.Time) error {
 	return store.ErrNotFound
 }
 

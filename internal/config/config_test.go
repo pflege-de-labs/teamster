@@ -104,6 +104,7 @@ func TestParseExampleConfig(t *testing.T) {
 			TenantType:  "single",
 			Scope:       "https://api.botframework.com/.default",
 			MetadataURL: "https://login.botframework.com/v1/.well-known/openidconfiguration",
+			ServiceURL:  "https://smba.trafficmanager.net/teams/",
 			TimeoutSec:  10,
 		},
 		Samples: SamplesConfig{
@@ -154,6 +155,7 @@ func TestParseBotConfigFieldsMap(t *testing.T) {
 		TokenURL:     "https://login.example/bot-token",
 		Scope:        "https://bot.example/.default",
 		MetadataURL:  "https://bot.example/.well-known/openidconfiguration",
+		ServiceURL:   "https://smba.trafficmanager.net/teams/",
 		TimeoutSec:   42,
 	}
 	if !reflect.DeepEqual(got, want) {
@@ -483,6 +485,17 @@ func TestValidateBot(t *testing.T) {
 				}
 			},
 			wantErr: "bot-metadata-url must be an https URL",
+		},
+		{
+			name: "service url not https",
+			mutate: func(c *Config) {
+				c.Bot = BotConfig{
+					TenantID: "tenant", ClientID: "client", ClientSecret: "secret", TimeoutSec: 10,
+					MetadataURL: "https://bot.example/.well-known/openidconfiguration",
+					ServiceURL:  "http://smba.example/",
+				}
+			},
+			wantErr: "bot-service-url must be an https URL",
 		},
 	}
 

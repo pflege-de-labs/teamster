@@ -19,15 +19,16 @@ type AccessToken struct {
 }
 
 type ActiveAlert struct {
-	Fingerprint string
-	Status      string
-	TeamID      string
-	ChannelID   string
-	MessageID   string
-	ClaimOwner  string
-	ClaimedAt   sql.NullTime
-	PostedAt    sql.NullTime
-	LastUpdate  time.Time
+	Fingerprint    string
+	Status         string
+	TeamID         string
+	ChannelID      string
+	MessageID      string
+	ClaimOwner     string
+	ClaimedAt      sql.NullTime
+	PostedAt       sql.NullTime
+	LastUpdate     time.Time
+	ConversationID string
 }
 
 type ActiveAlertRecipient struct {
@@ -48,6 +49,13 @@ type AlertSample struct {
 	SeenCount int64
 	FirstSeen time.Time
 	LastSeen  time.Time
+}
+
+type BotTeam struct {
+	TeamID     string
+	TenantID   string
+	ServiceUrl string
+	UpdatedAt  time.Time
 }
 
 type BrokerToken struct {
