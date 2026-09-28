@@ -13,7 +13,7 @@ CHART        ?= charts/teamster
 CONTAINER_TOOL ?= $(shell command -v docker >/dev/null 2>&1 && echo docker || echo podman)
 VERSION      ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 
-.PHONY: all build run test test-postgres db-up db-down coverage coverage-html fmt lint tidy hooks tools generate icons vendor vendor-record image image-run chart-lint clean
+.PHONY: all build run test test-postgres db-up db-down coverage coverage-html fmt lint tidy hooks tools generate icons manifest vendor vendor-record image image-run chart-lint clean
 
 # The admin UI wears logo 1; logo 2 is the README header.
 ICON_SOURCE := images/favicons/logo-teamster-1
@@ -65,6 +65,10 @@ generate: tools
 icons:
 	@for icon in $(SERVED_ICONS); do cp $(ICON_SOURCE)/$$icon internal/httpserver/web/icons/$$icon; done
 	cp $(ICON_SOURCE)/favicon.ico internal/httpserver/web/favicon.ico
+
+# Packages the Teams app catalog upload; see manifest/README.md.
+manifest:
+	cd manifest && zip -j teamster-bot.zip manifest.json color.png outline.png
 
 # The browser libraries under web/vendor are committed too, and nothing short
 # of a download and a hash proves the bytes are the version manifest.json
