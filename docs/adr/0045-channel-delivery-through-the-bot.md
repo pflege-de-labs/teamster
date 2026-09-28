@@ -112,6 +112,39 @@ logs that channel deliveries will fail, and each one fails with that reason.
 
 **Teams V2 endpoints** post through the bot as well, fire-and-forget as before.
 
+**Administration follows install state.** A team is only a usable destination once the app is
+installed in it, so the admin UI stops presenting every team as equal.
+
+* **Each team has an install state**: *installed*, *not installed* or *unknown*.
+  * A `bot_teams` row means installed.
+  * Without a row, the state comes from Graph when `TeamsAppInstallation.ReadForTeam.All` is
+    granted, via `GET /teams/{id}/installedApps` filtered by the manifest id (`bot.app-id`). An
+    installation found this way counts as installed, and delivery uses the fallback service URL
+    until the team sends an activity.
+  * Without that permission, a team with no row is *unknown*.
+  * Answers are cached like the pickers' lists, because checking every team costs one Graph call
+    each.
+* **The Team picker groups Teams by that state.** Installed Teams come first. The others are
+  listed below with how to install the app. They stay selectable, so a destination can be
+  prepared before the install, but saving one shows a warning.
+  * The delegated picker (ADR 0037) groups the same way.
+  * Grants still decide which Teams a role sees at all.
+* **A Teams page (`/admin/teams`)** lists each team that a destination names, or the directory
+  offers, with:
+  * its install state, and when teamster last heard from it
+  * the destinations and routes that depend on it
+  * for a team without the app, how to install it: a link to the app in Teams
+    (`https://teams.microsoft.com/l/app/{app id}`) and the steps from the manifest README
+* **Destinations and the routing graph** mark a destination whose team lacks the app, so a
+  missing install shows up before an alert does.
+* **A delivery refused because the app is missing** is counted under its own reason in the
+  delivery metrics, and a gauge counts destinations whose team lacks the app, so either can be
+  alerted on.
+* **Installing from teamster** is not part of this decision. Graph allows it as the application
+  (`TeamsAppInstallation.ReadWriteSelfForTeam.All`, if the Teams app belongs to the calling
+  registration, or the broad `ReadWriteForTeam.All`). It would turn a team owner's decision into
+  an admin button, so it waits for a separate ADR.
+
 Alternatives we rejected:
 
 * **RSC `ChannelMessage.Send.Group` through Graph.** Smallest change, but a card could never be
@@ -129,13 +162,17 @@ Alternatives we rejected:
 ## Consequences
 
 * Channel delivery works against a real tenant, and a card is edited when its alert changes.
-* Every team a route posts to needs the Teams app installed. The app has to be in the tenant's
-  app catalog, or uploaded to each team where custom app upload is allowed. A team owner can
-  install it, or an admin through an app setup policy. Installing it through Graph is possible but
-  out of scope here.
+* Every team a route posts to needs the Teams app installed. The work is split across roles:
+  * A Teams admin publishes the app to the tenant's catalog once.
+  * An owner of each team installs it there. Where custom app upload is allowed, it can be
+    uploaded to a team directly instead.
+  * Teamster only shows the state and says what to do.
+  * App setup policies do not help here: they install apps for users, not into Teams.
 * The bot becomes required for any channel delivery, not an option for chats. Its registration and
   secret now carry all delivery. The Graph registration keeps only its read permissions
-  (`Team.ReadBasic.All`, `Channel.ReadBasic.All`).
+  (`Team.ReadBasic.All`, `Channel.ReadBasic.All`), plus the optional
+  `TeamsAppInstallation.ReadForTeam.All` for install state. Configuration gains `bot.app-id`, the
+  manifest id Graph filters on.
 * Channel cards come from the bot's name and icon, from the manifest.
 * The schema changes are additive: one new table and one column with a default. The previous
   release ignores both.
@@ -147,8 +184,11 @@ Alternatives we rejected:
   service URL is per team, so a test points `bot.service-url` at its own server.
 * The Connector throttles per conversation. The `429` and `Retry-After` it returns are already
   parsed by `bot.APIError`, so a throttled delivery fails with `502` and the sender retries.
-* Follow-up: mark a destination whose team has no `bot_teams` row in the admin UI, so a missing
-  install shows up before an alert does.
-* To confirm while implementing: that updating against the conversation id returned by
-  `POST /v3/conversations` edits the channel post, and whether an app upgrade re-sends install
-  events for teams that installed it earlier.
+* The Team picker's contract changes: `GET /api/graph/teams` answers each team with its install
+  state. A client that ignores the new field sees the same list as before.
+* To confirm while implementing:
+  * that updating against the conversation id returned by `POST /v3/conversations` edits the
+    channel post
+  * whether an app upgrade re-sends install events for teams that installed it earlier
+  * whether a bot can post to private and shared channels, which the picker would otherwise have
+    to mark

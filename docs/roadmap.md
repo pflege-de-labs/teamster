@@ -712,6 +712,10 @@ Designed in [ADR 0045](adr/0045-channel-delivery-through-the-bot.md), proposed:
 * The manifest adds the `team` scope. `/bot/messages` acts on team install and removal events
   only, and ignores messages in channels.
 * Graph stops posting and keeps reading. The Teams V2 endpoints move to the bot as well.
+* The admin UI follows install state. The Team picker groups Teams into installed and not, and a
+  new `/admin/teams` page shows each team's state, what depends on it and how to install the app.
+  Missing installs are marked on destinations and counted in metrics. Install state is read from
+  install events, or from Graph with the optional `TeamsAppInstallation.ReadForTeam.All`.
 
 Graph stays in use for reading: the pickers, and naming Teams and channels.
 
