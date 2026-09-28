@@ -1,6 +1,8 @@
 # 0026. Alerts reach a person's chat through a Bot Framework bot
 
-* Status: Accepted
+* Status: Accepted, amended by [0045](0045-channel-delivery-through-the-bot.md): the
+  client-credentials identity cannot post to a channel either, and channel delivery moves onto
+  this bot
 * Date: 2026-09-15
 
 ## Context

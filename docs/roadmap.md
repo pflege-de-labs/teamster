@@ -702,12 +702,16 @@ editing, so a resolve could no longer update its card. The Bot Framework bot fro
 do both: it posts to a channel as itself and edits its own messages. It needs its Teams app
 installed in each team it posts to.
 
-To be designed in an ADR before implementing it:
+Designed in [ADR 0045](adr/0045-channel-delivery-through-the-bot.md), proposed:
 
-* how the bot learns a team's service URL, which only arrives with an activity from that team
-* what is stored for each team the bot is installed in, as an additive migration
-* what happens to the Graph channel path, and to cards it already posted
-* the Teams V2 endpoints, which post through the same Graph call
+* The bot posts a channel card by creating a conversation in the channel, and edits it by its
+  activity id. `active_alerts` gains the conversation id.
+* A new `bot_teams` table records the service URL and tenant for each team the bot is installed
+  in, learned from verified install events. Without a row, delivery falls back to
+  `bot.service-url`.
+* The manifest adds the `team` scope. `/bot/messages` acts on team install and removal events
+  only, and ignores messages in channels.
+* Graph stops posting and keeps reading. The Teams V2 endpoints move to the bot as well.
 
 Graph stays in use for reading: the pickers, and naming Teams and channels.
 
