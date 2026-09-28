@@ -97,6 +97,19 @@ templ destinations(page Page) {
 				@pickerField("destination-team", "team_id", i18n.T(ctx, "destinations.team"), "team-id", page.editingDestination().TeamID, i18n.T(ctx, "picker.team"), i18n.T(ctx, "picker.team_choose"), "", page.BrokerAvailable, i18n.T(ctx, "picker.all_teams"), i18n.T(ctx, "picker.my_teams"))
 				@pickerField("destination-channel", "channel_id", i18n.T(ctx, "destinations.channel"), "channel-id", page.editingDestination().ChannelID, i18n.T(ctx, "picker.channel"), i18n.T(ctx, "picker.channel_choose"), i18n.T(ctx, "picker.channel_needs_team"), false, "", "")
 				<p id="destination-channel-hint" hidden class="text-xs text-slate-500">{ i18n.T(ctx, "picker.channel_needs_team") }</p>
+				<p
+					id="destination-install-hint"
+					hidden
+					class="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900"
+					data-group-installed={ i18n.T(ctx, "install.group_installed") }
+					data-group-missing={ i18n.T(ctx, "install.group_missing") }
+					data-group-unknown={ i18n.T(ctx, "install.group_unknown") }
+					data-text-missing={ i18n.T(ctx, "install.hint_missing") }
+					data-text-unknown={ i18n.T(ctx, "install.hint_unknown") }
+				>
+					<span data-install-text></span>
+					<a href="/admin/teams" class="underline">{ i18n.T(ctx, "install.hint_link") }</a>
+				</p>
 				<div class="flex items-center gap-2">
 					@submit(submitLabel(ctx, page.EditDestination != nil, "noun.destination"))
 					if page.EditDestination != nil {
@@ -117,6 +130,9 @@ templ destinations(page Page) {
 									<span class="truncate font-medium">{ d.Name }</span>
 									if d.IsDefault {
 										<span class="rounded bg-sky-100 px-1.5 py-0.5 text-xs font-medium text-sky-800">{ i18n.T(ctx, "destinations.badge_global_default") }</span>
+									}
+									if page.InstallStates[d.TeamID] == "missing" {
+										<a href="/admin/teams" class="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-900">{ i18n.T(ctx, "destinations.badge_app_missing") }</a>
 									}
 								</div>
 								<div class="truncate text-xs text-slate-500">team { d.TeamID } · channel { d.ChannelID }</div>

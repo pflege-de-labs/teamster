@@ -422,6 +422,21 @@ func (f *fakeStore) ListBotTeams(ctx context.Context) ([]models.BotTeam, error) 
 	return out, nil
 }
 
+func (f *fakeStore) CountDestinationsWithoutBotTeam(ctx context.Context) (int64, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("CountDestinationsWithoutBotTeam"); err != nil {
+		return 0, err
+	}
+	var n int64
+	for _, d := range f.destinations {
+		if _, ok := f.botTeams[d.TeamID]; !ok {
+			n++
+		}
+	}
+	return n, nil
+}
+
 func (f *fakeStore) DeleteBotTeam(ctx context.Context, teamID string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -1331,6 +1346,11 @@ type fakeMessenger struct {
 	directoryErr error
 	teamCalls    int
 	channelCalls int
+	// installed answers HasInstalledApp; installErr fails it, as a missing
+	// Graph permission does.
+	installed    map[string]bool
+	installErr   error
+	installCalls int
 
 	posts   []postCall
 	updates []updateCall
@@ -1372,6 +1392,16 @@ func (f *fakeMessenger) ListTeams() ([]graph.Team, error) {
 		return nil, f.directoryErr
 	}
 	return f.teams, nil
+}
+
+func (f *fakeMessenger) HasInstalledApp(teamID, _ string) (bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.installCalls++
+	if f.installErr != nil {
+		return false, f.installErr
+	}
+	return f.installed[teamID], nil
 }
 
 func (f *fakeMessenger) ListChannels(teamID string) ([]graph.Channel, error) {

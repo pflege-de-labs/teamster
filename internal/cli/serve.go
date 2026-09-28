@@ -96,6 +96,9 @@ func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
 	}); err != nil {
 		return fmt.Errorf("active alerts gauge: %w", err)
 	}
+	if err := telemetry.ObserveDestinationsWithoutApp(sqlStore.CountDestinationsWithoutBotTeam); err != nil {
+		return fmt.Errorf("destinations without app gauge: %w", err)
+	}
 
 	// Binding here rather than in the goroutine, for the same reason the main
 	// listener does: an address already in use is an error to return, not a log

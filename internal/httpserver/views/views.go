@@ -75,8 +75,10 @@ type Login struct {
 // Page carries everything the admin page renders. The lists come straight from
 // the store, and Notice reports the outcome of the last form submission.
 type Page struct {
-	Templates        []models.Template
-	Destinations     []models.Destination
+	Templates    []models.Template
+	Destinations []models.Destination
+	// InstallStates is each destination team's state for the bot's app.
+	InstallStates    map[string]string
 	Recipients       []models.Recipient
 	Routes           []models.Route
 	WebhookEndpoints []models.WebhookEndpoint

@@ -208,6 +208,34 @@ application post or edit channel messages, except for migration and for `policyV
 * **A Connector `403`** is reported as "is the Teams app installed there?".
 * **Without the bot**, `NewServer` gets no transport and every channel delivery fails with that
   reason. The claim lease is three times `bot.timeout-sec`, at least 30 seconds.
+* **A Connector `403`** is counted as `app_missing` in `teamster.deliveries`, and
+  `teamster.destinations.without_app` counts destinations whose team has no `bot_teams` row.
+
+### Install state
+
+`installStates` (`install_state.go`) answers *installed*, *missing* or *unknown* for a set of teams:
+
+* A `bot_teams` row means *installed*.
+* Without a row, when `bot.app-id` is set, Graph is asked:
+  `GET /teams/{id}/installedApps?$filter=teamsApp/externalId eq '<app-id>'`, which needs
+  `TeamsAppInstallation.ReadForTeam.All`. At most eight lookups run at once, and the caller waits at
+  most five seconds. A late answer still lands.
+* A team Graph finds becomes a `bot_teams` row with an empty service URL, so replicas share it and
+  delivery uses `bot.service-url` for it. An install event later fills in the URL.
+* A team Graph does not find is remembered as *missing* in memory for `directoryTTL`.
+* A Graph error, usually the permission not being granted, is *unknown*.
+
+It feeds four places:
+
+* the `install_state` field on `/api/graph/teams` and `/api/graph/my-teams`, which `pickers.js`
+  groups into optgroups, with a hint under the field
+* the destination badge on `/admin`
+* `app_missing` on destination nodes in the routing graph
+* `/admin/teams`
+
+The page lists every team a destination names or the directory offers, in three groups: used by
+destinations but not installed, installed, and other. Each shows its destinations and routes, and
+when the bot last heard from it.
 
 A token is read from `Authorization: Bearer`, else from the older `X-Teamster-Token` header. It
 matches either `webhook.token` or an access token issued at `/admin/tokens`. The request is looked

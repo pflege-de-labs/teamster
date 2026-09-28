@@ -638,6 +638,15 @@ func TestConformanceBotTeams(t *testing.T) {
 			t.Errorf("ListBotTeams() = %v, %v, want one team", list, err)
 		}
 
+		for _, teamID := range []string{"team-1", "team-2"} {
+			if _, err := st.CreateDestination(ctx, models.Destination{Name: teamID, TeamID: teamID, ChannelID: "c"}); err != nil {
+				t.Fatalf("CreateDestination: %v", err)
+			}
+		}
+		if n, err := st.CountDestinationsWithoutBotTeam(ctx); err != nil || n != 1 {
+			t.Errorf("CountDestinationsWithoutBotTeam() = %d, %v, want 1: only team-2 lacks the bot", n, err)
+		}
+
 		if err := st.DeleteBotTeam(ctx, "team-1"); err != nil {
 			t.Fatalf("DeleteBotTeam: %v", err)
 		}

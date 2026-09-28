@@ -86,6 +86,11 @@ func (s *Server) adminPage(r *http.Request, notice, errText string) views.Page {
 	if page.WebhookEndpoints, err = s.visibleWebhookEndpoints(r, page.WebhookEndpoints); err != nil {
 		page.Error = err.Error()
 	}
+	teams := make([]string, len(page.Destinations))
+	for i, d := range page.Destinations {
+		teams[i] = d.TeamID
+	}
+	page.InstallStates = s.installStates(ctx, teams)
 
 	return page
 }

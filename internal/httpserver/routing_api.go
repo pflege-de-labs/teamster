@@ -25,6 +25,9 @@ type graphNode struct {
 	Default  bool   `json:"default,omitempty"`
 	Greedy   bool   `json:"greedy,omitempty"`
 	Missing  bool   `json:"missing,omitempty"`
+	// AppMissing marks a destination whose team lacks the bot's app, so
+	// nothing routed there arrives (ADR 0045).
+	AppMissing bool `json:"app_missing,omitempty"`
 	// Synthetic marks the global default route, which is built in rather than
 	// stored.
 	Synthetic bool `json:"synthetic,omitempty"`
@@ -78,7 +81,23 @@ func (s *Server) handleRoutingGraph(w http.ResponseWriter, r *http.Request) {
 	}
 
 	nodes, links := buildGraph(cfg.routes, cfg.destinations, cfg.recipients, cfg.templates, s.channelNamer(cfg.destinations))
+	s.markMissingApps(ctx, nodes, cfg.destinations)
 	writeJSON(w, http.StatusOK, map[string]any{"nodes": nodes, "links": links})
+}
+
+func (s *Server) markMissingApps(ctx context.Context, nodes []graphNode, destinations []models.Destination) {
+	teams := make([]string, len(destinations))
+	teamOf := make(map[string]string, len(destinations))
+	for i, d := range destinations {
+		teams[i] = d.TeamID
+		teamOf["destination:"+d.ID] = d.TeamID
+	}
+	states := s.installStates(ctx, teams)
+	for i := range nodes {
+		if teamID, ok := teamOf[nodes[i].ID]; ok && states[teamID] == installMissing {
+			nodes[i].AppMissing = true
+		}
+	}
 }
 
 // handleTemplateGraph answers the second, smaller picture: which routes render

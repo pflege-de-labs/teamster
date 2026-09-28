@@ -81,6 +81,7 @@
       if (node.greedy) parts.push("delivers instead of the route it refines");
     }
     if (node.missing) parts.push("referenced by a route but no longer exists");
+    if (node.app_missing) parts.push("the Teams app is not installed in this team, so nothing arrives");
     return parts.join("\n");
   }
 
@@ -229,7 +230,7 @@
       .attr("height", boxHeight)
       .attr("rx", 6)
       .attr("fill", (d) => (d.missing ? "#fef2f2" : "#ffffff"))
-      .attr("stroke", (d) => (d.missing ? "#ef4444" : "#cbd5e1"))
+      .attr("stroke", (d) => (d.missing ? "#ef4444" : d.app_missing ? "#f59e0b" : "#cbd5e1"))
       .attr("stroke-width", 1)
       .attr("stroke-dasharray", (d) => (d.synthetic ? "4 3" : null));
 
@@ -339,7 +340,10 @@
 
     if (!matched || matched.length === 0) {
       flow.nodes.attr("opacity", 1);
-      flow.nodes.select("rect").attr("stroke", (d) => (d.missing ? "#ef4444" : "#cbd5e1")).attr("stroke-width", 1);
+      flow.nodes
+        .select("rect")
+        .attr("stroke", (d) => (d.missing ? "#ef4444" : d.app_missing ? "#f59e0b" : "#cbd5e1"))
+        .attr("stroke-width", 1);
       flow.edges
         .attr("opacity", 1)
         .attr("stroke", "#94a3b8")

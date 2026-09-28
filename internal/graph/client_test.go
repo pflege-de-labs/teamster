@@ -354,3 +354,41 @@ func TestTokenURL(t *testing.T) {
 		})
 	}
 }
+
+func TestHasInstalledApp(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		status  int
+		body    string
+		want    bool
+		wantErr bool
+	}{
+		{name: "installed", status: http.StatusOK, body: `{"value":[{"id":"x"}]}`, want: true},
+		{name: "not installed", status: http.StatusOK, body: `{"value":[]}`},
+		{name: "permission not granted", status: http.StatusForbidden, body: `{"error":{"code":"Forbidden"}}`, wantErr: true},
+		{name: "undecodable", status: http.StatusOK, body: `nope`, wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var gotPath, gotFilter string
+			client := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+				gotPath, gotFilter = r.URL.Path, r.URL.Query().Get("$filter")
+				w.WriteHeader(tt.status)
+				_, _ = w.Write([]byte(tt.body))
+			})
+
+			got, err := client.HasInstalledApp("team/1", "app-'id")
+			if (err != nil) != tt.wantErr || got != tt.want {
+				t.Fatalf("HasInstalledApp() = %v, %v; want %v, error %v", got, err, tt.want, tt.wantErr)
+			}
+			if gotPath != "/teams/team/1/installedApps" || gotFilter != "teamsApp/externalId eq 'app-''id'" {
+				t.Errorf("asked %s with filter %q", gotPath, gotFilter)
+			}
+		})
+	}
+}

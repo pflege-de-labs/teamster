@@ -10,6 +10,20 @@ import (
 	"time"
 )
 
+const countDestinationsWithoutBotTeam = `-- name: CountDestinationsWithoutBotTeam :one
+SELECT COUNT(*) FROM destinations
+WHERE team_id NOT IN (SELECT team_id FROM bot_teams)
+`
+
+// CountDestinationsWithoutBotTeam counts destinations in a team the bot is
+// not known to be installed in, which is what a missing install alert reads.
+func (q *Queries) CountDestinationsWithoutBotTeam(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countDestinationsWithoutBotTeam)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const deleteBotTeam = `-- name: DeleteBotTeam :exec
 DELETE FROM bot_teams WHERE team_id = $1
 `

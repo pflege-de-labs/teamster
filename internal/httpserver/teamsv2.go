@@ -98,7 +98,7 @@ func (s *Server) handleTeamsV2(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if _, err := s.channels.PostToChannel(ctx, destination.TeamID, destination.ChannelID, out); err != nil {
-		s.metrics.DeliveryRecorded(ctx, label, metrics.OutcomeFailed)
+		s.metrics.DeliveryRecorded(ctx, label, channelFailure(err))
 		writeJSONError(w, http.StatusBadGateway, err.Error())
 		return
 	}

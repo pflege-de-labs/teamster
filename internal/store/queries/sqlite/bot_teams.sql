@@ -20,3 +20,9 @@ ON CONFLICT(team_id) DO UPDATE SET
 
 -- name: DeleteBotTeam :exec
 DELETE FROM bot_teams WHERE team_id = ?;
+
+-- CountDestinationsWithoutBotTeam counts destinations in a team the bot is
+-- not known to be installed in, which is what a missing install alert reads.
+-- name: CountDestinationsWithoutBotTeam :one
+SELECT COUNT(*) FROM destinations
+WHERE team_id NOT IN (SELECT team_id FROM bot_teams);
