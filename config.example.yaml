@@ -169,11 +169,6 @@ bot:
   # Bot Connector endpoint for a team that has not yet sent the bot an
   # activity. A team's own endpoint replaces it once one arrives (ADR 0045).
   service-url: "https://smba.trafficmanager.net/teams/"
-  # The Teams app's id from manifest.json, as Teams admin center shows it.
-  # With it, and the Graph permission TeamsAppInstallation.ReadForTeam.All,
-  # Graph says whether the app is installed in a team that has not told the
-  # bot itself. Empty leaves those teams "unknown" on /admin/teams.
-  app-id: ""
 
 graph:
   tenant-id: "your-tenant-id"

@@ -90,7 +90,7 @@ The `graph` registration signs in as the application itself (client credentials)
 | --- | --- |
 | `Team.ReadBasic.All` | the Team picker, and naming Teams in the routing graph, export and import |
 | `Channel.ReadBasic.All` | the channel picker, and naming channels in the same places |
-| `TeamsAppInstallation.ReadForTeam.All` (optional) | whether the bot's Teams app is installed in a team that has not told the bot itself; needs `bot.app-id` |
+| `TeamsAppInstallation.ReadForTeam.All` (optional) | whether the bot's Teams app is installed in a team that has not told the bot itself |
 
 **Graph does not post anything.** Microsoft Graph does not let an application post or edit
 channel messages:
@@ -124,14 +124,17 @@ it is installed.
 
 **`/admin/teams` shows where the app is installed**, and what depends on each team: its destinations
 and the routes that use them. Teams that destinations use but that lack the app come first, with the
-steps to install it and, when `bot.app-id` is set, a link that opens the app in Teams. The Team
-picker groups Teams the same way and warns when the chosen one lacks the app. The destinations list
-and the routing graph mark a destination whose team lacks the app. A team is:
+steps to install it. The Team picker groups Teams the same way and warns when the chosen one lacks
+the app. The destinations list and the routing graph mark a destination whose team lacks the app. A
+team is:
 
 - **installed** once the bot has heard from it, or once Graph confirms the app is there;
 - **missing** when Graph says the app is not there;
-- **unknown** when neither can tell — without `bot.app-id` and `TeamsAppInstallation.ReadForTeam.All`,
-  that is every team that installed the app before Teamster was listening.
+- **unknown** when neither can tell — without `TeamsAppInstallation.ReadForTeam.All`, that is every
+  team that installed the app before Teamster was listening.
+
+Graph finds the app by its bot, so the id it matches is `bot.client-id`: the manifest's own `id`
+does not matter.
 
 Graph is asked at most eight teams at a time, for at most five seconds per page, and each answer is
 kept for five minutes.

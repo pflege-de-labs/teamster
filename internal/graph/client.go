@@ -97,26 +97,50 @@ func NewClient(cfg config.GraphConfig, tel instrumentation) (*Client, error) {
 	}, nil
 }
 
-// HasInstalledApp reports whether the Teams app whose manifest id is appID is
-// installed in the team. It needs TeamsAppInstallation.ReadForTeam.All.
-func (c *Client) HasInstalledApp(teamID, appID string) (bool, error) {
-	query := url.Values{
-		"$expand": {"teamsApp"},
-		"$filter": {"teamsApp/externalId eq '" + strings.ReplaceAll(appID, "'", "''") + "'"},
-	}
-	endpoint := fmt.Sprintf("%s/teams/%s/installedApps?%s", c.baseURL, url.PathEscape(teamID), query.Encode())
-	resBody, err := c.get(endpoint)
-	if err != nil {
-		return false, err
-	}
+// maxInstalledAppPages bounds how far HasInstalledApp follows a team's app
+// list; a team with more apps than this is answered as not having the bot.
+const maxInstalledAppPages = 10
 
-	var res struct {
-		Value []json.RawMessage `json:"value"`
+// HasInstalledApp reports whether a Teams app carrying the bot botID -- the
+// bot's Entra client id, bots[0].botId in the manifest -- is installed in the
+// team. It needs TeamsAppInstallation.ReadForTeam.All.
+func (c *Client) HasInstalledApp(teamID, botID string) (bool, error) {
+	next := fmt.Sprintf("%s/teams/%s/installedApps?%s", c.baseURL, url.PathEscape(teamID),
+		url.Values{"$expand": {"teamsAppDefinition($expand=bot)"}}.Encode())
+
+	for range maxInstalledAppPages {
+		resBody, err := c.get(next)
+		if err != nil {
+			return false, err
+		}
+
+		var res struct {
+			Value []struct {
+				Definition struct {
+					Bot *struct {
+						ID string `json:"id"`
+					} `json:"bot"`
+				} `json:"teamsAppDefinition"`
+			} `json:"value"`
+			NextLink string `json:"@odata.nextLink"`
+		}
+		if err := json.Unmarshal(resBody, &res); err != nil {
+			return false, fmt.Errorf("decode installed apps: %w", err)
+		}
+		for _, app := range res.Value {
+			if bot := app.Definition.Bot; bot != nil && strings.EqualFold(bot.ID, botID) {
+				return true, nil
+			}
+		}
+
+		// The token goes with every request, so only Graph's own links are
+		// followed.
+		if res.NextLink == "" || !strings.HasPrefix(res.NextLink, c.baseURL+"/") {
+			return false, nil
+		}
+		next = res.NextLink
 	}
-	if err := json.Unmarshal(resBody, &res); err != nil {
-		return false, fmt.Errorf("decode installed apps: %w", err)
-	}
-	return len(res.Value) > 0, nil
+	return false, nil
 }
 
 // Team is the subset of a Microsoft Teams team the admin UI needs.

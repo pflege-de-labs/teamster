@@ -22,7 +22,7 @@ import (
 // reads: Graph cannot post to a channel as an application (ADR 0045).
 type messenger interface {
 	ListTeams() ([]graph.Team, error)
-	HasInstalledApp(teamID, appID string) (bool, error)
+	HasInstalledApp(teamID, botID string) (bool, error)
 	ListChannels(teamID string) ([]graph.Channel, error)
 }
 

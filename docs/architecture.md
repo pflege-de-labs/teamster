@@ -216,10 +216,11 @@ application post or edit channel messages, except for migration and for `policyV
 `installStates` (`install_state.go`) answers *installed*, *missing* or *unknown* for a set of teams:
 
 * A `bot_teams` row means *installed*.
-* Without a row, when `bot.app-id` is set, Graph is asked:
-  `GET /teams/{id}/installedApps?$filter=teamsApp/externalId eq '<app-id>'`, which needs
-  `TeamsAppInstallation.ReadForTeam.All`. At most eight lookups run at once, and the caller waits at
-  most five seconds. A late answer still lands.
+* Without a row, when the bot is configured, Graph is asked:
+  `GET /teams/{id}/installedApps?$expand=teamsAppDefinition($expand=bot)`, matched on
+  `bot.id == bot.client-id`, which needs `TeamsAppInstallation.ReadForTeam.All`. Paging follows
+  only links under `graph.base-url`, for at most ten pages. At most eight lookups run at once,
+  and the caller waits at most five seconds. A late answer still lands.
 * A team Graph finds becomes a `bot_teams` row with an empty service URL, so replicas share it and
   delivery uses `bot.service-url` for it. An install event later fills in the URL.
 * A team Graph does not find is remembered as *missing* in memory for `directoryTTL`.
