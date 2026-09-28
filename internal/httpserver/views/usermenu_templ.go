@@ -102,7 +102,7 @@ func userMenu(viewer Viewer) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = languagePicker(languageOf(ctx)).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = languageFlags(languageOf(ctx)).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

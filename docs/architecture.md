@@ -650,9 +650,10 @@ there is no session to hold a CSRF token. See
 [ADR 0008](adr/0008-templ-tailwind-admin-ui.md).
 
 Every signed-in page shares `layout.templ`. The pages are listed in a sidebar (`sidebar` in
-`usermenu.templ`). The header holds a `<details>` user menu with the language form, a link to
-`/admin/userinfo` and the sign-out form, under the user's name and the highest built-in role,
-translated. Without JavaScript the sidebar is always open and the menu opens natively.
+`usermenu.templ`). The header holds a `<details>` user menu under the user's name and the highest
+built-in role, translated. It holds a link to `/admin/userinfo`, the languages as flag buttons
+(served from `web/flags/`, named by their alt text) and the sign-out form. Without JavaScript the
+sidebar is always open and the menu opens natively.
 `web/nav.js` adds the burger that folds the sidebar, remembers that choice, marks the current page,
 and closes the menu on an outside click or Escape. See
 [ADR 0042](adr/0042-sidebar-navigation-and-user-menu.md).

@@ -394,6 +394,18 @@ type LanguageChoice struct {
 	Return    string
 }
 
+// flagFor is the flag the user menu shows for a shipped language, or "" for one
+// a locale directory added.
+func flagFor(tag string) string {
+	switch tag {
+	case "de":
+		return "/flags/de.svg"
+	case "en":
+		return "/flags/gb.svg"
+	}
+	return ""
+}
+
 type languageContextKey struct{}
 
 // WithLanguageChoice carries it in the context, because Layout renders on every

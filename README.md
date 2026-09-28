@@ -1020,8 +1020,8 @@ The admin UI reads its text from catalogs rather than from the components, and s
 German. A browser's `Accept-Language` picks between them; `ui.language` says what to use when it
 names neither.
 
-The picker in the user menu, or in the header of the login page, changes it for whoever is looking.
-The choice is remembered in a cookie. **Browser default** puts it back to `Accept-Language`.
+The flags in the user menu, or the picker in the header of the login page, change it for whoever is
+looking. The choice is remembered in a cookie. **Browser default** (the globe) puts it back to `Accept-Language`.
 
 `ui.locale-dir` points at a directory of JSON files named for their language — `de.json`,
 `pt-BR.json` — whose entries override the built-in text, entry by entry. That is how to retune

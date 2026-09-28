@@ -2,9 +2,9 @@ package views
 
 import "github.com/pflege-de-labs/teamster/internal/i18n"
 
-// The language picker sits in the header of the login page and in the user menu
-// of every other: somebody reading one in a language they do not speak has
-// nowhere else to change it.
+// The language picker sits in the header of the login page, and languageFlags
+// below in the user menu of every other: somebody reading one in a language
+// they do not speak has nowhere else to change it.
 //
 // It is a form rather than a link, because it changes something. The button
 // submits it without JavaScript; language.js hides the button and submits on
@@ -33,4 +33,36 @@ templ languagePicker(page LanguageChoice) {
 			{ i18n.T(ctx, "language.apply") }
 		</button>
 	</form>
+}
+
+// languageFlags is the picker in the user menu: one submit button per language,
+// showing its flag with the language's name as alt text, so it needs no script.
+// A language added through ui.locale-dir has no flag and shows its name.
+templ languageFlags(page LanguageChoice) {
+	<form method="post" action="/admin/language" id="language-flags" class="flex flex-wrap items-center gap-2" aria-label={ i18n.T(ctx, "language.label") }>
+		<input type="hidden" name="return" value={ page.Return }/>
+		@flagButton("", "/flags/browser.svg", i18n.T(ctx, "language.browser"), !page.Chosen)
+		for _, tag := range page.Languages {
+			@flagButton(tag, flagFor(tag), i18n.T(ctx, "language.name_"+tag), page.Chosen && page.Current == tag)
+		}
+	</form>
+}
+
+templ flagButton(value, src, name string, current bool) {
+	<button
+		type="submit"
+		name="language"
+		value={ value }
+		title={ name }
+		if current {
+			aria-current="true"
+		}
+		class="rounded-md border border-slate-300 p-1 hover:border-slate-400 hover:bg-slate-50 aria-[current=true]:border-sky-500 aria-[current=true]:ring-2 aria-[current=true]:ring-sky-200"
+	>
+		if src != "" {
+			<img src={ src } alt={ name } height="20" class="h-5 w-auto"/>
+		} else {
+			<span class="px-1 text-xs text-slate-700">{ name }</span>
+		}
+	</button>
 }

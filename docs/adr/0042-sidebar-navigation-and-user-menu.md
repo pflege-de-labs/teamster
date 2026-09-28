@@ -25,8 +25,11 @@ under the user's name.
   current page.
 * **User menu.** It is a `<details>` element. The browser opens and closes it without a script, and
   the arrow turns with Tailwind's `group-open:`. `nav.js` only adds closing it on an outside click or
-  Escape. Its entries are the existing language form, a link to `/admin/userinfo` and the existing
-  sign-out form.
+  Escape. Its entries are a link to `/admin/userinfo`, the languages and the existing sign-out form.
+  Each language is a submit button showing its flag (the Union Jack for English, a globe for
+  **Browser default**), with the language's name as the image's alt text. A `<select>` cannot
+  hold an image or alt text. A language added through `ui.locale-dir` has no flag, so its button
+  shows the name.
 * **Role line.** It shows the highest built-in role, translated (`authz.Highest`). Roles nest
   (admin ⊃ editor ⊃ viewer), so one name says what the user may do under the shipped policies.
   Every role, including a deployment's own, is listed on the user info page instead
