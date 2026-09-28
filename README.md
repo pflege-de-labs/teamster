@@ -687,9 +687,12 @@ Teamster role. The local credentials administer, because they are the way back i
 is wrong.
 
 A role is decided at sign-in and travels with the session, so a change at the provider applies the
-next time that person signs in. The header names who is signed in and the roles they hold, so a
-missing control has a visible reason. The admin UI hides the controls a role may not use and says why;
-the server refuses the request either way. A refusal is a `403` naming the role and the resource.
+next time that person signs in. The header names who is signed in and their Teamster role, so a
+missing control has a visible reason. **User info** in the menu under the name lists everything the
+provider sent: every role, including ones of your own, the granted scopes, the groups named by
+`auth.groups-claim` (default `groups`), and the token each was found in. The admin UI hides the
+controls a role may not use and says why; the server refuses the request either way. A refusal is
+a `403` naming the role and the resource.
 
 The rules are three policies in
 [`internal/authz/policies.cedar`](internal/authz/policies.cedar), evaluated in-process by
@@ -1017,8 +1020,8 @@ The admin UI reads its text from catalogs rather than from the components, and s
 German. A browser's `Accept-Language` picks between them; `ui.language` says what to use when it
 names neither.
 
-The picker in the header changes it for whoever is looking, including on the login page, and the
-choice is remembered in a cookie. **Browser default** puts it back to `Accept-Language`.
+The picker in the user menu, or in the header of the login page, changes it for whoever is looking.
+The choice is remembered in a cookie. **Browser default** puts it back to `Accept-Language`.
 
 `ui.locale-dir` points at a directory of JSON files named for their language — `de.json`,
 `pt-BR.json` — whose entries override the built-in text, entry by entry. That is how to retune

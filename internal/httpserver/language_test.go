@@ -115,7 +115,7 @@ func TestValuesAreSubstitutedIntoTranslatedSentences(t *testing.T) {
 	st := sessionAs(seededUIStore(), authz.RoleViewer)
 	body := pageIn(t, newTestServer(t, st, &fakeMessenger{}).Handler, "/admin", "de")
 
-	if !strings.Contains(body, "Angemeldet mit der Rolle viewer") {
+	if !strings.Contains(body, "Angemeldet mit der Rolle Betrachter") {
 		t.Errorf("the read-only notice did not substitute the role:\n%s", body)
 	}
 	if strings.Contains(body, "{0}") {

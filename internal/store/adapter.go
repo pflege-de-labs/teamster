@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -976,12 +977,17 @@ func (s queryAdapter) DeleteGrant(ctx context.Context, id string) error {
 }
 
 func (s queryAdapter) CreateSession(ctx context.Context, session models.Session) error {
-	err := s.q.CreateSession(ctx, sqlitedb.CreateSessionParams{
+	identity, err := encodeIdentity(session.Identity)
+	if err != nil {
+		return fmt.Errorf("create session: %w", err)
+	}
+	err = s.q.CreateSession(ctx, sqlitedb.CreateSessionParams{
 		ID:        session.ID,
 		Subject:   session.Subject,
 		Name:      session.Name,
 		Source:    session.Source,
 		Role:      session.Roles,
+		Identity:  identity,
 		CreatedAt: session.CreatedAt,
 		ExpiresAt: session.ExpiresAt,
 	})
@@ -1007,9 +1013,30 @@ func (s queryAdapter) GetSession(ctx context.Context, id string) (models.Session
 		Name:      row.Name,
 		Source:    row.Source,
 		Roles:     row.Role,
+		Identity:  decodeIdentity(row.Identity),
 		CreatedAt: row.CreatedAt,
 		ExpiresAt: row.ExpiresAt,
 	})
+}
+
+// encodeIdentity stores an empty identity as ”, the column default a session
+// the previous release wrote carries too.
+func encodeIdentity(identity models.Identity) (string, error) {
+	encoded, err := json.Marshal(identity)
+	if err != nil || string(encoded) == "{}" {
+		return "", err
+	}
+	return string(encoded), nil
+}
+
+// decodeIdentity reads an unreadable identity as none: it only feeds a page
+// that explains a sign-in, and must not cost anybody their session.
+func decodeIdentity(stored string) models.Identity {
+	var identity models.Identity
+	if stored != "" {
+		_ = json.Unmarshal([]byte(stored), &identity)
+	}
+	return identity
 }
 
 func (s queryAdapter) DeleteSession(ctx context.Context, id string) error {

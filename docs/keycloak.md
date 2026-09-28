@@ -76,7 +76,12 @@ administrator for a role — the setting to use when everyone in the realm can r
 
 Keycloak's own realm roles (`offline_access`, `default-roles-<realm>`) arrive as roles as well. No
 policy mentions them, so they grant nothing, and they do not stand in for a Teamster role when the
-default is applied.
+default is applied. The header shows only the Teamster role. **User info**, in the menu under the
+user's name, lists all of them.
+
+To see groups there too, add a **Group Membership** mapper to the client's dedicated scope, with
+token claim name `groups`, or set `auth.groups-claim` to the name you chose. Groups are shown only
+and decide nothing.
 
 ## Where Teamster looks for the claim
 

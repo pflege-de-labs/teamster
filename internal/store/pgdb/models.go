@@ -119,6 +119,7 @@ type Session struct {
 	Role      string
 	CreatedAt time.Time
 	ExpiresAt time.Time
+	Identity  string
 }
 
 type Template struct {

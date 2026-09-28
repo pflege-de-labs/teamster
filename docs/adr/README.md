@@ -56,3 +56,5 @@ Architectural decisions are recorded here, one file per decision, in
 | [0039](0039-built-in-default-message.md) | Send a built-in default message when nothing says what a message looks like | Accepted |
 | [0040](0040-teams-v2-endpoint-templates.md) | A Teams V2 endpoint may name a template | Accepted |
 | [0041](0041-editor-completion-from-sampled-labels.md) | Complete templates and routes from labels sampled off incoming alerts | Accepted |
+| [0042](0042-sidebar-navigation-and-user-menu.md) | Move page links to a sidebar and account controls to a user menu | Accepted |
+| [0043](0043-session-keeps-sign-in-identity.md) | Keep what the identity provider said on the session row | Accepted |

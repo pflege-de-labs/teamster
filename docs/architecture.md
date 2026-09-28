@@ -624,6 +624,13 @@ TLS or carried `X-Forwarded-Proto: https`:
 * The local username and password, entered at `/admin/login`. This is the bootstrap path and the
   way back in when the provider is unreachable or the claim is misconfigured.
 
+An OIDC session also keeps a small identity record, stored as JSON in `sessions.identity`. It holds
+the issuer, email, granted scopes, the `auth.groups-claim` values and the raw role claim values,
+along with the token each was found in. Groups are looked up in the same order as roles, and
+userinfo is fetched once for both. No token is kept. `/admin/userinfo` shows the record to its
+holder: it requires a session but sits outside `authorize`, so a user with no role can read it too.
+See [ADR 0043](adr/0043-session-keeps-sign-in-identity.md).
+
 `/api` keeps HTTP basic auth: automation cannot complete an authorization code flow. Expired
 sessions and abandoned flows are swept hourly, and neither is honoured once expired regardless.
 
@@ -641,6 +648,14 @@ updates instead of creating. Those endpoints require
 the request to prove its origin, because basic auth credentials travel with a cross-site post and
 there is no session to hold a CSRF token. See
 [ADR 0008](adr/0008-templ-tailwind-admin-ui.md).
+
+Every signed-in page shares `layout.templ`. The pages are listed in a sidebar (`sidebar` in
+`usermenu.templ`). The header holds a `<details>` user menu with the language form, a link to
+`/admin/userinfo` and the sign-out form, under the user's name and the highest built-in role,
+translated. Without JavaScript the sidebar is always open and the menu opens natively.
+`web/nav.js` adds the burger that folds the sidebar, remembers that choice, marks the current page,
+and closes the menu on an outside click or Escape. See
+[ADR 0042](adr/0042-sidebar-navigation-and-user-menu.md).
 
 `formPost` takes the redirect target as a parameter rather than always answering `/admin`: a page of
 its own — `/admin/recipients`, like `/admin/permissions` — posts to its own `/delete` endpoint and
@@ -958,8 +973,8 @@ PR found missing from it. A person can unlink themselves there; an admin can unl
 `GET /admin/notifications` is a page like any other under `requireSession`, offered to `viewer` and
 up: linking or unlinking a chat is a person managing their own membership, not administering
 anyone else's, which is why it is not folded into `/admin` or gated behind `CanManage` the way the
-configuration and permissions panels are. It, its two POST actions and the nav link to it
-(`layout.templ`, gated on `Viewer.NotificationsEnabled`) are registered/rendered only when
+configuration and permissions panels are. It, its two POST actions and the sidebar link to it
+(`usermenu.templ`, gated on `Viewer.NotificationsEnabled`) are registered/rendered only when
 `config.BotConfig.Configured()` reports the bot is on — see the bot configuration section above for
 why: a code minted here can never be redeemed on a deployment that never registered the endpoint it
 would be typed into.

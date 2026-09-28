@@ -4,7 +4,10 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"slices"
+	"sync/atomic"
 	"testing"
 
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -230,4 +233,78 @@ func TestMembershipFallsBackToTheAccessToken(t *testing.T) {
 	if !authz.HasBuiltin(authz.RolesFor(values, "")) {
 		t.Errorf("values = %v, want the access token roles", values)
 	}
+}
+
+// The scopes shown are the ones granted, which the provider may narrow; a
+// response that leaves the field out granted what was asked.
+func TestGrantedScopes(t *testing.T) {
+	t.Parallel()
+
+	server := &Server{cfg: config.Config{Auth: config.AuthConfig{OIDCScopes: []string{"profile", "email"}}}}
+
+	tests := []struct {
+		name  string
+		extra map[string]any
+		want  []string
+	}{
+		{"granted by the provider", map[string]any{"scope": "openid profile"}, []string{"openid", "profile"}},
+		{"left out", map[string]any{}, []string{"openid", "profile", "email"}},
+		{"empty", map[string]any{"scope": ""}, []string{"openid", "profile", "email"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			token := (&oauth2.Token{}).WithExtra(tt.extra)
+			if got := server.grantedScopes(token); !slices.Equal(got, tt.want) {
+				t.Errorf("grantedScopes() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+// Roles and groups are looked up in the same places, but userinfo is asked
+// once however many claims are looked up.
+func TestClaimLookupAsksUserinfoOnce(t *testing.T) {
+	t.Parallel()
+
+	var calls atomic.Int32
+	userinfo := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"sub": "8f2a", "groups": ["/ops", "/oncall"]}`))
+	}))
+	t.Cleanup(userinfo.Close)
+
+	provider := (&oidc.ProviderConfig{UserInfoURL: userinfo.URL}).NewProvider(context.Background())
+	token := &oauth2.Token{AccessToken: accessToken(t, map[string]any{
+		"realm_access": map[string]any{"roles": []any{"viewer"}},
+	})}
+	lookup := newClaimLookup(context.Background(), provider, token, map[string]any{"sub": "8f2a"})
+
+	groups, groupsSource := lookup.find("groups")
+	if !slices.Equal(groups, []string{"/ops", "/oncall"}) || groupsSource != "userinfo" {
+		t.Errorf("groups = %v from %q, want both from userinfo", groups, groupsSource)
+	}
+	roles, rolesSource := lookup.find("realm_access.roles")
+	if !slices.Equal(roles, []string{"viewer"}) || rolesSource != "the access token" {
+		t.Errorf("roles = %v from %q, want viewer from the access token", roles, rolesSource)
+	}
+	if missing, source := lookup.find("nowhere"); missing != nil || source != "" {
+		t.Errorf("a claim nobody sent = %v from %q", missing, source)
+	}
+	if got := calls.Load(); got != 1 {
+		t.Errorf("userinfo asked %d times, want once", got)
+	}
+}
+
+// accessToken builds an unsigned JWT; accessTokenClaims reads it without
+// verifying, as it reads the real one.
+func accessToken(t *testing.T, claims map[string]any) string {
+	t.Helper()
+
+	payload, err := json.Marshal(claims)
+	if err != nil {
+		t.Fatalf("encode claims: %v", err)
+	}
+	return "header." + base64.RawURLEncoding.EncodeToString(payload) + ".sig"
 }

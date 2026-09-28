@@ -1,0 +1,72 @@
+package views
+
+import "github.com/pflege-de-labs/teamster/internal/i18n"
+
+// The header says who is signed in and what they may do, because "why is the
+// button missing?" is otherwise a question only the server can answer. The menu
+// is a <details>, so it opens and signs out without JavaScript (ADR 0042).
+templ userMenu(viewer Viewer) {
+	<details id="user-menu" class="group relative">
+		<summary
+			class="flex cursor-pointer list-none items-center gap-2 rounded-md px-2 py-1 hover:bg-slate-50 [&::-webkit-details-marker]:hidden"
+			title={ i18n.T(ctx, "header.user_menu") }
+		>
+			<div class="text-right leading-tight">
+				<div class="text-sm font-medium text-slate-900">
+					if viewer.Name != "" {
+						{ viewer.Name }
+					} else {
+						{ i18n.T(ctx, "header.signed_in") }
+					}
+				</div>
+				<div class="text-xs text-slate-500">{ viewer.roleLabel(ctx) }</div>
+			</div>
+			<svg class="h-4 w-4 text-slate-500 transition-transform group-open:rotate-180" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+				<path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.17l3.71-3.94a.75.75 0 1 1 1.08 1.04l-4.25 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06Z" clip-rule="evenodd"></path>
+			</svg>
+		</summary>
+		<div class="absolute right-0 z-20 mt-2 w-72 space-y-3 rounded-md border border-slate-200 bg-white p-3 shadow-lg">
+			<a href="/admin/userinfo" class="block rounded-md px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
+				{ i18n.T(ctx, "header.userinfo") }
+			</a>
+			<div class="border-t border-slate-200 pt-3">
+				@languagePicker(languageOf(ctx))
+			</div>
+			<form method="post" action="/admin/logout" class="border-t border-slate-200 pt-3">
+				<button
+					type="submit"
+					class="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:border-slate-400 hover:bg-slate-50"
+				>
+					{ i18n.T(ctx, "header.sign_out") }
+				</button>
+			</form>
+		</div>
+	</details>
+}
+
+// sidebar lists the pages. It shows without JavaScript; nav.js adds the burger
+// that folds it away.
+templ sidebar(viewer Viewer) {
+	<aside id="sidebar" class="w-56 shrink-0 border-r border-slate-200 bg-white">
+		<nav class="flex flex-col gap-1 p-4 text-sm">
+			@navLink("/admin", "nav.configuration")
+			@navLink("/admin/routing", "nav.routing")
+			if viewer.NotificationsEnabled {
+				@navLink("/admin/notifications", "nav.notifications")
+			}
+			@navLink("/admin/recipients", "nav.recipients")
+			if viewer.CanManage {
+				@navLink("/admin/permissions", "nav.permissions")
+			}
+		</nav>
+	</aside>
+}
+
+templ navLink(href, key string) {
+	<a
+		href={ templ.SafeURL(href) }
+		class="rounded-md px-3 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 aria-[current=page]:bg-slate-100 aria-[current=page]:font-medium aria-[current=page]:text-slate-900"
+	>
+		{ i18n.T(ctx, key) }
+	</a>
+}

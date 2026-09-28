@@ -27,7 +27,7 @@ func newToken() (string, error) {
 // startSession returns the session id it generated, alongside the error:
 // handleAuthCallback needs it to key the broker_tokens row it persists right
 // after, and the id did not exist before this call to hand in.
-func (s *Server) startSession(w http.ResponseWriter, r *http.Request, subject, name, source string, roles []authz.Role) (string, error) {
+func (s *Server) startSession(w http.ResponseWriter, r *http.Request, subject, name, source string, roles []authz.Role, identity models.Identity) (string, error) {
 	ctx := r.Context()
 	id, err := newToken()
 	if err != nil {
@@ -36,7 +36,7 @@ func (s *Server) startSession(w http.ResponseWriter, r *http.Request, subject, n
 
 	now := time.Now().UTC()
 	if err := s.store.CreateSession(ctx, models.Session{
-		ID: id, Subject: subject, Name: name, Source: source, Roles: authz.Encode(roles),
+		ID: id, Subject: subject, Name: name, Source: source, Roles: authz.Encode(roles), Identity: identity,
 		CreatedAt: now, ExpiresAt: now.Add(s.sessionTTL()),
 	}); err != nil {
 		return "", err

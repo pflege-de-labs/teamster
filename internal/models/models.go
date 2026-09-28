@@ -221,8 +221,24 @@ type Session struct {
 	// Roles are the role names the provider gave this session, space separated,
 	// or "none" for a user the claim named no role for.
 	Roles     string    `json:"roles"`
+	Identity  Identity  `json:"identity"`
 	CreatedAt time.Time `json:"created_at"`
 	ExpiresAt time.Time `json:"expires_at"`
+}
+
+// Identity is what the provider said about a session's holder beyond its
+// roles, kept for the user info page. It holds no tokens (ADR 0043).
+type Identity struct {
+	Issuer string   `json:"issuer,omitempty"`
+	Email  string   `json:"email,omitempty"`
+	Scopes []string `json:"scopes,omitempty"`
+	Groups []string `json:"groups,omitempty"`
+	// GroupsSource and ClaimSource name the token the values were found in.
+	GroupsSource string `json:"groups_source,omitempty"`
+	// ClaimValues are the role claim as the provider sent it, before roles
+	// were derived from it.
+	ClaimValues []string `json:"claim_values,omitempty"`
+	ClaimSource string   `json:"claim_source,omitempty"`
 }
 
 // LoginFlow is an authorization code flow this service started. Holding the
