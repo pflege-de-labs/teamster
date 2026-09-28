@@ -209,6 +209,9 @@ config:
       # client-id: ""
       # tenant-type: single       # single or multi
       # timeout-sec: 10
+      # Bot Connector endpoint for a team that has not yet sent the bot an
+      # activity; the team's own replaces it once one arrives.
+      # service-url: https://smba.trafficmanager.net/teams/
     # Who may administer the service. Leave oidc-discovery-url empty to use the
     # local login only.
     auth: {}
@@ -217,6 +220,8 @@ config:
       # oidc-redirect-url: https://teamster.example/admin/auth/callback
       # oidc-scopes: [profile, email, roles]
       # claim: realm_access.roles
+      # Shown on the user info page only; decides nothing. Empty skips it.
+      # groups-claim: groups
       # Roles are read from that claim by name: a provider role called admin,
       # editor or viewer is that role here. default-role covers a user the
       # claim names none of them for; empty means no access.
@@ -316,7 +321,8 @@ credentials:
   # configured: it is the way back in if the identity provider is unreachable.
   adminUsername: admin
   adminPassword: ""
-  # Microsoft Entra client secret for posting cards.
+  # Microsoft Entra client secret for the Graph registration, which reads
+  # teams and channels for the pickers. It posts nothing; the bot does.
   graphClientSecret: ""
   # Omit for a public OIDC client using PKCE, which is the recommended setup.
   oidcClientSecret: ""
