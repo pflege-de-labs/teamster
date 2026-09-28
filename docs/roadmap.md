@@ -688,6 +688,29 @@ Not done, and additive whenever it is wanted:
 
 * Scope a token to one webhook, or to a role's delivery grants.
 
+## Milestone 19 — Channel delivery through the bot — next
+
+Channel delivery does not work against a real tenant. It posts and edits cards through Microsoft
+Graph as an application, and Graph permits neither: posting as an application is reserved for
+`Teamwork.Migrate.All` (importing history), and editing for `ChannelMessage.UpdatePolicyViolation.All`
+(the `policyViolation` field only). Every delivery answers `403 Forbidden`. Milestone 13 assumed
+the opposite (see "Why this is not another endpoint on the Graph client" below), and nothing caught
+it, because the tests and local runs talk to a fake Graph.
+
+The resource-specific consent permission `ChannelMessage.Send.Group` would restore posting, but not
+editing, so a resolve could no longer update its card. The Bot Framework bot from milestone 13 can
+do both: it posts to a channel as itself and edits its own messages. It needs its Teams app
+installed in each team it posts to.
+
+To be designed in an ADR before implementing it:
+
+* how the bot learns a team's service URL, which only arrives with an activity from that team
+* what is stored for each team the bot is installed in, as an additive migration
+* what happens to the Graph channel path, and to cards it already posted
+* the Teams V2 endpoints, which post through the same Graph call
+
+Graph stays in use for reading: the pickers, and naming Teams and channels.
+
 ## Milestone 13 — Alerts in a person's chat — done
 
 An alert reaches a channel. Somebody on call at three in the morning is not reading a channel; they
@@ -717,6 +740,10 @@ That is what lets it post to a channel unattended, and it is precisely what cann
 sending a `chatMessage` has required a **delegated** permission, a token obtained on behalf of a
 signed-in user. Application permissions cover the migration path (`Teamwork.Migrate.All`, for
 backfilling history in import mode) and not this.
+
+*Correction, milestone 19:* the premise is wrong for channels too. Posting a channel message as an
+application is also limited to `Teamwork.Migrate.All`, and editing one to its `policyViolation`
+field, so client credentials cannot post to a channel either.
 
 So the question is not which endpoint to call. It is **whose identity the message is sent under**,
 and each answer is a different integration.
@@ -807,6 +834,10 @@ permissions table is the first thing to read when this milestone starts, not the
 | — | 15 Delegated Teams/Channels picker | 1.3, 2 | done |
 | — | 16 Nothing unrouted, nothing untemplated | 14 for its third part | done |
 | — | 17 Editor completion | 9 | done |
+| — | 18 Webhook access tokens | — | done |
+| 1 | 19 Channel delivery through the bot | 13 | — |
+
+19 goes first because without it no channel delivery reaches a real tenant.
 
 1.3 sat after 1.4 because it was the only item waiting on someone else to grant a permission.
 

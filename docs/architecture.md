@@ -189,6 +189,11 @@ Handler errors map to `400` for malformed JSON, `401` for a missing or unknown t
 `WWW-Authenticate: Bearer`), `503` when the token lookup itself fails, and `502` when routing,
 rendering, the store or Graph fails.
 
+Against a real tenant, Graph answers every channel post and edit with `403`. It does not let an
+application post or edit channel messages, except for migration and for `policyViolation`. Channel
+delivery therefore fails with `502` until it moves onto the bot (roadmap milestone 19). See
+[Microsoft Graph permissions](../README.md#microsoft-graph-permissions).
+
 A token is read from `Authorization: Bearer`, else from the older `X-Teamster-Token` header. It
 matches either `webhook.token` or an access token issued at `/admin/tokens`. The request is looked
 up by the token's SHA-256 digest in `access_tokens`, and `last_used_at` is written at most once an

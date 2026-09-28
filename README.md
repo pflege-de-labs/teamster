@@ -81,13 +81,37 @@ graph:
   scope: "http://127.0.0.1:18500/.default"
 ```
 
+### Microsoft Graph permissions
+
+The `graph` registration signs in as the application itself (client credentials), so it needs
+**application** permissions with tenant admin consent:
+
+| Permission | Used for |
+| --- | --- |
+| `Team.ReadBasic.All` | the Team picker, and naming Teams in the routing graph, export and import |
+| `Channel.ReadBasic.All` | the channel picker, and naming channels in the same places |
+
+**Known limitation: Microsoft Graph does not let an application post or edit channel messages.**
+Teamster posts to a channel with `POST /teams/{team}/channels/{channel}/messages` and edits a card
+with `PATCH …/messages/{id}`. Microsoft's documentation allows neither with an application
+permission:
+
+- Posting as an application is limited to `Teamwork.Migrate.All`, which is for importing message
+  history. Do not grant it for this.
+- Editing as an application is limited to `ChannelMessage.UpdatePolicyViolation.All`, which may
+  change only a message's `policyViolation` field.
+
+A real tenant therefore answers every channel delivery with `403 Forbidden` ("Missing role
+permissions on the request"), and the sender gets a `502`. The Teams V2 endpoints post the same
+way and fail the same way. Delivery to a person's chat, through the bot below, is not affected.
+Moving channel delivery onto the bot is planned — see the [roadmap](docs/roadmap.md).
+
 ### Sending alerts to a person's chat (optional)
 
 `bot.tenant-id`, `bot.client-id` and `bot.client-secret` configure a second, separate Entra
 registration for a Teams bot that can send an alert directly to a person rather than only to a
 channel (see [ADR 0026](docs/adr/0026-alerts-in-a-persons-chat.md)). This is unrelated to the
-`graph` credential above, which posts to channels: revoking or rotating one never touches the
-other.
+`graph` credential above: revoking or rotating one never touches the other.
 
 The whole feature is off by default. Leave all three empty and nothing else in the `bot:` block
 matters; set all three together to turn it on, since setting only one is rejected at startup.
@@ -1054,7 +1078,8 @@ that are not [Conventional Commits](https://www.conventionalcommits.org). They n
 
 Destinations are configured by picking a Team and a channel by name once Microsoft Graph answers;
 the fields fall back to accepting ids typed by hand. Listing requires the `Team.ReadBasic.All` and
-`Channel.ReadBasic.All` application permissions with tenant admin consent.
+`Channel.ReadBasic.All` application permissions with tenant admin consent — see
+[Microsoft Graph permissions](#microsoft-graph-permissions).
 
 The template form has a card palette and a preview. The palette inserts the elements our own
 templates use — text, facts, columns, a link action, all labels, a conditional block — at the cursor,

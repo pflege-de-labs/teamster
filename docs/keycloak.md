@@ -154,9 +154,11 @@ The Entra application backing the Keycloak IdP link needs delegated (not applica
 * `Channel.ReadBasic.All`
 
 Both need admin consent granted once for the tenant, the same as any other delegated Graph
-permission. This is a different concern from `graph-*`'s application permissions used for posting
-cards — a delegated permission is exercised as the signed-in user, an application permission as the
-app itself — and the two do not have to be, and generally are not, the same Entra app registration.
+permission. This is a different concern from `graph-*`'s application permissions, which list
+Teams and channels as the app itself (see
+[Microsoft Graph permissions](../README.md#microsoft-graph-permissions)) — a delegated permission
+is exercised as the signed-in user, an application permission as the app itself — and the two do
+not have to be, and generally are not, the same Entra app registration.
 
 ### Teamster
 
