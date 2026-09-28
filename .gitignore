@@ -13,3 +13,4 @@ tmp/*
 
 # The packaged Teams app; built on demand from the tracked manifest sources.
 manifest/teamster-bot.zip
+manifest/manifest.json
