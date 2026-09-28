@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"github.com/pflege-de-labs/teamster/internal/config"
+	"github.com/pflege-de-labs/teamster/internal/models"
+	"github.com/pflege-de-labs/teamster/internal/store"
 )
 
 func validConfig(t *testing.T) *config.Config {
@@ -184,7 +186,7 @@ func TestServeErrors(t *testing.T) {
 	}{
 		{
 			name:    "incomplete config",
-			mutate:  func(cfg *config.Config) { cfg.Webhook.Token = "" },
+			mutate:  func(cfg *config.Config) { cfg.Admin.Password = "" },
 			wantErr: "config validation",
 		},
 		{
@@ -306,5 +308,43 @@ func TestServeExportsMetricsAndStopsThem(t *testing.T) {
 	}
 	if _, err := net.DialTimeout("tcp", cfg.Metrics.Addr, time.Second); err == nil {
 		t.Error("the metrics listener is still accepting connections after shutdown")
+	}
+}
+
+func TestWebhookTokenWarning(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		configToken string
+		issue       bool
+		wantWarning bool
+	}{
+		{name: "config token", configToken: "token"},
+		{name: "issued token", issue: true},
+		{name: "neither", wantWarning: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := validConfig(t)
+			cfg.Webhook.Token = tt.configToken
+			st, err := store.Open(t.Context(), storeOptions(cfg, store.MigrateAuto))
+			if err != nil {
+				t.Fatalf("open store: %v", err)
+			}
+			t.Cleanup(func() { _ = st.Close() })
+			if tt.issue {
+				if _, err := st.CreateAccessToken(t.Context(), models.AccessToken{Name: "a", TokenHash: "h"}); err != nil {
+					t.Fatalf("CreateAccessToken: %v", err)
+				}
+			}
+
+			if got := webhookTokenWarning(t.Context(), cfg, st); (got != "") != tt.wantWarning {
+				t.Errorf("webhookTokenWarning() = %q, want a warning: %v", got, tt.wantWarning)
+			}
+		})
 	}
 }

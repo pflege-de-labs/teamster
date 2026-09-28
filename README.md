@@ -35,6 +35,7 @@ signal kills it immediately.
 - Templates (Adaptive Card JSON with Go templating)
 - Destinations (Team ID, Channel ID)
 - Routes (label selector -> destination + template)
+- Access tokens for the senders (see [Authenticating a sender](#authenticating-a-sender))
 
 ## Configuration
 
@@ -283,11 +284,12 @@ changes an installation.
 
 ### Alertmanager (0.31)
 
-`POST /webhook/alertmanager` with `X-Teamster-Token` header.
+`POST /webhook/alertmanager`, authenticated with `Authorization: Bearer <token>` — see
+[Authenticating a sender](#authenticating-a-sender).
 
 ### Universal webhook
 
-`POST /webhook/universal` with `X-Teamster-Token` header. Routes on `labels` and renders
+`POST /webhook/universal`, authenticated the same way. Routes on `labels` and renders
 `annotations` exactly like an Alertmanager alert does — `status` is what's optional. A `status` of
 `firing` or `resolved` opts into the tracked alert lifecycle: a repeat post with the same
 `fingerprint` edits the card in place, and `resolved` clears it. Any other `status` — including
@@ -295,9 +297,82 @@ none at all, the shape for a sender with no such lifecycle — is delivered once
 nowhere, the same fire-and-forget contract the Teams V2 webhook below has, just routed and
 templated first.
 
-### What the webhook token protects
+### Authenticating a sender
 
-The webhook endpoints are authenticated by one shared token and nothing else. It is worth being
+Both webhooks take a token as `Authorization: Bearer <token>`. Two kinds of token are accepted:
+
+- **An access token issued at `/admin/tokens`** (admins only). Name it after the sender, copy it
+  — it is shown once and stored only as a digest — and revoke it when the sender goes away. The
+  page lists when each token was last used. Scripts can do the same through `POST /api/tokens`
+  with `{"name": "…"}`, `GET /api/tokens` and `DELETE /api/tokens/{id}`.
+- **`webhook.token`** (`TEAMSTER_WEBHOOK_TOKEN`), one deployment-wide token from configuration.
+  It is optional. Use it when a sender has to be configured declaratively before anyone can sign
+  in to issue a token.
+
+Prefer one issued token per sender, so each can be revoked without breaking the others. The
+`X-Teamster-Token: <token>` header from earlier releases still works for either kind, but is
+deprecated ([ADR 0044](docs/adr/0044-webhook-access-tokens.md)).
+
+Alertmanager, with the token in a file mounted from a Secret:
+
+```yaml
+receivers:
+  - name: teamster
+    webhook_configs:
+      - url: http://teamster.monitoring.svc:8080/webhook/alertmanager
+        send_resolved: true
+        http_config:
+          authorization:
+            type: Bearer
+            credentials_file: /etc/alertmanager/secrets/teamster/token
+```
+
+The Prometheus Operator's `AlertmanagerConfig`, with the token in a Secret key:
+
+```yaml
+receivers:
+  - name: teamster
+    webhookConfigs:
+      - url: http://teamster.monitoring.svc:8080/webhook/alertmanager
+        sendResolved: true
+        httpConfig:
+          authorization:
+            type: Bearer
+            credentials:
+              name: teamster-webhook
+              key: token
+```
+
+`curl`, for a quick test:
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  --data @samples/alertmanager-firing.json http://localhost:8080/webhook/alertmanager
+```
+
+### When a sender is refused
+
+- **`401`**, which Alertmanager logs as `unexpected status code 401`: Teamster did not accept the
+  token. The server log says why (`webhook alertmanager refused: …`), and every refusal is counted
+  in `teamster.webhook.receipts` with status `refused`. The usual causes:
+  - The sender sets no `Authorization: Bearer` header, for example `basic_auth` instead of
+    `authorization`. Basic auth is not accepted.
+  - The token was revoked, or was never issued on this installation. Issued tokens live in the
+    database, so they are not carried over by `teamster export`/`import` or to a fresh database.
+  - `webhook.token` is set in a config file as well as in `TEAMSTER_WEBHOOK_TOKEN`. The config
+    file wins, so the Secret's value is ignored. Remove the key from the file.
+  - No token at all: with `webhook.token` unset and none issued, every sender is refused. Teamster
+    logs this at startup.
+- **`403 RBAC: access denied`**: this is not Teamster's answer. It is the wording of Envoy's RBAC
+  filter, so a service mesh (an Istio `AuthorizationPolicy`) or a gateway in front of the pod
+  refused the request before it arrived. Allow the sender's workload to reach the webhook path
+  there. Teamster never answers `403` on `/webhook/*`.
+- **`503`**: Teamster could not check the token because the database did not answer. The sender
+  should retry, as it does for any 5xx.
+
+### What the webhook tokens protect
+
+The webhook endpoints are authenticated by their tokens and nothing else. It is worth being
 concrete about what somebody holding it can do, because it is more than "file a spurious alert".
 
 Alert labels and annotations are interpolated into templates, and the rendered text reaches a Teams
@@ -316,12 +391,13 @@ URL before clicking.
 Links are deliberately kept — templates link to runbooks and dashboards, which is most of what
 message text is for — so the control is the token, not the allowlist:
 
-- **Treat the token as a credential, not a formality.** It is the whole boundary. Rotate it by
-  changing the config and restarting.
+- **Treat a token as a credential, not a formality.** It is the whole boundary. Revoke an issued
+  token at `/admin/tokens`. Rotate `webhook.token` by changing the config and restarting.
 - **Do not expose the webhook endpoints to the internet** if only in-cluster senders need them.
   Alertmanager posting from inside the same cluster needs no ingress at all.
-- **Give separate senders separate deployments** if they belong to different trust boundaries. One
-  token means one boundary.
+- **Give each sender its own issued token**, so one can be revoked without breaking the others.
+  Every token reaches every route, so senders in different trust boundaries still need separate
+  deployments.
 - **Terminate TLS in front of Teamster.** The token travels in a header on every request.
 - A refused token is counted (`teamster.webhook.receipts`, status `refused`), so a token being
   guessed at is visible rather than silent. Alert on it.
@@ -477,7 +553,7 @@ covers both.
 An alert annotation ends up in that text, so it cannot be trusted to be markup-free. Sanitizing
 bounds what it can do — no scripts, no images, no `javascript:` or `data:` links — but it does not
 make alert data inert. Anyone who can POST a webhook can put a **link** in a message, with link text
-that need not match where it leads. See [what the webhook token protects](#what-the-webhook-token-protects).
+that need not match where it leads. See [what the webhook tokens protect](#what-the-webhook-tokens-protect).
 
 ## Template data
 
@@ -715,7 +791,8 @@ that delivers to both draws an arrow to each.
 ## Backup and migration
 
 The configuration — templates, destinations, routes and permission grants — moves as one JSON
-bundle. It carries **no credentials** and no runtime state, so it can live in a repository beside
+bundle. It carries **no credentials** (webhook access tokens included — issue new ones where the
+bundle lands) and no runtime state, so it can live in a repository beside
 the rest of a deployment's configuration.
 
 Linked people are **not** carried: a link binds one person to one conversation in one tenant, so it

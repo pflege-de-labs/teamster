@@ -9,6 +9,15 @@ import (
 	"time"
 )
 
+type AccessToken struct {
+	ID         string
+	Name       string
+	TokenHash  string
+	CreatedBy  string
+	CreatedAt  time.Time
+	LastUsedAt sql.NullTime
+}
+
 type ActiveAlert struct {
 	Fingerprint string
 	Status      string

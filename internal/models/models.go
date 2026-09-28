@@ -51,6 +51,18 @@ type WebhookEndpoint struct {
 	UpdatedAt  time.Time `json:"updated_at"`
 }
 
+// An AccessToken is a named credential for the alertmanager and universal
+// webhooks (ADR 0044). TokenHash is a SHA-256 digest; the token is shown once,
+// when it is issued. LastUsedAt is zero for a token never presented.
+type AccessToken struct {
+	ID         string    `json:"id"`
+	Name       string    `json:"name"`
+	TokenHash  string    `json:"-"`
+	CreatedBy  string    `json:"created_by"`
+	CreatedAt  time.Time `json:"created_at"`
+	LastUsedAt time.Time `json:"last_used_at"`
+}
+
 // A Recipient is a person who asked for their alerts as a chat message, and the
 // Bot Framework conversation reference that makes it possible to send one
 // unprompted. Subject is the admin-UI session subject that proved the link, so a

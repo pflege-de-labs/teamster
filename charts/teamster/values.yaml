@@ -298,7 +298,7 @@ config:
 # Point `existingSecret` at a secret you manage — sealed, external-secrets,
 # whatever — and the chart creates none. That secret must use these key names:
 #
-#   TEAMSTER_WEBHOOK_TOKEN
+#   TEAMSTER_WEBHOOK_TOKEN             (optional)
 #   TEAMSTER_ADMIN_USERNAME
 #   TEAMSTER_ADMIN_PASSWORD
 #   TEAMSTER_GRAPH_CLIENT_SECRET
@@ -307,7 +307,9 @@ config:
 #   TEAMSTER_AUTH_BROKER_TOKEN_ENCRYPTION_KEY   (optional)
 credentials:
   existingSecret: ""
-  # Shared secret expected in the X-Teamster-Token header.
+  # Optional deployment-wide token for /webhook/*, sent as Authorization: Bearer.
+  # Tokens issued at /admin/tokens work without it; set it when a sender's
+  # configuration has to be declared before anyone can sign in.
   webhookToken: ""
   # The local login, used at /admin/login and as basic auth for /api. Keep it
   # configured: it is the way back in if the identity provider is unreachable.

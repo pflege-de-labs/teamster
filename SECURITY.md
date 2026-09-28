@@ -34,9 +34,11 @@ token. All three are credentials:
 
 ## Deployment expectations
 
-* The admin UI and the admin API are protected by HTTP basic auth, and the webhook endpoints by a
-  shared token in `X-Teamster-Token`. Both send credentials in every request, so **terminate TLS
-  in front of Teamster** and never expose it over plain HTTP.
+* The admin UI and the admin API are protected by HTTP basic auth, and the alert webhooks by a
+  Bearer token — one issued at `/admin/tokens`, or `webhook.token` (ADR 0044). Both send
+  credentials in every request, so **terminate TLS in front of Teamster** and never expose it over
+  plain HTTP. Issued tokens are stored as SHA-256 digests; give each sender its own and revoke it
+  when the sender goes away.
 * The admin UI requires a session, obtained by signing in through the configured OIDC provider or
   with the local credentials. The session cookie is a bearer token for the admin UI: it is
   `HttpOnly` and `SameSite=Lax`, and marked `Secure` whenever the request arrives over TLS, which

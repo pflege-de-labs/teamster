@@ -29,12 +29,7 @@ func (s *Server) handleAlertmanager(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	if !s.webhookAuth(r) {
-		// Counted here because a refused token is otherwise a 401 nobody is
-		// watching, and "the sender's secret is wrong" looks exactly like "the
-		// sender stopped sending".
-		s.metrics.WebhookReceived(ctx, "alertmanager", "refused")
-		w.WriteHeader(http.StatusUnauthorized)
+	if !s.authorizeWebhook(w, r, "alertmanager") {
 		return
 	}
 
@@ -71,9 +66,7 @@ func (s *Server) handleUniversal(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	if !s.webhookAuth(r) {
-		s.metrics.WebhookReceived(ctx, "universal", "refused")
-		w.WriteHeader(http.StatusUnauthorized)
+	if !s.authorizeWebhook(w, r, "universal") {
 		return
 	}
 

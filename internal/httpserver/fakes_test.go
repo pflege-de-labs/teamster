@@ -29,6 +29,7 @@ type fakeStore struct {
 	destinations map[string]models.Destination
 	recipients   map[string]models.Recipient
 	webhooks     map[string]models.WebhookEndpoint
+	accessTokens map[string]models.AccessToken
 	routes       map[string]models.Route
 	activeAlerts map[string]models.ActiveAlert
 	// Keyed and cloned separately from activeAlerts, because the real store
@@ -57,6 +58,7 @@ func newFakeStore() *fakeStore {
 		destinations: map[string]models.Destination{},
 		recipients:   map[string]models.Recipient{},
 		webhooks:     map[string]models.WebhookEndpoint{},
+		accessTokens: map[string]models.AccessToken{},
 		routes:       map[string]models.Route{},
 		activeAlerts: map[string]models.ActiveAlert{},
 		activeChats:  map[string]models.ActiveAlertRecipient{},
@@ -379,6 +381,76 @@ func (f *fakeStore) GetRecipientBySubject(ctx context.Context, subject string) (
 		return models.Recipient{}, store.ErrNotFound
 	}
 	return found, nil
+}
+
+func (f *fakeStore) ListAccessTokens(ctx context.Context) ([]models.AccessToken, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("ListAccessTokens"); err != nil {
+		return nil, err
+	}
+	out := []models.AccessToken{}
+	for _, t := range f.accessTokens {
+		out = append(out, t)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out, nil
+}
+
+func (f *fakeStore) CreateAccessToken(ctx context.Context, t models.AccessToken) (models.AccessToken, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("CreateAccessToken"); err != nil {
+		return models.AccessToken{}, err
+	}
+	for _, existing := range f.accessTokens {
+		if existing.Name == t.Name || existing.TokenHash == t.TokenHash {
+			return models.AccessToken{}, store.ErrConflict
+		}
+	}
+	if t.ID == "" {
+		t.ID = uuid.NewString()
+	}
+	t.CreatedAt = time.Now().UTC()
+	f.accessTokens[t.ID] = t
+	return t, nil
+}
+
+func (f *fakeStore) GetAccessTokenByHash(ctx context.Context, tokenHash string) (models.AccessToken, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("GetAccessTokenByHash"); err != nil {
+		return models.AccessToken{}, err
+	}
+	for _, t := range f.accessTokens {
+		if t.TokenHash == tokenHash {
+			return t, nil
+		}
+	}
+	return models.AccessToken{}, store.ErrNotFound
+}
+
+func (f *fakeStore) TouchAccessToken(ctx context.Context, id string, at time.Time) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("TouchAccessToken"); err != nil {
+		return err
+	}
+	if t, ok := f.accessTokens[id]; ok {
+		t.LastUsedAt = at
+		f.accessTokens[id] = t
+	}
+	return nil
+}
+
+func (f *fakeStore) DeleteAccessToken(ctx context.Context, id string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("DeleteAccessToken"); err != nil {
+		return err
+	}
+	delete(f.accessTokens, id)
+	return nil
 }
 
 func (f *fakeStore) ListWebhookEndpoints(ctx context.Context) ([]models.WebhookEndpoint, error) {

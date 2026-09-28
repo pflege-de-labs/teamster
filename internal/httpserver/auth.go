@@ -54,11 +54,6 @@ func (s *Server) basicAuth(next http.Handler) http.Handler {
 	})
 }
 
-func (s *Server) webhookAuth(r *http.Request) bool {
-	provided := r.Header.Get("X-Teamster-Token")
-	return safeEquals(provided, s.cfg.Webhook.Token)
-}
-
 func parseBasicAuth(header string) (string, string, bool) {
 	const prefix = "Basic "
 	if !strings.HasPrefix(header, prefix) {

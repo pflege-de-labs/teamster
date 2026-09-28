@@ -610,6 +610,60 @@ func TestConformanceWebhookEndpointSlugIsUnique(t *testing.T) {
 	})
 }
 
+func TestConformanceAccessTokens(t *testing.T) {
+	t.Parallel()
+
+	eachBackend(t, func(t *testing.T, open func(t *testing.T) store.Store) {
+		st := open(t)
+		ctx := t.Context()
+
+		created, err := st.CreateAccessToken(ctx, models.AccessToken{Name: "alertmanager", TokenHash: "h1", CreatedBy: "tester"})
+		if err != nil {
+			t.Fatalf("CreateAccessToken: %v", err)
+		}
+		if created.ID == "" || created.CreatedAt.IsZero() {
+			t.Errorf("CreateAccessToken() = %+v, want an id and a creation time", created)
+		}
+
+		got, err := st.GetAccessTokenByHash(ctx, "h1")
+		if err != nil {
+			t.Fatalf("GetAccessTokenByHash: %v", err)
+		}
+		if got.ID != created.ID || got.Name != "alertmanager" || got.CreatedBy != "tester" || !got.LastUsedAt.IsZero() {
+			t.Errorf("GetAccessTokenByHash() = %+v, want the token just created, never used", got)
+		}
+
+		used := time.Date(2026, 9, 1, 12, 0, 0, 0, time.UTC)
+		if err := st.TouchAccessToken(ctx, created.ID, used); err != nil {
+			t.Fatalf("TouchAccessToken: %v", err)
+		}
+		list, err := st.ListAccessTokens(ctx)
+		if err != nil {
+			t.Fatalf("ListAccessTokens: %v", err)
+		}
+		if len(list) != 1 || !list[0].LastUsedAt.Equal(used) {
+			t.Errorf("ListAccessTokens() = %+v, want one token last used at %v", list, used)
+		}
+
+		if _, err := st.CreateAccessToken(ctx, models.AccessToken{Name: "alertmanager", TokenHash: "h2"}); !errors.Is(err, store.ErrConflict) {
+			t.Errorf("a taken name = %v, want ErrConflict", err)
+		}
+		if _, err := st.CreateAccessToken(ctx, models.AccessToken{Name: "other", TokenHash: "h1"}); !errors.Is(err, store.ErrConflict) {
+			t.Errorf("a taken hash = %v, want ErrConflict", err)
+		}
+
+		if err := st.DeleteAccessToken(ctx, created.ID); err != nil {
+			t.Fatalf("DeleteAccessToken: %v", err)
+		}
+		if _, err := st.GetAccessTokenByHash(ctx, "h1"); !errors.Is(err, store.ErrNotFound) {
+			t.Errorf("GetAccessTokenByHash() after delete = %v, want ErrNotFound", err)
+		}
+		if list, err := st.ListAccessTokens(ctx); err != nil || len(list) != 0 {
+			t.Errorf("ListAccessTokens() after delete = %v, %v, want none", list, err)
+		}
+	})
+}
+
 // One person, one binding: a second row for the same subject would deliver
 // every alert twice.
 func TestConformanceGetRecipientByConversation(t *testing.T) {

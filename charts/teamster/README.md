@@ -108,7 +108,7 @@ these four must not also appear under `config.settings`:
 
 | Value | Environment variable |
 | --- | --- |
-| `credentials.webhookToken` | `TEAMSTER_WEBHOOK_TOKEN` |
+| `credentials.webhookToken` (optional) | `TEAMSTER_WEBHOOK_TOKEN` |
 | `credentials.adminUsername` | `TEAMSTER_ADMIN_USERNAME` |
 | `credentials.adminPassword` | `TEAMSTER_ADMIN_PASSWORD` |
 | `credentials.graphClientSecret` | `TEAMSTER_GRAPH_CLIENT_SECRET` |
@@ -151,9 +151,9 @@ Enable one of the two, or neither and reach the service through `kubectl port-fo
   This split exists for HTTPRoute only. Ingress keeps its single-resource, all-paths shape; if the
   split matters to you, use Gateway API.
 
-Either way, `/webhook/*` authenticates with the `X-Teamster-Token` header rather than with a
-session, and `/bot/messages` — reachable only when the bot is configured — authenticates with
-Microsoft's own signature.
+Either way, `/webhook/*` authenticates with `Authorization: Bearer` — a token issued at
+`/admin/tokens`, or `credentials.webhookToken` — rather than with a session, and `/bot/messages`
+— reachable only when the bot is configured — authenticates with Microsoft's own signature.
 
 When OIDC is configured, `config.settings.auth.oidc-redirect-url` has to be the externally
 reachable `/admin/auth/callback` URL as registered with the provider. The chart cannot derive it:

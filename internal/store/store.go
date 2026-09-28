@@ -135,6 +135,15 @@ type Store interface {
 	// pair alone -- the token is compared in constant time afterwards.
 	GetWebhookEndpointBySlug(ctx context.Context, teamSlug, channelSlug string) (models.WebhookEndpoint, error)
 
+	ListAccessTokens(ctx context.Context) ([]models.AccessToken, error)
+	// CreateAccessToken reports ErrConflict when the name is taken.
+	CreateAccessToken(ctx context.Context, t models.AccessToken) (models.AccessToken, error)
+	// GetAccessTokenByHash authenticates a webhook request, so like
+	// GetWebhookEndpointBySlug it is reachable by an unauthenticated caller.
+	GetAccessTokenByHash(ctx context.Context, tokenHash string) (models.AccessToken, error)
+	TouchAccessToken(ctx context.Context, id string, at time.Time) error
+	DeleteAccessToken(ctx context.Context, id string) error
+
 	CreateLinkFlow(ctx context.Context, f models.LinkFlow) error
 	// TakeLinkFlow redeems a code once, whether or not it had expired.
 	TakeLinkFlow(ctx context.Context, code string) (models.LinkFlow, error)

@@ -45,6 +45,7 @@ type Querier interface {
 	// something this service is keeping up to date.
 	CountActiveAlerts(ctx context.Context) (int64, error)
 	CountDestinations(ctx context.Context) (int64, error)
+	CreateAccessToken(ctx context.Context, arg CreateAccessTokenParams) error
 	// Code generated from ../sqlite by internal/store/queries/gen. DO NOT EDIT.
 	//
 	// The statements are the SQLite ones with ? replaced by $n. Edit the SQLite
@@ -73,6 +74,7 @@ type Querier interface {
 	CreateSession(ctx context.Context, arg CreateSessionParams) error
 	CreateTemplate(ctx context.Context, arg CreateTemplateParams) error
 	CreateWebhookEndpoint(ctx context.Context, arg CreateWebhookEndpointParams) error
+	DeleteAccessToken(ctx context.Context, id string) error
 	// DeleteActiveAlertCard removes the row for one card, and only if it is still
 	// that card: a resolve that raced a refire must not delete the new card's row.
 	DeleteActiveAlertCard(ctx context.Context, arg DeleteActiveAlertCardParams) error
@@ -113,6 +115,10 @@ type Querier interface {
 	DeleteSession(ctx context.Context, id string) error
 	DeleteTemplate(ctx context.Context, id string) error
 	DeleteWebhookEndpoint(ctx context.Context, id string) error
+	// GetAccessTokenByHash is how a webhook request is authenticated. Matching on
+	// the digest in SQL leaks nothing a timing attack could use: the digest of a
+	// guess says nothing about the digest of the token.
+	GetAccessTokenByHash(ctx context.Context, tokenHash string) (AccessToken, error)
 	GetActiveAlert(ctx context.Context, arg GetActiveAlertParams) (ActiveAlert, error)
 	GetActiveAlertRecipient(ctx context.Context, arg GetActiveAlertRecipientParams) (ActiveAlertRecipient, error)
 	GetBrokerToken(ctx context.Context, sessionID string) (BrokerToken, error)
@@ -136,6 +142,11 @@ type Querier interface {
 	// only lookup a sender can reach, so it matches on the pair alone and leaves
 	// the token to a constant-time comparison outside SQL.
 	GetWebhookEndpointBySlug(ctx context.Context, arg GetWebhookEndpointBySlugParams) (WebhookEndpoint, error)
+	// Code generated from ../sqlite by internal/store/queries/gen. DO NOT EDIT.
+	//
+	// The statements are the SQLite ones with ? replaced by $n. Edit the SQLite
+	// file and run make generate.
+	ListAccessTokens(ctx context.Context) ([]AccessToken, error)
 	// ListActiveAlertRecipients returns every message sent for an alert, one per
 	// recipient it fanned out to, and any claim still in flight.
 	ListActiveAlertRecipients(ctx context.Context, fingerprint string) ([]ActiveAlertRecipient, error)
@@ -216,6 +227,7 @@ type Querier interface {
 	// TakeLoginFlow redeems a state once: the row is gone whether or not it had
 	// expired, so a replayed callback finds nothing.
 	TakeLoginFlow(ctx context.Context, state string) (LoginFlow, error)
+	TouchAccessToken(ctx context.Context, arg TouchAccessTokenParams) error
 	// TouchActiveAlert records that an existing card was updated. It matches on the
 	// message id so that a resolve-then-refire cycle, which replaces the card, does
 	// not have its newer row stamped by an update to the older one.
