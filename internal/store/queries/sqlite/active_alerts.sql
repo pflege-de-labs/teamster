@@ -18,7 +18,7 @@ INSERT INTO active_alerts (
 	claim_owner, claimed_at, posted_at, last_update)
 VALUES (?, ?, ?, ?, '', ?, ?, NULL, ?)
 ON CONFLICT(fingerprint, team_id, channel_id) DO NOTHING
-RETURNING fingerprint, status, team_id, channel_id, message_id, claim_owner, claimed_at, posted_at, last_update;
+RETURNING fingerprint, status, team_id, channel_id, message_id, claim_owner, claimed_at, posted_at, last_update, conversation_id;
 
 -- CompleteActiveAlertClaim records the card the claim produced. The guard is
 -- what makes a lost claim visible: zero rows means somebody else's card is
@@ -27,10 +27,11 @@ RETURNING fingerprint, status, team_id, channel_id, message_id, claim_owner, cla
 -- name: CompleteActiveAlertClaim :one
 INSERT INTO active_alerts (
 	fingerprint, team_id, channel_id, status, message_id,
-	claim_owner, claimed_at, posted_at, last_update)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+	claim_owner, claimed_at, posted_at, last_update, conversation_id)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(fingerprint, team_id, channel_id) DO UPDATE SET
 	message_id  = excluded.message_id,
+	conversation_id = excluded.conversation_id,
 	posted_at   = excluded.posted_at,
 	status      = excluded.status,
 	last_update = excluded.last_update
@@ -58,13 +59,13 @@ WHERE fingerprint = ? AND team_id = ? AND channel_id = ? AND message_id = ?;
 -- fanned out to, and any claim still in flight. The order is stable so that
 -- delivery, and its tests, see them the same way every time.
 -- name: ListActiveAlerts :many
-SELECT fingerprint, status, team_id, channel_id, message_id, claim_owner, claimed_at, posted_at, last_update
+SELECT fingerprint, status, team_id, channel_id, message_id, claim_owner, claimed_at, posted_at, last_update, conversation_id
 FROM active_alerts
 WHERE fingerprint = ?
 ORDER BY team_id, channel_id;
 
 -- name: GetActiveAlert :one
-SELECT fingerprint, status, team_id, channel_id, message_id, claim_owner, claimed_at, posted_at, last_update
+SELECT fingerprint, status, team_id, channel_id, message_id, claim_owner, claimed_at, posted_at, last_update, conversation_id
 FROM active_alerts
 WHERE fingerprint = ? AND team_id = ? AND channel_id = ?;
 

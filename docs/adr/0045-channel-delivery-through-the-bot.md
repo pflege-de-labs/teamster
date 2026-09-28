@@ -1,6 +1,6 @@
 # 0045. Deliver channel messages through the Bot Framework bot
 
-* Status: Proposed
+* Status: Accepted
 * Date: 2026-09-28
 
 ## Context

@@ -114,6 +114,10 @@ func (p pgQueries) DeleteActiveAlertRecipientsFor(ctx context.Context, recipient
 	return p.q.DeleteActiveAlertRecipientsFor(ctx, recipientID)
 }
 
+func (p pgQueries) DeleteBotTeam(ctx context.Context, teamID string) error {
+	return p.q.DeleteBotTeam(ctx, teamID)
+}
+
 func (p pgQueries) DeleteBrokerToken(ctx context.Context, sessionID string) error {
 	return p.q.DeleteBrokerToken(ctx, sessionID)
 }
@@ -179,6 +183,11 @@ func (p pgQueries) GetActiveAlert(ctx context.Context, arg sqlitedb.GetActiveAle
 func (p pgQueries) GetActiveAlertRecipient(ctx context.Context, arg sqlitedb.GetActiveAlertRecipientParams) (sqlitedb.ActiveAlertRecipient, error) {
 	row, err := p.q.GetActiveAlertRecipient(ctx, pgdb.GetActiveAlertRecipientParams(arg))
 	return sqlitedb.ActiveAlertRecipient(row), err
+}
+
+func (p pgQueries) GetBotTeam(ctx context.Context, teamID string) (sqlitedb.BotTeam, error) {
+	row, err := p.q.GetBotTeam(ctx, teamID)
+	return sqlitedb.BotTeam(row), err
 }
 
 func (p pgQueries) GetBrokerToken(ctx context.Context, sessionID string) (sqlitedb.BrokerToken, error) {
@@ -268,6 +277,18 @@ func (p pgQueries) ListActiveAlertRecipients(ctx context.Context, fingerprint st
 	out := make([]sqlitedb.ActiveAlertRecipient, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, sqlitedb.ActiveAlertRecipient(row))
+	}
+	return out, nil
+}
+
+func (p pgQueries) ListBotTeams(ctx context.Context) ([]sqlitedb.BotTeam, error) {
+	rows, err := p.q.ListBotTeams(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]sqlitedb.BotTeam, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, sqlitedb.BotTeam(row))
 	}
 	return out, nil
 }
@@ -440,6 +461,10 @@ func (p pgQueries) ListAlertSamples(ctx context.Context, maxRows int64) ([]sqlit
 		out = append(out, sqlitedb.AlertSample(row))
 	}
 	return out, nil
+}
+
+func (p pgQueries) UpsertBotTeam(ctx context.Context, arg sqlitedb.UpsertBotTeamParams) error {
+	return p.q.UpsertBotTeam(ctx, pgdb.UpsertBotTeamParams(arg))
 }
 
 func (p pgQueries) UpsertAlertSample(ctx context.Context, arg sqlitedb.UpsertAlertSampleParams) error {

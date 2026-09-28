@@ -53,6 +53,8 @@ type Message struct {
 	// "<p><b>" in the chat rather than being rendered.
 	Text string
 	Card json.RawMessage
+	// Cards follow Card, in order: a Teams V2 message may bring several.
+	Cards []json.RawMessage
 }
 
 // markdownMetachars are the ASCII punctuation characters CommonMark gives
@@ -122,11 +124,14 @@ func (m Message) activity() activity {
 	text.WriteString(m.Text)
 
 	act := activity{Type: "message", Text: text.String()}
-	if len(m.Card) > 0 {
-		act.Attachments = []activityAttachment{{
+	for _, card := range append([]json.RawMessage{m.Card}, m.Cards...) {
+		if len(card) == 0 {
+			continue
+		}
+		act.Attachments = append(act.Attachments, activityAttachment{
 			ContentType: "application/vnd.microsoft.card.adaptive",
-			Content:     m.Card,
-		}}
+			Content:     card,
+		})
 	}
 	return act
 }
@@ -306,6 +311,63 @@ func (c *Client) SendMessage(ctx context.Context, ref ConversationReference, msg
 	return res.ID, nil
 }
 
+// ChannelPost is where a new channel post landed: the conversation the Bot
+// Connector created for it, and the activity an edit addresses.
+type ChannelPost struct {
+	ConversationID string
+	ActivityID     string
+}
+
+type channelConversationRequest struct {
+	IsGroup     bool               `json:"isGroup"`
+	ChannelData channelDataRequest `json:"channelData"`
+	Activity    activity           `json:"activity"`
+	TenantID    string             `json:"tenantId,omitempty"`
+}
+
+type channelDataRequest struct {
+	Channel idRef `json:"channel"`
+	Tenant  idRef `json:"tenant"`
+}
+
+type idRef struct {
+	ID string `json:"id"`
+}
+
+type channelConversationResponse struct {
+	ID         string `json:"id"`
+	ActivityID string `json:"activityId"`
+}
+
+// PostToChannel starts a new post in a Teams channel the bot's app is
+// installed in (ADR 0045). serviceURL is the team's regional endpoint.
+func (c *Client) PostToChannel(ctx context.Context, serviceURL, tenantID, channelID string, msg Message) (ChannelPost, error) {
+	base, err := serviceBase(serviceURL)
+	if err != nil {
+		return ChannelPost{}, err
+	}
+	resBody, err := c.doRequest(ctx, http.MethodPost, base+"/v3/conversations", channelConversationRequest{
+		IsGroup: true,
+		ChannelData: channelDataRequest{
+			Channel: idRef{ID: channelID},
+			Tenant:  idRef{ID: tenantID},
+		},
+		Activity: msg.activity(),
+		TenantID: tenantID,
+	})
+	if err != nil {
+		return ChannelPost{}, err
+	}
+
+	var res channelConversationResponse
+	if err := json.Unmarshal(resBody, &res); err != nil {
+		return ChannelPost{}, fmt.Errorf("decode channel post response: %w", err)
+	}
+	// Posted but not editable is still posted: failing here would be retried
+	// into a second card.
+	return ChannelPost{ConversationID: res.ID, ActivityID: res.ActivityID}, nil
+}
+
 // UpdateMessage replaces the content of a previously sent activity.
 func (c *Client) UpdateMessage(ctx context.Context, ref ConversationReference, activityID string, msg Message) error {
 	endpoint, err := conversationEndpoint(ref)
@@ -329,15 +391,25 @@ func (c *Client) UpdateMessage(ctx context.Context, ref ConversationReference, a
 // guidance is explicit that the token must never go out over an unsecured
 // channel, so anything other than https is refused here rather than sent.
 func conversationEndpoint(ref ConversationReference) (string, error) {
-	trimmed := strings.TrimSuffix(ref.ServiceURL, "/")
+	base, err := serviceBase(ref.ServiceURL)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s/v3/conversations/%s", base, url.PathEscape(ref.ConversationID)), nil
+}
+
+// serviceBase is a service URL without its trailing slash, refused unless it
+// is https: see conversationEndpoint.
+func serviceBase(serviceURL string) (string, error) {
+	trimmed := strings.TrimSuffix(serviceURL, "/")
 	u, err := url.Parse(trimmed)
 	if err != nil {
 		return "", fmt.Errorf("parse conversation service url: %w", err)
 	}
 	if u.Scheme != "https" {
-		return "", fmt.Errorf("conversation service url %q must use https, not send the bot token over %q", ref.ServiceURL, u.Scheme)
+		return "", fmt.Errorf("conversation service url %q must use https, not send the bot token over %q", serviceURL, u.Scheme)
 	}
-	return fmt.Sprintf("%s/v3/conversations/%s", trimmed, url.PathEscape(ref.ConversationID)), nil
+	return trimmed, nil
 }
 
 // maxResponseBody caps how much of a Bot Connector response this client will

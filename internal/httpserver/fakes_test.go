@@ -30,6 +30,7 @@ type fakeStore struct {
 	recipients   map[string]models.Recipient
 	webhooks     map[string]models.WebhookEndpoint
 	accessTokens map[string]models.AccessToken
+	botTeams     map[string]models.BotTeam
 	routes       map[string]models.Route
 	activeAlerts map[string]models.ActiveAlert
 	// Keyed and cloned separately from activeAlerts, because the real store
@@ -59,6 +60,7 @@ func newFakeStore() *fakeStore {
 		recipients:   map[string]models.Recipient{},
 		webhooks:     map[string]models.WebhookEndpoint{},
 		accessTokens: map[string]models.AccessToken{},
+		botTeams:     map[string]models.BotTeam{},
 		routes:       map[string]models.Route{},
 		activeAlerts: map[string]models.ActiveAlert{},
 		activeChats:  map[string]models.ActiveAlertRecipient{},
@@ -381,6 +383,53 @@ func (f *fakeStore) GetRecipientBySubject(ctx context.Context, subject string) (
 		return models.Recipient{}, store.ErrNotFound
 	}
 	return found, nil
+}
+
+func (f *fakeStore) UpsertBotTeam(ctx context.Context, t models.BotTeam) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("UpsertBotTeam"); err != nil {
+		return err
+	}
+	f.botTeams[t.TeamID] = t
+	return nil
+}
+
+func (f *fakeStore) GetBotTeam(ctx context.Context, teamID string) (models.BotTeam, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("GetBotTeam"); err != nil {
+		return models.BotTeam{}, err
+	}
+	t, ok := f.botTeams[teamID]
+	if !ok {
+		return models.BotTeam{}, store.ErrNotFound
+	}
+	return t, nil
+}
+
+func (f *fakeStore) ListBotTeams(ctx context.Context) ([]models.BotTeam, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("ListBotTeams"); err != nil {
+		return nil, err
+	}
+	out := make([]models.BotTeam, 0, len(f.botTeams))
+	for _, t := range f.botTeams {
+		out = append(out, t)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].TeamID < out[j].TeamID })
+	return out, nil
+}
+
+func (f *fakeStore) DeleteBotTeam(ctx context.Context, teamID string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("DeleteBotTeam"); err != nil {
+		return err
+	}
+	delete(f.botTeams, teamID)
+	return nil
 }
 
 func (f *fakeStore) ListAccessTokens(ctx context.Context) ([]models.AccessToken, error) {
@@ -995,7 +1044,7 @@ func (f *fakeStore) ClaimActiveAlert(ctx context.Context, claim models.AlertClai
 	return card, store.ClaimAcquired, nil
 }
 
-func (f *fakeStore) CompleteActiveAlertClaim(ctx context.Context, claim models.AlertClaim, messageID string, at time.Time) error {
+func (f *fakeStore) CompleteActiveAlertClaim(ctx context.Context, claim models.AlertClaim, messageID, conversationID string, at time.Time) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if err := f.failing("CompleteActiveAlertClaim"); err != nil {
@@ -1008,6 +1057,7 @@ func (f *fakeStore) CompleteActiveAlertClaim(ctx context.Context, claim models.A
 		return store.ErrClaimLost
 	}
 	existing.MessageID = messageID
+	existing.ConversationID = conversationID
 	existing.Status = claim.Status
 	existing.PostedAt = at
 	existing.LastUpdate = at
@@ -1342,6 +1392,20 @@ func (f *fakeMessenger) UpdateMessage(teamID, channelID, messageID string, msg g
 		messageID: messageID,
 	})
 	return f.updateErr
+}
+
+// PostToChannel and UpdateInChannel make the fake the channel transport as
+// well, so a test reads posts and updates from one place.
+func (f *fakeMessenger) PostToChannel(_ context.Context, teamID, channelID string, msg graph.Message) (channelCard, error) {
+	id, err := f.PostMessage(teamID, channelID, msg)
+	if err != nil {
+		return channelCard{}, err
+	}
+	return channelCard{ConversationID: "conversation-" + id, MessageID: id}, nil
+}
+
+func (f *fakeMessenger) UpdateInChannel(_ context.Context, teamID, channelID string, card channelCard, msg graph.Message) error {
+	return f.UpdateMessage(teamID, channelID, card.MessageID, msg)
 }
 
 // cardOf is the one card a template renders, for a test that wants to compare

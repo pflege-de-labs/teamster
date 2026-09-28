@@ -91,30 +91,35 @@ The `graph` registration signs in as the application itself (client credentials)
 | `Team.ReadBasic.All` | the Team picker, and naming Teams in the routing graph, export and import |
 | `Channel.ReadBasic.All` | the channel picker, and naming channels in the same places |
 
-**Known limitation: Microsoft Graph does not let an application post or edit channel messages.**
-Teamster posts to a channel with `POST /teams/{team}/channels/{channel}/messages` and edits a card
-with `PATCH …/messages/{id}`. Microsoft's documentation allows neither with an application
-permission:
+**Graph does not post anything.** Microsoft Graph does not let an application post or edit
+channel messages:
 
 - Posting as an application is limited to `Teamwork.Migrate.All`, which is for importing message
   history. Do not grant it for this.
 - Editing as an application is limited to `ChannelMessage.UpdatePolicyViolation.All`, which may
   change only a message's `policyViolation` field.
 
-A real tenant therefore answers every channel delivery with `403 Forbidden` ("Missing role
-permissions on the request"), and the sender gets a `502`. The Teams V2 endpoints post the same
-way and fail the same way. Delivery to a person's chat, through the bot below, is not affected.
-Moving channel delivery onto the bot is planned — see the [roadmap](docs/roadmap.md).
+So the bot below posts and edits channel cards instead
+([ADR 0045](docs/adr/0045-channel-delivery-through-the-bot.md)).
 
-### Sending alerts to a person's chat (optional)
+### The Teams bot
 
 `bot.tenant-id`, `bot.client-id` and `bot.client-secret` configure a second, separate Entra
-registration for a Teams bot that can send an alert directly to a person rather than only to a
-channel (see [ADR 0026](docs/adr/0026-alerts-in-a-persons-chat.md)). This is unrelated to the
-`graph` credential above: revoking or rotating one never touches the other.
+registration for a Teams bot. The bot posts and edits every channel card, and can send an alert
+directly to a person as well
+([ADR 0045](docs/adr/0045-channel-delivery-through-the-bot.md),
+[ADR 0026](docs/adr/0026-alerts-in-a-persons-chat.md)). This is unrelated to the `graph`
+credential above: revoking or rotating one never touches the other.
 
-The whole feature is off by default. Leave all three empty and nothing else in the `bot:` block
-matters; set all three together to turn it on, since setting only one is rejected at startup.
+**Without the bot nothing reaches a channel.** Startup logs that, and each channel delivery fails
+with `502` saying so. Set all three together, since setting only one is rejected at startup.
+
+**Every team a route posts to needs the Teams app installed** — see
+[`manifest/README.md`](manifest/README.md). When the app is added to a team, the bot records that
+team's regional Bot Connector endpoint. A team that installed the app before this release is
+reached through `bot.service-url` (default `https://smba.trafficmanager.net/teams/`) until it
+sends the bot any activity. A post to a team without the app fails with a message asking whether
+it is installed.
 `bot.tenant-type` distinguishes a registration that only ever signs in this tenant's users
 (`single`, the default) from one registered to accept any tenant's users (`multi`), which
 authenticates through a shared Microsoft endpoint rather than this tenant's own. `bot.metadata-url`

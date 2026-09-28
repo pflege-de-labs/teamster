@@ -51,6 +51,15 @@ type WebhookEndpoint struct {
 	UpdatedAt  time.Time `json:"updated_at"`
 }
 
+// A BotTeam is a team the bot is installed in, and the regional Bot Connector
+// endpoint that reaches it (ADR 0045). TeamID is the Graph team id.
+type BotTeam struct {
+	TeamID     string    `json:"team_id"`
+	TenantID   string    `json:"tenant_id"`
+	ServiceURL string    `json:"service_url"`
+	UpdatedAt  time.Time `json:"updated_at"`
+}
+
 // An AccessToken is a named credential for the alertmanager and universal
 // webhooks (ADR 0044). TokenHash is a SHA-256 digest; the token is shown once,
 // when it is issued. LastUsedAt is zero for a token never presented.
@@ -140,15 +149,18 @@ type Route struct {
 // the row is a claim in flight and MessageID is empty, because there is no
 // message yet to name.
 type ActiveAlert struct {
-	Fingerprint string    `json:"fingerprint"`
-	Status      string    `json:"status"`
-	TeamID      string    `json:"team_id"`
-	ChannelID   string    `json:"channel_id"`
-	MessageID   string    `json:"message_id"`
-	ClaimOwner  string    `json:"claim_owner,omitempty"`
-	ClaimedAt   time.Time `json:"claimed_at,omitempty"`
-	PostedAt    time.Time `json:"posted_at,omitempty"`
-	LastUpdate  time.Time `json:"last_update"`
+	Fingerprint string `json:"fingerprint"`
+	Status      string `json:"status"`
+	TeamID      string `json:"team_id"`
+	ChannelID   string `json:"channel_id"`
+	MessageID   string `json:"message_id"`
+	// ConversationID is the channel conversation the bot created for the
+	// card; empty for a card the bot cannot edit (ADR 0045).
+	ConversationID string    `json:"conversation_id,omitempty"`
+	ClaimOwner     string    `json:"claim_owner,omitempty"`
+	ClaimedAt      time.Time `json:"claimed_at,omitempty"`
+	PostedAt       time.Time `json:"posted_at,omitempty"`
+	LastUpdate     time.Time `json:"last_update"`
 }
 
 // Posted reports whether a card exists for this row, as opposed to a claim on

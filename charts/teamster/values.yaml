@@ -200,9 +200,10 @@ config:
       client-id: ""
       base-url: https://graph.microsoft.com/v1.0
       timeout-sec: 10
-    # Alerts in a person's chat, off by default. tenant-id (unless
-    # tenant-type is multi), client-id and credentials.botClientSecret below
-    # are required together, or leave this section empty for none of it.
+    # The Teams bot, which posts every channel card and alerts in a person's
+    # chat (ADR 0045): without it nothing reaches a channel. tenant-id
+    # (unless tenant-type is multi), client-id and credentials.botClientSecret
+    # below are required together.
     bot: {}
       # tenant-id: ""
       # client-id: ""
@@ -319,8 +320,8 @@ credentials:
   graphClientSecret: ""
   # Omit for a public OIDC client using PKCE, which is the recommended setup.
   oidcClientSecret: ""
-  # Microsoft Entra client secret for the bot registration. Alerts in a
-  # person's chat are off unless this and config.settings.bot are both set.
+  # Microsoft Entra client secret for the bot registration. No channel or
+  # chat delivery works unless this and config.settings.bot are both set.
   botClientSecret: ""
   # 32 random bytes, base64 (`openssl rand -base64 32`), sealing the Keycloak
   # tokens stored for config.settings.auth.broker. Losing it only disables the

@@ -1,7 +1,8 @@
 # Teams app manifest
 
-This is the Teams app package for the bot that delivers alerts to a person's chat
-([ADR 0026](../docs/adr/0026-alerts-in-a-persons-chat.md)). It is packaging metadata for the Teams
+This is the Teams app package for the bot that delivers alerts to Teams channels and to a person's
+chat ([ADR 0045](../docs/adr/0045-channel-delivery-through-the-bot.md),
+[ADR 0026](../docs/adr/0026-alerts-in-a-persons-chat.md)). It is packaging metadata for the Teams
 app catalog — what a person sees when they install the bot — not runtime configuration, which
 lives in `config.example.yaml` under `bot:`.
 
@@ -24,9 +25,10 @@ Two settings are deliberately not placeholders and must not be changed:
 - `bots[0].isNotificationOnly` must stay `false`. A notification-only bot cannot be sent messages,
   so nobody could type a linking code at it — see the ADR for why this bot needs to receive
   messages, not just send them.
-- `bots[0].scopes` must stay `["personal"]` only. Adding a group or team scope would let someone
-  link the bot in a group chat, which would later broadcast that person's private alerts to
-  everyone in it.
+- `bots[0].scopes` must stay `["personal", "team"]`. `team` is what lets the bot post to a
+  channel, and the bot reads only install and removal events there, never commands. Adding
+  `groupChat` would let someone link the bot in a group chat, which would later broadcast that
+  person's private alerts to everyone in it.
 
 ## Icons
 
@@ -67,7 +69,16 @@ zip -j teamster-bot.zip manifest.json color.png outline.png
 rebuild and re-run this command as often as needed.
 
 Upload `teamster-bot.zip` through Teams admin center (Teams apps → Manage apps → Upload new app)
-for an organization-wide install, or through a Teams client's "Upload a custom app" option for
-testing with a single account. Either way the bot registration referenced by `bots[0].botId` must
-already exist in Entra and have a messaging endpoint configured before anyone can complete the
-one-time linking code the ADR describes — installing the app alone does not link an account.
+to publish it to the organization's catalog, or through a Teams client's "Upload a custom app"
+option for testing with a single account. Either way the bot registration referenced by
+`bots[0].botId` must already exist in Entra and have a messaging endpoint configured before it can
+post anywhere or anyone can complete the one-time linking code the ADR describes — installing the
+app alone does not link an account.
+
+## Installing it in a team
+
+Every team a route posts to needs the app installed. An owner of the team adds it from the app's
+page in Teams (Apps → Built for your org → the app → Add to a team), and picks any channel. The
+bot then receives an install event. Teamster records the team from that event, and from then on
+it knows the team's regional Bot Connector endpoint. Removing the app from the team stops
+delivery there, and Teamster forgets the team.

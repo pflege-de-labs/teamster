@@ -497,6 +497,56 @@ func webhookEndpointOf(row sqlitedb.WebhookEndpoint) models.WebhookEndpoint {
 	}
 }
 
+func (s queryAdapter) UpsertBotTeam(ctx context.Context, t models.BotTeam) error {
+	if t.UpdatedAt.IsZero() {
+		t.UpdatedAt = nowUTC()
+	}
+	err := s.q.UpsertBotTeam(ctx, sqlitedb.UpsertBotTeamParams{
+		TeamID:     t.TeamID,
+		TenantID:   t.TenantID,
+		ServiceUrl: t.ServiceURL,
+		UpdatedAt:  t.UpdatedAt.UTC(),
+	})
+	if err != nil {
+		return fmt.Errorf("upsert bot team: %w", err)
+	}
+	return nil
+}
+
+func (s queryAdapter) GetBotTeam(ctx context.Context, teamID string) (models.BotTeam, error) {
+	row, err := s.q.GetBotTeam(ctx, teamID)
+	if err != nil {
+		if err := notFound(err); errors.Is(err, ErrNotFound) {
+			return models.BotTeam{}, err
+		}
+		return models.BotTeam{}, fmt.Errorf("get bot team: %w", err)
+	}
+	return botTeamOf(row), nil
+}
+
+func (s queryAdapter) ListBotTeams(ctx context.Context) ([]models.BotTeam, error) {
+	rows, err := s.q.ListBotTeams(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list bot teams: %w", err)
+	}
+	out := make([]models.BotTeam, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, botTeamOf(row))
+	}
+	return out, nil
+}
+
+func (s queryAdapter) DeleteBotTeam(ctx context.Context, teamID string) error {
+	if err := s.q.DeleteBotTeam(ctx, teamID); err != nil {
+		return fmt.Errorf("delete bot team: %w", err)
+	}
+	return nil
+}
+
+func botTeamOf(row sqlitedb.BotTeam) models.BotTeam {
+	return models.BotTeam{TeamID: row.TeamID, TenantID: row.TenantID, ServiceURL: row.ServiceUrl, UpdatedAt: row.UpdatedAt}
+}
+
 func (s queryAdapter) ListAccessTokens(ctx context.Context) ([]models.AccessToken, error) {
 	rows, err := s.q.ListAccessTokens(ctx)
 	if err != nil {
@@ -725,17 +775,18 @@ func (s queryAdapter) ClaimActiveAlert(ctx context.Context, claim models.AlertCl
 	return existing, ClaimHeld, nil
 }
 
-func (s queryAdapter) CompleteActiveAlertClaim(ctx context.Context, claim models.AlertClaim, messageID string, at time.Time) error {
+func (s queryAdapter) CompleteActiveAlertClaim(ctx context.Context, claim models.AlertClaim, messageID, conversationID string, at time.Time) error {
 	_, err := s.q.CompleteActiveAlertClaim(ctx, sqlitedb.CompleteActiveAlertClaimParams{
-		Fingerprint: claim.Fingerprint,
-		TeamID:      claim.TeamID,
-		ChannelID:   claim.ChannelID,
-		Status:      claim.Status,
-		MessageID:   messageID,
-		ClaimOwner:  claim.Owner,
-		ClaimedAt:   sql.NullTime{Time: claim.At, Valid: true},
-		PostedAt:    sql.NullTime{Time: at, Valid: true},
-		LastUpdate:  at,
+		Fingerprint:    claim.Fingerprint,
+		TeamID:         claim.TeamID,
+		ChannelID:      claim.ChannelID,
+		Status:         claim.Status,
+		MessageID:      messageID,
+		ClaimOwner:     claim.Owner,
+		ClaimedAt:      sql.NullTime{Time: claim.At, Valid: true},
+		PostedAt:       sql.NullTime{Time: at, Valid: true},
+		LastUpdate:     at,
+		ConversationID: conversationID,
 	})
 	switch {
 	case err == nil:
@@ -985,15 +1036,16 @@ func activeAlertRecipientOf(row sqlitedb.ActiveAlertRecipient) models.ActiveAler
 
 func activeAlertOf(row sqlitedb.ActiveAlert) models.ActiveAlert {
 	return models.ActiveAlert{
-		Fingerprint: row.Fingerprint,
-		Status:      row.Status,
-		TeamID:      row.TeamID,
-		ChannelID:   row.ChannelID,
-		MessageID:   row.MessageID,
-		ClaimOwner:  row.ClaimOwner,
-		ClaimedAt:   row.ClaimedAt.Time,
-		PostedAt:    row.PostedAt.Time,
-		LastUpdate:  row.LastUpdate,
+		Fingerprint:    row.Fingerprint,
+		Status:         row.Status,
+		TeamID:         row.TeamID,
+		ChannelID:      row.ChannelID,
+		MessageID:      row.MessageID,
+		ConversationID: row.ConversationID,
+		ClaimOwner:     row.ClaimOwner,
+		ClaimedAt:      row.ClaimedAt.Time,
+		PostedAt:       row.PostedAt.Time,
+		LastUpdate:     row.LastUpdate,
 	}
 }
 

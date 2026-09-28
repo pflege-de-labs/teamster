@@ -135,6 +135,13 @@ type Store interface {
 	// pair alone -- the token is compared in constant time afterwards.
 	GetWebhookEndpointBySlug(ctx context.Context, teamSlug, channelSlug string) (models.WebhookEndpoint, error)
 
+	// UpsertBotTeam and DeleteBotTeam are written only from authenticated
+	// inbound activities: the service URL is where the bot's token is sent.
+	UpsertBotTeam(ctx context.Context, t models.BotTeam) error
+	GetBotTeam(ctx context.Context, teamID string) (models.BotTeam, error)
+	ListBotTeams(ctx context.Context) ([]models.BotTeam, error)
+	DeleteBotTeam(ctx context.Context, teamID string) error
+
 	ListAccessTokens(ctx context.Context) ([]models.AccessToken, error)
 	// CreateAccessToken reports ErrConflict when the name is taken.
 	CreateAccessToken(ctx context.Context, t models.AccessToken) (models.AccessToken, error)
@@ -199,7 +206,7 @@ type Store interface {
 	// CompleteActiveAlertClaim records the card the claim produced. It returns
 	// ErrClaimLost when the claim is no longer the caller's, which means the
 	// message just posted is an orphan and nothing can adopt it.
-	CompleteActiveAlertClaim(ctx context.Context, claim models.AlertClaim, messageID string, at time.Time) error
+	CompleteActiveAlertClaim(ctx context.Context, claim models.AlertClaim, messageID, conversationID string, at time.Time) error
 	// ReleaseActiveAlertClaim hands back a claim whose post failed, so the next
 	// attempt need not wait out the staleness cutoff.
 	ReleaseActiveAlertClaim(ctx context.Context, claim models.AlertClaim) error

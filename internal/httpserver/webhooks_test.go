@@ -371,8 +371,8 @@ func TestRepeatedFiringAlertUpdatesTheCard(t *testing.T) {
 		Status:      "firing",
 		TeamID:      "team",
 		ChannelID:   "channel",
-		MessageID:   "graph-1",
-		PostedAt:    testPostedAt,
+		MessageID:   "graph-1", ConversationID: "conversation-graph-1",
+		PostedAt: testPostedAt,
 	}
 
 	rec := postWebhook(t, handler, "/webhook/universal", "token", `{"status":"firing","labels":{},"fingerprint":"fp-1"}`)
@@ -396,7 +396,7 @@ func TestResolvedAlertUpdatesAndClearsTheCard(t *testing.T) {
 	msg := &fakeMessenger{}
 	st, handler := seededServer(t, msg)
 	st.activeAlerts[activeAlertKey("fp-1", "team", "channel")] = models.ActiveAlert{
-		Fingerprint: "fp-1", TeamID: "team", ChannelID: "channel", MessageID: "graph-1", PostedAt: testPostedAt,
+		Fingerprint: "fp-1", TeamID: "team", ChannelID: "channel", MessageID: "graph-1", ConversationID: "conversation-graph-1", PostedAt: testPostedAt,
 	}
 
 	rec := postWebhook(t, handler, "/webhook/universal", "token", `{"status":"resolved","labels":{},"fingerprint":"fp-1"}`)
@@ -560,35 +560,35 @@ func TestProcessAlertFailures(t *testing.T) {
 			name:    "graph rejects the post",
 			body:    `{"status":"firing","labels":{},"fingerprint":"fp"}`,
 			setup:   func(_ *fakeStore, msg *fakeMessenger) { msg.postErr = errors.New("graph down") },
-			wantErr: "graph post:",
+			wantErr: "channel post:",
 		},
 		{
 			name:    "graph rejects the one-shot post",
 			body:    `{"labels":{},"fingerprint":"fp"}`,
 			setup:   func(_ *fakeStore, msg *fakeMessenger) { msg.postErr = errors.New("graph down") },
-			wantErr: "graph post:",
+			wantErr: "channel post:",
 		},
 		{
 			name: "graph rejects the update",
 			body: `{"status":"firing","labels":{},"fingerprint":"fp"}`,
 			setup: func(st *fakeStore, msg *fakeMessenger) {
 				st.activeAlerts[activeAlertKey("fp", "team", "channel")] = models.ActiveAlert{
-					Fingerprint: "fp", TeamID: "team", ChannelID: "channel", MessageID: "graph-1", PostedAt: testPostedAt,
+					Fingerprint: "fp", TeamID: "team", ChannelID: "channel", MessageID: "graph-1", ConversationID: "conversation-graph-1", PostedAt: testPostedAt,
 				}
 				msg.updateErr = errors.New("graph down")
 			},
-			wantErr: "graph update:",
+			wantErr: "channel update:",
 		},
 		{
 			name: "graph rejects the resolve update",
 			body: `{"status":"resolved","labels":{},"fingerprint":"fp"}`,
 			setup: func(st *fakeStore, msg *fakeMessenger) {
 				st.activeAlerts[activeAlertKey("fp", "team", "channel")] = models.ActiveAlert{
-					Fingerprint: "fp", TeamID: "team", ChannelID: "channel", MessageID: "graph-1", PostedAt: testPostedAt,
+					Fingerprint: "fp", TeamID: "team", ChannelID: "channel", MessageID: "graph-1", ConversationID: "conversation-graph-1", PostedAt: testPostedAt,
 				}
 				msg.updateErr = errors.New("graph down")
 			},
-			wantErr: "graph update:",
+			wantErr: "channel update:",
 		},
 		{
 			name:    "claiming the card fails while firing",

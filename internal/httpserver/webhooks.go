@@ -154,18 +154,19 @@ func (s *Server) deliverAll(ctx context.Context, alert models.Alert, deliveries 
 	return errors.Join(failures...)
 }
 
-// errCardInFlight says another instance is inside its Graph call for this very
+// errCardInFlight says another instance is inside its Bot Connector call for this very
 // card. It is an error rather than a silent success because the payload that
 // lost the race may carry something the winner's did not: a 502 asks the sender
 // to retry, and the retry updates the card the winner created.
 var errCardInFlight = errors.New("another instance is posting this card")
 
 // claimTTL is how long a claim may go uncompleted before another instance may
-// take it over. It has to outlast a Graph call comfortably: too short and two
-// instances post the same card, which is the thing claiming exists to prevent.
+// take it over. It has to outlast a Bot Connector call comfortably: too short
+// and two instances post the same card, which is the thing claiming exists to
+// prevent.
 func (s *Server) claimTTL() time.Duration {
-	graphTimeout := time.Duration(s.cfg.Graph.TimeoutSec) * time.Second
-	if ttl := 3 * graphTimeout; ttl > 30*time.Second {
+	botTimeout := time.Duration(s.cfg.Bot.TimeoutSec) * time.Second
+	if ttl := 3 * botTimeout; ttl > 30*time.Second {
 		return ttl
 	}
 	return 30 * time.Second
@@ -232,11 +233,14 @@ func (s *Server) deliverToChannel(ctx context.Context, alert models.Alert, deliv
 
 	switch outcome {
 	case store.ClaimPosted:
+		if card.ConversationID == "" {
+			return s.replaceUneditableCard(ctx, alert, delivery, card)
+		}
 		// The card for this channel already exists, so the alert is an update
 		// to it rather than a second card.
-		if err := s.graph.UpdateMessage(card.TeamID, card.ChannelID, card.MessageID, msg); err != nil {
+		if err := s.channels.UpdateInChannel(ctx, card.TeamID, card.ChannelID, cardOfRow(card), msg); err != nil {
 			s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeFailed)
-			return fmt.Errorf("graph update: %w", err)
+			return fmt.Errorf("channel update: %w", err)
 		}
 		s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeUpdated)
 		return s.store.TouchActiveAlert(ctx, card, alert.Status, s.now())
@@ -245,7 +249,7 @@ func (s *Server) deliverToChannel(ctx context.Context, alert models.Alert, deliv
 		return errCardInFlight
 	}
 
-	messageID, err := s.graph.PostMessage(destination.TeamID, destination.ChannelID, msg)
+	posted, err := s.channels.PostToChannel(ctx, destination.TeamID, destination.ChannelID, msg)
 	if err != nil {
 		s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeFailed)
 		// The claim is ours and nothing was posted under it, so it goes back
@@ -253,22 +257,35 @@ func (s *Server) deliverToChannel(ctx context.Context, alert models.Alert, deliv
 		if release := s.store.ReleaseActiveAlertClaim(ctx, claim); release != nil {
 			logError("release alert claim", release)
 		}
-		return fmt.Errorf("graph post: %w", err)
+		return fmt.Errorf("channel post: %w", err)
 	}
 	s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomePosted)
 
-	if err := s.store.CompleteActiveAlertClaim(ctx, claim, messageID, s.now()); err != nil {
+	if err := s.store.CompleteActiveAlertClaim(ctx, claim, posted.MessageID, posted.ConversationID, s.now()); err != nil {
 		if errors.Is(err, store.ErrClaimLost) {
 			// The window this cannot close: the post succeeded, and by the time
-			// it was recorded the row belonged to somebody else's card. Graph
-			// has no idempotency key for a channel message, so the card just
-			// posted cannot be adopted or withdrawn -- only reported.
+			// it was recorded the row belonged to somebody else's card. The Bot
+			// Connector has no idempotency key for a channel post, so the card
+			// just posted cannot be adopted or withdrawn -- only reported.
 			logError("orphaned card", fmt.Errorf("%s/%s message %s: %w",
-				destination.TeamID, destination.ChannelID, messageID, err))
+				destination.TeamID, destination.ChannelID, posted.MessageID, err))
 		}
 		return err
 	}
 	return nil
+}
+
+// replaceUneditableCard forgets a card nothing can edit -- one the previous
+// release posted through Graph -- and posts its successor (ADR 0045).
+func (s *Server) replaceUneditableCard(ctx context.Context, alert models.Alert, delivery routing.Delivery, card models.ActiveAlert) error {
+	if err := s.store.DeleteActiveAlertCard(ctx, card.Fingerprint, card.TeamID, card.ChannelID, card.MessageID); err != nil {
+		return fmt.Errorf("forget uneditable card: %w", err)
+	}
+	return s.deliverToChannel(ctx, alert, delivery)
+}
+
+func cardOfRow(card models.ActiveAlert) channelCard {
+	return channelCard{ConversationID: card.ConversationID, MessageID: card.MessageID}
 }
 
 // deliverToChannelOnce is deliverToChannel without the claim: render, resolve
@@ -286,9 +303,9 @@ func (s *Server) deliverToChannelOnce(ctx context.Context, alert models.Alert, d
 	}
 	msg := channelMessage(rendered)
 
-	if _, err := s.graph.PostMessage(destination.TeamID, destination.ChannelID, msg); err != nil {
+	if _, err := s.channels.PostToChannel(ctx, destination.TeamID, destination.ChannelID, msg); err != nil {
 		s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeFailed)
-		return fmt.Errorf("graph post: %w", err)
+		return fmt.Errorf("channel post: %w", err)
 	}
 	s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomePosted)
 	return nil
@@ -337,13 +354,16 @@ func (s *Server) resolveChannelCards(ctx context.Context, alert models.Alert, pl
 		msg := channelMessage(rendered)
 		// The row outlives a failed update on purpose: it is the only record that
 		// this channel still holds a card claiming the alert fires, and the
-		// sender's retry is what puts that right.
-		if err := s.graph.UpdateMessage(card.TeamID, card.ChannelID, card.MessageID, msg); err != nil {
-			s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeFailed)
-			failures = append(failures, fmt.Errorf("graph update: %w", err))
-			continue
+		// sender's retry is what puts that right. A card nothing can edit is
+		// only forgotten.
+		if card.ConversationID != "" {
+			if err := s.channels.UpdateInChannel(ctx, card.TeamID, card.ChannelID, cardOfRow(card), msg); err != nil {
+				s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeFailed)
+				failures = append(failures, fmt.Errorf("channel update: %w", err))
+				continue
+			}
+			s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeUpdated)
 		}
-		s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeUpdated)
 		// Deleting by message id, so a resolve that raced a refire forgets the
 		// card it just edited rather than the newer one that replaced it.
 		if err := s.store.DeleteActiveAlertCard(ctx, card.Fingerprint, card.TeamID, card.ChannelID, card.MessageID); err != nil {

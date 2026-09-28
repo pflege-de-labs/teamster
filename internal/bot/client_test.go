@@ -764,3 +764,64 @@ func TestDoRequestTransportErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestPostToChannel(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		status   int
+		body     string
+		insecure bool
+		want     ChannelPost
+		wantErr  bool
+	}{
+		{name: "created", status: http.StatusCreated, body: `{"id":"19:c@thread.tacv2;messageid=1","activityId":"1"}`, want: ChannelPost{ConversationID: "19:c@thread.tacv2;messageid=1", ActivityID: "1"}},
+		{name: "refused", status: http.StatusForbidden, body: `{"error":{"code":"BotNotInConversationRoster"}}`, wantErr: true},
+		{name: "undecodable answer", status: http.StatusCreated, body: `not json`, wantErr: true},
+		{name: "plain http service url", insecure: true, wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var gotPath string
+			var gotBody map[string]any
+			client, ref := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+				gotPath = r.URL.Path
+				raw, _ := io.ReadAll(r.Body)
+				_ = json.Unmarshal(raw, &gotBody)
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(tt.status)
+				_, _ = w.Write([]byte(tt.body))
+			})
+			serviceURL := ref.ServiceURL + "/"
+			if tt.insecure {
+				serviceURL = "http://example.test/"
+			}
+
+			msg := Message{Title: "t", Card: json.RawMessage(`{"a":1}`), Cards: []json.RawMessage{json.RawMessage(`{"b":2}`)}}
+			got, err := client.PostToChannel(t.Context(), serviceURL, "tenant", "19:c@thread.tacv2", msg)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("PostToChannel() error = %v, want error %v", err, tt.wantErr)
+			}
+			if got != tt.want {
+				t.Errorf("PostToChannel() = %+v, want %+v", got, tt.want)
+			}
+			if tt.insecure {
+				return
+			}
+			if gotPath != "/v3/conversations" {
+				t.Errorf("path = %q, want /v3/conversations", gotPath)
+			}
+			channelData, _ := gotBody["channelData"].(map[string]any)
+			channel, _ := channelData["channel"].(map[string]any)
+			activity, _ := gotBody["activity"].(map[string]any)
+			attachments, _ := activity["attachments"].([]any)
+			if gotBody["isGroup"] != true || channel["id"] != "19:c@thread.tacv2" || len(attachments) != 2 {
+				t.Errorf("body = %+v, want a group conversation in the channel carrying both cards", gotBody)
+			}
+		})
+	}
+}

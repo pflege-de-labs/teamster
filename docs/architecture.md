@@ -17,8 +17,8 @@ that runs more than one instance. SQLite is the option with no other runtime dep
 | `internal/routing` | Selects a route for an alert's labels. |
 | `internal/templates` | Renders an Adaptive Card from a Go template plus alert data, and describes that data for the editor's completion (`EditorVocabulary`). |
 | `internal/samples` | Remembers the label keys, label values and annotation keys incoming alerts carry, for editor completion. See [Editor completion](#editor-completion). |
-| `internal/graph` | Microsoft Graph client: OAuth2 client credentials, post and update channel messages. `BrokerClient` is the delegated-Teams half (ADR 0037): the same Graph endpoints, called with a per-request Entra bearer token instead of the app-only credential. |
-| `internal/bot` | Bot Framework Connector client: a second, separate OAuth2 client credentials flow, send and update activities in a person's chat. See [Bot configuration](#bot-configuration) and [Inbound bot messages](#inbound-bot-messages). |
+| `internal/graph` | Microsoft Graph client: OAuth2 client credentials, list Teams and channels. It posts nothing: Graph does not let an application post or edit channel messages (ADR 0045). `BrokerClient` is the delegated-Teams half (ADR 0037): the same Graph endpoints, called with a per-request Entra bearer token instead of the app-only credential. |
+| `internal/bot` | Bot Framework Connector client: a second, separate OAuth2 client credentials flow. It starts channel posts, sends to a person's chat, and edits both. See [Bot configuration](#bot-configuration) and [Inbound bot messages](#inbound-bot-messages). |
 | `internal/store` | `Store` interface, its SQLite and Postgres backends sharing one adapter; `internal/store/migrations` owns the schema for templates, destinations, routes, recipients, webhook endpoints, access tokens, active alerts, broker tokens and alert samples. |
 | `internal/models` | Shared data types: `Alert`, `Route`, `Template`, `Destination`, `Recipient`, `ActiveAlert`, `AccessToken`, `BrokerToken`, `AlertSample` and the two webhook payload shapes. |
 | `internal/httpserver/web` | Embedded static assets: icons, the web manifest, the Tailwind stylesheet built from `views/styles.css`, the page scripts, and the vendored libraries under `vendor/` (ADR 0031). |
@@ -159,8 +159,8 @@ POST /webhook/alertmanager        POST /webhook/universal
  firing              resolved         firing                 resolved
    │                    │                │                       │
  card known?        card known?      message known?          message known?
- yes → graph.Update yes → graph.Update yes → bot.Update       yes → bot.Send
- no  → graph.Post        + delete row  no  → bot.Send              + delete row
+ yes → bot edit     yes → bot edit     yes → bot.Update       yes → bot.Send
+ no  → bot post          + delete row  no  → bot.Send              + delete row
 ```
 
 A delivery whose route has no `TemplateID` renders from the payload's own `Title`/`Text`/`Card`
@@ -178,7 +178,7 @@ chat re-fire edits, for the mirror-image reason. See
 The diagram above is `Status` in `{firing, resolved}` — the Alertmanager vocabulary, and the only
 values that put a message through the claim protocol at all. Any other `Status`, including none,
 takes a third, untracked path instead: render, resolve the destination or recipient, then
-`graph.PostMessage` or `bot.SendMessage` once, unconditionally. Nothing is claimed and nothing is
+a channel post or `bot.SendMessage` once, unconditionally. Nothing is claimed and nothing is
 written to `active_alerts` — there is no lifecycle to track, so a repeat post is a second message
 rather than an edit of the first. This is `/webhook/universal`'s general case; the firing/resolved
 lifecycle is the Alertmanager-shaped specialization of it, and `/webhook/alertmanager` only ever
@@ -187,12 +187,27 @@ sends those two values, so its behaviour is unaffected. See
 
 Handler errors map to `400` for malformed JSON, `401` for a missing or unknown token (with
 `WWW-Authenticate: Bearer`), `503` when the token lookup itself fails, and `502` when routing,
-rendering, the store or Graph fails.
+rendering, the store or the Bot Connector fails.
 
-Against a real tenant, Graph answers every channel post and edit with `403`. It does not let an
-application post or edit channel messages, except for migration and for `policyViolation`. Channel
-delivery therefore fails with `502` until it moves onto the bot (roadmap milestone 19). See
-[Microsoft Graph permissions](../README.md#microsoft-graph-permissions).
+### Channel delivery
+
+Channel cards go through the bot, behind `ChannelTransport` (`channels.go`). Graph does not let an
+application post or edit channel messages, except for migration and for `policyViolation`. See
+[ADR 0045](adr/0045-channel-delivery-through-the-bot.md).
+
+* **Post:** `POST {serviceUrl}/v3/conversations` with `isGroup` and `channelData.channel.id`,
+  which answers with a conversation id and an activity id. The claim completes with both:
+  `message_id` holds the activity id and `conversation_id` the conversation.
+* **Edit:** `PUT {serviceUrl}/v3/conversations/{conversation_id}/activities/{message_id}`.
+* **Service URL:** comes from the team's `bot_teams` row, else `bot.service-url`. The tenant is the
+  row's, else `bot.tenant-id`, else `graph.tenant-id` for a multi-tenant bot.
+* **Text:** HTML is converted with `templates.ToMarkdown`, as for a chat, and every card is
+  attached.
+* **A card with an empty `conversation_id`** was posted through Graph by an earlier release and
+  cannot be edited. A re-fire forgets it and posts its successor; a resolve only forgets it.
+* **A Connector `403`** is reported as "is the Teams app installed there?".
+* **Without the bot**, `NewServer` gets no transport and every channel delivery fails with that
+  reason. The claim lease is three times `bot.timeout-sec`, at least 30 seconds.
 
 A token is read from `Authorization: Bearer`, else from the older `X-Teamster-Token` header. It
 matches either `webhook.token` or an access token issued at `/admin/tokens`. The request is looked
@@ -221,7 +236,7 @@ POST /teamsv2/{team}/{channel}/{token}
             │ no
    payload cards + hint card
             │
-   graph.PostMessage ──────────────────────────────────► 200
+   bot post (ChannelTransport) ────────────────────────► 200
 ```
 
 There is no routing, because the URL has already decided where the message goes. An endpoint may
@@ -566,6 +581,12 @@ name and the digest each have a unique index, because the digest is the lookup k
 table and nothing else, so the previous release ignores it. See
 [ADR 0044](adr/0044-webhook-access-tokens.md).
 
+`0016` in SQLite and `0013` in Postgres move channel delivery onto the bot. They add
+`active_alerts.conversation_id` (`NOT NULL DEFAULT ''`) and the `bot_teams` table: team id,
+tenant, service URL and when it was written. Both are additive; a row the previous release writes
+has an empty conversation id, which reads as a card nothing can edit. See
+[ADR 0045](adr/0045-channel-delivery-through-the-bot.md).
+
 `database.migrate` decides what opening the store does about a schema that is behind: `auto`
 applies what is missing, `verify` refuses and names `teamster migrate up`, `off` asks nothing.
 `teamster export` always verifies — reading a database must not migrate it. A migration must leave
@@ -656,8 +677,8 @@ See [ADR 0043](adr/0043-session-keeps-sign-in-identity.md).
 `/api` keeps HTTP basic auth: automation cannot complete an authorization code flow. Expired
 sessions and abandoned flows are swept hourly, and neither is honoured once expired regardless.
 
-None of this touches `internal/graph`, whose Entra credentials are a machine credential for posting
-cards. Alert delivery does not depend on anyone being signed in. See
+None of this touches `internal/graph` or `internal/bot`, whose Entra credentials are machine
+credentials. Alert delivery does not depend on anyone being signed in. See
 [ADR 0009](adr/0009-admin-authentication.md).
 
 ## Admin UI
@@ -804,8 +825,11 @@ See [README](../README.md#configuration) for the concrete paths and
 ## Bot configuration
 
 `config.BotConfig` (`bot.*` / `TEAMSTER_BOT_*`) holds a second Entra registration, separate from
-`GraphConfig`, for the Bot Framework identity that will send alerts to a person's chat
-([ADR 0026](adr/0026-alerts-in-a-persons-chat.md)). `config.Validate` gates the whole feature on
+`GraphConfig`, for the Bot Framework identity that posts channel cards and sends alerts to a
+person's chat ([ADR 0045](adr/0045-channel-delivery-through-the-bot.md),
+[ADR 0026](adr/0026-alerts-in-a-persons-chat.md)). Without it no channel delivery succeeds, and
+`ServeCmd` logs so at startup. `bot-service-url`, when set, must be `https`: the bot's token goes
+there with every channel post to a team not yet in `bot_teams`. `config.Validate` gates the bot on
 `bot-tenant-id`, `bot-client-id` and `bot-client-secret` being set together — all three empty
 turns the feature off, and setting only one is a startup error — mirroring how metrics are gated
 on `metrics.enabled` today. Once the feature is on, `bot-metadata-url` is required and must be
@@ -861,8 +885,10 @@ POST /bot/messages
 http.MaxBytesReader (256 KiB)
         │
 decode JSON, then the cheap gates (no bearer token touched yet):
-  channelId == "msteams", type in {message, conversationUpdate},
-  conversation.conversationType == "personal",
+  channelId == "msteams",
+  personal: type in {message, conversationUpdate}
+  channel:  type in {conversationUpdate, installationUpdate}
+  any other conversationType refused,
   channelData.tenant.id (if present) matches bot-tenant-id (single-tenant only)
         │
 parse "Authorization: Bearer <token>"
@@ -944,6 +970,19 @@ anything else, and no failure past this point is the kind a retry fixes:
   conversation already belongs to one. This is the only signal Teams gives that a conversation moved
   to a different regional endpoint, and `message` is what actually arrives for a personal-scope bot
   — a `conversationUpdate` beyond the initial install is close to never.
+
+A `channel` activity is a team's, and only records where the bot is installed (ADR 0045). It is
+keyed by `channelData.team.aadGroupId`, the Graph team id a destination stores, and ignored without
+one.
+
+* An install event (`installationUpdate` add or add-upgrade, or the bot in `membersAdded`)
+  upserts the `bot_teams` row with the activity's service URL and tenant.
+* A removal event (`installationUpdate` remove, the bot in `membersRemoved`, or `teamDeleted`)
+  deletes the row.
+* Any other verified team activity upserts too, which refreshes the service URL.
+
+Nothing is ever sent into a team from here, and a message in a channel is not read. Link commands
+stay personal.
 
 Both retirement paths resolve the conversation to a recipient with
 `GetRecipientByConversation` and delete through `store.DeleteRecipient`, which cascades the
