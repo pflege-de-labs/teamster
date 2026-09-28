@@ -141,6 +141,11 @@ func requestAuthorization(r *http.Request) (string, authz.Resource) {
 	// it, including who may deliver where. Both are the admin's.
 	case strings.HasPrefix(path, "/api/config/"):
 		return authz.ActionAdminister, transferResource()
+	// A token admits a sender to every route, and listing them says which
+	// senders exist, so reading is the admin's too.
+	case path == "/api/tokens", strings.HasPrefix(path, "/api/tokens/"),
+		path == "/admin/tokens", strings.HasPrefix(path, "/admin/tokens/"):
+		return authz.ActionAdminister, authz.Resource{Type: "AccessToken"}
 	// The global default decides where every unclaimed message lands, which is
 	// broader than any one destination an editor may change (ADR 0038).
 	case isDefaultDestinationPath(path) && r.Method != http.MethodGet && r.Method != http.MethodHead:

@@ -53,38 +53,6 @@ func TestBasicAuth(t *testing.T) {
 	}
 }
 
-func TestWebhookAuth(t *testing.T) {
-	t.Parallel()
-
-	srv := &Server{cfg: config.Config{Webhook: config.WebhookConfig{Token: "secret"}}}
-
-	tests := []struct {
-		name  string
-		token string
-		want  bool
-	}{
-		{name: "matching token", token: "secret", want: true},
-		{name: "wrong token", token: "nope", want: false},
-		{name: "prefix of the token", token: "sec", want: false},
-		{name: "missing token", token: "", want: false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			req := httptest.NewRequest(http.MethodPost, "/webhook/universal", nil)
-			if tt.token != "" {
-				req.Header.Set("X-Teamster-Token", tt.token)
-			}
-
-			if got := srv.webhookAuth(req); got != tt.want {
-				t.Errorf("webhookAuth() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestSafeEquals(t *testing.T) {
 	t.Parallel()
 

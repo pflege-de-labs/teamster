@@ -42,7 +42,7 @@ func TestServeSamplesWhatArrivesAndFlushesOnShutdown(t *testing.T) {
 		if err != nil {
 			t.Fatalf("new request: %v", err)
 		}
-		req.Header.Set("X-Teamster-Token", "token")
+		req.Header.Set("Authorization", "Bearer token")
 		resp, err := client.Do(req)
 		if err != nil {
 			t.Fatalf("POST /webhook/universal: %v", err)

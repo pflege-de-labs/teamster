@@ -99,6 +99,26 @@ func (s stubStore) GetRecipientBySubject(ctx context.Context, subject string) (m
 	return models.Recipient{}, store.ErrNotFound
 }
 
+func (s stubStore) ListAccessTokens(ctx context.Context) ([]models.AccessToken, error) {
+	return nil, store.ErrNotFound
+}
+
+func (s stubStore) CreateAccessToken(ctx context.Context, t models.AccessToken) (models.AccessToken, error) {
+	return models.AccessToken{}, store.ErrNotFound
+}
+
+func (s stubStore) GetAccessTokenByHash(ctx context.Context, tokenHash string) (models.AccessToken, error) {
+	return models.AccessToken{}, store.ErrNotFound
+}
+
+func (s stubStore) TouchAccessToken(ctx context.Context, id string, at time.Time) error {
+	return store.ErrNotFound
+}
+
+func (s stubStore) DeleteAccessToken(ctx context.Context, id string) error {
+	return store.ErrNotFound
+}
+
 func (s stubStore) ListWebhookEndpoints(ctx context.Context) ([]models.WebhookEndpoint, error) {
 	return nil, store.ErrNotFound
 }

@@ -80,8 +80,7 @@ func TestParseExampleConfig(t *testing.T) {
 			Postgres:       PostgresConfig{Port: 5432, DBName: "teamster", User: "teamster", SSLMode: "require"},
 			ConnectTimeout: 10 * time.Second,
 		},
-		Webhook: WebhookConfig{Token: "replace-with-shared-token"},
-		Admin:   AdminConfig{Username: "admin", Password: "change-me"},
+		Admin: AdminConfig{Username: "admin", Password: "change-me"},
 		Auth: AuthConfig{
 			OIDCDiscoveryURL: "https://login.example/auth/realms/internal/.well-known/openid-configuration",
 			OIDCClientID:     "teamster",
@@ -243,7 +242,7 @@ func TestValidate(t *testing.T) {
 		{name: "missing client secret", mutate: func(c *Config) { c.Graph.ClientSecret = "" }, wantErr: "graph config is required"},
 		{name: "missing admin user", mutate: func(c *Config) { c.Admin.Username = "" }, wantErr: "admin username/password is required"},
 		{name: "missing admin password", mutate: func(c *Config) { c.Admin.Password = "" }, wantErr: "admin username/password is required"},
-		{name: "missing webhook token", mutate: func(c *Config) { c.Webhook.Token = "" }, wantErr: "webhook token is required"},
+		{name: "no webhook token", mutate: func(c *Config) { c.Webhook.Token = "" }},
 		{name: "an external URL", mutate: func(c *Config) { c.Server.ExternalURL = "https://teamster.example.com" }},
 		{name: "a relative external URL", mutate: func(c *Config) { c.Server.ExternalURL = "/admin" }, wantErr: `server-external-url must be an absolute http or https URL, not "/admin"`},
 		{name: "an external URL of another scheme", mutate: func(c *Config) { c.Server.ExternalURL = "ftp://teamster.example.com" }, wantErr: `server-external-url must be an absolute http or https URL, not "ftp://teamster.example.com"`},

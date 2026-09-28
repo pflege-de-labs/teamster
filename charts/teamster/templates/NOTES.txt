@@ -25,13 +25,16 @@ storing its state in {{ if .Values.persistence.enabled }}{{ include "teamster.da
    # then open http://127.0.0.1:8080/admin
 {{- end }}
 
-2. Point Alertmanager at the webhook, with the shared token in the
-   X-Teamster-Token header:
+2. Point Alertmanager at the webhook, with a token as Authorization: Bearer
+   (http_config.authorization.credentials). Issue one per sender at
+   /admin/tokens{{ if .Values.credentials.webhookToken }}, or use credentials.webhookToken{{ end }}:
 
    POST http://{{ include "teamster.fullname" . }}.{{ .Release.Namespace }}.svc:{{ .Values.service.port }}/webhook/alertmanager
+{{- if .Values.credentials.webhookToken }}
 
    kubectl --namespace {{ .Release.Namespace }} get secret {{ include "teamster.credentialsSecretName" . }} \
      -o jsonpath='{.data.TEAMSTER_WEBHOOK_TOKEN}' | base64 -d
+{{- end }}
 {{- $metrics := dig "metrics" (dict) (.Values.config.settings | default dict) }}
 {{- if include "teamster.metricsEnabled" . }}
 

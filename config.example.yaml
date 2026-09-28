@@ -59,8 +59,11 @@ database:
   #   off    — open it as it is and ask no questions.
   migrate: "auto"
 
-webhook:
-  token: "replace-with-shared-token"
+# /webhook/alertmanager and /webhook/universal accept Authorization: Bearer with
+# a token issued at /admin/tokens, or with this one. Optional; prefer delivering
+# it as TEAMSTER_WEBHOOK_TOKEN, which a value set here would override.
+# webhook:
+#   token: "replace-with-shared-token"
 
 # The admin UI's text. Roles, dates and the alert payloads are unaffected; this
 # is only what the pages say.

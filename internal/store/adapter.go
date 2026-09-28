@@ -497,6 +497,82 @@ func webhookEndpointOf(row sqlitedb.WebhookEndpoint) models.WebhookEndpoint {
 	}
 }
 
+func (s queryAdapter) ListAccessTokens(ctx context.Context) ([]models.AccessToken, error) {
+	rows, err := s.q.ListAccessTokens(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list access tokens: %w", err)
+	}
+	if len(rows) == 0 {
+		return nil, nil
+	}
+	out := make([]models.AccessToken, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, accessTokenOf(row))
+	}
+	return out, nil
+}
+
+func (s queryAdapter) CreateAccessToken(ctx context.Context, t models.AccessToken) (models.AccessToken, error) {
+	t.ID = newID(t.ID)
+	t.CreatedAt = nowUTC()
+	t.LastUsedAt = time.Time{}
+
+	err := s.q.CreateAccessToken(ctx, sqlitedb.CreateAccessTokenParams{
+		ID:        t.ID,
+		Name:      t.Name,
+		TokenHash: t.TokenHash,
+		CreatedBy: t.CreatedBy,
+		CreatedAt: t.CreatedAt,
+	})
+	if err != nil {
+		if isPrimaryKeyConflict(err) {
+			return models.AccessToken{}, ErrConflict
+		}
+		return models.AccessToken{}, fmt.Errorf("create access token: %w", err)
+	}
+	return t, nil
+}
+
+func (s queryAdapter) GetAccessTokenByHash(ctx context.Context, tokenHash string) (models.AccessToken, error) {
+	row, err := s.q.GetAccessTokenByHash(ctx, tokenHash)
+	if err != nil {
+		if err := notFound(err); errors.Is(err, ErrNotFound) {
+			return models.AccessToken{}, err
+		}
+		return models.AccessToken{}, fmt.Errorf("get access token: %w", err)
+	}
+	return accessTokenOf(row), nil
+}
+
+func (s queryAdapter) TouchAccessToken(ctx context.Context, id string, at time.Time) error {
+	err := s.q.TouchAccessToken(ctx, sqlitedb.TouchAccessTokenParams{
+		LastUsedAt: nullTime(at.UTC()),
+		ID:         id,
+	})
+	if err != nil {
+		return fmt.Errorf("touch access token: %w", err)
+	}
+	return nil
+}
+
+func (s queryAdapter) DeleteAccessToken(ctx context.Context, id string) error {
+	if err := s.q.DeleteAccessToken(ctx, id); err != nil {
+		return fmt.Errorf("delete access token: %w", err)
+	}
+	return nil
+}
+
+func accessTokenOf(row sqlitedb.AccessToken) models.AccessToken {
+	return models.AccessToken{
+		ID:         row.ID,
+		Name:       row.Name,
+		TokenHash:  row.TokenHash,
+		CreatedBy:  row.CreatedBy,
+		CreatedAt:  row.CreatedAt,
+		LastUsedAt: row.LastUsedAt.Time,
+	}
+}
+
 func (s queryAdapter) ListRoutes(ctx context.Context) ([]models.Route, error) {
 	rows, err := s.q.ListRoutes(ctx)
 	if err != nil {

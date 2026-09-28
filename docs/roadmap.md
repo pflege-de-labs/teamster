@@ -669,6 +669,25 @@ See [ADR 0041](adr/0041-editor-completion-from-sampled-labels.md). Not done: a p
 from the sampled labels, which would let the preview show what a template renders for the alerts a
 deployment really gets.
 
+## Milestone 18 — Webhook access tokens — done
+
+The alert webhooks accepted one shared secret, and only in a custom header. Alertmanager's
+standard `authorization` block was ignored and answered with a bare 401. The secret could not be
+revoked for one sender, and it could only come from configuration.
+
+Both webhooks now take `Authorization: Bearer`. Admins issue named tokens at `/admin/tokens` or
+`/api/tokens`, stored as digests in `access_tokens` and revocable one at a time. `webhook.token`
+is optional and still accepted. See [ADR 0044](adr/0044-webhook-access-tokens.md).
+
+Not done, and for a later breaking release:
+
+* Remove the `X-Teamster-Token` header.
+* Decide whether `webhook.token` stays as the declarative bootstrap token.
+
+Not done, and additive whenever it is wanted:
+
+* Scope a token to one webhook, or to a role's delivery grants.
+
 ## Milestone 13 — Alerts in a person's chat — done
 
 An alert reaches a channel. Somebody on call at three in the morning is not reading a channel; they

@@ -19,8 +19,8 @@ that runs more than one instance. SQLite is the option with no other runtime dep
 | `internal/samples` | Remembers the label keys, label values and annotation keys incoming alerts carry, for editor completion. See [Editor completion](#editor-completion). |
 | `internal/graph` | Microsoft Graph client: OAuth2 client credentials, post and update channel messages. `BrokerClient` is the delegated-Teams half (ADR 0037): the same Graph endpoints, called with a per-request Entra bearer token instead of the app-only credential. |
 | `internal/bot` | Bot Framework Connector client: a second, separate OAuth2 client credentials flow, send and update activities in a person's chat. See [Bot configuration](#bot-configuration) and [Inbound bot messages](#inbound-bot-messages). |
-| `internal/store` | `Store` interface, its SQLite and Postgres backends sharing one adapter; `internal/store/migrations` owns the schema for templates, destinations, routes, recipients, webhook endpoints, active alerts, broker tokens and alert samples. |
-| `internal/models` | Shared data types: `Alert`, `Route`, `Template`, `Destination`, `Recipient`, `ActiveAlert`, `BrokerToken`, `AlertSample` and the two webhook payload shapes. |
+| `internal/store` | `Store` interface, its SQLite and Postgres backends sharing one adapter; `internal/store/migrations` owns the schema for templates, destinations, routes, recipients, webhook endpoints, access tokens, active alerts, broker tokens and alert samples. |
+| `internal/models` | Shared data types: `Alert`, `Route`, `Template`, `Destination`, `Recipient`, `ActiveAlert`, `AccessToken`, `BrokerToken`, `AlertSample` and the two webhook payload shapes. |
 | `internal/httpserver/web` | Embedded static assets: icons, the web manifest, the Tailwind stylesheet built from `views/styles.css`, the page scripts, and the vendored libraries under `vendor/` (ADR 0031). |
 | `internal/cryptutil` | AES-256-GCM sealing for the one thing this service encrypts at rest: the live Keycloak token behind delegated Teams/Channels (ADR 0037). |
 
@@ -125,7 +125,9 @@ its single-resource, all-paths shape; the split is Gateway API only. See
 ```text
 POST /webhook/alertmanager        POST /webhook/universal
             │                                │
-            └────────► webhookAuth (X-Teamster-Token) ◄───┘
+            └──────────► webhookAuth ◄───────┘
+        (Authorization: Bearer, else X-Teamster-Token;
+         webhook.token or an access_tokens digest)
                                  │
                     normalize to models.Alert
                                  │
@@ -183,8 +185,16 @@ lifecycle is the Alertmanager-shaped specialization of it, and `/webhook/alertma
 sends those two values, so its behaviour is unaffected. See
 [ADR 0035](adr/0035-a-message-without-a-status-is-delivered-once.md).
 
-Handler errors map to `400` for malformed JSON, `401` for a bad token, and `502` when routing,
+Handler errors map to `400` for malformed JSON, `401` for a missing or unknown token (with
+`WWW-Authenticate: Bearer`), `503` when the token lookup itself fails, and `502` when routing,
 rendering, the store or Graph fails.
+
+A token is read from `Authorization: Bearer`, else from the older `X-Teamster-Token` header. It
+matches either `webhook.token` or an access token issued at `/admin/tokens`. The request is looked
+up by the token's SHA-256 digest in `access_tokens`, and `last_used_at` is written at most once an
+hour. An unset `webhook.token` never matches: `safeEquals("", "")` holds, so an empty credential is
+refused before any comparison. Each refusal is logged with its reason and counted as `refused`.
+See [ADR 0044](adr/0044-webhook-access-tokens.md).
 
 ### Teams V2 webhooks
 
@@ -380,7 +390,8 @@ tree acyclic, bounded and free of children that could never fire.
 ## Configuration transfer
 
 `internal/transfer` reads the configuration into a versioned bundle and writes one back. It carries
-templates, destinations, routes and grants — no credentials, no sessions, no alert state — and
+templates, destinations, routes and grants — no credentials (webhook access tokens included), no
+sessions, no alert state — and
 preserves ids, so a bundle re-imported where it came from changes nothing.
 
 Recipients are excluded on purpose: a link binds one person to one conversation in one tenant, so it
@@ -543,6 +554,12 @@ even delete the default. The next destination created then takes over.
 per label key and value, or per annotation key with an empty value, with a count and when it was
 first and last seen. It is a new table and nothing else, so the previous release ignores it. See
 [Editor completion](#editor-completion).
+
+`access_tokens` came with issued webhook tokens, by `0015` in SQLite and `0012` in Postgres:
+a name, a SHA-256 digest of the token, who created it and when, and a nullable `last_used_at`. The
+name and the digest each have a unique index, because the digest is the lookup key. It is a new
+table and nothing else, so the previous release ignores it. See
+[ADR 0044](adr/0044-webhook-access-tokens.md).
 
 `database.migrate` decides what opening the store does about a schema that is behind: `auto`
 applies what is missing, `verify` refuses and names `teamster migrate up`, `off` asks nothing.
@@ -765,7 +782,10 @@ unlink recipients — see [Managing recipients](#managing-recipients) — and
 `POST /api/recipients/link` is the exception that requires a session specifically — see
 [Linking a chat](#linking-a-chat). `GET /api/samples` answers the label keys and values and the
 annotation keys the editors complete, to a caller who may edit templates or routes — see
-[Editor completion](#editor-completion).
+[Editor completion](#editor-completion). `GET /api/tokens`, `POST /api/tokens` (`{"name": …}`) and
+`DELETE /api/tokens/{id}` list, issue and revoke webhook access tokens. The answer to the `POST` is
+the only place a token is ever readable. All three need `administer` on `AccessToken`, and so does
+the `/admin/tokens` page.
 
 ## Configuration
 

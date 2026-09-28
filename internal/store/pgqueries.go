@@ -54,6 +54,10 @@ func (p pgQueries) CountDestinations(ctx context.Context) (int64, error) {
 	return p.q.CountDestinations(ctx)
 }
 
+func (p pgQueries) CreateAccessToken(ctx context.Context, arg sqlitedb.CreateAccessTokenParams) error {
+	return p.q.CreateAccessToken(ctx, pgdb.CreateAccessTokenParams(arg))
+}
+
 func (p pgQueries) CreateBrokerToken(ctx context.Context, arg sqlitedb.CreateBrokerTokenParams) error {
 	return p.q.CreateBrokerToken(ctx, pgdb.CreateBrokerTokenParams(arg))
 }
@@ -92,6 +96,10 @@ func (p pgQueries) CreateTemplate(ctx context.Context, arg sqlitedb.CreateTempla
 
 func (p pgQueries) CreateWebhookEndpoint(ctx context.Context, arg sqlitedb.CreateWebhookEndpointParams) error {
 	return p.q.CreateWebhookEndpoint(ctx, pgdb.CreateWebhookEndpointParams(arg))
+}
+
+func (p pgQueries) DeleteAccessToken(ctx context.Context, id string) error {
+	return p.q.DeleteAccessToken(ctx, id)
 }
 
 func (p pgQueries) DeleteActiveAlertCard(ctx context.Context, arg sqlitedb.DeleteActiveAlertCardParams) error {
@@ -158,6 +166,11 @@ func (p pgQueries) DeleteWebhookEndpoint(ctx context.Context, id string) error {
 	return p.q.DeleteWebhookEndpoint(ctx, id)
 }
 
+func (p pgQueries) GetAccessTokenByHash(ctx context.Context, tokenHash string) (sqlitedb.AccessToken, error) {
+	row, err := p.q.GetAccessTokenByHash(ctx, tokenHash)
+	return sqlitedb.AccessToken(row), err
+}
+
 func (p pgQueries) GetActiveAlert(ctx context.Context, arg sqlitedb.GetActiveAlertParams) (sqlitedb.ActiveAlert, error) {
 	row, err := p.q.GetActiveAlert(ctx, pgdb.GetActiveAlertParams(arg))
 	return sqlitedb.ActiveAlert(row), err
@@ -221,6 +234,18 @@ func (p pgQueries) GetWebhookEndpoint(ctx context.Context, id string) (sqlitedb.
 func (p pgQueries) GetWebhookEndpointBySlug(ctx context.Context, arg sqlitedb.GetWebhookEndpointBySlugParams) (sqlitedb.WebhookEndpoint, error) {
 	row, err := p.q.GetWebhookEndpointBySlug(ctx, pgdb.GetWebhookEndpointBySlugParams(arg))
 	return sqlitedb.WebhookEndpoint(row), err
+}
+
+func (p pgQueries) ListAccessTokens(ctx context.Context) ([]sqlitedb.AccessToken, error) {
+	rows, err := p.q.ListAccessTokens(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]sqlitedb.AccessToken, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, sqlitedb.AccessToken(row))
+	}
+	return out, nil
 }
 
 func (p pgQueries) ListActiveAlerts(ctx context.Context, fingerprint string) ([]sqlitedb.ActiveAlert, error) {
@@ -351,6 +376,10 @@ func (p pgQueries) TakeLinkFlow(ctx context.Context, code string) (sqlitedb.Link
 func (p pgQueries) TakeLoginFlow(ctx context.Context, state string) (sqlitedb.LoginFlow, error) {
 	row, err := p.q.TakeLoginFlow(ctx, state)
 	return sqlitedb.LoginFlow(row), err
+}
+
+func (p pgQueries) TouchAccessToken(ctx context.Context, arg sqlitedb.TouchAccessTokenParams) error {
+	return p.q.TouchAccessToken(ctx, pgdb.TouchAccessTokenParams(arg))
 }
 
 func (p pgQueries) TouchActiveAlert(ctx context.Context, arg sqlitedb.TouchActiveAlertParams) error {

@@ -106,7 +106,8 @@ type PostgresConfig struct {
 }
 
 type WebhookConfig struct {
-	Token string `help:"Shared secret expected in the X-Teamster-Token header."`
+	// Optional since ADR 0044: tokens issued in the admin UI admit senders too.
+	Token string `help:"Deployment-wide webhook token, accepted as Authorization: Bearer. Optional when tokens are issued in the admin UI."`
 }
 
 type AdminConfig struct {
@@ -379,9 +380,6 @@ func Validate(cfg Config) error {
 	}
 	if err := validateDatabase(cfg.Database); err != nil {
 		return err
-	}
-	if cfg.Webhook.Token == "" {
-		return fmt.Errorf("webhook token is required")
 	}
 	// A relative URL would reach Teams as a link that goes nowhere.
 	if cfg.Server.ExternalURL != "" {

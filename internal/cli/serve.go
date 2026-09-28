@@ -67,6 +67,9 @@ func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
 	// Which database this instance is on is the first question of any
 	// incident, and the image's baked-in path makes it non-obvious.
 	log.Printf("store: %s", store.Target(opts))
+	if warning := webhookTokenWarning(ctx, cfg, sqlStore); warning != "" {
+		log.Print(warning)
+	}
 
 	// After the store, so that the deferred shutdown below — and the last
 	// collection it triggers — runs while the database is still open.
@@ -197,4 +200,20 @@ func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
 		return fmt.Errorf("shutdown: %w", err)
 	}
 	return nil
+}
+
+// webhookTokenWarning says why every webhook is about to be refused, which is
+// otherwise a stream of 401s that looks like a sender misconfiguration.
+func webhookTokenWarning(ctx context.Context, cfg *config.Config, st store.Store) string {
+	if cfg.Webhook.Token != "" {
+		return ""
+	}
+	tokens, err := st.ListAccessTokens(ctx)
+	if err != nil {
+		return fmt.Sprintf("list access tokens: %v", err)
+	}
+	if len(tokens) == 0 {
+		return "no webhook token configured and none issued: /webhook/* refuses every sender until one is created at /admin/tokens"
+	}
+	return ""
 }
