@@ -145,11 +145,11 @@ defaults to Microsoft's public endpoint and must stay `https`: it is the trust a
 activity is checked against, so turning the feature on with it cleared or pointed at plain `http` is
 rejected at startup rather than registering a route that would never validate anything. Turning the
 feature on also registers `POST /bot/messages`, the endpoint the bot receives Teams activities on,
-and `/admin/notifications` and its actions, described below, along with the nav link to them; leaving
-it off registers none of that, so an unconfigured deployment exposes nothing new and offers nobody a
-page that instructs them to talk to a bot that does not exist. Once a chat is linked, point a route
-at that person and alerts arrive there — see the routing notes for how a route addresses a channel
-and a person at the same time.
+and `/admin/notifications` and its actions, described below, along with the sidebar link to them;
+leaving it off registers none of that, so an unconfigured deployment exposes nothing new and offers
+nobody a page that instructs them to talk to a bot that does not exist. Once a chat is linked, point
+a route at that person and alerts arrive there — see the routing notes for how a route addresses a
+channel and a person at the same time.
 
 #### Linking your chat
 
