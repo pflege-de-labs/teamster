@@ -130,6 +130,8 @@
   "picker.team": "Team",
   "picker.team_choose": "— Team auswählen —",
   "preview.button": "Vorschau",
+  "preview.empty": "Die Vorschau der Nachricht erscheint hier, während Sie tippen.",
+  "preview.heading": "Vorschau",
   "preview.live": "während der Eingabe",
   "recipients.blocked_badge": "Blockiert",
   "recipients.blocked_detail": "Blockiert seit {1}: {0}. Das hält den nächsten Alarm nicht ab, es erneut zu versuchen -- eine erfolgreiche Zustellung hebt dies automatisch wieder auf.",

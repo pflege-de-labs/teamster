@@ -20,46 +20,58 @@ templ Admin(page Page) {
 templ templates(page Page) {
 	@panel(i18n.T(ctx, "templates.panel"), "templates") {
 		if page.CanEdit {
-			<form method="post" action="/admin/templates" id="template-form" class="space-y-3">
-				if page.EditTemplate != nil {
-					<input type="hidden" name="id" value={ page.EditTemplate.ID }/>
-				}
-				@textField("name", i18n.T(ctx, "templates.name"), i18n.T(ctx, "templates.name_placeholder"), page.editingTemplate().Name)
-				@editorLine("title", i18n.T(ctx, "templates.title_field"), "{{ .Alert.Annotations.summary }}", page.editingTemplate().Title, "template-line")
-				@editorField("message_text", i18n.T(ctx, "templates.text_field"), page.editingTemplate().Text, "4", "template")
-				@cardPalette(page)
-				@editorField("body", i18n.T(ctx, "templates.body_field"), page.editingTemplate().Body, "12", "card")
-				@templ.JSONScript("template-vocabulary", page.Vocabulary)
-				<div class="flex flex-wrap items-center gap-2">
-					@submit(submitLabel(ctx, page.EditTemplate != nil, "noun.template"))
-					<button
-						type="button"
-						id="preview-button"
-						class="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:border-sky-400 hover:bg-sky-50 hover:text-sky-700"
-					>
-						{ i18n.T(ctx, "preview.button") }
-					</button>
-					<label class="inline-flex items-center gap-1.5 text-sm text-slate-600">
-						<input type="checkbox" id="preview-live" checked class="rounded border-slate-300"/>
-						{ i18n.T(ctx, "preview.live") }
-					</label>
-					<select
-						id="preview-sample"
-						aria-label={ i18n.T(ctx, "templates.sample_alert") }
-						class="rounded-md border border-slate-300 bg-white px-2 py-2 text-sm"
-					>
-						for _, name := range page.PreviewSamples {
-							<option value={ name }>{ i18n.T(ctx, "sample."+name) }</option>
-						}
-					</select>
+			// The preview sits beside the editor so a change and its effect are
+			// both in view; on a narrow screen it drops below.
+			<form method="post" action="/admin/templates" id="template-form" class="grid gap-6 lg:col-span-2 lg:grid-cols-2">
+				<div class="min-w-0 space-y-3">
 					if page.EditTemplate != nil {
-						@cancelEdit()
+						<input type="hidden" name="id" value={ page.EditTemplate.ID }/>
 					}
+					@textField("name", i18n.T(ctx, "templates.name"), i18n.T(ctx, "templates.name_placeholder"), page.editingTemplate().Name)
+					@editorLine("title", i18n.T(ctx, "templates.title_field"), "{{ .Alert.Annotations.summary }}", page.editingTemplate().Title, "template-line")
+					@editorField("message_text", i18n.T(ctx, "templates.text_field"), page.editingTemplate().Text, "4", "template")
+					@cardPalette(page)
+					@editorField("body", i18n.T(ctx, "templates.body_field"), page.editingTemplate().Body, "12", "card")
+					@templ.JSONScript("template-vocabulary", page.Vocabulary)
+					<div class="flex flex-wrap items-center gap-2">
+						@submit(submitLabel(ctx, page.EditTemplate != nil, "noun.template"))
+						if page.EditTemplate != nil {
+							@cancelEdit()
+						}
+					</div>
 				</div>
-				<div id="preview-output" class="mt-2 empty:hidden"></div>
+				<div class="min-w-0 space-y-3 lg:sticky lg:top-4 lg:self-start" id="preview-column">
+					<div class="flex flex-wrap items-center gap-2">
+						<span class="text-sm font-medium">{ i18n.T(ctx, "preview.heading") }</span>
+						<button
+							type="button"
+							id="preview-button"
+							class="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:border-sky-400 hover:bg-sky-50 hover:text-sky-700"
+						>
+							{ i18n.T(ctx, "preview.button") }
+						</button>
+						<label class="inline-flex items-center gap-1.5 text-sm text-slate-600">
+							<input type="checkbox" id="preview-live" checked class="rounded border-slate-300"/>
+							{ i18n.T(ctx, "preview.live") }
+						</label>
+						<select
+							id="preview-sample"
+							aria-label={ i18n.T(ctx, "templates.sample_alert") }
+							class="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm"
+						>
+							for _, name := range page.PreviewSamples {
+								<option value={ name }>{ i18n.T(ctx, "sample."+name) }</option>
+							}
+						</select>
+					</div>
+					<div id="preview-output" class="peer space-y-3 empty:hidden"></div>
+					<p class="hidden rounded-md border border-dashed border-slate-300 px-4 py-6 text-center text-sm text-slate-500 peer-empty:block">
+						{ i18n.T(ctx, "preview.empty") }
+					</p>
+				</div>
 			</form>
 		}
-		<div>
+		<div class="lg:col-span-2">
 			if len(page.Templates) == 0 {
 				@empty(i18n.T(ctx, "templates.empty"))
 			} else {

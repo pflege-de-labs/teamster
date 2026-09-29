@@ -1152,9 +1152,10 @@ the fields fall back to accepting ids typed by hand. Listing requires the `Team.
 
 The template form has a card palette and a preview. The palette inserts the elements our own
 templates use — text, facts, columns, a link action, all labels, a conditional block — at the cursor,
-and **Start from an example** replaces the card with a complete one to edit down. The preview renders
-on the server against a sample alert and the browser draws the result, as you type or on demand, so
-a template can be checked before any alert arrives.
+and **Start from an example** replaces the card with a complete one to edit down. The preview sits in
+a column beside the editor on a wide screen and below it on a narrow one. It renders on the server
+against a sample alert and the browser draws the result, as you type or on demand, so a template
+can be checked before any alert arrives.
 
 The fragments are defined in `internal/cards` and rendered by a test against a sample alert and an
 empty one, so the palette cannot offer something the renderer rejects. They also show the quoting
