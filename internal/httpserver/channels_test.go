@@ -193,7 +193,7 @@ func TestChannelDeliveryWithoutTheBot(t *testing.T) {
 		Webhook: config.WebhookConfig{Token: "token"},
 		Admin:   config.AdminConfig{Username: "admin", Password: "pass"},
 	}
-	srv, err := NewServer(cfg, st, &fakeMessenger{}, nil, nil, newRecordingTelemetry(), nil)
+	srv, err := NewServer(quietLog, cfg, st, &fakeMessenger{}, nil, nil, newRecordingTelemetry(), nil)
 	if err != nil {
 		t.Fatalf("NewServer: %v", err)
 	}

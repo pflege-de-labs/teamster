@@ -24,7 +24,7 @@ func (s *Server) handleLoginPage(w http.ResponseWriter, r *http.Request) {
 			LocalLogin: localLoginConfigured(s.cfg),
 		}
 		if err := views.LoginPage(page).Render(r.Context(), w); err != nil {
-			logError("render login page", err)
+			logError(r.Context(), "render login page", err)
 		}
 	case http.MethodPost:
 		s.handleLocalLogin(w, r)
@@ -61,7 +61,7 @@ func (s *Server) handleLocalLogin(w http.ResponseWriter, r *http.Request) {
 	// The local credentials are the way back in when the provider is wrong or
 	// unreachable, so they administer.
 	if _, err := s.startSession(w, r, user, user, "local", []authz.Role{authz.RoleAdmin}, models.Identity{}); err != nil {
-		logError("start session", err)
+		logError(r.Context(), "start session", err)
 		loginFailed(w, r, "could not start a session")
 		return
 	}

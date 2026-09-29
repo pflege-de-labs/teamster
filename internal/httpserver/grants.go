@@ -87,7 +87,7 @@ func (s *Server) handleGrants(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		items, err := s.store.ListGrants(ctx)
 		if err != nil {
-			writeJSONError(w, http.StatusInternalServerError, err.Error())
+			writeError(w, r, http.StatusInternalServerError, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, items)
@@ -98,12 +98,12 @@ func (s *Server) handleGrants(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if err := validateGrant(grant); err != nil {
-			writeJSONError(w, http.StatusBadRequest, err.Error())
+			writeError(w, r, http.StatusBadRequest, err)
 			return
 		}
 		created, err := s.store.CreateGrant(ctx, grant)
 		if err != nil {
-			writeJSONError(w, http.StatusInternalServerError, err.Error())
+			writeError(w, r, http.StatusInternalServerError, err)
 			return
 		}
 		writeJSON(w, http.StatusCreated, created)
@@ -149,14 +149,14 @@ func (s *Server) handleRoleGrants(w http.ResponseWriter, r *http.Request) {
 			ChannelID: strings.TrimSpace(scope.ChannelID),
 		}
 		if err := validateGrant(grant); err != nil {
-			writeJSONError(w, http.StatusBadRequest, err.Error())
+			writeError(w, r, http.StatusBadRequest, err)
 			return
 		}
 		wanted = append(wanted, grant)
 	}
 
 	if err := s.replaceRoleGrants(ctx, role, wanted); err != nil {
-		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		writeError(w, r, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -198,7 +198,7 @@ func (s *Server) handleGrantByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.store.DeleteGrant(ctx, id); err != nil {
-		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		writeError(w, r, http.StatusInternalServerError, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
@@ -224,7 +224,7 @@ func (s *Server) saveGrant(r *http.Request) (string, error) {
 		ChannelID: strings.TrimSpace(r.PostFormValue("channel_id")),
 	}
 	if err := validateGrant(grant); err != nil {
-		return "", err
+		return "", userError{err}
 	}
 	if _, err := s.store.CreateGrant(ctx, grant); err != nil {
 		return "", err

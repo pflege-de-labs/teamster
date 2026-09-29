@@ -23,7 +23,7 @@ func (s *Server) handlePermissionsPage(w http.ResponseWriter, r *http.Request) {
 
 	page := views.Permissions{Viewer: s.viewerFor(r), Roles: s.knownRoles(ctx)}
 	if err := views.PermissionsPage(page).Render(ctx, w); err != nil {
-		logError("render permissions page", err)
+		logError(ctx, "render permissions page", err)
 	}
 }
 

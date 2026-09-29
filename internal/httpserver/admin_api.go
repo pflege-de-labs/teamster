@@ -17,7 +17,7 @@ func (s *Server) handleTemplates(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		items, err := s.store.ListTemplates(ctx)
 		if err != nil {
-			writeJSONError(w, http.StatusInternalServerError, err.Error())
+			writeError(w, r, http.StatusInternalServerError, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, items)
@@ -28,12 +28,12 @@ func (s *Server) handleTemplates(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if err := templates.Validate(t); err != nil {
-			writeJSONError(w, http.StatusBadRequest, err.Error())
+			writeError(w, r, http.StatusBadRequest, err)
 			return
 		}
 		created, err := s.store.CreateTemplate(ctx, t)
 		if err != nil {
-			writeJSONError(w, http.StatusInternalServerError, err.Error())
+			writeError(w, r, http.StatusInternalServerError, err)
 			return
 		}
 		writeJSON(w, http.StatusCreated, created)
@@ -58,7 +58,7 @@ func (s *Server) handleTemplateByID(w http.ResponseWriter, r *http.Request) {
 			if errors.Is(err, store.ErrNotFound) {
 				status = http.StatusNotFound
 			}
-			writeJSONError(w, status, err.Error())
+			writeError(w, r, status, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, item)
@@ -70,18 +70,18 @@ func (s *Server) handleTemplateByID(w http.ResponseWriter, r *http.Request) {
 		}
 		t.ID = id
 		if err := templates.Validate(t); err != nil {
-			writeJSONError(w, http.StatusBadRequest, err.Error())
+			writeError(w, r, http.StatusBadRequest, err)
 			return
 		}
 		updated, err := s.store.UpdateTemplate(ctx, t)
 		if err != nil {
-			writeJSONError(w, http.StatusInternalServerError, err.Error())
+			writeError(w, r, http.StatusInternalServerError, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, updated)
 	case http.MethodDelete:
 		if err := s.store.DeleteTemplate(ctx, id); err != nil {
-			writeJSONError(w, http.StatusInternalServerError, err.Error())
+			writeError(w, r, http.StatusInternalServerError, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
@@ -96,12 +96,12 @@ func (s *Server) handleDestinations(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		items, err := s.store.ListDestinations(ctx)
 		if err != nil {
-			writeJSONError(w, http.StatusInternalServerError, err.Error())
+			writeError(w, r, http.StatusInternalServerError, err)
 			return
 		}
 		visible, err := s.visibleDestinations(r, items)
 		if err != nil {
-			writeJSONError(w, http.StatusInternalServerError, err.Error())
+			writeError(w, r, http.StatusInternalServerError, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, visible)
@@ -112,15 +112,15 @@ func (s *Server) handleDestinations(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if allowed, err := s.mayDeliverTo(r, d.TeamID, d.ChannelID); err != nil {
-			writeJSONError(w, http.StatusInternalServerError, err.Error())
+			writeError(w, r, http.StatusInternalServerError, err)
 			return
 		} else if !allowed {
-			writeJSONError(w, http.StatusForbidden, errDeliveryRefused.Error())
+			writeError(w, r, http.StatusForbidden, errDeliveryRefused)
 			return
 		}
 		created, err := s.store.CreateDestination(ctx, d)
 		if err != nil {
-			writeJSONError(w, http.StatusInternalServerError, err.Error())
+			writeError(w, r, http.StatusInternalServerError, err)
 			return
 		}
 		writeJSON(w, http.StatusCreated, created)
@@ -149,7 +149,7 @@ func (s *Server) handleDestinationByID(w http.ResponseWriter, r *http.Request) {
 			if errors.Is(err, store.ErrNotFound) {
 				status = http.StatusNotFound
 			}
-			writeJSONError(w, status, err.Error())
+			writeError(w, r, status, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, item)
@@ -161,15 +161,15 @@ func (s *Server) handleDestinationByID(w http.ResponseWriter, r *http.Request) {
 		}
 		d.ID = id
 		if allowed, err := s.mayDeliverTo(r, d.TeamID, d.ChannelID); err != nil {
-			writeJSONError(w, http.StatusInternalServerError, err.Error())
+			writeError(w, r, http.StatusInternalServerError, err)
 			return
 		} else if !allowed {
-			writeJSONError(w, http.StatusForbidden, errDeliveryRefused.Error())
+			writeError(w, r, http.StatusForbidden, errDeliveryRefused)
 			return
 		}
 		updated, err := s.store.UpdateDestination(ctx, d)
 		if err != nil {
-			writeJSONError(w, http.StatusInternalServerError, err.Error())
+			writeError(w, r, http.StatusInternalServerError, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, updated)
@@ -179,7 +179,7 @@ func (s *Server) handleDestinationByID(w http.ResponseWriter, r *http.Request) {
 			if errors.Is(err, store.ErrDefaultDestination) {
 				status = http.StatusConflict
 			}
-			writeJSONError(w, status, err.Error())
+			writeError(w, r, status, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
@@ -200,7 +200,7 @@ func (s *Server) handleDefaultDestination(w http.ResponseWriter, r *http.Request
 		if errors.Is(err, store.ErrNotFound) {
 			status = http.StatusNotFound
 		}
-		writeJSONError(w, status, err.Error())
+		writeError(w, r, status, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "default"})
@@ -208,13 +208,13 @@ func (s *Server) handleDefaultDestination(w http.ResponseWriter, r *http.Request
 
 // writeRouteError keeps the distinction the separate validate call used to
 // make for free: a route the caller can fix is a 400, anything else is a 500.
-func writeRouteError(w http.ResponseWriter, err error) {
+func writeRouteError(w http.ResponseWriter, r *http.Request, err error) {
 	var invalid invalidRoute
 	if errors.As(err, &invalid) {
-		writeJSONError(w, http.StatusBadRequest, invalid.Error())
+		writeError(w, r, http.StatusBadRequest, invalid)
 		return
 	}
-	writeJSONError(w, http.StatusInternalServerError, err.Error())
+	writeError(w, r, http.StatusInternalServerError, err)
 }
 
 func (s *Server) handleRoutes(w http.ResponseWriter, r *http.Request) {
@@ -223,7 +223,7 @@ func (s *Server) handleRoutes(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		items, err := s.store.ListRoutes(ctx)
 		if err != nil {
-			writeJSONError(w, http.StatusInternalServerError, err.Error())
+			writeError(w, r, http.StatusInternalServerError, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, items)
@@ -234,15 +234,15 @@ func (s *Server) handleRoutes(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if allowed, err := s.mayDeliverToDestination(r, rt.DestinationID); err != nil {
-			writeJSONError(w, http.StatusInternalServerError, err.Error())
+			writeError(w, r, http.StatusInternalServerError, err)
 			return
 		} else if !allowed {
-			writeJSONError(w, http.StatusForbidden, errDeliveryRefused.Error())
+			writeError(w, r, http.StatusForbidden, errDeliveryRefused)
 			return
 		}
 		created, err := s.saveRouteChecked(ctx, rt)
 		if err != nil {
-			writeRouteError(w, err)
+			writeRouteError(w, r, err)
 			return
 		}
 		writeJSON(w, http.StatusCreated, created)
@@ -267,7 +267,7 @@ func (s *Server) handleRouteByID(w http.ResponseWriter, r *http.Request) {
 			if errors.Is(err, store.ErrNotFound) {
 				status = http.StatusNotFound
 			}
-			writeJSONError(w, status, err.Error())
+			writeError(w, r, status, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, item)
@@ -279,21 +279,21 @@ func (s *Server) handleRouteByID(w http.ResponseWriter, r *http.Request) {
 		}
 		rt.ID = id
 		if allowed, err := s.mayDeliverToDestination(r, rt.DestinationID); err != nil {
-			writeJSONError(w, http.StatusInternalServerError, err.Error())
+			writeError(w, r, http.StatusInternalServerError, err)
 			return
 		} else if !allowed {
-			writeJSONError(w, http.StatusForbidden, errDeliveryRefused.Error())
+			writeError(w, r, http.StatusForbidden, errDeliveryRefused)
 			return
 		}
 		updated, err := s.saveRouteChecked(ctx, rt)
 		if err != nil {
-			writeRouteError(w, err)
+			writeRouteError(w, r, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, updated)
 	case http.MethodDelete:
 		if err := s.deleteRouteChecked(ctx, id); err != nil {
-			writeRouteError(w, err)
+			writeRouteError(w, r, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]string{"status": "deleted"})

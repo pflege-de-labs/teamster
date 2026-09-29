@@ -16,6 +16,7 @@
   "destinations.name_placeholder": "Ops channel",
   "destinations.panel": "Destinations",
   "destinations.team": "Team",
+  "error.internal": "Something went wrong. Reference: {0}",
   "grants.moved": "Which Teams and channels a role may deliver to is set on its own page, where they are a tree to tick rather than identifiers to type.",
   "grants.panel": "Delivery permissions",
   "header.no_role": "no role",

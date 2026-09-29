@@ -16,6 +16,7 @@ that runs more than one instance. SQLite is the option with no other runtime dep
 | `internal/httpserver/views` | templ components for the admin UI. The `*_templ.go` files beside them are generated and committed. |
 | `internal/routing` | Selects a route for an alert's labels. |
 | `internal/templates` | Renders an Adaptive Card from a Go template plus alert data, and describes that data for the editor's completion (`EditorVocabulary`). |
+| `internal/logging` | Builds the `slog` logger from `log.*` and carries a request's logger in its context. See [Logging and errors](#logging-and-errors). |
 | `internal/samples` | Remembers the label keys, label values and annotation keys incoming alerts carry, for editor completion. See [Editor completion](#editor-completion). |
 | `internal/graph` | Microsoft Graph client: OAuth2 client credentials, list Teams and channels. It posts nothing: Graph does not let an application post or edit channel messages (ADR 0045). `BrokerClient` is the delegated-Teams half (ADR 0037): the same Graph endpoints, called with a per-request Entra bearer token instead of the app-only credential. |
 | `internal/bot` | Bot Framework Connector client: a second, separate OAuth2 client credentials flow. It starts channel posts, sends to a person's chat, and edits both. See [Bot configuration](#bot-configuration) and [Inbound bot messages](#inbound-bot-messages). |
@@ -493,6 +494,40 @@ Shutdown order is the reason the defers in `internal/cli/serve.go` are registere
 listener: LIFO runs them in reverse, so the server drains, the scrape endpoint closes, the final OTLP
 export goes out, and only then does the database close — which the active-alerts gauge reads on every
 collection.
+
+## Logging and errors
+
+Everything logs through one `log/slog` logger, built from `log.level` and `log.format` in
+`ServeCmd` and injected into `httpserver.NewServer` and `samples.New`. `slog.SetDefault` points the
+standard library's own output at the same handler ([ADR 0046](adr/0046-structured-logging-and-error-boundary.md)).
+
+The logging middleware sits outside `localized` and the mux. It sets `X-Request-ID`, stores a
+logger carrying `request_id` in the context (`logging.WithLogger`), and writes one `request` line
+per request with method, path, status and `duration_ms`. The Teams V2 token is cut from the path;
+probes log at debug. Code on a request path — handlers, `lookUpInstall`'s detached lookups, the bot
+checks — logs through `logging.FromContext`, so every line of a request carries its id.
+
+| Level | Used for |
+| --- | --- |
+| error | Our own failures: store, Graph, Bot Framework, rendering |
+| warn | Refused requests: webhook tokens, every `/bot/messages` refusal with its reason, tenant mismatch |
+| info | One line per request, lifecycle, a Graph lookup that finds no Teams app, a bot removed from a team |
+| debug | Every 4xx and its message, accepted bot activities, recorded bot teams, probes |
+
+Handlers answer errors at one boundary in `helpers.go`:
+
+* `writeError(w, r, status, err)` for JSON. Below 500 the body is err's message. From 500 up err is
+  logged at error and the body is `{"error": "<status text>", "request_id": "…"}`. Only
+  `errNoChannelTransport` and `errNoBotConfigured` are named there, because the sender's operator
+  has to act on them.
+* `visibleError(ctx, msg, err)` for a page or a form redirect. `userFacing` decides: an error
+  wrapped in `userError`, an `invalidRoute`, or one of the listed sentinels is shown as it is.
+  Anything else goes to `failureText`, which logs it and returns `error.internal` with the request
+  id.
+* `logError(ctx, msg, err)` for a failure that cannot change the response.
+
+A form handler wraps its own validation errors in `userError`. One it forgets reaches the page as
+the generic text: safe, and caught by the form tests.
 
 ## Probes
 

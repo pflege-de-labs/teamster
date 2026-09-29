@@ -47,12 +47,16 @@ func TestHashFingerprintDeterministic(t *testing.T) {
 func seededServer(t *testing.T, msg *fakeMessenger) (*fakeStore, http.Handler) {
 	t.Helper()
 
+	st := seededStore()
+	return st, newTestServer(t, st, msg).Handler
+}
+
+func seededStore() *fakeStore {
 	st := newFakeStore()
 	st.templates["tmpl"] = models.Template{ID: "tmpl", Body: `{"text":"{{ .Alert.Status }}"}`}
 	st.destinations["dest"] = models.Destination{ID: "dest", TeamID: "team", ChannelID: "channel"}
 	st.routes["route"] = models.Route{ID: "route", TemplateID: "tmpl", DestinationID: "dest", IsDefault: true}
-
-	return st, newTestServer(t, st, msg).Handler
+	return st
 }
 
 func postWebhook(t *testing.T, handler http.Handler, path, token, body string) *httptest.ResponseRecorder {
@@ -609,17 +613,22 @@ func TestProcessAlertFailures(t *testing.T) {
 			t.Parallel()
 
 			msg := &fakeMessenger{}
-			st, handler := seededServer(t, msg)
+			st := seededStore()
+			srv, logs := newLoggedTestServer(t, st, msg)
 			if tt.setup != nil {
 				tt.setup(st, msg)
 			}
 
-			rec := postWebhook(t, handler, "/webhook/universal", "token", tt.body)
+			rec := postWebhook(t, srv.Handler, "/webhook/universal", "token", tt.body)
 			if rec.Code != http.StatusBadGateway {
 				t.Fatalf("POST = %d, want 502 (body %s)", rec.Code, rec.Body.String())
 			}
-			if !strings.Contains(rec.Body.String(), tt.wantErr) {
-				t.Errorf("body = %s, want it to contain %q", rec.Body.String(), tt.wantErr)
+			// The sender gets the status and a reference; the cause is logged.
+			if strings.Contains(rec.Body.String(), tt.wantErr) || !strings.Contains(rec.Body.String(), rec.Header().Get(requestIDHeader)) {
+				t.Errorf("body = %s, want only the status and the request id", rec.Body.String())
+			}
+			if !strings.Contains(logs.String(), tt.wantErr) {
+				t.Errorf("log = %q, want it to contain %q", logs.String(), tt.wantErr)
 			}
 		})
 	}

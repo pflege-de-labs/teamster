@@ -56,6 +56,12 @@ const (
 	actionDelete = "delete"
 )
 
+// InvalidError is a bundle the caller has to fix, as opposed to a store failure.
+type InvalidError struct{ err error }
+
+func (e InvalidError) Error() string { return e.err.Error() }
+func (e InvalidError) Unwrap() error { return e.err }
+
 // Import applies a bundle. It validates first, so a rejected bundle writes
 // nothing, and it runs inside one transaction, so a failure part way through
 // leaves the configuration as it found it. A dry run computes the same diff and
@@ -63,7 +69,7 @@ const (
 // exercise the real code is a preview of something else.
 func Import(ctx context.Context, st store.Store, bundle Bundle, mode Mode, dryRun bool) (Result, error) {
 	if err := bundle.Validate(); err != nil {
-		return Result{}, err
+		return Result{}, InvalidError{err}
 	}
 
 	result := Result{Mode: mode, DryRun: dryRun}

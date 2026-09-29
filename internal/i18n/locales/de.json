@@ -16,6 +16,7 @@
   "destinations.name_placeholder": "Betriebskanal",
   "destinations.panel": "Ziele",
   "destinations.team": "Team",
+  "error.internal": "Etwas ist schiefgelaufen. Referenz: {0}",
   "grants.moved": "Welche Teams und Kanäle eine Rolle erreichen darf, wird auf einer eigenen Seite festgelegt — als Baum zum Ankreuzen statt als einzutippende IDs.",
   "grants.panel": "Zustellberechtigungen",
   "header.no_role": "keine Rolle",

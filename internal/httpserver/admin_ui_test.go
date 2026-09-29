@@ -81,14 +81,21 @@ func TestAdminPageRendersEmptyStates(t *testing.T) {
 func TestAdminPageReportsStoreFailures(t *testing.T) {
 	t.Parallel()
 
-	handler := newTestServer(t, newFakeStore().fail("ListRoutes"), &fakeMessenger{}).Handler
-	rec := do(t, handler, http.MethodGet, "/admin", "")
+	srv, logs := newLoggedTestServer(t, newFakeStore().fail("ListRoutes"), &fakeMessenger{})
+	rec := do(t, srv.Handler, http.MethodGet, "/admin", "")
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("GET /admin = %d, want 200 with the error rendered", rec.Code)
 	}
-	if !strings.Contains(rec.Body.String(), errStore.Error()) {
-		t.Error("the page hides the store failure")
+	body := rec.Body.String()
+	if !strings.Contains(body, "Something went wrong. Reference: "+rec.Header().Get(requestIDHeader)) {
+		t.Error("the page does not report the failure with its reference")
+	}
+	if strings.Contains(body, errStore.Error()) {
+		t.Error("the page shows the store's own error")
+	}
+	if !strings.Contains(logs.String(), errStore.Error()) {
+		t.Errorf("log = %q, want the store failure in it", logs.String())
 	}
 }
 
@@ -250,14 +257,14 @@ func TestFormsReportErrors(t *testing.T) {
 			path:    "/admin/templates",
 			form:    url.Values{"name": {"Card"}, "body": {"{}"}},
 			failOn:  "CreateTemplate",
-			wantErr: errStore.Error(),
+			wantErr: "Something went wrong. Reference: ",
 		},
 		{
 			name:    "the store rejects the delete",
 			path:    "/admin/routes/delete",
 			form:    url.Values{"id": {"route"}},
 			failOn:  "DeleteRoute",
-			wantErr: errStore.Error(),
+			wantErr: "Something went wrong. Reference: ",
 		},
 	}
 
@@ -279,8 +286,12 @@ func TestFormsReportErrors(t *testing.T) {
 			if err != nil {
 				t.Fatalf("parse Location: %v", err)
 			}
-			if got := location.Query().Get("error"); !strings.Contains(got, tt.wantErr) {
+			got := location.Query().Get("error")
+			if !strings.Contains(got, tt.wantErr) {
 				t.Errorf("error = %q, want it to contain %q", got, tt.wantErr)
+			}
+			if strings.Contains(got, errStore.Error()) {
+				t.Errorf("error = %q shows the store's own error", got)
 			}
 		})
 	}

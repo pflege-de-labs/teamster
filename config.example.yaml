@@ -65,6 +65,13 @@ database:
 # webhook:
 #   token: "replace-with-shared-token"
 
+# What the process writes to stderr. debug adds every refused request and
+# every client error; info has one line per request and every failure.
+log:
+  level: "info"
+  # text to read, json for a log pipeline.
+  format: "text"
+
 # The admin UI's text. Roles, dates and the alert payloads are unaffected; this
 # is only what the pages say.
 ui:

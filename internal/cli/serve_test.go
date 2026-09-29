@@ -104,8 +104,11 @@ func TestServeShutsDownWhenTheContextIsCancelled(t *testing.T) {
 		t.Fatal("Run() did not return after the context was cancelled")
 	}
 
-	if _, err := net.DialTimeout("tcp", cfg.Server.Addr, time.Second); err == nil {
-		t.Error("the listener is still accepting connections after shutdown")
+	// An HTTP answer, not a TCP connect: a parallel test may already have bound the freed port.
+	probe := &http.Client{Timeout: time.Second}
+	if resp, err := probe.Get(fmt.Sprintf("http://%s/healthz", cfg.Server.Addr)); err == nil {
+		_ = resp.Body.Close()
+		t.Error("the server still answers after shutdown")
 	}
 }
 
@@ -306,8 +309,11 @@ func TestServeExportsMetricsAndStopsThem(t *testing.T) {
 	if got := received(); got == 0 {
 		t.Error("shutting down exported nothing, so the last window of metrics is lost")
 	}
-	if _, err := net.DialTimeout("tcp", cfg.Metrics.Addr, time.Second); err == nil {
-		t.Error("the metrics listener is still accepting connections after shutdown")
+	// As in TestServeShutsDownWhenTheContextIsCancelled: ask for an answer, not a connect.
+	probe := &http.Client{Timeout: time.Second}
+	if resp, err := probe.Get("http://" + cfg.Metrics.Addr + cfg.Metrics.Path); err == nil {
+		_ = resp.Body.Close()
+		t.Error("the metrics listener still answers after shutdown")
 	}
 }
 

@@ -11,7 +11,7 @@ package samples
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"sync/atomic"
 	"time"
 
@@ -67,6 +67,7 @@ func (e *entry) observe(at time.Time) {
 // Sampler observes alerts and writes what they carried through Store. Its zero
 // value is not usable; build one with New.
 type Sampler struct {
+	log     *slog.Logger
 	store   Store
 	cfg     config.SamplesConfig
 	now     func() time.Time
@@ -80,8 +81,9 @@ type Sampler struct {
 
 // New builds a sampler. A disabled one observes nothing and Run returns at
 // once, so callers need not check the configuration themselves.
-func New(st Store, cfg config.SamplesConfig) (*Sampler, error) {
+func New(logger *slog.Logger, st Store, cfg config.SamplesConfig) (*Sampler, error) {
 	s := &Sampler{
+		log:   logger,
 		store: st,
 		cfg:   cfg,
 		now:   func() time.Time { return time.Now().UTC() },
@@ -168,7 +170,7 @@ func (s *Sampler) Run(ctx context.Context) {
 // last write is at least a flush interval old.
 func (s *Sampler) record(ctx context.Context, obs observation) {
 	if dropped := s.dropped.Swap(0); dropped > 0 {
-		log.Printf("samples: dropped %d alerts while the writer was behind", dropped)
+		s.log.Warn("samples: dropped alerts while the writer was behind", "dropped", dropped)
 	}
 
 	now := obs.at
@@ -199,7 +201,7 @@ func (s *Sampler) record(ctx context.Context, obs observation) {
 		}
 	}
 	if err != nil && ctx.Err() == nil {
-		log.Printf("samples: %v", err)
+		s.log.Error("samples: write", "err", err)
 	}
 }
 
@@ -243,14 +245,14 @@ func (s *Sampler) flushPending(ctx context.Context) {
 	flushCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), flushTimeout)
 	defer cancel()
 	if err := s.store.RecordAlertSamples(flushCtx, batch); err != nil {
-		log.Printf("samples: final flush: %v", err)
+		s.log.Error("samples: final flush", "err", err)
 	}
 }
 
 func (s *Sampler) prune(ctx context.Context) {
 	cutoff := s.now().Add(-s.cfg.Retention)
 	if _, err := s.store.PruneAlertSamples(ctx, cutoff, s.cfg.MaxValuesPerKey); err != nil && ctx.Err() == nil {
-		log.Printf("samples: prune: %v", err)
+		s.log.Error("samples: prune", "err", err)
 	}
 }
 

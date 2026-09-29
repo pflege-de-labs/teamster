@@ -2,10 +2,10 @@ package httpserver
 
 import (
 	"context"
-	"log"
 	"sync"
 	"time"
 
+	"github.com/pflege-de-labs/teamster/internal/logging"
 	"github.com/pflege-de-labs/teamster/internal/models"
 )
 
@@ -61,7 +61,7 @@ func (s *Server) installStates(ctx context.Context, teamIDs []string) map[string
 
 	rows, err := s.store.ListBotTeams(ctx)
 	if err != nil {
-		logError("list bot teams", err)
+		logError(ctx, "list bot teams", err)
 		return states
 	}
 	recorded := make(map[string]bool, len(rows))
@@ -124,10 +124,12 @@ func (s *Server) lookUpInstall(ctx context.Context, teamID string) string {
 	installed, err := s.graph.HasInstalledApp(teamID, s.cfg.Bot.ClientID)
 	if err != nil {
 		// Usually TeamsAppInstallation.ReadForTeam.All is not granted.
-		log.Printf("look up the Teams app in team %s: %v", teamID, err)
+		logging.FromContext(ctx).Warn("look up the Teams app", "team", teamID, "err", err)
 		return installUnknown
 	}
 	if !installed {
+		// Also what a bot.client-id other than the manifest's botId looks like.
+		logging.FromContext(ctx).Info("Teams app not installed in team", "team", teamID, "bot_client_id", s.cfg.Bot.ClientID)
 		s.installs.markMissing(teamID)
 		return installMissing
 	}
@@ -135,7 +137,7 @@ func (s *Server) lookUpInstall(ctx context.Context, teamID string) string {
 	// then delivery uses bot.service-url.
 	row := models.BotTeam{TeamID: teamID, TenantID: s.botTenant(), UpdatedAt: s.now()}
 	if err := s.store.UpsertBotTeam(ctx, row); err != nil {
-		logError("record bot team found through Graph", err)
+		logError(ctx, "record bot team found through Graph", err)
 	}
 	return installInstalled
 }

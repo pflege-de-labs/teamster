@@ -29,15 +29,15 @@ func (s *Server) handleTeamsPage(w http.ResponseWriter, r *http.Request) {
 		destinations, err = s.visibleDestinations(r, destinations)
 	}
 	if err != nil {
-		page.Error = err.Error()
+		page.Error = failureText(ctx, "load teams page", err)
 	}
 	routes, err := s.store.ListRoutes(ctx)
 	if err != nil && page.Error == "" {
-		page.Error = err.Error()
+		page.Error = failureText(ctx, "load teams page", err)
 	}
 	botTeams, err := s.store.ListBotTeams(ctx)
 	if err != nil && page.Error == "" {
-		page.Error = err.Error()
+		page.Error = failureText(ctx, "load teams page", err)
 	}
 
 	// The directory only adds names and teams nothing uses yet, so the page
@@ -46,7 +46,7 @@ func (s *Server) handleTeamsPage(w http.ResponseWriter, r *http.Request) {
 	if teams, err := s.directory.Teams(s.graph.ListTeams); err == nil {
 		directory, _ = s.visibleTeams(r, teams)
 	} else {
-		page.DirectoryError = err.Error()
+		page.DirectoryError = failureText(ctx, "list teams from Graph", err)
 	}
 
 	rows := teamRows(destinations, routes, botTeams, directory)
@@ -69,7 +69,7 @@ func (s *Server) handleTeamsPage(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := views.TeamsPage(page).Render(ctx, w); err != nil {
-		logError("render teams page", err)
+		logError(ctx, "render teams page", err)
 	}
 }
 

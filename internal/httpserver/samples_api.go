@@ -36,7 +36,7 @@ func (s *Server) handleSamples(w http.ResponseWriter, r *http.Request) {
 
 	rows, err := s.store.ListAlertSamples(r.Context(), maxListedSamples)
 	if err != nil {
-		logError("list alert samples", err)
+		logError(r.Context(), "list alert samples", err)
 		writeJSONError(w, http.StatusInternalServerError, "samples could not be loaded")
 		return
 	}

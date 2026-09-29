@@ -21,6 +21,7 @@ type Config struct {
 	Graph    GraphConfig    `embed:"" prefix:"graph-"`
 	Bot      BotConfig      `embed:"" prefix:"bot-"`
 	Samples  SamplesConfig  `embed:"" prefix:"samples-"`
+	Log      LogConfig      `embed:"" prefix:"log-"`
 }
 
 type ServerConfig struct {
@@ -200,6 +201,12 @@ func (c BotConfig) Configured() bool {
 	// botframework.com tenant and needs no tenant id of its own; see
 	// validateBot for the same rule applied to config validation.
 	return c.TenantType == "multi" || c.TenantID != ""
+}
+
+// LogConfig decides what the process writes to stderr and in which shape.
+type LogConfig struct {
+	Level  string `help:"Lowest level written: debug, info, warn or error." enum:"debug,info,warn,error" default:"info"`
+	Format string `help:"Line format: text to read, json for a log pipeline." enum:"text,json" default:"text"`
 }
 
 // SamplesConfig bounds what is remembered of incoming alerts so the admin UI

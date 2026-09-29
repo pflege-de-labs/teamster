@@ -52,7 +52,7 @@ func (s *Server) handleAlertmanager(w http.ResponseWriter, r *http.Request) {
 		}
 		s.metrics.WebhookReceived(ctx, model.Source, model.Status)
 		if err := s.processAlert(ctx, model); err != nil {
-			writeJSONError(w, http.StatusBadGateway, err.Error())
+			writeError(w, r, http.StatusBadGateway, err)
 			return
 		}
 	}
@@ -92,7 +92,7 @@ func (s *Server) handleUniversal(w http.ResponseWriter, r *http.Request) {
 
 	s.metrics.WebhookReceived(ctx, model.Source, model.Status)
 	if err := s.processAlert(ctx, model); err != nil {
-		writeJSONError(w, http.StatusBadGateway, err.Error())
+		writeError(w, r, http.StatusBadGateway, err)
 		return
 	}
 
@@ -255,7 +255,7 @@ func (s *Server) deliverToChannel(ctx context.Context, alert models.Alert, deliv
 		// The claim is ours and nothing was posted under it, so it goes back
 		// now rather than making the next attempt wait out the cutoff.
 		if release := s.store.ReleaseActiveAlertClaim(ctx, claim); release != nil {
-			logError("release alert claim", release)
+			logError(ctx, "release alert claim", release)
 		}
 		return fmt.Errorf("channel post: %w", err)
 	}
@@ -267,7 +267,7 @@ func (s *Server) deliverToChannel(ctx context.Context, alert models.Alert, deliv
 			// it was recorded the row belonged to somebody else's card. The Bot
 			// Connector has no idempotency key for a channel post, so the card
 			// just posted cannot be adopted or withdrawn -- only reported.
-			logError("orphaned card", fmt.Errorf("%s/%s message %s: %w",
+			logError(ctx, "orphaned card", fmt.Errorf("%s/%s message %s: %w",
 				destination.TeamID, destination.ChannelID, posted.MessageID, err))
 		}
 		return err
@@ -414,7 +414,7 @@ func (s *Server) resolveChatMessages(ctx context.Context, alert models.Alert, pl
 				// what lets the alert resolve instead of failing against the
 				// same 404 on every retry.
 				if forget := s.store.DeleteActiveAlertRecipientCard(ctx, card.Fingerprint, card.RecipientID, card.MessageID); forget != nil {
-					logError("forget orphaned recipient card", forget)
+					logError(ctx, "forget orphaned recipient card", forget)
 				}
 				continue
 			}
@@ -443,7 +443,7 @@ func (s *Server) resolveChatMessages(ctx context.Context, alert models.Alert, pl
 				s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeBlocked)
 				s.markRecipientBlocked(ctx, card.RecipientID, err)
 				if forget := s.store.DeleteActiveAlertRecipientCard(ctx, card.Fingerprint, card.RecipientID, card.MessageID); forget != nil {
-					logError("forget blocked recipient card", forget)
+					logError(ctx, "forget blocked recipient card", forget)
 				}
 				failures = append(failures, fmt.Errorf("bot send: %w", err))
 				continue
@@ -708,7 +708,7 @@ func blockedReason(err error) string {
 // delivery it describes, nor undo a send or update that already succeeded.
 func (s *Server) markRecipientBlocked(ctx context.Context, recipientID string, cause error) {
 	if err := s.store.MarkRecipientBlocked(ctx, recipientID, s.now(), blockedReason(cause)); err != nil {
-		logError("mark recipient blocked", err)
+		logError(ctx, "mark recipient blocked", err)
 	}
 }
 
@@ -718,7 +718,7 @@ func (s *Server) markRecipientBlocked(ctx context.Context, recipientID string, c
 // reason to check first.
 func (s *Server) clearRecipientBlocked(ctx context.Context, recipientID string) {
 	if err := s.store.ClearRecipientBlocked(ctx, recipientID); err != nil {
-		logError("clear recipient blocked", err)
+		logError(ctx, "clear recipient blocked", err)
 	}
 }
 
@@ -782,7 +782,7 @@ func (s *Server) deliverToRecipient(ctx context.Context, alert models.Alert, del
 				s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeBlocked)
 				s.markRecipientBlocked(ctx, card.RecipientID, err)
 				if forget := s.store.DeleteActiveAlertRecipientCard(ctx, card.Fingerprint, card.RecipientID, card.MessageID); forget != nil {
-					logError("forget blocked recipient card", forget)
+					logError(ctx, "forget blocked recipient card", forget)
 				}
 				return fmt.Errorf("bot update: %w", err)
 			}
@@ -809,7 +809,7 @@ func (s *Server) deliverToRecipient(ctx context.Context, alert models.Alert, del
 		// rather than making the next attempt wait out the cutoff. That is the
 		// same row a permanent failure has to drop, so one release covers both.
 		if release := s.store.ReleaseActiveAlertRecipientClaim(ctx, claim); release != nil {
-			logError("release recipient claim", release)
+			logError(ctx, "release recipient claim", release)
 		}
 		return fmt.Errorf("bot send: %w", err)
 	}
@@ -821,7 +821,7 @@ func (s *Server) deliverToRecipient(ctx context.Context, alert models.Alert, del
 			// The same window deliverToChannel cannot close: the message was
 			// sent, and by the time it was recorded the row was somebody
 			// else's. It can only be reported.
-			logError("orphaned chat message", fmt.Errorf("recipient %s activity %s: %w",
+			logError(ctx, "orphaned chat message", fmt.Errorf("recipient %s activity %s: %w",
 				recipient.ID, activityID, err))
 		}
 		return err
