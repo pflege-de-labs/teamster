@@ -677,8 +677,18 @@ func TestValidateRoute(t *testing.T) {
 		wantErr   string
 	}{
 		{
-			name:      "a root route is unconstrained",
-			candidate: models.Route{ID: "new", Name: "new"},
+			name:      "a root route with a channel is fine",
+			candidate: models.Route{ID: "new", Name: "new", DestinationID: "ops"},
+		},
+		{
+			name:      "a root route with a person is fine",
+			candidate: models.Route{ID: "new", Name: "new", RecipientID: "p1"},
+		},
+		{
+			// Nothing above it to inherit a target from (ADR 0047).
+			name:      "a root route needs a target",
+			candidate: models.Route{ID: "new", Name: "new", TemplateID: "card"},
+			wantErr:   "needs a channel or a person",
 		},
 		{
 			name:      "a root route may not target a channel and a person",
@@ -717,7 +727,22 @@ func TestValidateRoute(t *testing.T) {
 		{
 			name:      "a child that inherits everything changes nothing",
 			candidate: models.Route{ID: "new", Name: "new", ParentID: "root", LabelSelector: map[string]string{"team": "search"}},
-			wantErr:   "changes nothing",
+			wantErr:   "needs a different template",
+		},
+		{
+			name:      "a child keeping the target with its parent's template changes nothing",
+			candidate: models.Route{ID: "new", Name: "new", ParentID: "root", LabelSelector: map[string]string{"team": "search"}, TemplateID: "card"},
+			wantErr:   "needs a different template",
+		},
+		{
+			// grandchild inherits "card" from root through child.
+			name:      "the inherited template is the nearest ancestor's",
+			candidate: models.Route{ID: "new", Name: "new", ParentID: "grandchild", LabelSelector: map[string]string{"x": "y"}, TemplateID: "card"},
+			wantErr:   "needs a different template",
+		},
+		{
+			name:      "a child keeping the target with a different template refines it",
+			candidate: models.Route{ID: "new", Name: "new", ParentID: "root", LabelSelector: map[string]string{"team": "search"}, TemplateID: "compact"},
 		},
 		{
 			name:      "only a root can be the default",

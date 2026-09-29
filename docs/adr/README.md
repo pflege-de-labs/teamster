@@ -61,7 +61,8 @@ Architectural decisions are recorded here, one file per decision, in
 | [0044](0044-webhook-access-tokens.md) | Authenticate the alert webhooks with issued Bearer tokens | Accepted |
 | [0045](0045-channel-delivery-through-the-bot.md) | Deliver channel messages through the Bot Framework bot | Accepted, amended by [0049](0049-a-channel-post-is-one-teams-message.md) |
 | [0046](0046-structured-logging-and-error-boundary.md) | Log through slog and answer errors at one boundary | Accepted |
-| [0047](0047-a-route-targets-a-channel-or-yourself.md) | A route targets a channel or a person, and a person only themselves | Accepted |
+| [0047](0047-a-route-targets-a-channel-or-yourself.md) | A route targets a channel or a person, and a person only themselves | Accepted, amended by [0051](0051-root-routes-need-a-target-refinements-a-template.md) |
 | [0048](0048-bot-answers-commands-in-the-personal-chat.md) | The bot answers commands in the personal chat | Accepted |
 | [0049](0049-a-channel-post-is-one-teams-message.md) | A channel post is one Teams message | Accepted |
 | [0050](0050-catch-all-template-is-a-setting.md) | The catch-all route's template is a setting | Accepted |
+| [0051](0051-root-routes-need-a-target-refinements-a-template.md) | A root route needs a target, and a refinement that keeps it needs a new template | Accepted |

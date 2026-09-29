@@ -680,6 +680,8 @@ per alert. Counts are therefore approximate. Replicas sharing Postgres add to th
 - Delivering to a person needs a linked chat and a configured bot; see the recipient section. Any
   admin or editor who may edit routes may point one at any linked person — grants scope Teams and
   channels, and a person is neither.
+- A root route must deliver to a channel or a person. A refining route either names its own target,
+  or keeps its parent's and uses a different template.
 - A route with children cannot be deleted; remove or reparent them first, because an orphan becomes
   a root that matches alerts its parent used to filter out.
 - A database file written before the `DATETIME` timestamp fix cannot be read. Migrating it fails
