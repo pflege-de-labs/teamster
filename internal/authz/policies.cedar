@@ -67,3 +67,13 @@ permit (
   action == Action::"viewTeam",
   resource
 ) when { principal.unrestricted || resource in principal.teams };
+
+// A route may deliver to a person's chat only for that person. The resource is
+// the recipient's own User entity, so the check is who, not which role; admins
+// pass through the policy at the top of this file. Grants on users or groups
+// widen this rule later, here rather than in Go.
+permit (
+  principal,
+  action == Action::"deliverToRecipient",
+  resource
+) when { principal == resource };

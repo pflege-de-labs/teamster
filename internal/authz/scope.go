@@ -16,6 +16,8 @@ const (
 	ActionDeliver     = "deliver"
 	ActionViewChannel = "viewChannel"
 	ActionViewTeam    = "viewTeam"
+	// ActionDeliverToRecipient is pointing a route at a person's chat.
+	ActionDeliverToRecipient = "deliverToRecipient"
 )
 
 // A Scope is what the grants say a principal reaches. Unrestricted is not the
@@ -64,6 +66,12 @@ func ScopeFor(roles []Role, grants []models.Grant) Scope {
 
 	scope.Unrestricted = !limited
 	return scope
+}
+
+// RecipientResource is the person a linked chat belongs to, as the same User
+// entity their own session is, so a policy can compare the two.
+func RecipientResource(subject string) Resource {
+	return Resource{Type: "User", ID: subject}
 }
 
 func TeamResource(teamID string) Resource {

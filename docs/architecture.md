@@ -331,6 +331,13 @@ Enforcement is at the writes — creating or moving a destination, and pointing 
 the reads that list the directory. `internal/httpserver/grants.go` holds both, and reads the scope
 once per response rather than once per entry.
 
+A person's chat is not scoped by grants but by who it belongs to. `deliverToRecipient` takes the
+recipient's subject as a `User` resource and is permitted when it is the principal itself; admins
+pass through the blanket policy. `internal/httpserver/route_targets.go` checks it on the target a
+route write names and on the person a stored route already delivers to, so an editor can neither
+route into nor rewrite someone else's chat. The route form lists only the chats the session may
+target ([ADR 0047](adr/0047-a-route-targets-a-channel-or-yourself.md)).
+
 ## Routing visualization
 
 `/admin/routing` draws the path an alert takes and answers which routes a set of labels would take.
@@ -421,15 +428,16 @@ the current default cannot be deleted while other destinations remain. See
 
 A child is evaluated only once its parent matched, and applies when its own selector matches. Every
 matching child delivers; a greedy one delivers *instead of* its parent, a non-greedy one *as well
-as* it. An unset destination, recipient or template is inherited from the nearest ancestor that sets
-one, so "the same card, one more channel" is a route with a single field. The walk stops at
-`routing.MaxDepth`.
+as* it. An unset target or template is inherited from the nearest ancestor that sets one, so "the
+same card, one more channel" is a route with a single field. The walk stops at `routing.MaxDepth`.
 
-A route has **two independent targets**, not a choice between them: a `destination_id` for a Team
-channel and a `recipient_id` for a person's chat. A route naming both fans out to two deliveries —
-channel first, then recipient, an order callers index into — and one naming neither, inherited or
-its own, delivers nothing at all. Greedy remains one flag per parent: a greedy child suppresses
-**both** of its parent's deliveries, never one of them.
+A route targets **either** a `destination_id` for a Team channel **or** a `recipient_id` for a
+person's chat ([ADR 0047](adr/0047-a-route-targets-a-channel-or-yourself.md)). `ValidateRoute`
+refuses both, and a target a route sets replaces the inherited one of either kind, so a child naming
+a person no longer also posts to its parent's channel. Only a row saved before that rule still names
+both; it fans out to two deliveries, channel first. A route naming neither, inherited or its own,
+delivers nothing at all. Greedy remains one flag per parent: a greedy child suppresses **all** of its
+parent's deliveries.
 
 `Plan` returns a `Result`: the reason, every root that matched, and one `Delivery` per message with
 its `Kind`, its target and its template resolved. Each `Delivery` already names its own route, root

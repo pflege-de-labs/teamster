@@ -151,7 +151,7 @@ and `/admin/notifications` and its actions, described below, along with the side
 leaving it off registers none of that, so an unconfigured deployment exposes nothing new and offers
 nobody a page that instructs them to talk to a bot that does not exist. Once a chat is linked, point
 a route at that person and alerts arrive there — see the routing notes for how a route addresses a
-channel and a person at the same time.
+channel or a person.
 
 #### Linking your chat
 
@@ -171,8 +171,8 @@ channel and a person at the same time.
    the code, mention markup and all — pasting it after `@`-mentioning the bot works.
 3. The bot confirms in the same chat. The code is single-use and expires after ten minutes; an
    expired or already-used one gets a reply that does not say which.
-4. An admin edits a route and picks that person in **Person**, beside the destination. A route can
-   name a channel, a person, or both; naming both sends one card and one chat message.
+4. A route picks that chat in **Delivers to**. An editor may pick only their own chat, an admin
+   anyone's. A route delivers to one channel or one person, never both.
 
 Redeeming a code for a subject that is already linked moves the alert stream to the new chat and
 tells the *old* chat it was displaced — a code that leaks does not silently steal someone else's

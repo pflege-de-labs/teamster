@@ -68,6 +68,7 @@ func (s *Server) adminPage(r *http.Request, notice, errText string) views.Page {
 	if page.Recipients, err = s.store.ListRecipients(ctx); err != nil {
 		page.Error = failureText(ctx, "load admin page", err)
 	}
+	page.Recipients = s.targetableRecipients(r, page.Recipients)
 	if page.Destinations, err = s.visibleDestinations(r, page.Destinations); err != nil {
 		page.Error = failureText(ctx, "load admin page", err)
 	}
@@ -125,6 +126,7 @@ func (s *Server) loadForEditing(ctx context.Context, page *views.Page, section, 
 		var route models.Route
 		if route, err = s.store.GetRoute(ctx, id); err == nil {
 			page.EditRoute = &route
+			page.Recipients = s.keepEditedRecipient(ctx, page.Recipients, route.RecipientID)
 		}
 	case "webhooks":
 		var endpoint models.WebhookEndpoint
@@ -290,31 +292,29 @@ func (s *Server) saveRoute(r *http.Request) (string, error) {
 		}
 	}
 
+	destinationID, recipientID := r.PostFormValue("destination_id"), r.PostFormValue("recipient_id")
+	if _, ok := r.PostForm["target"]; ok {
+		if destinationID, recipientID, err = parseRouteTarget(r.PostFormValue("target")); err != nil {
+			return "", err
+		}
+	}
+
 	route := models.Route{
 		ID:            r.PostFormValue("id"),
 		Name:          r.PostFormValue("name"),
 		ParentID:      r.PostFormValue("parent_id"),
 		LabelSelector: selector,
-		DestinationID: r.PostFormValue("destination_id"),
-		RecipientID:   r.PostFormValue("recipient_id"),
+		DestinationID: destinationID,
+		RecipientID:   recipientID,
 		TemplateID:    r.PostFormValue("template_id"),
 		IsDefault:     r.PostFormValue("is_default") == "true",
 		Greedy:        r.PostFormValue("greedy") == "true",
 		Priority:      priority,
 	}
-	// A route is how an alert reaches a channel, so pointing one at a
-	// destination outside the grants is the same escape as creating it there.
-	//
-	// There is deliberately no matching check for the recipient. ADR 0026: any
-	// admin or editor who may edit routes may target any existing recipient,
-	// because a recipient only exists once that person proved the account is
-	// theirs. Grants scope Teams and channels, which a person is neither.
-	allowed, err := s.mayDeliverToDestination(r, route.DestinationID)
-	if err != nil {
+	// A route is how an alert reaches a channel or a chat, so its targets are
+	// checked the same way creating them would be.
+	if err := s.routeWriteRefusal(r, route); err != nil {
 		return "", err
-	}
-	if !allowed {
-		return "", errDeliveryRefused
 	}
 	created := route.ID == ""
 	if _, err := s.saveRouteChecked(ctx, route); err != nil {
@@ -414,6 +414,9 @@ func (s *Server) deleteRouteChecked(ctx context.Context, id string) error {
 func (s *Server) deleteRoute(r *http.Request) (string, error) {
 	ctx := r.Context()
 
+	if err := s.routeDeleteRefusal(r, r.PostFormValue("id")); err != nil {
+		return "", err
+	}
 	if err := s.deleteRouteChecked(ctx, r.PostFormValue("id")); err != nil {
 		return "", err
 	}

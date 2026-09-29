@@ -381,7 +381,7 @@ func TestAdminPagePrefillsTheFormBeingEdited(t *testing.T) {
 			wantHTML: []string{
 				`<input type="hidden" name="id" value="route">`,
 				`value="Critical to ops"`,
-				`<option value="dest" selected>`,
+				`<option value="destination:dest" selected>`,
 				`<option value="tmpl" selected>`,
 				`value="42"`,
 				"Update route",

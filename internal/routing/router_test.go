@@ -671,6 +671,16 @@ func TestValidateRoute(t *testing.T) {
 			candidate: models.Route{ID: "new", Name: "new"},
 		},
 		{
+			name:      "a root route may not target a channel and a person",
+			candidate: models.Route{ID: "new", Name: "new", DestinationID: "ops", RecipientID: "p1"},
+			wantErr:   "not both",
+		},
+		{
+			name:      "a child route may not target a channel and a person",
+			candidate: models.Route{ID: "new", Name: "new", ParentID: "root", LabelSelector: map[string]string{"team": "search"}, DestinationID: "search", RecipientID: "p1"},
+			wantErr:   "not both",
+		},
+		{
 			name:      "a child refining its parent is fine",
 			candidate: models.Route{ID: "new", Name: "new", ParentID: "root", LabelSelector: map[string]string{"team": "search"}, DestinationID: "search"},
 		},
@@ -817,8 +827,8 @@ func TestPlanFansOutToBothTargets(t *testing.T) {
 			},
 		},
 		{
-			// Overriding one target must not disturb the other.
-			name: "a child overriding only the recipient keeps its parent's channel",
+			// A person set on the child replaces both inherited targets (ADR 0047).
+			name: "a child naming a person drops its parent's channel",
 			routes: []models.Route{
 				{ID: "p", Name: "p", LabelSelector: map[string]string{"a": "b"}, DestinationID: "d1", RecipientID: "p1", TemplateID: "t1"},
 				{ID: "c", Name: "c", ParentID: "p", LabelSelector: map[string]string{"x": "y"}, RecipientID: "p2"},
@@ -826,7 +836,7 @@ func TestPlanFansOutToBothTargets(t *testing.T) {
 			labels: map[string]string{"a": "b", "x": "y"},
 			want: []string{
 				"p→channel:d1", "p→recipient:p1",
-				"c→channel:d1", "c→recipient:p2",
+				"c→recipient:p2",
 			},
 		},
 		{
@@ -840,18 +850,26 @@ func TestPlanFansOutToBothTargets(t *testing.T) {
 				{ID: "c", Name: "c", ParentID: "p", Greedy: true, LabelSelector: map[string]string{"x": "y"}, DestinationID: "d2"},
 			},
 			labels: map[string]string{"a": "b", "x": "y"},
-			want:   []string{"c→channel:d2", "c→recipient:p1"},
+			want:   []string{"c→channel:d2"},
 		},
 		{
-			// A greedy child that names only a person still takes the parent's
-			// channel delivery with it.
-			name: "a greedy child naming only a person still suppresses the channel",
+			// Greedy and naming a person: the person instead of the channel.
+			name: "a greedy child naming a person replaces the channel",
 			routes: []models.Route{
 				{ID: "p", Name: "p", LabelSelector: map[string]string{"a": "b"}, DestinationID: "d1", TemplateID: "t1"},
 				{ID: "c", Name: "c", ParentID: "p", Greedy: true, LabelSelector: map[string]string{"x": "y"}, RecipientID: "p1"},
 			},
 			labels: map[string]string{"a": "b", "x": "y"},
-			want:   []string{"c→channel:d1", "c→recipient:p1"},
+			want:   []string{"c→recipient:p1"},
+		},
+		{
+			name: "a child naming a channel drops its parent's person",
+			routes: []models.Route{
+				{ID: "p", Name: "p", LabelSelector: map[string]string{"a": "b"}, RecipientID: "p1", TemplateID: "t1"},
+				{ID: "c", Name: "c", ParentID: "p", LabelSelector: map[string]string{"x": "y"}, DestinationID: "d1"},
+			},
+			labels: map[string]string{"a": "b", "x": "y"},
+			want:   []string{"p→recipient:p1", "c→channel:d1"},
 		},
 	}
 
