@@ -40,7 +40,7 @@ Architectural decisions are recorded here, one file per decision, in
 | [0023](0023-chart-deploys-either-shape.md) | The chart deploys either shape | Accepted |
 | [0024](0024-trivy-image-scanning.md) | Scan images with Trivy and report to SecObserve | Accepted |
 | [0025](0025-shell-completion.md) | Shell completion is generated from the command tree | Accepted |
-| [0026](0026-alerts-in-a-persons-chat.md) | Alerts reach a person's chat through a Bot Framework bot | Accepted |
+| [0026](0026-alerts-in-a-persons-chat.md) | Alerts reach a person's chat through a Bot Framework bot | Accepted, amended by [0045](0045-channel-delivery-through-the-bot.md), [0047](0047-a-route-targets-a-channel-or-yourself.md) |
 | [0027](0027-notify-on-link-displacement.md) | A displaced recipient conversation is notified, not left silent | Accepted |
 | [0028](0028-self-service-unlink-and-code-cancellation.md) | Self-service unlink resolves from the session, and a code can be cancelled | Accepted |
 | [0029](0029-templates-are-markdown.md) | Message text is authored as Markdown and sanitized once for both transports | Accepted |
@@ -61,4 +61,5 @@ Architectural decisions are recorded here, one file per decision, in
 | [0044](0044-webhook-access-tokens.md) | Authenticate the alert webhooks with issued Bearer tokens | Accepted |
 | [0045](0045-channel-delivery-through-the-bot.md) | Deliver channel messages through the Bot Framework bot | Accepted, amended by [0049](0049-a-channel-post-is-one-teams-message.md) |
 | [0046](0046-structured-logging-and-error-boundary.md) | Log through slog and answer errors at one boundary | Accepted |
+| [0047](0047-a-route-targets-a-channel-or-yourself.md) | A route targets a channel or a person, and a person only themselves | Accepted |
 | [0049](0049-a-channel-post-is-one-teams-message.md) | A channel post is one Teams message | Accepted |

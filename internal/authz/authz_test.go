@@ -43,6 +43,18 @@ func TestAllow(t *testing.T) {
 		},
 		{name: "an admin may link", roles: []Role{RoleAdmin}, action: ActionLink, resource: Resource{Type: "Recipient"}, want: true},
 		{
+			name: "an editor may route to their own chat", roles: []Role{RoleEditor}, action: ActionDeliverToRecipient,
+			resource: RecipientResource("subject"), want: true,
+		},
+		{
+			name: "an editor may not route to someone else's chat", roles: []Role{RoleEditor}, action: ActionDeliverToRecipient,
+			resource: RecipientResource("someone-else"), want: false,
+		},
+		{
+			name: "an admin may route to anyone's chat", roles: []Role{RoleAdmin}, action: ActionDeliverToRecipient,
+			resource: RecipientResource("someone-else"), want: true,
+		},
+		{
 			// A role this build does not know must not fall through to allowed.
 			name: "an unknown role decides nothing", roles: []Role{Role("superuser")}, action: ActionView,
 			resource: Resource{Type: "Template"}, want: false,

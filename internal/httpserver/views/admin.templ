@@ -257,8 +257,8 @@ templ routes(page Page) {
 				@textField("name", i18n.T(ctx, "templates.name"), i18n.T(ctx, "routes.name_placeholder"), page.editingRoute().Name)
 				@selectField("parent_id", i18n.T(ctx, "routes.parent"), parentOptions(ctx, page), page.editingRoute().ParentID)
 				@editorField("label_selector", i18n.T(ctx, "routes.selector"), selectorJSON(page), "3", "selector")
-				@selectField("destination_id", i18n.T(ctx, "routes.destination"), destinationOptions(page), page.editingRoute().DestinationID)
-				@selectField("recipient_id", i18n.T(ctx, "routes.recipient"), recipientOptions(page), page.editingRoute().RecipientID)
+				@selectField("target", i18n.T(ctx, "routes.target"), routeTargetOptions(ctx, page), routeTargetValue(page.editingRoute()))
+				<p class="text-xs text-slate-500">{ i18n.T(ctx, "routes.target_hint") }</p>
 				@selectField("template_id", i18n.T(ctx, "routes.template"), routeTemplateOptions(ctx, page), page.editingRoute().TemplateID)
 				<label class="block">
 					<span class="text-sm font-medium">{ i18n.T(ctx, "routes.priority") }</span>
@@ -300,6 +300,9 @@ templ routes(page Page) {
 										<span class="rounded bg-emerald-100 px-1.5 py-0.5 text-xs font-medium text-emerald-800">{ i18n.T(ctx, "routes.badge_as_well") }</span>
 									}
 									<span class="text-xs text-slate-500">{ i18n.T(ctx, "routes.priority_badge", r.Route.Priority) }</span>
+									if r.Route.DestinationID != "" && r.Route.RecipientID != "" {
+										<span class="rounded bg-rose-100 px-1.5 py-0.5 text-xs font-medium text-rose-800">{ i18n.T(ctx, "routes.badge_both") }</span>
+									}
 								</div>
 								<div class="truncate text-xs text-slate-500">
 									@inheritable(page.destinationName(r.Destination.ID), r.Destination.Inherited)

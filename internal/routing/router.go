@@ -188,18 +188,22 @@ func selectRoots(roots []models.Route, labels map[string]string) ([]models.Route
 // its matching children is greedy, and an unset destination, recipient or
 // template is inherited from the nearest ancestor that set one. A route
 // fans out to one Delivery per target that ends up set -- a channel, a
-// recipient, both or neither -- rather than always producing exactly one, so a
+// recipient, or neither; both only for a row older than ADR 0047 -- so a
 // route with nothing left to deliver to (inherited or its own) delivers
 // nothing.
 func collect(route models.Route, reason Reason, children map[string][]models.Route, labels map[string]string, destinationID, templateID, recipientID string, depth int) []Delivery {
-	if route.DestinationID != "" {
-		destinationID = route.DestinationID
+	// A target replaces the inherited one of the other kind too (ADR 0047);
+	// only a row saved before that rule still carries both.
+	switch {
+	case route.DestinationID != "" && route.RecipientID != "":
+		destinationID, recipientID = route.DestinationID, route.RecipientID
+	case route.DestinationID != "":
+		destinationID, recipientID = route.DestinationID, ""
+	case route.RecipientID != "":
+		destinationID, recipientID = "", route.RecipientID
 	}
 	if route.TemplateID != "" {
 		templateID = route.TemplateID
-	}
-	if route.RecipientID != "" {
-		recipientID = route.RecipientID
 	}
 
 	var (
@@ -253,6 +257,10 @@ func collect(route models.Route, reason Reason, children map[string][]models.Rou
 // already stored because every rule here is about the candidate's place among
 // them, and a cycle found at delivery time is an alert that never arrives.
 func ValidateRoute(candidate models.Route, existing []models.Route) error {
+	// A route delivers to a channel or to a person, never both (ADR 0047).
+	if candidate.DestinationID != "" && candidate.RecipientID != "" {
+		return fmt.Errorf("a route targets either a channel or a person, not both")
+	}
 	if candidate.ParentID == "" {
 		return nil
 	}

@@ -217,6 +217,16 @@ func writeRouteError(w http.ResponseWriter, r *http.Request, err error) {
 	writeError(w, r, http.StatusInternalServerError, err)
 }
 
+// writeRouteRefusal answers a route write whose targets were refused with a
+// 403, and a failure to check them with a 500.
+func writeRouteRefusal(w http.ResponseWriter, r *http.Request, err error) {
+	if errors.Is(err, errDeliveryRefused) || errors.Is(err, errRecipientRefused) {
+		writeError(w, r, http.StatusForbidden, err)
+		return
+	}
+	writeError(w, r, http.StatusInternalServerError, err)
+}
+
 func (s *Server) handleRoutes(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	switch r.Method {
@@ -233,11 +243,8 @@ func (s *Server) handleRoutes(w http.ResponseWriter, r *http.Request) {
 			writeJSONError(w, http.StatusBadRequest, "invalid JSON")
 			return
 		}
-		if allowed, err := s.mayDeliverToDestination(r, rt.DestinationID); err != nil {
-			writeError(w, r, http.StatusInternalServerError, err)
-			return
-		} else if !allowed {
-			writeError(w, r, http.StatusForbidden, errDeliveryRefused)
+		if err := s.routeWriteRefusal(r, rt); err != nil {
+			writeRouteRefusal(w, r, err)
 			return
 		}
 		created, err := s.saveRouteChecked(ctx, rt)
@@ -278,11 +285,8 @@ func (s *Server) handleRouteByID(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		rt.ID = id
-		if allowed, err := s.mayDeliverToDestination(r, rt.DestinationID); err != nil {
-			writeError(w, r, http.StatusInternalServerError, err)
-			return
-		} else if !allowed {
-			writeError(w, r, http.StatusForbidden, errDeliveryRefused)
+		if err := s.routeWriteRefusal(r, rt); err != nil {
+			writeRouteRefusal(w, r, err)
 			return
 		}
 		updated, err := s.saveRouteChecked(ctx, rt)
@@ -292,6 +296,10 @@ func (s *Server) handleRouteByID(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, http.StatusOK, updated)
 	case http.MethodDelete:
+		if err := s.routeDeleteRefusal(r, id); err != nil {
+			writeRouteRefusal(w, r, err)
+			return
+		}
 		if err := s.deleteRouteChecked(ctx, id); err != nil {
 			writeRouteError(w, r, err)
 			return

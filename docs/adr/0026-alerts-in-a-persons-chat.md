@@ -2,7 +2,8 @@
 
 * Status: Accepted, amended by [0045](0045-channel-delivery-through-the-bot.md): the
   client-credentials identity cannot post to a channel either, and channel delivery moves onto
-  this bot
+  this bot; amended by [0047](0047-a-route-targets-a-channel-or-yourself.md): a route targets a
+  channel or a person, and an editor only their own chat
 * Date: 2026-09-15
 
 ## Context

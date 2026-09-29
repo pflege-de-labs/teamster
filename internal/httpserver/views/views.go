@@ -328,19 +328,37 @@ func destinationOptions(p Page) []option {
 	return out
 }
 
-// recipientOptions offers the people who have linked a chat. The list is empty
-// until somebody redeems a code, which is why a route can leave it unset --
-// unlike a destination, nothing an admin can do creates one.
-func recipientOptions(p Page) []option {
-	out := make([]option, 0, len(p.Recipients))
+// routeTargetOptions is one list for both kinds of target, so a route names a
+// channel or a person and never both (ADR 0047). The leading empty choice is a
+// child inheriting its parent's target. Recipients are already narrowed to the
+// chats this session may route to.
+func routeTargetOptions(ctx context.Context, p Page) []option {
+	out := make([]option, 0, len(p.Destinations)+len(p.Recipients)+1)
+	out = append(out, option{Value: "", Label: i18n.T(ctx, "routes.target_none")})
+	for _, d := range p.Destinations {
+		out = append(out, option{Value: "destination:" + d.ID, Label: i18n.T(ctx, "routes.target_channel", d.Name)})
+	}
 	for _, r := range p.Recipients {
 		label := r.Name
 		if label == "" {
 			label = r.Subject
 		}
-		out = append(out, option{Value: r.ID, Label: label})
+		out = append(out, option{Value: "recipient:" + r.ID, Label: i18n.T(ctx, "routes.target_person", label)})
 	}
 	return out
+}
+
+// routeTargetValue is the option an edited route selects. A route saved
+// before ADR 0047 with both targets shows its channel; saving it drops the
+// person, which the list's badge warns about.
+func routeTargetValue(route models.Route) string {
+	switch {
+	case route.DestinationID != "":
+		return "destination:" + route.DestinationID
+	case route.RecipientID != "":
+		return "recipient:" + route.RecipientID
+	}
+	return ""
 }
 
 func templateOptions(p Page) []option {
