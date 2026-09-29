@@ -834,8 +834,9 @@ conversation reference is operational plumbing an admin unlinking someone has no
 
 `POST /api/templates/preview` renders a template body against a built-in sample alert through the
 same `templates.Render` the delivery path uses, and returns the Adaptive Card JSON. The browser
-draws it with the vendored renderer in `web/vendor`. A template that fails to render comes back as
-an error field with status 200, because a broken template is the answer the operator asked for.
+draws it with the vendored renderer in `web/vendor`, in a sticky column beside the editor from the
+`lg` breakpoint up. A template that fails to render comes back as an error field with status 200,
+because a broken template is the answer the operator asked for.
 That directory's contents are pinned by package and version in `manifest.json`, and
 `internal/httpserver/vendor_test.go` verifies each file's SHA-256 against it and that the directory
 and the manifest list the same files. `make vendor` re-downloads at the pinned versions from the
