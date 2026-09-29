@@ -88,9 +88,9 @@ func TestAdminCollectionEndpoints(t *testing.T) {
 
 		{name: "list routes", method: http.MethodGet, path: "/api/routes", wantStatus: http.StatusOK},
 		{name: "list routes fails", method: http.MethodGet, path: "/api/routes", failOn: "ListRoutes", wantStatus: http.StatusInternalServerError},
-		{name: "create route", method: http.MethodPost, path: "/api/routes", body: `{"name":"critical"}`, wantStatus: http.StatusCreated},
+		{name: "create route", method: http.MethodPost, path: "/api/routes", body: `{"name":"critical","destination_id":"dest"}`, wantStatus: http.StatusCreated},
 		{name: "create route invalid JSON", method: http.MethodPost, path: "/api/routes", body: `{`, wantStatus: http.StatusBadRequest},
-		{name: "create route fails", method: http.MethodPost, path: "/api/routes", body: `{}`, failOn: "CreateRoute", wantStatus: http.StatusInternalServerError},
+		{name: "create route fails", method: http.MethodPost, path: "/api/routes", body: `{"destination_id":"dest"}`, failOn: "CreateRoute", wantStatus: http.StatusInternalServerError},
 		{name: "routes reject PATCH", method: http.MethodPatch, path: "/api/routes", wantStatus: http.StatusMethodNotAllowed},
 	}
 
@@ -156,9 +156,9 @@ func TestAdminItemEndpoints(t *testing.T) {
 		{name: "get route", method: http.MethodGet, path: "/api/routes/known", wantStatus: http.StatusOK},
 		{name: "get unknown route", method: http.MethodGet, path: "/api/routes/missing", wantStatus: http.StatusNotFound},
 		{name: "get route fails", method: http.MethodGet, path: "/api/routes/known", failOn: "GetRoute", wantStatus: http.StatusInternalServerError},
-		{name: "update route", method: http.MethodPut, path: "/api/routes/known", body: `{"name":"new"}`, wantStatus: http.StatusOK},
+		{name: "update route", method: http.MethodPut, path: "/api/routes/known", body: `{"name":"new","destination_id":"dest"}`, wantStatus: http.StatusOK},
 		{name: "update route invalid JSON", method: http.MethodPut, path: "/api/routes/known", body: `{`, wantStatus: http.StatusBadRequest},
-		{name: "update route fails", method: http.MethodPut, path: "/api/routes/known", body: `{}`, failOn: "UpdateRoute", wantStatus: http.StatusInternalServerError},
+		{name: "update route fails", method: http.MethodPut, path: "/api/routes/known", body: `{"destination_id":"dest"}`, failOn: "UpdateRoute", wantStatus: http.StatusInternalServerError},
 		{name: "delete route", method: http.MethodDelete, path: "/api/routes/known", wantStatus: http.StatusOK},
 		{name: "delete route fails", method: http.MethodDelete, path: "/api/routes/known", failOn: "DeleteRoute", wantStatus: http.StatusInternalServerError},
 		{name: "route id required", method: http.MethodGet, path: "/api/routes/", wantStatus: http.StatusNotFound},

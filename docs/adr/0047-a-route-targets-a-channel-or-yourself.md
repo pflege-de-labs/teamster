@@ -1,6 +1,7 @@
 # 0047. A route targets a channel or a person, and a person only themselves
 
-* Status: Accepted
+* Status: Accepted, amended by [0051](0051-root-routes-need-a-target-refinements-a-template.md): a
+  root route needs a target, and a refinement that keeps it needs a new template
 * Date: 2026-09-29
 
 ## Context
