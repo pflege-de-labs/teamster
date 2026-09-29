@@ -101,8 +101,11 @@ func TestBotChannelsPost(t *testing.T) {
 			if client.serviceURL != tt.wantServiceURL || client.tenantID != tt.wantTenant || client.channelID != "channel" {
 				t.Errorf("posted to %s for %s in %s, want %s for %s", client.serviceURL, client.tenantID, client.channelID, tt.wantServiceURL, tt.wantTenant)
 			}
-			if client.posted.Text != "**92%** used" || len(client.posted.Cards) != 2 {
-				t.Errorf("posted %+v, want the HTML as markdown and both cards", client.posted)
+			if client.posted.Text != "" || client.posted.Title != "" || len(client.posted.Cards) != 0 || len(client.posted.Card) == 0 {
+				t.Errorf("posted %+v, want one card and nothing beside it", client.posted)
+			}
+			if !strings.Contains(string(client.posted.Card), `"text":"**92%** used"`) {
+				t.Errorf("card = %s, want the HTML as markdown inside it", client.posted.Card)
 			}
 		})
 	}
@@ -201,5 +204,54 @@ func TestChannelDeliveryWithoutTheBot(t *testing.T) {
 	rec := postWebhook(t, srv.Handler, "/webhook/universal", "token", `{"status":"firing","labels":{},"fingerprint":"fp-1"}`)
 	if rec.Code != http.StatusBadGateway || !strings.Contains(rec.Body.String(), "needs the bot") {
 		t.Errorf("POST = %d %s, want 502 naming the missing bot", rec.Code, rec.Body.String())
+	}
+}
+
+// A channel post must be one Teams message, so every card folds into one.
+func TestOneCard(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		title   string
+		text    string
+		cards   []string
+		want    []string
+		wantErr bool
+	}{
+		{
+			name: "title and text lead the card", title: "Disk", text: "**92%**",
+			cards: []string{`{"type":"AdaptiveCard","version":"1.5","body":[{"type":"TextBlock","text":"own"}]}`},
+			want:  []string{`"version":"1.5"`, `{"size":"Medium","text":"Disk","type":"TextBlock","weight":"Bolder","wrap":true},{"text":"**92%**","type":"TextBlock","wrap":true},{"text":"own","type":"TextBlock"}`},
+		},
+		{
+			name: "a second card follows in a container, actions kept",
+			cards: []string{
+				`{"type":"AdaptiveCard","body":[{"type":"TextBlock","text":"a"}],"actions":[{"type":"Action.OpenUrl","url":"https://a"}]}`,
+				`{"type":"AdaptiveCard","body":[{"type":"TextBlock","text":"b"}],"actions":[{"type":"Action.OpenUrl","url":"https://b"}]}`,
+			},
+			want: []string{`{"items":[{"text":"b","type":"TextBlock"}],"separator":true,"type":"Container"}`, `"url":"https://a"`, `"url":"https://b"`, `"version":"1.4"`},
+		},
+		{name: "a card that is not JSON", cards: []string{`nope`}, wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			cards := make([]json.RawMessage, len(tt.cards))
+			for i, c := range tt.cards {
+				cards[i] = json.RawMessage(c)
+			}
+			got, err := oneCard(tt.title, tt.text, cards)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("oneCard() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			for _, want := range tt.want {
+				if !strings.Contains(string(got), want) {
+					t.Errorf("oneCard() = %s, want it to contain %s", got, want)
+				}
+			}
+		})
 	}
 }

@@ -202,8 +202,13 @@ application post or edit channel messages, except for migration and for `policyV
 * **Edit:** `PUT {serviceUrl}/v3/conversations/{conversation_id}/activities/{message_id}`.
 * **Service URL:** comes from the team's `bot_teams` row, else `bot.service-url`. The tenant is the
   row's, else `bot.tenant-id`, else `graph.tenant-id` for a multi-tenant bot.
-* **Text:** HTML is converted with `templates.ToMarkdown`, as for a chat, and every card is
-  attached.
+* **One message:** HTML is converted with `templates.ToMarkdown`, as for a chat.
+  * A post without a card is text only.
+  * With any card, the title, the text and every further card fold into the first card.
+  * The Connector refuses a new channel conversation whose activity Teams would split, with
+    `Activity resulted into multiple skype activities`.
+  * Beside plain text, the "no template" hint is a line of text rather than a card. See
+    [ADR 0049](adr/0049-a-channel-post-is-one-teams-message.md).
 * **A card with an empty `conversation_id`** was posted through Graph by an earlier release and
   cannot be edited. A re-fire forgets it and posts its successor; a resolve only forgets it.
 * **A Connector `403`** is reported as "is the Teams app installed there?".
