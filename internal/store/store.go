@@ -22,6 +22,9 @@ var (
 	// simply try again with a new one instead of surfacing a constraint
 	// violation as a 500.
 	ErrConflict = errors.New("conflicts with an existing row")
+	// ErrTemplateSource refuses a source default whose template names other
+	// sources, since every message it caught would fall back anyway.
+	ErrTemplateSource = errors.New("template does not handle this source")
 )
 
 // A ClaimOutcome says what asking for the right to post found.
@@ -101,6 +104,21 @@ type Store interface {
 	// SetGlobalDefaultTemplate chooses it; "" goes back to the built-in one.
 	// ErrNotFound means the template does not exist.
 	SetGlobalDefaultTemplate(ctx context.Context, templateID string) error
+	// GetSourceDefaultTemplate is what a message from source renders with when
+	// its route or endpoint names no template it can use; "" means the
+	// built-in message (ADR 0055).
+	GetSourceDefaultTemplate(ctx context.Context, source string) (string, error)
+	// SourceDefaultTemplates maps every source with a default to its template.
+	SourceDefaultTemplates(ctx context.Context) (map[string]string, error)
+	// SetSourceDefaultTemplate chooses it; "" goes back to the built-in one.
+	// ErrNotFound means the template does not exist, ErrTemplateSource that
+	// it does not handle source.
+	SetSourceDefaultTemplate(ctx context.Context, source, templateID string) error
+	// SeedTemplates creates templates and makes each the default of its one
+	// source where none is set, the first time it is called and never again,
+	// so a template deleted afterwards stays deleted. It reports whether it
+	// seeded.
+	SeedTemplates(ctx context.Context, templates []models.Template) (bool, error)
 
 	ListRecipients(ctx context.Context) ([]models.Recipient, error)
 	CreateRecipient(ctx context.Context, r models.Recipient) (models.Recipient, error)

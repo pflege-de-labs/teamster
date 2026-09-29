@@ -638,7 +638,8 @@ See [ADR 0037](adr/0037-delegated-teams-via-keycloak-broker-token.md).
 
 A message that no route claims is rejected, and so is a message on a route that has no template,
 unless its payload carries its own title, text or card. Both leave a sender retrying something
-that can never succeed. This milestone makes both cases deliver. It ships as three pull requests:
+that can never succeed. This milestone makes both cases deliver. It shipped as three pull requests,
+and a fourth followed:
 
 1. **Global default destination — done.** The first destination becomes the global default. It
    catches whatever no route claims, the default route included, and is drawn as a built-in route.
@@ -650,6 +651,10 @@ that can never succeed. This milestone makes both cases deliver. It ships as thr
 3. **Templates for Teams V2 endpoints — done.** An endpoint may name a template. One that does not
    sends the payload's card(s) as before, followed by the hint card. See
    [ADR 0040](adr/0040-teams-v2-endpoint-templates.md).
+4. **A default template per webhook — done.** Each webhook source has a default template, used
+   before the built-in message. A new installation is seeded with a preset for each, and the editor
+   offers the same presets as starting points. See
+   [ADR 0055](adr/0055-each-webhook-has-a-default-template.md).
 
 ## Milestone 17 — Completion in the template and route editors — done
 

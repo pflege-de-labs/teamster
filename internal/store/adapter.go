@@ -105,6 +105,12 @@ func (s queryAdapter) DeleteTemplate(ctx context.Context, id string) error {
 	if err != nil {
 		return fmt.Errorf("forget global default template: %w", err)
 	}
+	for _, source := range models.AllSources() {
+		err := s.q.ClearSettingValue(ctx, sqlitedb.ClearSettingValueParams{Key: sourceDefaultKey(source), Value: id})
+		if err != nil {
+			return fmt.Errorf("forget %s default template: %w", source, err)
+		}
+	}
 	if err := s.q.DeleteTemplate(ctx, id); err != nil {
 		return fmt.Errorf("delete template: %w", err)
 	}
@@ -143,6 +149,108 @@ func (s queryAdapter) SetGlobalDefaultTemplate(ctx context.Context, templateID s
 		return fmt.Errorf("set global default template: %w", err)
 	}
 	return nil
+}
+
+// settingPresetsSeeded records that SeedTemplates ran, whatever became of
+// the templates it created since.
+const settingPresetsSeeded = "presets.seeded"
+
+// sourceDefaultKey is the settings key for a source's default template.
+func sourceDefaultKey(source string) string {
+	return "default_template." + source
+}
+
+func knownSource(source string) error {
+	if _, err := models.NormalizeSources([]string{source}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s queryAdapter) GetSourceDefaultTemplate(ctx context.Context, source string) (string, error) {
+	if err := knownSource(source); err != nil {
+		return "", err
+	}
+	value, err := s.q.GetSetting(ctx, sourceDefaultKey(source))
+	if err != nil {
+		if errors.Is(notFound(err), ErrNotFound) {
+			return "", nil
+		}
+		return "", fmt.Errorf("get %s default template: %w", source, err)
+	}
+	return value, nil
+}
+
+func (s queryAdapter) SourceDefaultTemplates(ctx context.Context) (map[string]string, error) {
+	out := map[string]string{}
+	for _, source := range models.AllSources() {
+		id, err := s.GetSourceDefaultTemplate(ctx, source)
+		if err != nil {
+			return nil, err
+		}
+		if id != "" {
+			out[source] = id
+		}
+	}
+	return out, nil
+}
+
+func (s queryAdapter) SetSourceDefaultTemplate(ctx context.Context, source, templateID string) error {
+	if err := knownSource(source); err != nil {
+		return err
+	}
+	if templateID == "" {
+		if err := s.q.DeleteSetting(ctx, sourceDefaultKey(source)); err != nil {
+			return fmt.Errorf("clear %s default template: %w", source, err)
+		}
+		return nil
+	}
+	t, err := s.GetTemplate(ctx, templateID)
+	if err != nil {
+		return err
+	}
+	if !t.Handles(source) {
+		return fmt.Errorf("%w: %s", ErrTemplateSource, source)
+	}
+	err = s.q.UpsertSetting(ctx, sqlitedb.UpsertSettingParams{
+		Key: sourceDefaultKey(source), Value: templateID, UpdatedAt: time.Now().UTC(),
+	})
+	if err != nil {
+		return fmt.Errorf("set %s default template: %w", source, err)
+	}
+	return nil
+}
+
+func (s queryAdapter) SeedTemplates(ctx context.Context, templates []models.Template) (bool, error) {
+	claimed, err := s.q.InsertSettingIfAbsent(ctx, sqlitedb.InsertSettingIfAbsentParams{
+		Key: settingPresetsSeeded, Value: "1", UpdatedAt: time.Now().UTC(),
+	})
+	if err != nil {
+		return false, fmt.Errorf("claim template seeding: %w", err)
+	}
+	if claimed == 0 {
+		return false, nil
+	}
+	for _, t := range templates {
+		created, err := s.CreateTemplate(ctx, t)
+		if err != nil {
+			return false, fmt.Errorf("seed template %q: %w", t.Name, err)
+		}
+		if len(created.Sources) != 1 {
+			continue
+		}
+		current, err := s.GetSourceDefaultTemplate(ctx, created.Sources[0])
+		if err != nil {
+			return false, err
+		}
+		if current != "" {
+			continue
+		}
+		if err := s.SetSourceDefaultTemplate(ctx, created.Sources[0], created.ID); err != nil {
+			return false, err
+		}
+	}
+	return true, nil
 }
 
 func (s queryAdapter) GetTemplate(ctx context.Context, id string) (models.Template, error) {

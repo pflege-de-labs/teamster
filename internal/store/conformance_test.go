@@ -326,6 +326,143 @@ func TestConformanceGlobalDefaultTemplate(t *testing.T) {
 	})
 }
 
+func TestConformanceSourceDefaultTemplates(t *testing.T) {
+	t.Parallel()
+
+	eachBackend(t, func(t *testing.T, open func(t *testing.T) store.Store) {
+		st := open(t)
+		ctx := t.Context()
+
+		if got, err := st.SourceDefaultTemplates(ctx); err != nil || len(got) != 0 {
+			t.Fatalf("SourceDefaultTemplates(unset) = %v, %v, want none", got, err)
+		}
+		if err := st.SetSourceDefaultTemplate(ctx, "nope", ""); err == nil {
+			t.Error("SetSourceDefaultTemplate accepted an unknown source")
+		}
+		if _, err := st.GetSourceDefaultTemplate(ctx, "nope"); err == nil {
+			t.Error("GetSourceDefaultTemplate accepted an unknown source")
+		}
+		if err := st.SetSourceDefaultTemplate(ctx, models.SourceUniversal, "missing"); !errors.Is(err, store.ErrNotFound) {
+			t.Errorf("SetSourceDefaultTemplate(missing) = %v, want ErrNotFound", err)
+		}
+
+		anySource, err := st.CreateTemplate(ctx, models.Template{Name: "any", Body: "{}"})
+		if err != nil {
+			t.Fatalf("CreateTemplate: %v", err)
+		}
+		am, err := st.CreateTemplate(ctx, models.Template{Name: "am", Body: "{}", Sources: []string{models.SourceAlertmanager}})
+		if err != nil {
+			t.Fatalf("CreateTemplate: %v", err)
+		}
+		if err := st.SetSourceDefaultTemplate(ctx, models.SourceUniversal, am.ID); !errors.Is(err, store.ErrTemplateSource) {
+			t.Errorf("SetSourceDefaultTemplate(other source) = %v, want ErrTemplateSource", err)
+		}
+		for source, id := range map[string]string{models.SourceAlertmanager: am.ID, models.SourceUniversal: anySource.ID, models.SourceTeamsV2: anySource.ID} {
+			if err := st.SetSourceDefaultTemplate(ctx, source, id); err != nil {
+				t.Fatalf("SetSourceDefaultTemplate(%s): %v", source, err)
+			}
+		}
+		got, err := st.SourceDefaultTemplates(ctx)
+		if err != nil || len(got) != 3 || got[models.SourceAlertmanager] != am.ID || got[models.SourceTeamsV2] != anySource.ID {
+			t.Errorf("SourceDefaultTemplates = %v, %v", got, err)
+		}
+
+		// Deleting a template forgets it for every source it was the default of.
+		if err := st.DeleteTemplate(ctx, anySource.ID); err != nil {
+			t.Fatalf("DeleteTemplate: %v", err)
+		}
+		got, _ = st.SourceDefaultTemplates(ctx)
+		if len(got) != 1 || got[models.SourceAlertmanager] != am.ID {
+			t.Errorf("after delete = %v, want only alertmanager", got)
+		}
+		if err := st.SetSourceDefaultTemplate(ctx, models.SourceAlertmanager, ""); err != nil {
+			t.Fatalf("SetSourceDefaultTemplate(\"\"): %v", err)
+		}
+		if id, _ := st.GetSourceDefaultTemplate(ctx, models.SourceAlertmanager); id != "" {
+			t.Errorf("after clearing = %q, want \"\"", id)
+		}
+	})
+}
+
+func TestConformanceSeedTemplates(t *testing.T) {
+	t.Parallel()
+
+	eachBackend(t, func(t *testing.T, open func(t *testing.T) store.Store) {
+		st := open(t)
+		ctx := t.Context()
+
+		// An operator's own universal default survives the seed.
+		mine, err := st.CreateTemplate(ctx, models.Template{Name: "mine", Body: "{}"})
+		if err != nil {
+			t.Fatalf("CreateTemplate: %v", err)
+		}
+		if err := st.SetSourceDefaultTemplate(ctx, models.SourceUniversal, mine.ID); err != nil {
+			t.Fatalf("SetSourceDefaultTemplate: %v", err)
+		}
+
+		seed := []models.Template{
+			{Name: "am", Body: "{}", Sources: []string{models.SourceAlertmanager}},
+			{Name: "uni", Body: "{}", Sources: []string{models.SourceUniversal}},
+			{Name: "both", Body: "{}", Sources: []string{models.SourceUniversal, models.SourceTeamsV2}},
+		}
+		seeded, err := st.SeedTemplates(ctx, seed)
+		if err != nil || !seeded {
+			t.Fatalf("SeedTemplates = %v, %v, want seeded", seeded, err)
+		}
+		templates, _ := st.ListTemplates(ctx)
+		if len(templates) != 4 {
+			t.Fatalf("templates after seed = %d, want 4", len(templates))
+		}
+		defaults, _ := st.SourceDefaultTemplates(ctx)
+		if defaults[models.SourceUniversal] != mine.ID {
+			t.Errorf("universal default = %q, want the operator's own", defaults[models.SourceUniversal])
+		}
+		if defaults[models.SourceAlertmanager] == "" {
+			t.Error("alertmanager has no default after the seed")
+		}
+		if _, ok := defaults[models.SourceTeamsV2]; ok {
+			t.Error("a template for two sources became a default; only single-source templates should")
+		}
+
+		// A deleted seed stays deleted.
+		if err := st.DeleteTemplate(ctx, defaults[models.SourceAlertmanager]); err != nil {
+			t.Fatalf("DeleteTemplate: %v", err)
+		}
+		seeded, err = st.SeedTemplates(ctx, seed)
+		if err != nil || seeded {
+			t.Errorf("second SeedTemplates = %v, %v, want a no-op", seeded, err)
+		}
+		if templates, _ := st.ListTemplates(ctx); len(templates) != 3 {
+			t.Errorf("templates after second seed = %d, want 3", len(templates))
+		}
+	})
+}
+
+// A seed that fails part way leaves nothing behind, so the next start retries.
+func TestConformanceSeedTemplatesRollsBack(t *testing.T) {
+	t.Parallel()
+
+	eachBackend(t, func(t *testing.T, open func(t *testing.T) store.Store) {
+		st := open(t)
+		ctx := t.Context()
+
+		bad := []models.Template{
+			{Name: "ok", Body: "{}", Sources: []string{models.SourceAlertmanager}},
+			{Name: "bad", Body: "{}", Sources: []string{"nope"}},
+		}
+		if _, err := st.SeedTemplates(ctx, bad); err == nil {
+			t.Fatal("SeedTemplates accepted an unknown source")
+		}
+		if templates, _ := st.ListTemplates(ctx); len(templates) != 0 {
+			t.Errorf("templates after a failed seed = %d, want 0", len(templates))
+		}
+		seeded, err := st.SeedTemplates(ctx, bad[:1])
+		if err != nil || !seeded {
+			t.Errorf("retry SeedTemplates = %v, %v, want seeded", seeded, err)
+		}
+	})
+}
+
 func TestConformanceGrantScopeIsUnique(t *testing.T) {
 	t.Parallel()
 

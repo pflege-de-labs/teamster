@@ -3,6 +3,7 @@ package templates
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"text/template"
@@ -75,7 +76,7 @@ func RenderMessage(t models.Template, data RenderData) (Message, error) {
 
 	if t.Body != "" {
 		card, err := Render(t.Body, data)
-		if err != nil {
+		if err != nil && !errors.Is(err, errEmptyCard) {
 			return Message{}, err
 		}
 		msg.Card = card
@@ -125,6 +126,10 @@ func renderText(body string, data RenderData) (string, error) {
 	return buf.String(), nil
 }
 
+// errEmptyCard is a body that rendered to nothing. RenderMessage sends no card
+// for it, so one template can carry a card for some payloads and not others.
+var errEmptyCard = errors.New("template output is empty, not a card")
+
 func Render(body string, data RenderData) (json.RawMessage, error) {
 	tmpl, err := template.New("card").Funcs(funcs()).Parse(body)
 	if err != nil {
@@ -137,6 +142,9 @@ func Render(body string, data RenderData) (json.RawMessage, error) {
 	}
 
 	output := buf.Bytes()
+	if len(bytes.TrimSpace(output)) == 0 {
+		return nil, errEmptyCard
+	}
 	var tmp any
 	if err := json.Unmarshal(output, &tmp); err != nil {
 		return nil, fmt.Errorf("template output is not valid JSON: %w", err)

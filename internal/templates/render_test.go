@@ -3,6 +3,8 @@ package templates
 import (
 	"strings"
 	"testing"
+
+	"github.com/pflege-de-labs/teamster/internal/models"
 )
 
 func TestRenderValidJSON(t *testing.T) {
@@ -149,5 +151,37 @@ func TestRenderText(t *testing.T) {
 				t.Errorf("RenderText(%q) = %q, want %q", tt.in, got, tt.want)
 			}
 		})
+	}
+}
+
+// A body that renders to nothing sends no card, so one template can carry a
+// card for some payloads and only text for others (ADR 0055).
+func TestRenderMessageSkipsAnEmptyCard(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		alert    map[string]string
+		wantCard bool
+	}{
+		{name: "card", alert: map[string]string{"card": "yes"}, wantCard: true},
+		{name: "no card", alert: map[string]string{}},
+	}
+	tmpl := models.Template{Title: "t", Body: `{{ if .Alert.card }}{"type":"AdaptiveCard"}{{ end }}` + "\n  "}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			msg, err := RenderMessage(tmpl, RenderData{Alert: tt.alert})
+			if err != nil {
+				t.Fatalf("RenderMessage: %v", err)
+			}
+			if (len(msg.Card) > 0) != tt.wantCard {
+				t.Errorf("card = %s, want one: %v", msg.Card, tt.wantCard)
+			}
+		})
+	}
+	if _, err := Render(tmpl.Body, RenderData{Alert: map[string]string{}}); err == nil {
+		t.Error("Render accepted an empty card; only RenderMessage may skip one")
 	}
 }

@@ -12,11 +12,13 @@ import (
 	"time"
 
 	"github.com/pflege-de-labs/teamster/internal/bot"
+	"github.com/pflege-de-labs/teamster/internal/cards"
 	"github.com/pflege-de-labs/teamster/internal/config"
 	"github.com/pflege-de-labs/teamster/internal/graph"
 	"github.com/pflege-de-labs/teamster/internal/httpserver"
 	"github.com/pflege-de-labs/teamster/internal/logging"
 	"github.com/pflege-de-labs/teamster/internal/metrics"
+	"github.com/pflege-de-labs/teamster/internal/models"
 	"github.com/pflege-de-labs/teamster/internal/samples"
 	"github.com/pflege-de-labs/teamster/internal/store"
 )
@@ -78,6 +80,9 @@ func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
 	logger.Info("store opened", "target", store.Target(opts))
 	if warning := webhookTokenWarning(ctx, cfg, sqlStore); warning != "" {
 		logger.Warn(warning)
+	}
+	if err := seedPresets(ctx, logger, sqlStore); err != nil {
+		return err
 	}
 
 	// After the store, so that the deferred shutdown below — and the last
@@ -234,4 +239,22 @@ func webhookTokenWarning(ctx context.Context, cfg *config.Config, st store.Store
 		return "no webhook token configured and none issued: /webhook/* refuses every sender until one is created at /admin/tokens"
 	}
 	return ""
+}
+
+// seedPresets gives a new installation one default template per source, so
+// its first messages look like messages rather than JSON (ADR 0055).
+func seedPresets(ctx context.Context, logger *slog.Logger, st store.Store) error {
+	presets := cards.Presets()
+	seed := make([]models.Template, 0, len(presets))
+	for _, p := range presets {
+		seed = append(seed, p.Template())
+	}
+	seeded, err := st.SeedTemplates(ctx, seed)
+	if err != nil {
+		return fmt.Errorf("seed default templates: %w", err)
+	}
+	if seeded {
+		logger.Info("seeded default templates", "count", len(seed))
+	}
+	return nil
 }

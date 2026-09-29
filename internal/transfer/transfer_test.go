@@ -510,3 +510,87 @@ func TestExportCarriesTheGlobalDefaultTemplate(t *testing.T) {
 		t.Errorf("Validate() = %v, want a missing template refused", err)
 	}
 }
+
+func TestTheBundleCarriesSourceDefaults(t *testing.T) {
+	t.Parallel()
+
+	src := configured(t)
+	ctx := t.Context()
+	if _, err := src.CreateTemplate(ctx, models.Template{ID: "am", Name: "AM", Body: "{}", Sources: []string{models.SourceAlertmanager}}); err != nil {
+		t.Fatalf("CreateTemplate: %v", err)
+	}
+	if err := src.SetSourceDefaultTemplate(ctx, models.SourceAlertmanager, "am"); err != nil {
+		t.Fatalf("SetSourceDefaultTemplate: %v", err)
+	}
+	bundle, err := Export(ctx, src, nil)
+	if err != nil {
+		t.Fatalf("Export: %v", err)
+	}
+	if bundle.SourceDefaultTemplateIDs[models.SourceAlertmanager] != "am" {
+		t.Fatalf("bundle source defaults = %v, want alertmanager: am", bundle.SourceDefaultTemplateIDs)
+	}
+
+	tests := []struct {
+		name  string
+		mode  Mode
+		start string
+		want  map[string]string
+	}{
+		{name: "merge onto an empty installation", mode: ModeMerge, want: map[string]string{models.SourceAlertmanager: "am"}},
+		{name: "replace clears what the bundle does not name", mode: ModeReplace, start: models.SourceUniversal, want: map[string]string{models.SourceAlertmanager: "am"}},
+		{name: "merge keeps what the bundle does not name", mode: ModeMerge, start: models.SourceUniversal,
+			want: map[string]string{models.SourceAlertmanager: "am", models.SourceUniversal: "tmpl"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			dst := configured(t)
+			if tt.start != "" {
+				if err := dst.SetSourceDefaultTemplate(t.Context(), tt.start, "tmpl"); err != nil {
+					t.Fatalf("SetSourceDefaultTemplate: %v", err)
+				}
+			}
+			if _, err := Import(t.Context(), dst, bundle, tt.mode, false); err != nil {
+				t.Fatalf("Import: %v", err)
+			}
+			got, _ := dst.SourceDefaultTemplates(t.Context())
+			if len(got) != len(tt.want) {
+				t.Fatalf("defaults = %v, want %v", got, tt.want)
+			}
+			for source, id := range tt.want {
+				if got[source] != id {
+					t.Errorf("defaults = %v, want %v", got, tt.want)
+				}
+			}
+		})
+	}
+}
+
+func TestValidateRefusesABadSourceDefault(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		defaults map[string]string
+		want     string
+	}{
+		{name: "unknown source", defaults: map[string]string{"email": "tmpl"}, want: "unknown source"},
+		{name: "missing template", defaults: map[string]string{models.SourceUniversal: "gone"}, want: "does not carry"},
+		{name: "another source's template", defaults: map[string]string{models.SourceUniversal: "am"}, want: "does not handle"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			bundle := Bundle{
+				Version:                  Version,
+				Templates:                []models.Template{{ID: "am", Name: "AM", Body: "{}", Sources: []string{models.SourceAlertmanager}}, {ID: "tmpl", Name: "Any", Body: "{}"}},
+				SourceDefaultTemplateIDs: tt.defaults,
+			}
+			if err := bundle.Validate(); err == nil || !strings.Contains(err.Error(), tt.want) {
+				t.Errorf("Validate() = %v, want %q", err, tt.want)
+			}
+		})
+	}
+}

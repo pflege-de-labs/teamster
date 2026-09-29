@@ -129,6 +129,11 @@ func apply(ctx context.Context, tx store.Store, bundle Bundle, mode Mode) ([]Cha
 	if change != nil {
 		changes = append(changes, *change)
 	}
+	sourceChanges, err := settleSourceDefaultTemplates(ctx, tx, bundle, mode)
+	if err != nil {
+		return nil, err
+	}
+	changes = append(changes, sourceChanges...)
 
 	destinations, err := tx.ListDestinations(ctx)
 	if err != nil {
@@ -221,6 +226,30 @@ func settleGlobalDefaultTemplate(ctx context.Context, tx store.Store, bundle Bun
 		return nil, err
 	}
 	return &Change{Kind: "setting", Action: actionUpdate, ID: "global_default.template_id", Name: want}, nil
+}
+
+// settleSourceDefaultTemplates applies the bundle's per-source defaults the
+// way settleGlobalDefaultTemplate applies the catch-all's.
+func settleSourceDefaultTemplates(ctx context.Context, tx store.Store, bundle Bundle, mode Mode) ([]Change, error) {
+	var changes []Change
+	for _, source := range models.AllSources() {
+		want := bundle.SourceDefaultTemplateIDs[source]
+		if want == "" && mode != ModeReplace {
+			continue
+		}
+		current, err := tx.GetSourceDefaultTemplate(ctx, source)
+		if err != nil {
+			return nil, err
+		}
+		if current == want {
+			continue
+		}
+		if err := tx.SetSourceDefaultTemplate(ctx, source, want); err != nil {
+			return nil, err
+		}
+		changes = append(changes, Change{Kind: "setting", Action: actionUpdate, ID: "default_template." + source, Name: want})
+	}
+	return changes, nil
 }
 
 // settleDefaultDestination applies the bundle's global default. A bundle that

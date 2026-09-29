@@ -69,3 +69,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0052](0052-the-receiving-webhook-is-a-label.md) | The receiving webhook is a label | Accepted |
 | [0053](0053-templates-name-the-webhooks-they-handle.md) | Templates name the webhooks they handle | Accepted |
 | [0054](0054-apply-sidebar-state-before-first-paint.md) | Apply the sidebar state before first paint | Accepted |
+| [0055](0055-each-webhook-has-a-default-template.md) | Each webhook has a default template | Accepted |

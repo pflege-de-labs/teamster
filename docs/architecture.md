@@ -396,6 +396,16 @@ endpoint picker offers only templates that handle `teamsv2`. The route picker is
 browser by `sources.js`. A route whose selector chain pins `teamster_source`
 (`routing.PinnedSource`) is refused on save when its template does not handle that source.
 
+Each source may have a **default template**, stored as the setting `default_template.<source>`
+([ADR 0055](adr/0055-each-webhook-has-a-default-template.md)). `deliveryTemplate` picks the route's
+own template when it handles the alert's source, and the source's default otherwise;
+`endpointTemplate` does the same for a Teams V2 endpoint with the `teamsv2` default. Only when
+neither exists does a message fall through to the paths below. A default that no longer handles its
+source is skipped. `cards.Presets()` holds one ready-made template per source. The editor offers
+them as starting points, and `Store.SeedTemplates` stores them once per installation at start-up,
+making each its source's default where none is set. A card body that renders to nothing means no
+card, so a template can send a card for some payloads and text alone for others.
+
 A route with no template skips rendering entirely: `directMessage` builds the same `title, text,
 card` shape straight from `models.Alert.Title`/`Text`/`Card`, the fields a `/webhook/universal`
 payload may set directly (`ADR 0036`). It still runs `Text` through the same Markdown sanitizer;
@@ -685,7 +695,9 @@ has an empty conversation id, which reads as a card nothing can edit. See
 [ADR 0045](adr/0045-channel-delivery-through-the-bot.md).
 
 `settings` came with the catch-all's template, by `0017` in SQLite and `0014` in Postgres: a key,
-a value and when it was written. Its one key so far is `global_default.template_id`. It is a new
+a value and when it was written. Its keys are `global_default.template_id`, one
+`default_template.<source>` per webhook ([ADR 0055](adr/0055-each-webhook-has-a-default-template.md))
+and `presets.seeded`, which records that the presets were stored once. It is a new
 table and nothing else, so the previous release ignores it. See
 [ADR 0050](adr/0050-catch-all-template-is-a-setting.md).
 
@@ -809,7 +821,7 @@ An inline script in `<head>` marks `<html>` with `js` and, when the sidebar was 
 menu on an outside click or Escape. The bottom of the sidebar shows the build version,
 `config.Config.Version`, which `cli.Run` stamps from `main.version`. See
 [ADR 0042](adr/0042-sidebar-navigation-and-user-menu.md) and
-[ADR 0054](adr/0054-apply-sidebar-state-before-first-paint.md).
+[ADR 0055](adr/0054-apply-sidebar-state-before-first-paint.md).
 
 `formPost` takes the redirect target as a parameter rather than always answering `/admin`: a page of
 its own — `/admin/recipients`, like `/admin/permissions` — posts to its own `/delete` endpoint and

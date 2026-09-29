@@ -46,6 +46,28 @@ func (q *Queries) GetSetting(ctx context.Context, key string) (string, error) {
 	return value, err
 }
 
+const insertSettingIfAbsent = `-- name: InsertSettingIfAbsent :execrows
+INSERT INTO settings (key, value, updated_at)
+VALUES (?, ?, ?)
+ON CONFLICT(key) DO NOTHING
+`
+
+type InsertSettingIfAbsentParams struct {
+	Key       string
+	Value     string
+	UpdatedAt time.Time
+}
+
+// InsertSettingIfAbsent claims a key: it affects no row when another writer
+// got there first, so a one-time step runs once even across replicas.
+func (q *Queries) InsertSettingIfAbsent(ctx context.Context, arg InsertSettingIfAbsentParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, insertSettingIfAbsent, arg.Key, arg.Value, arg.UpdatedAt)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const upsertSetting = `-- name: UpsertSetting :exec
 INSERT INTO settings (key, value, updated_at)
 VALUES (?, ?, ?)
