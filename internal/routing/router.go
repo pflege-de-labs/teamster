@@ -261,7 +261,12 @@ func ValidateRoute(candidate models.Route, existing []models.Route) error {
 	if candidate.DestinationID != "" && candidate.RecipientID != "" {
 		return fmt.Errorf("a route targets either a channel or a person, not both")
 	}
+	// A root has nothing to inherit a target from, so it delivers nowhere
+	// without one of its own.
 	if candidate.ParentID == "" {
+		if candidate.DestinationID == "" && candidate.RecipientID == "" {
+			return fmt.Errorf("a root route needs a channel or a person to deliver to")
+		}
 		return nil
 	}
 	if candidate.ParentID == candidate.ID {
@@ -281,9 +286,6 @@ func ValidateRoute(candidate models.Route, existing []models.Route) error {
 	if len(candidate.LabelSelector) == 0 {
 		return fmt.Errorf("a child route needs a label selector to refine its parent")
 	}
-	if candidate.DestinationID == "" && candidate.TemplateID == "" && candidate.RecipientID == "" {
-		return fmt.Errorf("a child route that inherits its destination, recipient and template changes nothing")
-	}
 	if candidate.IsDefault {
 		return fmt.Errorf("only a root route can be the default")
 	}
@@ -298,7 +300,32 @@ func ValidateRoute(candidate models.Route, existing []models.Route) error {
 			return fmt.Errorf("route nesting is limited to %d levels", MaxDepth)
 		}
 	}
+
+	// A child that keeps its parent's target only refines how the message
+	// looks, so it has to render with a template of its own.
+	if candidate.DestinationID == "" && candidate.RecipientID == "" {
+		inherited := inheritedTemplate(candidate.ParentID, byID)
+		if candidate.TemplateID == "" || candidate.TemplateID == inherited {
+			return fmt.Errorf("a child route that keeps its parent's target needs a different template")
+		}
+	}
 	return nil
+}
+
+// inheritedTemplate is the template the nearest ancestor from id up sets. The
+// walk is bounded because ValidateRoute has already ruled out a cycle.
+func inheritedTemplate(id string, byID map[string]models.Route) string {
+	for depth := 0; depth <= MaxDepth; depth++ {
+		route, ok := byID[id]
+		if !ok {
+			return ""
+		}
+		if route.TemplateID != "" {
+			return route.TemplateID
+		}
+		id = route.ParentID
+	}
+	return ""
 }
 
 // ValidateDelete keeps a delete from orphaning children, which would silently

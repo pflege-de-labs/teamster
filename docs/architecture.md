@@ -434,10 +434,11 @@ same card, one more channel" is a route with a single field. The walk stops at `
 A route targets **either** a `destination_id` for a Team channel **or** a `recipient_id` for a
 person's chat ([ADR 0047](adr/0047-a-route-targets-a-channel-or-yourself.md)). `ValidateRoute`
 refuses both, and a target a route sets replaces the inherited one of either kind, so a child naming
-a person no longer also posts to its parent's channel. Only a row saved before that rule still names
-both; it fans out to two deliveries, channel first. A route naming neither, inherited or its own,
-delivers nothing at all. Greedy remains one flag per parent: a greedy child suppresses **all** of its
-parent's deliveries.
+a person no longer also posts to its parent's channel. A root route must name a target. A child that
+inherits its target must set a template other than the one it inherits. Only a row saved before
+these rules still names both; it fans out to two deliveries, channel first. A route naming neither,
+inherited or its own, delivers nothing at all. Greedy remains one flag per parent: a greedy child
+suppresses **all** of its parent's deliveries.
 
 `Plan` returns a `Result`: the reason, every root that matched, and one `Delivery` per message with
 its `Kind`, its target and its template resolved. Each `Delivery` already names its own route, root

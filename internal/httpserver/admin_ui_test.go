@@ -170,7 +170,7 @@ func TestFormsCreateAndUpdate(t *testing.T) {
 		{
 			name:       "an empty selector is allowed and stays empty",
 			path:       "/admin/routes",
-			form:       url.Values{"name": {"Default"}, "label_selector": {"  "}, "is_default": {"true"}},
+			form:       url.Values{"name": {"Default"}, "label_selector": {"  "}, "is_default": {"true"}, "target": {"destination:dest"}},
 			wantNotice: "Route created.",
 			check: func(t *testing.T, st *fakeStore) {
 				if len(st.routes["generated"].LabelSelector) != 0 {

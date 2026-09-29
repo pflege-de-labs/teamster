@@ -23,6 +23,10 @@ In practice this went wrong in three ways:
 We will make a route target **either** a channel **or** a person.
 
 * `routing.ValidateRoute` refuses a route that names both. This applies to root and child routes.
+* A root route must name a target. It has no parent to inherit one from, and without one it delivers
+  nowhere.
+* A child that names no target keeps its parent's. Such a child is valid only if it renders with a
+  template other than the one it inherits. With the same template it would change nothing.
 * A target a route sets replaces the inherited target of **both** kinds. A child naming a person
   delivers only to that person; a child naming a channel delivers only to that channel. A child
   naming neither inherits whatever its parent resolved to.
@@ -52,6 +56,9 @@ Alternatives considered:
 
 ## Consequences
 
+* A root route saved without a target, or a child saved with neither a target nor a different
+  template, keeps its current behaviour. It must be fixed before it can be saved again. A bundle
+  carrying one is refused on import, as a cycle already is.
 * A route saved before this change that names both targets keeps delivering to both. `/admin` marks
   it with a badge. Editing it shows the channel, and saving it drops the person.
 * **Delivery changes for existing trees.** A child that names only a person no longer also sends to
