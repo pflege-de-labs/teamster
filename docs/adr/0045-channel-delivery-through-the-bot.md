@@ -1,6 +1,7 @@
 # 0045. Deliver channel messages through the Bot Framework bot
 
-* Status: Accepted
+* Status: Accepted, amended by [0049](0049-a-channel-post-is-one-teams-message.md): a post is
+  one Teams message
 * Date: 2026-09-28
 
 ## Context

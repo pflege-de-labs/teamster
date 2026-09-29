@@ -139,7 +139,7 @@ func (s *Server) teamsV2Message(ctx context.Context, endpoint models.WebhookEndp
 		s.metrics.RenderFailed(ctx, endpoint.TemplateID, metrics.StageRender)
 		return graph.Message{}, fmt.Errorf("render: %w", err)
 	}
-	return channelMessage(rendered), nil
+	return s.channelMessage(rendered), nil
 }
 
 // handleTeamsV2Unknown answers anything under /teamsv2/ that is not a complete
