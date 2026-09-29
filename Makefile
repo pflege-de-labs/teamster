@@ -66,9 +66,13 @@ icons:
 	@for icon in $(SERVED_ICONS); do cp $(ICON_SOURCE)/$$icon internal/httpserver/web/icons/$$icon; done
 	cp $(ICON_SOURCE)/favicon.ico internal/httpserver/web/favicon.ico
 
-# Packages the Teams app catalog upload; see manifest/README.md.
+# Packages the Teams app catalog upload, named by the manifest's version; see manifest/README.md.
 manifest:
-	cd manifest && zip -j teamster-bot.zip manifest.json color.png outline.png
+	@test -f manifest/manifest.json || { echo "manifest/manifest.json missing: copy manifest-template.json and fill it in" >&2; exit 1; }
+	@version=$$(grep -o '"version": *"[^"]*"' manifest/manifest.json | head -1 | cut -d'"' -f4); \
+	test -n "$$version" || { echo "no version in manifest/manifest.json" >&2; exit 1; }; \
+	cd manifest && rm -f teamster-bot-$$version.zip && \
+	zip -j teamster-bot-$$version.zip manifest.json color.png outline.png
 
 # The browser libraries under web/vendor are committed too, and nothing short
 # of a download and a hash proves the bytes are the version manifest.json

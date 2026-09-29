@@ -8,12 +8,13 @@ lives in `config.example.yaml` under `bot:`.
 
 ## What to replace before packaging
 
-`manifest.json` ships with placeholders. Replace all of them:
+The tracked `manifest-template.json` holds placeholders. Copy it to `manifest.json` — gitignored,
+since it carries your organization's ids — and replace all of them there:
 
 | Placeholder | Replace with |
 | --- | --- |
 | `id` | A new GUID you generate once for this app, kept stable across versions. |
-| `bots[0].botId` | The Microsoft App ID (client ID) of the bot's Entra registration — `bot-client-id` in `config.example.yaml`. |
+| `bots[0].botId` | The App ID of the bot registration (see [Registering the bot](#registering-the-bot)) — `bot.client-id` in `config.example.yaml`. |
 | `developer.name` | Your organization's name. |
 | `developer.websiteUrl` | A URL a person can reach for support. |
 | `developer.privacyUrl` | Your privacy statement. |
@@ -57,26 +58,47 @@ magick images/favicons/logo-teamster-1/favicon-256x256.png \
 The `-transparent` color is the badge's own background fill; sample a corner pixel of
 `color.png` again if the badge's background color changes.
 
+## Registering the bot
+
+An Entra app registration alone is not a bot. Teams looks `bots[0].botId` up in the Bot Framework,
+so the app needs a bot registration under that App ID with the Microsoft Teams channel enabled.
+Without one, adding the app to a team fails with "Invalid bot" ("Ungültiger Bot").
+
+The quickest way is the [Teams Developer Portal](https://dev.teams.microsoft.com):
+
+1. Tools → Bot management → New bot. This creates its own Entra app registration and enables the
+   Teams channel.
+2. Configure → Endpoint address: `https://<external host>/bot/messages`, the path teamster
+   receives activities on.
+3. Client secrets → Add a client secret. It is shown once.
+4. Point teamster at that registration: its App ID is `bot.client-id` and the manifest's
+   `bots[0].botId`, the secret goes into `bot.client-secret` (the chart's
+   `credentials.botClientSecret`), and `bot.tenant-id` is your tenant.
+5. Set `bot.tenant-type` to match the registration's "Supported account types" in Entra:
+   `single` for this directory only, `multi` for any directory. A mismatch lets the install
+   succeed and then fails every token request or inbound activity.
+
+To reuse an existing app registration instead, create an Azure Bot resource with "Use existing app
+registration", set its messaging endpoint to the same URL, and enable the Microsoft Teams channel
+under Channels — the Azure resource does not enable it for you.
+
 ## Packaging and uploading
 
 Teams expects a zip containing exactly `manifest.json`, `color.png` and `outline.png` at its root
-— no subdirectory. Unlike the icon commands above, this one runs from inside `manifest/`, so the
-zip holds bare filenames rather than a `manifest/` prefix:
+— no subdirectory. From the top of the checkout:
 
 ```bash
-cd manifest
-zip -j teamster-bot.zip manifest.json color.png outline.png
+make manifest
 ```
 
-`teamster-bot.zip` is a build artifact, not a tracked file — see `.gitignore` — so it is safe to
-rebuild and re-run this command as often as needed.
+builds `manifest/teamster-bot-<version>.zip`, named by the manifest's `version`. It is a build
+artifact, not a tracked file — see `.gitignore` — so it is safe to rebuild as often as needed.
 
-Upload `teamster-bot.zip` through Teams admin center (Teams apps → Manage apps → Upload new app)
-to publish it to the organization's catalog, or through a Teams client's "Upload a custom app"
-option for testing with a single account. Either way the bot registration referenced by
-`bots[0].botId` must already exist in Entra and have a messaging endpoint configured before it can
-post anywhere or anyone can complete the one-time linking code the ADR describes — installing the
-app alone does not link an account.
+Upload the zip through Teams admin center (Teams apps → Manage apps → Upload new app) to publish it
+to the organization's catalog, or through a Teams client's "Upload a custom app" option for testing
+with a single account. Either way the bot must be [registered](#registering-the-bot) first.
+Installing the app alone does not link an account; that takes the one-time linking code the ADR
+describes.
 
 ## Installing it in a team
 
