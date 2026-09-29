@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -235,6 +236,8 @@ func (s *Server) saveTemplate(r *http.Request) (string, error) {
 		Title: r.PostFormValue("title"),
 		Text:  r.PostFormValue("message_text"),
 		Body:  r.PostFormValue("body"),
+		// No box ticked is any source (ADR 0053).
+		Sources: r.PostForm["sources"],
 	}
 	if err := templates.Validate(template); err != nil {
 		return "", userError{err}
@@ -388,6 +391,9 @@ func (s *Server) saveRouteChecked(ctx context.Context, route models.Route) (mode
 		if err := routing.ValidateRoute(route, existing); err != nil {
 			return invalidRoute{err}
 		}
+		if err := routeTemplateHandlesSource(ctx, tx, route, existing); err != nil {
+			return err
+		}
 		if route.ID == "" {
 			saved, err = tx.CreateRoute(ctx, route)
 			return err
@@ -396,6 +402,27 @@ func (s *Server) saveRouteChecked(ctx context.Context, route models.Route) (mode
 		return err
 	})
 	return saved, err
+}
+
+// routeTemplateHandlesSource refuses a route whose selector pins one webhook
+// but whose template is written for others (ADR 0053). A template that no
+// longer exists is left for delivery to report, as it always was.
+func routeTemplateHandlesSource(ctx context.Context, tx store.Store, route models.Route, existing []models.Route) error {
+	source := routing.PinnedSource(route, existing)
+	if source == "" || route.TemplateID == "" {
+		return nil
+	}
+	template, err := tx.GetTemplate(ctx, route.TemplateID)
+	if errors.Is(err, store.ErrNotFound) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if !template.Handles(source) {
+		return invalidRoute{fmt.Errorf("template %q does not handle %s alerts, which is all this route receives", template.Name, source)}
+	}
+	return nil
 }
 
 // deleteRouteChecked is the same bargain for the other direction: a route with

@@ -97,6 +97,11 @@ func TestValidate(t *testing.T) {
 	}{
 		{name: "a whole configuration", mutate: func(*Bundle) {}},
 		{
+			name:    "a template naming an unknown source",
+			mutate:  func(b *Bundle) { b.Templates[0].Sources = []string{"email"} },
+			wantErr: "unknown source",
+		},
+		{
 			name: "two global defaults",
 			mutate: func(b *Bundle) {
 				b.Destinations[0].IsDefault = true

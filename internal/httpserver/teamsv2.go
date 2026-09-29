@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/pflege-de-labs/teamster/internal/graph"
+	"github.com/pflege-de-labs/teamster/internal/logging"
 	"github.com/pflege-de-labs/teamster/internal/metrics"
 	"github.com/pflege-de-labs/teamster/internal/models"
 	"github.com/pflege-de-labs/teamster/internal/store"
@@ -122,6 +123,11 @@ func (s *Server) teamsV2Message(ctx context.Context, endpoint models.WebhookEndp
 	if err != nil {
 		s.metrics.RenderFailed(ctx, endpoint.TemplateID, metrics.StageTemplate)
 		return graph.Message{}, fmt.Errorf("template: %w", err)
+	}
+	if !template.Handles(teamsV2Source) {
+		logging.FromContext(ctx).Warn("template does not handle Teams V2 payloads; sending the payload as given",
+			"template", template.Name, "endpoint", endpoint.ID)
+		return graph.Message{Title: msg.Title, Text: msg.Text, Cards: msg.Cards}, nil
 	}
 	// Parse already accepted the body, so it decodes.
 	var payload any

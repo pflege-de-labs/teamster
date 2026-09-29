@@ -2,6 +2,7 @@ package models
 
 import (
 	"maps"
+	"slices"
 	"testing"
 )
 
@@ -31,5 +32,43 @@ func TestWithSourceLabel(t *testing.T) {
 				t.Errorf("input changed to %v, want it left alone", tt.labels)
 			}
 		})
+	}
+}
+
+func TestNormalizeSources(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		in      []string
+		want    []string
+		wantErr bool
+	}{
+		{name: "none is any", in: nil, want: nil},
+		{name: "ordered and deduplicated", in: []string{SourceTeamsV2, SourceAlertmanager, SourceTeamsV2}, want: []string{SourceAlertmanager, SourceTeamsV2}},
+		{name: "unknown", in: []string{"email"}, wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := NormalizeSources(tt.in)
+			if (err != nil) != tt.wantErr || !slices.Equal(got, tt.want) {
+				t.Errorf("NormalizeSources(%v) = %v, %v, want %v (error %v)", tt.in, got, err, tt.want, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestTemplateHandles(t *testing.T) {
+	t.Parallel()
+
+	if !(Template{}).Handles(SourceTeamsV2) {
+		t.Error("a template without sources should handle any")
+	}
+	only := Template{Sources: []string{SourceAlertmanager}}
+	if !only.Handles(SourceAlertmanager) || only.Handles(SourceUniversal) {
+		t.Errorf("Handles on %v is wrong", only.Sources)
 	}
 }

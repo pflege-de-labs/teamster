@@ -40,11 +40,13 @@ templ selectField(name, label string, options []option, selected string) {
 				<option value="">— none defined yet —</option>
 			}
 			for _, o := range options {
-				if o.Value == selected {
-					<option value={ o.Value } selected>{ o.Label }</option>
-				} else {
-					<option value={ o.Value }>{ o.Label }</option>
-				}
+				<option
+					value={ o.Value }
+					selected?={ o.Value == selected }
+					if o.Sources != "" {
+						data-sources={ o.Sources }
+					}
+				>{ o.Label }</option>
 			}
 		</select>
 	</label>

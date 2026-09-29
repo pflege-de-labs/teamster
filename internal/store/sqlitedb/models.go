@@ -153,6 +153,7 @@ type Template struct {
 	Body        string
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
+	Sources     string
 }
 
 type WebhookEndpoint struct {

@@ -2,7 +2,10 @@ package models
 
 import (
 	"encoding/json"
+	"fmt"
 	"maps"
+	"slices"
+	"strings"
 	"time"
 )
 
@@ -10,13 +13,43 @@ import (
 // previews, Text optional formatted prose, Body the Adaptive Card JSON — and a
 // template needs only one of the three.
 type Template struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	Title     string    `json:"title"`
-	Text      string    `json:"text"`
-	Body      string    `json:"body"`
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Title string `json:"title"`
+	Text  string `json:"text"`
+	Body  string `json:"body"`
+	// Sources are the webhooks whose payloads the template handles; none means
+	// any (ADR 0053).
+	Sources   []string  `json:"sources,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// Handles reports whether the template can render an alert from source.
+func (t Template) Handles(source string) bool {
+	return len(t.Sources) == 0 || slices.Contains(t.Sources, source)
+}
+
+// AllSources lists every value SourceLabel takes, in the order the UI shows them.
+func AllSources() []string {
+	return []string{SourceAlertmanager, SourceUniversal, SourceTeamsV2}
+}
+
+// NormalizeSources orders a template's sources as AllSources does and drops
+// duplicates, refusing a value no webhook sets.
+func NormalizeSources(in []string) ([]string, error) {
+	var out []string
+	for _, source := range AllSources() {
+		if slices.Contains(in, source) {
+			out = append(out, source)
+		}
+	}
+	for _, source := range in {
+		if !slices.Contains(AllSources(), source) {
+			return nil, fmt.Errorf("unknown source %q; want one of %s", source, strings.Join(AllSources(), ", "))
+		}
+	}
+	return out, nil
 }
 
 type Destination struct {

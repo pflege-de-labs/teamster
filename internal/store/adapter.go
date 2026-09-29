@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/pflege-de-labs/teamster/internal/models"
@@ -50,12 +51,18 @@ func (s queryAdapter) CreateTemplate(ctx context.Context, t models.Template) (mo
 	t.CreatedAt = nowUTC()
 	t.UpdatedAt = t.CreatedAt
 
-	err := s.q.CreateTemplate(ctx, sqlitedb.CreateTemplateParams{
+	sources, err := models.NormalizeSources(t.Sources)
+	if err != nil {
+		return models.Template{}, err
+	}
+	t.Sources = sources
+	err = s.q.CreateTemplate(ctx, sqlitedb.CreateTemplateParams{
 		ID:          t.ID,
 		Name:        t.Name,
 		Title:       t.Title,
 		MessageText: t.Text,
 		Body:        t.Body,
+		Sources:     strings.Join(t.Sources, ","),
 		CreatedAt:   t.CreatedAt,
 		UpdatedAt:   t.UpdatedAt,
 	})
@@ -71,11 +78,17 @@ func (s queryAdapter) UpdateTemplate(ctx context.Context, t models.Template) (mo
 	}
 	t.UpdatedAt = nowUTC()
 
-	err := s.q.UpdateTemplate(ctx, sqlitedb.UpdateTemplateParams{
+	sources, err := models.NormalizeSources(t.Sources)
+	if err != nil {
+		return models.Template{}, err
+	}
+	t.Sources = sources
+	err = s.q.UpdateTemplate(ctx, sqlitedb.UpdateTemplateParams{
 		Name:        t.Name,
 		Title:       t.Title,
 		MessageText: t.Text,
 		Body:        t.Body,
+		Sources:     strings.Join(t.Sources, ","),
 		UpdatedAt:   t.UpdatedAt,
 		ID:          t.ID,
 	})
@@ -150,9 +163,18 @@ func templateOf(row sqlitedb.Template) models.Template {
 		Title:     row.Title,
 		Text:      row.MessageText,
 		Body:      row.Body,
+		Sources:   splitSources(row.Sources),
 		CreatedAt: row.CreatedAt,
 		UpdatedAt: row.UpdatedAt,
 	}
+}
+
+// splitSources reads the stored list back; empty is any source (ADR 0053).
+func splitSources(stored string) []string {
+	if stored == "" {
+		return nil
+	}
+	return strings.Split(stored, ",")
 }
 
 func (s queryAdapter) ListDestinations(ctx context.Context) ([]models.Destination, error) {

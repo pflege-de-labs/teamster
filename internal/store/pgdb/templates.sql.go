@@ -11,8 +11,8 @@ import (
 )
 
 const createTemplate = `-- name: CreateTemplate :exec
-INSERT INTO templates (id, name, title, message_text, body, created_at, updated_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+INSERT INTO templates (id, name, title, message_text, body, sources, created_at, updated_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 `
 
 type CreateTemplateParams struct {
@@ -21,6 +21,7 @@ type CreateTemplateParams struct {
 	Title       string
 	MessageText string
 	Body        string
+	Sources     string
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }
@@ -32,6 +33,7 @@ func (q *Queries) CreateTemplate(ctx context.Context, arg CreateTemplateParams) 
 		arg.Title,
 		arg.MessageText,
 		arg.Body,
+		arg.Sources,
 		arg.CreatedAt,
 		arg.UpdatedAt,
 	)
@@ -48,7 +50,7 @@ func (q *Queries) DeleteTemplate(ctx context.Context, id string) error {
 }
 
 const getTemplate = `-- name: GetTemplate :one
-SELECT id, name, title, message_text, body, created_at, updated_at
+SELECT id, name, title, message_text, body, created_at, updated_at, sources
 FROM templates
 WHERE id = $1
 `
@@ -64,13 +66,14 @@ func (q *Queries) GetTemplate(ctx context.Context, id string) (Template, error) 
 		&i.Body,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Sources,
 	)
 	return i, err
 }
 
 const listTemplates = `-- name: ListTemplates :many
 
-SELECT id, name, title, message_text, body, created_at, updated_at
+SELECT id, name, title, message_text, body, created_at, updated_at, sources
 FROM templates
 ORDER BY name
 `
@@ -96,6 +99,7 @@ func (q *Queries) ListTemplates(ctx context.Context) ([]Template, error) {
 			&i.Body,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Sources,
 		); err != nil {
 			return nil, err
 		}
@@ -112,8 +116,8 @@ func (q *Queries) ListTemplates(ctx context.Context) ([]Template, error) {
 
 const updateTemplate = `-- name: UpdateTemplate :exec
 UPDATE templates
-SET name = $1, title = $2, message_text = $3, body = $4, updated_at = $5
-WHERE id = $6
+SET name = $1, title = $2, message_text = $3, body = $4, sources = $5, updated_at = $6
+WHERE id = $7
 `
 
 type UpdateTemplateParams struct {
@@ -121,6 +125,7 @@ type UpdateTemplateParams struct {
 	Title       string
 	MessageText string
 	Body        string
+	Sources     string
 	UpdatedAt   time.Time
 	ID          string
 }
@@ -131,6 +136,7 @@ func (q *Queries) UpdateTemplate(ctx context.Context, arg UpdateTemplateParams) 
 		arg.Title,
 		arg.MessageText,
 		arg.Body,
+		arg.Sources,
 		arg.UpdatedAt,
 		arg.ID,
 	)
