@@ -81,6 +81,7 @@ type Store interface {
 	ListTemplates(ctx context.Context) ([]models.Template, error)
 	CreateTemplate(ctx context.Context, t models.Template) (models.Template, error)
 	UpdateTemplate(ctx context.Context, t models.Template) (models.Template, error)
+	// DeleteTemplate also forgets it as the catch-all's template.
 	DeleteTemplate(ctx context.Context, id string) error
 	GetTemplate(ctx context.Context, id string) (models.Template, error)
 
@@ -94,6 +95,12 @@ type Store interface {
 	GetDefaultDestination(ctx context.Context) (models.Destination, error)
 	// SetDefaultDestination makes id the one global default.
 	SetDefaultDestination(ctx context.Context, id string) error
+	// GetGlobalDefaultTemplate is the template the catch-all route renders
+	// with; "" means the built-in default message (ADR 0050).
+	GetGlobalDefaultTemplate(ctx context.Context) (string, error)
+	// SetGlobalDefaultTemplate chooses it; "" goes back to the built-in one.
+	// ErrNotFound means the template does not exist.
+	SetGlobalDefaultTemplate(ctx context.Context, templateID string) error
 
 	ListRecipients(ctx context.Context) ([]models.Recipient, error)
 	CreateRecipient(ctx context.Context, r models.Recipient) (models.Recipient, error)

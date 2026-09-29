@@ -86,8 +86,48 @@ func (s queryAdapter) UpdateTemplate(ctx context.Context, t models.Template) (mo
 }
 
 func (s queryAdapter) DeleteTemplate(ctx context.Context, id string) error {
+	// A catch-all left naming a deleted template would fail every message it
+	// catches, so it falls back to the built-in one instead.
+	err := s.q.ClearSettingValue(ctx, sqlitedb.ClearSettingValueParams{Key: settingGlobalDefaultTemplate, Value: id})
+	if err != nil {
+		return fmt.Errorf("forget global default template: %w", err)
+	}
 	if err := s.q.DeleteTemplate(ctx, id); err != nil {
 		return fmt.Errorf("delete template: %w", err)
+	}
+	return nil
+}
+
+// settingGlobalDefaultTemplate is the settings key for the catch-all route's
+// template (ADR 0050).
+const settingGlobalDefaultTemplate = "global_default.template_id"
+
+func (s queryAdapter) GetGlobalDefaultTemplate(ctx context.Context) (string, error) {
+	value, err := s.q.GetSetting(ctx, settingGlobalDefaultTemplate)
+	if err != nil {
+		if errors.Is(notFound(err), ErrNotFound) {
+			return "", nil
+		}
+		return "", fmt.Errorf("get global default template: %w", err)
+	}
+	return value, nil
+}
+
+func (s queryAdapter) SetGlobalDefaultTemplate(ctx context.Context, templateID string) error {
+	if templateID == "" {
+		if err := s.q.DeleteSetting(ctx, settingGlobalDefaultTemplate); err != nil {
+			return fmt.Errorf("clear global default template: %w", err)
+		}
+		return nil
+	}
+	if _, err := s.GetTemplate(ctx, templateID); err != nil {
+		return err
+	}
+	err := s.q.UpsertSetting(ctx, sqlitedb.UpsertSettingParams{
+		Key: settingGlobalDefaultTemplate, Value: templateID, UpdatedAt: time.Now().UTC(),
+	})
+	if err != nil {
+		return fmt.Errorf("set global default template: %w", err)
 	}
 	return nil
 }

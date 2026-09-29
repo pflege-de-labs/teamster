@@ -137,13 +137,17 @@ func (r *Router) Plan(ctx context.Context, labels map[string]string) (Result, er
 }
 
 // globalDefault is the last resort: one channel delivery to the global default
-// destination, with no template. Without any destination the answer is
-// fallback, the reason Plan would have given before.
+// destination, with the configured template or none (ADR 0050). Without any
+// destination the answer is fallback, the reason Plan would have given before.
 func (r *Router) globalDefault(ctx context.Context, fallback Reason) (Result, error) {
 	destination, err := r.store.GetDefaultDestination(ctx)
 	if errors.Is(err, store.ErrNotFound) {
 		return Result{Reason: fallback}, nil
 	}
+	if err != nil {
+		return Result{}, err
+	}
+	templateID, err := r.store.GetGlobalDefaultTemplate(ctx)
 	if err != nil {
 		return Result{}, err
 	}
@@ -154,6 +158,7 @@ func (r *Router) globalDefault(ctx context.Context, fallback Reason) (Result, er
 			RouteName:     GlobalDefaultRouteName,
 			Kind:          DeliveryChannel,
 			DestinationID: destination.ID,
+			TemplateID:    templateID,
 			Reason:        ReasonGlobalDefault,
 		}},
 	}, nil

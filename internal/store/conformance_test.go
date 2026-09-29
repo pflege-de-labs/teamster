@@ -250,6 +250,69 @@ func TestConformanceDefaultDestination(t *testing.T) {
 	})
 }
 
+// The catch-all's template is a setting: unset, chosen, refused when the
+// template is missing, and forgotten when its template is deleted (ADR 0050).
+func TestConformanceGlobalDefaultTemplate(t *testing.T) {
+	t.Parallel()
+
+	eachBackend(t, func(t *testing.T, open func(t *testing.T) store.Store) {
+		st := open(t)
+		ctx := t.Context()
+
+		if got, err := st.GetGlobalDefaultTemplate(ctx); err != nil || got != "" {
+			t.Fatalf("GetGlobalDefaultTemplate(unset) = %q, %v, want \"\"", got, err)
+		}
+		if err := st.SetGlobalDefaultTemplate(ctx, "missing"); !errors.Is(err, store.ErrNotFound) {
+			t.Errorf("SetGlobalDefaultTemplate(missing) = %v, want ErrNotFound", err)
+		}
+
+		first, err := st.CreateTemplate(ctx, models.Template{Name: "first", Body: "{}"})
+		if err != nil {
+			t.Fatalf("CreateTemplate: %v", err)
+		}
+		second, err := st.CreateTemplate(ctx, models.Template{Name: "second", Body: "{}"})
+		if err != nil {
+			t.Fatalf("CreateTemplate: %v", err)
+		}
+		for _, id := range []string{first.ID, second.ID} {
+			if err := st.SetGlobalDefaultTemplate(ctx, id); err != nil {
+				t.Fatalf("SetGlobalDefaultTemplate(%s): %v", id, err)
+			}
+		}
+		if got, _ := st.GetGlobalDefaultTemplate(ctx); got != second.ID {
+			t.Errorf("GetGlobalDefaultTemplate = %q, want the last one set", got)
+		}
+
+		// Deleting a template that is not the catch-all's leaves the choice alone.
+		if err := st.DeleteTemplate(ctx, first.ID); err != nil {
+			t.Fatalf("DeleteTemplate(first): %v", err)
+		}
+		if got, _ := st.GetGlobalDefaultTemplate(ctx); got != second.ID {
+			t.Errorf("after deleting another template = %q, want %q", got, second.ID)
+		}
+		if err := st.DeleteTemplate(ctx, second.ID); err != nil {
+			t.Fatalf("DeleteTemplate(second): %v", err)
+		}
+		if got, _ := st.GetGlobalDefaultTemplate(ctx); got != "" {
+			t.Errorf("after deleting its template = %q, want the built-in default", got)
+		}
+
+		third, err := st.CreateTemplate(ctx, models.Template{Name: "third", Body: "{}"})
+		if err != nil {
+			t.Fatalf("CreateTemplate: %v", err)
+		}
+		if err := st.SetGlobalDefaultTemplate(ctx, third.ID); err != nil {
+			t.Fatalf("SetGlobalDefaultTemplate: %v", err)
+		}
+		if err := st.SetGlobalDefaultTemplate(ctx, ""); err != nil {
+			t.Fatalf("SetGlobalDefaultTemplate(\"\"): %v", err)
+		}
+		if got, _ := st.GetGlobalDefaultTemplate(ctx); got != "" {
+			t.Errorf("after clearing = %q, want \"\"", got)
+		}
+	})
+}
+
 func TestConformanceGrantScopeIsUnique(t *testing.T) {
 	t.Parallel()
 
