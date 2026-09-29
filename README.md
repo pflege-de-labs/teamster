@@ -592,8 +592,36 @@ and **Teams V2 webhook**. Leave all unticked for any.
 
 - A Teams V2 endpoint only offers templates that handle Teams V2 payloads.
 - A route whose selector pins `teamster_source` only offers templates for that webhook.
-- An alert that reaches a template not written for its webhook gets the built-in message instead,
-  and a warning is logged.
+- An alert that reaches a template not written for its webhook gets its webhook's default template
+  instead, or the built-in message when there is none, and a warning is logged.
+
+### Default templates
+
+Each webhook has a **default template**: what a message from it renders with when its route (or
+Teams V2 endpoint) names no template that handles it. Choose them under **Default template per
+webhook** in the templates panel, or with `GET`/`PUT /api/templates/source-defaults`:
+
+```json
+{"templates": {"alertmanager": "<template id>", "universal": "<template id>", "teamsv2": ""}}
+```
+
+An empty id is the built-in message. Only a template that handles the webhook can be its default.
+
+On its first start, teamster stores three presets and makes each the default of its webhook, unless
+that webhook already has a default:
+
+| Preset | Renders |
+| --- | --- |
+| Alertmanager (default) | A status-coloured card: summary, severity, description, labels, start and end, and links to the generator URL and a `runbook_url` annotation |
+| Universal webhook (default) | The sender's own card or text when it sent one, otherwise the same alert card |
+| Teams V2 webhook (default) | The payload's card, a MessageCard converted to one, or its text alone |
+
+They are ordinary templates: edit or delete them freely. A deleted preset is not recreated. The
+same presets are under **Start from a preset** in the template editor, which fills the name, title,
+text, card and webhooks in one go.
+
+A card body that renders to nothing sends no card rather than failing, as
+`{{ if .Alert.Card }}…{{ end }}` does for a payload without a card.
 
 A template is three optional parts, and needs at least one of them:
 
@@ -633,6 +661,7 @@ Templates receive:
 
 - `Alert` (normalized alert payload)
 - `Now` (RFC3339 string)
+- `Payload` (the request body as decoded JSON; Teams V2 only)
 
 Helper functions:
 

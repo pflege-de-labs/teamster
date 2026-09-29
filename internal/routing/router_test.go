@@ -65,6 +65,22 @@ func (s stubStore) GetGlobalDefaultTemplate(ctx context.Context) (string, error)
 	return s.template, nil
 }
 
+func (s stubStore) GetSourceDefaultTemplate(ctx context.Context, source string) (string, error) {
+	return "", nil
+}
+
+func (s stubStore) SourceDefaultTemplates(ctx context.Context) (map[string]string, error) {
+	return nil, nil
+}
+
+func (s stubStore) SetSourceDefaultTemplate(ctx context.Context, source, templateID string) error {
+	return nil
+}
+
+func (s stubStore) SeedTemplates(ctx context.Context, templates []models.Template) (bool, error) {
+	return false, nil
+}
+
 func (s stubStore) SetGlobalDefaultTemplate(ctx context.Context, templateID string) error {
 	return store.ErrNotFound
 }

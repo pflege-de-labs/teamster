@@ -44,6 +44,9 @@ type fakeStore struct {
 	samples      []models.AlertSample
 	// globalDefaultTemplate is the catch-all's template; "" is the built-in one.
 	globalDefaultTemplate string
+	// sourceDefaults maps a source to its default template.
+	sourceDefaults map[string]string
+	seeded         bool
 
 	failOn map[string]bool
 
@@ -57,15 +60,16 @@ type fakeStore struct {
 
 func newFakeStore() *fakeStore {
 	return &fakeStore{
-		templates:    map[string]models.Template{},
-		destinations: map[string]models.Destination{},
-		recipients:   map[string]models.Recipient{},
-		webhooks:     map[string]models.WebhookEndpoint{},
-		accessTokens: map[string]models.AccessToken{},
-		botTeams:     map[string]models.BotTeam{},
-		routes:       map[string]models.Route{},
-		activeAlerts: map[string]models.ActiveAlert{},
-		activeChats:  map[string]models.ActiveAlertRecipient{},
+		templates:      map[string]models.Template{},
+		sourceDefaults: map[string]string{},
+		destinations:   map[string]models.Destination{},
+		recipients:     map[string]models.Recipient{},
+		webhooks:       map[string]models.WebhookEndpoint{},
+		accessTokens:   map[string]models.AccessToken{},
+		botTeams:       map[string]models.BotTeam{},
+		routes:         map[string]models.Route{},
+		activeAlerts:   map[string]models.ActiveAlert{},
+		activeChats:    map[string]models.ActiveAlertRecipient{},
 		sessions: map[string]models.Session{
 			// Seeded so the request helpers can act as a signed-in operator; a
 			// test that cares about being signed out builds its own request.
@@ -153,7 +157,76 @@ func (f *fakeStore) DeleteTemplate(ctx context.Context, id string) error {
 	if f.globalDefaultTemplate == id {
 		f.globalDefaultTemplate = ""
 	}
+	for source, templateID := range f.sourceDefaults {
+		if templateID == id {
+			delete(f.sourceDefaults, source)
+		}
+	}
 	return nil
+}
+
+func (f *fakeStore) GetSourceDefaultTemplate(ctx context.Context, source string) (string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("GetSourceDefaultTemplate"); err != nil {
+		return "", err
+	}
+	return f.sourceDefaults[source], nil
+}
+
+func (f *fakeStore) SourceDefaultTemplates(ctx context.Context) (map[string]string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("SourceDefaultTemplates"); err != nil {
+		return nil, err
+	}
+	return maps.Clone(f.sourceDefaults), nil
+}
+
+func (f *fakeStore) SetSourceDefaultTemplate(ctx context.Context, source, templateID string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("SetSourceDefaultTemplate"); err != nil {
+		return err
+	}
+	if _, err := models.NormalizeSources([]string{source}); err != nil {
+		return err
+	}
+	if templateID == "" {
+		delete(f.sourceDefaults, source)
+		return nil
+	}
+	t, ok := f.templates[templateID]
+	if !ok {
+		return store.ErrNotFound
+	}
+	if !t.Handles(source) {
+		return store.ErrTemplateSource
+	}
+	f.sourceDefaults[source] = templateID
+	return nil
+}
+
+func (f *fakeStore) SeedTemplates(ctx context.Context, templates []models.Template) (bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("SeedTemplates"); err != nil {
+		return false, err
+	}
+	if f.seeded {
+		return false, nil
+	}
+	f.seeded = true
+	for i, t := range templates {
+		if t.ID == "" {
+			t.ID = fmt.Sprintf("seeded-%d", i)
+		}
+		f.templates[t.ID] = t
+		if len(t.Sources) == 1 && f.sourceDefaults[t.Sources[0]] == "" {
+			f.sourceDefaults[t.Sources[0]] = t.ID
+		}
+	}
+	return true, nil
 }
 
 func (f *fakeStore) GetGlobalDefaultTemplate(ctx context.Context) (string, error) {
@@ -941,6 +1014,8 @@ func (f *fakeStore) WithTx(ctx context.Context, fn func(context.Context, store.S
 		failOn:       maps.Clone(f.failOn),
 
 		globalDefaultTemplate: f.globalDefaultTemplate,
+		sourceDefaults:        maps.Clone(f.sourceDefaults),
+		seeded:                f.seeded,
 		subjectLookupDelay:    f.subjectLookupDelay,
 	}
 	f.mu.Unlock()
@@ -956,6 +1031,7 @@ func (f *fakeStore) WithTx(ctx context.Context, fn func(context.Context, store.S
 	f.activeChats = snapshot.activeChats
 	f.sessions, f.loginFlows, f.linkFlows = snapshot.sessions, snapshot.loginFlows, snapshot.linkFlows
 	f.globalDefaultTemplate = snapshot.globalDefaultTemplate
+	f.sourceDefaults, f.seeded = snapshot.sourceDefaults, snapshot.seeded
 	return nil
 }
 
@@ -987,6 +1063,8 @@ func (f *fakeStore) WithSerializableTx(ctx context.Context, fn func(context.Cont
 		failOn:       maps.Clone(f.failOn),
 
 		globalDefaultTemplate: f.globalDefaultTemplate,
+		sourceDefaults:        maps.Clone(f.sourceDefaults),
+		seeded:                f.seeded,
 		subjectLookupDelay:    f.subjectLookupDelay,
 	}
 
@@ -999,6 +1077,7 @@ func (f *fakeStore) WithSerializableTx(ctx context.Context, fn func(context.Cont
 	f.activeChats = snapshot.activeChats
 	f.sessions, f.loginFlows, f.linkFlows = snapshot.sessions, snapshot.loginFlows, snapshot.linkFlows
 	f.globalDefaultTemplate = snapshot.globalDefaultTemplate
+	f.sourceDefaults, f.seeded = snapshot.sourceDefaults, snapshot.seeded
 	return nil
 }
 

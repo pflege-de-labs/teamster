@@ -7,6 +7,7 @@ package transfer
 import (
 	"context"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/pflege-de-labs/teamster/internal/models"
@@ -30,6 +31,9 @@ type Bundle struct {
 	// GlobalDefaultTemplateID is the catch-all route's template (ADR 0050);
 	// empty is the built-in default message.
 	GlobalDefaultTemplateID string `json:"global_default_template_id,omitempty"`
+	// SourceDefaultTemplateIDs maps a webhook source to its default template
+	// (ADR 0055); a source missing from it has the built-in message.
+	SourceDefaultTemplateIDs map[string]string `json:"source_default_template_ids,omitempty"`
 }
 
 // A BundleDestination is a destination with the Team and channel names beside
@@ -84,6 +88,13 @@ func Export(ctx context.Context, st store.Store, directory Directory) (Bundle, e
 	if err != nil {
 		return Bundle{}, fmt.Errorf("global default template: %w", err)
 	}
+	sourceDefaults, err := st.SourceDefaultTemplates(ctx)
+	if err != nil {
+		return Bundle{}, fmt.Errorf("source default templates: %w", err)
+	}
+	if len(sourceDefaults) == 0 {
+		sourceDefaults = nil
+	}
 
 	bundle := Bundle{
 		Version:      Version,
@@ -93,7 +104,8 @@ func Export(ctx context.Context, st store.Store, directory Directory) (Bundle, e
 		Routes:       emptyWhenNil(routes),
 		Grants:       emptyWhenNil(grants),
 
-		GlobalDefaultTemplateID: catchAll,
+		GlobalDefaultTemplateID:  catchAll,
+		SourceDefaultTemplateIDs: sourceDefaults,
 	}
 
 	for _, destination := range destinations {
@@ -196,6 +208,18 @@ func (b Bundle) Validate() error {
 
 	if b.GlobalDefaultTemplateID != "" && !templates[b.GlobalDefaultTemplateID] {
 		return fmt.Errorf("the global default renders with template %q, which the bundle does not carry", b.GlobalDefaultTemplateID)
+	}
+	for source, id := range b.SourceDefaultTemplateIDs {
+		if _, err := models.NormalizeSources([]string{source}); err != nil {
+			return fmt.Errorf("source default: %w", err)
+		}
+		i := slices.IndexFunc(b.Templates, func(t models.Template) bool { return t.ID == id })
+		if i < 0 {
+			return fmt.Errorf("the %s default renders with template %q, which the bundle does not carry", source, id)
+		}
+		if !b.Templates[i].Handles(source) {
+			return fmt.Errorf("the %s default renders with template %q, which does not handle %s", source, id, source)
+		}
 	}
 
 	grants := map[string]bool{}

@@ -106,6 +106,42 @@
     });
   }
 
+  // A preset fills every field at once, so it asks once before replacing any
+  // of them, and previews against a sample from the webhook it was written for.
+  const preset = document.getElementById("template-preset");
+  if (preset) {
+    preset.addEventListener("change", () => {
+      const option = preset.selectedOptions[0];
+      if (!option || !option.dataset.preset) return;
+      const chosen = JSON.parse(option.dataset.preset);
+      const fields = { title: chosen.title, message_text: chosen.text, body: chosen.body };
+      const typed = Object.keys(fields).some((name) => {
+        const field = form.querySelector('[name="' + name + '"]');
+        return field && field.value.trim() !== "";
+      });
+      if (typed && !window.confirm(preset.dataset.confirm || "Replace the template with the preset?")) {
+        preset.value = "";
+        return;
+      }
+      const name = form.querySelector('[name="name"]');
+      if (name && name.value.trim() === "") name.value = chosen.name || "";
+      Object.entries(fields).forEach(([key, value]) => {
+        const field = form.querySelector('[name="' + key + '"]');
+        if (!field) return;
+        field.value = value || "";
+        field.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+      form.querySelectorAll('input[name="sources"]').forEach((box) => {
+        box.checked = (chosen.sources || []).includes(box.value);
+      });
+      if (sample && [...sample.options].some((o) => o.value === chosen.key)) {
+        sample.value = chosen.key;
+        sample.dispatchEvent(new Event("change"));
+      }
+      preset.value = "";
+    });
+  }
+
   // Previewing as you type, debounced: the render is a round trip to the
   // server, and one per keystroke would be a request per keystroke.
   const live = document.getElementById("preview-live");

@@ -150,8 +150,8 @@ func (s *PostgresStore) SetDefaultDestination(ctx context.Context, id string) er
 	})
 }
 
-// DeleteTemplate and SetGlobalDefaultTemplate override queryAdapter's so the
-// catch-all can never be left naming a template that is gone.
+// DeleteTemplate, SetGlobalDefaultTemplate and SetSourceDefaultTemplate
+// override queryAdapter's so no default is ever left naming a template that is gone.
 func (s *PostgresStore) DeleteTemplate(ctx context.Context, id string) error {
 	return s.WithTx(ctx, func(ctx context.Context, tx Store) error {
 		return tx.DeleteTemplate(ctx, id)
@@ -162,6 +162,24 @@ func (s *PostgresStore) SetGlobalDefaultTemplate(ctx context.Context, templateID
 	return s.WithTx(ctx, func(ctx context.Context, tx Store) error {
 		return tx.SetGlobalDefaultTemplate(ctx, templateID)
 	})
+}
+
+func (s *PostgresStore) SetSourceDefaultTemplate(ctx context.Context, source, templateID string) error {
+	return s.WithTx(ctx, func(ctx context.Context, tx Store) error {
+		return tx.SetSourceDefaultTemplate(ctx, source, templateID)
+	})
+}
+
+// SeedTemplates overrides queryAdapter's so the claim and the templates it
+// guards land together: a failed seed can be retried on the next start.
+func (s *PostgresStore) SeedTemplates(ctx context.Context, templates []models.Template) (bool, error) {
+	var seeded bool
+	err := s.WithTx(ctx, func(ctx context.Context, tx Store) error {
+		var err error
+		seeded, err = tx.SeedTemplates(ctx, templates)
+		return err
+	})
+	return seeded, err
 }
 
 // RecordAlertSamples overrides queryAdapter's to commit the batch at once.

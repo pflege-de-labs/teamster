@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -352,5 +353,39 @@ func TestWebhookTokenWarning(t *testing.T) {
 				t.Errorf("webhookTokenWarning() = %q, want a warning: %v", got, tt.wantWarning)
 			}
 		})
+	}
+}
+
+// A new installation starts with one default template per webhook, once.
+func TestSeedPresets(t *testing.T) {
+	t.Parallel()
+
+	cfg := validConfig(t)
+	st, err := store.Open(t.Context(), storeOptions(cfg, store.MigrateAuto))
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	t.Cleanup(func() { _ = st.Close() })
+	logger := slog.New(slog.DiscardHandler)
+
+	for range 2 {
+		if err := seedPresets(t.Context(), logger, st); err != nil {
+			t.Fatalf("seedPresets: %v", err)
+		}
+	}
+	templates, _ := st.ListTemplates(t.Context())
+	if len(templates) != len(models.AllSources()) {
+		t.Errorf("templates = %d, want one per source", len(templates))
+	}
+	defaults, _ := st.SourceDefaultTemplates(t.Context())
+	for _, source := range models.AllSources() {
+		if defaults[source] == "" {
+			t.Errorf("%s has no default after seeding", source)
+		}
+	}
+
+	_ = st.Close()
+	if err := seedPresets(t.Context(), logger, st); err == nil {
+		t.Error("seedPresets on a closed store reported no error")
 	}
 }

@@ -108,26 +108,23 @@ func (s *Server) handleTeamsV2(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
-// teamsV2Message is what an endpoint posts: its template rendered against the
-// parsed payload, or the payload itself followed by the hint card.
+// teamsV2Message is what an endpoint posts: its template, or failing that the
+// teamsv2 default, rendered against the parsed payload; or else the payload
+// itself, followed by the hint card when the endpoint names no template.
 func (s *Server) teamsV2Message(ctx context.Context, endpoint models.WebhookEndpoint, body []byte, msg teamsv2.Message) (graph.Message, error) {
-	if endpoint.TemplateID == "" {
+	template, found, err := s.endpointTemplate(ctx, endpoint)
+	if err != nil {
+		return graph.Message{}, err
+	}
+	if !found {
+		if endpoint.TemplateID != "" {
+			return graph.Message{Title: msg.Title, Text: msg.Text, Cards: msg.Cards}, nil
+		}
 		hint, err := templates.HintCard(s.cfg.Server.ExternalURL, "/admin?edit=webhooks&id="+url.QueryEscape(endpoint.ID)+"#webhooks")
 		if err != nil {
 			return graph.Message{}, fmt.Errorf("hint: %w", err)
 		}
 		return graph.Message{Title: msg.Title, Text: msg.Text, Cards: append(msg.Cards, hint)}, nil
-	}
-
-	template, err := s.store.GetTemplate(ctx, endpoint.TemplateID)
-	if err != nil {
-		s.metrics.RenderFailed(ctx, endpoint.TemplateID, metrics.StageTemplate)
-		return graph.Message{}, fmt.Errorf("template: %w", err)
-	}
-	if !template.Handles(teamsV2Source) {
-		logging.FromContext(ctx).Warn("template does not handle Teams V2 payloads; sending the payload as given",
-			"template", template.Name, "endpoint", endpoint.ID)
-		return graph.Message{Title: msg.Title, Text: msg.Text, Cards: msg.Cards}, nil
 	}
 	// Parse already accepted the body, so it decodes.
 	var payload any
@@ -143,10 +140,28 @@ func (s *Server) teamsV2Message(ctx context.Context, endpoint models.WebhookEndp
 		Payload: payload,
 	})
 	if err != nil {
-		s.metrics.RenderFailed(ctx, endpoint.TemplateID, metrics.StageRender)
+		s.metrics.RenderFailed(ctx, template.ID, metrics.StageRender)
 		return graph.Message{}, fmt.Errorf("render: %w", err)
 	}
 	return s.channelMessage(rendered), nil
+}
+
+// endpointTemplate is the endpoint's own template when it handles Teams V2
+// payloads, and the teamsv2 default otherwise (ADR 0055).
+func (s *Server) endpointTemplate(ctx context.Context, endpoint models.WebhookEndpoint) (models.Template, bool, error) {
+	if endpoint.TemplateID != "" {
+		template, err := s.store.GetTemplate(ctx, endpoint.TemplateID)
+		if err != nil {
+			s.metrics.RenderFailed(ctx, endpoint.TemplateID, metrics.StageTemplate)
+			return models.Template{}, false, fmt.Errorf("template: %w", err)
+		}
+		if template.Handles(teamsV2Source) {
+			return template, true, nil
+		}
+		logging.FromContext(ctx).Warn("template does not handle Teams V2 payloads; using the teamsv2 default",
+			"template", template.Name, "endpoint", endpoint.ID)
+	}
+	return s.sourceDefaultTemplate(ctx, teamsV2Source)
 }
 
 // handleTeamsV2Unknown answers anything under /teamsv2/ that is not a complete

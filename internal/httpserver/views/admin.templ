@@ -27,6 +27,7 @@ templ templates(page Page) {
 					if page.EditTemplate != nil {
 						<input type="hidden" name="id" value={ page.EditTemplate.ID }/>
 					}
+					@presetPicker(page)
 					@textField("name", i18n.T(ctx, "templates.name"), i18n.T(ctx, "templates.name_placeholder"), page.editingTemplate().Name)
 					<fieldset>
 						<legend class="text-sm font-medium">{ i18n.T(ctx, "templates.sources") }</legend>
@@ -90,7 +91,12 @@ templ templates(page Page) {
 					for _, t := range page.Templates {
 						<li class="flex items-center justify-between gap-4 py-3">
 							<div class="min-w-0">
-								<div class="truncate font-medium">{ t.Name }</div>
+								<div class="flex items-center gap-2">
+									<span class="truncate font-medium">{ t.Name }</span>
+									if names := page.defaultFor(ctx, t.ID); names != "" {
+										<span class="shrink-0 rounded bg-sky-100 px-1.5 py-0.5 text-xs font-medium text-sky-800">{ i18n.T(ctx, "templates.default_for", names) }</span>
+									}
+								</div>
 								<div class="truncate text-xs text-slate-500">
 									{ templateShape(ctx, t) } · { sourcesText(ctx, t) } · { i18n.T(ctx, "templates.updated", t.UpdatedAt.Format("2006-01-02 15:04")) }
 								</div>
@@ -106,7 +112,59 @@ templ templates(page Page) {
 				</ul>
 			}
 		</div>
+		@sourceDefaults(page)
 	}
+}
+
+// Each webhook's default renders every message from it that its route or
+// endpoint does not (ADR 0055).
+templ sourceDefaults(page Page) {
+	<div class="space-y-2 lg:col-span-2" id="source-defaults">
+		<h3 class="text-sm font-semibold">{ i18n.T(ctx, "templates.source_defaults") }</h3>
+		<p class="text-xs text-slate-500">{ i18n.T(ctx, "templates.source_defaults_hint") }</p>
+		if page.CanEdit {
+			<form method="post" action="/admin/templates/source-defaults" class="grid items-end gap-3 sm:grid-cols-4">
+				for _, source := range sourceOptions(ctx) {
+					@selectField("template_"+source.Value, source.Label, sourceDefaultOptions(ctx, page, source.Value), page.SourceDefaults[source.Value])
+				}
+				<div>
+					@submit(i18n.T(ctx, "templates.source_defaults_save"))
+				</div>
+			</form>
+		} else {
+			<ul class="text-sm">
+				for _, source := range sourceOptions(ctx) {
+					<li>
+						{ source.Label }:
+						if id := page.SourceDefaults[source.Value]; id != "" {
+							{ page.templateName(id) }
+						} else {
+							<span class="italic">{ i18n.T(ctx, "templates.source_default_builtin") }</span>
+						}
+					</li>
+				}
+			</ul>
+		}
+	</div>
+}
+
+// A preset fills the whole form, so it is chosen before anything is typed;
+// preview.js asks before it overwrites what has been.
+templ presetPicker(page Page) {
+	<label class="block">
+		<span class="text-sm font-medium">{ i18n.T(ctx, "templates.preset") }</span>
+		<select
+			id="template-preset"
+			title={ i18n.T(ctx, "templates.preset_help") }
+			data-confirm={ i18n.T(ctx, "templates.preset_confirm") }
+			class="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-sky-500 focus:outline-none"
+		>
+			<option value="">{ i18n.T(ctx, "templates.preset_none") }</option>
+			for _, preset := range page.Presets {
+				<option value={ preset.Key } data-preset={ presetJSON(preset) }>{ i18n.T(ctx, preset.LabelKey) }</option>
+			}
+		</select>
+	</label>
 }
 
 templ destinations(page Page) {

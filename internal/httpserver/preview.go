@@ -58,7 +58,7 @@ func (s *Server) handlePreview(w http.ResponseWriter, r *http.Request) {
 }
 
 func previewSamples() []string {
-	return []string{"firing", "resolved", "message", teamsV2Source}
+	return []string{models.SourceAlertmanager, "firing", "resolved", "message", teamsV2Source}
 }
 
 // previewTeamsV2Body is what a Teams V2 sender posts, for previewing a
@@ -105,6 +105,22 @@ func previewAlert(name string) models.Alert {
 	}
 
 	switch name {
+	case models.SourceAlertmanager:
+		// What processAlert makes of one entry of an Alertmanager group.
+		alert.Source = models.SourceAlertmanager
+		alert.Labels = map[string]string{
+			"alertname":        "HighCPU",
+			"severity":         "critical",
+			"service":          "api",
+			models.SourceLabel: models.SourceAlertmanager,
+		}
+		alert.Annotations = map[string]string{
+			"summary":     "CPU usage is above 90%",
+			"description": "api service is spiking CPU",
+		}
+		alert.Generator = "http://prometheus.example/rule"
+		alert.Fingerprint = "9f9f5f4a1f"
+		return alert
 	case "resolved":
 		alert.Status = "resolved"
 		alert.EndsAt = time.Date(2026, 2, 9, 10, 30, 0, 0, time.UTC)

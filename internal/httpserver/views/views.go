@@ -88,8 +88,10 @@ type Page struct {
 	// GlobalDefaultTemplateID is what the catch-all renders with; "" is the
 	// built-in default message (ADR 0050).
 	GlobalDefaultTemplateID string
-	Notice                  string
-	Error                   string
+	// SourceDefaults maps a webhook source to its default template (ADR 0055).
+	SourceDefaults map[string]string
+	Notice         string
+	Error          string
 
 	// Sample alerts the preview can render the template against.
 	PreviewSamples []string
@@ -97,6 +99,8 @@ type Page struct {
 	// Snippets and Starter are what the card palette inserts.
 	Snippets []cards.Snippet
 	Starter  string
+	// Presets are the whole templates a new one can start from.
+	Presets []cards.Preset
 
 	// Vocabulary is what the template editor completes inside {{ }}.
 	Vocabulary render.Vocabulary
@@ -412,6 +416,38 @@ func globalDefaultTemplateOptions(ctx context.Context, p Page) []option {
 	out := make([]option, 0, len(p.Templates)+1)
 	out = append(out, option{Value: "", Label: i18n.T(ctx, "routes.global_default_builtin")})
 	return append(out, templateOptions(p)...)
+}
+
+// sourceDefaultOptions offers the templates that handle source, after the
+// built-in message a source without a default sends.
+func sourceDefaultOptions(ctx context.Context, p Page, source string) []option {
+	out := []option{{Value: "", Label: i18n.T(ctx, "templates.source_default_builtin")}}
+	for _, t := range p.Templates {
+		if t.Handles(source) {
+			out = append(out, option{Value: t.ID, Label: t.Name})
+		}
+	}
+	return out
+}
+
+// defaultFor lists the sources a template is the default of, for the list's badge.
+func (p Page) defaultFor(ctx context.Context, id string) string {
+	var names []string
+	for _, source := range models.AllSources() {
+		if p.SourceDefaults[source] == id {
+			names = append(names, i18n.T(ctx, "source."+source))
+		}
+	}
+	return strings.Join(names, ", ")
+}
+
+// presetJSON is a preset as the editor script reads it.
+func presetJSON(p cards.Preset) string {
+	b, err := json.Marshal(p)
+	if err != nil {
+		return "{}"
+	}
+	return string(b)
 }
 
 // webhookTemplateOptions offers only the templates that handle a Teams V2

@@ -534,11 +534,17 @@ func deliveriesOfKind(plan []routing.Delivery, kind routing.DeliveryKind) []rout
 // has one, so a client accidentally sending a blank Title cannot silently
 // blank out a working template. A payload with nothing direct to send gets
 // the built-in default, and every untemplated message carries the hint card
-// (ADR 0039).
+// (ADR 0039). Between the two sits the source's default template (ADR 0055).
 func (s *Server) renderMessage(ctx context.Context, alert models.Alert, delivery routing.Delivery) (templates.Message, error) {
-	if delivery.TemplateID == "" {
+	template, found, err := s.deliveryTemplate(ctx, alert, delivery)
+	if err != nil {
+		return templates.Message{}, err
+	}
+	if !found {
 		msg, err := untemplatedMessage(alert)
-		if err == nil {
+		// A route whose template names other sources has one; saying there is
+		// none would send somebody to create a second.
+		if err == nil && delivery.TemplateID == "" {
 			msg.Notice, err = templates.HintCard(s.cfg.Server.ExternalURL, templatesPanelPath)
 		}
 		if err != nil {
@@ -548,28 +554,60 @@ func (s *Server) renderMessage(ctx context.Context, alert models.Alert, delivery
 		return msg, nil
 	}
 
-	template, err := s.store.GetTemplate(ctx, delivery.TemplateID)
-	if err != nil {
-		s.metrics.RenderFailed(ctx, delivery.TemplateID, metrics.StageTemplate)
-		return templates.Message{}, fmt.Errorf("template: %w", err)
-	}
-	// A template written for another webhook's payload would render it wrong
-	// or not at all; the built-in message loses nothing (ADR 0053).
-	if !template.Handles(alert.Source) {
-		logging.FromContext(ctx).Warn("template does not handle this source; sending the built-in message",
-			"template", template.Name, "source", alert.Source, "route", delivery.RouteName)
-		return untemplatedMessage(alert)
-	}
-
 	rendered, err := templates.RenderMessage(template, templates.RenderData{
 		Alert: alert,
 		Now:   time.Now().UTC().Format(time.RFC3339),
 	})
 	if err != nil {
-		s.metrics.RenderFailed(ctx, delivery.TemplateID, metrics.StageRender)
+		s.metrics.RenderFailed(ctx, template.ID, metrics.StageRender)
 		return templates.Message{}, fmt.Errorf("render: %w", err)
 	}
 	return rendered, nil
+}
+
+// deliveryTemplate is the template a delivery renders with: the route's own
+// when it handles the alert's source, otherwise that source's default (ADR
+// 0055). found is false when neither exists.
+func (s *Server) deliveryTemplate(ctx context.Context, alert models.Alert, delivery routing.Delivery) (models.Template, bool, error) {
+	if delivery.TemplateID != "" {
+		template, err := s.store.GetTemplate(ctx, delivery.TemplateID)
+		if err != nil {
+			s.metrics.RenderFailed(ctx, delivery.TemplateID, metrics.StageTemplate)
+			return models.Template{}, false, fmt.Errorf("template: %w", err)
+		}
+		if template.Handles(alert.Source) {
+			return template, true, nil
+		}
+		// A template written for another webhook's payload would render it
+		// wrong or not at all (ADR 0053).
+		logging.FromContext(ctx).Warn("template does not handle this source; using the source's default",
+			"template", template.Name, "source", alert.Source, "route", delivery.RouteName)
+	}
+	return s.sourceDefaultTemplate(ctx, alert.Source)
+}
+
+// sourceDefaultTemplate is the template chosen for every message from source
+// that nothing more specific renders. A default that has since stopped
+// handling its source is passed over rather than trusted.
+func (s *Server) sourceDefaultTemplate(ctx context.Context, source string) (models.Template, bool, error) {
+	id, err := s.store.GetSourceDefaultTemplate(ctx, source)
+	if err != nil {
+		s.metrics.RenderFailed(ctx, "", metrics.StageTemplate)
+		return models.Template{}, false, fmt.Errorf("source default template: %w", err)
+	}
+	if id == "" {
+		return models.Template{}, false, nil
+	}
+	template, err := s.store.GetTemplate(ctx, id)
+	if err != nil {
+		s.metrics.RenderFailed(ctx, id, metrics.StageTemplate)
+		return models.Template{}, false, fmt.Errorf("source default template: %w", err)
+	}
+	if !template.Handles(source) {
+		logging.FromContext(ctx).Warn("source default template no longer handles its source", "template", template.Name, "source", source)
+		return models.Template{}, false, nil
+	}
+	return template, true, nil
 }
 
 // templatesPanelPath is where the hint card sends someone to create a template.

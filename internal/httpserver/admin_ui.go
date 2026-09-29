@@ -51,6 +51,7 @@ func (s *Server) adminPage(r *http.Request, notice, errText string) views.Page {
 		PreviewSamples:  previewSamples(),
 		Snippets:        cards.Snippets(),
 		Starter:         cards.Starter,
+		Presets:         cards.Presets(),
 		Vocabulary:      templates.EditorVocabulary(),
 		Viewer:          s.viewerFor(r),
 		CanEdit:         s.authz.Allow(principalSubject(r), roles, authz.ActionEdit, authz.Resource{Type: "Template"}),
@@ -82,6 +83,9 @@ func (s *Server) adminPage(r *http.Request, notice, errText string) views.Page {
 		page.Error = failureText(ctx, "load admin page", err)
 	}
 	if page.GlobalDefaultTemplateID, err = s.store.GetGlobalDefaultTemplate(ctx); err != nil {
+		page.Error = failureText(ctx, "load admin page", err)
+	}
+	if page.SourceDefaults, err = s.store.SourceDefaultTemplates(ctx); err != nil {
 		page.Error = failureText(ctx, "load admin page", err)
 	}
 	if page.WebhookEndpoints, err = s.store.ListWebhookEndpoints(ctx); err != nil {

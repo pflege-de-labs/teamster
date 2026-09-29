@@ -136,6 +136,9 @@ type Querier interface {
 	// only lookup a sender can reach, so it matches on the pair alone and leaves
 	// the token to a constant-time comparison outside SQL.
 	GetWebhookEndpointBySlug(ctx context.Context, arg GetWebhookEndpointBySlugParams) (WebhookEndpoint, error)
+	// InsertSettingIfAbsent claims a key: it affects no row when another writer
+	// got there first, so a one-time step runs once even across replicas.
+	InsertSettingIfAbsent(ctx context.Context, arg InsertSettingIfAbsentParams) (int64, error)
 	ListAccessTokens(ctx context.Context) ([]AccessToken, error)
 	// ListActiveAlertRecipients returns every message sent for an alert, one per
 	// recipient it fanned out to, and any claim still in flight.

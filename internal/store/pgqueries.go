@@ -487,6 +487,10 @@ func (p pgQueries) DeleteSetting(ctx context.Context, key string) error {
 	return p.q.DeleteSetting(ctx, key)
 }
 
+func (p pgQueries) InsertSettingIfAbsent(ctx context.Context, arg sqlitedb.InsertSettingIfAbsentParams) (int64, error) {
+	return p.q.InsertSettingIfAbsent(ctx, pgdb.InsertSettingIfAbsentParams(arg))
+}
+
 func (p pgQueries) ClearSettingValue(ctx context.Context, arg sqlitedb.ClearSettingValueParams) error {
 	return p.q.ClearSettingValue(ctx, pgdb.ClearSettingValueParams(arg))
 }
