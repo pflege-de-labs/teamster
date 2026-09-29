@@ -104,8 +104,10 @@ the Graph and OIDC client secrets arrive as `TEAMSTER_*` environment variables f
 secret — which works only because an environment variable is honoured when no config file sets that
 key, so those four stay out of the file. Both secrets are hashed into pod annotations, so a changed
 value rolls the pod. The service is published through an Ingress or a Gateway API `HTTPRoute`, and
-`extraObjects` carries whatever else a deployment needs. A secret written into `config.settings` is
-a render-time error, because a config file value beats the environment variable carrying it. See
+`extraObjects` carries whatever else a deployment needs. Labels are merged as maps: `commonLabels`,
+then a component's own `labels`, then the chart's fixed labels each overwrite the one before, and
+none of them reaches a selector. A secret written into `config.settings` is a render-time error,
+because a config file value beats the environment variable carrying it. See
 [ADR 0023](adr/0023-chart-deploys-either-shape.md).
 
 Gateway API mode renders up to two `HTTPRoute`s along the same trust boundary the server itself

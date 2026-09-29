@@ -221,6 +221,26 @@ absent "$internalOnly" "internal-only render" "value: /webhook"
 contains "$internalOnly" "internal-only render" "name: teamster-internal"
 absent "$internalOnly" "internal-only render" "name: teamster-external"
 
+# Custom labels land on metadata, never on a selector: a selector is immutable
+# on a workload, so a label added there later would block every upgrade. They
+# merge as maps, so an overlapping key renders once instead of twice.
+echo "checking custom labels"
+labelled=$(helm template teamster "$chart" --values "$chart/ci/statefulset-values.yaml" \
+	--set commonLabels.team=ops --set workload.labels.team=core \
+	--set service.labels.tier=edge --set podLabels.team=pod \
+	--set 'commonLabels.app\.kubernetes\.io/name=hijacked')
+account=$(awk '/^kind: ServiceAccount$/,/^---$/' <<<"$labelled")
+service=$(awk '/^kind: Service$/,/^---$/' <<<"$labelled")
+workload=$(awk '/^kind: StatefulSet$/,/^---$/' <<<"$labelled")
+contains "$account" "commonLabels on the ServiceAccount" "team: \"ops\""
+contains "$service" "service.labels on the Service" "team: \"ops\"" "tier: \"edge\""
+absent "$account" "service.labels on the ServiceAccount" "tier: \"edge\""
+contains "$workload" "workload.labels over commonLabels" "    team: \"core\""
+contains "$workload" "podLabels over commonLabels" "        team: \"pod\""
+counts "$workload" "one team label per metadata block" 3 "team:"
+absent "$labelled" "a chart label overridden by commonLabels" "hijacked"
+absent "$(grep -A4 -E 'matchLabels:|^  selector:$' <<<"$labelled")" "custom labels in a selector" "team:"
+
 if [ "$failures" -gt 0 ]; then
 	echo "$failures assertion(s) failed" >&2
 	exit 1

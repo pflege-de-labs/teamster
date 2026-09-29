@@ -31,9 +31,31 @@ Create chart name and version as used by the chart label.
 {{- end }}
 
 {{/*
-Common labels
+Common labels: the chart's own merged over commonLabels.
 */}}
 {{- define "teamster.labels" -}}
+{{- include "teamster.componentLabels" (dict "root" . "labels" (dict)) -}}
+{{- end }}
+
+{{/*
+Labels for one component, called with (dict "root" . "labels" <map>).
+Chart labels win over the component's, which win over commonLabels: merged as
+maps, so an overlapping key renders once and a selector label stays the chart's.
+*/}}
+{{- define "teamster.componentLabels" -}}
+{{- $root := .root -}}
+{{- $labels := deepCopy ($root.Values.commonLabels | default dict) -}}
+{{- $labels = mergeOverwrite $labels (deepCopy (.labels | default dict)) -}}
+{{- $labels = mergeOverwrite $labels (include "teamster.chartLabels" $root | fromYaml) -}}
+{{- /* Quoted: a label value must be a string, and --set turns 123 into an int. */ -}}
+{{- $lines := list -}}
+{{- range $k, $v := $labels -}}
+{{- $lines = append $lines (printf "%s: %s" $k (toString $v | quote)) -}}
+{{- end -}}
+{{- join "\n" $lines -}}
+{{- end }}
+
+{{- define "teamster.chartLabels" -}}
 helm.sh/chart: {{ include "teamster.chart" . }}
 {{ include "teamster.selectorLabels" . }}
 {{- if .Chart.AppVersion }}
@@ -316,10 +338,7 @@ metadata:
     {{- toYaml . | nindent 4 }}
     {{- end }}
   labels:
-    {{- include "teamster.labels" $ | nindent 4 }}
-    {{- with $.Values.podLabels }}
-    {{- toYaml . | nindent 4 }}
-    {{- end }}
+    {{- include "teamster.componentLabels" (dict "root" $ "labels" $.Values.podLabels) | nindent 4 }}
 spec:
   {{- with $.Values.imagePullSecrets }}
   imagePullSecrets:

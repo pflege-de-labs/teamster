@@ -193,6 +193,36 @@ extraObjects:
       namespace: {{ .Release.Namespace }}
 ```
 
+## Labels
+
+`commonLabels` goes on every resource the chart renders, pods included. Each component also takes
+its own `labels`, which win over `commonLabels` on a shared key:
+
+| Value | Applied to |
+| --- | --- |
+| `workload.labels` | The Deployment or StatefulSet |
+| `podLabels` | The pod template |
+| `service.labels` | The Service and the headless Service |
+| `serviceAccount.labels` | The ServiceAccount |
+| `persistence.labels` | The data volume claim |
+| `metrics.serviceMonitor.labels` | The ServiceMonitor, e.g. for the operator's `serviceMonitorSelector` |
+| `ingress.labels`, `httpRoute.external.labels`, `httpRoute.internal.labels` | The Ingress and the HTTPRoutes |
+| `pdb.labels` | The PodDisruptionBudget |
+
+```yaml
+commonLabels:
+  team: platform
+metrics:
+  serviceMonitor:
+    enabled: true
+    labels:
+      release: kube-prometheus-stack
+```
+
+The chart's own `app.kubernetes.io/*` and `helm.sh/chart` labels cannot be overridden, and custom
+labels never reach a selector. Selectors are immutable on a Deployment or a StatefulSet, so adding a
+label to a running release needs no recreate.
+
 ## Probes
 
 The defaults use the endpoints teamster serves for exactly this: `httpGet /healthz` for liveness,
@@ -358,6 +388,8 @@ The [values.yaml](values.yaml) comments are the reference. The ones most often c
 | `metrics.serviceMonitor.enabled` | `false` | Render a ServiceMonitor for the Prometheus operator. |
 | `sidecars` | `[]` | Extra containers in the pod, e.g. an OTLP collector. |
 | `extraObjects` | `{}` | Extra resources, as a map or a list. |
+| `commonLabels` | `{}` | Labels on every resource; see [Labels](#labels). |
+| `<component>.labels` | `{}` | Labels on one component, over `commonLabels`. |
 
 ## Testing a release
 

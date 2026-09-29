@@ -11,7 +11,7 @@ kind: StatefulSet
 metadata:
   name: {{ include "teamster.fullname" . }}
   labels:
-    {{- include "teamster.labels" . | nindent 4 }}
+    {{- include "teamster.componentLabels" (dict "root" . "labels" .Values.workload.labels) | nindent 4 }}
   {{- with .Values.workload.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
@@ -35,10 +35,7 @@ spec:
     - metadata:
         name: data
         labels:
-          {{- include "teamster.labels" . | nindent 10 }}
-          {{- with .Values.persistence.labels }}
-          {{- toYaml . | nindent 10 }}
-          {{- end }}
+          {{- include "teamster.componentLabels" (dict "root" . "labels" .Values.persistence.labels) | nindent 10 }}
         {{- with .Values.persistence.annotations }}
         annotations:
           {{- toYaml . | nindent 10 }}
