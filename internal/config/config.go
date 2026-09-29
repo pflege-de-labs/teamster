@@ -22,6 +22,9 @@ type Config struct {
 	Bot      BotConfig      `embed:"" prefix:"bot-"`
 	Samples  SamplesConfig  `embed:"" prefix:"samples-"`
 	Log      LogConfig      `embed:"" prefix:"log-"`
+
+	// Version is the build stamp, set by cli.Run rather than by a flag or the file.
+	Version string `kong:"-" yaml:"-"`
 }
 
 type ServerConfig struct {

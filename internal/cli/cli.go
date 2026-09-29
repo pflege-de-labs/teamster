@@ -54,6 +54,7 @@ func Run(ctx context.Context, args []string, version string, options ...kong.Opt
 		return err
 	}
 
+	cli.Config.Version = version
 	kctx.BindTo(ctx, (*context.Context)(nil))
 	kctx.Bind(&cli.Config)
 

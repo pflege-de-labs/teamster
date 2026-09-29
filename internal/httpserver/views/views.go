@@ -481,6 +481,19 @@ func languageOf(ctx context.Context) LanguageChoice {
 	return choice
 }
 
+type versionContextKey struct{}
+
+// WithVersion carries the build version for the sidebar footer, for the same
+// reason as WithLanguageChoice.
+func WithVersion(ctx context.Context, version string) context.Context {
+	return context.WithValue(ctx, versionContextKey{}, version)
+}
+
+func versionOf(ctx context.Context) string {
+	version, _ := ctx.Value(versionContextKey{}).(string)
+	return version
+}
+
 func roleNames(ctx context.Context, roles []string) []string {
 	names := make([]string, 0, len(roles))
 	for _, role := range roles {

@@ -1,6 +1,6 @@
 # 0042. Move page links to a sidebar and account controls to a user menu
 
-* Status: Accepted
+* Status: Accepted; revealing the burger from `nav.js` superseded by [0054](0054-apply-sidebar-state-before-first-paint.md)
 * Date: 2026-09-28
 
 ## Context

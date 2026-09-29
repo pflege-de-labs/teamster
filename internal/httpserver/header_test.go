@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/pflege-de-labs/teamster/internal/authz"
+	"github.com/pflege-de-labs/teamster/internal/config"
 	"github.com/pflege-de-labs/teamster/internal/models"
 )
 
@@ -175,5 +176,57 @@ func TestLoginPageHasNoIdentityBlock(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), `id="language-picker"`) {
 		t.Error("the login page offers no language")
+	}
+}
+
+// The burger is in the served markup rather than revealed by nav.js at the end
+// of the body, so the logo beside it does not move once the page has painted.
+func TestBurgerIsRenderedBeforeFirstPaint(t *testing.T) {
+	t.Parallel()
+
+	st := signedInAs(seededUIStore(), "jens", authz.RoleEditor)
+	body := asRole(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin", "").Body.String()
+
+	head, _, _ := strings.Cut(body, "</head>")
+	if !strings.Contains(head, `classList.add("js")`) || !strings.Contains(head, `"sidebar-closed"`) {
+		t.Error("the head does not apply the sidebar state before the body renders")
+	}
+	toggle := body[strings.Index(body, `id="nav-toggle"`):]
+	toggle, _, _ = strings.Cut(toggle, ">")
+	if strings.Contains(toggle, " hidden ") || strings.Contains(toggle, " hidden>") {
+		t.Errorf("the burger carries the hidden attribute: %s", toggle)
+	}
+}
+
+// The sidebar footer names the build, and says nothing when there is none.
+func TestSidebarShowsTheVersion(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		version string
+		want    bool
+	}{
+		{name: "a stamped build", version: "v1.2.3", want: true},
+		{name: "no version", version: "", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := config.Config{
+				Server:  config.ServerConfig{Addr: ":0"},
+				Webhook: config.WebhookConfig{Token: "token"},
+				Admin:   config.AdminConfig{Username: "admin", Password: "pass"},
+				Version: tt.version,
+			}
+			st := signedInAs(seededUIStore(), "jens", authz.RoleEditor)
+			body := asRole(t, mustServer(t, cfg, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin", "").Body.String()
+
+			if got := strings.Contains(body, "Version "+tt.version); got != tt.want {
+				t.Errorf("the sidebar shows the version: %v, want %v", got, tt.want)
+			}
+		})
 	}
 }

@@ -8,6 +8,7 @@
   "admin.read_only": "Signed in with the {0} role, which may look but not change anything.",
   "app.subtitle": "Templates, destinations and routes",
   "app.title": "Teamster Admin",
+  "app.version": "Version {0}",
   "destinations.badge_app_missing": "Teams app missing",
   "destinations.badge_global_default": "global default",
   "destinations.channel": "Channel",

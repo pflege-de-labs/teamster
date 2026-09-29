@@ -5,20 +5,15 @@
   const sidebar = document.getElementById("sidebar");
   if (toggle && sidebar) {
     const key = "teamster.sidebar";
+    const root = document.documentElement;
+    // The head script already applied the stored state; this only keeps aria in step.
     const show = (open) => {
-      sidebar.hidden = !open;
+      root.classList.toggle("sidebar-closed", !open);
       toggle.setAttribute("aria-expanded", String(open));
     };
-    let stored = null;
-    try {
-      stored = localStorage.getItem(key);
-    } catch (e) {
-      // Storage may be disabled; the sidebar then starts open every time.
-    }
-    show(stored !== "closed");
-    toggle.hidden = false;
+    show(!root.classList.contains("sidebar-closed"));
     toggle.addEventListener("click", () => {
-      const open = sidebar.hidden;
+      const open = root.classList.contains("sidebar-closed");
       show(open);
       try {
         localStorage.setItem(key, open ? "open" : "closed");

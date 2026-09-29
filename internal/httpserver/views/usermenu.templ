@@ -47,8 +47,8 @@ templ userMenu(viewer Viewer) {
 // sidebar lists the pages. It shows without JavaScript; nav.js adds the burger
 // that folds it away.
 templ sidebar(viewer Viewer) {
-	<aside id="sidebar" class="w-56 shrink-0 border-r border-slate-200 bg-white">
-		<nav class="flex flex-col gap-1 p-4 text-sm">
+	<aside id="sidebar" class="flex w-56 shrink-0 flex-col border-r border-slate-200 bg-white [.sidebar-closed_&]:hidden">
+		<nav class="flex grow flex-col gap-1 p-4 text-sm">
 			@navLink("/admin", "nav.configuration")
 			@navLink("/admin/routing", "nav.routing")
 			if viewer.NotificationsEnabled {
@@ -61,6 +61,9 @@ templ sidebar(viewer Viewer) {
 				@navLink("/admin/tokens", "nav.tokens")
 			}
 		</nav>
+		if version := versionOf(ctx); version != "" {
+			<div class="px-7 py-4 text-xs text-slate-400">{ i18n.T(ctx, "app.version", version) }</div>
+		}
 	</aside>
 }
 
