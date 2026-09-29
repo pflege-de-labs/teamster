@@ -85,7 +85,7 @@ func TestTeamsV2RendersTheEndpointsTemplate(t *testing.T) {
 		{
 			name: "a template",
 			template: &models.Template{
-				ID: "tmpl", Title: "{{ .Payload.title }} ({{ .Alert.Source }})",
+				ID: "tmpl", Title: "{{ .Payload.title }} ({{ .Alert.Labels.teamster_source }})",
 				Body: `{"type":"AdaptiveCard","body":[{"type":"TextBlock","text":{{ toJSON .Payload.themeColor }}}]}`,
 			},
 			wantStatus: http.StatusOK, wantTitle: "Build failed (teamsv2)",

@@ -26,7 +26,7 @@ import (
 
 // The source these receipts are counted under, beside "alertmanager" and
 // "universal".
-const teamsV2Source = "teamsv2"
+const teamsV2Source = models.SourceTeamsV2
 
 // A Teams message caps out well below this; the limit is here because the body
 // arrives from an unauthenticated caller and has to be read before the token in
@@ -126,7 +126,8 @@ func (s *Server) teamsV2Message(ctx context.Context, endpoint models.WebhookEndp
 	// Parse already accepted the body, so it decodes.
 	var payload any
 	_ = json.Unmarshal(body, &payload)
-	alert := models.Alert{Source: teamsV2Source, Title: msg.Title, Text: msg.Text}
+	// Never routed (ADR 0030), but a template reads the label like any other.
+	alert := models.Alert{Source: teamsV2Source, Labels: models.WithSourceLabel(nil, teamsV2Source), Title: msg.Title, Text: msg.Text}
 	if len(msg.Cards) > 0 {
 		alert.Card = msg.Cards[0]
 	}

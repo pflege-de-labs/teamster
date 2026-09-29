@@ -686,6 +686,10 @@ per alert. Counts are therefore approximate. Replicas sharing Postgres add to th
   a root that matches alerts its parent used to filter out.
 - A database file written before the `DATETIME` timestamp fix cannot be read. Migrating it fails
   and names the file; delete it and start again to recreate the schema.
+- Every alert carries the label `teamster_source`: `alertmanager`, `universal` or `teamsv2`, for the
+  webhook it arrived at. The server sets it and overwrites a sender's own, so a route can select on
+  it — `{"teamster_source": "alertmanager"}`. Teams V2 messages are not routed; their templates can
+  read the label all the same.
 - A default route is used if no labels match.
 - Where no route matches and there is no default route, the message goes to the **global default
   destination**. The first destination you create becomes the global default, and an admin can

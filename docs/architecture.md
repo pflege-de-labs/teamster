@@ -433,6 +433,12 @@ route last. Its only editable part is the template, which is a route edit. Only 
 choose a different default destination, and the current default cannot be deleted while other
 destinations remain. See [ADR 0038](adr/0038-global-default-destination.md).
 
+Before `Plan`, `processAlert` sets the label `teamster_source` to the webhook the alert arrived at:
+`alertmanager` or `universal`. It overwrites a sender's own value, and it is set after the
+fingerprint is computed so that fingerprints stay as they were. Teams V2 messages are not routed,
+but their templates see `teamster_source=teamsv2`
+([ADR 0052](adr/0052-the-receiving-webhook-is-a-label.md)).
+
 A child is evaluated only once its parent matched, and applies when its own selector matches. Every
 matching child delivers; a greedy one delivers *instead of* its parent, a non-greedy one *as well
 as* it. An unset target or template is inherited from the nearest ancestor that sets one, so "the
