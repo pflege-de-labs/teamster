@@ -213,7 +213,7 @@ func (s *Server) deliverToChannel(ctx context.Context, alert models.Alert, deliv
 	if err != nil {
 		return err
 	}
-	msg := channelMessage(rendered)
+	msg := s.channelMessage(rendered)
 
 	now := s.now()
 	claim := models.AlertClaim{
@@ -301,7 +301,7 @@ func (s *Server) deliverToChannelOnce(ctx context.Context, alert models.Alert, d
 	if err != nil {
 		return err
 	}
-	msg := channelMessage(rendered)
+	msg := s.channelMessage(rendered)
 
 	if _, err := s.channels.PostToChannel(ctx, destination.TeamID, destination.ChannelID, msg); err != nil {
 		s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), channelFailure(err))
@@ -351,7 +351,7 @@ func (s *Server) resolveChannelCards(ctx context.Context, alert models.Alert, pl
 			failures = append(failures, err)
 			continue
 		}
-		msg := channelMessage(rendered)
+		msg := s.channelMessage(rendered)
 		// The row outlives a failed update on purpose: it is the only record that
 		// this channel still holds a card claiming the alert fires, and the
 		// sender's retry is what puts that right. A card nothing can edit is
@@ -625,14 +625,24 @@ func (s *Server) recipientTarget(ctx context.Context, delivery routing.Delivery)
 // channelMessage is chatMessage's counterpart for a channel. graph.Message
 // carries a slice because a Teams V2 payload may bring several cards; a
 // template renders exactly one.
-func channelMessage(rendered templates.Message) graph.Message {
+// The notice is a card only beside a card of the message's own; next to plain
+// text it is a line of text, because a channel post is one Teams message and
+// the text would otherwise have to move into a card that renders it worse.
+func (s *Server) channelMessage(rendered templates.Message) graph.Message {
 	msg := graph.Message{Title: rendered.Title, Text: rendered.Text}
 	if len(rendered.Card) > 0 {
 		msg.Cards = []json.RawMessage{rendered.Card}
 	}
-	if len(rendered.Notice) > 0 {
-		msg.Cards = append(msg.Cards, rendered.Notice)
+	if len(rendered.Notice) == 0 {
+		return msg
 	}
+	if len(msg.Cards) == 0 && msg.Text != "" {
+		if hint, err := templates.RenderText(templates.HintText(s.cfg.Server.ExternalURL, templatesPanelPath)); err == nil {
+			msg.Text += hint
+			return msg
+		}
+	}
+	msg.Cards = append(msg.Cards, rendered.Notice)
 	return msg
 }
 
