@@ -79,9 +79,9 @@ func TestRoutingGraph(t *testing.T) {
 		t.Error("the default route is not marked as one")
 	}
 
-	// The webhook into each of two routes, and each route into a destination.
-	if len(links) != 4 {
-		t.Errorf("links = %d, want 4", len(links))
+	// Both routed webhooks into each of two routes, and each route into a destination.
+	if len(links) != 6 {
+		t.Errorf("links = %d, want 6", len(links))
 	}
 	for _, link := range links {
 		if _, ok := nodes[link.Target]; !ok {
@@ -122,39 +122,94 @@ func TestRoutingGraphWithNothingConfigured(t *testing.T) {
 	t.Parallel()
 
 	nodes, links := graphFrom(t, newTestServer(t, newFakeStore(), &fakeMessenger{}).Handler)
-	if len(nodes) != 1 || nodes["source:webhook"].Kind != "source" {
-		t.Errorf("graph = %v, want the webhook source alone", nodes)
+	if len(nodes) != 2 || nodes["source:alertmanager"].Kind != "source" || nodes["source:universal"].Kind != "source" {
+		t.Errorf("graph = %v, want the two routed webhooks alone", nodes)
 	}
 	if len(links) != 0 {
 		t.Errorf("links = %v, want none rather than null", links)
 	}
 }
 
-// The picture is the flow an alert takes, so it starts where alerts arrive and
-// every route hangs off that one node.
-func TestRoutingGraphFlowsFromTheWebhook(t *testing.T) {
+// The picture is the flow an alert takes, so it starts where alerts arrive: one
+// node per routed webhook, each feeding the routes that can see its messages.
+func TestRoutingGraphFlowsFromEachWebhook(t *testing.T) {
 	t.Parallel()
 
-	nodes, links := graphFrom(t, newTestServer(t, routingStore(), &fakeMessenger{}).Handler)
-
-	source, ok := nodes["source:webhook"]
-	if !ok || source.Kind != "source" {
-		t.Fatalf("nodes = %v, want a webhook source node", nodes)
+	st := routingStore()
+	st.routes["am-only"] = models.Route{
+		ID: "am-only", Name: "Alertmanager only", DestinationID: "dest", Priority: 50,
+		LabelSelector: map[string]string{models.SourceLabel: models.SourceAlertmanager},
 	}
-	if !strings.Contains(source.Detail, "/webhook/alertmanager") {
-		t.Errorf("source detail = %q, want the endpoints alerts arrive on", source.Detail)
+	st.routes["v2-only"] = models.Route{
+		ID: "v2-only", Name: "Never", DestinationID: "dest", Priority: 40,
+		LabelSelector: map[string]string{models.SourceLabel: models.SourceTeamsV2},
+	}
+	nodes, links := graphFrom(t, newTestServer(t, st, &fakeMessenger{}).Handler)
+
+	for _, source := range []string{models.SourceAlertmanager, models.SourceUniversal} {
+		node, ok := nodes["source:"+source]
+		if !ok || node.Kind != "source" || !strings.Contains(node.Detail, "/webhook/"+source) {
+			t.Errorf("source %s = %+v, want a node naming its endpoint", source, node)
+		}
 	}
 
-	fed := map[string]bool{}
+	fed := map[string][]string{}
 	for _, link := range links {
-		if link.Source == source.ID {
-			fed[link.Target] = true
+		if link.Kind == linkEnters {
+			fed[link.Target] = append(fed[link.Target], link.Source)
 		}
 	}
-	for _, route := range []string{"route:critical", "route:fallback"} {
-		if !fed[route] {
-			t.Errorf("%s is not fed by the webhook, so the flow has no start", route)
+	tests := []struct {
+		route string
+		want  []string
+	}{
+		{route: "route:critical", want: []string{"source:alertmanager", "source:universal"}},
+		{route: "route:fallback", want: []string{"source:alertmanager", "source:universal"}},
+		{route: "route:am-only", want: []string{"source:alertmanager"}},
+		{route: "route:v2-only"},
+	}
+	for _, tt := range tests {
+		if !slices.Equal(fed[tt.route], tt.want) {
+			t.Errorf("%s is fed by %v, want %v", tt.route, fed[tt.route], tt.want)
 		}
+	}
+	if !strings.Contains(nodes["route:v2-only"].Detail, "unreachable") {
+		t.Errorf("route pinned to teamsv2 = %+v, want it marked unreachable", nodes["route:v2-only"])
+	}
+}
+
+// A Teams V2 endpoint is an origin of its own that posts straight to its
+// channel, since no route decides where it goes (ADR 0030).
+func TestRoutingGraphDrawsTeamsV2Endpoints(t *testing.T) {
+	t.Parallel()
+
+	st := routingStore()
+	st.webhooks["b"] = models.WebhookEndpoint{ID: "b", TeamSlug: "platform", ChannelSlug: "builds", DestinationID: "dest", TemplateID: "tmpl"}
+	st.webhooks["a"] = models.WebhookEndpoint{ID: "a", TeamSlug: "platform", ChannelSlug: "alerts", DestinationID: "gone"}
+	nodes, links := graphFrom(t, newTestServer(t, st, &fakeMessenger{}).Handler)
+
+	a, b := nodes["endpoint:a"], nodes["endpoint:b"]
+	if a.Kind != "endpoint" || a.Label != "/teamsv2/platform/alerts" || a.X != 0 {
+		t.Errorf("endpoint a = %+v, want an origin named by its URL", a)
+	}
+	if b.Template != "Critical card" || a.Template != "" {
+		t.Errorf("endpoint templates = %q, %q, want b's named and a's empty", b.Template, a.Template)
+	}
+	if a.Y >= b.Y || a.Y <= nodes["source:universal"].Y {
+		t.Errorf("endpoints at %d, %d, want them below the routed webhooks, ordered by URL", a.Y, b.Y)
+	}
+	if !nodes["destination:gone"].Missing {
+		t.Error("an endpoint's deleted destination left no missing node")
+	}
+
+	direct := map[string]string{}
+	for _, link := range links {
+		if link.Kind == linkDirect {
+			direct[link.Source] = link.Target
+		}
+	}
+	if direct["endpoint:a"] != "destination:gone" || direct["endpoint:b"] != "destination:dest" {
+		t.Errorf("direct links = %v, want each endpoint straight to its destination", direct)
 	}
 }
 
@@ -165,10 +220,10 @@ func TestRoutingGraphLaysOutColumns(t *testing.T) {
 
 	nodes, _ := graphFrom(t, newTestServer(t, routingStore(), &fakeMessenger{}).Handler)
 
-	if x := nodes["source:webhook"].X; x != 0 {
+	if x := nodes["source:alertmanager"].X; x != 0 {
 		t.Errorf("source x = %d, want the leftmost column", x)
 	}
-	if nodes["route:critical"].X <= nodes["source:webhook"].X {
+	if nodes["route:critical"].X <= nodes["source:alertmanager"].X {
 		t.Error("routes are not to the right of the webhook")
 	}
 	if nodes["destination:dest"].X <= nodes["route:critical"].X {
@@ -399,17 +454,17 @@ func TestRoutingGraphNestsChildRoutes(t *testing.T) {
 
 	nodes, links := graphFrom(t, newTestServer(t, nestedRoutingStore(), &fakeMessenger{}).Handler)
 
-	parents := map[string]string{}
+	parents := map[string][]string{}
 	for _, link := range links {
 		if strings.HasPrefix(link.Target, "route:") {
-			parents[link.Target] = link.Source
+			parents[link.Target] = append(parents[link.Target], link.Source)
 		}
 	}
-	if got := parents["route:child"]; got != "route:critical" {
-		t.Errorf("child is fed by %q, want its parent route", got)
+	if got := parents["route:child"]; !slices.Equal(got, []string{"route:critical"}) {
+		t.Errorf("child is fed by %v, want its parent route alone", got)
 	}
-	if got := parents["route:critical"]; got != "source:webhook" {
-		t.Errorf("root is fed by %q, want the webhook", got)
+	if got := parents["route:critical"]; !slices.Equal(got, []string{"source:alertmanager", "source:universal"}) {
+		t.Errorf("root is fed by %v, want the webhooks", got)
 	}
 	if nodes["route:child"].X <= nodes["route:critical"].X {
 		t.Error("the child is not drawn to the right of its parent")
@@ -456,7 +511,7 @@ func TestRoutingGraphLabelsItsEdges(t *testing.T) {
 		kinds[link.Source+">"+link.Target] = link
 	}
 
-	if got := kinds["source:webhook>route:critical"]; got.Kind != "enters" {
+	if got := kinds["source:universal>route:critical"]; got.Kind != "enters" {
 		t.Errorf("webhook edge = %+v, want it marked as entering", got)
 	}
 	if got := kinds["route:critical>route:child"]; got.Kind != "refines" || !got.Greedy {
@@ -507,7 +562,7 @@ func TestTemplateGraph(t *testing.T) {
 
 	used := map[string][]string{}
 	for _, link := range links {
-		if link.Kind != "renders" {
+		if link.Kind != "renders" && link.Kind != "default" {
 			t.Errorf("link %+v, want every edge to mean rendering", link)
 		}
 		used[link.Source] = append(used[link.Source], link.Target)
@@ -603,8 +658,9 @@ func TestRoutingMatchAnswersWithThePlan(t *testing.T) {
 	if !strings.Contains(payload.Explanation, "2 messages") {
 		t.Errorf("explanation = %q, want it to say how many messages go out", payload.Explanation)
 	}
-	// The highlight follows every node on the path, not just the first route.
-	for _, want := range []string{"route:critical", "route:child", "destination:dest", "destination:escalation"} {
+	// The highlight follows every node on the path, not just the first route,
+	// from each webhook the labels do not rule out.
+	for _, want := range []string{"source:alertmanager", "source:universal", "route:critical", "route:child", "destination:dest", "destination:escalation"} {
 		if !slices.Contains(payload.Nodes, want) {
 			t.Errorf("nodes = %v, want %q among them", payload.Nodes, want)
 		}
@@ -771,8 +827,8 @@ func TestRoutingGraphDrawsTheGlobalDefault(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &answer); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	if !slices.Equal(answer.Nodes, []string{"route:global-default", "destination:dest"}) {
-		t.Errorf("nodes = %v, want the synthetic route and its destination", answer.Nodes)
+	if !slices.Equal(answer.Nodes, []string{"source:alertmanager", "source:universal", "route:global-default", "destination:dest"}) {
+		t.Errorf("nodes = %v, want the webhooks, the synthetic route and its destination", answer.Nodes)
 	}
 	if len(answer.Deliveries) != 1 {
 		t.Fatalf("deliveries = %v, want one", answer.Deliveries)
@@ -788,5 +844,68 @@ func TestRoutingGraphOmitsTheGlobalDefaultWithoutADestination(t *testing.T) {
 	nodes, _ := graphFrom(t, newTestServer(t, routingStore(), &fakeMessenger{}).Handler)
 	if _, ok := nodes["route:global-default"]; ok {
 		t.Error("graph has a global default though no destination is marked default")
+	}
+}
+
+// Labels that name the webhook highlight that one origin only.
+func TestRoutingMatchHighlightsTheNamedWebhook(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		labels string
+		want   []string
+	}{
+		{name: "alertmanager", labels: `{"severity":"critical","teamster_source":"alertmanager"}`, want: []string{"source:alertmanager"}},
+		{name: "teamsv2 is never routed", labels: `{"severity":"critical","teamster_source":"teamsv2"}`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			rec := do(t, newTestServer(t, routingStore(), &fakeMessenger{}).Handler, http.MethodPost, "/api/routing/match", `{"labels":`+tt.labels+`}`)
+			var payload struct {
+				Nodes []string `json:"nodes"`
+			}
+			if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+				t.Fatalf("decode match: %v", err)
+			}
+			var sources []string
+			for _, node := range payload.Nodes {
+				if strings.HasPrefix(node, "source:") {
+					sources = append(sources, node)
+				}
+			}
+			if !slices.Equal(sources, tt.want) {
+				t.Errorf("highlighted origins = %v, want %v", sources, tt.want)
+			}
+		})
+	}
+}
+
+// A webhook's default template is drawn beside the routes that render with it.
+func TestTemplateGraphShowsSourceDefaults(t *testing.T) {
+	t.Parallel()
+
+	st := routingStore()
+	st.templates["v2"] = models.Template{ID: "v2", Name: "Teams card", Sources: []string{models.SourceTeamsV2}}
+	st.sourceDefaults[models.SourceTeamsV2] = "v2"
+	st.sourceDefaults[models.SourceUniversal] = "tmpl"
+	nodes, links := templateGraphFrom(t, newTestServer(t, st, &fakeMessenger{}).Handler)
+
+	defaults := map[string]string{}
+	for _, link := range links {
+		if link.Kind == "default" {
+			defaults[link.Target] = link.Source
+		}
+	}
+	if defaults["default:teamsv2"] != "template:v2" || defaults["default:universal"] != "template:tmpl" {
+		t.Errorf("default edges = %v, want each webhook's default drawn", defaults)
+	}
+	if got := nodes["default:teamsv2"]; got.Label != "Teams V2 webhooks" || got.Kind != "source" {
+		t.Errorf("teamsv2 default node = %+v", got)
+	}
+	if nodes["template:v2"].Detail != "" {
+		t.Errorf("a template used only as a default = %+v, want it not called unused", nodes["template:v2"])
 	}
 }

@@ -352,18 +352,23 @@ target ([ADR 0047](adr/0047-a-route-targets-a-channel-or-yourself.md)).
 into labelled nodes; a route pointing at something deleted becomes a node marked missing rather
 than a dropped link, because that broken state is what the view exists to show.
 
-The graph is a directed acyclic graph read left to right: one webhook source node, the root routes,
-a column per level of nesting below them, and the destinations last. Every edge means "an alert can
-go this way" and says which step it is — `enters`, `refines` or `delivers` — so a dashed
-refinement edge can be labelled *as well as* or *instead of* according to the child's greedy flag.
+The graph is a directed acyclic graph read left to right: the origins, the root routes, a column
+per level of nesting below them, and the destinations last. There is one origin per routed webhook,
+`source:alertmanager` and `source:universal`. A root route whose selector pins `teamster_source`
+(ADR 0052) is entered from that webhook only, and a root pinned to anything else is marked
+unreachable. Below them, each Teams V2 endpoint is an origin of its own (`endpoint:<id>`), linked
+straight to its destination by a `direct` edge, because no route decides where it posts (ADR 0030).
+Every edge means "an alert can go this way" and says which step it is — `enters`, `refines`,
+`delivers` or `direct` — so a dashed refinement edge can be labelled *as well as* or *instead of*
+according to the child's greedy flag.
 A non-greedy child leaves its parent's delivery edge in place, which is what makes a fan-out
 visible as two paths.
 
 A template is **not** a node here: rendering is not a step towards a channel, and drawing it as one
 made a single arrow mean two things. A route node carries the template it renders with as a label,
 marked inherited when it comes from an ancestor. `GET /api/routing/templates` answers the second,
-smaller graph — templates against the routes that use them — which is where a template nothing
-references shows up as an orphan.
+smaller graph — templates against the routes that use them and the webhooks they are the default
+of (ADR 0054) — which is where a template nothing references shows up as an orphan.
 
 Each node carries the position it is drawn at, so the layout is decided in Go where the tests can
 see it and the browser only draws, zooms and drags. A route node shows the labels it filters for, a
@@ -371,7 +376,8 @@ destination node its name together with the Team and channel **names**, resolved
 `directoryCache` the pickers use. That lookup is best effort: an unreachable Graph falls back to the
 stored ids rather than failing the request.
 
-Matching a label set highlights every path that message takes, not one winning route: the webhook,
+Matching a label set highlights every path that message takes, not one winning route: the webhook
+its `teamster_source` names (or both routed webhooks when it names none),
 every route that matched or delivers, the routes they were reached through, and the channels they
 land in are drawn in the match colour while everything else dims — so a fan-out across several
 independent routes reads off the same picture as a fan-out through nested children does.

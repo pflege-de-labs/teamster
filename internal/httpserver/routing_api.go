@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"slices"
 	"sort"
 	"strings"
 
@@ -58,7 +59,27 @@ const (
 	linkEnters   = "enters"
 	linkRefines  = "refines"
 	linkDelivers = "delivers"
+	// linkDirect is a Teams V2 endpoint posting to its channel, which no
+	// route decides (ADR 0030).
+	linkDirect = "direct"
 )
+
+// Kinds of node an alert starts from: a routed webhook, or a Teams V2
+// endpoint that bypasses routing.
+const (
+	nodeSource   = "source"
+	nodeEndpoint = "endpoint"
+)
+
+// sourceNodeID is the node for a routed webhook.
+func sourceNodeID(source string) string {
+	return "source:" + source
+}
+
+// routedSources are the webhooks whose messages go through the router.
+func routedSources() []string {
+	return []string{models.SourceAlertmanager, models.SourceUniversal}
+}
 
 type graphLink struct {
 	Source string `json:"source"`
@@ -80,7 +101,7 @@ func (s *Server) handleRoutingGraph(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	nodes, links := buildGraph(cfg.routes, cfg.destinations, cfg.recipients, cfg.templates, s.channelNamer(cfg.destinations))
+	nodes, links := buildGraph(cfg, s.channelNamer(cfg.destinations))
 	s.markMissingApps(ctx, nodes, cfg.destinations)
 	writeJSON(w, http.StatusOK, map[string]any{"nodes": nodes, "links": links})
 }
@@ -116,17 +137,19 @@ func (s *Server) handleTemplateGraph(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	nodes, links := buildTemplateGraph(cfg.routes, cfg.templates)
+	nodes, links := buildTemplateGraph(cfg.routes, cfg.templates, cfg.sourceDefaults)
 	writeJSON(w, http.StatusOK, map[string]any{"nodes": nodes, "links": links})
 }
 
 // routingConfiguration reads what both pictures are drawn from, reporting the
 // failure itself so each handler stays about its own graph.
 type routingConfig struct {
-	routes       []models.Route
-	destinations []models.Destination
-	recipients   []models.Recipient
-	templates    []models.Template
+	routes         []models.Route
+	destinations   []models.Destination
+	recipients     []models.Recipient
+	templates      []models.Template
+	endpoints      []models.WebhookEndpoint
+	sourceDefaults map[string]string
 }
 
 func (s *Server) routingConfiguration(w http.ResponseWriter, r *http.Request) (routingConfig, error) {
@@ -153,16 +176,36 @@ func (s *Server) routingConfiguration(w http.ResponseWriter, r *http.Request) (r
 		writeError(w, r, http.StatusInternalServerError, err)
 		return cfg, err
 	}
-	cfg = routingConfig{routes: routes, destinations: destinations, recipients: recipients, templates: templates}
+	endpoints, err := s.store.ListWebhookEndpoints(ctx)
+	if err != nil {
+		writeError(w, r, http.StatusInternalServerError, err)
+		return cfg, err
+	}
+	// The same narrowing the admin page applies: an endpoint in a channel this
+	// session may not see is not theirs to read.
+	if endpoints, err = s.visibleWebhookEndpoints(r, endpoints); err != nil {
+		writeError(w, r, http.StatusInternalServerError, err)
+		return cfg, err
+	}
+	sourceDefaults, err := s.store.SourceDefaultTemplates(ctx)
+	if err != nil {
+		writeError(w, r, http.StatusInternalServerError, err)
+		return cfg, err
+	}
+	cfg = routingConfig{
+		routes: routes, destinations: destinations, recipients: recipients, templates: templates,
+		endpoints: endpoints, sourceDefaults: sourceDefaults,
+	}
 	return cfg, nil
 }
 
-// buildGraph draws the path an alert can take: the webhook, the routes in
-// evaluation order with children hanging off their parents, and the channels
-// they deliver to. A route pointing at something deleted becomes a node marked
-// missing rather than a dropped link, because that broken state is exactly what
-// the view exists to show.
-func buildGraph(routes []models.Route, destinations []models.Destination, recipients []models.Recipient, templates []models.Template, channelName func(teamID, channelID string) string) ([]graphNode, []graphLink) {
+// buildGraph draws the path an alert can take: the webhook it arrived at, the
+// routes in evaluation order with children hanging off their parents, and the
+// channels they deliver to. A route pointing at something deleted becomes a
+// node marked missing rather than a dropped link, because that broken state is
+// exactly what the view exists to show.
+func buildGraph(cfg routingConfig, channelName func(teamID, channelID string) string) ([]graphNode, []graphLink) {
+	routes, destinations, recipients, templates := cfg.routes, cfg.destinations, cfg.recipients, cfg.templates
 	nodes := []graphNode{}
 	links := []graphLink{}
 	index := map[string]bool{}
@@ -174,15 +217,17 @@ func buildGraph(routes []models.Route, destinations []models.Destination, recipi
 		}
 	}
 
-	// Every alert enters the same router, so the flow starts from one node
-	// rather than from each webhook endpoint.
-	const sourceID = "source:webhook"
-	add(graphNode{
-		ID:     sourceID,
-		Kind:   "source",
-		Label:  "Incoming messages",
-		Detail: "POST /webhook/alertmanager · /webhook/universal",
-	})
+	// One origin per routed webhook: a route that pins teamster_source is
+	// reached from that one only (ADR 0052).
+	for i, source := range routedSources() {
+		add(graphNode{
+			ID:     sourceNodeID(source),
+			Kind:   nodeSource,
+			Label:  sourceLabel(source),
+			Detail: "POST /webhook/" + source,
+			Y:      i * rowGap,
+		})
+	}
 
 	ordered := evaluationOrder(routes)
 	known := map[string]bool{}
@@ -229,6 +274,10 @@ func buildGraph(routes []models.Route, destinations []models.Destination, recipi
 				node.TemplateMissing = true
 			}
 		}
+		// A root pinned to a source no router input carries can never match.
+		if route.ParentID == "" && len(enteredFrom(route)) == 0 {
+			node.Detail = "unreachable: no routed webhook sends " + models.SourceLabel + "=" + route.LabelSelector[models.SourceLabel]
+		}
 		add(node)
 		rows[depth]++
 
@@ -243,7 +292,9 @@ func buildGraph(routes []models.Route, destinations []models.Destination, recipi
 			})
 			continue
 		}
-		links = append(links, graphLink{Source: sourceID, Target: "route:" + route.ID, Kind: linkEnters})
+		for _, source := range enteredFrom(route) {
+			links = append(links, graphLink{Source: sourceNodeID(source), Target: "route:" + route.ID, Kind: linkEnters})
+		}
 	}
 
 	// The global default is evaluated last, after every root, default included.
@@ -263,7 +314,9 @@ func buildGraph(routes []models.Route, destinations []models.Destination, recipi
 			X:         columnGap,
 			Y:         rows[0] * rowGap,
 		})
-		links = append(links, graphLink{Source: sourceID, Target: "route:" + routing.GlobalDefaultRouteID, Kind: linkEnters})
+		for _, source := range routedSources() {
+			links = append(links, graphLink{Source: sourceNodeID(source), Target: "route:" + routing.GlobalDefaultRouteID, Kind: linkEnters})
+		}
 	}
 
 	sinkColumn := (2 + maxDepth) * columnGap
@@ -304,6 +357,37 @@ func buildGraph(routes []models.Route, destinations []models.Destination, recipi
 
 	missingTop := row*rowGap + groupGap
 	missing := 0
+
+	// Teams V2 endpoints sit under the routed webhooks and post straight to
+	// their channel.
+	endpointTop := len(routedSources())*rowGap + groupGap
+	for i, endpoint := range endpoints(cfg) {
+		node := graphNode{
+			ID:     "endpoint:" + endpoint.ID,
+			Kind:   nodeEndpoint,
+			Label:  "/teamsv2/" + endpoint.TeamSlug + "/" + endpoint.ChannelSlug,
+			Detail: "POST, bypasses routing",
+			Y:      endpointTop + i*rowGap,
+		}
+		if endpoint.TemplateID != "" {
+			if name, ok := templateNames[endpoint.TemplateID]; ok {
+				node.Template = name
+			} else {
+				node.Template = endpoint.TemplateID
+				node.TemplateMissing = true
+			}
+		}
+		add(node)
+		target := "destination:" + endpoint.DestinationID
+		if !index[target] {
+			add(graphNode{
+				ID: target, Kind: "destination", Label: "missing destination", Detail: endpoint.DestinationID,
+				Missing: true, X: sinkColumn, Y: missingTop + missing*rowGap,
+			})
+			missing++
+		}
+		links = append(links, graphLink{Source: node.ID, Target: target, Kind: linkDirect})
+	}
 	// One route can now deliver twice, so both targets are walked and each
 	// draws its own link -- the same fan-out routing.collect produces.
 	for _, route := range ordered {
@@ -335,6 +419,42 @@ func buildGraph(routes []models.Route, destinations []models.Destination, recipi
 	return nodes, links
 }
 
+// endpoints orders the Teams V2 endpoints by URL, so the drawing is stable.
+func endpoints(cfg routingConfig) []models.WebhookEndpoint {
+	out := append([]models.WebhookEndpoint(nil), cfg.endpoints...)
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].TeamSlug != out[j].TeamSlug {
+			return out[i].TeamSlug < out[j].TeamSlug
+		}
+		return out[i].ChannelSlug < out[j].ChannelSlug
+	})
+	return out
+}
+
+// enteredFrom lists the routed webhooks whose messages a root route can see:
+// the one its selector pins, or all of them.
+func enteredFrom(route models.Route) []string {
+	pinned := route.LabelSelector[models.SourceLabel]
+	if pinned == "" {
+		return routedSources()
+	}
+	if slices.Contains(routedSources(), pinned) {
+		return []string{pinned}
+	}
+	return nil
+}
+
+// sourceLabel names a routed webhook in the picture.
+func sourceLabel(source string) string {
+	switch source {
+	case models.SourceAlertmanager:
+		return "Alertmanager webhook"
+	case models.SourceUniversal:
+		return "Universal webhook"
+	}
+	return source
+}
+
 // recipientLabel is what a person is called in the picture. Name is what an
 // operator recognises, but it comes from Teams and nothing guarantees it is
 // set, so the subject that identifies them is the fallback.
@@ -345,10 +465,11 @@ func recipientLabel(recipient models.Recipient) string {
 	return recipient.Subject
 }
 
-// buildTemplateGraph pairs each template with the routes that render with it.
-// A template no route references has no edges, which is how an orphan shows up
-// now that templates are not nodes in the flow.
-func buildTemplateGraph(routes []models.Route, templates []models.Template) ([]graphNode, []graphLink) {
+// buildTemplateGraph pairs each template with what renders with it: the routes
+// that name it, and the webhooks it is the default of. A template nothing
+// references has no edges, which is how an orphan shows up now that templates
+// are not nodes in the flow.
+func buildTemplateGraph(routes []models.Route, templates []models.Template, sourceDefaults map[string]string) ([]graphNode, []graphLink) {
 	nodes := []graphNode{}
 	links := []graphLink{}
 	index := map[string]bool{}
@@ -363,10 +484,31 @@ func buildTemplateGraph(routes []models.Route, templates []models.Template) ([]g
 	ordered := evaluationOrder(routes)
 	effective := inheritedTargets(ordered)
 
-	users := map[string][]models.Route{}
+	type user struct {
+		node graphNode
+		kind string
+	}
+	users := map[string][]user{}
 	for _, route := range ordered {
 		if target := effective[route.ID].templateID; target != "" {
-			users[target] = append(users[target], route)
+			users[target] = append(users[target], user{kind: "renders", node: graphNode{
+				ID:       "route:" + route.ID,
+				Kind:     "route",
+				Label:    route.Name,
+				Selector: selectorSummary(route.LabelSelector),
+				Priority: route.Priority,
+				Default:  route.IsDefault,
+			}})
+		}
+	}
+	for _, source := range models.AllSources() {
+		if id := sourceDefaults[source]; id != "" {
+			users[id] = append(users[id], user{kind: "default", node: graphNode{
+				ID:     "default:" + source,
+				Kind:   nodeSource,
+				Label:  sourceDefaultLabel(source),
+				Detail: "default for messages nothing else renders",
+			}})
 		}
 	}
 
@@ -377,27 +519,23 @@ func buildTemplateGraph(routes []models.Route, templates []models.Template) ([]g
 
 	row := 0
 	drawTemplate := func(id, label string, isMissing bool) {
-		add(graphNode{
+		node := graphNode{
 			ID:      "template:" + id,
 			Kind:    "template",
 			Label:   label,
 			Missing: isMissing,
 			X:       0,
 			Y:       row * rowGap,
-		})
+		}
+		if len(users[id]) == 0 {
+			node.Detail = "nothing renders with it"
+		}
+		add(node)
 
-		for _, route := range users[id] {
-			add(graphNode{
-				ID:       "route:" + route.ID,
-				Kind:     "route",
-				Label:    route.Name,
-				Selector: selectorSummary(route.LabelSelector),
-				Priority: route.Priority,
-				Default:  route.IsDefault,
-				X:        columnGap,
-				Y:        row * rowGap,
-			})
-			links = append(links, graphLink{Source: "template:" + id, Target: "route:" + route.ID, Kind: "renders"})
+		for _, u := range users[id] {
+			u.node.X, u.node.Y = columnGap, row*rowGap
+			add(u.node)
+			links = append(links, graphLink{Source: "template:" + id, Target: u.node.ID, Kind: u.kind})
 			row++
 		}
 		if len(users[id]) == 0 {
@@ -406,29 +544,31 @@ func buildTemplateGraph(routes []models.Route, templates []models.Template) ([]g
 	}
 
 	for _, template := range templates {
-		detail := "no route renders with it"
-		if len(users[template.ID]) > 0 {
-			detail = ""
-		}
 		drawTemplate(template.ID, template.Name, false)
-		if detail != "" {
-			for i := range nodes {
-				if nodes[i].ID == "template:"+template.ID {
-					nodes[i].Detail = detail
-				}
-			}
-		}
 	}
 
 	// A route rendering with a template that was deleted belongs here too: the
 	// flow graph shows it delivering, and this one shows what it renders with.
+	missing := make([]string, 0, len(users))
 	for id := range users {
 		if !known[id] {
-			drawTemplate(id, "missing template", true)
+			missing = append(missing, id)
 		}
+	}
+	sort.Strings(missing)
+	for _, id := range missing {
+		drawTemplate(id, "missing template", true)
 	}
 
 	return nodes, links
+}
+
+// sourceDefaultLabel names a webhook's default in the template picture.
+func sourceDefaultLabel(source string) string {
+	if source == models.SourceTeamsV2 {
+		return "Teams V2 webhooks"
+	}
+	return sourceLabel(source)
 }
 
 // evaluationOrder is the order the router reads routes in, so both pictures list
@@ -617,7 +757,7 @@ func (s *Server) handleRoutingMatch(w http.ResponseWriter, r *http.Request) {
 		"reason":      result.Reason,
 		"explanation": explainResult(result, byID),
 		"deliveries":  deliveryAnswers(result, byID),
-		"nodes":       matchedNodes(result),
+		"nodes":       matchedNodes(result, req.Labels),
 	}
 	// Every root whose selector matched, not just the first — nothing says two
 	// independent routes cannot both name `severity=critical`, and both fire.
@@ -670,9 +810,17 @@ func deliveryAnswers(result routing.Result, byID map[string]models.Route) []map[
 }
 
 // Every node on the path an alert takes, so the picture can highlight the whole
-// fan-out rather than one route of it.
-func matchedNodes(result routing.Result) []string {
-	nodes := make([]string, 0, len(result.Deliveries)*2)
+// fan-out rather than one route of it. The origin is the webhook the labels
+// name, or every routed one when they name none.
+func matchedNodes(result routing.Result, labels map[string]string) []string {
+	nodes := make([]string, 0, len(result.Deliveries)*2+len(routedSources()))
+	if len(result.Deliveries) > 0 {
+		for _, source := range routedSources() {
+			if pinned := labels[models.SourceLabel]; pinned == "" || pinned == source {
+				nodes = append(nodes, sourceNodeID(source))
+			}
+		}
+	}
 	for _, delivery := range result.Deliveries {
 		nodes = append(nodes, "route:"+delivery.RouteID)
 		if delivery.DestinationID != "" {

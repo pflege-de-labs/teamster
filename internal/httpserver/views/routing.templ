@@ -15,6 +15,7 @@ templ RoutingPage(viewer Viewer) {
 				<div class="lg:col-span-2">
 					<div class="mb-3 flex flex-wrap gap-3 text-xs text-slate-600">
 						@legendSwatch("bg-slate-500", i18n.T(ctx, "routing.legend_webhook"))
+						@legendSwatch("bg-violet-500", i18n.T(ctx, "routing.legend_endpoint"))
 						@legendSwatch("bg-sky-500", i18n.T(ctx, "routing.legend_route"))
 						@legendSwatch("bg-emerald-500", i18n.T(ctx, "routing.legend_destination"))
 						@legendSwatch("bg-red-500", i18n.T(ctx, "routing.legend_missing"))
