@@ -8,6 +8,7 @@
   "admin.read_only": "Angemeldet mit der Rolle {0}, die nur lesen und nichts ändern darf.",
   "app.subtitle": "Vorlagen, Ziele und Routen",
   "app.title": "Teamster-Verwaltung",
+  "app.version": "Version {0}",
   "destinations.badge_app_missing": "Teams-App fehlt",
   "destinations.badge_global_default": "globaler Standard",
   "destinations.channel": "Kanal",

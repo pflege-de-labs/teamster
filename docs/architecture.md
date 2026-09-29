@@ -803,9 +803,13 @@ Every signed-in page shares `layout.templ`. The pages are listed in a sidebar (`
 built-in role, translated. It holds a link to `/admin/userinfo`, the languages as flag buttons
 (served from `web/flags/`, named by their alt text) and the sign-out form. Without JavaScript the
 sidebar is always open and the menu opens natively.
-`web/nav.js` adds the burger that folds the sidebar, remembers that choice, marks the current page,
-and closes the menu on an outside click or Escape. See
-[ADR 0042](adr/0042-sidebar-navigation-and-user-menu.md).
+An inline script in `<head>` marks `<html>` with `js` and, when the sidebar was folded,
+`sidebar-closed`, so the burger and the sidebar are in their final state on first paint.
+`web/nav.js` toggles that class and remembers the choice, marks the current page, and closes the
+menu on an outside click or Escape. The bottom of the sidebar shows the build version,
+`config.Config.Version`, which `cli.Run` stamps from `main.version`. See
+[ADR 0042](adr/0042-sidebar-navigation-and-user-menu.md) and
+[ADR 0054](adr/0054-apply-sidebar-state-before-first-paint.md).
 
 `formPost` takes the redirect target as a parameter rather than always answering `/admin`: a page of
 its own — `/admin/recipients`, like `/admin/permissions` — posts to its own `/delete` endpoint and

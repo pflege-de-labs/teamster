@@ -56,7 +56,7 @@ Architectural decisions are recorded here, one file per decision, in
 | [0039](0039-built-in-default-message.md) | Send a built-in default message when nothing says what a message looks like | Accepted |
 | [0040](0040-teams-v2-endpoint-templates.md) | A Teams V2 endpoint may name a template | Accepted |
 | [0041](0041-editor-completion-from-sampled-labels.md) | Complete templates and routes from labels sampled off incoming alerts | Accepted |
-| [0042](0042-sidebar-navigation-and-user-menu.md) | Move page links to a sidebar and account controls to a user menu | Accepted |
+| [0042](0042-sidebar-navigation-and-user-menu.md) | Move page links to a sidebar and account controls to a user menu | Accepted, partly superseded by 0054 |
 | [0043](0043-session-keeps-sign-in-identity.md) | Keep what the identity provider said on the session row | Accepted |
 | [0044](0044-webhook-access-tokens.md) | Authenticate the alert webhooks with issued Bearer tokens | Accepted |
 | [0045](0045-channel-delivery-through-the-bot.md) | Deliver channel messages through the Bot Framework bot | Accepted, amended by [0049](0049-a-channel-post-is-one-teams-message.md) |
@@ -68,3 +68,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0051](0051-root-routes-need-a-target-refinements-a-template.md) | A root route needs a target, and a refinement that keeps it needs a new template | Accepted |
 | [0052](0052-the-receiving-webhook-is-a-label.md) | The receiving webhook is a label | Accepted |
 | [0053](0053-templates-name-the-webhooks-they-handle.md) | Templates name the webhooks they handle | Accepted |
+| [0054](0054-apply-sidebar-state-before-first-paint.md) | Apply the sidebar state before first paint | Accepted |
