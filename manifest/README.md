@@ -29,6 +29,9 @@ Two settings are deliberately not placeholders and must not be changed:
   channel, and the bot reads only install and removal events there, never commands. Adding
   `groupChat` would let someone link the bot in a group chat, which would later broadcast that
   person's private alerts to everyone in it.
+- `supportsChannelFeatures` must stay `"tier1"`. Teams rejects an upload with a `team` scope bot
+  and manifest version 1.25+ that omits it; it opts the app into shared and private channels, not
+  anything this bot depends on.
 
 ## Icons
 
