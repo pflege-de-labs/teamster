@@ -20,8 +20,7 @@ templ Admin(page Page) {
 templ templates(page Page) {
 	@panel(i18n.T(ctx, "templates.panel"), "templates") {
 		if page.CanEdit {
-			// The preview sits beside the editor so a change and its effect are
-			// both in view; on a narrow screen it drops below.
+			// Preview beside the editor keeps a change and its effect in view together.
 			<form method="post" action="/admin/templates" id="template-form" class="grid gap-6 lg:col-span-2 lg:grid-cols-2">
 				<div class="min-w-0 space-y-3">
 					if page.EditTemplate != nil {
@@ -40,9 +39,8 @@ templ templates(page Page) {
 						}
 					</div>
 				</div>
-				<div class="min-w-0 space-y-3 lg:sticky lg:top-4 lg:self-start" id="preview-column">
+				<div class="min-w-0 space-y-3 lg:sticky lg:top-4 lg:self-start">
 					<div class="flex flex-wrap items-center gap-2">
-						<span class="text-sm font-medium">{ i18n.T(ctx, "preview.heading") }</span>
 						<button
 							type="button"
 							id="preview-button"
