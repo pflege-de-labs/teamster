@@ -107,6 +107,20 @@ func (s *SQLiteStore) SetDefaultDestination(ctx context.Context, id string) erro
 	})
 }
 
+// DeleteTemplate and SetGlobalDefaultTemplate override queryAdapter's so the
+// catch-all can never be left naming a template that is gone.
+func (s *SQLiteStore) DeleteTemplate(ctx context.Context, id string) error {
+	return s.WithTx(ctx, func(ctx context.Context, tx Store) error {
+		return tx.DeleteTemplate(ctx, id)
+	})
+}
+
+func (s *SQLiteStore) SetGlobalDefaultTemplate(ctx context.Context, templateID string) error {
+	return s.WithTx(ctx, func(ctx context.Context, tx Store) error {
+		return tx.SetGlobalDefaultTemplate(ctx, templateID)
+	})
+}
+
 // RecordAlertSamples overrides queryAdapter's to commit the batch at once.
 func (s *SQLiteStore) RecordAlertSamples(ctx context.Context, samples []models.AlertSample) error {
 	return recordAlertSamplesInTx(ctx, s, samples)

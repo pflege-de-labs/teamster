@@ -80,6 +80,9 @@ func (s *Server) adminPage(r *http.Request, notice, errText string) views.Page {
 	} else if !errors.Is(err, store.ErrNotFound) {
 		page.Error = failureText(ctx, "load admin page", err)
 	}
+	if page.GlobalDefaultTemplateID, err = s.store.GetGlobalDefaultTemplate(ctx); err != nil {
+		page.Error = failureText(ctx, "load admin page", err)
+	}
 	if page.WebhookEndpoints, err = s.store.ListWebhookEndpoints(ctx); err != nil {
 		page.Error = failureText(ctx, "load admin page", err)
 	}

@@ -689,7 +689,10 @@ per alert. Counts are therefore approximate. Replicas sharing Postgres add to th
   destination**. The first destination you create becomes the global default, and an admin can
   make another one the default from the Destinations list. Only one destination is the default at
   a time. It cannot be deleted while other destinations remain, so switch the default first. The
-  route list and the routing page show it as a built-in route that cannot be edited.
+  route list and the routing page show it as a built-in route. Its template is chosen on that row
+  in the Routes panel, or with `PUT /api/routes/global-default` and `{"template_id": "…"}`.
+  Without one, it sends the built-in default message. Deleting the chosen template goes back to
+  the built-in message.
 - Active alerts are tracked per channel and per person, so an alert that fans out updates and
   resolves every message it sent. One target failing does not stop the others; the response is a
   `502` and the sender's retry updates what already landed rather than duplicating it.

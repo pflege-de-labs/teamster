@@ -42,6 +42,8 @@ type fakeStore struct {
 	loginFlows   map[string]models.LoginFlow
 	linkFlows    map[string]models.LinkFlow
 	samples      []models.AlertSample
+	// globalDefaultTemplate is the catch-all's template; "" is the built-in one.
+	globalDefaultTemplate string
 
 	failOn map[string]bool
 
@@ -148,6 +150,31 @@ func (f *fakeStore) DeleteTemplate(ctx context.Context, id string) error {
 		return err
 	}
 	delete(f.templates, id)
+	if f.globalDefaultTemplate == id {
+		f.globalDefaultTemplate = ""
+	}
+	return nil
+}
+
+func (f *fakeStore) GetGlobalDefaultTemplate(ctx context.Context) (string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("GetGlobalDefaultTemplate"); err != nil {
+		return "", err
+	}
+	return f.globalDefaultTemplate, nil
+}
+
+func (f *fakeStore) SetGlobalDefaultTemplate(ctx context.Context, templateID string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("SetGlobalDefaultTemplate"); err != nil {
+		return err
+	}
+	if _, ok := f.templates[templateID]; templateID != "" && !ok {
+		return store.ErrNotFound
+	}
+	f.globalDefaultTemplate = templateID
 	return nil
 }
 
@@ -913,7 +940,8 @@ func (f *fakeStore) WithTx(ctx context.Context, fn func(context.Context, store.S
 		linkFlows:    maps.Clone(f.linkFlows),
 		failOn:       maps.Clone(f.failOn),
 
-		subjectLookupDelay: f.subjectLookupDelay,
+		globalDefaultTemplate: f.globalDefaultTemplate,
+		subjectLookupDelay:    f.subjectLookupDelay,
 	}
 	f.mu.Unlock()
 
@@ -927,6 +955,7 @@ func (f *fakeStore) WithTx(ctx context.Context, fn func(context.Context, store.S
 	f.recipients, f.grants, f.activeAlerts = snapshot.recipients, snapshot.grants, snapshot.activeAlerts
 	f.activeChats = snapshot.activeChats
 	f.sessions, f.loginFlows, f.linkFlows = snapshot.sessions, snapshot.loginFlows, snapshot.linkFlows
+	f.globalDefaultTemplate = snapshot.globalDefaultTemplate
 	return nil
 }
 
@@ -957,7 +986,8 @@ func (f *fakeStore) WithSerializableTx(ctx context.Context, fn func(context.Cont
 		linkFlows:    maps.Clone(f.linkFlows),
 		failOn:       maps.Clone(f.failOn),
 
-		subjectLookupDelay: f.subjectLookupDelay,
+		globalDefaultTemplate: f.globalDefaultTemplate,
+		subjectLookupDelay:    f.subjectLookupDelay,
 	}
 
 	if err := fn(ctx, snapshot); err != nil {
@@ -968,6 +998,7 @@ func (f *fakeStore) WithSerializableTx(ctx context.Context, fn func(context.Cont
 	f.recipients, f.grants, f.activeAlerts = snapshot.recipients, snapshot.grants, snapshot.activeAlerts
 	f.activeChats = snapshot.activeChats
 	f.sessions, f.loginFlows, f.linkFlows = snapshot.sessions, snapshot.loginFlows, snapshot.linkFlows
+	f.globalDefaultTemplate = snapshot.globalDefaultTemplate
 	return nil
 }
 

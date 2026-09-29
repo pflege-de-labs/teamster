@@ -19,6 +19,8 @@ type stubStore struct {
 	// fallback is the global default destination; empty means there is none.
 	fallback   string
 	defaultErr error
+	// template is the catch-all's template.
+	template string
 }
 
 func (s stubStore) Close() error { return nil }
@@ -57,6 +59,14 @@ func (s stubStore) DeleteDestination(ctx context.Context, id string) error { ret
 
 func (s stubStore) GetDestination(ctx context.Context, id string) (models.Destination, error) {
 	return models.Destination{}, store.ErrNotFound
+}
+
+func (s stubStore) GetGlobalDefaultTemplate(ctx context.Context) (string, error) {
+	return s.template, nil
+}
+
+func (s stubStore) SetGlobalDefaultTemplate(ctx context.Context, templateID string) error {
+	return store.ErrNotFound
 }
 
 func (s stubStore) GetDefaultDestination(ctx context.Context) (models.Destination, error) {
@@ -942,11 +952,13 @@ func TestPlanFallsBackToTheGlobalDefault(t *testing.T) {
 		name     string
 		routes   []models.Route
 		fallback string
+		template string
 		labels   map[string]string
 		reason   Reason
 		want     string
 	}{
 		{name: "no routes", fallback: "d-global", reason: ReasonGlobalDefault, want: "d-global"},
+		{name: "a configured template", fallback: "d-global", template: "t-catch", reason: ReasonGlobalDefault, want: "d-global"},
 		{name: "no match, no default route", routes: []models.Route{critical}, fallback: "d-global",
 			labels: map[string]string{"severity": "info"}, reason: ReasonGlobalDefault, want: "d-global"},
 		{name: "default route wins", routes: []models.Route{critical, defaultRoute}, fallback: "d-global",
@@ -962,7 +974,7 @@ func TestPlanFallsBackToTheGlobalDefault(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			result, err := New(stubStore{routes: tc.routes, fallback: tc.fallback}).Plan(t.Context(), tc.labels)
+			result, err := New(stubStore{routes: tc.routes, fallback: tc.fallback, template: tc.template}).Plan(t.Context(), tc.labels)
 			if err != nil {
 				t.Fatalf("Plan: %v", err)
 			}
@@ -980,8 +992,8 @@ func TestPlanFallsBackToTheGlobalDefault(t *testing.T) {
 			}
 			if tc.reason == ReasonGlobalDefault {
 				got := result.Deliveries[0]
-				if got.RouteID != GlobalDefaultRouteID || got.TemplateID != "" || got.Kind != DeliveryChannel {
-					t.Errorf("delivery = %+v, want the synthetic route with no template", got)
+				if got.RouteID != GlobalDefaultRouteID || got.TemplateID != tc.template || got.Kind != DeliveryChannel {
+					t.Errorf("delivery = %+v, want the synthetic route with template %q", got, tc.template)
 				}
 			}
 		})

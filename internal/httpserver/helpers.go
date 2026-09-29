@@ -72,7 +72,7 @@ func userFacing(err error) bool {
 	}
 	for _, known := range []error{
 		store.ErrNotFound, store.ErrDefaultDestination, store.ErrConflict,
-		errDeliveryRefused, errRecipientRefused, errTokenName, errTokenNameTaken, errInvalidSlug, errUnknownTemplate,
+		errDeliveryRefused, errRecipientRefused, errUnknownCatchAllTemplate, errTokenName, errTokenNameTaken, errInvalidSlug, errUnknownTemplate,
 	} {
 		if errors.Is(err, known) {
 			return true

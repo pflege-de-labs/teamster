@@ -32,6 +32,9 @@ type Querier interface {
 	// network call, so it can be stale, where the predicate is evaluated against
 	// the row as it is now.
 	ClearRecipientBlocked(ctx context.Context, id string) error
+	// ClearSettingValue drops a key only while it still holds value, so deleting
+	// a template forgets it as the catch-all's without touching another choice.
+	ClearSettingValue(ctx context.Context, arg ClearSettingValueParams) error
 	// CompleteActiveAlertClaim records the card the claim produced. The guard is
 	// what makes a lost claim visible: zero rows means somebody else's card is
 	// recorded under this key, so the one just posted is an orphan and the caller
@@ -101,6 +104,7 @@ type Querier interface {
 	DeleteRecipient(ctx context.Context, id string) error
 	DeleteRoute(ctx context.Context, id string) error
 	DeleteSession(ctx context.Context, id string) error
+	DeleteSetting(ctx context.Context, key string) error
 	DeleteTemplate(ctx context.Context, id string) error
 	DeleteWebhookEndpoint(ctx context.Context, id string) error
 	// GetAccessTokenByHash is how a webhook request is authenticated. Matching on
@@ -125,6 +129,7 @@ type Querier interface {
 	GetRecipientBySubject(ctx context.Context, subject string) (Recipient, error)
 	GetRoute(ctx context.Context, id string) (Route, error)
 	GetSession(ctx context.Context, id string) (Session, error)
+	GetSetting(ctx context.Context, key string) (string, error)
 	GetTemplate(ctx context.Context, id string) (Template, error)
 	GetWebhookEndpoint(ctx context.Context, id string) (WebhookEndpoint, error)
 	// GetWebhookEndpointBySlug is the request path, turned into a row. It is the
@@ -216,6 +221,7 @@ type Querier interface {
 	// UpsertBotTeam records an install, or a newer service URL for one: both come
 	// from the same authenticated activity, and the latest one wins.
 	UpsertBotTeam(ctx context.Context, arg UpsertBotTeamParams) error
+	UpsertSetting(ctx context.Context, arg UpsertSettingParams) error
 }
 
 var _ Querier = (*Queries)(nil)

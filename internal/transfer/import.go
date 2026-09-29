@@ -122,6 +122,14 @@ func apply(ctx context.Context, tx store.Store, bundle Bundle, mode Mode) ([]Cha
 		changes = append(changes, Change{Kind: "template", Action: action, ID: template.ID, Name: template.Name})
 	}
 
+	change, err := settleGlobalDefaultTemplate(ctx, tx, bundle, mode)
+	if err != nil {
+		return nil, err
+	}
+	if change != nil {
+		changes = append(changes, *change)
+	}
+
 	destinations, err := tx.ListDestinations(ctx)
 	if err != nil {
 		return nil, err
@@ -192,6 +200,27 @@ func apply(ctx context.Context, tx store.Store, bundle Bundle, mode Mode) ([]Cha
 		return nil, err
 	}
 	return append(changes, removals...), nil
+}
+
+// settleGlobalDefaultTemplate applies the bundle's catch-all template. A merge
+// keeps the installation's when the bundle names none; a replace makes the
+// bundle's choice, even the built-in one, the installation's.
+func settleGlobalDefaultTemplate(ctx context.Context, tx store.Store, bundle Bundle, mode Mode) (*Change, error) {
+	want := bundle.GlobalDefaultTemplateID
+	if want == "" && mode != ModeReplace {
+		return nil, nil
+	}
+	current, err := tx.GetGlobalDefaultTemplate(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if current == want {
+		return nil, nil
+	}
+	if err := tx.SetGlobalDefaultTemplate(ctx, want); err != nil {
+		return nil, err
+	}
+	return &Change{Kind: "setting", Action: actionUpdate, ID: "global_default.template_id", Name: want}, nil
 }
 
 // settleDefaultDestination applies the bundle's global default. A bundle that
