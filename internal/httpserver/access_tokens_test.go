@@ -187,7 +187,7 @@ func TestTokensPageReportsAStoreFailure(t *testing.T) {
 	t.Parallel()
 
 	handler := newTestServer(t, newFakeStore().fail("ListAccessTokens"), &fakeMessenger{}).Handler
-	if rec := do(t, handler, http.MethodGet, "/admin/tokens", ""); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), errStore.Error()) {
+	if rec := do(t, handler, http.MethodGet, "/admin/tokens", ""); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "Something went wrong. Reference: ") {
 		t.Errorf("GET /admin/tokens = %d, want the page showing the error", rec.Code)
 	}
 

@@ -30,7 +30,7 @@ func (s *Server) handleExport(w http.ResponseWriter, r *http.Request) {
 
 	bundle, err := transfer.Export(ctx, s.store, s.directoryNames(ctx))
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		writeError(w, r, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -51,7 +51,7 @@ func (s *Server) handleImport(w http.ResponseWriter, r *http.Request) {
 
 	mode, err := transfer.ParseMode(r.URL.Query().Get("mode"))
 	if err != nil {
-		writeJSONError(w, http.StatusBadRequest, err.Error())
+		writeError(w, r, http.StatusBadRequest, err)
 		return
 	}
 	dryRun := r.URL.Query().Get("dry-run") == "true"
@@ -72,7 +72,11 @@ func (s *Server) handleImport(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// A bundle this installation will not accept is the caller's to fix,
 		// not a failure of the server.
-		writeJSONError(w, http.StatusBadRequest, err.Error())
+		status := http.StatusInternalServerError
+		if errors.As(err, new(transfer.InvalidError)) {
+			status = http.StatusBadRequest
+		}
+		writeError(w, r, status, err)
 		return
 	}
 

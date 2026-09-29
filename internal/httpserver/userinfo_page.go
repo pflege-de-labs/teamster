@@ -30,6 +30,6 @@ func (s *Server) handleUserInfoPage(w http.ResponseWriter, r *http.Request) {
 		Identity:  session.Identity,
 	}
 	if err := views.UserInfoPage(page).Render(ctx, w); err != nil {
-		logError("render user info page", err)
+		logError(ctx, "render user info page", err)
 	}
 }

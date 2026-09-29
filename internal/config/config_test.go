@@ -115,6 +115,7 @@ func TestParseExampleConfig(t *testing.T) {
 			LRUSize:         4096,
 			FlushInterval:   5 * time.Minute,
 		},
+		Log: LogConfig{Level: "info", Format: "text"},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("parsed example config = %+v, want %+v", got, want)

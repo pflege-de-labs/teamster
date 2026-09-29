@@ -63,7 +63,7 @@ func (s *Server) handleTeamsV2(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		s.metrics.WebhookReceived(ctx, teamsV2Source, "error")
-		writeJSONError(w, http.StatusBadGateway, err.Error())
+		writeError(w, r, http.StatusBadGateway, err)
 		return
 	}
 
@@ -77,7 +77,7 @@ func (s *Server) handleTeamsV2(w http.ResponseWriter, r *http.Request) {
 	msg, err := teamsv2.Parse(body)
 	if err != nil {
 		s.metrics.WebhookReceived(ctx, teamsV2Source, "rejected")
-		writeJSONError(w, http.StatusBadRequest, err.Error())
+		writeError(w, r, http.StatusBadRequest, err)
 		return
 	}
 
@@ -94,12 +94,12 @@ func (s *Server) handleTeamsV2(w http.ResponseWriter, r *http.Request) {
 	out, err := s.teamsV2Message(ctx, endpoint, body, msg)
 	if err != nil {
 		s.metrics.DeliveryRecorded(ctx, label, metrics.OutcomeFailed)
-		writeJSONError(w, http.StatusBadGateway, err.Error())
+		writeError(w, r, http.StatusBadGateway, err)
 		return
 	}
 	if _, err := s.channels.PostToChannel(ctx, destination.TeamID, destination.ChannelID, out); err != nil {
 		s.metrics.DeliveryRecorded(ctx, label, channelFailure(err))
-		writeJSONError(w, http.StatusBadGateway, err.Error())
+		writeError(w, r, http.StatusBadGateway, err)
 		return
 	}
 

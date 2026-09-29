@@ -140,7 +140,7 @@ func (s *Server) handleAuthStart(w http.ResponseWriter, r *http.Request) {
 
 	provider, err := s.discover(ctx)
 	if err != nil {
-		logError("oidc discovery", err)
+		logError(ctx, "oidc discovery", err)
 		http.Redirect(w, r, "/admin/login?error=identity+provider+unreachable", http.StatusFound)
 		return
 	}
@@ -161,7 +161,7 @@ func (s *Server) handleAuthStart(w http.ResponseWriter, r *http.Request) {
 		State: state, Verifier: verifier, Nonce: nonce,
 		ExpiresAt: time.Now().UTC().Add(loginFlowTTL),
 	}); err != nil {
-		logError("store login flow", err)
+		logError(ctx, "store login flow", err)
 		http.Redirect(w, r, "/admin/login?error=could+not+start+login", http.StatusFound)
 		return
 	}
@@ -194,7 +194,7 @@ func (s *Server) handleAuthCallback(w http.ResponseWriter, r *http.Request) {
 
 	provider, err := s.discover(ctx)
 	if err != nil {
-		logError("oidc discovery", err)
+		logError(ctx, "oidc discovery", err)
 		loginFailed(w, r, "identity provider unreachable")
 		return
 	}
@@ -202,21 +202,21 @@ func (s *Server) handleAuthCallback(w http.ResponseWriter, r *http.Request) {
 	config := s.oauthConfig(provider)
 	token, err := config.Exchange(ctx, r.URL.Query().Get("code"), oauth2.VerifierOption(flow.Verifier))
 	if err != nil {
-		logError("oidc exchange", err)
+		logError(ctx, "oidc exchange", err)
 		loginFailed(w, r, "the identity provider rejected the login")
 		return
 	}
 
 	subject, name, roles, identity, err := s.verifyIDToken(ctx, provider, token, flow.Nonce)
 	if err != nil {
-		logError("oidc verify", err)
-		loginFailed(w, r, err.Error())
+		logError(ctx, "oidc verify", err)
+		loginFailed(w, r, "the identity provider's answer could not be verified")
 		return
 	}
 
 	sessionID, err := s.startSession(w, r, subject, name, "oidc", roles, identity)
 	if err != nil {
-		logError("start session", err)
+		logError(ctx, "start session", err)
 		loginFailed(w, r, "could not start a session")
 		return
 	}
@@ -228,7 +228,7 @@ func (s *Server) handleAuthCallback(w http.ResponseWriter, r *http.Request) {
 	// login, or the next time the button is used, refreshes it.
 	if s.cfg.Auth.Broker.Enabled {
 		if err := s.storeBrokerToken(ctx, sessionID, token); err != nil {
-			logError("store broker token", err)
+			logError(ctx, "store broker token", err)
 		}
 	}
 
@@ -339,11 +339,11 @@ func (l *claimLookup) userInfoClaims() map[string]any {
 
 	info, err := l.provider.UserInfo(l.ctx, oauth2.StaticTokenSource(l.token))
 	if err != nil {
-		logError("userinfo", err)
+		logError(l.ctx, "userinfo", err)
 		return nil
 	}
 	if err := info.Claims(&l.userInfo); err != nil {
-		logError("userinfo claims", err)
+		logError(l.ctx, "userinfo claims", err)
 	}
 	return l.userInfo
 }

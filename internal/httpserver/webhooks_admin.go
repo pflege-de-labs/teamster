@@ -26,13 +26,14 @@ func (s *Server) handleWebhookForm(w http.ResponseWriter, r *http.Request) {
 
 	endpoint, err := webhookEndpointFromForm(r)
 	if err != nil {
-		redirectTo("/admin", w, r, "", err.Error())
+		err = userError{err}
+		redirectTo("/admin", w, r, "", visibleError(r.Context(), "save webhook", err))
 		return
 	}
 
 	allowed, err := s.mayDeliverToDestination(r, endpoint.DestinationID)
 	if err != nil {
-		redirectTo("/admin", w, r, "", err.Error())
+		redirectTo("/admin", w, r, "", visibleError(r.Context(), "save webhook", err))
 		return
 	}
 	if !allowed {
@@ -40,14 +41,14 @@ func (s *Server) handleWebhookForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := s.endpointTemplateExists(r.Context(), endpoint); err != nil {
-		redirectTo("/admin", w, r, "", err.Error())
+		redirectTo("/admin", w, r, "", visibleError(r.Context(), "save webhook", err))
 		return
 	}
 
 	// An existing endpoint keeps its token, so its senders keep working.
 	if endpoint.ID != "" {
 		if _, err := s.store.UpdateWebhookEndpoint(r.Context(), endpoint); err != nil {
-			redirectTo("/admin", w, r, "", err.Error())
+			redirectTo("/admin", w, r, "", visibleError(r.Context(), "save webhook", err))
 			return
 		}
 		redirectTo("/admin", w, r, "Webhook updated.", "")
@@ -56,14 +57,14 @@ func (s *Server) handleWebhookForm(w http.ResponseWriter, r *http.Request) {
 
 	token, err := newWebhookToken()
 	if err != nil {
-		redirectTo("/admin", w, r, "", err.Error())
+		redirectTo("/admin", w, r, "", visibleError(r.Context(), "save webhook", err))
 		return
 	}
 	endpoint.TokenHash = hashToken(token)
 
 	created, err := s.store.CreateWebhookEndpoint(r.Context(), endpoint)
 	if err != nil {
-		redirectTo("/admin", w, r, "", err.Error())
+		redirectTo("/admin", w, r, "", visibleError(r.Context(), "save webhook", err))
 		return
 	}
 
@@ -80,13 +81,13 @@ func (s *Server) handleWebhookRotate(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	endpoint, err := s.store.GetWebhookEndpoint(ctx, r.PostFormValue("id"))
 	if err != nil {
-		redirectTo("/admin", w, r, "", err.Error())
+		redirectTo("/admin", w, r, "", visibleError(r.Context(), "save webhook", err))
 		return
 	}
 
 	allowed, err := s.mayDeliverToDestination(r, endpoint.DestinationID)
 	if err != nil {
-		redirectTo("/admin", w, r, "", err.Error())
+		redirectTo("/admin", w, r, "", visibleError(r.Context(), "save webhook", err))
 		return
 	}
 	if !allowed {
@@ -96,11 +97,11 @@ func (s *Server) handleWebhookRotate(w http.ResponseWriter, r *http.Request) {
 
 	token, err := newWebhookToken()
 	if err != nil {
-		redirectTo("/admin", w, r, "", err.Error())
+		redirectTo("/admin", w, r, "", visibleError(r.Context(), "save webhook", err))
 		return
 	}
 	if err := s.store.RotateWebhookEndpointToken(ctx, endpoint.ID, hashToken(token)); err != nil {
-		redirectTo("/admin", w, r, "", err.Error())
+		redirectTo("/admin", w, r, "", visibleError(r.Context(), "save webhook", err))
 		return
 	}
 

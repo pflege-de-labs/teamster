@@ -32,18 +32,18 @@ func (s *Server) handleRecipientsPage(w http.ResponseWriter, r *http.Request) {
 
 	recipients, err := s.store.ListRecipients(ctx)
 	if err != nil && page.Error == "" {
-		page.Error = err.Error()
+		page.Error = failureText(ctx, "load recipients page", err)
 	}
 	routes, err := s.store.ListRoutes(ctx)
 	if err != nil && page.Error == "" {
-		page.Error = err.Error()
+		page.Error = failureText(ctx, "load recipients page", err)
 	}
 
 	page.Rows = recipientRows(recipients, routes)
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := views.RecipientsPage(page).Render(ctx, w); err != nil {
-		logError("render recipients page", err)
+		logError(ctx, "render recipients page", err)
 	}
 }
 

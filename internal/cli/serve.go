@@ -4,16 +4,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"time"
 
 	"github.com/pflege-de-labs/teamster/internal/bot"
 	"github.com/pflege-de-labs/teamster/internal/config"
 	"github.com/pflege-de-labs/teamster/internal/graph"
 	"github.com/pflege-de-labs/teamster/internal/httpserver"
+	"github.com/pflege-de-labs/teamster/internal/logging"
 	"github.com/pflege-de-labs/teamster/internal/metrics"
 	"github.com/pflege-de-labs/teamster/internal/samples"
 	"github.com/pflege-de-labs/teamster/internal/store"
@@ -31,13 +33,13 @@ type sessionSweeper interface {
 
 // sweepSessions clears expired sessions and abandoned login flows. Neither is
 // honoured once expired, so this only keeps the tables from growing.
-func sweepSessions(ctx context.Context, store sessionSweeper) {
+func sweepSessions(ctx context.Context, logger *slog.Logger, store sessionSweeper) {
 	ticker := time.NewTicker(time.Hour)
 	defer ticker.Stop()
 
 	for {
 		if err := store.DeleteExpiredSessions(ctx); err != nil {
-			log.Printf("sweep sessions: %v", err)
+			logger.Error("sweep sessions", "err", err)
 		}
 		select {
 		case <-ctx.Done():
@@ -51,6 +53,13 @@ func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
 	if err := config.Validate(*cfg); err != nil {
 		return fmt.Errorf("config validation: %w", err)
 	}
+
+	logger, err := logging.New(cfg.Log, os.Stderr)
+	if err != nil {
+		return fmt.Errorf("log: %w", err)
+	}
+	// Routes the standard library's own log output, and any left in dependencies, through the same handler.
+	slog.SetDefault(logger)
 
 	opts := storeOptions(cfg, store.MigrateMode(cfg.Database.Migrate))
 	sqlStore, err := store.Open(ctx, opts)
@@ -66,9 +75,9 @@ func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
 	defer func() { _ = sqlStore.Close() }()
 	// Which database this instance is on is the first question of any
 	// incident, and the image's baked-in path makes it non-obvious.
-	log.Printf("store: %s", store.Target(opts))
+	logger.Info("store opened", "target", store.Target(opts))
 	if warning := webhookTokenWarning(ctx, cfg, sqlStore); warning != "" {
-		log.Print(warning)
+		logger.Warn(warning)
 	}
 
 	// After the store, so that the deferred shutdown below — and the last
@@ -84,7 +93,7 @@ func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
 		shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), cfg.Metrics.ShutdownTimeout)
 		defer cancel()
 		if err := telemetry.Shutdown(shutdownCtx); err != nil {
-			log.Printf("metrics shutdown: %v", err)
+			logger.Error("metrics shutdown", "err", err)
 		}
 	}()
 
@@ -108,13 +117,13 @@ func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
 		return fmt.Errorf("metrics listener: %w", err)
 	}
 	if metricsAddr != "" {
-		log.Printf("metrics on http://%s%s", metricsAddr, cfg.Metrics.Path)
+		logger.Info("metrics listening", "url", "http://"+metricsAddr+cfg.Metrics.Path)
 	}
 	defer func() {
 		shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), cfg.Metrics.ShutdownTimeout)
 		defer cancel()
 		if err := stopMetrics(shutdownCtx); err != nil {
-			log.Printf("metrics listener shutdown: %v", err)
+			logger.Error("metrics listener shutdown", "err", err)
 		}
 	}()
 
@@ -149,15 +158,15 @@ func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
 		botClient = client
 		channels = httpserver.NewBotChannels(client, sqlStore, cfg.Bot, cfg.Graph.TenantID)
 	} else {
-		log.Printf("bot not configured: every channel delivery will fail, see ADR 0045")
+		logger.Warn("bot not configured: every channel delivery will fail, see ADR 0045")
 	}
 
-	sampler, err := samples.New(sqlStore, cfg.Samples)
+	sampler, err := samples.New(logger, sqlStore, cfg.Samples)
 	if err != nil {
 		return fmt.Errorf("samples: %w", err)
 	}
 
-	srv, err := httpserver.NewServer(*cfg, sqlStore, graphClient, botClient, channels, telemetry, sampler)
+	srv, err := httpserver.NewServer(logger, *cfg, sqlStore, graphClient, botClient, channels, telemetry, sampler)
 	if err != nil {
 		return fmt.Errorf("http server: %w", err)
 	}
@@ -170,9 +179,9 @@ func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
 	}
 
 	url := url.URL{Scheme: "http", Host: listener.Addr().String()}
-	log.Printf("listening on %s", url.String())
+	logger.Info("listening", "url", url.String())
 
-	go sweepSessions(ctx, sqlStore)
+	go sweepSessions(ctx, logger, sqlStore)
 
 	// Stopped only once the drain below is over, so the alerts it delivers are
 	// sampled too, and waited for before the store closes: its last act is a write.
@@ -199,7 +208,7 @@ func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
 	case <-ctx.Done():
 	}
 
-	log.Printf("shutting down, draining for up to %s", cfg.Server.ShutdownTimeout)
+	logger.Info("shutting down", "drain", cfg.Server.ShutdownTimeout.String())
 
 	// The shutdown deadline must outlive the cancelled ctx it is derived from.
 	shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), cfg.Server.ShutdownTimeout)

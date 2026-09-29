@@ -135,7 +135,7 @@ func (p *persistingTokenSource) Token() (*oauth2.Token, error) {
 			// removed and the next attempt fails fast with a clear "log in
 			// again" rather than a repeated, misleading timeout.
 			if delErr := p.server.store.DeleteBrokerToken(p.ctx, p.sessionID); delErr != nil {
-				logError("delete dead broker token", delErr)
+				logError(p.ctx, "delete dead broker token", delErr)
 			}
 		}
 		return nil, fmt.Errorf("refresh broker token: %w", err)
@@ -144,7 +144,7 @@ func (p *persistingTokenSource) Token() (*oauth2.Token, error) {
 	if tok.AccessToken != p.last.AccessToken || !tok.Expiry.Equal(p.last.Expiry) {
 		p.last = tok
 		if err := p.server.persistRefreshedToken(p.ctx, p.sessionID, tok); err != nil {
-			logError("persist refreshed broker token", err)
+			logError(p.ctx, "persist refreshed broker token", err)
 		}
 	}
 	return tok, nil

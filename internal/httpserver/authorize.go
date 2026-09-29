@@ -101,7 +101,7 @@ func (s *Server) authorize(next http.Handler) http.Handler {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			w.WriteHeader(http.StatusForbidden)
 			if err := views.NoAccess(viewerOf(r)).Render(r.Context(), w); err != nil {
-				logError("render no-access page", err)
+				logError(r.Context(), "render no-access page", err)
 			}
 			return
 		}

@@ -55,7 +55,7 @@ func (s *Server) handleAccessTokens(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		items, err := s.store.ListAccessTokens(r.Context())
 		if err != nil {
-			writeJSONError(w, http.StatusInternalServerError, err.Error())
+			writeError(w, r, http.StatusInternalServerError, err)
 			return
 		}
 		if items == nil {
@@ -73,11 +73,11 @@ func (s *Server) handleAccessTokens(w http.ResponseWriter, r *http.Request) {
 		created, token, err := s.issueAccessToken(r, body.Name)
 		switch {
 		case errors.Is(err, errTokenName):
-			writeJSONError(w, http.StatusBadRequest, err.Error())
+			writeError(w, r, http.StatusBadRequest, err)
 		case errors.Is(err, errTokenNameTaken):
-			writeJSONError(w, http.StatusConflict, err.Error())
+			writeError(w, r, http.StatusConflict, err)
 		case err != nil:
-			writeJSONError(w, http.StatusInternalServerError, err.Error())
+			writeError(w, r, http.StatusInternalServerError, err)
 		default:
 			writeJSON(w, http.StatusCreated, accessTokenResponse{AccessToken: created, Token: token})
 		}
@@ -98,7 +98,7 @@ func (s *Server) handleAccessTokenByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := s.store.DeleteAccessToken(r.Context(), id); err != nil {
-		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		writeError(w, r, http.StatusInternalServerError, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "revoked"})
@@ -121,7 +121,7 @@ func (s *Server) handleTokenForm(w http.ResponseWriter, r *http.Request) {
 	}
 	created, token, err := s.issueAccessToken(r, r.PostFormValue("name"))
 	if err != nil {
-		redirectTo("/admin/tokens", w, r, "", err.Error())
+		redirectTo("/admin/tokens", w, r, "", visibleError(r.Context(), "issue access token", err))
 		return
 	}
 	s.renderTokens(w, r, views.Tokens{Notice: "Access token created.", NewToken: token, NewTokenName: created.Name})
@@ -142,13 +142,13 @@ func (s *Server) renderTokens(w http.ResponseWriter, r *http.Request, page views
 
 	tokens, err := s.store.ListAccessTokens(ctx)
 	if err != nil && page.Error == "" {
-		page.Error = err.Error()
+		page.Error = failureText(ctx, "list access tokens", err)
 	}
 	page.Tokens = tokens
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := views.TokensPage(page).Render(ctx, w); err != nil {
-		logError("render tokens page", err)
+		logError(ctx, "render tokens page", err)
 	}
 }
 

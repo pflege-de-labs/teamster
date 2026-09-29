@@ -3,6 +3,7 @@ package samples
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"strings"
 	"sync"
 	"testing"
@@ -61,7 +62,7 @@ func (c *clock) now() time.Time { return c.t }
 
 func newSampler(t *testing.T, st Store, cfg config.SamplesConfig) (*Sampler, *clock) {
 	t.Helper()
-	s, err := New(st, cfg)
+	s, err := New(slog.New(slog.DiscardHandler), st, cfg)
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
@@ -154,7 +155,7 @@ func TestNewRefusesAnUnusableCache(t *testing.T) {
 
 	cfg := enabled()
 	cfg.LRUSize = 0
-	if _, err := New(&fakeStore{}, cfg); err == nil {
+	if _, err := New(slog.New(slog.DiscardHandler), &fakeStore{}, cfg); err == nil {
 		t.Error("New with lru-size 0 succeeded, want an error")
 	}
 }

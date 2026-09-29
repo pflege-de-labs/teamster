@@ -162,9 +162,14 @@ func TestTeamsPageWithoutTheDirectory(t *testing.T) {
 	handler := newTestServer(t, st.fail("ListBotTeams"), &fakeMessenger{directoryErr: errors.New("graph down")}).Handler
 
 	body := do(t, handler, http.MethodGet, "/admin/teams", "").Body.String()
-	for _, want := range []string{"graph down", "Ops alerts", "t1", errStore.Error()} {
+	for _, want := range []string{"Something went wrong. Reference: ", "Ops alerts", "t1"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("page lacks %q", want)
+		}
+	}
+	for _, leaked := range []string{"graph down", errStore.Error()} {
+		if strings.Contains(body, leaked) {
+			t.Errorf("page shows the underlying error %q", leaked)
 		}
 	}
 }

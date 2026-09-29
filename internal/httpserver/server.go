@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"sync/atomic"
 	"time"
@@ -70,6 +71,7 @@ type sampler interface {
 }
 
 type Server struct {
+	log        *slog.Logger
 	cfg        config.Config
 	store      store.Store
 	graph      messenger
@@ -114,7 +116,7 @@ func readHeaderTimeout(readTimeout time.Duration) time.Duration {
 // NewServer returns an error rather than starting without an authorizer: a
 // policy file that does not parse would otherwise leave every check to fall
 // through to whatever the zero value decides.
-func NewServer(cfg config.Config, store store.Store, graphClient messenger, botClient botSender, channels ChannelTransport, tel telemetry, samples sampler) (*http.Server, error) {
+func NewServer(logger *slog.Logger, cfg config.Config, store store.Store, graphClient messenger, botClient botSender, channels ChannelTransport, tel telemetry, samples sampler) (*http.Server, error) {
 	registerMIMETypes()
 
 	authorizer, err := authz.New()
@@ -150,6 +152,7 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger, botC
 	}
 
 	api := &Server{
+		log:       logger,
 		cfg:       cfg,
 		store:     store,
 		graph:     graphClient,
@@ -307,6 +310,8 @@ func NewServer(cfg config.Config, store store.Store, graphClient messenger, botC
 		ReadTimeout:       cfg.Server.ReadTimeout,
 		WriteTimeout:      cfg.Server.WriteTimeout,
 		IdleTimeout:       cfg.Server.IdleTimeout,
+		// TLS handshake and connection errors, which no handler sees.
+		ErrorLog: slog.NewLogLogger(logger.Handler(), slog.LevelWarn),
 	}
 
 	// Shutdown flips readiness before it starts draining, so traffic stops

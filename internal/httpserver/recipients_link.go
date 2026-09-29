@@ -135,7 +135,7 @@ func (s *Server) handleLinkRecipient(w http.ResponseWriter, r *http.Request) {
 		// Unlike the admin API's own 500s, this endpoint is reachable by a
 		// viewer, so the wrapped store error stays in the log rather than the
 		// response.
-		logError("create link flow", err)
+		logError(ctx, "create link flow", err)
 		writeJSONError(w, http.StatusInternalServerError, "could not mint a link code")
 		return
 	}

@@ -88,7 +88,7 @@ func (s *Server) endSession(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	if cookie, err := r.Cookie(sessionCookie); err == nil && cookie.Value != "" {
 		if err := s.store.DeleteSession(ctx, cookie.Value); err != nil && !isNotFound(err) {
-			logError("delete session", err)
+			logError(ctx, "delete session", err)
 		}
 	}
 

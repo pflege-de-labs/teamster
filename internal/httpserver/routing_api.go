@@ -75,7 +75,7 @@ func (s *Server) handleRoutingGraph(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cfg, err := s.routingConfiguration(ctx, w)
+	cfg, err := s.routingConfiguration(w, r)
 	if err != nil {
 		return
 	}
@@ -105,14 +105,13 @@ func (s *Server) markMissingApps(ctx context.Context, nodes []graphNode, destina
 // step an alert takes, and drawing it over the flow made one arrow mean two
 // things.
 func (s *Server) handleTemplateGraph(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
 	if r.Method != http.MethodGet {
 		w.Header().Set("Allow", http.MethodGet)
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 
-	cfg, err := s.routingConfiguration(ctx, w)
+	cfg, err := s.routingConfiguration(w, r)
 	if err != nil {
 		return
 	}
@@ -130,27 +129,28 @@ type routingConfig struct {
 	templates    []models.Template
 }
 
-func (s *Server) routingConfiguration(ctx context.Context, w http.ResponseWriter) (routingConfig, error) {
+func (s *Server) routingConfiguration(w http.ResponseWriter, r *http.Request) (routingConfig, error) {
+	ctx := r.Context()
 	var cfg routingConfig
 
 	routes, err := s.store.ListRoutes(ctx)
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		writeError(w, r, http.StatusInternalServerError, err)
 		return cfg, err
 	}
 	destinations, err := s.store.ListDestinations(ctx)
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		writeError(w, r, http.StatusInternalServerError, err)
 		return cfg, err
 	}
 	recipients, err := s.store.ListRecipients(ctx)
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		writeError(w, r, http.StatusInternalServerError, err)
 		return cfg, err
 	}
 	templates, err := s.store.ListTemplates(ctx)
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		writeError(w, r, http.StatusInternalServerError, err)
 		return cfg, err
 	}
 	cfg = routingConfig{routes: routes, destinations: destinations, recipients: recipients, templates: templates}
@@ -599,13 +599,13 @@ func (s *Server) handleRoutingMatch(w http.ResponseWriter, r *http.Request) {
 
 	result, err := s.router.Plan(ctx, req.Labels)
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		writeError(w, r, http.StatusInternalServerError, err)
 		return
 	}
 
 	routes, err := s.store.ListRoutes(ctx)
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		writeError(w, r, http.StatusInternalServerError, err)
 		return
 	}
 	byID := map[string]models.Route{}

@@ -49,7 +49,7 @@ func (s *Server) handleRecipients(w http.ResponseWriter, r *http.Request) {
 
 	items, err := s.store.ListRecipients(ctx)
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		writeError(w, r, http.StatusInternalServerError, err)
 		return
 	}
 	out := make([]recipientAPI, 0, len(items))
@@ -78,7 +78,7 @@ func (s *Server) handleRecipientByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.store.DeleteRecipient(ctx, id); err != nil {
-		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		writeError(w, r, http.StatusInternalServerError, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "deleted"})

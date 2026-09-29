@@ -86,7 +86,7 @@ func (s *Server) notificationsPage(r *http.Request) views.Notifications {
 		// Not linked yet, which is the ordinary case the page's own copy
 		// explains -- not a failure to report.
 	default:
-		logError("get recipient by subject", err)
+		logError(ctx, "get recipient by subject", err)
 		// StatusUnknown, not just Error, because Recipient == nil alone reads
 		// as "not linked" everywhere else in this file and the template --
 		// which is exactly the wrong thing to tell someone who is actually
@@ -107,7 +107,7 @@ func (s *Server) renderNotifications(w http.ResponseWriter, r *http.Request, pag
 	w.Header().Set("Pragma", "no-cache")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := views.NotificationsPage(page).Render(r.Context(), w); err != nil {
-		logError("render notifications page", err)
+		logError(r.Context(), "render notifications page", err)
 	}
 }
 
@@ -153,7 +153,7 @@ func (s *Server) handleMintLink(w http.ResponseWriter, r *http.Request) {
 	flow, err := s.createLinkFlow(ctx, session.Subject)
 	switch {
 	case err != nil:
-		logError("create link flow", err)
+		logError(ctx, "create link flow", err)
 		if !page.StatusUnknown {
 			page.Error = i18n.T(ctx, "notifications.mint_failed")
 		}
@@ -174,11 +174,11 @@ func (s *Server) handleMintLink(w http.ResponseWriter, r *http.Request) {
 func (s *Server) cancelLink(r *http.Request) (string, error) {
 	session, ok := s.currentSession(r)
 	if !ok {
-		return "", errors.New("sign_in_required")
+		return "", userError{errors.New("sign_in_required")}
 	}
 	if err := s.store.DeleteLinkFlowsForSubject(r.Context(), session.Subject); err != nil {
-		logError("cancel link flows", err)
-		return "", errors.New("cancel_failed")
+		logError(r.Context(), "cancel link flows", err)
+		return "", userError{errors.New("cancel_failed")}
 	}
 	return "canceled", nil
 }
@@ -198,21 +198,21 @@ func (s *Server) unlinkNotifications(r *http.Request) (string, error) {
 	ctx := r.Context()
 	session, ok := s.currentSession(r)
 	if !ok {
-		return "", errors.New("sign_in_required")
+		return "", userError{errors.New("sign_in_required")}
 	}
 
 	recipient, err := s.store.GetRecipientBySubject(ctx, session.Subject)
 	if err != nil {
 		if isNotFound(err) {
-			return "", errors.New("nothing_to_unlink")
+			return "", userError{errors.New("nothing_to_unlink")}
 		}
-		logError("get recipient by subject for unlink", err)
-		return "", errors.New("unlink_failed")
+		logError(ctx, "get recipient by subject for unlink", err)
+		return "", userError{errors.New("unlink_failed")}
 	}
 
 	if err := s.store.DeleteRecipient(ctx, recipient.ID); err != nil {
-		logError("delete recipient", err)
-		return "", errors.New("unlink_failed")
+		logError(ctx, "delete recipient", err)
+		return "", userError{errors.New("unlink_failed")}
 	}
 
 	s.notifyUnlinked(ctx, recipient)
@@ -234,6 +234,6 @@ func (s *Server) notifyUnlinked(ctx context.Context, recipient models.Recipient)
 		AADObjectID:    recipient.AADObjectID,
 	}
 	if _, err := s.bot.SendMessage(ctx, ref, bot.Message{Text: linkRemovedReply}); err != nil {
-		logError("bot unlink notice", fmt.Errorf("conversation %s: %w", recipient.ConversationID, err))
+		logError(ctx, "bot unlink notice", fmt.Errorf("conversation %s: %w", recipient.ConversationID, err))
 	}
 }

@@ -402,8 +402,8 @@ curl -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
 ### When a sender is refused
 
 - **`401`**, which Alertmanager logs as `unexpected status code 401`: Teamster did not accept the
-  token. The server log says why (`webhook alertmanager refused: …`), and every refusal is counted
-  in `teamster.webhook.receipts` with status `refused`. The usual causes:
+  token. The server log says why (`msg="webhook refused" source=alertmanager reason=…`), and
+  every refusal is counted in `teamster.webhook.receipts` with status `refused`. The usual causes:
   - The sender sets no `Authorization: Bearer` header, for example `basic_auth` instead of
     `authorization`. Basic auth is not accepted.
   - The token was revoked, or was never issued on this installation. Issued tokens live in the
@@ -872,6 +872,25 @@ belong to one tenant, though: a bundle carried to another imports cleanly and th
 The bundle therefore carries the Team and channel names beside the ids, and the HTTP import names
 the destinations this tenant cannot resolve — see
 [ADR 0013](docs/adr/0013-configuration-transfer.md).
+
+## Logging
+
+Teamster logs to stderr. `log.level` picks the lowest level written: `debug`, `info` (the default),
+`warn` or `error`. `log.format` is `text` for reading or `json` for a log pipeline.
+
+```yaml
+log:
+  level: info
+  format: json
+```
+
+Every request gets an id, sent back as `X-Request-ID` and logged as `request_id` on every line of
+that request. A failure on Teamster's side — the store, Microsoft Graph, the Bot Framework — is
+logged with its cause. The client gets only the status and that id: a `5xx` from the API or a
+webhook is `{"error": "internal server error", "request_id": "…"}`, and a page shows "Something
+went wrong. Reference: …". Search the log for the id to find the cause. A `4xx` still says what to
+fix. Refused webhook and bot requests are logged as warnings with the reason. Debug adds every
+client error and every accepted bot activity.
 
 ## Metrics
 

@@ -93,7 +93,7 @@ func (s *Server) handleGraphTeams(w http.ResponseWriter, r *http.Request) {
 	teams, err := s.directory.Teams(s.graph.ListTeams)
 	if err != nil {
 		// The picker falls back to typing an id, so this must stay legible.
-		writeJSONError(w, http.StatusBadGateway, err.Error())
+		writeError(w, r, http.StatusBadGateway, err)
 		return
 	}
 
@@ -102,7 +102,7 @@ func (s *Server) handleGraphTeams(w http.ResponseWriter, r *http.Request) {
 	// that is the control.
 	visible, err := s.visibleTeams(r, teams)
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		writeError(w, r, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -155,13 +155,13 @@ func (s *Server) handleGraphChannels(w http.ResponseWriter, r *http.Request) {
 		return s.graph.ListChannels(teamID)
 	})
 	if err != nil {
-		writeJSONError(w, http.StatusBadGateway, err.Error())
+		writeError(w, r, http.StatusBadGateway, err)
 		return
 	}
 
 	visible, err := s.visibleChannels(r, teamID, channels)
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		writeError(w, r, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -191,19 +191,19 @@ func (s *Server) handleMyTeams(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	entraToken, err := s.entraTokenFor(ctx, session)
 	if err != nil {
-		writeJSONError(w, http.StatusBadGateway, err.Error())
+		writeError(w, r, http.StatusBadGateway, err)
 		return
 	}
 
 	teams, err := s.broker.MyTeams(ctx, entraToken)
 	if err != nil {
-		writeJSONError(w, http.StatusBadGateway, err.Error())
+		writeError(w, r, http.StatusBadGateway, err)
 		return
 	}
 
 	visible, err := s.visibleTeams(r, teams)
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		writeError(w, r, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -241,19 +241,19 @@ func (s *Server) handleMyChannels(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	entraToken, err := s.entraTokenFor(ctx, session)
 	if err != nil {
-		writeJSONError(w, http.StatusBadGateway, err.Error())
+		writeError(w, r, http.StatusBadGateway, err)
 		return
 	}
 
 	channels, err := s.broker.MyChannels(ctx, entraToken, teamID)
 	if err != nil {
-		writeJSONError(w, http.StatusBadGateway, err.Error())
+		writeError(w, r, http.StatusBadGateway, err)
 		return
 	}
 
 	visible, err := s.visibleChannels(r, teamID, channels)
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		writeError(w, r, http.StatusInternalServerError, err)
 		return
 	}
 

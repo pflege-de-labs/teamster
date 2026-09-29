@@ -5,11 +5,11 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 	"time"
 
+	"github.com/pflege-de-labs/teamster/internal/logging"
 	"github.com/pflege-de-labs/teamster/internal/store"
 )
 
@@ -63,7 +63,7 @@ func (s *Server) webhookAuth(r *http.Request) (string, error) {
 	if now := time.Now(); now.Sub(token.LastUsedAt) > touchInterval {
 		// Best effort: a failed bookkeeping write must not drop the alert.
 		if err := s.store.TouchAccessToken(ctx, token.ID, now); err != nil {
-			log.Printf("record use of access token %q: %v", token.Name, err)
+			logging.FromContext(ctx).Error("record use of access token", "token", token.Name, "err", err)
 		}
 	}
 	return token.Name, nil
@@ -81,11 +81,11 @@ func (s *Server) authorizeWebhook(w http.ResponseWriter, r *http.Request, source
 		// watching, and "the sender's secret is wrong" looks exactly like "the
 		// sender stopped sending".
 		s.metrics.WebhookReceived(r.Context(), source, "refused")
-		log.Printf("webhook %s refused: %v", source, err)
+		logging.FromContext(r.Context()).Warn("webhook refused", "source", source, "reason", err)
 		w.Header().Set("WWW-Authenticate", `Bearer realm="webhook"`)
 		w.WriteHeader(http.StatusUnauthorized)
 	default:
-		log.Printf("webhook %s: look up access token: %v", source, err)
+		logging.FromContext(r.Context()).Error("webhook: look up access token", "source", source, "err", err)
 		writeJSONError(w, http.StatusServiceUnavailable, "cannot check the token right now")
 	}
 	return false

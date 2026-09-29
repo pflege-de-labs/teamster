@@ -47,7 +47,7 @@ func (s *Server) handleReady(w http.ResponseWriter, r *http.Request) {
 	// taking this instance out of rotation when it is unreachable would stop
 	// the admin UI from working precisely when an operator wants to look at it.
 	if err := s.store.Ping(ctx); err != nil {
-		logError("readiness", err)
+		logError(ctx, "readiness", err)
 		writePlain(w, http.StatusServiceUnavailable, "database unreachable")
 		return
 	}

@@ -25,12 +25,12 @@ func (s *Server) handleWebhookEndpoints(w http.ResponseWriter, r *http.Request) 
 	case http.MethodGet:
 		items, err := s.store.ListWebhookEndpoints(ctx)
 		if err != nil {
-			writeJSONError(w, http.StatusInternalServerError, err.Error())
+			writeError(w, r, http.StatusInternalServerError, err)
 			return
 		}
 		visible, err := s.visibleWebhookEndpoints(r, items)
 		if err != nil {
-			writeJSONError(w, http.StatusInternalServerError, err.Error())
+			writeError(w, r, http.StatusInternalServerError, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, visible)
@@ -42,14 +42,14 @@ func (s *Server) handleWebhookEndpoints(w http.ResponseWriter, r *http.Request) 
 
 		token, err := newWebhookToken()
 		if err != nil {
-			writeJSONError(w, http.StatusInternalServerError, err.Error())
+			writeError(w, r, http.StatusInternalServerError, err)
 			return
 		}
 		endpoint.TokenHash = hashToken(token)
 
 		created, err := s.store.CreateWebhookEndpoint(ctx, endpoint)
 		if err != nil {
-			writeJSONError(w, http.StatusInternalServerError, err.Error())
+			writeError(w, r, http.StatusInternalServerError, err)
 			return
 		}
 		writeJSON(w, http.StatusCreated, webhookEndpointResponse{
@@ -83,7 +83,7 @@ func (s *Server) handleWebhookEndpointByID(w http.ResponseWriter, r *http.Reques
 	case http.MethodGet:
 		item, err := s.store.GetWebhookEndpoint(ctx, id)
 		if err != nil {
-			writeJSONError(w, notFoundOrInternal(err), err.Error())
+			writeError(w, r, notFoundOrInternal(err), err)
 			return
 		}
 		writeJSON(w, http.StatusOK, webhookEndpointResponse{WebhookEndpoint: item})
@@ -94,7 +94,7 @@ func (s *Server) handleWebhookEndpointByID(w http.ResponseWriter, r *http.Reques
 		}
 		updated, err := s.store.UpdateWebhookEndpoint(ctx, endpoint)
 		if err != nil {
-			writeJSONError(w, http.StatusInternalServerError, err.Error())
+			writeError(w, r, http.StatusInternalServerError, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, webhookEndpointResponse{WebhookEndpoint: updated})
@@ -103,7 +103,7 @@ func (s *Server) handleWebhookEndpointByID(w http.ResponseWriter, r *http.Reques
 			return
 		}
 		if err := s.store.DeleteWebhookEndpoint(ctx, id); err != nil {
-			writeJSONError(w, http.StatusInternalServerError, err.Error())
+			writeError(w, r, http.StatusInternalServerError, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
@@ -129,11 +129,11 @@ func (s *Server) rotateWebhookEndpointToken(w http.ResponseWriter, r *http.Reque
 
 	token, err := newWebhookToken()
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		writeError(w, r, http.StatusInternalServerError, err)
 		return
 	}
 	if err := s.store.RotateWebhookEndpointToken(r.Context(), id, hashToken(token)); err != nil {
-		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		writeError(w, r, http.StatusInternalServerError, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, webhookEndpointResponse{
@@ -156,17 +156,17 @@ func (s *Server) decodeWebhookEndpoint(w http.ResponseWriter, r *http.Request, i
 	endpoint.ChannelSlug = strings.ToLower(strings.TrimSpace(endpoint.ChannelSlug))
 
 	if err := validateWebhookEndpoint(endpoint); err != nil {
-		writeJSONError(w, http.StatusBadRequest, err.Error())
+		writeError(w, r, http.StatusBadRequest, err)
 		return models.WebhookEndpoint{}, false
 	}
 
 	allowed, err := s.mayDeliverToDestination(r, endpoint.DestinationID)
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		writeError(w, r, http.StatusInternalServerError, err)
 		return models.WebhookEndpoint{}, false
 	}
 	if !allowed {
-		writeJSONError(w, http.StatusForbidden, errDeliveryRefused.Error())
+		writeError(w, r, http.StatusForbidden, errDeliveryRefused)
 		return models.WebhookEndpoint{}, false
 	}
 	if err := s.endpointTemplateExists(r.Context(), endpoint); err != nil {
@@ -174,7 +174,7 @@ func (s *Server) decodeWebhookEndpoint(w http.ResponseWriter, r *http.Request, i
 		if errors.Is(err, errUnknownTemplate) {
 			status = http.StatusBadRequest
 		}
-		writeJSONError(w, status, err.Error())
+		writeError(w, r, status, err)
 		return models.WebhookEndpoint{}, false
 	}
 	return endpoint, true
@@ -185,17 +185,17 @@ func (s *Server) decodeWebhookEndpoint(w http.ResponseWriter, r *http.Request, i
 func (s *Server) authorizedEndpoint(w http.ResponseWriter, r *http.Request, id string) (models.WebhookEndpoint, bool) {
 	endpoint, err := s.store.GetWebhookEndpoint(r.Context(), id)
 	if err != nil {
-		writeJSONError(w, notFoundOrInternal(err), err.Error())
+		writeError(w, r, notFoundOrInternal(err), err)
 		return models.WebhookEndpoint{}, false
 	}
 
 	allowed, err := s.mayDeliverToDestination(r, endpoint.DestinationID)
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		writeError(w, r, http.StatusInternalServerError, err)
 		return models.WebhookEndpoint{}, false
 	}
 	if !allowed {
-		writeJSONError(w, http.StatusForbidden, errDeliveryRefused.Error())
+		writeError(w, r, http.StatusForbidden, errDeliveryRefused)
 		return models.WebhookEndpoint{}, false
 	}
 	return endpoint, true

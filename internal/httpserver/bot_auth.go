@@ -15,6 +15,7 @@ import (
 	"github.com/coreos/go-oidc/v3/oidc"
 
 	"github.com/pflege-de-labs/teamster/internal/config"
+	"github.com/pflege-de-labs/teamster/internal/logging"
 )
 
 // botBodyLimit bounds an inbound activity. Neither webhook has one -- their
@@ -440,19 +441,20 @@ type botClaims struct {
 func (s *Server) verifyBotToken(ctx context.Context, rawToken, activityServiceURL, channelID string) (status string, ok bool, forbidden bool) {
 	verifier, metadata, err := s.botAuth.verifierFor(ctx)
 	if err != nil {
-		logError("bot metadata discovery", err)
+		logError(ctx, "bot metadata discovery", err)
 		return "metadata-unreachable", false, false
 	}
 
 	idToken, err := verifier.Verify(ctx, rawToken)
 	if err != nil {
-		logError("bot token verify", err)
+		// Most often an audience other than bot.client-id.
+		logging.FromContext(ctx).Warn("bot token verify", "err", err, "bot_client_id", s.cfg.Bot.ClientID)
 		return "invalid-token", false, false
 	}
 
 	var claims botClaims
 	if err := idToken.Claims(&claims); err != nil {
-		logError("bot token claims", err)
+		logging.FromContext(ctx).Warn("bot token claims", "err", err)
 		return "invalid-token", false, false
 	}
 
@@ -460,6 +462,7 @@ func (s *Server) verifyBotToken(ctx context.Context, rawToken, activityServiceUR
 	// would make the one claim-to-body binding this design has a no-op for any
 	// token that simply omits serviceurl.
 	if claims.ServiceURL == "" {
+		logging.FromContext(ctx).Warn("bot token has no serviceurl claim")
 		return "serviceurl-mismatch", false, false
 	}
 	// Never HasPrefix or Contains: ServiceURL is concatenated into the outbound
@@ -467,21 +470,24 @@ func (s *Server) verifyBotToken(ctx context.Context, rawToken, activityServiceUR
 	// happily send that token to
 	// "https://smba.trafficmanager.net.attacker.example/".
 	if trimOneTrailingSlash(claims.ServiceURL) != trimOneTrailingSlash(activityServiceURL) {
+		logging.FromContext(ctx).Warn("bot token serviceurl does not match the activity",
+			"claim", claims.ServiceURL, "activity", activityServiceURL)
 		return "serviceurl-mismatch", false, false
 	}
 
 	kid, err := jwtKeyID(rawToken)
 	if err != nil {
-		logError("bot token kid", err)
+		logging.FromContext(ctx).Warn("bot token kid", "err", err)
 		return "invalid-token", false, false
 	}
 
 	endorsed, err := s.botAuth.endorses(ctx, metadata.JWKSURI, kid, channelID)
 	if err != nil {
-		logError("bot endorsements fetch", err)
+		logError(ctx, "bot endorsements fetch", err)
 		return "endorsements-unreachable", false, false
 	}
 	if !endorsed {
+		logging.FromContext(ctx).Warn("bot signing key not endorsed for channel", "kid", kid, "channel", channelID)
 		return "endorsement-refused", false, true
 	}
 

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -60,31 +59,31 @@ func (s *Server) adminPage(r *http.Request, notice, errText string) views.Page {
 
 	var err error
 	if page.Templates, err = s.store.ListTemplates(ctx); err != nil {
-		page.Error = err.Error()
+		page.Error = failureText(ctx, "load admin page", err)
 	}
 	if page.Destinations, err = s.store.ListDestinations(ctx); err != nil {
-		page.Error = err.Error()
+		page.Error = failureText(ctx, "load admin page", err)
 	}
 	// A destination in a channel this session may not see is not theirs to read.
 	if page.Recipients, err = s.store.ListRecipients(ctx); err != nil {
-		page.Error = err.Error()
+		page.Error = failureText(ctx, "load admin page", err)
 	}
 	if page.Destinations, err = s.visibleDestinations(r, page.Destinations); err != nil {
-		page.Error = err.Error()
+		page.Error = failureText(ctx, "load admin page", err)
 	}
 	if page.Routes, err = s.store.ListRoutes(ctx); err != nil {
-		page.Error = err.Error()
+		page.Error = failureText(ctx, "load admin page", err)
 	}
 	if fallback, err := s.store.GetDefaultDestination(ctx); err == nil {
 		page.GlobalDefault = &fallback
 	} else if !errors.Is(err, store.ErrNotFound) {
-		page.Error = err.Error()
+		page.Error = failureText(ctx, "load admin page", err)
 	}
 	if page.WebhookEndpoints, err = s.store.ListWebhookEndpoints(ctx); err != nil {
-		page.Error = err.Error()
+		page.Error = failureText(ctx, "load admin page", err)
 	}
 	if page.WebhookEndpoints, err = s.visibleWebhookEndpoints(r, page.WebhookEndpoints); err != nil {
-		page.Error = err.Error()
+		page.Error = failureText(ctx, "load admin page", err)
 	}
 	teams := make([]string, len(page.Destinations))
 	for i, d := range page.Destinations {
@@ -98,7 +97,7 @@ func (s *Server) adminPage(r *http.Request, notice, errText string) views.Page {
 func (s *Server) renderAdmin(w http.ResponseWriter, r *http.Request, page views.Page) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := views.Admin(page).Render(r.Context(), w); err != nil {
-		log.Printf("render admin page: %v", err)
+		logError(r.Context(), "render admin page", err)
 	}
 }
 
@@ -137,7 +136,7 @@ func (s *Server) loadForEditing(ctx context.Context, page *views.Page, section, 
 	}
 
 	if err != nil {
-		page.Error = err.Error()
+		page.Error = visibleError(ctx, "load record for editing", err)
 	}
 }
 
@@ -180,7 +179,7 @@ func (s *Server) formPostTo(target string, handler func(*http.Request) (string, 
 
 		notice, err := handler(r)
 		if err != nil {
-			redirectTo(target, w, r, "", err.Error())
+			redirectTo(target, w, r, "", visibleError(r.Context(), "form post", err))
 			return
 		}
 		redirectTo(target, w, r, notice, "")
@@ -233,7 +232,7 @@ func (s *Server) saveTemplate(r *http.Request) (string, error) {
 		Body:  r.PostFormValue("body"),
 	}
 	if err := templates.Validate(template); err != nil {
-		return "", err
+		return "", userError{err}
 	}
 	if template.ID == "" {
 		if _, err := s.store.CreateTemplate(ctx, template); err != nil {
@@ -281,13 +280,13 @@ func (s *Server) saveRoute(r *http.Request) (string, error) {
 	ctx := r.Context()
 	selector, err := parseSelector(r.PostFormValue("label_selector"))
 	if err != nil {
-		return "", err
+		return "", userError{err}
 	}
 
 	priority := 0
 	if raw := strings.TrimSpace(r.PostFormValue("priority")); raw != "" {
 		if priority, err = strconv.Atoi(raw); err != nil {
-			return "", err
+			return "", userError{err}
 		}
 	}
 

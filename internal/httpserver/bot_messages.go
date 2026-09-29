@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"html"
+	"log/slog"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/pflege-de-labs/teamster/internal/bot"
 	"github.com/pflege-de-labs/teamster/internal/config"
+	"github.com/pflege-de-labs/teamster/internal/logging"
 	"github.com/pflege-de-labs/teamster/internal/models"
 	"github.com/pflege-de-labs/teamster/internal/store"
 )
@@ -135,12 +137,23 @@ func (s *Server) handleBotMessages(w http.ResponseWriter, r *http.Request) {
 			status = "body-too-large"
 		}
 		s.metrics.WebhookReceived(ctx, "bot", status)
+		logging.FromContext(ctx).Warn("bot activity refused", "reason", status, "err", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
+	logger := logging.FromContext(ctx).With(
+		"activity_type", activity.Type, "conversation_type", activity.Conversation.ConversationType,
+		"channel", activity.ChannelID, "team", activity.ChannelData.Team.AADGroupID)
 
 	if refusal := activityShapeRefusal(activity, s.cfg.Bot); refusal != "" {
 		s.metrics.WebhookReceived(ctx, "bot", refusal)
+		// A tenant mismatch is a misconfiguration; the rest are activities this bot ignores.
+		level := slog.LevelInfo
+		if refusal == "tenant-mismatch" {
+			level = slog.LevelWarn
+		}
+		logger.Log(ctx, level, "bot activity ignored", "reason", refusal,
+			"tenant", activity.ChannelData.Tenant.ID, "bot_tenant", s.cfg.Bot.TenantID)
 		// Answering anything but 2xx to a request Microsoft signed and
 		// delivered correctly reads, to its tooling, as "this bot's auth is
 		// broken" -- this is merely an activity this bot does not act on, the
@@ -156,6 +169,7 @@ func (s *Server) handleBotMessages(w http.ResponseWriter, r *http.Request) {
 			status = "malformed-bearer"
 		}
 		s.metrics.WebhookReceived(ctx, "bot", status)
+		logger.Warn("bot activity refused", "reason", status)
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
@@ -164,6 +178,9 @@ func (s *Server) handleBotMessages(w http.ResponseWriter, r *http.Request) {
 	// Counted before the status is written, the same order handleAlertmanager
 	// uses for its own refusal.
 	s.metrics.WebhookReceived(ctx, "bot", status)
+	if !ok {
+		logger.Warn("bot activity refused", "reason", status)
+	}
 	switch {
 	case forbidden:
 		w.WriteHeader(http.StatusForbidden)
@@ -179,6 +196,7 @@ func (s *Server) handleBotMessages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	logger.Debug("bot activity accepted")
 	s.dispatchBotActivity(ctx, activity)
 	w.WriteHeader(http.StatusOK)
 }
@@ -326,7 +344,7 @@ func (s *Server) handleBotMessage(ctx context.Context, activity botActivity) {
 
 	if _, err := s.redeemLinkCode(ctx, activity, code); err != nil {
 		if !errors.Is(err, store.ErrNotFound) {
-			logError("redeem link code", err)
+			logError(ctx, "redeem link code", err)
 		}
 		// A code that does not exist and a code that expired look the same
 		// from here on purpose: telling them apart would tell a guesser
@@ -440,7 +458,7 @@ func (s *Server) notifyConversationDisplaced(ctx context.Context, previous model
 		AADObjectID:    previous.AADObjectID,
 	}
 	if _, err := s.bot.SendMessage(ctx, ref, bot.Message{Text: linkDisplacedReply}); err != nil {
-		logError("bot displaced notice", fmt.Errorf("conversation %s: %w", previous.ConversationID, err))
+		logError(ctx, "bot displaced notice", fmt.Errorf("conversation %s: %w", previous.ConversationID, err))
 	}
 }
 
@@ -480,11 +498,11 @@ func (s *Server) retireLink(ctx context.Context, conversationID, reason string) 
 		if errors.Is(err, store.ErrNotFound) {
 			return false, nil
 		}
-		logError("resolve conversation for "+reason, err)
+		logError(ctx, "resolve conversation for "+reason, err)
 		return false, err
 	}
 	if err := s.store.DeleteRecipient(ctx, recipient.ID); err != nil {
-		logError("retire link on "+reason, err)
+		logError(ctx, "retire link on "+reason, err)
 		return false, err
 	}
 	return true, nil
@@ -496,13 +514,16 @@ func (s *Server) retireLink(ctx context.Context, conversationID, reason string) 
 func (s *Server) recordBotTeam(ctx context.Context, activity botActivity) {
 	teamID := activity.ChannelData.Team.AADGroupID
 	if teamID == "" {
+		logging.FromContext(ctx).Info("bot activity names no team; nothing recorded", "activity_type", activity.Type)
 		return
 	}
 
 	if botLeftTeam(activity) {
 		if err := s.store.DeleteBotTeam(ctx, teamID); err != nil {
-			logError("forget bot team", err)
+			logError(ctx, "forget bot team", err)
+			return
 		}
+		logging.FromContext(ctx).Info("bot removed from team", "team", teamID)
 		return
 	}
 
@@ -512,8 +533,10 @@ func (s *Server) recordBotTeam(ctx context.Context, activity botActivity) {
 	}
 	err := s.store.UpsertBotTeam(ctx, models.BotTeam{TeamID: teamID, TenantID: tenant, ServiceURL: activity.ServiceURL, UpdatedAt: s.now()})
 	if err != nil {
-		logError("record bot team", err)
+		logError(ctx, "record bot team", err)
+		return
 	}
+	logging.FromContext(ctx).Debug("bot team recorded", "team", teamID, "service_url", activity.ServiceURL)
 }
 
 func botLeftTeam(activity botActivity) bool {
@@ -531,7 +554,7 @@ func (s *Server) refreshRecipientServiceURL(ctx context.Context, activity botAct
 	recipient, err := s.store.GetRecipientByConversation(ctx, activity.Conversation.ID)
 	if err != nil {
 		if !errors.Is(err, store.ErrNotFound) {
-			logError("resolve conversation for service url refresh", err)
+			logError(ctx, "resolve conversation for service url refresh", err)
 		}
 		return
 	}
@@ -541,7 +564,7 @@ func (s *Server) refreshRecipientServiceURL(ctx context.Context, activity botAct
 
 	recipient.ServiceURL = activity.ServiceURL
 	if _, err := s.store.UpdateRecipient(ctx, recipient); err != nil {
-		logError("refresh recipient service url", err)
+		logError(ctx, "refresh recipient service url", err)
 	}
 }
 
@@ -561,6 +584,6 @@ func (s *Server) replyText(ctx context.Context, activity botActivity, text strin
 		AADObjectID:    activity.From.AADObjectID,
 	}
 	if _, err := s.bot.SendMessage(ctx, ref, bot.Message{Text: text}); err != nil {
-		logError("bot reply", fmt.Errorf("conversation %s: %w", activity.Conversation.ID, err))
+		logError(ctx, "bot reply", fmt.Errorf("conversation %s: %w", activity.Conversation.ID, err))
 	}
 }

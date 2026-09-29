@@ -233,6 +233,11 @@ config:
       # broker:
       #   enabled: true
       #   idp-alias: microsoft
+    # What goes to stderr. json suits a cluster's log pipeline; the defaults
+    # are info and text. Every line of a request carries its request_id.
+    # log:
+    #   level: info       # debug, info, warn or error
+    #   format: json      # text or json
     # Label keys, label values and annotation keys remembered from incoming
     # alerts, so the template and route editors can complete them. Annotation
     # values are never stored. On by default; the values shown are the defaults.
