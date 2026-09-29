@@ -1062,6 +1062,27 @@ active-alert rows in its own transaction. Controlling the chat is the whole auth
 grants and therefore needs a code minted by an admin-UI session, while unlinking only ever revokes,
 and only for the conversation the activity arrived on.
 
+### Commands in the personal chat
+
+`dispatchBotActivity` hands a personal `message` to `handleBotMessage`. There,
+`parseBotCommand` (`bot_commands.go`) runs first, after the bot's mention is stripped:
+
+* A first word starting with `/` is a command.
+* A bare word is a command only as the whole message.
+* Anything else falls through to link-code detection, unchanged.
+
+The commands:
+
+* `/help`
+* `/status`: the recipient behind the conversation, its blocked flag, and the routes naming it.
+* `/test`: sends a fixed alert through `deliverToRecipientOnce`, the same path an untracked routed
+  alert takes.
+* `/unlink`, with `stop` and `unsubscribe` as synonyms.
+
+Replies are Markdown through `replyText`, best effort like every other reply. A store or delivery
+failure answers with the request reference rather than the error
+([ADR 0048](adr/0048-bot-answers-commands-in-the-personal-chat.md)).
+
 ## Linking a chat
 
 `POST /api/recipients/link` mints a one-time code bound to the caller's own subject, for that

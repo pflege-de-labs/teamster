@@ -100,6 +100,11 @@ with a single account. Either way the bot must be [registered](#registering-the-
 Installing the app alone does not link an account; that takes the one-time linking code the ADR
 describes.
 
+Once the app is in the org catalog, ship each new version as an update to that same app in Teams
+admin center, with a higher `version`. The Developer Portal cannot import a package whose `id` the
+org catalog already holds: its import answers `422 Unprocessable Content` without saying why. The
+Developer Portal is only needed for the bot registration.
+
 ## Installing it in a team
 
 Every team a route posts to needs the app installed. An owner of the team adds it from the app's
