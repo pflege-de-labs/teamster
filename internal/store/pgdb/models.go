@@ -139,6 +139,12 @@ type Session struct {
 	Identity  string
 }
 
+type Setting struct {
+	Key       string
+	Value     string
+	UpdatedAt time.Time
+}
+
 type Template struct {
 	ID          string
 	Name        string

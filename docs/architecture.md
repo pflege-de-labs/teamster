@@ -425,11 +425,13 @@ The last fallback is the **global default destination**. It is one destination w
 `is_default` set, and the first one created gets it. When nothing matched and there is no default
 route, which includes the case where no routes exist at all, `Plan` returns a single channel
 delivery to that destination. The reason is `global-default`, the route is the synthetic
-`routing.GlobalDefaultRouteID`, and there is no template. `none` and `no-routes` are now returned
+`routing.GlobalDefaultRouteID`. Its template is the `global_default.template_id` setting, or
+none, which sends the built-in default message
+([ADR 0050](adr/0050-catch-all-template-is-a-setting.md)). `none` and `no-routes` are now returned
 only when no destination exists. The admin route list and the routing picture draw the synthetic
-route last and offer no way to edit it. Only the admin role may choose a different default, and
-the current default cannot be deleted while other destinations remain. See
-[ADR 0038](adr/0038-global-default-destination.md).
+route last. Its only editable part is the template, which is a route edit. Only the admin role may
+choose a different default destination, and the current default cannot be deleted while other
+destinations remain. See [ADR 0038](adr/0038-global-default-destination.md).
 
 A child is evaluated only once its parent matched, and applies when its own selector matches. Every
 matching child delivers; a greedy one delivers *instead of* its parent, a non-greedy one *as well
@@ -663,6 +665,11 @@ table and nothing else, so the previous release ignores it. See
 tenant, service URL and when it was written. Both are additive; a row the previous release writes
 has an empty conversation id, which reads as a card nothing can edit. See
 [ADR 0045](adr/0045-channel-delivery-through-the-bot.md).
+
+`settings` came with the catch-all's template, by `0017` in SQLite and `0014` in Postgres: a key,
+a value and when it was written. Its one key so far is `global_default.template_id`. It is a new
+table and nothing else, so the previous release ignores it. See
+[ADR 0050](adr/0050-catch-all-template-is-a-setting.md).
 
 `database.migrate` decides what opening the store does about a schema that is behind: `auto`
 applies what is missing, `verify` refuses and names `teamster migrate up`, `off` asks nothing.

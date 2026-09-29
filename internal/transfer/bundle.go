@@ -27,6 +27,9 @@ type Bundle struct {
 	Destinations []BundleDestination `json:"destinations"`
 	Routes       []models.Route      `json:"routes"`
 	Grants       []models.Grant      `json:"grants"`
+	// GlobalDefaultTemplateID is the catch-all route's template (ADR 0050);
+	// empty is the built-in default message.
+	GlobalDefaultTemplateID string `json:"global_default_template_id,omitempty"`
 }
 
 // A BundleDestination is a destination with the Team and channel names beside
@@ -77,6 +80,10 @@ func Export(ctx context.Context, st store.Store, directory Directory) (Bundle, e
 	if err != nil {
 		return Bundle{}, fmt.Errorf("grants: %w", err)
 	}
+	catchAll, err := st.GetGlobalDefaultTemplate(ctx)
+	if err != nil {
+		return Bundle{}, fmt.Errorf("global default template: %w", err)
+	}
 
 	bundle := Bundle{
 		Version:      Version,
@@ -85,6 +92,8 @@ func Export(ctx context.Context, st store.Store, directory Directory) (Bundle, e
 		Destinations: make([]BundleDestination, 0, len(destinations)),
 		Routes:       emptyWhenNil(routes),
 		Grants:       emptyWhenNil(grants),
+
+		GlobalDefaultTemplateID: catchAll,
 	}
 
 	for _, destination := range destinations {
@@ -180,6 +189,10 @@ func (b Bundle) Validate() error {
 		if err := routing.ValidateRoute(route, routes); err != nil {
 			return fmt.Errorf("route %q: %w", route.Name, err)
 		}
+	}
+
+	if b.GlobalDefaultTemplateID != "" && !templates[b.GlobalDefaultTemplateID] {
+		return fmt.Errorf("the global default renders with template %q, which the bundle does not carry", b.GlobalDefaultTemplateID)
 	}
 
 	grants := map[string]bool{}

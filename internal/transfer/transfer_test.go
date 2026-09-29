@@ -443,3 +443,65 @@ func TestImportSettlesTheGlobalDefault(t *testing.T) {
 		})
 	}
 }
+
+// The catch-all's template travels with the bundle (ADR 0050).
+func TestImportSettlesTheGlobalDefaultTemplate(t *testing.T) {
+	t.Parallel()
+
+	template := models.Template{ID: "tmpl", Name: "Critical card", Body: `{"type":"AdaptiveCard"}`}
+	tests := []struct {
+		name    string
+		mode    Mode
+		current string
+		bundle  string
+		want    string
+	}{
+		{name: "the bundle names one", mode: ModeMerge, bundle: "tmpl", want: "tmpl"},
+		{name: "merge naming none keeps it", mode: ModeMerge, current: "tmpl", want: "tmpl"},
+		{name: "replace naming none goes back to the built-in", mode: ModeReplace, current: "tmpl", want: ""},
+		{name: "replace naming one sets it", mode: ModeReplace, bundle: "tmpl", want: "tmpl"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			st := configured(t)
+			if err := st.SetGlobalDefaultTemplate(t.Context(), tt.current); err != nil {
+				t.Fatalf("SetGlobalDefaultTemplate: %v", err)
+			}
+			bundle := Bundle{
+				Version: Version, Templates: []models.Template{template},
+				Destinations:            []BundleDestination{{Destination: models.Destination{ID: "dest", Name: "Ops", TeamID: "team", ChannelID: "chan"}}},
+				GlobalDefaultTemplateID: tt.bundle,
+			}
+			if _, err := Import(t.Context(), st, bundle, tt.mode, false); err != nil {
+				t.Fatalf("Import: %v", err)
+			}
+			if got, _ := st.GetGlobalDefaultTemplate(t.Context()); got != tt.want {
+				t.Errorf("template = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestExportCarriesTheGlobalDefaultTemplate(t *testing.T) {
+	t.Parallel()
+
+	st := configured(t)
+	if err := st.SetGlobalDefaultTemplate(t.Context(), "tmpl"); err != nil {
+		t.Fatalf("SetGlobalDefaultTemplate: %v", err)
+	}
+	bundle, err := Export(t.Context(), st, nil)
+	if err != nil {
+		t.Fatalf("Export: %v", err)
+	}
+	if bundle.GlobalDefaultTemplateID != "tmpl" {
+		t.Errorf("bundle template = %q, want tmpl", bundle.GlobalDefaultTemplateID)
+	}
+
+	bundle.GlobalDefaultTemplateID = "gone"
+	if err := bundle.Validate(); err == nil || !strings.Contains(err.Error(), "does not carry") {
+		t.Errorf("Validate() = %v, want a missing template refused", err)
+	}
+}

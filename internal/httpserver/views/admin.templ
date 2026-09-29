@@ -337,8 +337,22 @@ templ globalDefaultRoute(page Page) {
 				<span class="truncate font-medium italic">{ i18n.T(ctx, "routes.global_default") }</span>
 				<span class="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-700">{ i18n.T(ctx, "routes.badge_synthetic") }</span>
 			</div>
-			<div class="truncate text-xs text-slate-500">{ page.destinationName(page.GlobalDefault.ID) }</div>
+			<div class="truncate text-xs text-slate-500">
+				{ page.destinationName(page.GlobalDefault.ID) }
+				<span>·</span>
+				if page.GlobalDefaultTemplateID == "" {
+					<span class="italic">{ i18n.T(ctx, "routes.global_default_builtin") }</span>
+				} else {
+					<span>{ page.templateName(page.GlobalDefaultTemplateID) }</span>
+				}
+			</div>
 			<div class="text-xs text-slate-500">{ i18n.T(ctx, "routes.global_default_hint") }</div>
+			if page.CanEdit {
+				<form method="post" action="/admin/routes/global-default" class="flex items-end gap-2 pt-1">
+					@selectField("template_id", i18n.T(ctx, "routes.global_default_template"), globalDefaultTemplateOptions(ctx, page), page.GlobalDefaultTemplateID)
+					@submit(i18n.T(ctx, "routes.global_default_save"))
+				</form>
+			}
 		</div>
 	</li>
 }

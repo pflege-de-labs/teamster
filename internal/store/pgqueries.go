@@ -474,3 +474,19 @@ func (p pgQueries) UpsertBotTeam(ctx context.Context, arg sqlitedb.UpsertBotTeam
 func (p pgQueries) UpsertAlertSample(ctx context.Context, arg sqlitedb.UpsertAlertSampleParams) error {
 	return p.q.UpsertAlertSample(ctx, pgdb.UpsertAlertSampleParams(arg))
 }
+
+func (p pgQueries) GetSetting(ctx context.Context, key string) (string, error) {
+	return p.q.GetSetting(ctx, key)
+}
+
+func (p pgQueries) UpsertSetting(ctx context.Context, arg sqlitedb.UpsertSettingParams) error {
+	return p.q.UpsertSetting(ctx, pgdb.UpsertSettingParams(arg))
+}
+
+func (p pgQueries) DeleteSetting(ctx context.Context, key string) error {
+	return p.q.DeleteSetting(ctx, key)
+}
+
+func (p pgQueries) ClearSettingValue(ctx context.Context, arg sqlitedb.ClearSettingValueParams) error {
+	return p.q.ClearSettingValue(ctx, pgdb.ClearSettingValueParams(arg))
+}

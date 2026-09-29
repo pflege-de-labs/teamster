@@ -85,8 +85,11 @@ type Page struct {
 	// GlobalDefault is where a message no route claims goes; nil when there
 	// is no destination at all.
 	GlobalDefault *models.Destination
-	Notice        string
-	Error         string
+	// GlobalDefaultTemplateID is what the catch-all renders with; "" is the
+	// built-in default message (ADR 0050).
+	GlobalDefaultTemplateID string
+	Notice                  string
+	Error                   string
 
 	// Sample alerts the preview can render the template against.
 	PreviewSamples []string
@@ -376,6 +379,14 @@ func templateOptions(p Page) []option {
 func routeTemplateOptions(ctx context.Context, p Page) []option {
 	out := make([]option, 0, len(p.Templates)+1)
 	out = append(out, option{Value: "", Label: i18n.T(ctx, "routes.template_none")})
+	return append(out, templateOptions(p)...)
+}
+
+// globalDefaultTemplateOptions leads with the built-in default message, which
+// is what the catch-all sends when no template is chosen.
+func globalDefaultTemplateOptions(ctx context.Context, p Page) []option {
+	out := make([]option, 0, len(p.Templates)+1)
+	out = append(out, option{Value: "", Label: i18n.T(ctx, "routes.global_default_builtin")})
 	return append(out, templateOptions(p)...)
 }
 
