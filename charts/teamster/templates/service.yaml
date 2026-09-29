@@ -26,7 +26,7 @@ spec:
       {{- end }}
   selector:
     {{- include "teamster.selectorLabels" . | nindent 4 }}
-{{- if eq .Values.workload.kind "StatefulSet" }}
+{{- if eq (include "teamster.workloadKind" .) "StatefulSet" }}
 ---
 {{- /* A StatefulSet needs a governing headless service for its pod DNS. */}}
 apiVersion: v1

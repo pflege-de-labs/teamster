@@ -77,6 +77,14 @@ for values in "$chart"/ci/*-values.yaml; do
 	# The service has to point at the port the probes name.
 	contains "$workload" "$name $kind" "name: http"
 
+	# A StatefulSet names a governing headless Service; without it the pod gets
+	# no stable DNS name. The kind is usually derived, so check the render.
+	if [ "$kind" = StatefulSet ]; then
+		contains "$rendered" "$name headless Service" "name: teamster-headless"
+	else
+		absent "$rendered" "$name headless Service" "name: teamster-headless"
+	fi
+
 	# Configuration, which a pod without it starts and then cannot do anything
 	# useful.
 	contains "$workload" "$name $kind" "mountPath: /etc/xdg/teamster"
