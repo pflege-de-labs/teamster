@@ -206,12 +206,27 @@ checked before anything in the request body is acted on.
 
 [bot-auth-spec]: https://learn.microsoft.com/en-us/azure/bot-service/rest-api/bot-framework-rest-connector-authentication
 
+#### Talking to the bot
+
+In the personal chat the bot answers:
+
+| Command | What it does |
+| --- | --- |
+| `/help` | Lists the commands. |
+| `/status` | Shows whether this chat is linked, to whom and since when, and which routes deliver to it. |
+| `/test` | Sends a test alert to this chat through the real delivery path. |
+| `/unlink` | Stops alerts arriving here (see below). |
+
+A bare `help` or `status` works too, as long as it is the whole message. Anything else is read as a
+link code. If `/test` gets no answer at all, the bot cannot send: check the `bot reply` and
+`bot test` lines in the log, and that `bot.tenant-type` matches the bot registration.
+
 #### Leaving
 
 Three ways out, and the two new ones need no admin UI at all:
 
-- **Send `unlink` to the bot** — or `stop`, or `unsubscribe`. The message has to *be* the word:
-  "how do I unlink this chat?" is a question, not a command, and is treated as one. The bot
+- **Send `/unlink` to the bot** — or `unlink`, `stop`, or `unsubscribe`. The message has to *be*
+  the word: "how do I unlink this chat?" is a question, not a command, and is treated as one. The bot
   confirms, and a new link code reconnects whenever you want it back.
 - **Uninstall the bot.** Teams reports the removal and the link retires itself, so alerts stop
   rather than piling up as permanent send failures.

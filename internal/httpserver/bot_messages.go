@@ -261,22 +261,17 @@ func botWasRemoved(activity botActivity) bool {
 }
 
 const (
-	installInstructions = "Thanks for adding me! Ask an admin for a link code in the " +
-		"teamster admin UI, then send it to me here to connect your alerts to this chat."
+	installInstructions = "Thanks for adding me! Get a link code from Notifications in the " +
+		"Teamster admin UI, then send it to me here to connect your alerts to this chat. " +
+		"Send /help to see what else I can do."
 	linkNeutralReply = "That does not match an active link code. Ask an admin for a new " +
-		"one, or check the one you have for typos."
+		"one, or check the one you have for typos. Send /help for what I can do."
 	linkConfirmedReply   = "You're linked. Alerts will start arriving in this chat."
 	unlinkConfirmedReply = "Unlinked. Alerts will stop arriving in this chat. Send a new " +
 		"link code whenever you want them back."
 	unlinkNotLinkedReply = "This chat is not linked to anyone's alerts, so there is nothing " +
 		"to unlink."
 )
-
-// unlinkCommands are the words that retire a link from the chat itself. They
-// are matched against the whole message rather than searched for inside it:
-// "unlink" is an ordinary word, unlike a link code, and nobody should lose
-// their alerts because they mentioned it in a sentence.
-var unlinkCommands = map[string]bool{"unlink": true, "stop": true, "unsubscribe": true}
 
 // mentionMarkup strips <at>...</at> mention tags Teams inserts around the
 // bot's own display name at the front of a message. It is a fallback for a
@@ -323,16 +318,8 @@ func stripMentions(text string, entities []botEntity) string {
 }
 
 func (s *Server) handleBotMessage(ctx context.Context, activity botActivity) {
-	if isUnlinkCommand(activity.Text, activity.Entities) {
-		retired, err := s.retireLink(ctx, activity.Conversation.ID, "unlink command")
-		switch {
-		case err != nil:
-			s.replyText(ctx, activity, linkNeutralReply)
-		case retired:
-			s.replyText(ctx, activity, unlinkConfirmedReply)
-		default:
-			s.replyText(ctx, activity, unlinkNotLinkedReply)
-		}
+	if command, ok := parseBotCommand(activity.Text, activity.Entities); ok {
+		s.handleBotCommand(ctx, activity, command)
 		return
 	}
 
@@ -462,20 +449,6 @@ func (s *Server) notifyConversationDisplaced(ctx context.Context, previous model
 	}
 }
 
-// refreshRecipientServiceURL is the only signal this service ever gets that
-// Teams moved a conversation to a different regional endpoint: nothing pushes
-// that change, and a stale URL otherwise fails silently months later when a
-// delivery to it starts erroring. Recipients are scanned rather than looked up
-// by conversation id because the store exposes no such index; the list is
-// bounded by how many people asked for alerts in a chat, which is not a scale
-// where that matters.
-// isUnlinkCommand reports whether the whole message is one of the unlink
-// words, once the bot's own mention is stripped the way a link code has it
-// stripped. Whole-message, not a search: see unlinkCommands.
-func isUnlinkCommand(text string, entities []botEntity) bool {
-	return unlinkCommands[strings.ToLower(strings.TrimSpace(stripMentions(text, entities)))]
-}
-
 // retireLink deletes the recipient bound to one conversation, and reports
 // whether there was one. It is how a link ends from the Teams side -- the
 // unlink command, or the bot being uninstalled -- where the conversation is
@@ -546,6 +519,13 @@ func botLeftTeam(activity botActivity) bool {
 	return botWasRemoved(activity) || activity.ChannelData.EventType == "teamDeleted"
 }
 
+// refreshRecipientServiceURL is the only signal this service ever gets that
+// Teams moved a conversation to a different regional endpoint: nothing pushes
+// that change, and a stale URL otherwise fails silently months later when a
+// delivery to it starts erroring. Recipients are scanned rather than looked up
+// by conversation id because the store exposes no such index; the list is
+// bounded by how many people asked for alerts in a chat, which is not a scale
+// where that matters.
 func (s *Server) refreshRecipientServiceURL(ctx context.Context, activity botActivity) {
 	if activity.Conversation.ID == "" {
 		return

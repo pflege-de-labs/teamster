@@ -62,4 +62,5 @@ Architectural decisions are recorded here, one file per decision, in
 | [0045](0045-channel-delivery-through-the-bot.md) | Deliver channel messages through the Bot Framework bot | Accepted, amended by [0049](0049-a-channel-post-is-one-teams-message.md) |
 | [0046](0046-structured-logging-and-error-boundary.md) | Log through slog and answer errors at one boundary | Accepted |
 | [0047](0047-a-route-targets-a-channel-or-yourself.md) | A route targets a channel or a person, and a person only themselves | Accepted |
+| [0048](0048-bot-answers-commands-in-the-personal-chat.md) | The bot answers commands in the personal chat | Accepted |
 | [0049](0049-a-channel-post-is-one-teams-message.md) | A channel post is one Teams message | Accepted |

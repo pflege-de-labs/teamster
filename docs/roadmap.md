@@ -826,6 +826,60 @@ posting was gated behind a Microsoft approval process for a while, and resource-
 (`ChatMessage.Send.Chat`) added a fourth shape for apps installed in a chat. The *Send chatMessage*
 permissions table is the first thing to read when this milestone starts, not the last.
 
+## Milestone 20 — Talking to the bot
+
+### 20.1 Commands in the personal chat — done
+
+The bot answers `/help`, `/status`, `/test` and `/unlink` in the personal chat
+([ADR 0048](adr/0048-bot-answers-commands-in-the-personal-chat.md)). A route targets a channel or a
+person, and an editor may pick only their own chat
+([ADR 0047](adr/0047-a-route-targets-a-channel-or-yourself.md)).
+
+### 20.2 Commands in a team channel
+
+Accept `message` activities in team channels. Teams delivers these only when the bot is
+@mentioned. This supersedes the "never takes commands" part of
+[ADR 0045](adr/0045-channel-delivery-through-the-bot.md), so it needs its own ADR. `/help` and
+`/status` in a channel answer for that channel: its destinations, the routes into it, and whether
+the team is recorded in `bot_teams`.
+
+### 20.3 `/route key=value,…`
+
+Creates a route from the chat to the chat it was sent in, a channel or the sender's own personal
+chat. The selector is parsed into the same `map[string]string` that `parseSelector` produces.
+
+* **Team owners** create the route directly. Ownership is read from the Graph team members
+  (`roles` contains `owner`). This needs `TeamMember.Read.All`, and a destination for the channel,
+  created on demand.
+* **Everyone else** gets a proposal card. Its button links to `/admin/routing` with the selector and
+  target filled in. An editor approves it through the normal `formPost` and Cedar path.
+
+### 20.4 More commands
+
+* `/alerts`: the alerts currently active in this chat or channel. Needs a per-recipient query on
+  `active_alert_recipients`.
+* `/routes`: the routes that reach here, inherited ones included.
+* `/whoami`: the AAD object id, tenant and conversation id, for support.
+* `/mute <duration> [selector]`: needs a table of its own.
+* `/ack`: needs Alertmanager silences.
+
+## Milestone 21 — The Teams app package from teamster
+
+A `teamster manifest` subcommand and a download on `/admin/teams` build the app zip from one shared
+builder.
+
+* Inputs: `bot.client-id`, a new `bot.app-id`, the developer fields, and a version derived from the
+  release.
+* The app ID and bot ID then cannot drift apart from the running configuration, and every release
+  is newer than the installed app.
+* The download is admin-only through Cedar.
+* Needs an ADR, because configuration replaces the hand-edited `manifest/manifest.json`.
+
+## Milestone 22 — Personal routes for others, by grant
+
+Grant a user or a group the right to route to someone else's chat. This extends the Cedar
+`deliverToRecipient` policy from ADR 0047 rather than adding Go checks.
+
 ## Sequencing
 
 | Order | Item | Depends on | Blocked by |
@@ -852,6 +906,12 @@ permissions table is the first thing to read when this milestone starts, not the
 | — | 17 Editor completion | 9 | done |
 | — | 18 Webhook access tokens | — | done |
 | — | 19 Channel delivery through the bot | 13 | done |
+| — | 20.1 Commands in the personal chat | 13 | done |
+| 1 | 20.2 Commands in a team channel | 19 | — |
+| 2 | 20.3 `/route` from a chat | 20.2 | `TeamMember.Read.All` consent |
+| 3 | 21 App package from teamster | — | — |
+| 4 | 22 Personal routes by grant | 7 | — |
+| 5 | 20.4 More commands | 20.2 | — |
 
 1.3 sat after 1.4 because it was the only item waiting on someone else to grant a permission.
 
