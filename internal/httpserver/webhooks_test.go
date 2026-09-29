@@ -307,7 +307,7 @@ func TestUntemplatedMessageGetsTheBuiltInDefault(t *testing.T) {
 		externalURL string
 		wantLink    string
 	}{
-		{name: "with an external URL", externalURL: "https://teamster.example.com/", wantLink: `"url":"https://teamster.example.com/admin#templates"`},
+		{name: "with an external URL", externalURL: "https://teamster.example.com/", wantLink: `href="https://teamster.example.com/admin#templates"`},
 		{name: "without one"},
 	}
 
@@ -344,18 +344,19 @@ func TestUntemplatedMessageGetsTheBuiltInDefault(t *testing.T) {
 					t.Errorf("text = %q, want it to contain %q", posted.Text, want)
 				}
 			}
-			if len(posted.Cards) != 1 {
-				t.Fatalf("cards = %d, want the hint card alone", len(posted.Cards))
+			// A channel post is one Teams message, so the hint follows the text as a line.
+			if len(posted.Cards) != 0 {
+				t.Fatalf("cards = %d, want none beside the text", len(posted.Cards))
 			}
-			hint := string(posted.Cards[0])
+			hint := posted.Text
 			if !strings.Contains(hint, "No template is defined") {
-				t.Errorf("hint = %s, want it to say no template is defined", hint)
+				t.Errorf("text = %s, want it to say no template is defined", hint)
 			}
 			if tt.wantLink != "" && !strings.Contains(hint, tt.wantLink) {
-				t.Errorf("hint = %s, want %s", hint, tt.wantLink)
+				t.Errorf("text = %s, want %s", hint, tt.wantLink)
 			}
-			if tt.wantLink == "" && strings.Contains(hint, "Action.OpenUrl") {
-				t.Errorf("hint = %s, want no link without an external URL", hint)
+			if tt.wantLink == "" && strings.Contains(hint, "href=") {
+				t.Errorf("text = %s, want no link without an external URL", hint)
 			}
 		})
 	}
@@ -814,6 +815,8 @@ func TestTheNoticeRidesAlong(t *testing.T) {
 		wantCards []string
 		wantChat  string
 		wantText  string
+		// wantChannelText is matched against the channel message's HTML text.
+		wantChannelText string
 	}{
 		{name: "no notice", rendered: templates.Message{Card: card}, wantCards: []string{`{"card":true}`}, wantChat: `{"card":true}`},
 		{name: "a notice alone", rendered: templates.Message{Notice: notice}, wantCards: []string{`{"notice":true}`}, wantChat: `{"notice":true}`},
@@ -822,13 +825,21 @@ func TestTheNoticeRidesAlong(t *testing.T) {
 			wantCards: []string{`{"card":true}`, `{"notice":true}`}, wantChat: `{"card":true}`,
 			wantText: "(https://teamster.example.com/admin#templates)",
 		},
+		{
+			// A channel post is one Teams message, so beside text the notice is text too.
+			name: "text and a notice", rendered: templates.Message{Text: "<p>hi</p>", Notice: notice},
+			wantCards: []string{}, wantChat: `{"notice":true}`, wantChannelText: "https://teamster.example.com/admin#templates",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			channel := channelMessage(tt.rendered)
+			channel := srv.channelMessage(tt.rendered)
+			if !strings.Contains(channel.Text, tt.wantChannelText) {
+				t.Errorf("channel text = %q, want it to contain %q", channel.Text, tt.wantChannelText)
+			}
 			got := make([]string, 0, len(channel.Cards))
 			for _, c := range channel.Cards {
 				got = append(got, string(c))

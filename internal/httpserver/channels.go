@@ -2,6 +2,7 @@ package httpserver
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -153,11 +154,68 @@ func channelFailure(err error) string {
 }
 
 // botChannelMessage converts the sanitized HTML to the Markdown the Connector
-// renders, as chatMessage does, and keeps every card.
+// renders, as chatMessage does. A new channel post must be exactly one Teams
+// message -- text and a card, or two cards, are refused with "Activity
+// resulted into multiple skype activities" -- so any card takes the title and
+// text into itself.
 func botChannelMessage(msg graph.Message) (bot.Message, error) {
 	text, err := templates.ToMarkdown(msg.Text)
 	if err != nil {
 		return bot.Message{}, fmt.Errorf("markdown: %w", err)
 	}
-	return bot.Message{Title: msg.Title, Text: text, Cards: msg.Cards}, nil
+	if len(msg.Cards) == 0 {
+		return bot.Message{Title: msg.Title, Text: text}, nil
+	}
+	card, err := oneCard(msg.Title, text, msg.Cards)
+	if err != nil {
+		return bot.Message{}, err
+	}
+	return bot.Message{Card: card}, nil
+}
+
+// oneCard folds a title, Markdown text and several Adaptive Cards into the
+// first card: the title and text lead as TextBlocks, each further card's body
+// follows in a separated Container, and every card's actions are kept.
+func oneCard(title, text string, cards []json.RawMessage) (json.RawMessage, error) {
+	var first map[string]any
+	if err := json.Unmarshal(cards[0], &first); err != nil {
+		return nil, fmt.Errorf("card: %w", err)
+	}
+	var body, actions []any
+	if title != "" {
+		body = append(body, map[string]any{"type": "TextBlock", "text": title, "weight": "Bolder", "size": "Medium", "wrap": true})
+	}
+	if text != "" {
+		body = append(body, map[string]any{"type": "TextBlock", "text": text, "wrap": true})
+	}
+	body = append(body, cardList(first, "body")...)
+	actions = append(actions, cardList(first, "actions")...)
+
+	for _, raw := range cards[1:] {
+		var card map[string]any
+		if err := json.Unmarshal(raw, &card); err != nil {
+			return nil, fmt.Errorf("card: %w", err)
+		}
+		if items := cardList(card, "body"); len(items) > 0 {
+			body = append(body, map[string]any{"type": "Container", "separator": true, "items": items})
+		}
+		actions = append(actions, cardList(card, "actions")...)
+	}
+
+	first["body"] = body
+	if len(actions) > 0 {
+		first["actions"] = actions
+	}
+	if _, ok := first["type"]; !ok {
+		first["type"] = "AdaptiveCard"
+	}
+	if _, ok := first["version"]; !ok {
+		first["version"] = "1.4"
+	}
+	return json.Marshal(first)
+}
+
+func cardList(card map[string]any, key string) []any {
+	list, _ := card[key].([]any)
+	return list
 }
