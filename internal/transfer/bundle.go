@@ -134,6 +134,9 @@ func (b Bundle) Validate() error {
 		if templates[template.ID] {
 			return fmt.Errorf("template id %q appears twice", template.ID)
 		}
+		if _, err := models.NormalizeSources(template.Sources); err != nil {
+			return fmt.Errorf("template %q: %w", template.Name, err)
+		}
 		templates[template.ID] = true
 	}
 

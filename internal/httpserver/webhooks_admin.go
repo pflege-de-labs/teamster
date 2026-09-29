@@ -159,19 +159,23 @@ func validateWebhookEndpoint(endpoint models.WebhookEndpoint) error {
 	return nil
 }
 
-// errUnknownTemplate is an endpoint naming a template that is not there, which
-// would fail every message it receives.
-var errUnknownTemplate = errors.New("the webhook names a template that does not exist")
+// errUnknownTemplate is an endpoint naming a template that is not there, or
+// one that does not handle Teams V2 payloads (ADR 0053).
+var errUnknownTemplate = errors.New("the webhook names a template that does not exist or does not handle Teams V2 payloads")
 
 func (s *Server) endpointTemplateExists(ctx context.Context, endpoint models.WebhookEndpoint) error {
 	if endpoint.TemplateID == "" {
 		return nil
 	}
-	if _, err := s.store.GetTemplate(ctx, endpoint.TemplateID); err != nil {
+	template, err := s.store.GetTemplate(ctx, endpoint.TemplateID)
+	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			return errUnknownTemplate
 		}
 		return err
+	}
+	if !template.Handles(models.SourceTeamsV2) {
+		return errUnknownTemplate
 	}
 	return nil
 }

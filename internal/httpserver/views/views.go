@@ -321,6 +321,9 @@ func (p Page) templateName(id string) string {
 type option struct {
 	Value string
 	Label string
+	// Sources is a template's comma-separated webhooks, for the script that
+	// narrows a picker to what a selector can receive; empty means any.
+	Sources string
 }
 
 func destinationOptions(p Page) []option {
@@ -367,9 +370,30 @@ func routeTargetValue(route models.Route) string {
 func templateOptions(p Page) []option {
 	out := make([]option, 0, len(p.Templates))
 	for _, t := range p.Templates {
-		out = append(out, option{Value: t.ID, Label: t.Name})
+		out = append(out, option{Value: t.ID, Label: t.Name, Sources: strings.Join(t.Sources, ",")})
 	}
 	return out
+}
+
+// sourceOptions are the template form's source checkboxes (ADR 0053).
+func sourceOptions(ctx context.Context) []option {
+	out := make([]option, 0, len(models.AllSources()))
+	for _, source := range models.AllSources() {
+		out = append(out, option{Value: source, Label: i18n.T(ctx, "source."+source)})
+	}
+	return out
+}
+
+// sourcesText is a template's sources as the list shows them.
+func sourcesText(ctx context.Context, t models.Template) string {
+	if len(t.Sources) == 0 {
+		return i18n.T(ctx, "templates.sources_any")
+	}
+	names := make([]string, 0, len(t.Sources))
+	for _, source := range t.Sources {
+		names = append(names, i18n.T(ctx, "source."+source))
+	}
+	return strings.Join(names, ", ")
 }
 
 // routeTemplateOptions is templateOptions with a leading "none" choice, so a
@@ -390,10 +414,17 @@ func globalDefaultTemplateOptions(ctx context.Context, p Page) []option {
 	return append(out, templateOptions(p)...)
 }
 
+// webhookTemplateOptions offers only the templates that handle a Teams V2
+// payload, which is all an endpoint receives.
 func webhookTemplateOptions(ctx context.Context, p Page) []option {
 	out := make([]option, 0, len(p.Templates)+1)
 	out = append(out, option{Value: "", Label: i18n.T(ctx, "webhooks.template_none")})
-	return append(out, templateOptions(p)...)
+	for _, t := range p.Templates {
+		if t.Handles(models.SourceTeamsV2) {
+			out = append(out, option{Value: t.ID, Label: t.Name})
+		}
+	}
+	return out
 }
 
 // selectorText renders a label selector the way an operator writes it.

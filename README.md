@@ -587,6 +587,14 @@ for a wrong token, `400` for a body that carries neither text nor a card, `413` 
 
 ## Templates
 
+A template can name the webhooks whose payloads it handles: **Alertmanager**, **Universal webhook**
+and **Teams V2 webhook**. Leave all unticked for any.
+
+- A Teams V2 endpoint only offers templates that handle Teams V2 payloads.
+- A route whose selector pins `teamster_source` only offers templates for that webhook.
+- An alert that reaches a template not written for its webhook gets the built-in message instead,
+  and a warning is logged.
+
 A template is three optional parts, and needs at least one of them:
 
 | Part | What it is | Where it shows |

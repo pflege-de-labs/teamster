@@ -106,6 +106,9 @@ func Validate(t models.Template) error {
 	if t.Title == "" && t.Text == "" && t.Body == "" {
 		return fmt.Errorf("a template needs a title, text or a card")
 	}
+	if _, err := models.NormalizeSources(t.Sources); err != nil {
+		return err
+	}
 	return nil
 }
 

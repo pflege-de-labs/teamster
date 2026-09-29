@@ -1033,3 +1033,31 @@ func TestPlanReportsAGlobalDefaultReadFailure(t *testing.T) {
 		t.Errorf("Plan = %v, want %v", err, boom)
 	}
 }
+
+func TestPinnedSource(t *testing.T) {
+	t.Parallel()
+
+	existing := []models.Route{
+		{ID: "am", LabelSelector: map[string]string{models.SourceLabel: models.SourceAlertmanager}},
+		{ID: "child", ParentID: "am", LabelSelector: map[string]string{"team": "db"}},
+		{ID: "open"},
+	}
+	tests := []struct {
+		name      string
+		candidate models.Route
+		want      string
+	}{
+		{name: "its own selector", candidate: models.Route{LabelSelector: map[string]string{models.SourceLabel: models.SourceUniversal}}, want: models.SourceUniversal},
+		{name: "a grandparent's", candidate: models.Route{ParentID: "child"}, want: models.SourceAlertmanager},
+		{name: "none", candidate: models.Route{ParentID: "open"}, want: ""},
+		{name: "a missing parent", candidate: models.Route{ParentID: "gone"}, want: ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := PinnedSource(tt.candidate, existing); got != tt.want {
+				t.Errorf("PinnedSource = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}

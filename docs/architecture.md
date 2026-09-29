@@ -386,6 +386,14 @@ one required. `templates.RenderMessage` renders all three; the title is collapse
 because that is what the Teams activity feed previews, and an untitled card falls back to
 `templates.DefaultTitle`, the summary line this service sent before templates could name their own.
 
+A template may name the webhooks it handles in `sources`; none means any
+([ADR 0053](adr/0053-templates-name-the-webhooks-they-handle.md)). Before rendering,
+`renderMessage` checks `Template.Handles(alert.Source)`. On a mismatch it sends the built-in
+message and logs a warning, and a Teams V2 endpoint sends the payload as given. The Teams V2
+endpoint picker offers only templates that handle `teamsv2`. The route picker is narrowed in the
+browser by `sources.js`. A route whose selector chain pins `teamster_source`
+(`routing.PinnedSource`) is refused on save when its template does not handle that source.
+
 A route with no template skips rendering entirely: `directMessage` builds the same `title, text,
 card` shape straight from `models.Alert.Title`/`Text`/`Card`, the fields a `/webhook/universal`
 payload may set directly (`ADR 0036`). It still runs `Text` through the same Markdown sanitizer;
@@ -678,6 +686,10 @@ has an empty conversation id, which reads as a card nothing can edit. See
 a value and when it was written. Its one key so far is `global_default.template_id`. It is a new
 table and nothing else, so the previous release ignores it. See
 [ADR 0050](adr/0050-catch-all-template-is-a-setting.md).
+
+`templates.sources` came with source-aware templates, by `0018` in SQLite and `0015` in Postgres:
+`TEXT NOT NULL DEFAULT ''`, so every existing template, and every write by the previous release,
+handles any webhook. See [ADR 0053](adr/0053-templates-name-the-webhooks-they-handle.md).
 
 `database.migrate` decides what opening the store does about a schema that is behind: `auto`
 applies what is missing, `verify` refuses and names `teamster migrate up`, `off` asks nothing.

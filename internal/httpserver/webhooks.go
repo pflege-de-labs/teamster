@@ -16,6 +16,7 @@ import (
 
 	"github.com/pflege-de-labs/teamster/internal/bot"
 	"github.com/pflege-de-labs/teamster/internal/graph"
+	"github.com/pflege-de-labs/teamster/internal/logging"
 	"github.com/pflege-de-labs/teamster/internal/metrics"
 	"github.com/pflege-de-labs/teamster/internal/models"
 	"github.com/pflege-de-labs/teamster/internal/routing"
@@ -551,6 +552,13 @@ func (s *Server) renderMessage(ctx context.Context, alert models.Alert, delivery
 	if err != nil {
 		s.metrics.RenderFailed(ctx, delivery.TemplateID, metrics.StageTemplate)
 		return templates.Message{}, fmt.Errorf("template: %w", err)
+	}
+	// A template written for another webhook's payload would render it wrong
+	// or not at all; the built-in message loses nothing (ADR 0053).
+	if !template.Handles(alert.Source) {
+		logging.FromContext(ctx).Warn("template does not handle this source; sending the built-in message",
+			"template", template.Name, "source", alert.Source, "route", delivery.RouteName)
+		return untemplatedMessage(alert)
 	}
 
 	rendered, err := templates.RenderMessage(template, templates.RenderData{

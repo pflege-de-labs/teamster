@@ -333,6 +333,27 @@ func inheritedTemplate(id string, byID map[string]models.Route) string {
 	return ""
 }
 
+// PinnedSource is the webhook a route can only ever receive from: the
+// teamster_source its own selector or the nearest ancestor's names, or "".
+func PinnedSource(candidate models.Route, existing []models.Route) string {
+	byID := map[string]models.Route{}
+	for _, route := range existing {
+		byID[route.ID] = route
+	}
+	route := candidate
+	for depth := 0; depth <= MaxDepth; depth++ {
+		if source := route.LabelSelector[models.SourceLabel]; source != "" {
+			return source
+		}
+		parent, ok := byID[route.ParentID]
+		if route.ParentID == "" || !ok {
+			return ""
+		}
+		route = parent
+	}
+	return ""
+}
+
 // ValidateDelete keeps a delete from orphaning children, which would silently
 // promote them to roots that match every alert their parent used to filter.
 func ValidateDelete(id string, existing []models.Route) error {

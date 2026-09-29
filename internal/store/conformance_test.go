@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -113,7 +114,7 @@ func TestConformanceTemplates(t *testing.T) {
 		st := open(t)
 		ctx := t.Context()
 
-		created, err := st.CreateTemplate(ctx, models.Template{Name: "Card", Body: "{}"})
+		created, err := st.CreateTemplate(ctx, models.Template{Name: "Card", Body: "{}", Sources: []string{models.SourceAlertmanager, models.SourceTeamsV2}})
 		if err != nil {
 			t.Fatalf("CreateTemplate: %v", err)
 		}
@@ -135,6 +136,18 @@ func TestConformanceTemplates(t *testing.T) {
 		}
 		if got.Name != "Card" {
 			t.Errorf("template = %+v, want the one created", got)
+		}
+		if !slices.Equal(got.Sources, []string{models.SourceAlertmanager, models.SourceTeamsV2}) {
+			t.Errorf("Sources = %v, want the two it was created with", got.Sources)
+		}
+
+		// No sources is any, and reads back as none rather than one empty entry.
+		created.Sources = nil
+		if _, err := st.UpdateTemplate(ctx, created); err != nil {
+			t.Fatalf("UpdateTemplate: %v", err)
+		}
+		if got, _ := st.GetTemplate(ctx, created.ID); got.Sources != nil {
+			t.Errorf("Sources after clearing = %#v, want nil", got.Sources)
 		}
 
 		if _, err := st.GetTemplate(ctx, "missing"); !errors.Is(err, store.ErrNotFound) {

@@ -4,23 +4,23 @@
 -- file and run make generate.
 
 -- name: ListTemplates :many
-SELECT id, name, title, message_text, body, created_at, updated_at
+SELECT id, name, title, message_text, body, created_at, updated_at, sources
 FROM templates
 ORDER BY name;
 
 -- name: GetTemplate :one
-SELECT id, name, title, message_text, body, created_at, updated_at
+SELECT id, name, title, message_text, body, created_at, updated_at, sources
 FROM templates
 WHERE id = $1;
 
 -- name: CreateTemplate :exec
-INSERT INTO templates (id, name, title, message_text, body, created_at, updated_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7);
+INSERT INTO templates (id, name, title, message_text, body, sources, created_at, updated_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
 
 -- name: UpdateTemplate :exec
 UPDATE templates
-SET name = $1, title = $2, message_text = $3, body = $4, updated_at = $5
-WHERE id = $6;
+SET name = $1, title = $2, message_text = $3, body = $4, sources = $5, updated_at = $6
+WHERE id = $7;
 
 -- name: DeleteTemplate :exec
 DELETE FROM templates WHERE id = $1;
