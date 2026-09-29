@@ -19,7 +19,7 @@ since it carries your organization's ids — and replace all of them there:
 | `developer.websiteUrl` | A URL a person can reach for support. |
 | `developer.privacyUrl` | Your privacy statement. |
 | `developer.termsOfUseUrl` | Your terms of use. |
-| `version` | Bump on every change you upload; Teams rejects a re-upload at the same version. |
+| `version` | Starts at `1.0.0` — Teams rejects a version starting with `0` — and must increase with every upload. It is the app package's version, not teamster's. |
 
 Two settings are deliberately not placeholders and must not be changed:
 

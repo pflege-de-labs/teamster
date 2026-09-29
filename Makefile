@@ -71,6 +71,7 @@ manifest:
 	@test -f manifest/manifest.json || { echo "manifest/manifest.json missing: copy manifest-template.json and fill it in" >&2; exit 1; }
 	@version=$$(grep -o '"version": *"[^"]*"' manifest/manifest.json | head -1 | cut -d'"' -f4); \
 	test -n "$$version" || { echo "no version in manifest/manifest.json" >&2; exit 1; }; \
+	case "$$version" in 0*) echo "manifest version $$version must not start with 0; Teams rejects it" >&2; exit 1 ;; esac; \
 	cd manifest && rm -f teamster-bot-$$version.zip && \
 	zip -j teamster-bot-$$version.zip manifest.json color.png outline.png
 
