@@ -110,7 +110,9 @@ registration for a Teams bot. The bot posts and edits every channel card, and ca
 directly to a person as well
 ([ADR 0045](docs/adr/0045-channel-delivery-through-the-bot.md),
 [ADR 0026](docs/adr/0026-alerts-in-a-persons-chat.md)). This is unrelated to the `graph`
-credential above: revoking or rotating one never touches the other.
+credential above: revoking or rotating one never touches the other. The registration must also be
+a Bot Framework bot with the Microsoft Teams channel enabled — see
+[Registering the bot](manifest/README.md#registering-the-bot).
 
 **Without the bot nothing reaches a channel.** Startup logs that, and each channel delivery fails
 with `502` saying so. Set all three together, since setting only one is rejected at startup.
