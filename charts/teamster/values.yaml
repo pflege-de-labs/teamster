@@ -16,6 +16,10 @@ imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
+# Labels on every resource the chart renders, pods included. A component's own
+# labels win over these; the chart's selector labels win over both.
+commonLabels: {}
+
 # How the pod is managed.
 #
 #   StatefulSet — the default. The SQLite file lives on a volume the chart
@@ -33,6 +37,8 @@ workload:
   # refused at render time.
   kind: ""
   annotations: {}
+  # The Deployment or StatefulSet only; pods take podLabels.
+  labels: {}
   # StatefulSet only.
   updateStrategy:
     type: RollingUpdate
@@ -106,6 +112,7 @@ serviceAccount:
   create: true
   automount: true
   annotations: {}
+  labels: {}
   # If not set and create is true, a name is generated using the fullname template.
   name: ""
 
@@ -139,6 +146,8 @@ service:
   # Only used when type is NodePort.
   nodePort: ""
   annotations: {}
+  # Both the Service and, under a StatefulSet, its headless twin.
+  labels: {}
 
 # How the metrics listener is scraped. Everything here needs
 # config.settings.metrics.enabled above; the port itself is published on the
@@ -419,6 +428,7 @@ resources: {}
 ingress:
   enabled: false
   className: ""
+  labels: {}
   annotations: {}
     # cert-manager.io/cluster-issuer: letsencrypt
   hosts:
@@ -450,6 +460,7 @@ ingress:
 httpRoute:
   external:
     enabled: false
+    labels: {}
     annotations: {}
     # Which Gateways this route attaches to.
     parentRefs:
@@ -491,6 +502,7 @@ httpRoute:
 
   internal:
     enabled: false
+    labels: {}
     annotations: {}
     parentRefs:
       - group: gateway.networking.k8s.io
@@ -513,6 +525,7 @@ pdb:
   enabled: true
   minAvailable: 1
   maxUnavailable: ""
+  labels: {}
 
 # Additional volumes and mounts on the pod.
 volumes: []

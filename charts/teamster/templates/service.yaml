@@ -3,7 +3,7 @@ kind: Service
 metadata:
   name: {{ include "teamster.fullname" . }}
   labels:
-    {{- include "teamster.labels" . | nindent 4 }}
+    {{- include "teamster.componentLabels" (dict "root" . "labels" .Values.service.labels) | nindent 4 }}
   {{- with .Values.service.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
@@ -34,7 +34,7 @@ kind: Service
 metadata:
   name: {{ include "teamster.fullname" . }}-headless
   labels:
-    {{- include "teamster.labels" . | nindent 4 }}
+    {{- include "teamster.componentLabels" (dict "root" . "labels" .Values.service.labels) | nindent 4 }}
 spec:
   type: ClusterIP
   clusterIP: None

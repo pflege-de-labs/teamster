@@ -9,7 +9,7 @@ kind: HTTPRoute
 metadata:
   name: {{ $fullName }}-external
   labels:
-    {{- include "teamster.labels" . | nindent 4 }}
+    {{- include "teamster.componentLabels" (dict "root" . "labels" $ext.labels) | nindent 4 }}
   {{- with $ext.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
@@ -69,7 +69,7 @@ kind: HTTPRoute
 metadata:
   name: {{ $fullName }}-internal
   labels:
-    {{- include "teamster.labels" . | nindent 4 }}
+    {{- include "teamster.componentLabels" (dict "root" . "labels" $int.labels) | nindent 4 }}
   {{- with $int.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}

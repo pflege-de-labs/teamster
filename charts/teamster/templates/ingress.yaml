@@ -4,7 +4,7 @@ kind: Ingress
 metadata:
   name: {{ include "teamster.fullname" . }}
   labels:
-    {{- include "teamster.labels" . | nindent 4 }}
+    {{- include "teamster.componentLabels" (dict "root" . "labels" .Values.ingress.labels) | nindent 4 }}
   {{- with .Values.ingress.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}

@@ -11,7 +11,7 @@ kind: PodDisruptionBudget
 metadata:
   name: {{ include "teamster.fullname" . }}
   labels:
-    {{- include "teamster.labels" . | nindent 4 }}
+    {{- include "teamster.componentLabels" (dict "root" . "labels" .Values.pdb.labels) | nindent 4 }}
 spec:
   {{- with .Values.pdb.maxUnavailable }}
   maxUnavailable: {{ . }}

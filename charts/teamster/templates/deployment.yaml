@@ -9,7 +9,7 @@ kind: Deployment
 metadata:
   name: {{ include "teamster.fullname" . }}
   labels:
-    {{- include "teamster.labels" . | nindent 4 }}
+    {{- include "teamster.componentLabels" (dict "root" . "labels" .Values.workload.labels) | nindent 4 }}
   {{- with .Values.workload.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
