@@ -78,7 +78,7 @@ func previewData(name string) templates.RenderData {
 	msg, _ := teamsv2.Parse([]byte(previewTeamsV2Body))
 	var payload any
 	_ = json.Unmarshal([]byte(previewTeamsV2Body), &payload)
-	alert := models.Alert{Source: teamsV2Source, Title: msg.Title, Text: msg.Text}
+	alert := models.Alert{Source: teamsV2Source, Labels: models.WithSourceLabel(nil, teamsV2Source), Title: msg.Title, Text: msg.Text}
 	if len(msg.Cards) > 0 {
 		alert.Card = msg.Cards[0]
 	}
@@ -87,12 +87,13 @@ func previewData(name string) templates.RenderData {
 
 func previewAlert(name string) models.Alert {
 	alert := models.Alert{
-		Source: "universal",
+		Source: models.SourceUniversal,
 		Status: "firing",
 		Labels: map[string]string{
-			"alertname": "HighMemory",
-			"severity":  "warning",
-			"service":   "worker",
+			"alertname":        "HighMemory",
+			"severity":         "warning",
+			"service":          "worker",
+			models.SourceLabel: models.SourceUniversal,
 		},
 		Annotations: map[string]string{
 			"summary":     "Memory usage is above 80%",

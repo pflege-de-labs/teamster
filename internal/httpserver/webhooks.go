@@ -29,7 +29,7 @@ func (s *Server) handleAlertmanager(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	if !s.authorizeWebhook(w, r, "alertmanager") {
+	if !s.authorizeWebhook(w, r, models.SourceAlertmanager) {
 		return
 	}
 
@@ -41,7 +41,7 @@ func (s *Server) handleAlertmanager(w http.ResponseWriter, r *http.Request) {
 
 	for _, alert := range payload.Alerts {
 		model := models.Alert{
-			Source:      "alertmanager",
+			Source:      models.SourceAlertmanager,
 			Status:      alert.Status,
 			Labels:      alert.Labels,
 			Annotations: alert.Annotations,
@@ -66,7 +66,7 @@ func (s *Server) handleUniversal(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	if !s.authorizeWebhook(w, r, "universal") {
+	if !s.authorizeWebhook(w, r, models.SourceUniversal) {
 		return
 	}
 
@@ -77,7 +77,7 @@ func (s *Server) handleUniversal(w http.ResponseWriter, r *http.Request) {
 	}
 
 	model := models.Alert{
-		Source:      "universal",
+		Source:      models.SourceUniversal,
 		Status:      payload.Status,
 		Labels:      payload.Labels,
 		Annotations: payload.Annotations,
@@ -113,6 +113,9 @@ func (s *Server) processAlert(ctx context.Context, alert models.Alert) error {
 	if alert.Fingerprint == "" {
 		alert.Fingerprint = hashFingerprint(alert)
 	}
+	// After the fingerprint, so a card posted before the label existed is
+	// still the one a later firing or resolve finds.
+	alert.Labels = models.WithSourceLabel(alert.Labels, alert.Source)
 	// Before routing, so an alert no route matches yet still teaches the
 	// editor the labels a route for it would select on.
 	if s.samples != nil {

@@ -2,6 +2,7 @@ package models
 
 import (
 	"encoding/json"
+	"maps"
 	"time"
 )
 
@@ -297,6 +298,26 @@ type BrokerToken struct {
 // Annotations; a route's own Template wins when it has one, so these are the
 // fallback for a route with none, never an override of one that exists. See
 // ADR 0036.
+// SourceLabel names the webhook an alert arrived at (ADR 0052). The server
+// sets it, overwriting whatever the sender put there, so a route can trust it.
+const SourceLabel = "teamster_source"
+
+// The values of SourceLabel, one per receiving webhook.
+const (
+	SourceAlertmanager = "alertmanager"
+	SourceUniversal    = "universal"
+	SourceTeamsV2      = "teamsv2"
+)
+
+// WithSourceLabel returns labels plus SourceLabel set to source. It copies
+// rather than writes into the sender's map.
+func WithSourceLabel(labels map[string]string, source string) map[string]string {
+	out := make(map[string]string, len(labels)+1)
+	maps.Copy(out, labels)
+	out[SourceLabel] = source
+	return out
+}
+
 type Alert struct {
 	Source      string            `json:"source"`
 	Status      string            `json:"status"`

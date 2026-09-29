@@ -160,11 +160,11 @@ func TestEveryIncomingAlertIsSampled(t *testing.T) {
 		body string
 		want map[string]string
 	}{
-		{"universal", "/webhook/universal", `{"status":"firing","labels":{"team":"db"}}`, map[string]string{"team": "db"}},
+		{"universal", "/webhook/universal", `{"status":"firing","labels":{"team":"db"}}`, map[string]string{"team": "db", models.SourceLabel: models.SourceUniversal}},
 		{
 			"alertmanager", "/webhook/alertmanager",
 			`{"status":"firing","alerts":[{"status":"firing","labels":{"alertname":"Disk"}}]}`,
-			map[string]string{"alertname": "Disk"},
+			map[string]string{"alertname": "Disk", models.SourceLabel: models.SourceAlertmanager},
 		},
 	}
 	for _, tt := range tests {

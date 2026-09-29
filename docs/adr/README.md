@@ -66,3 +66,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0049](0049-a-channel-post-is-one-teams-message.md) | A channel post is one Teams message | Accepted |
 | [0050](0050-catch-all-template-is-a-setting.md) | The catch-all route's template is a setting | Accepted |
 | [0051](0051-root-routes-need-a-target-refinements-a-template.md) | A root route needs a target, and a refinement that keeps it needs a new template | Accepted |
+| [0052](0052-the-receiving-webhook-is-a-label.md) | The receiving webhook is a label | Accepted |

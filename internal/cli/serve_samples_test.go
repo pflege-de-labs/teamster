@@ -76,7 +76,7 @@ func TestServeSamplesWhatArrivesAndFlushesOnShutdown(t *testing.T) {
 	for _, row := range rows {
 		got[string(row.Kind)+"/"+row.Key+"="+row.Value] = row.SeenCount
 	}
-	if got["label/team=db"] != 2 || got["annotation/summary="] != 2 || len(got) != 2 {
-		t.Errorf("stored samples = %v, want team=db and the summary key, twice each", got)
+	if got["label/team=db"] != 2 || got["annotation/summary="] != 2 || got["label/teamster_source=universal"] != 2 || len(got) != 3 {
+		t.Errorf("stored samples = %v, want team=db, the source label and the summary key, twice each", got)
 	}
 }
