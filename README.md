@@ -183,7 +183,7 @@ Redeeming a code for a subject that is already linked moves the alert stream to 
 tells the *old* chat it was displaced — a code that leaks does not silently steal someone else's
 alerts without them finding out.
 
-In the chat, a repeated firing edits the message that is already there and a resolution arrives as a
+In the chat, a repeated open event edits the message that is already there and a close arrives as a
 new message, so the notification that matters is the one saying it cleared.
 
 **Notifications** also shows whether a chat is linked already — the display name captured at link
@@ -300,10 +300,10 @@ image carries the public roots and not the provider's own.
 
 Take a bundle with `teamster export` (or `GET /api/config/export`), point the configuration at
 Postgres, run `teamster migrate up`, and import it. **The bundle carries configuration, not runtime
-state**: sessions, login flows and active alerts stay behind. So everyone signs in again, and any
-alert firing at the moment you cut over has a card in Teams the new instance has never heard of —
-the next `firing` posts a second one, and the eventual `resolved` never edits the first. Resolve
-what you can first.
+state**: sessions, login flows and active events stay behind. So everyone signs in again, and any
+event open at the moment you cut over has a card in Teams the new instance has never heard of —
+the next `open` posts a second one, and the eventual `closed` never edits the first. Close what
+you can first.
 
 ## Shell completion
 
@@ -361,13 +361,14 @@ changes an installation.
 
 ### Universal webhook
 
-`POST /webhook/universal`, authenticated the same way. Routes on `labels` and renders
-`annotations` exactly like an Alertmanager alert does — `status` is what's optional. A `status` of
-`firing` or `resolved` opts into the tracked alert lifecycle: a repeat post with the same
-`fingerprint` edits the card in place, and `resolved` clears it. Any other `status` — including
-none at all, the shape for a sender with no such lifecycle — is delivered once and tracked
-nowhere, the same fire-and-forget contract the Teams V2 webhook below has, just routed and
-templated first.
+`POST /webhook/universal`, authenticated the same way. Routes on `labels` and renders its
+`attributes` the way an Alertmanager alert's annotations are — `state` is what's optional. A
+`state` of `open` or `closed` opts into the tracked lifecycle: a repeat post with the same `key`
+edits the card in place, and `closed` clears it. No `state` at all, the shape for a sender with no
+such lifecycle, is delivered once and tracked nowhere, the same fire-and-forget contract the Teams
+V2 webhook below has, just routed and templated first. Any other `state` is refused with `400`.
+Alertmanager's `firing` and `resolved` arrive as `open` and `closed`. See
+[ADR 0056](docs/adr/0056-events-not-alerts.md).
 
 ### Authenticating a sender
 
@@ -430,7 +431,7 @@ curl -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
 
 - **`401`**, which Alertmanager logs as `unexpected status code 401`: Teamster did not accept the
   token. The server log says why (`msg="webhook refused" source=alertmanager reason=…`), and
-  every refusal is counted in `teamster.webhook.receipts` with status `refused`. The usual causes:
+  every refusal is counted in `teamster.webhook.receipts` with state `refused`. The usual causes:
   - The sender sets no `Authorization: Bearer` header, for example `basic_auth` instead of
     `authorization`. Basic auth is not accepted.
   - The token was revoked, or was never issued on this installation. Issued tokens live in the
@@ -475,50 +476,63 @@ message text is for — so the control is the token, not the allowlist:
   Every token reaches every route, so senders in different trust boundaries still need separate
   deployments.
 - **Terminate TLS in front of Teamster.** The token travels in a header on every request.
-- A refused token is counted (`teamster.webhook.receipts`, status `refused`), so a token being
+- A refused token is counted (`teamster.webhook.receipts`, state `refused`), so a token being
   guessed at is visible rather than silent. Alert on it.
 
 The same reasoning applies to anyone who can edit templates, who can of course write whatever link
 they like — but that is an authenticated admin action, scoped by permission grants, and a far
 smaller group than "whatever can reach the webhook port".
 
-Payload shape, for an alert with a lifecycle:
+Payload shape, for an event with a lifecycle:
 
 ```json
 {
-  "status": "firing",
+  "key": "optional-stable-id",
+  "state": "open",
   "labels": {"alertname": "HighCPU", "severity": "critical"},
-  "annotations": {"summary": "CPU spiking"},
-  "starts_at": "2025-12-07T20:07:00Z",
-  "ends_at": "0001-01-01T00:00:00Z",
-  "generator": "custom",
-  "fingerprint": "optional-stable-id",
+  "attributes": {"summary": "CPU spiking"},
+  "time": "2025-12-07T20:07:00Z",
+  "url": "https://grafana.example/d/cpu",
   "title": "optional, sent as-is when the route has no template",
   "text": "optional, Markdown, sanitized the same way a template's text is",
   "card": {"optional": "Adaptive Card JSON, sent as-is when the route has no template"}
 }
 ```
 
-`status`, `starts_at`, `ends_at`, `generator` and `fingerprint` are all optional. A general
-message needs only `labels` and `annotations`:
+Every field is optional:
+
+| Field | Meaning |
+| --- | --- |
+| `key` | Identifies the event across posts. Without one it is derived from the source, `url`, `time` and the sorted labels |
+| `state` | `open`, `closed` or absent; anything else is a `400` |
+| `labels` | What routes select on |
+| `attributes` | Free text for templates, as `.Event.Universal.Attributes`; only their keys are sampled |
+| `time`, `url` | When the event started and where it came from, as `.Event.Universal.Time` and `.URL` |
+| `title`, `text`, `card` | Direct content, see below |
+
+A general message needs only `labels` and `attributes`:
 
 ```json
 {
   "labels": {"app": "checkout", "environment": "production"},
-  "annotations": {"summary": "Deployment finished"}
+  "attributes": {"summary": "Deployment finished"}
 }
 ```
 
 See [samples/universal-message.json](samples/universal-message.json) alongside
-[samples/universal-firing.json](samples/universal-firing.json) and
-[samples/universal-resolved.json](samples/universal-resolved.json).
+[samples/universal-open.json](samples/universal-open.json) and
+[samples/universal-closed.json](samples/universal-closed.json).
+
+Before ADR 0056 this webhook took `status`, `fingerprint`, `annotations`, `starts_at`, `ends_at` and
+`generator`. They are gone, not aliased: rename them to `state` (`firing` → `open`, `resolved` →
+`closed`), `key`, `attributes`, `time` and `url`, and drop `ends_at`.
 
 `title`, `text` and `card` matter only for a route with no `TemplateID`: a route that has one
 renders through it exactly as before, and these three fields are ignored for that delivery. A
 route with no template sends them directly instead. This is what lets a sender that already knows
 what it wants to say skip writing a template. A message that has no template and carries none of the
 three still goes out, with teamster's built-in default: a title taken from `summary` or
-`alertname`, the status and description, and the alert as a JSON block. Every message sent without
+`alertname`, the state and description, and the event as a JSON block. Every message sent without
 a template is followed by a small card saying so. Set `server.external-url` to the address people
 use for the admin UI, and that card links straight to where templates are created. See
 [samples/universal-direct-message.json](samples/universal-direct-message.json) and
@@ -583,15 +597,15 @@ By default the payload is posted as it came, with a small card after it saying t
 defined. You can instead pick a **Template** for the endpoint in its form. The template then shapes
 the message:
 
-- `.Alert.Title`, `.Alert.Text` and `.Alert.Card` hold the parsed message, and `.Alert.Source` is
-  `teamsv2`. `Text` is already HTML.
+- `.Event.Title`, `.Event.Text` and `.Event.Card` hold the parsed message, and `.Event.Source` is
+  `teamsv2`. `Text` is already HTML. There is no `.Event.Alertmanager` or `.Event.Universal`.
 - `.Payload` is the body as it was sent, for fields the parsed form flattens, such as
   `{{ .Payload.themeColor }}` or `{{ range .Payload.sections }}`.
 
 The template preview has a **Teams V2 webhook** sample to try this against.
 
-Nothing is tracked afterwards. There is no status and no fingerprint in these payloads, so a message
-sent this way is never updated or resolved — unlike an alert, which keeps its card up to date.
+Nothing is tracked afterwards. There is no state and no key in these payloads, so a message sent
+this way is never updated or closed — unlike an event with a state, which keeps its card up to date.
 
 Responses: `200` when the message was posted, `404` for a team and channel nobody configured, `401`
 for a wrong token, `400` for a body that carries neither text nor a card, `413` for a body over
@@ -604,7 +618,7 @@ and **Teams V2 webhook**. Leave all unticked for any.
 
 - A Teams V2 endpoint only offers templates that handle Teams V2 payloads.
 - A route whose selector pins `teamster_source` only offers templates for that webhook.
-- An alert that reaches a template not written for its webhook gets its webhook's default template
+- An event that reaches a template not written for its webhook gets its webhook's default template
   instead, or the built-in message when there is none, and a warning is logged.
 
 ### Default templates
@@ -624,8 +638,8 @@ that webhook already has a default:
 
 | Preset | Renders |
 | --- | --- |
-| Alertmanager (default) | A status-coloured card: summary, severity, description, labels, start and end, and links to the generator URL and a `runbook_url` annotation |
-| Universal webhook (default) | The sender's own card or text when it sent one, otherwise the same alert card |
+| Alertmanager (default) | A state-coloured card: summary, severity, description, labels, start and end, and links to the generator URL and a `runbook_url` annotation |
+| Universal webhook (default) | The sender's own card or text when it sent one, otherwise a state-coloured card: summary, state, description, labels and the URL |
 | Teams V2 webhook (default) | The payload's card, a MessageCard converted to one, or its text alone |
 
 They are ordinary templates: edit or delete them freely. A deleted preset is not recreated. The
@@ -633,7 +647,7 @@ same presets are under **Start from a preset** in the template editor, which fil
 text, card and webhooks in one go.
 
 A card body that renders to nothing sends no card rather than failing, as
-`{{ if .Alert.Card }}…{{ end }}` does for a payload without a card.
+`{{ if .Event.Card }}…{{ end }}` does for a payload without a card.
 
 A template is three optional parts, and needs at least one of them:
 
@@ -644,9 +658,10 @@ A template is three optional parts, and needs at least one of them:
 | Adaptive Card JSON | The card, as before | Below the text |
 
 A message that is only a card previews in the activity feed as `Card`, which is why the title
-exists. A card without a title keeps the summary line this service always sent —
-`annotations.summary`, then `labels.alertname`, then `Alert update` — so existing templates are
-unaffected. Text without a title is left alone: the feed previews the text itself.
+exists. A card without a title falls back to a summary line — the Alertmanager annotation or
+universal attribute `summary`, then `labels.alertname`, then `Update` — so a card-only template
+still previews as something readable. Text without a title is left alone: the feed previews the
+text itself.
 
 Message text is **Markdown**. It is rendered to HTML and sanitized before it is sent: `p`, `br`,
 `b`, `strong`, `i`, `em`, `u`, `s`, `code`, `pre`, `blockquote`, `ul`, `ol`, `li`, `h1`–`h3` and `a`
@@ -662,46 +677,81 @@ The same sanitized text reaches both transports: a Team channel gets the HTML, a
 gets Markdown emitted from that sanitized HTML rather than from the template source. One sanitizer
 covers both.
 
-An alert annotation ends up in that text, so it cannot be trusted to be markup-free. Sanitizing
-bounds what it can do — no scripts, no images, no `javascript:` or `data:` links — but it does not
-make alert data inert. Anyone who can POST a webhook can put a **link** in a message, with link text
-that need not match where it leads. See [what the webhook tokens protect](#what-the-webhook-tokens-protect).
+An annotation or attribute ends up in that text, so it cannot be trusted to be markup-free.
+Sanitizing bounds what it can do — no scripts, no images, no `javascript:` or `data:` links — but it
+does not make event data inert. Anyone who can POST a webhook can put a **link** in a message, with
+link text that need not match where it leads. See
+[what the webhook tokens protect](#what-the-webhook-tokens-protect).
 
 ## Template data
 
 Templates receive:
 
-- `Alert` (normalized alert payload)
+- `Event` (the normalized event, below)
 - `Now` (RFC3339 string)
 - `Payload` (the request body as decoded JSON; Teams V2 only)
+
+Every event has the same core, whichever webhook it arrived at:
+
+| Field | Holds |
+| --- | --- |
+| `.Event.Source` | `alertmanager`, `universal` or `teamsv2` |
+| `.Event.Key` | What identifies the event across posts |
+| `.Event.State` | `open`, `closed` or empty for a one-shot message |
+| `.Event.Labels` | What routes select on, `teamster_source` included |
+| `.Event.Title`, `.Event.Text`, `.Event.Card` | Direct content, when the sender supplied it |
+
+What only one webhook knows lives in that webhook's extension:
+
+| Extension | Fields |
+| --- | --- |
+| `.Event.Alertmanager` | `Annotations`, `StartsAt`, `EndsAt`, `GeneratorURL`, and the group's `Receiver`, `GroupKey`, `GroupLabels`, `CommonLabels`, `CommonAnnotations`, `ExternalURL` |
+| `.Event.Universal` | `Attributes`, `Time`, `URL` |
+
+An extension is nil for every other webhook, and a template that reaches into a nil one fails to
+render. A template that handles one webhook only can read its extension directly —
+`{{ .Event.Alertmanager.Annotations.summary }}`. A template for any webhook wraps it in `with`:
+
+```gotemplate
+{{ with .Event.Alertmanager }}{{ .Annotations.summary }}{{ end }}
+{{ with .Event.Universal }}{{ .Attributes.summary }}{{ end }}
+```
+
+Stored templates written against the old `.Alert` data were rewritten by the migration that
+introduced events: `.Alert.Status` and `.Alert.Fingerprint` became `.Event.State` and `.Event.Key`,
+and `.Alert.Annotations` and its siblings moved into the Universal extension for a template that
+handles only the universal webhook, and into the Alertmanager one otherwise. See
+[ADR 0056](docs/adr/0056-events-not-alerts.md).
 
 Helper functions:
 
 - `toJSON` to JSON-encode structures
-- `default` to provide fallbacks, including for a key an alert did not set
+- `default` to provide fallbacks, including for a key an event did not set
 
 ## Editor completion
 
-The template fields, a route's label selector and the label box on `/admin/routing` are code
-editors with completion. Inside `{{ … }}` they offer the template data (`.Alert.Status`,
-`.Alert.Labels`, `.Now`, …), the functions above and text/template's own, and the actions (`if`,
-`range`, `end`, …). After `.Alert.Labels.` or `.Alert.Annotations.` they offer the keys that recent
-alerts actually carried; a key that cannot follow a dot, such as `app.kubernetes.io/name`, is
-inserted as `(index .Alert.Labels "app.kubernetes.io/name")`. In the card they offer Adaptive Card
-element types, property names and enum values, taken from the same renderer the preview uses. A
-label selector, and the routing check, offer label keys and then the recent values of the key
-chosen. `Ctrl-Space` asks for completion anywhere. Without JavaScript the fields are plain text
-boxes, as before.
+The template fields, a route's label selector and the label box on `/admin/routing` are code editors
+with completion. Inside `{{ … }}` they offer the template data (`.Event.State`, `.Event.Labels`,
+`.Now`, …), the functions above and text/template's own, and the actions (`if`, `range`, `end`, …).
+After a label map such as `.Event.Labels.` or `.Event.Alertmanager.CommonLabels.`, or an attribute
+map such as `.Event.Alertmanager.Annotations.` or `.Event.Universal.Attributes.`, they offer the
+keys that recent events actually carried; a key that cannot follow a dot, such as
+`app.kubernetes.io/name`, is inserted as `(index .Event.Labels "app.kubernetes.io/name")`. In the
+card they offer Adaptive Card element types, property names and enum values, taken from the same
+renderer the preview uses. A label selector, and the routing check, offer label keys and then the
+recent values of the key chosen. `Ctrl-Space` asks for completion anywhere. Without JavaScript the
+fields are plain text boxes, as before.
 
-The label keys and values come from the alerts this service receives: every Alertmanager and
-universal alert is sampled, whether or not a route matches it, and the samples are kept in the
-`alert_samples` table. **Annotation values are never stored** — only annotation keys — because
-they are free text that may carry detail nobody asked this service to keep. Label values are stored,
-which is why only a role that may edit templates or routes can read them, at `GET /api/samples`.
+The label keys and values come from the events this service receives: every Alertmanager and
+universal event is sampled, whether or not a route matches it, and the samples are kept in the
+`event_samples` table. **Attribute values are never stored** — only the keys of Alertmanager
+annotations and universal attributes — because they are free text that may carry detail nobody asked
+this service to keep. Label values are stored, which is why only a role that may edit templates or
+routes can read them, at `GET /api/samples`.
 
 ```yaml
 samples:
-  enabled: true              # sample incoming alerts at all
+  enabled: true              # sample incoming events at all
   retention: "720h"          # forget a key or value not seen for this long
   max-values-per-key: 50     # keep only the most recently seen values of each label key
   max-value-length: 200      # do not sample a longer label value
@@ -709,9 +759,9 @@ samples:
   flush-interval: "5m"       # write a tuple already stored at most this often
 ```
 
-Sampling never delays a delivery: alerts are handed to a background writer that drops them if it
-falls behind, and a label every alert carries is written once per `flush-interval` rather than once
-per alert. Counts are therefore approximate. Replicas sharing Postgres add to the same rows. Setting
+Sampling never delays a delivery: events are handed to a background writer that drops them if it
+falls behind, and a label every event carries is written once per `flush-interval` rather than once
+per event. Counts are therefore approximate. Replicas sharing Postgres add to the same rows. Setting
 `enabled: false` stops sampling and serving; rows kept before stay in the table until deleted.
 
 ## Notes
@@ -735,7 +785,7 @@ per alert. Counts are therefore approximate. Replicas sharing Postgres add to th
   a root that matches alerts its parent used to filter out.
 - A database file written before the `DATETIME` timestamp fix cannot be read. Migrating it fails
   and names the file; delete it and start again to recreate the schema.
-- Every alert carries the label `teamster_source`: `alertmanager`, `universal` or `teamsv2`, for the
+- Every event carries the label `teamster_source`: `alertmanager`, `universal` or `teamsv2`, for the
   webhook it arrived at. The server sets it and overwrites a sender's own, so a route can select on
   it — `{"teamster_source": "alertmanager"}`. Teams V2 messages are not routed; their templates can
   read the label all the same.
@@ -748,16 +798,16 @@ per alert. Counts are therefore approximate. Replicas sharing Postgres add to th
   in the Routes panel, or with `PUT /api/routes/global-default` and `{"template_id": "…"}`.
   Without one, it sends the built-in default message. Deleting the chosen template goes back to
   the built-in message.
-- Active alerts are tracked per channel and per person, so an alert that fans out updates and
-  resolves every message it sent. One target failing does not stop the others; the response is a
+- Open events are tracked per channel and per person, so an event that fans out updates and
+  closes every message it sent. One target failing does not stop the others; the response is a
   `502` and the sender's retry updates what already landed rather than duplicating it.
-- In a chat, a repeated `firing` edits the message in place, and a `resolved` sends a new one.
-  Teams does not re-notify on an edit, so resolving in place would leave whoever is on call never
+- In a chat, a repeated `open` edits the message in place, and a `closed` sends a new one.
+  Teams does not re-notify on an edit, so closing in place would leave whoever is on call never
   told that it cleared.
 - If somebody uninstalls or blocks the bot, that delivery is counted as `blocked` rather than
-  `failed` and stops being retried for that alert. The next alert tries again.
+  `failed` and stops being retried for that event. The next event tries again.
 - The right to post a card is claimed before the card is posted, so two deliveries of the same
-  alert to the same channel produce one card rather than two. The one that loses gets a `502`, and
+  event to the same channel produce one card rather than two. The one that loses gets a `502`, and
   its retry edits the card the winner made. A claim left behind by a process that died is taken
   over by the next attempt after `max(30s, 3 x graph.timeout-sec)`.
 - A database written before templates had a title gains the columns the first time a newer build
@@ -769,8 +819,8 @@ See the JSON examples in [samples](samples):
 
 - [samples/alertmanager-firing.json](samples/alertmanager-firing.json)
 - [samples/alertmanager-resolved.json](samples/alertmanager-resolved.json)
-- [samples/universal-firing.json](samples/universal-firing.json)
-- [samples/universal-resolved.json](samples/universal-resolved.json)
+- [samples/universal-open.json](samples/universal-open.json)
+- [samples/universal-closed.json](samples/universal-closed.json)
 - [samples/universal-message.json](samples/universal-message.json)
 - [samples/universal-direct-message.json](samples/universal-direct-message.json) — direct
   content, for a route with no template
@@ -991,9 +1041,9 @@ metrics:
 | `http.server.request.duration` | how long this service took to answer, by route and status |
 | `http.client.request.duration` | how long Microsoft Graph and the Bot Connector took, by host and status |
 | `teamster.deliveries` | messages delivered, by route and outcome — posted, updated, failed, blocked, `app_missing` |
-| `teamster.webhook.receipts` | alerts received, by source and status, including refused tokens |
-| `teamster.render.failures` | alerts that never became a message, by template and stage |
-| `teamster.active_alerts` | cards currently tracked, one per alert per channel |
+| `teamster.webhook.receipts` | events received, by source and state, including refused tokens |
+| `teamster.render.failures` | events that never became a message, by template and stage |
+| `teamster.active_events` | cards currently tracked, one per open event per channel |
 | `teamster.destinations.without_app` | destinations in a team the bot's Teams app is not known to be installed in |
 
 `app_missing` is a channel post the Bot Connector refused, which almost always means the Teams app is
@@ -1212,14 +1262,15 @@ The template form has a card palette and a preview. The palette inserts the elem
 templates use — text, facts, columns, a link action, all labels, a conditional block — at the cursor,
 and **Start from an example** replaces the card with a complete one to edit down. The preview sits in
 a column beside the editor on a wide screen and below it on a narrow one. It renders on the server
-against a sample alert and the browser draws the result, as you type or on demand, so a template
-can be checked before any alert arrives.
+against a sample event and the browser draws the result, as you type or on demand, so a template
+can be checked before any event arrives. The samples are an Alertmanager alert, an open event,
+a closed event, a general message and a Teams V2 webhook payload.
 
-The fragments are defined in `internal/cards` and rendered by a test against a sample alert and an
+The fragments are defined in `internal/cards` and rendered by a test against a sample event and an
 empty one, so the palette cannot offer something the renderer rejects. They also show the quoting
-idiom worth copying: write `{{ toJSON .Alert.Annotations.summary }}` with no surrounding quotes
-rather than `"{{ .Alert.Annotations.summary }}"`, because `toJSON` adds the quotes and escapes what
-is inside them — an alert containing a quotation mark then produces a card instead of broken JSON.
+idiom worth copying: write `{{ toJSON .Event.Title }}` with no surrounding quotes rather than
+`"{{ .Event.Title }}"`, because `toJSON` adds the quotes and escapes what is inside them — an event
+containing a quotation mark then produces a card instead of broken JSON.
 The renderer, and the CodeMirror modules behind the editors, are vendored in
 `internal/httpserver/web/vendor`, pinned by version and checksum in that directory's
 `manifest.json`; `make vendor` refreshes them and `make vendor-record` re-records a

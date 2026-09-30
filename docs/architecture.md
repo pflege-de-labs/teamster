@@ -1,7 +1,7 @@
 # Architecture
 
 Teamster is a single Go binary that accepts alert webhooks, picks a Teams channel and an
-Adaptive Card template per alert, and posts or updates the card through the Microsoft Graph API.
+Adaptive Card template per event, and posts or updates the card through the Microsoft Graph API.
 State lives in a SQL store: a local SQLite file by default, or a Postgres server for a deployment
 that runs more than one instance. SQLite is the option with no other runtime dependency.
 
@@ -12,16 +12,16 @@ that runs more than one instance. SQLite is the option with no other runtime dep
 | `cmd/teamster` | Entry point. Installs the signal handler and hands the resulting context to the command tree. |
 | `internal/cli` | kong command tree and its wiring. `ServeCmd` is the default command: it opens the store, constructs the Graph client, serves HTTP and shuts down on cancellation. `completion` writes a shell completion script generated from the same model. |
 | `internal/config` | Configuration schema (kong tags), XDG config file search paths, validation. |
-| `internal/httpserver` | HTTP routing, webhook handlers, alert processing, admin JSON API, the server-rendered admin pages, basic auth and request logging middleware. |
+| `internal/httpserver` | HTTP routing, webhook handlers, event processing, admin JSON API, the server-rendered admin pages, basic auth and request logging middleware. |
 | `internal/httpserver/views` | templ components for the admin UI. The `*_templ.go` files beside them are generated and committed. |
-| `internal/routing` | Selects a route for an alert's labels. |
-| `internal/templates` | Renders an Adaptive Card from a Go template plus alert data, and describes that data for the editor's completion (`EditorVocabulary`). |
+| `internal/routing` | Selects a route for an event's labels. |
+| `internal/templates` | Renders an Adaptive Card from a Go template plus event data, and describes that data for the editor's completion (`EditorVocabulary`). |
 | `internal/logging` | Builds the `slog` logger from `log.*` and carries a request's logger in its context. See [Logging and errors](#logging-and-errors). |
-| `internal/samples` | Remembers the label keys, label values and annotation keys incoming alerts carry, for editor completion. See [Editor completion](#editor-completion). |
+| `internal/samples` | Remembers the label keys, label values and attribute keys incoming events carry, for editor completion. See [Editor completion](#editor-completion). |
 | `internal/graph` | Microsoft Graph client: OAuth2 client credentials, list Teams and channels. It posts nothing: Graph does not let an application post or edit channel messages (ADR 0045). It also reads directory users and the organization app catalog, and installs the Teams app in a user's personal scope; those calls take a context and retry while Graph throttles (429/503), waiting as long as `Retry-After` says, up to 30 seconds. `BrokerClient` is the delegated-Teams half (ADR 0037): the same Graph endpoints, called with a per-request Entra bearer token instead of the app-only credential. |
 | `internal/bot` | Bot Framework Connector client: a second, separate OAuth2 client credentials flow. It starts channel posts, sends to a person's chat, and edits both. `CreatePersonalConversation` opens the bot's 1:1 chat with a user by Entra object id, which works only once the app is installed for them. See [Bot configuration](#bot-configuration) and [Inbound bot messages](#inbound-bot-messages). |
-| `internal/store` | `Store` interface, its SQLite and Postgres backends sharing one adapter; `internal/store/migrations` owns the schema for templates, destinations, routes, recipients, webhook endpoints, access tokens, active alerts, broker tokens and alert samples. |
-| `internal/models` | Shared data types: `Alert`, `Route`, `Template`, `Destination`, `Recipient`, `ActiveAlert`, `AccessToken`, `BrokerToken`, `AlertSample` and the two webhook payload shapes. |
+| `internal/store` | `Store` interface, its SQLite and Postgres backends sharing one adapter; `internal/store/migrations` owns the schema for templates, destinations, routes, recipients, webhook endpoints, access tokens, active events, broker tokens and event samples. |
+| `internal/models` | Shared data types: `Event` and its extensions, `Route`, `Template`, `Destination`, `Recipient`, `ActiveEvent`, `AccessToken`, `BrokerToken`, `EventSample` and the two webhook payload shapes. See [Events](#events). |
 | `internal/httpserver/web` | Embedded static assets: icons, the web manifest, the Tailwind stylesheet built from `views/styles.css`, the page scripts, and the vendored libraries under `vendor/` (ADR 0031). |
 | `internal/cryptutil` | AES-256-GCM sealing for the one thing this service encrypts at rest: the live Keycloak token behind delegated Teams/Channels (ADR 0037). |
 
@@ -57,8 +57,8 @@ cancellation it calls `http.Server.Shutdown` with `server.shutdown-timeout` (def
 in-flight requests, then closes the store. A second signal kills the process outright. See
 [ADR 0003](adr/0003-kong-commands-and-graceful-shutdown.md).
 
-The alert sampler's worker (see [Editor completion](#editor-completion)) is stopped only after that
-drain, so the alerts it delivers are sampled too, and is waited for before the store closes: its
+The event sampler's worker (see [Editor completion](#editor-completion)) is stopped only after that
+drain, so the events it delivers are sampled too, and is waited for before the store closes: its
 last act is writing the counts it still holds, within five seconds.
 
 That context reaches the database as well as the handlers: every `store.Store` method takes one, so
@@ -146,21 +146,21 @@ POST /webhook/alertmanager        POST /webhook/universal
         (Authorization: Bearer, else X-Teamster-Token;
          webhook.token or an access_tokens digest)
                                  │
-                    normalize to models.Alert
+                    normalize to models.Event
                                  │
-              fingerprint (payload value, else SHA-256 of
-              source + generator + start time + sorted labels)
+              key (payload value, else deriveKey: SHA-256 of
+              source + URL + time + sorted labels)
                                  │
-          samples.Observe (non-blocking; labels, annotation keys)
+          samples.Observe (non-blocking; labels, attribute keys)
                                  │
-                     routing.Plan(alert.Labels)
+                      routing.Plan(ev.Labels)
                                  │
                  one Delivery per target, kind=channel
                       or kind=recipient (0-2 per route)
                                  │
                     delivery.TemplateID set?
                   yes │                  │ no
-         store.GetTemplate      alert.Title/Text/Card
+         store.GetTemplate        ev.Title/Text/Card
       templates.RenderMessage    (templates.RenderText
                   │               sanitizes Text; Card
                   │               passed through as-is)
@@ -173,7 +173,7 @@ POST /webhook/alertmanager        POST /webhook/universal
     text as sanitized HTML             text via templates.ToMarkdown
               │                                      │
    ┌──────────┴──────────┐              ┌────────────┴────────────┐
- firing              resolved         firing                 resolved
+ open                closed           open                   closed
    │                    │                │                       │
  card known?        card known?      message known?          message known?
  yes → bot edit     yes → bot edit     yes → bot.Update       yes → bot.Send
@@ -187,24 +187,47 @@ are read only when the route has none. See
 [ADR 0036](adr/0036-direct-content-when-a-route-has-no-template.md).
 
 A route names up to two targets, so one route produces up to two deliveries and each is claimed,
-sent and recorded on its own. A chat resolution **sends** rather than edits, because an edit in
-Teams does not re-notify and a silent resolve is the one thing the person on call must not get; a
-chat re-fire edits, for the mirror-image reason. See
+sent and recorded on its own. A chat close **sends** rather than edits, because an edit in
+Teams does not re-notify and a silent close is the one thing the person on call must not get; a
+repeated open edits, for the mirror-image reason. See
 [ADR 0026](adr/0026-alerts-in-a-persons-chat.md).
 
-The diagram above is `Status` in `{firing, resolved}` — the Alertmanager vocabulary, and the only
-values that put a message through the claim protocol at all. Any other `Status`, including none,
-takes a third, untracked path instead: render, resolve the destination or recipient, then
-a channel post or `bot.SendMessage` once, unconditionally. Nothing is claimed and nothing is
-written to `active_alerts` — there is no lifecycle to track, so a repeat post is a second message
-rather than an edit of the first. This is `/webhook/universal`'s general case; the firing/resolved
-lifecycle is the Alertmanager-shaped specialization of it, and `/webhook/alertmanager` only ever
-sends those two values, so its behaviour is unaffected. See
+The diagram above is `State` in `{open, closed}`, the only values that put a message through the
+claim protocol at all. An empty `State` takes a third, untracked path instead: render, resolve the
+destination or recipient, then a channel post or `bot.SendMessage` once, unconditionally. Nothing
+is claimed and nothing is written to `active_events` — there is no lifecycle to track, so a repeat
+post is a second message rather than an edit of the first. This is `/webhook/universal`'s general
+case. `processEvent` switches on the state: `closeEvent` for closed, the claim protocol for open,
+one-shot delivery otherwise. See
 [ADR 0035](adr/0035-a-message-without-a-status-is-delivered-once.md).
 
-Handler errors map to `400` for malformed JSON, `401` for a missing or unknown token (with
-`WWW-Authenticate: Bearer`), `503` when the token lookup itself fails, and `502` when routing,
-rendering, the store or the Bot Connector fails.
+Handler errors map to `400` for malformed JSON or an unknown universal `state`, `401` for a missing
+or unknown token (with `WWW-Authenticate: Bearer`), `503` when the token lookup itself fails, and
+`502` when routing, rendering, the store or the Bot Connector fails.
+
+### Events
+
+`models.Event` is what every webhook is normalized to
+([ADR 0056](adr/0056-events-not-alerts.md)). Its core is what every source has: `Source`, `Key`,
+`State`, `Labels`, and the direct content `Title`, `Text` and `Card`. Whatever only one source
+knows sits in a typed extension that is nil for every other source:
+
+* `Alertmanager *AlertmanagerEvent`: the alert's `Annotations`, `StartsAt`, `EndsAt` and
+  `GeneratorURL`, plus the notification's `Receiver`, `GroupKey`, `GroupLabels`, `CommonLabels`,
+  `CommonAnnotations` and `ExternalURL`.
+* `Universal *UniversalEvent`: `Attributes`, `Time` and `URL`.
+* Teams V2 has no extension; its raw body is `.Payload`.
+
+`State` is `open`, `closed` or empty. The Alertmanager handler maps `firing` to open and `resolved`
+to closed, and any other status to empty. The universal handler takes `state` as sent and refuses
+any other value with `400`. `Key` is the payload's own, else `deriveKey`: the hash the fingerprint
+used, over source, URL, time and sorted labels.
+
+Templates see the event as `.Event`. A template whose `sources` pin one webhook reads its extension
+directly; a template for any source guards each extension with `{{ with .Event.Alertmanager }}…{{
+end }}`, because text/template fails on a field of a nil pointer. `templates.DefaultTitle`,
+`templates.Default` and the palette snippets are written that way, and `models.AttributesOf` gives
+Go code the free-text map of whichever extension is present.
 
 ### Channel delivery
 
@@ -226,7 +249,7 @@ application post or edit channel messages, except for migration and for `policyV
   * Beside plain text, the "no template" hint is a line of text rather than a card. See
     [ADR 0049](adr/0049-a-channel-post-is-one-teams-message.md).
 * **A card with an empty `conversation_id`** was posted through Graph by an earlier release and
-  cannot be edited. A re-fire forgets it and posts its successor; a resolve only forgets it.
+  cannot be edited. A repeated open forgets it and posts its successor; a close only forgets it.
 * **A Connector `403`** is reported as "is the Teams app installed there?".
 * **Without the bot**, `NewServer` gets no transport and every channel delivery fails with that
   reason. The claim lease is three times `bot.timeout-sec`, at least 30 seconds.
@@ -291,11 +314,11 @@ POST /teamsv2/{team}/{channel}/{token}
 ```
 
 There is no routing, because the URL has already decided where the message goes. An endpoint may
-name a template. It renders with `.Alert` set to the parsed message and `.Payload` set to the raw
+name a template. It renders with `.Event` set to the parsed message and `.Payload` set to the raw
 body as decoded JSON. An endpoint without a template sends the payload as it came, followed by the
 hint card from [Messages](#messages), which links to that endpoint's form. See
-[ADR 0040](adr/0040-teams-v2-endpoint-templates.md). Nothing is written to `active_alerts`, because
-there is no fingerprint and no status, so there is nothing later to update or resolve.
+[ADR 0040](adr/0040-teams-v2-endpoint-templates.md). The event has no extension and no state, so
+nothing is written to `active_events` and there is nothing later to update or close.
 
 An endpoint names a `Destination` rather than a Team and a channel of its own, which is what makes
 it inherit the Teams picker that filled the destination and the grants that bound who may choose
@@ -410,7 +433,7 @@ because that is what the Teams activity feed previews, and an untitled card fall
 
 A template may name the webhooks it handles in `sources`; none means any
 ([ADR 0053](adr/0053-templates-name-the-webhooks-they-handle.md)). Before rendering,
-`renderMessage` checks `Template.Handles(alert.Source)`. On a mismatch it sends the built-in
+`renderMessage` checks `Template.Handles(ev.Source)`. On a mismatch it sends the built-in
 message and logs a warning, and a Teams V2 endpoint sends the payload as given. The Teams V2
 endpoint picker offers only templates that handle `teamsv2`. The route picker is narrowed in the
 browser by `sources.js`. A route whose selector chain pins `teamster_source`
@@ -418,7 +441,7 @@ browser by `sources.js`. A route whose selector chain pins `teamster_source`
 
 Each source may have a **default template**, stored as the setting `default_template.<source>`
 ([ADR 0055](adr/0055-each-webhook-has-a-default-template.md)). `deliveryTemplate` picks the route's
-own template when it handles the alert's source, and the source's default otherwise;
+own template when it handles the event's source, and the source's default otherwise;
 `endpointTemplate` does the same for a Teams V2 endpoint with the `teamsv2` default. Only when
 neither exists does a message fall through to the paths below. A default that no longer handles its
 source is skipped. `cards.Presets()` holds one ready-made template per source. The editor offers
@@ -427,11 +450,11 @@ making each its source's default where none is set. A card body that renders to 
 card, so a template can send a card for some payloads and text alone for others.
 
 A route with no template skips rendering entirely: `directMessage` builds the same `title, text,
-card` shape straight from `models.Alert.Title`/`Text`/`Card`, the fields a `/webhook/universal`
+card` shape straight from `models.Event.Title`/`Text`/`Card`, the fields a `/webhook/universal`
 payload may set directly (`ADR 0036`). It still runs `Text` through the same Markdown sanitizer;
 the only step it skips is the template lookup. A payload with none of the three gets
-`templates.Default` instead. That message has a best-effort title, the status and description, and
-the alert as a fenced JSON block. Every message without a template also carries
+`templates.Default` instead. That message has a best-effort title, the state and description, and
+the event as a fenced JSON block. Every message without a template also carries
 `templates.Message.Notice`, a hint card that says no template is defined and links to
 `<server.external-url>/admin#templates` when that setting is configured. `channelMessage` appends
 the hint after the message's own card. A chat has room for only one card, so `chatMessage` uses the
@@ -473,9 +496,9 @@ route last. Its only editable part is the template, which is a route edit. Only 
 choose a different default destination, and the current default cannot be deleted while other
 destinations remain. See [ADR 0038](adr/0038-global-default-destination.md).
 
-Before `Plan`, `processAlert` sets the label `teamster_source` to the webhook the alert arrived at:
-`alertmanager` or `universal`. It overwrites a sender's own value, and it is set after the
-fingerprint is computed so that fingerprints stay as they were. Teams V2 messages are not routed,
+Before `Plan`, `processEvent` sets the label `teamster_source` to the webhook the event arrived at:
+`alertmanager` or `universal`. It overwrites a sender's own value, and it is set after the key is
+derived so that keys stay as they were. Teams V2 messages are not routed,
 but their templates see `teamster_source=teamsv2`
 ([ADR 0052](adr/0052-the-receiving-webhook-is-a-label.md)).
 
@@ -555,7 +578,7 @@ binds in `Start` rather than in a goroutine, so a port already in use is an erro
 
 Shutdown order is the reason the defers in `internal/cli/serve.go` are registered store → metrics →
 listener: LIFO runs them in reverse, so the server drains, the scrape endpoint closes, the final OTLP
-export goes out, and only then does the database close — which the active-alerts gauge reads on every
+export goes out, and only then does the database close — which the active-events gauge reads on every
 collection.
 
 ## Logging and errors
@@ -681,7 +704,7 @@ release runs against the new schema unchanged. The decision behind all of it is 
 a person's chat, in the [ADR index](adr/README.md).
 
 `0007` in SQLite and `0004` in Postgres add `recipients.blocked_at` (nullable) and `.blocked_reason`
-(`NOT NULL DEFAULT ''`), both additive. See [Alert lifecycle](#alert-lifecycle) for what the flag
+(`NOT NULL DEFAULT ''`), both additive. See [Event lifecycle](#event-lifecycle) for what the flag
 means and [Managing recipients](#managing-recipients) for where it is read.
 
 `webhook_endpoints` followed, by `0008` in SQLite and `0005` in Postgres. A row is one Teams V2
@@ -725,22 +748,39 @@ table and nothing else, so the previous release ignores it. See
 `TEXT NOT NULL DEFAULT ''`, so every existing template, and every write by the previous release,
 handles any webhook. See [ADR 0053](adr/0053-templates-name-the-webhooks-they-handle.md).
 
+`0019` in SQLite and `0016` in Postgres turn alerts into events, and are the one migration that
+breaks the previous release on purpose ([ADR 0056](adr/0056-events-not-alerts.md)):
+
+* `active_alerts` becomes `active_events`, `active_alert_recipients` becomes
+  `active_event_recipients`, and in both `fingerprint` becomes `event_key` and `status` becomes
+  `state`, with `firing`/`resolved` rewritten to `open`/`closed`.
+* `alert_samples` becomes `event_samples`, and the sample kind `annotation` becomes `attribute`.
+* Stored templates are rewritten from `.Alert` to `.Event`: `Status` and `Fingerprint` become
+  `State` and `Key`, and an `eq`/`ne` against `"firing"` or `"resolved"` compares with `"open"` or
+  `"closed"`. `Annotations`, `Generator`, `StartsAt` and `EndsAt` move to
+  `.Event.Universal.Attributes`, `.URL` and `.Time` for a template whose `sources` is exactly
+  `universal`, and to `.Event.Alertmanager.Annotations`, `.GeneratorURL`, `.StartsAt` and `.EndsAt`
+  for every other.
+
+Down reverses it; the Alertmanager group fields have no old name and are left alone. The earlier
+paragraphs name tables as those migrations created them.
+
 `database.migrate` decides what opening the store does about a schema that is behind: `auto`
 applies what is missing, `verify` refuses and names `teamster migrate up`, `off` asks nothing.
 `teamster export` always verifies — reading a database must not migrate it. A migration must leave
 the previous release able to run against the new schema, because migrations run before the pods
 that need them. See [ADR 0019](adr/0019-goose-migrations.md).
 
-## Alert lifecycle
+## Event lifecycle
 
 Timestamp columns are declared `DATETIME`; the SQLite driver only converts them back to
 `time.Time` for that declared type. A migration refuses a database whose timestamp columns are
 declared otherwise, since every read from it would fail.
 
-`active_alerts` is keyed by `(fingerprint, team_id, channel_id)` and stores the Graph message ID, so
-an alert that fans out has one row per channel. A repeated `firing` alert edits the existing card in
-each channel instead of posting a new one, and a `resolved` alert edits each card one last time
-before its row is deleted.
+`active_events` is keyed by `(event_key, team_id, channel_id)` and stores the message ID, so an
+event that fans out has one row per channel. A repeated `open` event edits the existing card in
+each channel instead of posting a new one, and a `closed` event edits each card one last time
+before its row is deleted (`closeEvent`).
 
 A row exists from the moment delivery claims the right to post, which is before the card does:
 `posted_at` is non-NULL exactly when a card exists, and a CHECK ties it to the message id so the
@@ -756,20 +796,20 @@ retry lands on the card the winner created. See
 Delivery is best effort per target: one channel or one person failing does not cost the others their
 message, and the failures are reported together as a `502`. That is safe because each delivery
 records its own message id, so a retry updates the messages that made it rather than duplicating
-them. Resolution walks the stored rows rather than the plan — **both tables** — so a message the
-routes no longer name still stops claiming the alert is firing.
+them. Closing walks the stored rows rather than the plan — **both tables** — so a message the
+routes no longer name still stops claiming the event is open.
 
-`active_alert_recipients` keys `(fingerprint, recipient_id)` and mirrors that protocol statement for
+`active_event_recipients` keys `(event_key, recipient_id)` and mirrors that protocol statement for
 statement, with one deliberate difference. `bot.SendMessage` returning `("", nil)` is a documented
 success — delivered, but with nothing to name it by for a later edit — so this table's CHECK admits
-a posted row with an empty activity id, where `active_alerts` would read it as never posted and send
-a duplicate on the next firing. The update path skips the edit when there is no id rather than
+a posted row with an empty activity id, where `active_events` would read it as never posted and send
+a duplicate on the next open. The update path skips the edit when there is no id rather than
 failing.
 
 A chat failure is sorted into permanent and transient. `MessageWritesBlocked`, or
 `ConversationBlockedByUser` one level in, means the person uninstalled or blocked the bot: the row
 is dropped and the delivery counted under its own `blocked` outcome, so it stops re-attempting
-within that alert and is visible as more than noise. Everything else — 429, any 5xx, a transport
+within that event and is visible as more than noise. Everything else — 429, any 5xx, a transport
 error — fails that delivery as a channel failure does and leaves the row for the sender's retry.
 
 A permanent failure also stamps `recipients.blocked_at` and `.blocked_reason` (the API error's own
@@ -777,14 +817,14 @@ code, e.g. `MessageWritesBlocked`), through the narrow `MarkRecipientBlocked` st
 the general-purpose `UpdateRecipient` — delivery only ever read the conversation reference, and a
 narrow statement is what stops a delivery failure from clobbering a field it never loaded. The flag
 is informational and self-healing, never a gate: `ClearRecipientBlocked` runs after every
-successful send or update, and a blocked recipient is attempted again on the next alert exactly like
+successful send or update, and a blocked recipient is attempted again on the next event exactly like
 one that never was. Gating delivery on it would trade a visible problem for an invisible one — a
 person who reinstalled the bot would otherwise receive nothing again until an admin happened to
 notice the flag and clear it by hand. `/admin/recipients` is where an admin reads it; see
 [Managing recipients](#managing-recipients).
 
-A database whose `active_alerts` is keyed by fingerprint alone is rebuilt on the next start; SQLite
-cannot change a primary key in place. The rows survive.
+A database whose `active_alerts` is keyed by fingerprint alone, from before `0002`, is rebuilt when
+`0002` runs; SQLite cannot change a primary key in place. The rows survive.
 
 ## Signing in
 
@@ -859,16 +899,22 @@ through the editor by a cancelable `teamster:insert` event on the field.
 
 Inside `{{ … }}` the editor completes the fields of the template data, template functions and
 actions — all three from `templates.EditorVocabulary`, which the admin page embeds as JSON — and,
-after `.Alert.Labels.` or `.Alert.Annotations.`, the keys alerts actually carried. A card's JSON is
+after a map it lists in `labelMaps` or `attributeMaps`, the keys events actually carried. Label maps
+are every `map[string]string` field ending in `Labels`, so `.Event.Labels` and
+`.Event.Alertmanager.GroupLabels`/`CommonLabels`. Attribute maps are those ending in `Annotations`
+and `Attributes`: `.Event.Alertmanager.Annotations`/`CommonAnnotations` and
+`.Event.Universal.Attributes`. Extension fields are offered even though they are nil on the zero
+event. A card's JSON is
 parsed around the actions rather than through them, and nothing lints it. Outside actions it
 completes Adaptive Card element types, property names and enum values, read at page load from the
 vendored `adaptivecards` renderer's own registry and schemas. A selector completes label keys and
 then that key's recent values, and so does the routing check.
 
-The keys and values come from `GET /api/samples`, fed by `internal/samples`. `processAlert` hands
-every Alertmanager and universal alert to the sampler before routing; `Observe` copies the label
-pairs and the annotation keys — never annotation values — into a bounded queue without blocking,
-and drops the alert when the queue is full. One worker goroutine owns a `golang-lru` cache that
+The keys and values come from `GET /api/samples` (`labels` and `attributes`), fed by
+`internal/samples`. `processEvent` hands every Alertmanager and universal event to the sampler
+before routing; `Observe` copies the label pairs and the attribute keys (`models.AttributesOf`) —
+never attribute values — into a bounded queue without blocking, and drops the event when the queue
+is full. One worker goroutine owns a `golang-lru` cache that
 writes a tuple only when it is new or its last write is `samples.flush-interval` old, carrying the
 count accumulated in between, and prunes hourly: anything not seen for `samples.retention`, and
 label values beyond the `samples.max-values-per-key` most recently seen per key. Replicas sharing
@@ -878,7 +924,7 @@ Postgres add to the same counts and run the same idempotent prune. See
 ### Managing recipients
 
 `/admin/recipients` lists every recipient, the routes that target them by name, and the blocked
-state described in [Alert lifecycle](#alert-lifecycle). Viewing needs `authz.ActionView` and
+state described in [Event lifecycle](#event-lifecycle). Viewing needs `authz.ActionView` and
 unlinking `authz.ActionEdit`, both on `authz.Resource{Type: "Recipient"}` — no new Cedar action, the
 existing admin/editor/viewer policies already cover both on any resource type. `POST
 /admin/recipients/delete` unlinks through `formPost`, and is permitted even when a route still names
@@ -888,7 +934,8 @@ matching how deleting a destination already works. `GET /api/recipients` and `DE
 response type omits `ConversationID`, `ServiceURL`, `AADObjectID` and `TenantID` — the Bot Framework
 conversation reference is operational plumbing an admin unlinking someone has no use for.
 
-`POST /api/templates/preview` renders a template body against a built-in sample alert through the
+`POST /api/templates/preview` renders a template body against a built-in sample event —
+`alertmanager`, `open`, `closed`, `message` or `teamsv2` — through the
 same `templates.Render` the delivery path uses, and returns the Adaptive Card JSON. The browser
 draws it with the vendored renderer in `web/vendor`, in a sticky column beside the editor from the
 `lg` breakpoint up. A template that fails to render comes back as an error field with status 200,
@@ -950,7 +997,7 @@ every later read leaves both empty. `GET /api/recipients` and `DELETE /api/recip
 unlink recipients — see [Managing recipients](#managing-recipients) — and
 `POST /api/recipients/link` is the exception that requires a session specifically — see
 [Linking a chat](#linking-a-chat). `GET /api/samples` answers the label keys and values and the
-annotation keys the editors complete, to a caller who may edit templates or routes — see
+attribute keys the editors complete, to a caller who may edit templates or routes — see
 [Editor completion](#editor-completion). `GET /api/tokens`, `POST /api/tokens` (`{"name": …}`) and
 `DELETE /api/tokens/{id}` list, issue and revoke webhook access tokens. The answer to the `POST` is
 the only place a token is ever readable. All three need `administer` on `AccessToken`, and so does
@@ -1129,7 +1176,7 @@ stay personal.
 
 Both retirement paths resolve the conversation to a recipient with
 `GetRecipientByConversation` and delete through `store.DeleteRecipient`, which cascades the
-active-alert rows in its own transaction. Controlling the chat is the whole authorization: linking
+active-event rows in its own transaction. Controlling the chat is the whole authorization: linking
 grants and therefore needs a code minted by an admin-UI session, while unlinking only ever revokes,
 and only for the conversation the activity arrived on.
 

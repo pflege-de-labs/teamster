@@ -65,8 +65,8 @@ Grant a user or a group the right to route to someone else's chat. This extends 
 
 Smaller items left open when a milestone shipped. Each is picked up on its own.
 
-* **Preview from sampled labels.** Build the preview alert from the labels in `alert_samples`, so
-  the preview shows what a template renders for the alerts a deployment really gets
+* **Preview from sampled labels.** Build the preview event from the labels in `event_samples`, so
+  the preview shows what a template renders for the events a deployment really gets
   ([ADR 0041](adr/0041-editor-completion-from-sampled-labels.md)).
 * **Retire `X-Teamster-Token`.** Remove the header in a breaking release, and decide whether
   `webhook.token` stays as the declarative bootstrap token
@@ -102,7 +102,7 @@ Follow-ups are unordered and can be pulled in between milestones.
 
 ## Open questions
 
-* Should a message that carries only text still be updated in place when an alert resolves, or is
+* Should a message that carries only text still be updated in place when an event closes, or is
   editing a plain message in Teams confusing in a way editing a card is not?
 * Read replicas. Nothing routes a read anywhere in particular, and `target_session_attrs` is only
   reachable through the connection-URL escape hatch. Worth a first-class setting, or is the read
