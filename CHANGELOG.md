@@ -39,6 +39,9 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 * The header no longer shifts after the page loads; the sidebar state is applied before first
   paint ([ADR 0054](docs/adr/0054-apply-sidebar-state-before-first-paint.md)).
+* A channel post with a card shows its title in the Teams activity feed again, instead of `Card`.
+  Every bot message now sends the title, or the first line of its text, as the activity `summary`
+  ([ADR 0057](docs/adr/0057-channel-posts-carry-a-feed-summary.md)).
 
 ## [0.8.0] — 2026-09-29
 
