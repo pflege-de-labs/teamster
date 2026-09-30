@@ -1,7 +1,8 @@
 # teamster Helm chart
 
 Deploys [teamster](https://github.com/pflege-de-labs/teamster), a webhook bridge that routes
-Alertmanager and universal alerts to Microsoft Teams.
+Alertmanager and universal events to Microsoft Teams channels, to a person's own chat, or to the
+people a message names.
 
 Changes per chart release are in the [changelog](CHANGELOG.md).
 
@@ -10,16 +11,20 @@ Changes per chart release are in the [changelog](CHANGELOG.md).
 ```bash
 helm install teamster oci://ghcr.io/pflege-de-labs/charts/teamster \
   --namespace monitoring --create-namespace \
-  --set credentials.webhookToken=... \
   --set credentials.adminPassword=... \
   --set credentials.graphClientSecret=... \
   --set config.settings.graph.tenant-id=... \
-  --set config.settings.graph.client-id=...
+  --set config.settings.graph.client-id=... \
+  --set credentials.botClientSecret=... \
+  --set config.settings.bot.tenant-id=... \
+  --set config.settings.bot.client-id=...
 ```
 
-Those five values have no default: teamster refuses to start without a webhook token, an admin
-login and a Graph credential. Use `credentials.existingSecret` instead of the three `--set`
-credentials in anything but a demo.
+Teamster refuses to start without an admin login and a Graph credential. It starts without the
+bot, but then nothing reaches Teams: the bot posts every channel card and chat message. Webhook
+senders use tokens issued at `/admin/tokens` after the first sign-in; `credentials.webhookToken`
+is only needed when a sender has to be configured before anyone can sign in. Use
+`credentials.existingSecret` instead of the `--set` credentials in anything but a demo.
 
 ## Choosing a backend
 
@@ -106,7 +111,7 @@ mount.
 
 `credentials` becomes a second Secret whose keys are environment variable names, injected with
 `envFrom`. Teamster reads an environment variable **only when no config file sets that key**, so
-these four must not also appear under `config.settings`:
+none of these may also appear under `config.settings`:
 
 | Value | Environment variable |
 | --- | --- |
@@ -125,6 +130,27 @@ the right-hand column. `config.existingSecret` does the same for the config file
 a `config.yaml` key.
 
 Both secrets are hashed into pod annotations, so changing either rolls the pod.
+
+## The Teams bot
+
+`config.settings.bot` and `credentials.botClientSecret` configure the Bot Framework registration
+that posts to channels and chats. The Teams app package it is installed with is described in
+[`manifest/README.md`](../../manifest/README.md). `/bot/messages` has to be reachable from
+Microsoft: it is on the Ingress, or on `httpRoute.external`, never only on `httpRoute.internal`.
+
+### Messages to individual people
+
+With `config.settings.bot.global-install: true`, teamster installs the app for every enabled member
+of the tenant and nobody can opt out. A message then names its people in `recipients`, or in the
+`teamster_recipient` label, and a route delivers to **People named in the message**. Admins follow
+the installs and start a run on `/admin/people`. The Graph registration needs more permissions for
+this; they are listed in the `bot` comments in `values.yaml` and in the
+[README](../../README.md#messages-to-individual-people). When Keycloak brokers the login against
+Entra, a mapper for the Entra object id lets each user's own chat be found from their sign-in; see
+[`docs/keycloak.md`](../../docs/keycloak.md#finding-each-users-own-teams-chat).
+
+The install runs in every replica and takes turns through the database, so any number of
+`postgres` replicas is fine.
 
 ## Exposing the service
 
@@ -379,7 +405,11 @@ The [values.yaml](values.yaml) comments are the reference. The ones most often c
 | `persistence.storageClass` | `""` | Empty uses the cluster default. |
 | `image.tag` | `""` | Defaults to the chart's `appVersion`. |
 | `config.settings` | see values | The config file, in teamster's own key names. |
+| `config.settings.bot.client-id`, `.tenant-id` | unset | The bot registration; nothing reaches Teams without it. |
+| `config.settings.bot.global-install` | unset (`false`) | Install the Teams app for everyone and allow messages to named people. |
+| `config.settings.webhook.max-recipients` | unset (`100`) | Most people one message may name. |
 | `credentials.existingSecret` | `""` | Use a secret you manage. |
+| `credentials.botClientSecret` | `""` | The bot registration's secret. |
 | `credentials.databasePassword` | `""` | The Postgres password, if not using `passwordFrom`. |
 | `service.port` | `8080` | Port the Service publishes. |
 | `ingress.enabled` | `false` | Publish everything through one Ingress. |

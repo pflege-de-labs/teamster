@@ -15,8 +15,13 @@ and the schema changed; see the [service changelog](../../CHANGELOG.md).
 
 ### Added
 
-* The global-install keys under `config.settings.bot`, and `config.settings.auth.object-id-claim`,
-  are documented in `values.yaml`.
+* The global-install keys under `config.settings.bot`, `config.settings.webhook`, and
+  `config.settings.auth.object-id-claim` are documented in `values.yaml`.
+
+### Changed
+
+* The README's install example configures the bot and no longer asks for a webhook token, and new
+  sections cover the bot and messages to individual people.
 
 ## [0.7.1] — 2026-09-29
 
