@@ -1,7 +1,8 @@
 # 0045. Deliver channel messages through the Bot Framework bot
 
 * Status: Accepted, amended by [0049](0049-a-channel-post-is-one-teams-message.md): a post is
-  one Teams message
+  one Teams message; amended by [0059](0059-install-the-teams-app-for-every-member.md): Graph also
+  installs the Teams app for users
 * Date: 2026-09-28
 
 ## Context
