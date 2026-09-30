@@ -253,23 +253,23 @@ func NewServer(logger *slog.Logger, cfg config.Config, store store.Store, graphC
 	adminMux.HandleFunc("/admin", api.handleAdminPage)
 	adminMux.HandleFunc("/admin/routing", api.handleRoutingPage)
 	adminMux.HandleFunc("/admin/permissions", api.handlePermissionsPage)
-	adminMux.HandleFunc("/admin/templates", api.formPost(api.saveTemplate))
-	adminMux.HandleFunc("/admin/templates/delete", api.formPost(api.deleteTemplate))
-	adminMux.HandleFunc("/admin/templates/source-defaults", api.formPost(api.saveSourceDefaults))
-	adminMux.HandleFunc("/admin/destinations", api.formPost(api.saveDestination))
-	adminMux.HandleFunc("/admin/destinations/delete", api.formPost(api.deleteDestination))
-	adminMux.HandleFunc("/admin/destinations/default", api.formPost(api.setDefaultDestination))
-	adminMux.HandleFunc("/admin/routes", api.formPost(api.saveRoute))
-	adminMux.HandleFunc("/admin/routes/delete", api.formPost(api.deleteRoute))
-	adminMux.HandleFunc("/admin/routes/global-default", api.formPost(api.saveGlobalDefault))
+	adminMux.HandleFunc("/admin/templates", api.formPost("templates", api.saveTemplate))
+	adminMux.HandleFunc("/admin/templates/delete", api.formPost("templates", api.deleteTemplate))
+	adminMux.HandleFunc("/admin/templates/source-defaults", api.formPost("templates", api.saveSourceDefaults))
+	adminMux.HandleFunc("/admin/destinations", api.formPost("destinations", api.saveDestination))
+	adminMux.HandleFunc("/admin/destinations/delete", api.formPost("destinations", api.deleteDestination))
+	adminMux.HandleFunc("/admin/destinations/default", api.formPost("destinations", api.setDefaultDestination))
+	adminMux.HandleFunc("/admin/routes", api.formPost("routes", api.saveRoute))
+	adminMux.HandleFunc("/admin/routes/delete", api.formPost("routes", api.deleteRoute))
+	adminMux.HandleFunc("/admin/routes/global-default", api.formPost("routes", api.saveGlobalDefault))
 	adminMux.HandleFunc("/admin/webhooks", api.handleWebhookForm)
 	adminMux.HandleFunc("/admin/webhooks/rotate", api.handleWebhookRotate)
-	adminMux.HandleFunc("/admin/webhooks/delete", api.formPost(api.deleteWebhookEndpoint))
+	adminMux.HandleFunc("/admin/webhooks/delete", api.formPost("webhooks", api.deleteWebhookEndpoint))
 	adminMux.HandleFunc("/admin/tokens", api.handleTokensPage)
 	adminMux.HandleFunc("/admin/tokens/new", api.handleTokenForm)
 	adminMux.HandleFunc("/admin/tokens/delete", api.formPostTo("/admin/tokens", api.revokeAccessTokenForm))
-	adminMux.HandleFunc("/admin/grants", api.formPost(api.saveGrant))
-	adminMux.HandleFunc("/admin/grants/delete", api.formPost(api.deleteGrant))
+	adminMux.HandleFunc("/admin/grants", api.formPost("grants", api.saveGrant))
+	adminMux.HandleFunc("/admin/grants/delete", api.formPost("grants", api.deleteGrant))
 	adminMux.HandleFunc("/", api.handleAssets)
 
 	authMux := http.NewServeMux()
@@ -285,7 +285,7 @@ func NewServer(logger *slog.Logger, cfg config.Config, store store.Store, graphC
 	// before anyone has a session, and none of them is sensitive.
 	for _, asset := range []string{
 		"/favicon.ico", "/site.webmanifest", "/styles.css",
-		"/preview.js", "/sources.js", "/pickers.js", "/routing.js", "/language.js", "/nav.js", "/permissions.js", "/editor.js", "/flags/", "/icons/", "/vendor/",
+		"/preview.js", "/sources.js", "/pickers.js", "/routing.js", "/language.js", "/nav.js", "/tabs.js", "/permissions.js", "/editor.js", "/flags/", "/icons/", "/vendor/",
 	} {
 		mux.HandleFunc(asset, api.handleAssets)
 	}

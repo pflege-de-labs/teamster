@@ -10,11 +10,50 @@ templ Admin(page Page) {
 	@Layout(i18n.T(ctx, "page.admin"), &page.Viewer) {
 		@notice(page.Error, page.Notice)
 		@readOnlyNotice(page)
-		@templates(page)
-		@destinations(page)
-		@webhooks(page)
-		@routes(page)
-		@grants(page)
+		@tabBar(page)
+		@tabPanel(page, "templates") {
+			@templates(page)
+		}
+		@tabPanel(page, "destinations") {
+			@destinations(page)
+		}
+		@tabPanel(page, "webhooks") {
+			@webhooks(page)
+		}
+		@tabPanel(page, "routes") {
+			@routes(page)
+		}
+		@tabPanel(page, "grants") {
+			@grants(page)
+		}
+	}
+}
+
+// Tabs are links, so they work without script; tabs.js switches them in place.
+templ tabBar(page Page) {
+	<nav role="tablist" aria-label={ i18n.T(ctx, "page.admin") } class="mb-4 flex flex-wrap gap-1 border-b border-slate-200" data-admin-tabs>
+		for _, tab := range page.tabs() {
+			<a
+				href={ templ.SafeURL("/admin?tab=" + tab) }
+				role="tab"
+				id={ "tab-" + tab }
+				aria-controls={ "panel-" + tab }
+				aria-selected={ strconv.FormatBool(tab == page.activeTab()) }
+				data-tab={ tab }
+				class="-mb-px rounded-t-md border border-transparent px-4 py-2 text-sm font-medium text-slate-600 hover:text-sky-700 aria-selected:border-slate-200 aria-selected:border-b-white aria-selected:bg-white aria-selected:text-slate-900"
+			>
+				{ i18n.T(ctx, tab+".panel") }
+			</a>
+		}
+	</nav>
+}
+
+// Every panel is rendered so switching needs no round trip; only one shows.
+templ tabPanel(page Page, tab string) {
+	if slices.Contains(page.tabs(), tab) {
+		<div role="tabpanel" id={ "panel-" + tab } aria-labelledby={ "tab-" + tab } data-tab-panel={ tab } hidden?={ tab != page.activeTab() }>
+			{ children... }
+		</div>
 	}
 }
 
@@ -49,7 +88,7 @@ templ templates(page Page) {
 					<div class="flex flex-wrap items-center gap-2">
 						@submit(submitLabel(ctx, page.EditTemplate != nil, "noun.template"))
 						if page.EditTemplate != nil {
-							@cancelEdit()
+							@cancelEdit("templates")
 						}
 					</div>
 				</div>
@@ -194,7 +233,7 @@ templ destinations(page Page) {
 				<div class="flex items-center gap-2">
 					@submit(submitLabel(ctx, page.EditDestination != nil, "noun.destination"))
 					if page.EditDestination != nil {
-						@cancelEdit()
+						@cancelEdit("destinations")
 					}
 				</div>
 			</form>
@@ -265,7 +304,7 @@ templ webhooks(page Page) {
 				<div class="flex items-center gap-2">
 					@submit(submitLabel(ctx, page.EditWebhookEndpoint != nil, "noun.webhook"))
 					if page.EditWebhookEndpoint != nil {
-						@cancelEdit()
+						@cancelEdit("webhooks")
 					}
 				</div>
 			</form>
@@ -355,7 +394,7 @@ templ routes(page Page) {
 				<div class="flex items-center gap-2">
 					@submit(submitLabel(ctx, page.EditRoute != nil, "noun.route"))
 					if page.EditRoute != nil {
-						@cancelEdit()
+						@cancelEdit("routes")
 					}
 				</div>
 			</form>

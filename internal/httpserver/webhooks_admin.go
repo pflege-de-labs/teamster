@@ -20,51 +20,51 @@ var errInvalidSlug = errors.New("a URL segment may hold lower case letters, digi
 // redirect would carry it in a query string, and from there into the browser
 // history and this server's own access log.
 func (s *Server) handleWebhookForm(w http.ResponseWriter, r *http.Request) {
-	if !formGuard("/admin", w, r) {
+	if !formGuard(adminTabPath("webhooks"), w, r) {
 		return
 	}
 
 	endpoint, err := webhookEndpointFromForm(r)
 	if err != nil {
 		err = userError{err}
-		redirectTo("/admin", w, r, "", visibleError(r.Context(), "save webhook", err))
+		redirectTo(adminTabPath("webhooks"), w, r, "", visibleError(r.Context(), "save webhook", err))
 		return
 	}
 
 	allowed, err := s.mayDeliverToDestination(r, endpoint.DestinationID)
 	if err != nil {
-		redirectTo("/admin", w, r, "", visibleError(r.Context(), "save webhook", err))
+		redirectTo(adminTabPath("webhooks"), w, r, "", visibleError(r.Context(), "save webhook", err))
 		return
 	}
 	if !allowed {
-		redirectTo("/admin", w, r, "", errDeliveryRefused.Error())
+		redirectTo(adminTabPath("webhooks"), w, r, "", errDeliveryRefused.Error())
 		return
 	}
 	if err := s.endpointTemplateExists(r.Context(), endpoint); err != nil {
-		redirectTo("/admin", w, r, "", visibleError(r.Context(), "save webhook", err))
+		redirectTo(adminTabPath("webhooks"), w, r, "", visibleError(r.Context(), "save webhook", err))
 		return
 	}
 
 	// An existing endpoint keeps its token, so its senders keep working.
 	if endpoint.ID != "" {
 		if _, err := s.store.UpdateWebhookEndpoint(r.Context(), endpoint); err != nil {
-			redirectTo("/admin", w, r, "", visibleError(r.Context(), "save webhook", err))
+			redirectTo(adminTabPath("webhooks"), w, r, "", visibleError(r.Context(), "save webhook", err))
 			return
 		}
-		redirectTo("/admin", w, r, "Webhook updated.", "")
+		redirectTo(adminTabPath("webhooks"), w, r, "Webhook updated.", "")
 		return
 	}
 
 	token, err := newWebhookToken()
 	if err != nil {
-		redirectTo("/admin", w, r, "", visibleError(r.Context(), "save webhook", err))
+		redirectTo(adminTabPath("webhooks"), w, r, "", visibleError(r.Context(), "save webhook", err))
 		return
 	}
 	endpoint.TokenHash = hashToken(token)
 
 	created, err := s.store.CreateWebhookEndpoint(r.Context(), endpoint)
 	if err != nil {
-		redirectTo("/admin", w, r, "", visibleError(r.Context(), "save webhook", err))
+		redirectTo(adminTabPath("webhooks"), w, r, "", visibleError(r.Context(), "save webhook", err))
 		return
 	}
 
@@ -74,34 +74,34 @@ func (s *Server) handleWebhookForm(w http.ResponseWriter, r *http.Request) {
 // handleWebhookRotate replaces the token. It is a separate endpoint because
 // saving an endpoint must not change the secret a sender is already using.
 func (s *Server) handleWebhookRotate(w http.ResponseWriter, r *http.Request) {
-	if !formGuard("/admin", w, r) {
+	if !formGuard(adminTabPath("webhooks"), w, r) {
 		return
 	}
 
 	ctx := r.Context()
 	endpoint, err := s.store.GetWebhookEndpoint(ctx, r.PostFormValue("id"))
 	if err != nil {
-		redirectTo("/admin", w, r, "", visibleError(r.Context(), "save webhook", err))
+		redirectTo(adminTabPath("webhooks"), w, r, "", visibleError(r.Context(), "save webhook", err))
 		return
 	}
 
 	allowed, err := s.mayDeliverToDestination(r, endpoint.DestinationID)
 	if err != nil {
-		redirectTo("/admin", w, r, "", visibleError(r.Context(), "save webhook", err))
+		redirectTo(adminTabPath("webhooks"), w, r, "", visibleError(r.Context(), "save webhook", err))
 		return
 	}
 	if !allowed {
-		redirectTo("/admin", w, r, "", errDeliveryRefused.Error())
+		redirectTo(adminTabPath("webhooks"), w, r, "", errDeliveryRefused.Error())
 		return
 	}
 
 	token, err := newWebhookToken()
 	if err != nil {
-		redirectTo("/admin", w, r, "", visibleError(r.Context(), "save webhook", err))
+		redirectTo(adminTabPath("webhooks"), w, r, "", visibleError(r.Context(), "save webhook", err))
 		return
 	}
 	if err := s.store.RotateWebhookEndpointToken(ctx, endpoint.ID, hashToken(token)); err != nil {
-		redirectTo("/admin", w, r, "", visibleError(r.Context(), "save webhook", err))
+		redirectTo(adminTabPath("webhooks"), w, r, "", visibleError(r.Context(), "save webhook", err))
 		return
 	}
 
@@ -132,6 +132,7 @@ func (s *Server) deleteWebhookEndpoint(r *http.Request) (string, error) {
 func (s *Server) revealWebhookURL(w http.ResponseWriter, r *http.Request, endpoint models.WebhookEndpoint, token, notice string) {
 	page := s.adminPage(r, notice, "")
 	page.NewWebhookURL = webhookURL(r, endpoint, token)
+	page.Tab = "webhooks"
 	s.renderAdmin(w, r, page)
 }
 

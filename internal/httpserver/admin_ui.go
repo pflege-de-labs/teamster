@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -30,6 +31,7 @@ func (s *Server) handleAdminPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	page := s.adminPage(r, r.URL.Query().Get("notice"), r.URL.Query().Get("error"))
+	page.Tab = cmp.Or(r.URL.Query().Get("tab"), r.URL.Query().Get("edit"))
 
 	if selected := r.URL.Query().Get("edit"); selected != "" {
 		s.loadForEditing(ctx, &page, selected, r.URL.Query().Get("id"))
@@ -172,11 +174,16 @@ func formGuard(target string, w http.ResponseWriter, r *http.Request) bool {
 }
 
 // formPost guards the state-changing form endpoints that redirect back to
-// /admin. Basic auth credentials ride along on any cross-site form post, so
+// the /admin tab they were posted from. Basic auth credentials ride along on any cross-site form post, so
 // the request has to prove it came from this origin; there is no session to
 // hang a CSRF token on.
-func (s *Server) formPost(handler func(*http.Request) (string, error)) http.HandlerFunc {
-	return s.formPostTo("/admin", handler)
+func (s *Server) formPost(tab string, handler func(*http.Request) (string, error)) http.HandlerFunc {
+	return s.formPostTo(adminTabPath(tab), handler)
+}
+
+// adminTabPath is /admin opened on one of its tabs.
+func adminTabPath(tab string) string {
+	return "/admin?tab=" + url.QueryEscape(tab)
 }
 
 // formPostTo is formPost for the endpoints that land somewhere other than
@@ -219,7 +226,11 @@ func sameOrigin(r *http.Request) bool {
 }
 
 func redirectTo(target string, w http.ResponseWriter, r *http.Request, notice, message string) {
-	dest := &url.URL{Path: target}
+	// A target may carry a query of its own, such as the tab to land on.
+	dest, err := url.Parse(target)
+	if err != nil {
+		dest = &url.URL{Path: "/admin"}
+	}
 	query := dest.Query()
 	if notice != "" {
 		query.Set("notice", notice)

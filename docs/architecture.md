@@ -459,7 +459,7 @@ the only step it skips is the template lookup. A payload with none of the three 
 `templates.Default` instead. That message has a best-effort title, the state and description, and
 the event as a fenced JSON block. Every message without a template also carries
 `templates.Message.Notice`, a hint card that says no template is defined and links to
-`<server.external-url>/admin#templates` when that setting is configured. `channelMessage` appends
+`<server.external-url>/admin?tab=templates` when that setting is configured. `channelMessage` appends
 the hint after the message's own card. A chat has room for only one card, so `chatMessage` uses the
 hint as the card when there is none and turns it into a line of Markdown otherwise. See
 [ADR 0039](adr/0039-built-in-default-message.md).

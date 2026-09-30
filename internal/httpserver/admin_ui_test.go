@@ -116,11 +116,13 @@ func TestFormsCreateAndUpdate(t *testing.T) {
 		path       string
 		form       url.Values
 		wantNotice string
+		wantTab    string
 		check      func(*testing.T, *fakeStore)
 	}{
 		{
 			name:       "create a template",
 			path:       "/admin/templates",
+			wantTab:    "templates",
 			form:       url.Values{"name": {"New card"}, "body": {"{}"}},
 			wantNotice: "Template created.",
 			check: func(t *testing.T, st *fakeStore) {
@@ -132,6 +134,7 @@ func TestFormsCreateAndUpdate(t *testing.T) {
 		{
 			name:       "update a template",
 			path:       "/admin/templates",
+			wantTab:    "templates",
 			form:       url.Values{"id": {"tmpl"}, "name": {"Renamed"}, "body": {"{}"}},
 			wantNotice: "Template updated.",
 			check: func(t *testing.T, st *fakeStore) {
@@ -143,6 +146,7 @@ func TestFormsCreateAndUpdate(t *testing.T) {
 		{
 			name:       "create a destination",
 			path:       "/admin/destinations",
+			wantTab:    "destinations",
 			form:       url.Values{"name": {"Second"}, "team_id": {"t2"}, "channel_id": {"c2"}},
 			wantNotice: "Destination created.",
 			check: func(t *testing.T, st *fakeStore) {
@@ -152,8 +156,9 @@ func TestFormsCreateAndUpdate(t *testing.T) {
 			},
 		},
 		{
-			name: "create a route",
-			path: "/admin/routes",
+			name:    "create a route",
+			path:    "/admin/routes",
+			wantTab: "routes",
 			form: url.Values{
 				"name": {"Warnings"}, "label_selector": {`{"severity":"warning"}`},
 				"destination_id": {"dest"}, "template_id": {"tmpl"},
@@ -170,6 +175,7 @@ func TestFormsCreateAndUpdate(t *testing.T) {
 		{
 			name:       "an empty selector is allowed and stays empty",
 			path:       "/admin/routes",
+			wantTab:    "routes",
 			form:       url.Values{"name": {"Default"}, "label_selector": {"  "}, "is_default": {"true"}, "target": {"destination:dest"}},
 			wantNotice: "Route created.",
 			check: func(t *testing.T, st *fakeStore) {
@@ -193,6 +199,9 @@ func TestFormsCreateAndUpdate(t *testing.T) {
 			location := rec.Header().Get("Location")
 			if !strings.Contains(location, url.QueryEscape(tt.wantNotice)) {
 				t.Errorf("Location = %q, want the notice %q", location, tt.wantNotice)
+			}
+			if parsed, err := url.Parse(location); err != nil || parsed.Path != "/admin" || parsed.Query().Get("tab") != tt.wantTab {
+				t.Errorf("Location = %q, want /admin on tab %q", location, tt.wantTab)
 			}
 			tt.check(t, st)
 		})
@@ -605,5 +614,46 @@ func TestTheCardPaletteIsPartOfTheForm(t *testing.T) {
 
 	if strings.Contains(body, `id="card-starter"`) {
 		t.Error("a viewer is offered the card palette")
+	}
+}
+
+func TestAdminPageOpensOneTab(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		role    authz.Role
+		path    string
+		want    string
+		noGrant bool
+	}{
+		{name: "templates first", role: authz.RoleAdmin, path: "/admin", want: "templates"},
+		{name: "the tab asked for", role: authz.RoleAdmin, path: "/admin?tab=routes", want: "routes"},
+		{name: "the section being edited", role: authz.RoleAdmin, path: "/admin?edit=destinations&id=dest", want: "destinations"},
+		{name: "tab wins over edit", role: authz.RoleAdmin, path: "/admin?tab=webhooks&edit=routes&id=route", want: "webhooks"},
+		{name: "an unknown tab falls back", role: authz.RoleAdmin, path: "/admin?tab=nope", want: "templates"},
+		{name: "an admin has grants", role: authz.RoleAdmin, path: "/admin?tab=grants", want: "grants"},
+		{name: "an editor has no grants tab", role: authz.RoleEditor, path: "/admin?tab=grants", want: "templates", noGrant: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			st := sessionAs(seededUIStore(), tt.role)
+			body := asRole(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, tt.path, "").Body.String()
+
+			if !strings.Contains(body, `data-tab-panel="`+tt.want+`">`) {
+				t.Errorf("panel %q is not shown", tt.want)
+			}
+			if !strings.Contains(body, `aria-selected="true" data-tab="`+tt.want+`"`) {
+				t.Errorf("tab %q is not selected", tt.want)
+			}
+			if got := strings.Count(body, `aria-selected="true"`); got != 1 {
+				t.Errorf("%d tabs selected, want 1", got)
+			}
+			if has := strings.Contains(body, `data-tab="grants"`); has == tt.noGrant {
+				t.Errorf("grants tab present = %v, want %v", has, !tt.noGrant)
+			}
+		})
 	}
 }
