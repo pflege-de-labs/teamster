@@ -8,9 +8,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-09-30
+
+App version 0.9.0, which is a breaking release: the universal webhook's fields, the template data
+and the schema changed; see the [service changelog](../../CHANGELOG.md).
+
 ### Added
 
-* The global-install keys under `config.settings.bot` are documented in `values.yaml`.
+* The global-install keys under `config.settings.bot`, `config.settings.webhook`, and
+  `config.settings.auth.object-id-claim` are documented in `values.yaml`.
+
+### Changed
+
+* The README's install example configures the bot and no longer asks for a webhook token, and new
+  sections cover the bot and messages to individual people.
 
 ## [0.7.1] — 2026-09-29
 
@@ -89,7 +100,8 @@ an Ingress or HTTPRoute, configuration and credentials from values, `extraObject
 an optional startupProbe, and `helm test`
 ([ADR 0016](../../docs/adr/0016-helm-chart.md)).
 
-[Unreleased]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.7.1...HEAD
+[Unreleased]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.8.0...HEAD
+[0.8.0]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.7.1...teamster-0.8.0
 [0.7.1]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.7.0...teamster-0.7.1
 [0.7.0]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.6.0...teamster-0.7.0
 [0.6.0]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.5.0...teamster-0.6.0

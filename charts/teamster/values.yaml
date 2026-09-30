@@ -186,8 +186,8 @@ config:
   #
   # database.path is owned by the chart: it has to agree with the volume mount.
   #
-  # Do NOT put the webhook token, admin password, Graph client secret or OIDC
-  # client secret here. They belong in `credentials` below, which reaches the
+  # Do NOT put the webhook token, admin password, Graph, bot or OIDC client
+  # secret here. They belong in `credentials` below, which reaches the
   # process as environment variables — and an environment variable is read only
   # when no config file sets that key, so a value here would win over the one
   # from the secret.
@@ -209,6 +209,12 @@ config:
       client-id: ""
       base-url: https://graph.microsoft.com/v1.0
       timeout-sec: 10
+    # Bounds for a message that names the people it is for (ADR 0063): at most
+    # max-recipients people, sent to fanout-concurrency at a time. The fan-out
+    # has to finish within server.write-timeout.
+    # webhook:
+    #   max-recipients: 100
+    #   fanout-concurrency: 8
     # The Teams bot, which posts every channel card and alerts in a person's
     # chat (ADR 0045): without it nothing reaches a channel. tenant-id
     # (unless tenant-type is multi), client-id and credentials.botClientSecret
@@ -222,7 +228,10 @@ config:
       # activity; the team's own replaces it once one arrives.
       # service-url: https://smba.trafficmanager.net/teams/
       # Install the Teams app for every member (ADR 0059) and take away the
-      # opt-out (ADR 0061); see config.example.yaml for each key.
+      # opt-out (ADR 0061). Needs the app in the organization catalog and, on
+      # the graph registration, User.Read.All and
+      # TeamsAppInstallation.ReadWriteForUser.All (plus AppCatalog.Read.All
+      # unless catalog-app-id is set). See config.example.yaml for each key.
       # global-install: false
       # app-id: ""
       # catalog-app-id: ""
@@ -349,7 +358,9 @@ credentials:
   adminUsername: admin
   adminPassword: ""
   # Microsoft Entra client secret for the Graph registration, which reads
-  # teams and channels for the pickers. It posts nothing; the bot does.
+  # teams and channels for the pickers and, with bot.global-install, the
+  # directory; it also installs the Teams app for people. It posts nothing;
+  # the bot does.
   graphClientSecret: ""
   # Omit for a public OIDC client using PKCE, which is the recommended setup.
   oidcClientSecret: ""
