@@ -179,8 +179,8 @@ bot:
   # Installing the Teams app for everybody, so IT can message any employee
   # without them linking a chat first (ADR 0059). With global-install on, a
   # reconcile installs the app for every enabled member every
-  # reconcile-interval. Not in effect yet: taking away the opt-out, the admin
-  # button that starts a run, inline-install-budget, welcome-message and
+  # reconcile-interval, and nobody can unlink their chat (ADR 0061). Not in
+  # effect yet: the admin button that starts a run, inline-install-budget and
   # directory-ttl.
   #
   # It needs the app published to the organization catalog, and on the graph

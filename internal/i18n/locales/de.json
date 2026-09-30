@@ -65,6 +65,8 @@
   "notifications.code_heading": "Ihr Verknüpfungscode",
   "notifications.cross_origin_rejected": "Formularübermittlung von fremder Herkunft abgelehnt.",
   "notifications.explainer": "Verknüpfen Sie Ihren eigenen Teams-Chat, um die an Sie gerichteten Alarme zu erhalten. Die Verknüpfung lässt sich jederzeit wieder aufheben.",
+  "notifications.managed": "Ihre IT-Abteilung sendet über Teamster Nachrichten in Ihren Teams-Chat, daher lässt er sich hier nicht trennen. Verknüpfen Sie ihn unten mit Ihrem Konto, um auch die an Sie gerichteten Alarme zu erhalten.",
+  "notifications.unlink_managed": "Ihre IT-Abteilung verwaltet diesen Chat, daher lässt sich die Verknüpfung nicht aufheben.",
   "notifications.heading": "Alarme in Ihrem Teams-Chat",
   "notifications.last_updated": "Zuletzt geändert am {0} — sowohl das Einlösen eines neuen Codes als auch eine automatische Wiederverbindung durch Teams aktualisiert dies, eine Änderung allein ist also kein Beleg für eine neue Verknüpfung.",
   "notifications.linked_as": "Verknüpft als {0}.",

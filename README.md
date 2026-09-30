@@ -246,6 +246,11 @@ Three ways out, and the two new ones need no admin UI at all:
 
 Whichever way, the recipient row and any alert cards still tracked for it go together.
 
+With [`bot.global-install`](#installing-the-bot-for-everyone) on, the first two are gone: the bot
+answers `/unlink` by saying IT manages the chat, **Notifications** has no Unlink button, and a
+removed app is reinstalled by the next run. An admin can still remove a recipient from
+**Recipients** ([ADR 0061](docs/adr/0061-no-opt-out-when-installed-for-everyone.md)).
+
 #### Managing recipients
 
 **Recipients** (`/admin/recipients`) lists everybody who has linked a chat: their display name (or
@@ -282,9 +287,13 @@ the tenant (not guests), so IT can message anyone without them linking a chat fi
   chats of people who already have the app.
 - A person who left is marked departed once a listing no longer returns them, and removed 30 days
   later.
+- **Nobody can opt out**: see [Leaving](#leaving). A person who removes the app gets it back with
+  the next run.
+- The bot records every personal install it hears about, and greets a new install with
+  `bot.welcome-message` when that is set. It says nothing otherwise.
 
-Taking away the opt-out, an admin button that starts a run, and addressing messages to people are
-not built yet; see [milestone 23](docs/roadmap.md).
+An admin button that starts a run, and addressing messages to people, are not built yet; see
+[milestone 23](docs/roadmap.md).
 
 Turning this on also needs a Teams app package: [`manifest/`](manifest/) holds the `manifest.json`
 and icons an operator uploads to Teams admin center so the bot can be installed at all, separate

@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/pflege-de-labs/teamster/internal/bot"
 	"github.com/pflege-de-labs/teamster/internal/config"
@@ -90,8 +91,10 @@ func activityShapeRefusal(activity botActivity, bot config.BotConfig) string {
 		return "unsupported-channel"
 	}
 	switch activity.Conversation.ConversationType {
+	// installationUpdate says the app was installed or removed for this
+	// person, which is how a managed chat is found (ADR 0061).
 	case "personal":
-		if activity.Type != "message" && activity.Type != "conversationUpdate" {
+		if activity.Type != "message" && activity.Type != "conversationUpdate" && activity.Type != "installationUpdate" {
 			return "unsupported-type"
 		}
 	// A team is where the bot posts, never where it takes commands, so only
@@ -215,12 +218,26 @@ func (s *Server) dispatchBotActivity(ctx context.Context, activity botActivity) 
 		return
 	}
 	switch activity.Type {
+	case "installationUpdate":
+		switch activity.Action {
+		// The conversationUpdate that comes with an install is what greets.
+		case "add", "add-upgrade":
+			s.personalInstalled(ctx, activity, false)
+		case "remove", "remove-upgrade":
+			s.personalRemoved(ctx, activity)
+		}
+		return
 	case "conversationUpdate":
 		if botWasAdded(activity) {
-			s.replyText(ctx, activity, installInstructions)
+			s.personalInstalled(ctx, activity, true)
 			return
 		}
 		if botWasRemoved(activity) {
+			s.personalRemoved(ctx, activity)
+			if s.cfg.Bot.GlobalInstall {
+				// Nobody opts out: the next run reinstalls (ADR 0061).
+				return
+			}
 			// No reply: the bot has just been removed from this chat, so there
 			// is nothing left to send to. Uninstalling is the person saying
 			// they are done with it, and the link should not outlive that.
@@ -233,6 +250,86 @@ func (s *Server) dispatchBotActivity(ctx context.Context, activity botActivity) 
 		s.handleBotMessage(ctx, activity)
 	}
 	s.refreshRecipientServiceURL(ctx, activity)
+	s.refreshDirectoryChat(ctx, activity)
+}
+
+// personalInstalled records the chat on the person's directory row and, when
+// greet is set, greets them: with the link instructions, or with
+// bot.welcome-message when the app is installed for everyone.
+func (s *Server) personalInstalled(ctx context.Context, activity botActivity, greet bool) {
+	s.recordDirectoryChat(ctx, activity)
+	if !greet {
+		return
+	}
+	if !s.cfg.Bot.GlobalInstall {
+		s.replyText(ctx, activity, installInstructions)
+		return
+	}
+	if s.cfg.Bot.WelcomeMessage != "" {
+		s.replyText(ctx, activity, s.cfg.Bot.WelcomeMessage)
+	}
+}
+
+// personalRemoved marks the person due for the next run. With global install
+// off, the caller retires the link as well.
+func (s *Server) personalRemoved(ctx context.Context, activity botActivity) {
+	oid := activity.From.AADObjectID
+	if oid == "" {
+		return
+	}
+	if err := s.store.MarkDirectoryUserRemoved(ctx, oid, time.Now().UTC()); err != nil && !errors.Is(err, store.ErrNotFound) {
+		logError(ctx, "mark directory user removed", err)
+	}
+}
+
+// recordDirectoryChat stores the chat on the sender's directory row, creating
+// a bare row for someone no run has listed yet. The sender of a personal
+// activity is the person the chat belongs to.
+func (s *Server) recordDirectoryChat(ctx context.Context, activity botActivity) {
+	oid := activity.From.AADObjectID
+	if oid == "" || activity.Conversation.ID == "" {
+		return
+	}
+	now := time.Now().UTC()
+	err := s.store.SetDirectoryUserInstalled(ctx, oid, activity.Conversation.ID, activity.ServiceURL, now)
+	if errors.Is(err, store.ErrNotFound) {
+		tenant := activity.ChannelData.Tenant.ID
+		if tenant == "" {
+			tenant = s.cfg.Graph.TenantID
+		}
+		err = s.store.UpsertDirectoryUser(ctx, models.DirectoryUser{
+			AADObjectID: oid, TenantID: tenant, DisplayName: activity.From.Name, Eligible: true, DirectorySeenAt: now,
+		})
+		if err == nil {
+			err = s.store.SetDirectoryUserInstalled(ctx, oid, activity.Conversation.ID, activity.ServiceURL, now)
+		}
+	}
+	if err != nil {
+		logError(ctx, "record directory chat", err)
+	}
+}
+
+// refreshDirectoryChat keeps a known person's chat and service URL current
+// from any activity in it, the directory's counterpart of
+// refreshRecipientServiceURL.
+func (s *Server) refreshDirectoryChat(ctx context.Context, activity botActivity) {
+	oid := activity.From.AADObjectID
+	if oid == "" || activity.Conversation.ID == "" {
+		return
+	}
+	u, err := s.store.GetDirectoryUser(ctx, oid)
+	if err != nil {
+		if !errors.Is(err, store.ErrNotFound) {
+			logError(ctx, "get directory user for chat refresh", err)
+		}
+		return
+	}
+	if u.InstallState == models.InstallInstalled && u.ConversationID == activity.Conversation.ID && u.ServiceURL == activity.ServiceURL {
+		return
+	}
+	if err := s.store.SetDirectoryUserInstalled(ctx, oid, activity.Conversation.ID, activity.ServiceURL, time.Now().UTC()); err != nil {
+		logError(ctx, "refresh directory chat", err)
+	}
 }
 
 // botWasAdded reports whether this activity's membersAdded includes the bot

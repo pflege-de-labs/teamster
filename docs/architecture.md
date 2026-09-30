@@ -1067,7 +1067,8 @@ non-`https` value is refused at startup rather than registering a route that wou
 `bot-global-install` starts the reconciler described in
 [Installing the app for everyone](#installing-the-app-for-everyone). It reads `bot-app-id`,
 `bot-catalog-app-id`, `bot-reconcile-interval`, `bot-reverify-interval` and
-`bot-install-concurrency`. `bot-inline-install-budget`, `bot-welcome-message`, `bot-directory-ttl`,
+`bot-install-concurrency`; the inbound handler reads `bot-welcome-message`.
+`bot-inline-install-budget`, `bot-directory-ttl`,
 `webhook-max-recipients` and `webhook-fanout-concurrency` are parsed and validated but not read yet.
 They configure addressing messages to people.
 `validateGlobalInstall` gates the install settings on `bot-global-install`. It requires the bot to be
@@ -1301,6 +1302,31 @@ The commands:
 Replies are Markdown through `replyText`, best effort like every other reply. A store or delivery
 failure answers with the request reference rather than the error
 ([ADR 0048](adr/0048-bot-answers-commands-in-the-personal-chat.md)).
+
+With `bot.global-install` on, the chat is managed
+([ADR 0061](adr/0061-no-opt-out-when-installed-for-everyone.md)):
+
+* `/unlink` and its synonyms answer `managedUnlinkReply` and delete nothing, and `/help` answers
+  `managedHelpReply` without them.
+* `/status` in a chat with no linked recipient says that IT sends messages there, and `/test`
+  replies with the test text directly.
+* `unlinkNotifications` refuses with the `managed` key, and the page hides its button.
+
+### Personal installs
+
+`activityShapeRefusal` admits personal `installationUpdate`. Whatever the setting,
+`dispatchBotActivity`:
+
+* records an install (`installationUpdate` add or add-upgrade, or the bot in `membersAdded`) on
+  the sender's `directory_users` row through `recordDirectoryChat`, creating a bare row when no
+  run has listed them;
+* marks the row `removed` on a removal, so the next run reinstalls;
+* refreshes the row's conversation and service URL from every other personal activity
+  (`refreshDirectoryChat`).
+
+Only the `conversationUpdate` greets: the link instructions, or with global install on,
+`bot.welcome-message` when it is set. With global install on, a removal no longer calls
+`retireLink`.
 
 ## Linking a chat
 

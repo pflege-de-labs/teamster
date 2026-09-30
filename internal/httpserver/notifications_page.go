@@ -55,6 +55,8 @@ func notificationsQueryError(ctx context.Context, key string) string {
 		return i18n.T(ctx, "notifications.unlink_failed")
 	case "cancel_failed":
 		return i18n.T(ctx, "notifications.cancel_failed")
+	case "managed":
+		return i18n.T(ctx, "notifications.unlink_managed")
 	default:
 		return ""
 	}
@@ -66,9 +68,10 @@ func notificationsQueryError(ctx context.Context, key string) string {
 func (s *Server) notificationsPage(r *http.Request) views.Notifications {
 	ctx := r.Context()
 	page := views.Notifications{
-		Viewer: s.viewerFor(r),
-		Notice: notificationsQueryNotice(ctx, r.URL.Query().Get("notice")),
-		Error:  notificationsQueryError(ctx, r.URL.Query().Get("error")),
+		Viewer:  s.viewerFor(r),
+		Notice:  notificationsQueryNotice(ctx, r.URL.Query().Get("notice")),
+		Error:   notificationsQueryError(ctx, r.URL.Query().Get("error")),
+		Managed: s.cfg.Bot.GlobalInstall,
 	}
 
 	session, ok := s.currentSession(r)
@@ -199,6 +202,10 @@ func (s *Server) unlinkNotifications(r *http.Request) (string, error) {
 	session, ok := s.currentSession(r)
 	if !ok {
 		return "", userError{errors.New("sign_in_required")}
+	}
+	// Nobody opts out while the app is installed for everyone (ADR 0061).
+	if s.cfg.Bot.GlobalInstall {
+		return "", userError{errors.New("managed")}
 	}
 
 	recipient, err := s.store.GetRecipientBySubject(ctx, session.Subject)

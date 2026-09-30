@@ -42,11 +42,11 @@ Architectural decisions are recorded here, one file per decision, in
 | [0025](0025-shell-completion.md) | Shell completion is generated from the command tree | Accepted |
 | [0026](0026-alerts-in-a-persons-chat.md) | Alerts reach a person's chat through a Bot Framework bot | Accepted, amended by [0045](0045-channel-delivery-through-the-bot.md), [0047](0047-a-route-targets-a-channel-or-yourself.md) |
 | [0027](0027-notify-on-link-displacement.md) | A displaced recipient conversation is notified, not left silent | Accepted |
-| [0028](0028-self-service-unlink-and-code-cancellation.md) | Self-service unlink resolves from the session, and a code can be cancelled | Accepted |
+| [0028](0028-self-service-unlink-and-code-cancellation.md) | Self-service unlink resolves from the session, and a code can be cancelled | Accepted, amended by [0061](0061-no-opt-out-when-installed-for-everyone.md) |
 | [0029](0029-templates-are-markdown.md) | Message text is authored as Markdown and sanitized once for both transports | Accepted |
 | [0030](0030-teams-v2-compatible-webhooks.md) | Accept the payloads a Teams V2 webhook accepts | Accepted, amended by [0040](0040-teams-v2-endpoint-templates.md) |
 | [0031](0031-vendored-browser-libraries-pinned-and-verified.md) | Vendored browser libraries are pinned in a manifest and verified in CI | Accepted |
-| [0032](0032-retiring-a-link-from-the-chat.md) | A link can be retired from the chat it belongs to | Accepted |
+| [0032](0032-retiring-a-link-from-the-chat.md) | A link can be retired from the chat it belongs to | Accepted, amended by [0061](0061-no-opt-out-when-installed-for-everyone.md) |
 | [0033](0033-split-httproute-external-and-internal.md) | Split the chart's HTTPRoute into external and internal | Accepted |
 | [0034](0034-fan-out-across-independent-routes.md) | Every matching root route delivers, not only the highest priority one | Accepted |
 | [0035](0035-a-message-without-a-status-is-delivered-once.md) | A message posted without a status is delivered once, not tracked | Superseded in part by [0056](0056-events-not-alerts.md) |
@@ -59,7 +59,7 @@ Architectural decisions are recorded here, one file per decision, in
 | [0042](0042-sidebar-navigation-and-user-menu.md) | Move page links to a sidebar and account controls to a user menu | Accepted, partly superseded by 0054 |
 | [0043](0043-session-keeps-sign-in-identity.md) | Keep what the identity provider said on the session row | Accepted |
 | [0044](0044-webhook-access-tokens.md) | Authenticate the alert webhooks with issued Bearer tokens | Accepted |
-| [0045](0045-channel-delivery-through-the-bot.md) | Deliver channel messages through the Bot Framework bot | Accepted, amended by [0049](0049-a-channel-post-is-one-teams-message.md) |
+| [0045](0045-channel-delivery-through-the-bot.md) | Deliver channel messages through the Bot Framework bot | Accepted, amended by [0049](0049-a-channel-post-is-one-teams-message.md), [0059](0059-install-the-teams-app-for-every-member.md) |
 | [0046](0046-structured-logging-and-error-boundary.md) | Log through slog and answer errors at one boundary | Accepted |
 | [0047](0047-a-route-targets-a-channel-or-yourself.md) | A route targets a channel or a person, and a person only themselves | Accepted, amended by [0051](0051-root-routes-need-a-target-refinements-a-template.md) |
 | [0048](0048-bot-answers-commands-in-the-personal-chat.md) | The bot answers commands in the personal chat | Accepted |
@@ -75,3 +75,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0058](0058-preview-shows-the-wire-payload.md) | The preview shows the payload delivery sends | Accepted |
 | [0059](0059-install-the-teams-app-for-every-member.md) | Install the Teams app for every member of the tenant | Accepted |
 | [0060](0060-directory-users-are-not-recipients.md) | Directory users are kept apart from linked recipients | Accepted |
+| [0061](0061-no-opt-out-when-installed-for-everyone.md) | Nobody opts out while the app is installed for everyone | Accepted |
