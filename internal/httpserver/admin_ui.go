@@ -73,6 +73,8 @@ func (s *Server) adminPage(r *http.Request, notice, errText string) views.Page {
 		page.Error = failureText(ctx, "load admin page", err)
 	}
 	page.Recipients = s.targetableRecipients(r, page.Recipients)
+	// Only with the bot there is anyone to deliver to (ADR 0062).
+	page.CanAddress = botConfigured(s.cfg.Bot) && s.mayAddress(r)
 	if page.Destinations, err = s.visibleDestinations(r, page.Destinations); err != nil {
 		page.Error = failureText(ctx, "load admin page", err)
 	}
@@ -314,8 +316,9 @@ func (s *Server) saveRoute(r *http.Request) (string, error) {
 	}
 
 	destinationID, recipientID := r.PostFormValue("destination_id"), r.PostFormValue("recipient_id")
+	var addressed bool
 	if _, ok := r.PostForm["target"]; ok {
-		if destinationID, recipientID, err = parseRouteTarget(r.PostFormValue("target")); err != nil {
+		if destinationID, recipientID, addressed, err = parseRouteTarget(r.PostFormValue("target")); err != nil {
 			return "", err
 		}
 	}
@@ -327,6 +330,7 @@ func (s *Server) saveRoute(r *http.Request) (string, error) {
 		LabelSelector: selector,
 		DestinationID: destinationID,
 		RecipientID:   recipientID,
+		Addressed:     addressed,
 		TemplateID:    r.PostFormValue("template_id"),
 		IsDefault:     r.PostFormValue("is_default") == "true",
 		Greedy:        r.PostFormValue("greedy") == "true",

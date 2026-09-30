@@ -297,7 +297,10 @@ its progress, and the installs that failed and why. **Install for all users** st
 rather than at the next interval; `POST /api/people/install` does the same, and
 `GET /api/people/runs/latest` reports progress.
 
-Addressing messages to people is not built yet; see [milestone 23](docs/roadmap.md).
+A route can deliver to **People named in the message** instead of a channel or one person: pick
+it in **Delivers to**. Only an admin may create, edit or delete such a route
+([ADR 0062](docs/adr/0062-a-route-may-deliver-to-the-people-a-message-names.md)). Messages cannot
+name people yet, so a delivery through one still fails; see [milestone 23](docs/roadmap.md).
 
 Turning this on also needs a Teams app package: [`manifest/`](manifest/) holds the `manifest.json`
 and icons an operator uploads to Teams admin center so the bot can be installed at all, separate

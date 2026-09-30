@@ -82,8 +82,11 @@ type Page struct {
 	Templates    []models.Template
 	Destinations []models.Destination
 	// InstallStates is each destination team's state for the bot's app.
-	InstallStates    map[string]string
-	Recipients       []models.Recipient
+	InstallStates map[string]string
+	Recipients    []models.Recipient
+	// CanAddress offers the target that delivers to the people a message
+	// names (ADR 0062).
+	CanAddress       bool
 	Routes           []models.Route
 	WebhookEndpoints []models.WebhookEndpoint
 	// GlobalDefault is where a message no route claims goes; nil when there
@@ -167,6 +170,9 @@ type routeRow struct {
 	Depth       int
 	Destination inheritedRef
 	Template    inheritedRef
+	// Addressed is set, with ID "addressed", when the route delivers to the
+	// people a message names, its own choice or inherited (ADR 0062).
+	Addressed inheritedRef
 }
 
 type inheritedRef struct {
@@ -192,12 +198,19 @@ func (p Page) routeTree() []routeRow {
 	}
 
 	var rows []routeRow
-	var walk func(route models.Route, depth int, destination, template inheritedRef)
-	walk = func(route models.Route, depth int, destination, template inheritedRef) {
-		if route.DestinationID != "" {
-			destination = inheritedRef{ID: route.DestinationID}
-		} else {
+	var walk func(route models.Route, depth int, destination, template, addressed inheritedRef)
+	walk = func(route models.Route, depth int, destination, template, addressed inheritedRef) {
+		switch {
+		case route.Addressed:
+			destination, addressed = inheritedRef{}, inheritedRef{ID: "addressed"}
+		case route.DestinationID != "":
+			destination, addressed = inheritedRef{ID: route.DestinationID}, inheritedRef{}
+		case route.RecipientID != "":
+			addressed = inheritedRef{}
 			destination.Inherited = destination.ID != ""
+		default:
+			destination.Inherited = destination.ID != ""
+			addressed.Inherited = addressed.ID != ""
 		}
 		if route.TemplateID != "" {
 			template = inheritedRef{ID: route.TemplateID}
@@ -205,13 +218,13 @@ func (p Page) routeTree() []routeRow {
 			template.Inherited = template.ID != ""
 		}
 
-		rows = append(rows, routeRow{Route: route, Depth: depth, Destination: destination, Template: template})
+		rows = append(rows, routeRow{Route: route, Depth: depth, Destination: destination, Template: template, Addressed: addressed})
 		for _, child := range children[route.ID] {
-			walk(child, depth+1, destination, template)
+			walk(child, depth+1, destination, template, addressed)
 		}
 	}
 	for _, root := range roots {
-		walk(root, 0, inheritedRef{}, inheritedRef{})
+		walk(root, 0, inheritedRef{}, inheritedRef{}, inheritedRef{})
 	}
 	return rows
 }
@@ -379,6 +392,11 @@ func routeTargetOptions(ctx context.Context, p Page) []option {
 		}
 		out = append(out, option{Value: "recipient:" + r.ID, Label: i18n.T(ctx, "routes.target_person", label)})
 	}
+	// An edited route that already addresses people shows it, so saving does
+	// not silently pick another target.
+	if p.CanAddress || p.editingRoute().Addressed {
+		out = append(out, option{Value: "addressed", Label: i18n.T(ctx, "routes.target_addressed")})
+	}
 	return out
 }
 
@@ -387,6 +405,8 @@ func routeTargetOptions(ctx context.Context, p Page) []option {
 // person, which the list's badge warns about.
 func routeTargetValue(route models.Route) string {
 	switch {
+	case route.Addressed:
+		return "addressed"
 	case route.DestinationID != "":
 		return "destination:" + route.DestinationID
 	case route.RecipientID != "":

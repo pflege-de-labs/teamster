@@ -315,5 +315,6 @@
   "people.state.departed": "Left",
   "people.problems_heading": "Installs that did not work",
   "people.problems_empty": "Nothing failed.",
-  "people.next_attempt": "next attempt {0}"
+  "people.next_attempt": "next attempt {0}",
+  "routes.target_addressed": "People named in the message"
 }

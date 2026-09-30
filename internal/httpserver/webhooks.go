@@ -213,11 +213,18 @@ func (s *Server) claimTTL() time.Duration {
 // record that a post was in flight, which is what lets the next attempt take
 // over rather than wait forever or post a second card.
 func (s *Server) deliver(ctx context.Context, ev models.Event, delivery routing.Delivery) error {
-	if delivery.Kind == routing.DeliveryRecipient {
+	switch delivery.Kind {
+	case routing.DeliveryRecipient:
 		return s.deliverToRecipient(ctx, ev, delivery)
+	case routing.DeliveryAddressed:
+		return errAddressedUnsupported
 	}
 	return s.deliverToChannel(ctx, ev, delivery)
 }
+
+// errAddressedUnsupported fails a delivery to the people a message names until
+// messages can name them.
+var errAddressedUnsupported = errors.New("this route delivers to the people a message names, which messages cannot do yet")
 
 // deliverOnce is deliver's counterpart for a message with no tracked
 // lifecycle: nothing identifies a later post as the same event, so there is
@@ -225,8 +232,11 @@ func (s *Server) deliver(ctx context.Context, ev models.Event, delivery routing.
 // once, the same fire-and-forget contract /teamsv2/... already has, just
 // routed and templated first.
 func (s *Server) deliverOnce(ctx context.Context, ev models.Event, delivery routing.Delivery) error {
-	if delivery.Kind == routing.DeliveryRecipient {
+	switch delivery.Kind {
+	case routing.DeliveryRecipient:
 		return s.deliverToRecipientOnce(ctx, ev, delivery)
+	case routing.DeliveryAddressed:
+		return errAddressedUnsupported
 	}
 	return s.deliverToChannelOnce(ctx, ev, delivery)
 }

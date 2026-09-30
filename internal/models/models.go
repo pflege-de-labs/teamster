@@ -246,12 +246,14 @@ type Route struct {
 	LabelSelector map[string]string `json:"label_selector"`
 	DestinationID string            `json:"destination_id"`
 	RecipientID   string            `json:"recipient_id"`
-	TemplateID    string            `json:"template_id"`
-	IsDefault     bool              `json:"is_default"`
-	Greedy        bool              `json:"greedy"`
-	Priority      int               `json:"priority"`
-	CreatedAt     time.Time         `json:"created_at"`
-	UpdatedAt     time.Time         `json:"updated_at"`
+	// Addressed delivers to the people each message names (ADR 0062).
+	Addressed  bool      `json:"addressed,omitempty"`
+	TemplateID string    `json:"template_id"`
+	IsDefault  bool      `json:"is_default"`
+	Greedy     bool      `json:"greedy"`
+	Priority   int       `json:"priority"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
 
 // An ActiveEvent is one card: the message this service posted to one channel

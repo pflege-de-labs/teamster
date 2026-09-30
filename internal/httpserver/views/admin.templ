@@ -426,7 +426,11 @@ templ routes(page Page) {
 									}
 								</div>
 								<div class="truncate text-xs text-slate-500">
-									@inheritable(page.destinationName(r.Destination.ID), r.Destination.Inherited)
+									if r.Addressed.ID != "" {
+										@inheritable(i18n.T(ctx, "routes.target_addressed"), r.Addressed.Inherited)
+									} else {
+										@inheritable(page.destinationName(r.Destination.ID), r.Destination.Inherited)
+									}
 									<span>·</span>
 									@inheritable(page.templateName(r.Template.ID), r.Template.Inherited)
 								</div>

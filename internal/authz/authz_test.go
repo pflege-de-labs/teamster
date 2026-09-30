@@ -55,6 +55,15 @@ func TestAllow(t *testing.T) {
 			resource: RecipientResource("someone-else"), want: true,
 		},
 		{
+			name: "an admin may address people", roles: []Role{RoleAdmin}, action: ActionDeliverToAddressed,
+			resource: AddressedResource, want: true,
+		},
+		{
+			// Addressing reaches anyone in the tenant, which no chat of one's own does.
+			name: "an editor may not address people", roles: []Role{RoleEditor}, action: ActionDeliverToAddressed,
+			resource: AddressedResource, want: false,
+		},
+		{
 			// A role this build does not know must not fall through to allowed.
 			name: "an unknown role decides nothing", roles: []Role{Role("superuser")}, action: ActionView,
 			resource: Resource{Type: "Template"}, want: false,

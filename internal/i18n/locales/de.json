@@ -315,5 +315,6 @@
   "people.state.departed": "Ausgeschieden",
   "people.problems_heading": "Installationen, die nicht geklappt haben",
   "people.problems_empty": "Nichts ist fehlgeschlagen.",
-  "people.next_attempt": "nächster Versuch {0}"
+  "people.next_attempt": "nächster Versuch {0}",
+  "routes.target_addressed": "In der Nachricht genannte Personen"
 }

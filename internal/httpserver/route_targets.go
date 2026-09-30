@@ -17,25 +17,39 @@ import (
 // gets (ADR 0047).
 var errRecipientRefused = errors.New("a route may deliver only to your own chat")
 
+// errAddressedRefused is what a write touching a route that delivers to the
+// people a message names gets without the right to (ADR 0062).
+var errAddressedRefused = errors.New("only an admin may deliver to the people a message names")
+
 // Route form target values: one select names the channel or the person, so the
 // two cannot both be submitted.
 const (
 	targetDestination = "destination:"
 	targetRecipient   = "recipient:"
+	targetAddressed   = "addressed"
 )
 
 // parseRouteTarget reads the route form's target select. An empty value is a
 // child inheriting its parent's target.
-func parseRouteTarget(raw string) (destinationID, recipientID string, err error) {
+func parseRouteTarget(raw string) (destinationID, recipientID string, addressed bool, err error) {
 	switch {
 	case raw == "":
-		return "", "", nil
+		return "", "", false, nil
+	case raw == targetAddressed:
+		return "", "", true, nil
 	case strings.HasPrefix(raw, targetDestination):
-		return strings.TrimPrefix(raw, targetDestination), "", nil
+		return strings.TrimPrefix(raw, targetDestination), "", false, nil
 	case strings.HasPrefix(raw, targetRecipient):
-		return "", strings.TrimPrefix(raw, targetRecipient), nil
+		return "", strings.TrimPrefix(raw, targetRecipient), false, nil
 	}
-	return "", "", userError{fmt.Errorf("unknown route target %q", raw)}
+	return "", "", false, userError{fmt.Errorf("unknown route target %q", raw)}
+}
+
+// mayAddress answers whether this session may point a route at the people a
+// message names.
+func (s *Server) mayAddress(r *http.Request) bool {
+	subject, roles := principalOf(r)
+	return s.authz.Allow(subject, roles, authz.ActionDeliverToAddressed, authz.AddressedResource)
 }
 
 // mayTargetRecipient answers whether this session may point a route at a
@@ -76,6 +90,9 @@ func (s *Server) routeWriteRefusal(r *http.Request, route models.Route) error {
 	} else if !allowed {
 		return errRecipientRefused
 	}
+	if route.Addressed && !s.mayAddress(r) {
+		return errAddressedRefused
+	}
 	if route.ID == "" {
 		return nil
 	}
@@ -98,6 +115,9 @@ func (s *Server) routeDeleteRefusal(r *http.Request, id string) error {
 	}
 	if !allowed {
 		return errRecipientRefused
+	}
+	if existing.Addressed && !s.mayAddress(r) {
+		return errAddressedRefused
 	}
 	return nil
 }
