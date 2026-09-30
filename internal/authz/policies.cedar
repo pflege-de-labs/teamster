@@ -77,3 +77,13 @@ permit (
   action == Action::"deliverToRecipient",
   resource
 ) when { principal == resource };
+
+// A route that delivers to the people a message names reaches anyone in the
+// tenant, so only admins may point one there, through the policy at the top.
+// To let a custom role do it too:
+//
+// permit (
+//   principal in Role::"it-messaging",
+//   action == Action::"deliverToAddressed",
+//   resource
+// );

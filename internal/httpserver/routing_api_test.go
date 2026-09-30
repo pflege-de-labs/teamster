@@ -909,3 +909,52 @@ func TestTemplateGraphShowsSourceDefaults(t *testing.T) {
 		t.Errorf("a template used only as a default = %+v, want it not called unused", nodes["template:v2"])
 	}
 }
+
+// A child that addresses people delivers to them instead of its parent's
+// channel, and the picture has to say the same thing routing does.
+func TestRoutingGraphDrawsAddressedPeople(t *testing.T) {
+	t.Parallel()
+
+	st := newFakeStore()
+	st.destinations["it"] = models.Destination{ID: "it", Name: "IT channel", TeamID: "team", ChannelID: "chan"}
+	st.routes["it"] = models.Route{ID: "it", Name: "IT", DestinationID: "it", LabelSelector: map[string]string{"team": "it"}, Priority: 1}
+	st.routes["pw"] = models.Route{ID: "pw", Name: "Passwords", ParentID: "it", Addressed: true, TemplateID: "t", LabelSelector: map[string]string{"kind": "password"}}
+	st.routes["pw-soon"] = models.Route{ID: "pw-soon", Name: "Soon", ParentID: "pw", TemplateID: "u", LabelSelector: map[string]string{"days": "1"}}
+	handler := newTestServer(t, st, &fakeMessenger{}).Handler
+
+	nodes, links := graphFrom(t, handler)
+	if node, ok := nodes[addressedNodeID]; !ok || node.Kind != nodeAddressed {
+		t.Fatalf("no addressed node in %v", nodes)
+	}
+	targets := map[string][]string{}
+	for _, link := range links {
+		if link.Kind == linkDelivers {
+			targets[link.Source] = append(targets[link.Source], link.Target)
+		}
+	}
+	for route, want := range map[string]string{"route:it": "destination:it", "route:pw": addressedNodeID, "route:pw-soon": addressedNodeID} {
+		if got := strings.Join(targets[route], ","); got != want {
+			t.Errorf("%s delivers to %q, want only %q", route, got, want)
+		}
+	}
+
+	rec := do(t, handler, http.MethodPost, "/api/routing/match", `{"labels":{"team":"it","kind":"password"}}`)
+	if !strings.Contains(rec.Body.String(), `"addressed"`) {
+		t.Errorf("match = %s, want the addressed delivery and node", rec.Body.String())
+	}
+}
+
+func TestAddressedDeliveryFailsUntilMessagesNamePeople(t *testing.T) {
+	t.Parallel()
+
+	for _, state := range []string{`"state":"open",`, ""} {
+		st := newFakeStore()
+		st.routes["pw"] = models.Route{ID: "pw", Name: "Passwords", Addressed: true, LabelSelector: map[string]string{"kind": "password"}}
+		handler := newTestServer(t, st, &fakeMessenger{}).Handler
+
+		rec := postWebhook(t, handler, "/webhook/universal", "token", `{`+state+`"key":"k","labels":{"kind":"password"}}`)
+		if rec.Code != http.StatusBadGateway {
+			t.Errorf("addressed delivery %q = %d, want 502 until messages can name people", state, rec.Code)
+		}
+	}
+}

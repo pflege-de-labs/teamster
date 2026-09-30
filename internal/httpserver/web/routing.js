@@ -19,6 +19,7 @@
     endpoint: "#8b5cf6",
     route: "#0ea5e9",
     destination: "#10b981",
+    addressed: "#14b8a6",
     template: "#f59e0b",
   };
 
@@ -27,6 +28,7 @@
     endpoint: "Teams V2 endpoints",
     route: "Routes",
     destination: "Destinations",
+    addressed: "People",
     template: "Templates",
   };
 

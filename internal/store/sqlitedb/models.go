@@ -169,6 +169,7 @@ type Route struct {
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
 	RecipientID   string
+	Addressed     bool
 }
 
 type Session struct {

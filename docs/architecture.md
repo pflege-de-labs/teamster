@@ -527,6 +527,15 @@ these rules still names both; it fans out to two deliveries, channel first. A ro
 inherited or its own, delivers nothing at all. Greedy remains one flag per parent: a greedy child
 suppresses **all** of its parent's deliveries.
 
+The third kind of target is **the people the message names**: `addressed` set on the route
+([ADR 0062](adr/0062-a-route-may-deliver-to-the-people-a-message-names.md)). It follows the same
+rule. It is one target of the three, it replaces an inherited target of every kind, and it is
+inherited by children that set none. `Plan` emits one `Delivery` of kind `addressed` with no person
+in it, because who that is comes from the message. Only the admin role may create, edit or delete
+such a route: the Cedar action `deliverToAddressed` on `AddressedPeople::"all"` is permitted by the
+blanket admin policy alone. The routing picture draws one "People named in the message" node, and
+the picture now resolves targets with the same nearest-route-wins rule as `routing.collect`.
+
 `Plan` returns a `Result`: the reason, every root that matched, and one `Delivery` per message with
 its `Kind`, its target and its template resolved. Each `Delivery` already names its own route, root
 or child, so nothing downstream of `Plan` needs to know or care how many roots contributed to the
@@ -796,6 +805,11 @@ in SQLite and `0017` in Postgres ([ADR 0059](adr/0059-install-the-teams-app-for-
   claim a running row once that heartbeat is stale.
 
 Both are new tables and nothing else, so the previous release ignores them.
+
+`routes.addressed` (`NOT NULL DEFAULT false`) came with routes that deliver to the people a message
+names, by `0021` in SQLite and `0018` in Postgres
+([ADR 0062](adr/0062-a-route-may-deliver-to-the-people-a-message-names.md)). The previous release
+never reads it, so it sees an addressed route as one with no target and delivers nothing through it.
 
 `database.migrate` decides what opening the store does about a schema that is behind: `auto`
 applies what is missing, `verify` refuses and names `teamster migrate up`, `off` asks nothing.

@@ -347,6 +347,23 @@ func buildGraph(cfg routingConfig, channelName func(teamID, channelID string) st
 		row++
 	}
 
+	// One node stands for everyone a message may name: who they are is only
+	// known per message (ADR 0062).
+	for _, route := range ordered {
+		if effective[route.ID].addressed {
+			add(graphNode{
+				ID:     addressedNodeID,
+				Kind:   nodeAddressed,
+				Label:  "People named in the message",
+				Detail: "recipients, or the teamster_recipient label",
+				X:      sinkColumn,
+				Y:      row * rowGap,
+			})
+			row++
+			break
+		}
+	}
+
 	if fallback != "" {
 		links = append(links, graphLink{
 			Source: "route:" + routing.GlobalDefaultRouteID,
@@ -413,6 +430,9 @@ func buildGraph(cfg routingConfig, channelName func(teamID, channelID string) st
 				missing++
 			}
 			links = append(links, graphLink{Source: "route:" + route.ID, Target: nodeID, Kind: linkDelivers})
+		}
+		if targets.addressed {
+			links = append(links, graphLink{Source: "route:" + route.ID, Target: addressedNodeID, Kind: linkDelivers})
 		}
 	}
 
@@ -653,7 +673,20 @@ func routeDepths(routes []models.Route) map[string]int {
 type routeTargets struct {
 	destinationID string
 	recipientID   string
+	addressed     bool
 	templateID    string
+}
+
+// addressedNodeID and nodeAddressed name the node for the people messages name.
+const (
+	addressedNodeID = "addressed"
+	nodeAddressed   = "addressed"
+)
+
+// setsTarget reports whether a route names a target of its own, which replaces
+// an inherited target of every kind (ADR 0047).
+func setsTarget(route models.Route) bool {
+	return route.DestinationID != "" || route.RecipientID != "" || route.Addressed
 }
 
 // inheritedTargets resolves every route's destination, recipient and template
@@ -672,26 +705,25 @@ func inheritedTargets(routes []models.Route) map[string]routeTargets {
 
 	effective := map[string]routeTargets{}
 	for _, route := range routes {
-		targets := routeTargets{
-			destinationID: route.DestinationID,
-			recipientID:   route.RecipientID,
-			templateID:    route.TemplateID,
-		}
+		targets := routeTargets{templateID: route.TemplateID}
+		// The nearest route that names a target decides all of it, as in
+		// routing.collect; the template is inherited on its own.
+		from, found := route, setsTarget(route)
 		parent, ok := byID[route.ParentID]
-		for depth := 0; ok && depth < routing.MaxDepth; depth++ {
-			if targets.destinationID == "" {
-				targets.destinationID = parent.DestinationID
-			}
-			if targets.recipientID == "" {
-				targets.recipientID = parent.RecipientID
+		for depth := 0; ok && depth < routing.MaxDepth && (!found || targets.templateID == ""); depth++ {
+			if !found && setsTarget(parent) {
+				from, found = parent, true
 			}
 			if targets.templateID == "" {
 				targets.templateID = parent.TemplateID
 			}
-			if targets.destinationID != "" && targets.recipientID != "" && targets.templateID != "" {
-				break
-			}
 			parent, ok = byID[parent.ParentID]
+		}
+		if found {
+			targets.destinationID, targets.recipientID, targets.addressed = from.DestinationID, from.RecipientID, from.Addressed
+			if from.Addressed {
+				targets.destinationID, targets.recipientID = "", ""
+			}
 		}
 		effective[route.ID] = targets
 	}
@@ -828,6 +860,9 @@ func matchedNodes(result routing.Result, labels map[string]string) []string {
 		}
 		if delivery.RecipientID != "" {
 			nodes = append(nodes, "recipient:"+delivery.RecipientID)
+		}
+		if delivery.Kind == routing.DeliveryAddressed {
+			nodes = append(nodes, addressedNodeID)
 		}
 	}
 	return nodes

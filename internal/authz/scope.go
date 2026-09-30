@@ -18,7 +18,13 @@ const (
 	ActionViewTeam    = "viewTeam"
 	// ActionDeliverToRecipient is pointing a route at a person's chat.
 	ActionDeliverToRecipient = "deliverToRecipient"
+	// ActionDeliverToAddressed is pointing a route at whoever a message names,
+	// which reaches anyone in the tenant (ADR 0062).
+	ActionDeliverToAddressed = "deliverToAddressed"
 )
+
+// AddressedResource is what ActionDeliverToAddressed is asked about.
+var AddressedResource = Resource{Type: "AddressedPeople", ID: "all"}
 
 // A Scope is what the grants say a principal reaches. Unrestricted is not the
 // same as an empty scope: no grant naming any of a user's roles leaves them

@@ -21,6 +21,9 @@ reasoning behind it in the [ADRs](docs/adr/).
   are refused, and removing the app no longer retires the link
   ([ADR 0061](docs/adr/0061-no-opt-out-when-installed-for-everyone.md)). The bot records personal
   installs and removals, and greets a new install with `bot.welcome-message`.
+* A route may deliver to the people a message names, picked as **People named in the message** in
+  **Delivers to**. Only admins may create one
+  ([ADR 0062](docs/adr/0062-a-route-may-deliver-to-the-people-a-message-names.md)).
 * **People** (`/admin/people`, admins only) shows install progress for the whole tenant and starts
   a run on demand; `GET /api/people/runs/latest` and `POST /api/people/install` are the same over
   the API.
@@ -54,6 +57,8 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 ### Fixed
 
+* The routing picture no longer draws a child that names a person or a channel as delivering to its
+  parent's target too; it follows the same rule as routing (ADR 0047).
 * The header no longer shifts after the page loads; the sidebar state is applied before first
   paint ([ADR 0054](docs/adr/0054-apply-sidebar-state-before-first-paint.md)).
 * A channel post with a card shows its title in the Teams activity feed again, instead of `Card`.

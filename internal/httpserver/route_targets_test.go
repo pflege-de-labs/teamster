@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/pflege-de-labs/teamster/internal/authz"
+	"github.com/pflege-de-labs/teamster/internal/config"
 	"github.com/pflege-de-labs/teamster/internal/models"
 )
 
@@ -99,12 +100,15 @@ func TestTheRouteFormSavesOneTarget(t *testing.T) {
 		wantError     string
 		wantRecipient string
 		wantDest      string
+		wantAddressed bool
 	}{
 		{name: "a channel", role: authz.RoleEditor, target: "destination:dest", wantDest: "dest"},
 		{name: "your own chat", role: authz.RoleEditor, target: "recipient:mine", wantRecipient: "mine"},
 		{name: "someone else's chat", role: authz.RoleEditor, target: "recipient:theirs", wantError: "your own chat"},
 		{name: "someone else's chat as admin", role: authz.RoleAdmin, target: "recipient:theirs", wantRecipient: "theirs"},
 		{name: "an unknown kind", role: authz.RoleAdmin, target: "team:dest", wantError: "unknown route target"},
+		{name: "the people a message names", role: authz.RoleAdmin, target: "addressed", wantAddressed: true},
+		{name: "the people a message names as editor", role: authz.RoleEditor, target: "addressed", wantError: "only an admin"},
 	}
 
 	for _, tt := range tests {
@@ -138,7 +142,7 @@ func TestTheRouteFormSavesOneTarget(t *testing.T) {
 			if saved == nil {
 				t.Fatal("route not saved")
 			}
-			if saved.DestinationID != tt.wantDest || saved.RecipientID != tt.wantRecipient {
+			if saved.DestinationID != tt.wantDest || saved.RecipientID != tt.wantRecipient || saved.Addressed != tt.wantAddressed {
 				t.Errorf("saved destination=%q recipient=%q, want %q and %q", saved.DestinationID, saved.RecipientID, tt.wantDest, tt.wantRecipient)
 			}
 		})
@@ -204,4 +208,51 @@ func postFormAs(t *testing.T, handler http.Handler, path string, form url.Values
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 	return rec
+}
+
+func TestAnAddressedRouteIsTheAdmins(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		role        authz.Role
+		wantOption  bool
+		wantRefused bool
+	}{
+		{role: authz.RoleAdmin, wantOption: true},
+		{role: authz.RoleEditor, wantRefused: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(string(tt.role), func(t *testing.T) {
+			t.Parallel()
+
+			st := recipientStore(tt.role)
+			st.routes["pw"] = models.Route{ID: "pw", Name: "Passwords", Addressed: true, LabelSelector: map[string]string{"kind": "password"}}
+			cfg := config.Config{
+				Server:  config.ServerConfig{Addr: ":0"},
+				Webhook: config.WebhookConfig{Token: "token"},
+				Admin:   config.AdminConfig{Username: "admin", Password: "pass"},
+				Bot:     notificationsBotConfig(),
+			}
+			handler := mustServer(t, cfg, st, &fakeMessenger{}).Handler
+
+			page := asRole(t, handler, http.MethodGet, "/admin", "").Body.String()
+			if got := strings.Contains(page, `value="addressed"`); got != tt.wantOption {
+				t.Errorf("option offered = %v, want %v", got, tt.wantOption)
+			}
+			if !strings.Contains(page, "People named in the message") {
+				t.Error("the route list does not say where Passwords delivers")
+			}
+
+			edit := postFormAs(t, handler, "/admin/routes", url.Values{"id": {"pw"}, "name": {"Renamed"}, "target": {"destination:dest"}, "priority": {"1"}})
+			refused := strings.Contains(edit.Header().Get("Location"), "only+an+admin")
+			if refused != tt.wantRefused {
+				t.Errorf("editing the addressed route refused = %v (%s), want %v", refused, edit.Header().Get("Location"), tt.wantRefused)
+			}
+			del := postFormAs(t, handler, "/admin/routes/delete", url.Values{"id": {"pw"}})
+			if got := strings.Contains(del.Header().Get("Location"), "only+an+admin"); got != tt.wantRefused {
+				t.Errorf("deleting the addressed route refused = %v, want %v", got, tt.wantRefused)
+			}
+		})
+	}
 }

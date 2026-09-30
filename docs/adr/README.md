@@ -61,7 +61,7 @@ Architectural decisions are recorded here, one file per decision, in
 | [0044](0044-webhook-access-tokens.md) | Authenticate the alert webhooks with issued Bearer tokens | Accepted |
 | [0045](0045-channel-delivery-through-the-bot.md) | Deliver channel messages through the Bot Framework bot | Accepted, amended by [0049](0049-a-channel-post-is-one-teams-message.md), [0059](0059-install-the-teams-app-for-every-member.md) |
 | [0046](0046-structured-logging-and-error-boundary.md) | Log through slog and answer errors at one boundary | Accepted |
-| [0047](0047-a-route-targets-a-channel-or-yourself.md) | A route targets a channel or a person, and a person only themselves | Accepted, amended by [0051](0051-root-routes-need-a-target-refinements-a-template.md) |
+| [0047](0047-a-route-targets-a-channel-or-yourself.md) | A route targets a channel or a person, and a person only themselves | Accepted, amended by [0051](0051-root-routes-need-a-target-refinements-a-template.md), [0062](0062-a-route-may-deliver-to-the-people-a-message-names.md) |
 | [0048](0048-bot-answers-commands-in-the-personal-chat.md) | The bot answers commands in the personal chat | Accepted |
 | [0049](0049-a-channel-post-is-one-teams-message.md) | A channel post is one Teams message | Accepted, amended by [0057](0057-channel-posts-carry-a-feed-summary.md) |
 | [0050](0050-catch-all-template-is-a-setting.md) | The catch-all route's template is a setting | Accepted |
@@ -76,3 +76,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0059](0059-install-the-teams-app-for-every-member.md) | Install the Teams app for every member of the tenant | Accepted |
 | [0060](0060-directory-users-are-not-recipients.md) | Directory users are kept apart from linked recipients | Accepted |
 | [0061](0061-no-opt-out-when-installed-for-everyone.md) | Nobody opts out while the app is installed for everyone | Accepted |
+| [0062](0062-a-route-may-deliver-to-the-people-a-message-names.md) | A route may deliver to the people a message names | Accepted |

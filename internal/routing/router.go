@@ -53,6 +53,9 @@ type DeliveryKind string
 const (
 	DeliveryChannel   DeliveryKind = "channel"
 	DeliveryRecipient DeliveryKind = "recipient"
+	// DeliveryAddressed goes to the people the message names. The router
+	// cannot know who they are; delivery expands it, one per person (ADR 0062).
+	DeliveryAddressed DeliveryKind = "addressed"
 )
 
 // A Delivery is one message this event produces: where it goes and what renders
@@ -65,8 +68,11 @@ type Delivery struct {
 	Kind          DeliveryKind `json:"kind"`
 	DestinationID string       `json:"destination_id,omitempty"`
 	RecipientID   string       `json:"recipient_id,omitempty"`
-	TemplateID    string       `json:"template_id"`
-	Reason        Reason       `json:"reason"`
+	// PersonID is the Entra object id an addressed delivery was expanded to;
+	// the router never sets it.
+	PersonID   string `json:"person_id,omitempty"`
+	TemplateID string `json:"template_id"`
+	Reason     Reason `json:"reason"`
 }
 
 // A Result is what an event's labels produce: the deliveries, and why the tree
@@ -128,7 +134,7 @@ func (r *Router) Plan(ctx context.Context, labels map[string]string) (Result, er
 	var plan []Delivery
 	for _, root := range matched {
 		rootIDs = append(rootIDs, root.ID)
-		plan = append(plan, collect(root, reason, children, labels, root.DestinationID, root.TemplateID, root.RecipientID, 0)...)
+		plan = append(plan, collect(root, reason, children, labels, target{root.DestinationID, root.RecipientID, root.Addressed}, root.TemplateID, 0)...)
 	}
 	if len(plan) == 0 {
 		return Result{Reason: ReasonNone}, nil
@@ -189,24 +195,35 @@ func selectRoots(roots []models.Route, labels map[string]string) ([]models.Route
 	return nil, ReasonNone
 }
 
-// collect walks the matching part of the tree. A route delivers unless one of
-// its matching children is greedy, and an unset destination, recipient or
-// template is inherited from the nearest ancestor that set one. A route
-// fans out to one Delivery per target that ends up set -- a channel, a
-// recipient, or neither; both only for a row older than ADR 0047 -- so a
-// route with nothing left to deliver to (inherited or its own) delivers
-// nothing.
-func collect(route models.Route, reason Reason, children map[string][]models.Route, labels map[string]string, destinationID, templateID, recipientID string, depth int) []Delivery {
-	// A target replaces the inherited one of the other kind too (ADR 0047);
-	// only a row saved before that rule still carries both.
+// target is what a route delivers to once inheritance is resolved: a channel,
+// a person, the people a message names, or nothing yet.
+type target struct {
+	destinationID string
+	recipientID   string
+	addressed     bool
+}
+
+// of is the target a route leaves its children: its own when it sets one,
+// which replaces an inherited target of every other kind (ADR 0047), or the
+// inherited one. Only a row saved before ADR 0047 names both a channel and a
+// person, and keeps both.
+func (t target) of(route models.Route) target {
 	switch {
-	case route.DestinationID != "" && route.RecipientID != "":
-		destinationID, recipientID = route.DestinationID, route.RecipientID
-	case route.DestinationID != "":
-		destinationID, recipientID = route.DestinationID, ""
-	case route.RecipientID != "":
-		destinationID, recipientID = "", route.RecipientID
+	case route.Addressed:
+		return target{addressed: true}
+	case route.DestinationID != "" || route.RecipientID != "":
+		return target{destinationID: route.DestinationID, recipientID: route.RecipientID}
 	}
+	return t
+}
+
+// collect walks the matching part of the tree. A route delivers unless one of
+// its matching children is greedy, and an unset target or template is
+// inherited from the nearest ancestor that set one. A route fans out to one
+// Delivery per target that ends up set, so a route with nothing left to
+// deliver to delivers nothing.
+func collect(route models.Route, reason Reason, children map[string][]models.Route, labels map[string]string, inherited target, templateID string, depth int) []Delivery {
+	to := inherited.of(route)
 	if route.TemplateID != "" {
 		templateID = route.TemplateID
 	}
@@ -221,56 +238,62 @@ func collect(route models.Route, reason Reason, children map[string][]models.Rou
 				continue
 			}
 			if child.Greedy {
-				// A greedy child takes both of its parent's deliveries with
-				// it, not just the one it happens to share a target kind
-				// with -- one flag governs both below.
+				// A greedy child takes all of its parent's deliveries with it,
+				// not just the one it happens to share a target kind with.
 				suppressed = true
 			}
-			fromChildren = append(fromChildren, collect(child, ReasonRefined, children, labels, destinationID, templateID, recipientID, depth+1)...)
+			fromChildren = append(fromChildren, collect(child, ReasonRefined, children, labels, to, templateID, depth+1)...)
 		}
 	}
 
 	plan := make([]Delivery, 0, len(fromChildren)+2)
 	if !suppressed {
-		if destinationID != "" {
-			plan = append(plan, Delivery{
-				RouteID:       route.ID,
-				RouteName:     route.Name,
-				Kind:          DeliveryChannel,
-				DestinationID: destinationID,
-				TemplateID:    templateID,
-				Reason:        reason,
-			})
+		base := Delivery{RouteID: route.ID, RouteName: route.Name, TemplateID: templateID, Reason: reason}
+		// Channel before recipient, so a mixed plan orders the same way every
+		// time and Deliveries[1] means something stable.
+		if to.destinationID != "" {
+			d := base
+			d.Kind, d.DestinationID = DeliveryChannel, to.destinationID
+			plan = append(plan, d)
 		}
-		if recipientID != "" {
-			// Channel before recipient, so a mixed plan orders the same way
-			// every time and Deliveries[1] means something stable.
-			plan = append(plan, Delivery{
-				RouteID:     route.ID,
-				RouteName:   route.Name,
-				Kind:        DeliveryRecipient,
-				RecipientID: recipientID,
-				TemplateID:  templateID,
-				Reason:      reason,
-			})
+		if to.recipientID != "" {
+			d := base
+			d.Kind, d.RecipientID = DeliveryRecipient, to.recipientID
+			plan = append(plan, d)
+		}
+		if to.addressed {
+			d := base
+			d.Kind = DeliveryAddressed
+			plan = append(plan, d)
 		}
 	}
 	return append(plan, fromChildren...)
+}
+
+// targets counts the targets a route sets itself.
+func targets(route models.Route) int {
+	n := 0
+	for _, set := range []bool{route.DestinationID != "", route.RecipientID != "", route.Addressed} {
+		if set {
+			n++
+		}
+	}
+	return n
 }
 
 // ValidateRoute rejects a tree nobody could deliver through. It takes the routes
 // already stored because every rule here is about the candidate's place among
 // them, and a cycle found at delivery time is an alert that never arrives.
 func ValidateRoute(candidate models.Route, existing []models.Route) error {
-	// A route delivers to a channel or to a person, never both (ADR 0047).
-	if candidate.DestinationID != "" && candidate.RecipientID != "" {
-		return fmt.Errorf("a route targets either a channel or a person, not both")
+	// A route delivers to one kind of target (ADR 0047, ADR 0062).
+	if targets(candidate) > 1 {
+		return fmt.Errorf("a route targets one of a channel, a person or the people a message names")
 	}
 	// A root has nothing to inherit a target from, so it delivers nowhere
 	// without one of its own.
 	if candidate.ParentID == "" {
-		if candidate.DestinationID == "" && candidate.RecipientID == "" {
-			return fmt.Errorf("a root route needs a channel or a person to deliver to")
+		if targets(candidate) == 0 {
+			return fmt.Errorf("a root route needs a channel, a person or the people a message names to deliver to")
 		}
 		return nil
 	}
@@ -308,7 +331,7 @@ func ValidateRoute(candidate models.Route, existing []models.Route) error {
 
 	// A child that keeps its parent's target only refines how the message
 	// looks, so it has to render with a template of its own.
-	if candidate.DestinationID == "" && candidate.RecipientID == "" {
+	if targets(candidate) == 0 {
 		inherited := inheritedTemplate(candidate.ParentID, byID)
 		if candidate.TemplateID == "" || candidate.TemplateID == inherited {
 			return fmt.Errorf("a child route that keeps its parent's target needs a different template")

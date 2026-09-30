@@ -594,3 +594,31 @@ func TestValidateRefusesABadSourceDefault(t *testing.T) {
 		})
 	}
 }
+
+// An addressed route names nobody in particular, so it can travel in a bundle
+// where a route to one person cannot.
+func TestAnAddressedRouteTravels(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	source := configured(t)
+	if _, err := source.CreateRoute(ctx, models.Route{ID: "pw", Name: "Passwords", Addressed: true, TemplateID: "tmpl", LabelSelector: map[string]string{"kind": "password"}}); err != nil {
+		t.Fatalf("seed addressed route: %v", err)
+	}
+	bundle, err := Export(ctx, source, nil)
+	if err != nil {
+		t.Fatalf("Export: %v", err)
+	}
+	if err := bundle.Validate(); err != nil {
+		t.Fatalf("Validate: %v", err)
+	}
+
+	target := configured(t)
+	if _, err := Import(ctx, target, bundle, ModeReplace, false); err != nil {
+		t.Fatalf("Import: %v", err)
+	}
+	got, err := target.GetRoute(ctx, "pw")
+	if err != nil || !got.Addressed || got.DestinationID != "" {
+		t.Errorf("imported route = %+v, %v; want it still addressing people", got, err)
+	}
+}

@@ -781,17 +781,30 @@ func TestValidateRoute(t *testing.T) {
 			// Nothing above it to inherit a target from (ADR 0047).
 			name:      "a root route needs a target",
 			candidate: models.Route{ID: "new", Name: "new", TemplateID: "card"},
-			wantErr:   "needs a channel or a person",
+			wantErr:   "needs a channel, a person or the people",
 		},
 		{
 			name:      "a root route may not target a channel and a person",
 			candidate: models.Route{ID: "new", Name: "new", DestinationID: "ops", RecipientID: "p1"},
-			wantErr:   "not both",
+			wantErr:   "one of a channel, a person or the people",
 		},
 		{
 			name:      "a child route may not target a channel and a person",
 			candidate: models.Route{ID: "new", Name: "new", ParentID: "root", LabelSelector: map[string]string{"team": "search"}, DestinationID: "search", RecipientID: "p1"},
-			wantErr:   "not both",
+			wantErr:   "one of a channel, a person or the people",
+		},
+		{
+			name:      "a root route addressing people is fine",
+			candidate: models.Route{ID: "new", Name: "new", Addressed: true},
+		},
+		{
+			name:      "addressing people and a channel at once",
+			candidate: models.Route{ID: "new", Name: "new", DestinationID: "ops", Addressed: true},
+			wantErr:   "one of a channel, a person or the people",
+		},
+		{
+			name:      "a child switching to the people a message names",
+			candidate: models.Route{ID: "new", Name: "new", ParentID: "root", LabelSelector: map[string]string{"kind": "password"}, Addressed: true},
 		},
 		{
 			name:      "a child refining its parent is fine",
@@ -1150,6 +1163,59 @@ func TestPinnedSource(t *testing.T) {
 			t.Parallel()
 			if got := PinnedSource(tt.candidate, existing); got != tt.want {
 				t.Errorf("PinnedSource = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPlanDeliversToAddressedPeople(t *testing.T) {
+	t.Parallel()
+
+	routes := []models.Route{
+		{ID: "it", Name: "IT", LabelSelector: map[string]string{"team": "it"}, DestinationID: "it-channel", TemplateID: "card"},
+		// A child that sends password reminders to the person instead of the channel.
+		{ID: "pw", Name: "Password", ParentID: "it", LabelSelector: map[string]string{"kind": "password"}, Addressed: true, TemplateID: "reminder"},
+		// Its child keeps addressing people, with another template.
+		{ID: "pw-soon", Name: "Soon", ParentID: "pw", LabelSelector: map[string]string{"days": "1"}, TemplateID: "urgent", Greedy: true},
+		// A child that goes back to a channel.
+		{ID: "pw-audit", Name: "Audit", ParentID: "pw", LabelSelector: map[string]string{"audit": "yes"}, DestinationID: "audit"},
+	}
+
+	tests := []struct {
+		name   string
+		labels map[string]string
+		want   []string
+	}{
+		{name: "the channel only", labels: map[string]string{"team": "it"}, want: []string{"it/channel:it-channel/card"}},
+		{name: "addressed instead of the channel", labels: map[string]string{"team": "it", "kind": "password"},
+			want: []string{"it/channel:it-channel/card", "pw/addressed/reminder"}},
+		{name: "a greedy child keeps addressing", labels: map[string]string{"team": "it", "kind": "password", "days": "1"},
+			want: []string{"it/channel:it-channel/card", "pw-soon/addressed/urgent"}},
+		{name: "a child back to a channel", labels: map[string]string{"team": "it", "kind": "password", "audit": "yes"},
+			want: []string{"it/channel:it-channel/card", "pw/addressed/reminder", "pw-audit/channel:audit/reminder"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			result, err := New(stubStore{routes: routes}).Plan(t.Context(), tt.labels)
+			if err != nil {
+				t.Fatalf("Plan: %v", err)
+			}
+			var got []string
+			for _, d := range result.Deliveries {
+				to := string(d.Kind)
+				if d.DestinationID != "" {
+					to += ":" + d.DestinationID
+				}
+				if d.RecipientID != "" || d.PersonID != "" {
+					t.Errorf("addressed plan names a person: %+v", d)
+				}
+				got = append(got, d.RouteID+"/"+to+"/"+d.TemplateID)
+			}
+			if strings.Join(got, " ") != strings.Join(tt.want, " ") {
+				t.Errorf("deliveries = %v, want %v", got, tt.want)
 			}
 		})
 	}
