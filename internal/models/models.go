@@ -370,10 +370,17 @@ type Session struct {
 // Identity is what the provider said about a session's holder beyond its
 // roles, kept for the user info page. It holds no tokens (ADR 0043).
 type Identity struct {
-	Issuer string   `json:"issuer,omitempty"`
-	Email  string   `json:"email,omitempty"`
-	Scopes []string `json:"scopes,omitempty"`
-	Groups []string `json:"groups,omitempty"`
+	Issuer string `json:"issuer,omitempty"`
+	Email  string `json:"email,omitempty"`
+	// EmailVerified is the provider saying Email belongs to this user, which
+	// is what lets it find their Teams chat (ADR 0065).
+	EmailVerified bool `json:"email_verified,omitempty"`
+	// ObjectID is the Entra object id from auth.object-id-claim, and Username
+	// the preferred_username; both find the user's own Teams chat.
+	ObjectID string   `json:"object_id,omitempty"`
+	Username string   `json:"username,omitempty"`
+	Scopes   []string `json:"scopes,omitempty"`
+	Groups   []string `json:"groups,omitempty"`
 	// GroupsSource and ClaimSource name the token the values were found in.
 	GroupsSource string `json:"groups_source,omitempty"`
 	// ClaimValues are the role claim as the provider sent it, before roles

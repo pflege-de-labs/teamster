@@ -182,6 +182,10 @@ func (s stubStore) PurgeDepartedDirectoryUsers(ctx context.Context, before time.
 	return 0, store.ErrNotFound
 }
 
+func (s stubStore) UpdateRecipientChatsForObjectID(ctx context.Context, aadObjectID, conversationID, serviceURL string, at time.Time) (int64, error) {
+	return 0, store.ErrNotFound
+}
+
 func (s stubStore) MarkDirectoryUserBlocked(ctx context.Context, aadObjectID string, at time.Time, reason string) error {
 	return store.ErrNotFound
 }

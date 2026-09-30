@@ -38,6 +38,8 @@ func notificationsQueryNotice(ctx context.Context, key string) string {
 	switch key {
 	case "unlinked":
 		return i18n.T(ctx, "notifications.unlinked")
+	case "chat_set_up":
+		return i18n.T(ctx, "notifications.chat_set_up")
 	case "canceled":
 		return i18n.T(ctx, "notifications.canceled")
 	default:
@@ -57,6 +59,14 @@ func notificationsQueryError(ctx context.Context, key string) string {
 		return i18n.T(ctx, "notifications.cancel_failed")
 	case "managed":
 		return i18n.T(ctx, "notifications.unlink_managed")
+	case "codes_not_needed":
+		return i18n.T(ctx, "notifications.codes_not_needed")
+	case "chat_not_found":
+		return i18n.T(ctx, "notifications.bind_no_account")
+	case "chat_not_ready":
+		return i18n.T(ctx, "notifications.chat_not_ready")
+	case "setup_failed":
+		return i18n.T(ctx, "notifications.setup_failed")
 	default:
 		return ""
 	}
@@ -85,6 +95,20 @@ func (s *Server) notificationsPage(r *http.Request) views.Notifications {
 	switch {
 	case err == nil:
 		page.Recipient = &recipient
+	case isNotFound(err) && s.managedChats():
+		// Found from the sign-in, never from a code; installing waits for the
+		// button (ADR 0065).
+		bound, state, bindErr := s.bindOwnChat(ctx, session, false)
+		if bindErr != nil {
+			logError(ctx, "bind own chat", bindErr)
+			page.Error = i18n.T(ctx, "notifications.load_failed")
+			page.StatusUnknown = true
+			break
+		}
+		page.Bind = string(state)
+		if state == bindLinked {
+			page.Recipient = &bound
+		}
 	case isNotFound(err):
 		// Not linked yet, which is the ordinary case the page's own copy
 		// explains -- not a failure to report.
@@ -142,6 +166,10 @@ func (s *Server) handleMintLink(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, i18n.T(ctx, "notifications.sign_in_required"), http.StatusForbidden)
 		return
 	}
+	if s.managedChats() {
+		redirectTo("/admin/notifications", w, r, "", "codes_not_needed")
+		return
+	}
 
 	page := s.notificationsPage(r)
 	// A load failure notificationsPage already reported takes priority over
@@ -178,6 +206,9 @@ func (s *Server) cancelLink(r *http.Request) (string, error) {
 	session, ok := s.currentSession(r)
 	if !ok {
 		return "", userError{errors.New("sign_in_required")}
+	}
+	if s.managedChats() {
+		return "", userError{errors.New("codes_not_needed")}
 	}
 	if err := s.store.DeleteLinkFlowsForSubject(r.Context(), session.Subject); err != nil {
 		logError(r.Context(), "cancel link flows", err)
@@ -242,5 +273,30 @@ func (s *Server) notifyUnlinked(ctx context.Context, recipient models.Recipient)
 	}
 	if _, err := s.bot.SendMessage(ctx, ref, bot.Message{Text: linkRemovedReply}); err != nil {
 		logError(ctx, "bot unlink notice", fmt.Errorf("conversation %s: %w", recipient.ConversationID, err))
+	}
+}
+
+// setupOwnChat is the button a managed page offers when the signed-in user has
+// no chat yet: it installs the app for them and binds the chat (ADR 0065).
+func (s *Server) setupOwnChat(r *http.Request) (string, error) {
+	ctx := r.Context()
+	session, ok := s.currentSession(r)
+	if !ok {
+		return "", userError{errors.New("sign_in_required")}
+	}
+	if !s.managedChats() {
+		return "", userError{errors.New("setup_failed")}
+	}
+	_, state, err := s.bindOwnChat(ctx, session, true)
+	switch {
+	case err != nil:
+		logError(ctx, "set up own chat", err)
+		return "", userError{errors.New("setup_failed")}
+	case state == bindLinked:
+		return "chat_set_up", nil
+	case state == bindNoChat:
+		return "", userError{errors.New("chat_not_ready")}
+	default:
+		return "", userError{errors.New("chat_not_found")}
 	}
 }

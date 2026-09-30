@@ -65,7 +65,7 @@
   "notifications.code_heading": "Ihr Verknüpfungscode",
   "notifications.cross_origin_rejected": "Formularübermittlung von fremder Herkunft abgelehnt.",
   "notifications.explainer": "Verknüpfen Sie Ihren eigenen Teams-Chat, um die an Sie gerichteten Alarme zu erhalten. Die Verknüpfung lässt sich jederzeit wieder aufheben.",
-  "notifications.managed": "Ihre IT-Abteilung sendet über Teamster Nachrichten in Ihren Teams-Chat, daher lässt er sich hier nicht trennen. Verknüpfen Sie ihn unten mit Ihrem Konto, um auch die an Sie gerichteten Alarme zu erhalten.",
+  "notifications.managed": "Ihre IT-Abteilung sendet über Teamster Nachrichten in Ihren Teams-Chat, daher lässt er sich hier nicht trennen. Ihre Anmeldung verbindet ihn mit Ihrem Konto, sodass auch die an Sie gerichteten Alarme dort ankommen.",
   "notifications.unlink_managed": "Ihre IT-Abteilung verwaltet diesen Chat, daher lässt sich die Verknüpfung nicht aufheben.",
   "notifications.heading": "Alarme in Ihrem Teams-Chat",
   "notifications.last_updated": "Zuletzt geändert am {0} — sowohl das Einlösen eines neuen Codes als auch eine automatische Wiederverbindung durch Teams aktualisiert dies, eine Änderung allein ist also kein Beleg für eine neue Verknüpfung.",
@@ -316,5 +316,13 @@
   "people.problems_heading": "Installationen, die nicht geklappt haben",
   "people.problems_empty": "Nichts ist fehlgeschlagen.",
   "people.next_attempt": "nächster Versuch {0}",
-  "routes.target_addressed": "In der Nachricht genannte Personen"
+  "routes.target_addressed": "In der Nachricht genannte Personen",
+  "notifications.bind_no_account": "Ihr Teams-Konto ließ sich aus Ihrer Anmeldung nicht ermitteln. Bitten Sie eine Administratorin oder einen Administrator, den Object-ID-Claim zu prüfen, oder melden Sie sich mit Ihrem Arbeitskonto an.",
+  "notifications.bind_no_chat": "Ihr Teams-Konto wurde gefunden, aber der Bot hat noch keinen Chat mit Ihnen. Richten Sie ihn jetzt ein oder warten Sie auf den nächsten Installationslauf.",
+  "notifications.bind_local": "Sie sind mit dem lokalen Konto angemeldet, das keinen Teams-Chat hat. Melden Sie sich mit Ihrem Arbeitskonto an, um die an Sie gerichteten Alarme zu erhalten.",
+  "notifications.setup": "Meinen Chat jetzt einrichten",
+  "notifications.chat_set_up": "Ihr Teams-Chat ist eingerichtet. An Sie gerichtete Alarme kommen dort an.",
+  "notifications.chat_not_ready": "Der Bot konnte noch keinen Chat mit Ihnen öffnen. Versuchen Sie es in einer Minute erneut oder bitten Sie eine Administratorin oder einen Administrator, die Installation zu prüfen.",
+  "notifications.setup_failed": "Das Einrichten Ihres Chats ist fehlgeschlagen. Versuchen Sie es später erneut.",
+  "notifications.codes_not_needed": "Linkcodes werden hier nicht verwendet: Ihr Chat wird über Ihre Anmeldung gefunden."
 }

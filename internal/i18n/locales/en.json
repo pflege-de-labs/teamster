@@ -65,7 +65,7 @@
   "notifications.code_heading": "Your link code",
   "notifications.cross_origin_rejected": "Cross-origin form post rejected.",
   "notifications.explainer": "Link your own Teams chat to receive the alerts routed to you. Unlink at any time to stop them.",
-  "notifications.managed": "Your IT department sends messages to your Teams chat through Teamster, so it cannot be unlinked here. Link it to your account below to also receive the alerts routed to you.",
+  "notifications.managed": "Your IT department sends messages to your Teams chat through Teamster, so it cannot be unlinked here. Signing in connects it to your account, so the alerts routed to you arrive there too.",
   "notifications.unlink_managed": "Your IT department manages this chat, so it cannot be unlinked.",
   "notifications.heading": "Alerts in your Teams chat",
   "notifications.last_updated": "This last changed on {0} — redeeming a new code updates it, but so does Teams silently reconnecting the same chat, so a change here on its own is not proof of a new link.",
@@ -316,5 +316,13 @@
   "people.problems_heading": "Installs that did not work",
   "people.problems_empty": "Nothing failed.",
   "people.next_attempt": "next attempt {0}",
-  "routes.target_addressed": "People named in the message"
+  "routes.target_addressed": "People named in the message",
+  "notifications.bind_no_account": "We could not find your Teams account from how you signed in. Ask an administrator to check the object-id claim, or sign in with your work account.",
+  "notifications.bind_no_chat": "We found your Teams account, but the bot has no chat with you yet. Set it up now, or wait for the next install run.",
+  "notifications.bind_local": "You signed in with the local account, which has no Teams chat. Sign in with your work account to receive the alerts routed to you.",
+  "notifications.setup": "Set up my chat now",
+  "notifications.chat_set_up": "Your Teams chat is set up. Alerts routed to you arrive there.",
+  "notifications.chat_not_ready": "The bot could not open a chat with you yet. Try again in a minute, or ask an administrator to check the install.",
+  "notifications.setup_failed": "Setting up your chat failed. Try again later.",
+  "notifications.codes_not_needed": "Link codes are not used here: your chat is found from your sign-in."
 }

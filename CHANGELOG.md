@@ -29,6 +29,10 @@ reasoning behind it in the [ADRs](docs/adr/).
   the answer lists who was not reached: `200 partial`, or `422` when nobody was
   ([ADR 0063](docs/adr/0063-a-message-names-its-recipients.md),
   [ADR 0064](docs/adr/0064-chat-claims-for-people-share-the-recipient-table.md)).
+* With `bot.global-install` on, a signed-in user's own Teams chat is found from their Entra object id
+  (`auth.object-id-claim`), their UPN or a verified email, instead of a link code; Notifications
+  offers **Set up my chat now** when there is no chat yet
+  ([ADR 0065](docs/adr/0065-your-own-chat-is-found-from-your-sign-in.md)).
 * **People** (`/admin/people`, admins only) shows install progress for the whole tenant and starts
   a run on demand; `GET /api/people/runs/latest` and `POST /api/people/install` are the same over
   the API.

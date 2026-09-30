@@ -3,7 +3,9 @@
 * Status: Accepted, amended by [0045](0045-channel-delivery-through-the-bot.md): the
   client-credentials identity cannot post to a channel either, and channel delivery moves onto
   this bot; amended by [0047](0047-a-route-targets-a-channel-or-yourself.md): a route targets a
-  channel or a person, and an editor only their own chat
+  channel or a person, and an editor only their own chat; amended by
+  [0065](0065-your-own-chat-is-found-from-your-sign-in.md): with global install on, the chat is
+  bound from the sign-in instead of a link code
 * Date: 2026-09-15
 
 ## Context

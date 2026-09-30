@@ -129,6 +129,10 @@ func (s *Server) handleLinkRecipient(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusForbidden, "link codes require a signed-in session, not basic auth")
 		return
 	}
+	if s.managedChats() {
+		writeJSONError(w, http.StatusConflict, "link codes are not used while the app is installed for everyone; signing in binds your chat")
+		return
+	}
 
 	flow, err := s.createLinkFlow(ctx, session.Subject)
 	if err != nil {

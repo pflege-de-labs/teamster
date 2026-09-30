@@ -1803,3 +1803,20 @@ func (f *fakeStore) ClearDirectoryUserBlocked(_ context.Context, aadObjectID str
 	}
 	return nil
 }
+
+func (f *fakeStore) UpdateRecipientChatsForObjectID(_ context.Context, aadObjectID, conversationID, serviceURL string, at time.Time) (int64, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("UpdateRecipientChatsForObjectID"); err != nil {
+		return 0, err
+	}
+	var n int64
+	for id, r := range f.recipients {
+		if aadObjectID != "" && r.AADObjectID == aadObjectID && (r.ConversationID != conversationID || r.ServiceURL != serviceURL) {
+			r.ConversationID, r.ServiceURL, r.UpdatedAt = conversationID, serviceURL, at
+			f.recipients[id] = r
+			n++
+		}
+	}
+	return n, nil
+}

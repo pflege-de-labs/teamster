@@ -25,6 +25,8 @@ type fakePeople struct {
 	errs     map[string]error
 	resolves int
 	installs int
+	// installable get a chat when Ensure may install.
+	installable map[string]bool
 }
 
 func (p *fakePeople) Resolve(_ context.Context, address string) (models.DirectoryUser, error) {
@@ -47,6 +49,9 @@ func (p *fakePeople) Ensure(_ context.Context, u models.DirectoryUser, _, instal
 	defer p.mu.Unlock()
 	if install {
 		p.installs++
+		if p.installable[u.AADObjectID] {
+			u.ConversationID, u.InstallState = "a:"+u.AADObjectID, models.InstallInstalled
+		}
 	}
 	if u.ConversationID == "" {
 		return u, people.OutcomeFailed, people.ErrNotInstalled
@@ -55,6 +60,7 @@ func (p *fakePeople) Ensure(_ context.Context, u models.DirectoryUser, _, instal
 }
 
 type addressedFixture struct {
+	server  *Server
 	handler http.Handler
 	store   *fakeStore
 	bot     *fakeBotClient
@@ -95,11 +101,13 @@ func newAddressedFixture(t *testing.T, configure func(*config.Config)) addressed
 		configure(&cfg)
 	}
 	botClient := &fakeBotClient{}
-	srv, err := NewServer(quietLog, cfg, st, &fakeMessenger{}, botClient, &fakeMessenger{}, metrics.Disabled(), nil, WithPeople(pp))
+	var server *Server
+	capture := func(s *Server) { server = s }
+	srv, err := NewServer(quietLog, cfg, st, &fakeMessenger{}, botClient, &fakeMessenger{}, metrics.Disabled(), nil, WithPeople(pp), capture)
 	if err != nil {
 		t.Fatalf("NewServer: %v", err)
 	}
-	return addressedFixture{handler: srv.Handler, store: st, bot: botClient, people: pp}
+	return addressedFixture{server: server, handler: srv.Handler, store: st, bot: botClient, people: pp}
 }
 
 // sentTo lists the conversations messages went to, with their text, sorted.

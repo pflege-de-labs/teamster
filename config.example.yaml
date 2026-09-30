@@ -136,6 +136,10 @@ auth:
   # administrator for a role.
   default-role: "viewer"
   session-ttl: "12h"
+  # The claim with the user's Entra object id. With bot.global-install on, it
+  # is what finds their own Teams chat, instead of a link code (ADR 0065).
+  # Keycloak needs a mapper that passes the Entra oid through.
+  object-id-claim: "oid"
   # Delegated Teams/Channels (ADR 0037): lets the Destinations picker offer an
   # admin their own Teams alongside the tenant-wide list, using the Entra
   # token Keycloak already stored when it brokered this login against Entra.
