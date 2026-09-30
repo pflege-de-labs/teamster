@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/pflege-de-labs/teamster/internal/bot"
 	"github.com/pflege-de-labs/teamster/internal/models"
 	"github.com/pflege-de-labs/teamster/internal/teamsv2"
 	"github.com/pflege-de-labs/teamster/internal/templates"
@@ -54,7 +55,35 @@ func (s *Server) handlePreview(w http.ResponseWriter, r *http.Request) {
 
 	// templates.Message omits the parts a template does not have, so the browser
 	// can tell "no card" from "an empty card".
-	writeJSON(w, http.StatusOK, msg)
+	writeJSON(w, http.StatusOK, previewResponse{Message: msg, Payloads: s.previewPayloads(msg)})
+}
+
+// previewResponse is the rendered message and what delivery would send for it.
+type previewResponse struct {
+	templates.Message
+	Payloads previewPayloads `json:"payloads"`
+}
+
+// previewPayloads are the Bot Connector bodies, built by the code that sends
+// them (ADR 0058). The IDs are placeholders: a template has no destination.
+type previewPayloads struct {
+	Channel any `json:"channel"`
+	Chat    any `json:"chat"`
+}
+
+func (s *Server) previewPayloads(msg templates.Message) previewPayloads {
+	var out previewPayloads
+	if channel, err := botChannelMessage(s.channelMessage(msg)); err != nil {
+		out.Channel = map[string]string{"error": err.Error()}
+	} else {
+		out.Channel = bot.ChannelPostBody("<tenant-id>", "<channel-id>", channel)
+	}
+	if chat, err := s.chatMessage(msg); err != nil {
+		out.Chat = map[string]string{"error": err.Error()}
+	} else {
+		out.Chat = bot.ActivityBody(chat)
+	}
+	return out
 }
 
 func previewSamples() []string {

@@ -344,14 +344,18 @@ type channelConversationResponse struct {
 	ActivityID string `json:"activityId"`
 }
 
-// PostToChannel starts a new post in a Teams channel the bot's app is
-// installed in (ADR 0045). serviceURL is the team's regional endpoint.
-func (c *Client) PostToChannel(ctx context.Context, serviceURL, tenantID, channelID string, msg Message) (ChannelPost, error) {
-	base, err := serviceBase(serviceURL)
-	if err != nil {
-		return ChannelPost{}, err
-	}
-	resBody, err := c.doRequest(ctx, http.MethodPost, base+"/v3/conversations", channelConversationRequest{
+// ChannelPostBody is the body PostToChannel sends, so a preview can show it.
+func ChannelPostBody(tenantID, channelID string, msg Message) any {
+	return channelPostRequest(tenantID, channelID, msg)
+}
+
+// ActivityBody is the body SendMessage and UpdateMessage send.
+func ActivityBody(msg Message) any {
+	return msg.activity()
+}
+
+func channelPostRequest(tenantID, channelID string, msg Message) channelConversationRequest {
+	return channelConversationRequest{
 		IsGroup: true,
 		ChannelData: channelDataRequest{
 			Channel: idRef{ID: channelID},
@@ -359,7 +363,17 @@ func (c *Client) PostToChannel(ctx context.Context, serviceURL, tenantID, channe
 		},
 		Activity: msg.activity(),
 		TenantID: tenantID,
-	})
+	}
+}
+
+// PostToChannel starts a new post in a Teams channel the bot's app is
+// installed in (ADR 0045). serviceURL is the team's regional endpoint.
+func (c *Client) PostToChannel(ctx context.Context, serviceURL, tenantID, channelID string, msg Message) (ChannelPost, error) {
+	base, err := serviceBase(serviceURL)
+	if err != nil {
+		return ChannelPost{}, err
+	}
+	resBody, err := c.doRequest(ctx, http.MethodPost, base+"/v3/conversations", channelPostRequest(tenantID, channelID, msg))
 	if err != nil {
 		return ChannelPost{}, err
 	}

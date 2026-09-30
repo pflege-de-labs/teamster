@@ -177,8 +177,96 @@
       return;
     }
 
+    last = payload;
+    draw();
+  });
+
+  // The rendered view and the JSON views draw the same answer, so switching
+  // between them needs no new request.
+  const views = document.getElementById("preview-views");
+  const viewKey = "teamster.preview-view";
+  let last = null;
+  let view = "rendered";
+  try {
+    view = localStorage.getItem(viewKey) || view;
+  } catch (e) {
+    // Storage may be disabled; the preview then starts rendered every time.
+  }
+
+  function selectView(name) {
+    if (!views || !views.querySelector('[data-preview-view="' + name + '"]')) name = "rendered";
+    view = name;
+    if (views) {
+      views.querySelectorAll("[data-preview-view]").forEach((b) => {
+        b.setAttribute("aria-pressed", String(b.dataset.previewView === name));
+      });
+    }
+  }
+  selectView(view);
+
+  if (views) {
+    views.addEventListener("click", (event) => {
+      const choice = event.target.closest("[data-preview-view]");
+      if (!choice) return;
+      selectView(choice.dataset.previewView);
+      try {
+        localStorage.setItem(viewKey, view);
+      } catch (e) {
+        // Not remembered, but still switched.
+      }
+      if (last) draw();
+    });
+  }
+
+  function jsonView(body) {
+    const wrapper = document.createElement("div");
+    wrapper.className = "space-y-2";
+
+    const pre = document.createElement("pre");
+    pre.className = "max-h-[36rem] overflow-auto rounded-md border border-slate-200 bg-slate-50 p-3 font-mono text-xs text-slate-800";
+    pre.textContent = JSON.stringify(body, null, 2);
+
+    const footer = document.createElement("div");
+    footer.className = "flex items-center justify-between gap-2";
+    const note = document.createElement("p");
+    note.className = "text-xs text-slate-500";
+    note.textContent = views ? views.dataset.note : "";
+    const copy = document.createElement("button");
+    copy.type = "button";
+    copy.className = "rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:border-sky-400 hover:bg-sky-50";
+    copy.textContent = views ? views.dataset.copy : "Copy";
+    copy.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(pre.textContent);
+        copy.textContent = views ? views.dataset.copied : "Copied";
+      } catch (err) {
+        report("Copy failed: " + err.message);
+      }
+    });
+    footer.append(note, copy);
+
+    wrapper.append(pre, footer);
+    return wrapper;
+  }
+
+  function draw() {
+    const payload = last;
     if (payload.error) {
       report(payload.error);
+      return;
+    }
+
+    if (view !== "rendered") {
+      const body = payload.payloads && payload.payloads[view];
+      if (!body) {
+        report("The server sent no payload for this view.");
+        return;
+      }
+      if (body.error) {
+        report(body.error);
+        return;
+      }
+      output.replaceChildren(jsonView(body));
       return;
     }
 
@@ -202,5 +290,5 @@
       return;
     }
     output.replaceChildren(...parts);
-  });
+  }
 })();

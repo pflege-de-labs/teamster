@@ -908,3 +908,54 @@ func TestCreatePersonalConversation(t *testing.T) {
 		})
 	}
 }
+
+// A preview shows these bodies as what will be sent, so they must be exactly that.
+func TestBodiesMatchWhatIsSent(t *testing.T) {
+	t.Parallel()
+
+	msg := Message{Title: "Disk", Text: "full", Card: json.RawMessage(`{"type":"AdaptiveCard"}`), Summary: "Disk"}
+	tests := []struct {
+		name string
+		send func(*Client, ConversationReference) error
+		want any
+	}{
+		{
+			name: "channel post",
+			send: func(c *Client, ref ConversationReference) error {
+				_, err := c.PostToChannel(t.Context(), ref.ServiceURL, "tenant", "19:c@thread.tacv2", msg)
+				return err
+			},
+			want: ChannelPostBody("tenant", "19:c@thread.tacv2", msg),
+		},
+		{
+			name: "chat message",
+			send: func(c *Client, ref ConversationReference) error {
+				_, err := c.SendMessage(t.Context(), ref, msg)
+				return err
+			},
+			want: ActivityBody(msg),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var sent []byte
+			client, ref := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+				sent, _ = io.ReadAll(r.Body)
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(`{"id":"1","activityId":"1"}`))
+			})
+			if err := tt.send(client, ref); err != nil {
+				t.Fatalf("send: %v", err)
+			}
+			want, err := json.Marshal(tt.want)
+			if err != nil {
+				t.Fatalf("marshal: %v", err)
+			}
+			if got := strings.TrimSpace(string(sent)); got != string(want) {
+				t.Errorf("sent %s\nwant %s", got, want)
+			}
+		})
+	}
+}

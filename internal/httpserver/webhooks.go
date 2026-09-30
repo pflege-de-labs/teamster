@@ -634,7 +634,7 @@ func (s *Server) sourceDefaultTemplate(ctx context.Context, source string) (mode
 }
 
 // templatesPanelPath is where the hint card sends someone to create a template.
-const templatesPanelPath = "/admin#templates"
+const templatesPanelPath = "/admin?tab=templates"
 
 // untemplatedMessage is the payload's own content when it has any, and the
 // built-in default when it has none.

@@ -459,7 +459,7 @@ the only step it skips is the template lookup. A payload with none of the three 
 `templates.Default` instead. That message has a best-effort title, the state and description, and
 the event as a fenced JSON block. Every message without a template also carries
 `templates.Message.Notice`, a hint card that says no template is defined and links to
-`<server.external-url>/admin#templates` when that setting is configured. `channelMessage` appends
+`<server.external-url>/admin?tab=templates` when that setting is configured. `channelMessage` appends
 the hint after the message's own card. A chat has room for only one card, so `chatMessage` uses the
 hint as the card when there is none and turns it into a line of Markdown otherwise. See
 [ADR 0039](adr/0039-built-in-default-message.md).
@@ -890,6 +890,13 @@ menu on an outside click or Escape. The bottom of the sidebar shows the build ve
 its own — `/admin/recipients`, like `/admin/permissions` — posts to its own `/delete` endpoint and
 lands back on itself with the notice, not on the unrelated configuration page.
 
+`/admin` shows its sections as tabs: templates, destinations, webhooks, routes and, for an admin,
+grants. The server renders every panel and hides all but one, chosen from `tab`, then `edit`, then
+templates; an unknown or unavailable tab falls back to the first. The tabs are links, so they work
+without JavaScript. `web/tabs.js` switches them in place and rewrites the URL's `tab`. It also maps
+a `#section` fragment to its tab, so older links and cards already sent keep working. Each
+`formPost` names its tab and answers `/admin?tab=…`, so a save lands back where it was made.
+
 ### Editor completion
 
 The template's title, text and card fields, a route's label selector and the routing page's check
@@ -943,6 +950,11 @@ same `templates.Render` the delivery path uses, and returns the Adaptive Card JS
 draws it with the vendored renderer in `web/vendor`, in a sticky column beside the editor from the
 `lg` breakpoint up. A template that fails to render comes back as an error field with status 200,
 because a broken template is the answer the operator asked for.
+The answer also carries `payloads.channel` and `payloads.chat`: the Bot Connector bodies for a
+channel post and a chat message. They are built by `channelMessage`, `botChannelMessage` and
+`chatMessage` with `bot.ChannelPostBody` and `bot.ActivityBody`, the same code delivery uses, with
+placeholder tenant and channel IDs. The preview can switch between the drawn message and either
+body ([ADR 0058](adr/0058-preview-shows-the-wire-payload.md)).
 That directory's contents are pinned by package and version in `manifest.json`, and
 `internal/httpserver/vendor_test.go` verifies each file's SHA-256 against it and that the directory
 and the manifest list the same files. `make vendor` re-downloads at the pinned versions from the
