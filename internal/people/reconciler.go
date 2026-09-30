@@ -163,6 +163,9 @@ func (r *Reconciler) sync(ctx context.Context, p *progress) error {
 		}
 		return p.beat(ctx, false)
 	})
+	if permissionDenied(err) {
+		return fmt.Errorf("list members: the graph registration needs the User.Read.All application permission with admin consent: %w", err)
+	}
 	if err != nil {
 		return fmt.Errorf("list members: %w", err)
 	}

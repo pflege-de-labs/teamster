@@ -6,6 +6,7 @@ package people
 import (
 	"context"
 	"errors"
+	"net/http"
 	"time"
 
 	"github.com/pflege-de-labs/teamster/internal/graph"
@@ -36,6 +37,13 @@ func Reason(err error) string {
 	default:
 		return ""
 	}
+}
+
+// permissionDenied reports whether Graph refused err because the registration
+// lacks a permission, rather than because of the object asked about.
+func permissionDenied(err error) bool {
+	var apiErr *graph.APIError
+	return errors.As(err, &apiErr) && apiErr.Status == http.StatusForbidden && apiErr.Code == "Authorization_RequestDenied"
 }
 
 // Store is the part of store.Store this package uses.

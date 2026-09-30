@@ -10,6 +10,11 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 ## [Unreleased]
 
+### Fixed
+
+* A global install run refused for a missing permission now names `User.Read.All` in its error,
+  and the README explains why `User.ReadBasic.All` is not enough.
+
 ## [0.9.0] — 2026-09-30
 
 ### Added
