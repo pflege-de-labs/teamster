@@ -19,6 +19,7 @@ import (
 	"github.com/pflege-de-labs/teamster/internal/logging"
 	"github.com/pflege-de-labs/teamster/internal/metrics"
 	"github.com/pflege-de-labs/teamster/internal/models"
+	"github.com/pflege-de-labs/teamster/internal/people"
 	"github.com/pflege-de-labs/teamster/internal/samples"
 	"github.com/pflege-de-labs/teamster/internal/store"
 )
@@ -49,6 +50,27 @@ func sweepSessions(ctx context.Context, logger *slog.Logger, store sessionSweepe
 		case <-ticker.C:
 		}
 	}
+}
+
+// newReconciler wires the installer for every member of the tenant. Its owner
+// name tells replicas apart in the run table.
+func newReconciler(logger *slog.Logger, cfg *config.Config, st store.Store, dir *graph.Client, chats *bot.Client, rec people.Recorder) *people.Reconciler {
+	host, _ := os.Hostname()
+	owner := fmt.Sprintf("%s-%d", host, os.Getpid())
+	inst := people.NewInstaller(st, dir, chats, rec, people.InstallerConfig{
+		BotID:        cfg.Bot.ClientID,
+		ServiceURL:   cfg.Bot.ServiceURL,
+		AppID:        cfg.Bot.AppID,
+		CatalogAppID: cfg.Bot.CatalogAppID,
+		Global:       true,
+	})
+	return people.NewReconciler(logger, st, dir, inst, rec, people.ReconcilerConfig{
+		TenantID:    cfg.Graph.TenantID,
+		Interval:    cfg.Bot.ReconcileInterval,
+		Reverify:    cfg.Bot.ReverifyInterval,
+		Concurrency: cfg.Bot.InstallConcurrency,
+		Owner:       owner,
+	})
 }
 
 func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
@@ -113,6 +135,16 @@ func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
 	if err := telemetry.ObserveDestinationsWithoutApp(sqlStore.CountDestinationsWithoutBotTeam); err != nil {
 		return fmt.Errorf("destinations without app gauge: %w", err)
 	}
+	if err := telemetry.ObserveDirectoryUsers(func(ctx context.Context) (map[string]int64, error) {
+		counts, err := sqlStore.CountDirectoryUsersByState(ctx)
+		out := make(map[string]int64, len(counts))
+		for state, n := range counts {
+			out[string(state)] = n
+		}
+		return out, err
+	}); err != nil {
+		return fmt.Errorf("directory users gauge: %w", err)
+	}
 
 	// Binding here rather than in the goroutine, for the same reason the main
 	// listener does: an address already in use is an error to return, not a log
@@ -155,6 +187,8 @@ func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
 	// Nil for the same reason; NewServer then refuses every channel delivery
 	// with a reason, since Graph cannot post there (ADR 0045).
 	var channels httpserver.ChannelTransport
+	// Nil unless bot.global-install is on (ADR 0059).
+	var reconciler *people.Reconciler
 	if cfg.Bot.Configured() {
 		client, err := bot.NewClient(cfg.Bot, telemetry)
 		if err != nil {
@@ -162,6 +196,9 @@ func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
 		}
 		botClient = client
 		channels = httpserver.NewBotChannels(client, sqlStore, cfg.Bot, cfg.Graph.TenantID)
+		if cfg.Bot.GlobalInstall {
+			reconciler = newReconciler(logger, cfg, sqlStore, graphClient, client, telemetry)
+		}
 	} else {
 		logger.Warn("bot not configured: every channel delivery will fail, see ADR 0045")
 	}
@@ -200,6 +237,17 @@ func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
 		stopSampler()
 		<-samplerDone
 	}()
+
+	if reconciler != nil {
+		// Stopped with the process context: a run cut short is taken over or
+		// requested again, so there is nothing to drain.
+		reconcilerDone := make(chan struct{})
+		go func() {
+			defer close(reconcilerDone)
+			reconciler.Run(ctx)
+		}()
+		defer func() { <-reconcilerDone }()
+	}
 
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- srv.Serve(listener) }()

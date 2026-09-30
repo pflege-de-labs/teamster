@@ -46,6 +46,12 @@ type Metrics struct {
 	registration metric.Registration
 	withoutApp   metric.Int64ObservableGauge
 	appReg       metric.Registration
+
+	installs       metric.Int64Counter
+	lookups        metric.Int64Counter
+	reconcileRuns  metric.Int64Counter
+	directoryUsers metric.Int64ObservableGauge
+	directoryReg   metric.Registration
 }
 
 // New builds the pipeline the configuration asks for. It never returns a nil

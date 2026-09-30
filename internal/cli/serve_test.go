@@ -121,43 +121,63 @@ func TestServeShutsDownWhenTheContextIsCancelled(t *testing.T) {
 func TestServeConstructsABotClientWhenConfigured(t *testing.T) {
 	t.Parallel()
 
-	cfg := validConfig(t)
-	cfg.Server.Addr = freePort(t)
-	cfg.Bot = config.BotConfig{
-		TenantID:     "tenant",
-		ClientID:     "bot-client",
-		ClientSecret: "secret",
-		TimeoutSec:   10,
-		MetadataURL:  "https://bot.invalid/.well-known/openid-configuration",
-		DirectoryTTL: 24 * time.Hour,
+	tests := []struct {
+		name   string
+		global bool
+	}{
+		{name: "bot only"},
+		// The reconciler starts too, and stops with the process.
+		{name: "installing for everyone", global: true},
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-	done := make(chan error, 1)
-	go func() { done <- (&ServeCmd{}).Run(ctx, cfg) }()
+			cfg := validConfig(t)
+			cfg.Server.Addr = freePort(t)
+			cfg.Bot = config.BotConfig{
+				TenantID:     "tenant",
+				ClientID:     "bot-client",
+				ClientSecret: "secret",
+				TimeoutSec:   10,
+				MetadataURL:  "https://bot.invalid/.well-known/openid-configuration",
+				DirectoryTTL: 24 * time.Hour,
+			}
+			if tt.global {
+				cfg.Bot.GlobalInstall, cfg.Bot.AppID = true, "app"
+				cfg.Bot.ReconcileInterval, cfg.Bot.ReverifyInterval = time.Hour, 24*time.Hour
+				cfg.Bot.InstallConcurrency = 1
+			}
 
-	waitForServer(t, cfg.Server.Addr)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 
-	resp, err := http.Get(fmt.Sprintf("http://%s/healthz", cfg.Server.Addr))
-	if err != nil {
-		t.Fatalf("GET /healthz: %v", err)
-	}
-	_ = resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		t.Errorf("GET /healthz = %d, want 200", resp.StatusCode)
-	}
+			done := make(chan error, 1)
+			go func() { done <- (&ServeCmd{}).Run(ctx, cfg) }()
 
-	cancel()
+			waitForServer(t, cfg.Server.Addr)
 
-	select {
-	case err := <-done:
-		if err != nil {
-			t.Errorf("Run() = %v, want a clean shutdown", err)
-		}
-	case <-time.After(10 * time.Second):
-		t.Fatal("Run() did not return after the context was cancelled")
+			resp, err := http.Get(fmt.Sprintf("http://%s/healthz", cfg.Server.Addr))
+			if err != nil {
+				t.Fatalf("GET /healthz: %v", err)
+			}
+			_ = resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				t.Errorf("GET /healthz = %d, want 200", resp.StatusCode)
+			}
+
+			cancel()
+
+			select {
+			case err := <-done:
+				if err != nil {
+					t.Errorf("Run() = %v, want a clean shutdown", err)
+				}
+			case <-time.After(10 * time.Second):
+				t.Fatal("Run() did not return after the context was cancelled")
+			}
+		})
 	}
 }
 

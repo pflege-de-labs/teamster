@@ -94,6 +94,9 @@ The `graph` registration signs in as the application itself (client credentials)
 | `Team.ReadBasic.All` | the Team picker, and naming Teams in the routing graph, export and import |
 | `Channel.ReadBasic.All` | the channel picker, and naming channels in the same places |
 | `TeamsAppInstallation.ReadForTeam.All` (optional) | whether the bot's Teams app is installed in a team that has not told the bot itself |
+| `User.Read.All` (with `bot.global-install`) | listing the tenant's members, and finding a person by UPN or mail |
+| `TeamsAppInstallation.ReadWriteForUser.All` (with `bot.global-install`, optional) | installing the bot's Teams app for each member; without it, only people who already have the app are found |
+| `AppCatalog.Read.All` (with `bot.global-install`, unless `bot.catalog-app-id` is set) | finding the app in the organization catalog |
 
 **Graph does not post anything.** Microsoft Graph does not let an application post or edit
 channel messages:
@@ -263,6 +266,25 @@ reinstalled the bot would otherwise receive nothing again until an admin happene
 clear it by hand. `GET /api/recipients` and `DELETE /api/recipients/{id}` are the same list and
 unlink action over the API; the response omits the Bot Framework conversation reference, since
 nothing an admin does with this API needs it.
+
+#### Installing the bot for everyone
+
+With `bot.global-install: true`, Teamster installs the bot's Teams app for every enabled member of
+the tenant (not guests), so IT can message anyone without them linking a chat first
+([ADR 0059](docs/adr/0059-install-the-teams-app-for-every-member.md)).
+
+- The app has to be **published to the organization catalog**. Set `bot.app-id` to the manifest's
+  `id`, or `bot.catalog-app-id` to the catalog id, so Teamster can find it.
+- A **periodic run** every `bot.reconcile-interval` (default `6h`) installs for new members and
+  reinstalls for anyone who removed the app. Only one replica runs at a time.
+- People who already have the app, from a Teams **setup policy** for example, are only looked up.
+  Without `TeamsAppInstallation.ReadWriteForUser.All` Teamster installs nothing and only finds the
+  chats of people who already have the app.
+- A person who left is marked departed once a listing no longer returns them, and removed 30 days
+  later.
+
+Taking away the opt-out, an admin button that starts a run, and addressing messages to people are
+not built yet; see [milestone 23](docs/roadmap.md).
 
 Turning this on also needs a Teams app package: [`manifest/`](manifest/) holds the `manifest.json`
 and icons an operator uploads to Teams admin center so the bot can be installed at all, separate
@@ -1052,6 +1074,10 @@ metrics:
 | `teamster.render.failures` | events that never became a message, by template and stage |
 | `teamster.active_events` | cards currently tracked, one per open event per channel |
 | `teamster.destinations.without_app` | destinations in a team the bot's Teams app is not known to be installed in |
+| `teamster.app.installs` | people the installer handled, by outcome — installed, already, failed, ineligible |
+| `teamster.directory.lookups` | addresses resolved to a person, by where the answer came from |
+| `teamster.directory.runs` | install runs for the tenant, by kind and outcome |
+| `teamster.directory.users` | people in the directory, by install state |
 
 `app_missing` is a channel post the Bot Connector refused, which almost always means the Teams app is
 not installed in that team. Like `blocked`, it lasts until somebody acts, so alert on it and on
