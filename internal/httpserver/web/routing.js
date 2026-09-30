@@ -16,13 +16,15 @@
 
   const accents = {
     source: "#64748b",
+    endpoint: "#8b5cf6",
     route: "#0ea5e9",
     destination: "#10b981",
     template: "#f59e0b",
   };
 
   const headings = {
-    source: "Webhook",
+    source: "Webhooks",
+    endpoint: "Teams V2 endpoints",
     route: "Routes",
     destination: "Destinations",
     template: "Templates",
@@ -62,7 +64,7 @@
   // The template a route renders with is a label, not a node: rendering is not
   // a step the alert takes towards a channel.
   function templateLine(node) {
-    if (node.kind !== "route" || !node.template) return "";
+    if ((node.kind !== "route" && node.kind !== "endpoint") || !node.template) return "";
     if (node.template_missing) return "renders with a deleted template";
     return "renders with " + node.template + (node.template_inherited ? " (inherited)" : "");
   }
@@ -87,6 +89,7 @@
 
   // What an edge means, spelled out rather than left to the reader.
   function edgeLabel(link) {
+    if (link.kind === "direct") return "no routing";
     if (link.kind !== "refines") return "";
     return link.greedy ? "instead of" : "as well as";
   }
@@ -180,7 +183,7 @@
       .join("path")
       // A refinement is a step between two routes rather than a delivery, so it
       // is drawn differently as well as labelled.
-      .attr("stroke-dasharray", (d) => (d.kind === "refines" ? "5 4" : null))
+      .attr("stroke-dasharray", (d) => (d.kind === "refines" ? "5 4" : d.kind === "direct" ? "2 3" : null))
       .attr("marker-end", "url(#" + idPrefix + "arrow)")
       .attr("d", path);
 
@@ -296,12 +299,10 @@
         .translate(-minX, -minY),
     );
 
-    const start = nodes.find((candidate) => candidate.kind === "source");
     return {
       nodes: node,
       edges: link,
       edgeData: links,
-      sourceID: start ? start.id : null,
       arrows: { rest: "url(#" + idPrefix + "arrow)", match: "url(#" + idPrefix + "arrow-match)" },
     };
   }
@@ -309,14 +310,15 @@
   // A matched route is only half the answer: what an operator wants to see is
   // where that alert ends up. An alert can fan out across a tree of routes, so
   // the path is every node the server says it reaches, plus the edges between
-  // them and the ancestors they were reached through.
+  // them and the routes they were reached through. A root has one parent per
+  // webhook, so only the webhooks the server named are on the path.
   function pathOf(matched) {
     const nodeIDs = new Set(matched);
-    if (flow.sourceID) nodeIDs.add(flow.sourceID);
 
     const parents = new Map();
     flow.edgeData.forEach((link) => {
-      if (link.kind !== "delivers") parents.set(link.target, link.source);
+      if (link.kind !== "refines") return;
+      parents.set(link.target, link.source);
     });
     matched.forEach((id) => {
       let walked = 0;
@@ -436,7 +438,7 @@
       return;
     }
 
-    // The webhook source is always there, so it alone is not a graph worth drawing.
+    // The webhooks are always there, so they alone are not a graph worth drawing.
     if (graph.nodes.filter((node) => node.kind !== "source").length === 0) {
       empty(flowContainer, "Nothing to draw yet. Create a route, a destination and a template first.");
     } else {

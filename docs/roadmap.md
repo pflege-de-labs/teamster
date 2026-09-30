@@ -317,6 +317,11 @@ different from an edge to a destination. That is two graphs drawn on top of each
 
 Depends on milestone 5. No ADR: it is the same page drawing a changed model.
 
+Follow-up — done: the single "incoming messages" node became one origin per webhook. Alertmanager
+and universal each feed the roots their `teamster_source` pin allows, and each Teams V2 endpoint is
+drawn straight to its channel. The template graph also shows each webhook's default template.
+No ADR either, for the same reason.
+
 ## Milestone 7 — Fine-grained permissions — done
 
 Today an authenticated session can do anything. The roles we want are `admin`, `editor` and

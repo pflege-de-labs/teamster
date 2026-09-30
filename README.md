@@ -891,12 +891,17 @@ evaluated with child routes hanging off their parents, then the channels they de
 answers "which route would this alert take?": paste `key=value` labels and every route that
 delivers is named, explained, and the paths are picked out in colour while the rest dims.
 
+The picture starts at the webhook a message arrives at. The Alertmanager and universal webhooks feed
+every root route, except that a route whose selector pins `teamster_source` is fed only by that
+webhook. Each Teams V2 endpoint is drawn below them with a dotted arrow straight to its channel,
+since those messages are not routed.
+
 Route nodes show the labels they filter for and name the template they render with, marked when it
 is inherited. A dashed arrow between two routes is a refinement, labelled *as well as* or *instead
 of* depending on whether the child is greedy. A second graph below pairs templates with the routes
-that use them; a template with nothing beside it is used by no route. A route pointing at a deleted
-destination — or a deleted person — shows up as a missing node rather than disappearing. A route
-that delivers to both draws an arrow to each.
+that use them and the webhooks they are the default of; a template with nothing beside it is
+unused. A route pointing at a deleted destination — or a deleted person — shows up as a missing node
+rather than disappearing. A route that delivers to both draws an arrow to each.
 
 ## Backup and migration
 
