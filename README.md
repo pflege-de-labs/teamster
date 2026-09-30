@@ -878,8 +878,10 @@ auth:
 ```
 
 It is off by default and needs `auth.oidc-discovery-url` configured; a local login, or an OIDC login
-through a realm with no Entra federation, never sees the "My Teams" toggle regardless. Setting up
-the Keycloak side — Store Tokens, Stored Tokens Readable, the delegated Entra scopes — is covered in
+through a realm with no Entra federation, never sees the "My Teams" toggle regardless.
+`token-encryption-key` belongs to Teamster alone: it encrypts the Keycloak tokens Teamster stores in
+its own database, and Keycloak never sees it. Setting up the Keycloak side — Store Tokens, Stored
+Tokens Readable, the `broker` `read-token` role, the delegated Entra scopes — is covered in
 [Configuring Keycloak](docs/keycloak.md#delegated-teams-and-channels).
 
 ## Roles
