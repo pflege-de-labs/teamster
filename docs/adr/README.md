@@ -74,3 +74,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0057](0057-channel-posts-carry-a-feed-summary.md) | Send the title as the activity summary | Accepted |
 | [0058](0058-preview-shows-the-wire-payload.md) | The preview shows the payload delivery sends | Accepted |
 | [0059](0059-install-the-teams-app-for-every-member.md) | Install the Teams app for every member of the tenant | Accepted |
+| [0060](0060-directory-users-are-not-recipients.md) | Directory users are kept apart from linked recipients | Accepted |

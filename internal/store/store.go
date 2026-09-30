@@ -169,6 +169,37 @@ type Store interface {
 	// CountDestinationsWithoutBotTeam runs on every metrics collection.
 	CountDestinationsWithoutBotTeam(ctx context.Context) (int64, error)
 
+	// UpsertDirectoryUser records what Graph says about a person, stamped
+	// DirectorySeenAt (now when zero). It leaves the install state alone.
+	UpsertDirectoryUser(ctx context.Context, u models.DirectoryUser) error
+	GetDirectoryUser(ctx context.Context, aadObjectID string) (models.DirectoryUser, error)
+	// FindDirectoryUser matches an address against UPN, then mail, ignoring case.
+	FindDirectoryUser(ctx context.Context, address string) (models.DirectoryUser, error)
+	GetDirectoryUserByConversation(ctx context.Context, conversationID string) (models.DirectoryUser, error)
+	SetDirectoryUserInstalled(ctx context.Context, aadObjectID, conversationID, serviceURL string, at time.Time) error
+	// RecordDirectoryInstallFailure counts an attempt; next is when to retry,
+	// zero for never.
+	RecordDirectoryInstallFailure(ctx context.Context, aadObjectID string, state models.InstallState, lastError string, next, at time.Time) error
+	MarkDirectoryUserRemoved(ctx context.Context, aadObjectID string, at time.Time) error
+	ListDirectoryUsersDue(ctx context.Context, now, reverifyBefore time.Time, limit int) ([]models.DirectoryUser, error)
+	// MarkDirectoryUsersDeparted retires everyone a complete listing that
+	// started at seenBefore did not return.
+	MarkDirectoryUsersDeparted(ctx context.Context, seenBefore, at time.Time) (int64, error)
+	PurgeDepartedDirectoryUsers(ctx context.Context, before time.Time) (int64, error)
+	CountDirectoryUsersByState(ctx context.Context) (map[models.InstallState]int64, error)
+
+	// RequestDirectoryRun reports ErrConflict while another run is requested or
+	// running.
+	RequestDirectoryRun(ctx context.Context, r models.DirectoryRun) (models.DirectoryRun, error)
+	GetDirectoryRun(ctx context.Context, id string) (models.DirectoryRun, error)
+	LatestDirectoryRun(ctx context.Context) (models.DirectoryRun, error)
+	// ClaimDirectoryRun, HeartbeatDirectoryRun and FinishDirectoryRun report
+	// false when the run is not, or no longer, this owner's.
+	ClaimDirectoryRun(ctx context.Context, id, owner string, now, staleBefore time.Time) (bool, error)
+	HeartbeatDirectoryRun(ctx context.Context, id, owner string, counts models.RunCounts, now time.Time) (bool, error)
+	FinishDirectoryRun(ctx context.Context, id, owner string, state models.RunState, counts models.RunCounts, lastError string, now time.Time) (bool, error)
+	PruneDirectoryRuns(ctx context.Context, before time.Time) (int64, error)
+
 	ListAccessTokens(ctx context.Context) ([]models.AccessToken, error)
 	// CreateAccessToken reports ErrConflict when the name is taken.
 	CreateAccessToken(ctx context.Context, t models.AccessToken) (models.AccessToken, error)

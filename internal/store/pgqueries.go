@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"time"
 
 	"github.com/pflege-de-labs/teamster/internal/store/pgdb"
@@ -22,6 +23,10 @@ import (
 // added to the queries needs a method here too; the compiler says so.
 type pgQueries struct {
 	q *pgdb.Queries
+}
+
+func (p pgQueries) ClaimDirectoryRun(ctx context.Context, arg sqlitedb.ClaimDirectoryRunParams) (int64, error) {
+	return p.q.ClaimDirectoryRun(ctx, pgdb.ClaimDirectoryRunParams(arg))
 }
 
 func (p pgQueries) ClearDefaultDestination(ctx context.Context) error {
@@ -56,6 +61,18 @@ func (p pgQueries) CountDestinations(ctx context.Context) (int64, error) {
 
 func (p pgQueries) CountDestinationsWithoutBotTeam(ctx context.Context) (int64, error) {
 	return p.q.CountDestinationsWithoutBotTeam(ctx)
+}
+
+func (p pgQueries) CountDirectoryUsersByState(ctx context.Context) ([]sqlitedb.CountDirectoryUsersByStateRow, error) {
+	rows, err := p.q.CountDirectoryUsersByState(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]sqlitedb.CountDirectoryUsersByStateRow, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, sqlitedb.CountDirectoryUsersByStateRow(row))
+	}
+	return out, nil
 }
 
 func (p pgQueries) CreateAccessToken(ctx context.Context, arg sqlitedb.CreateAccessTokenParams) error {
@@ -174,6 +191,20 @@ func (p pgQueries) DeleteWebhookEndpoint(ctx context.Context, id string) error {
 	return p.q.DeleteWebhookEndpoint(ctx, id)
 }
 
+func (p pgQueries) FindDirectoryUserByMailKey(ctx context.Context, addressKey string) (sqlitedb.DirectoryUser, error) {
+	row, err := p.q.FindDirectoryUserByMailKey(ctx, addressKey)
+	return sqlitedb.DirectoryUser(row), err
+}
+
+func (p pgQueries) FindDirectoryUserByUPNKey(ctx context.Context, addressKey string) (sqlitedb.DirectoryUser, error) {
+	row, err := p.q.FindDirectoryUserByUPNKey(ctx, addressKey)
+	return sqlitedb.DirectoryUser(row), err
+}
+
+func (p pgQueries) FinishDirectoryRun(ctx context.Context, arg sqlitedb.FinishDirectoryRunParams) (int64, error) {
+	return p.q.FinishDirectoryRun(ctx, pgdb.FinishDirectoryRunParams(arg))
+}
+
 func (p pgQueries) GetAccessTokenByHash(ctx context.Context, tokenHash string) (sqlitedb.AccessToken, error) {
 	row, err := p.q.GetAccessTokenByHash(ctx, tokenHash)
 	return sqlitedb.AccessToken(row), err
@@ -207,6 +238,21 @@ func (p pgQueries) GetDefaultDestination(ctx context.Context) (sqlitedb.Destinat
 func (p pgQueries) GetDestination(ctx context.Context, id string) (sqlitedb.Destination, error) {
 	row, err := p.q.GetDestination(ctx, id)
 	return sqlitedb.Destination(row), err
+}
+
+func (p pgQueries) GetDirectoryRun(ctx context.Context, id string) (sqlitedb.DirectoryRun, error) {
+	row, err := p.q.GetDirectoryRun(ctx, id)
+	return sqlitedb.DirectoryRun(row), err
+}
+
+func (p pgQueries) GetDirectoryUser(ctx context.Context, aadObjectID string) (sqlitedb.DirectoryUser, error) {
+	row, err := p.q.GetDirectoryUser(ctx, aadObjectID)
+	return sqlitedb.DirectoryUser(row), err
+}
+
+func (p pgQueries) GetDirectoryUserByConversation(ctx context.Context, conversationID string) (sqlitedb.DirectoryUser, error) {
+	row, err := p.q.GetDirectoryUserByConversation(ctx, conversationID)
+	return sqlitedb.DirectoryUser(row), err
 }
 
 func (p pgQueries) GetRecipient(ctx context.Context, id string) (sqlitedb.Recipient, error) {
@@ -247,6 +293,11 @@ func (p pgQueries) GetWebhookEndpoint(ctx context.Context, id string) (sqlitedb.
 func (p pgQueries) GetWebhookEndpointBySlug(ctx context.Context, arg sqlitedb.GetWebhookEndpointBySlugParams) (sqlitedb.WebhookEndpoint, error) {
 	row, err := p.q.GetWebhookEndpointBySlug(ctx, pgdb.GetWebhookEndpointBySlugParams(arg))
 	return sqlitedb.WebhookEndpoint(row), err
+}
+
+func (p pgQueries) LatestDirectoryRun(ctx context.Context) (sqlitedb.DirectoryRun, error) {
+	row, err := p.q.LatestDirectoryRun(ctx)
+	return sqlitedb.DirectoryRun(row), err
 }
 
 func (p pgQueries) ListAccessTokens(ctx context.Context) ([]sqlitedb.AccessToken, error) {
@@ -373,12 +424,24 @@ func (p pgQueries) MarkDefaultDestination(ctx context.Context, id string) (int64
 	return p.q.MarkDefaultDestination(ctx, id)
 }
 
+func (p pgQueries) PruneDirectoryRuns(ctx context.Context, before sql.NullTime) (int64, error) {
+	return p.q.PruneDirectoryRuns(ctx, before)
+}
+
+func (p pgQueries) PurgeDepartedDirectoryUsers(ctx context.Context, before time.Time) (int64, error) {
+	return p.q.PurgeDepartedDirectoryUsers(ctx, before)
+}
+
 func (p pgQueries) ReapStaleClaim(ctx context.Context, arg sqlitedb.ReapStaleClaimParams) (int64, error) {
 	return p.q.ReapStaleClaim(ctx, pgdb.ReapStaleClaimParams(arg))
 }
 
 func (p pgQueries) ReapStaleClaimRecipient(ctx context.Context, arg sqlitedb.ReapStaleClaimRecipientParams) (int64, error) {
 	return p.q.ReapStaleClaimRecipient(ctx, pgdb.ReapStaleClaimRecipientParams(arg))
+}
+
+func (p pgQueries) RecordDirectoryInstallFailure(ctx context.Context, arg sqlitedb.RecordDirectoryInstallFailureParams) (int64, error) {
+	return p.q.RecordDirectoryInstallFailure(ctx, pgdb.RecordDirectoryInstallFailureParams(arg))
 }
 
 func (p pgQueries) ReleaseActiveEventClaim(ctx context.Context, arg sqlitedb.ReleaseActiveEventClaimParams) error {
@@ -391,6 +454,10 @@ func (p pgQueries) ReleaseActiveEventRecipientClaim(ctx context.Context, arg sql
 
 func (p pgQueries) RotateWebhookEndpointToken(ctx context.Context, arg sqlitedb.RotateWebhookEndpointTokenParams) error {
 	return p.q.RotateWebhookEndpointToken(ctx, pgdb.RotateWebhookEndpointTokenParams(arg))
+}
+
+func (p pgQueries) SetDirectoryUserInstalled(ctx context.Context, arg sqlitedb.SetDirectoryUserInstalledParams) (int64, error) {
+	return p.q.SetDirectoryUserInstalled(ctx, pgdb.SetDirectoryUserInstalledParams(arg))
 }
 
 func (p pgQueries) TakeLinkFlow(ctx context.Context, code string) (sqlitedb.LinkFlow, error) {
@@ -443,6 +510,14 @@ func (p pgQueries) ClearRecipientBlocked(ctx context.Context, id string) error {
 	return p.q.ClearRecipientBlocked(ctx, id)
 }
 
+func (p pgQueries) MarkDirectoryUserRemoved(ctx context.Context, arg sqlitedb.MarkDirectoryUserRemovedParams) (int64, error) {
+	return p.q.MarkDirectoryUserRemoved(ctx, pgdb.MarkDirectoryUserRemovedParams(arg))
+}
+
+func (p pgQueries) MarkDirectoryUsersDeparted(ctx context.Context, arg sqlitedb.MarkDirectoryUsersDepartedParams) (int64, error) {
+	return p.q.MarkDirectoryUsersDeparted(ctx, pgdb.MarkDirectoryUsersDepartedParams(arg))
+}
+
 func (p pgQueries) MarkRecipientBlocked(ctx context.Context, arg sqlitedb.MarkRecipientBlockedParams) error {
 	return p.q.MarkRecipientBlocked(ctx, pgdb.MarkRecipientBlockedParams(arg))
 }
@@ -453,6 +528,18 @@ func (p pgQueries) DeleteEventSamplesSeenBefore(ctx context.Context, lastSeen ti
 
 func (p pgQueries) DeleteExcessEventSampleValues(ctx context.Context, keep int64) (int64, error) {
 	return p.q.DeleteExcessEventSampleValues(ctx, keep)
+}
+
+func (p pgQueries) ListDirectoryUsersDue(ctx context.Context, arg sqlitedb.ListDirectoryUsersDueParams) ([]sqlitedb.DirectoryUser, error) {
+	rows, err := p.q.ListDirectoryUsersDue(ctx, pgdb.ListDirectoryUsersDueParams(arg))
+	if err != nil {
+		return nil, err
+	}
+	out := make([]sqlitedb.DirectoryUser, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, sqlitedb.DirectoryUser(row))
+	}
+	return out, nil
 }
 
 func (p pgQueries) ListEventSamples(ctx context.Context, maxRows int64) ([]sqlitedb.EventSample, error) {
@@ -471,6 +558,10 @@ func (p pgQueries) UpsertBotTeam(ctx context.Context, arg sqlitedb.UpsertBotTeam
 	return p.q.UpsertBotTeam(ctx, pgdb.UpsertBotTeamParams(arg))
 }
 
+func (p pgQueries) UpsertDirectoryUser(ctx context.Context, arg sqlitedb.UpsertDirectoryUserParams) error {
+	return p.q.UpsertDirectoryUser(ctx, pgdb.UpsertDirectoryUserParams(arg))
+}
+
 func (p pgQueries) UpsertEventSample(ctx context.Context, arg sqlitedb.UpsertEventSampleParams) error {
 	return p.q.UpsertEventSample(ctx, pgdb.UpsertEventSampleParams(arg))
 }
@@ -485,6 +576,14 @@ func (p pgQueries) UpsertSetting(ctx context.Context, arg sqlitedb.UpsertSetting
 
 func (p pgQueries) DeleteSetting(ctx context.Context, key string) error {
 	return p.q.DeleteSetting(ctx, key)
+}
+
+func (p pgQueries) HeartbeatDirectoryRun(ctx context.Context, arg sqlitedb.HeartbeatDirectoryRunParams) (int64, error) {
+	return p.q.HeartbeatDirectoryRun(ctx, pgdb.HeartbeatDirectoryRunParams(arg))
+}
+
+func (p pgQueries) InsertDirectoryRun(ctx context.Context, arg sqlitedb.InsertDirectoryRunParams) error {
+	return p.q.InsertDirectoryRun(ctx, pgdb.InsertDirectoryRunParams(arg))
 }
 
 func (p pgQueries) InsertSettingIfAbsent(ctx context.Context, arg sqlitedb.InsertSettingIfAbsentParams) (int64, error) {

@@ -6,6 +6,7 @@ package pgdb
 
 import (
 	"context"
+	"database/sql"
 	"time"
 )
 
@@ -20,6 +21,9 @@ type Querier interface {
 	// ClaimActiveEvent for what a caller does with the two ways this can come back
 	// empty.
 	ClaimActiveEventRecipient(ctx context.Context, arg ClaimActiveEventRecipientParams) (ActiveEventRecipient, error)
+	// ClaimDirectoryRun takes a requested run, or a running one whose owner has
+	// stopped writing heartbeats.
+	ClaimDirectoryRun(ctx context.Context, arg ClaimDirectoryRunParams) (int64, error)
 	ClearDefaultDestination(ctx context.Context) error
 	// ClearRecipientBlocked is MarkRecipientBlocked's mirror, run after a
 	// successful send or update. It is a no-op, not an error, on a recipient that
@@ -51,6 +55,7 @@ type Querier interface {
 	// CountDestinationsWithoutBotTeam counts destinations in a team the bot is
 	// not known to be installed in, which is what a missing install alert reads.
 	CountDestinationsWithoutBotTeam(ctx context.Context) (int64, error)
+	CountDirectoryUsersByState(ctx context.Context) ([]CountDirectoryUsersByStateRow, error)
 	CreateAccessToken(ctx context.Context, arg CreateAccessTokenParams) error
 	// Code generated from ../sqlite by internal/store/queries/gen. DO NOT EDIT.
 	//
@@ -123,6 +128,12 @@ type Querier interface {
 	DeleteSetting(ctx context.Context, key string) error
 	DeleteTemplate(ctx context.Context, id string) error
 	DeleteWebhookEndpoint(ctx context.Context, id string) error
+	FindDirectoryUserByMailKey(ctx context.Context, addressKey string) (DirectoryUser, error)
+	// FindDirectoryUserByUPNKey and FindDirectoryUserByMailKey take a lower-cased
+	// address. The adapter asks for the UPN first, so a UPN that is also
+	// somebody's alias wins.
+	FindDirectoryUserByUPNKey(ctx context.Context, addressKey string) (DirectoryUser, error)
+	FinishDirectoryRun(ctx context.Context, arg FinishDirectoryRunParams) (int64, error)
 	// GetAccessTokenByHash is how a webhook request is authenticated. Matching on
 	// the digest in SQL leaks nothing a timing attack could use: the digest of a
 	// guess says nothing about the digest of the token.
@@ -137,6 +148,9 @@ type Querier interface {
 	GetBrokerToken(ctx context.Context, sessionID string) (BrokerToken, error)
 	GetDefaultDestination(ctx context.Context) (Destination, error)
 	GetDestination(ctx context.Context, id string) (Destination, error)
+	GetDirectoryRun(ctx context.Context, id string) (DirectoryRun, error)
+	GetDirectoryUser(ctx context.Context, aadObjectID string) (DirectoryUser, error)
+	GetDirectoryUserByConversation(ctx context.Context, conversationID string) (DirectoryUser, error)
 	GetRecipient(ctx context.Context, id string) (Recipient, error)
 	// GetRecipientByConversation resolves the chat an inbound activity came from
 	// back to the person it belongs to. Ordered and limited rather than assuming
@@ -160,9 +174,20 @@ type Querier interface {
 	// only lookup a sender can reach, so it matches on the pair alone and leaves
 	// the token to a constant-time comparison outside SQL.
 	GetWebhookEndpointBySlug(ctx context.Context, arg GetWebhookEndpointBySlugParams) (WebhookEndpoint, error)
+	// HeartbeatDirectoryRun writes progress. No row changed means another replica
+	// took the run over, and this one has to stop.
+	HeartbeatDirectoryRun(ctx context.Context, arg HeartbeatDirectoryRunParams) (int64, error)
+	// Code generated from ../sqlite by internal/store/queries/gen. DO NOT EDIT.
+	//
+	// The statements are the SQLite ones with ? replaced by $n. Edit the SQLite
+	// file and run make generate.
+	// InsertDirectoryRun requests a run. It collides with the partial unique index
+	// while another run is requested or running.
+	InsertDirectoryRun(ctx context.Context, arg InsertDirectoryRunParams) error
 	// InsertSettingIfAbsent claims a key: it affects no row when another writer
 	// got there first, so a one-time step runs once even across replicas.
 	InsertSettingIfAbsent(ctx context.Context, arg InsertSettingIfAbsentParams) (int64, error)
+	LatestDirectoryRun(ctx context.Context) (DirectoryRun, error)
 	// Code generated from ../sqlite by internal/store/queries/gen. DO NOT EDIT.
 	//
 	// The statements are the SQLite ones with ? replaced by $n. Edit the SQLite
@@ -181,6 +206,10 @@ type Querier interface {
 	// The statements are the SQLite ones with ? replaced by $n. Edit the SQLite
 	// file and run make generate.
 	ListDestinations(ctx context.Context) ([]Destination, error)
+	// ListDirectoryUsersDue is a reconcile's work list: eligible people whose app
+	// is not known to be installed and whose next attempt has come, and installed
+	// ones not verified since reverify_before.
+	ListDirectoryUsersDue(ctx context.Context, arg ListDirectoryUsersDueParams) ([]DirectoryUser, error)
 	// The CAST keeps the parameter int64 in both dialects: Postgres would
 	// otherwise infer int32 for a LIMIT.
 	ListEventSamples(ctx context.Context, maxRows int64) ([]EventSample, error)
@@ -210,11 +239,19 @@ type Querier interface {
 	// file and run make generate.
 	ListWebhookEndpoints(ctx context.Context) ([]WebhookEndpoint, error)
 	MarkDefaultDestination(ctx context.Context, id string) (int64, error)
+	// MarkDirectoryUserRemoved follows Teams telling the bot it was removed. The
+	// conversation id stays: a reinstall reopens the same chat.
+	MarkDirectoryUserRemoved(ctx context.Context, arg MarkDirectoryUserRemovedParams) (int64, error)
+	// MarkDirectoryUsersDeparted retires everyone a complete listing did not
+	// return: they left, were disabled or stopped being members.
+	MarkDirectoryUsersDeparted(ctx context.Context, arg MarkDirectoryUsersDepartedParams) (int64, error)
 	// MarkRecipientBlocked records a permanent send failure. It is a narrow
 	// statement, not a call through UpdateRecipient, so a delivery failure --
 	// which only ever reads the conversation reference, never the rest of the row
 	// -- cannot clobber a field it never loaded.
 	MarkRecipientBlocked(ctx context.Context, arg MarkRecipientBlockedParams) error
+	PruneDirectoryRuns(ctx context.Context, before sql.NullTime) (int64, error)
+	PurgeDepartedDirectoryUsers(ctx context.Context, before time.Time) (int64, error)
 	// Code generated from ../sqlite by internal/store/queries/gen. DO NOT EDIT.
 	//
 	// The statements are the SQLite ones with ? replaced by $n. Edit the SQLite
@@ -234,6 +271,10 @@ type Querier interface {
 	// active_events.sql for why it is a statement of its own rather than folded
 	// into the claim below.
 	ReapStaleClaimRecipient(ctx context.Context, arg ReapStaleClaimRecipientParams) (int64, error)
+	// RecordDirectoryInstallFailure counts a failed attempt and says when the next
+	// one is due. state is failed, or ineligible when Graph refused for a reason
+	// retrying will not change.
+	RecordDirectoryInstallFailure(ctx context.Context, arg RecordDirectoryInstallFailureParams) (int64, error)
 	// ReleaseActiveEventClaim hands a claim back when the post failed, so the next
 	// attempt does not have to wait out the staleness cutoff. Deleting is safe
 	// because posted_at IS NULL says no card was ever created under it.
@@ -242,6 +283,9 @@ type Querier interface {
 	// the next attempt does not have to wait out the staleness cutoff.
 	ReleaseActiveEventRecipientClaim(ctx context.Context, arg ReleaseActiveEventRecipientClaimParams) error
 	RotateWebhookEndpointToken(ctx context.Context, arg RotateWebhookEndpointTokenParams) error
+	// SetDirectoryUserInstalled records the chat the bot has with a person, which
+	// is proof the app is installed however it got there.
+	SetDirectoryUserInstalled(ctx context.Context, arg SetDirectoryUserInstalledParams) (int64, error)
 	// TakeLinkFlow redeems a code once: the row is gone whether or not it had
 	// expired, so a code read over somebody's shoulder and typed twice binds
 	// nothing the second time.
@@ -280,6 +324,14 @@ type Querier interface {
 	// UpsertBotTeam records an install, or a newer service URL for one: both come
 	// from the same authenticated activity, and the latest one wins.
 	UpsertBotTeam(ctx context.Context, arg UpsertBotTeamParams) error
+	// Code generated from ../sqlite by internal/store/queries/gen. DO NOT EDIT.
+	//
+	// The statements are the SQLite ones with ? replaced by $n. Edit the SQLite
+	// file and run make generate.
+	// UpsertDirectoryUser records what Graph says about a person. It never touches
+	// the install columns, except that someone seen again after they were marked
+	// departed is back to unknown and due at once.
+	UpsertDirectoryUser(ctx context.Context, arg UpsertDirectoryUserParams) error
 	// Code generated from ../sqlite by internal/store/queries/gen. DO NOT EDIT.
 	//
 	// The statements are the SQLite ones with ? replaced by $n. Edit the SQLite
