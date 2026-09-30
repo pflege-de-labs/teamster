@@ -24,6 +24,8 @@ import (
 type Client struct {
 	baseURL    string
 	httpClient *http.Client
+	// sleep replaces the wait between throttled attempts; nil sleeps for real.
+	sleep func(context.Context, time.Duration) error
 }
 
 // Message is a rendered template on its way to a channel, which the bot posts
