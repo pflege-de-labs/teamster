@@ -31,6 +31,15 @@ const (
 		"- `/test` — send a test alert to this chat\n" +
 		"- `/unlink` — stop alerts arriving in this chat\n\n" +
 		"To link this chat, send me the code from **Notifications** in the Teamster admin UI."
+	// managedHelpReply is the list while the app is installed for everyone:
+	// nobody links or unlinks a chat then (ADR 0061).
+	managedHelpReply = "**Teamster commands**\n\n" +
+		"- `/help` — this list\n" +
+		"- `/status` — what reaches this chat\n" +
+		"- `/test` — send a test message to this chat"
+	managedUnlinkReply = "Your IT department sends messages to this chat, so it cannot be " +
+		"unlinked. Ask them if you think you should not receive these."
+	managedStatus       = "Your IT department sends messages to this chat through Teamster."
 	unknownCommandReply = "I don't know that command. Send /help for the ones I do."
 	notLinkedStatus     = "This chat is **not linked**. Get a link code from **Notifications** in the " +
 		"Teamster admin UI and send it to me here."
@@ -73,6 +82,10 @@ func (s *Server) handleBotCommand(ctx context.Context, activity botActivity, com
 	logging.FromContext(ctx).Info("bot command", "command", command)
 	switch command {
 	case commandHelp:
+		if s.cfg.Bot.GlobalInstall {
+			s.replyText(ctx, activity, managedHelpReply)
+			return
+		}
 		s.replyText(ctx, activity, helpReply)
 	case commandStatus:
 		s.replyText(ctx, activity, s.statusReply(ctx, activity.Conversation.ID))
@@ -86,6 +99,10 @@ func (s *Server) handleBotCommand(ctx context.Context, activity botActivity, com
 }
 
 func (s *Server) unlinkFromChat(ctx context.Context, activity botActivity) {
+	if s.cfg.Bot.GlobalInstall {
+		s.replyText(ctx, activity, managedUnlinkReply)
+		return
+	}
 	retired, err := s.retireLink(ctx, activity.Conversation.ID, "unlink command")
 	switch {
 	case err != nil:
@@ -102,6 +119,9 @@ func (s *Server) unlinkFromChat(ctx context.Context, activity botActivity) {
 func (s *Server) statusReply(ctx context.Context, conversationID string) string {
 	recipient, err := s.store.GetRecipientByConversation(ctx, conversationID)
 	if errors.Is(err, store.ErrNotFound) {
+		if s.cfg.Bot.GlobalInstall {
+			return managedStatus
+		}
 		return notLinkedStatus
 	}
 	if err != nil {
@@ -167,6 +187,11 @@ func plainMarkdown(s string) string {
 func (s *Server) sendTestAlert(ctx context.Context, activity botActivity) {
 	recipient, err := s.store.GetRecipientByConversation(ctx, activity.Conversation.ID)
 	if errors.Is(err, store.ErrNotFound) {
+		if s.cfg.Bot.GlobalInstall {
+			// No routes name a managed chat, so the reply itself is the test.
+			s.replyText(ctx, activity, "**"+testTitle+"**\n\n"+testText)
+			return
+		}
 		s.replyText(ctx, activity, testNotLinkedReply)
 		return
 	}

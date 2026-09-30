@@ -1,6 +1,7 @@
 # 0028. Self-service unlink resolves from the session, and a code can be cancelled
 
-* Status: Accepted
+* Status: Accepted, amended by [0061](0061-no-opt-out-when-installed-for-everyone.md): no unlink
+  while the app is installed for everyone
 * Date: 2026-09-16
 
 ## Context

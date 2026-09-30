@@ -65,6 +65,8 @@
   "notifications.code_heading": "Your link code",
   "notifications.cross_origin_rejected": "Cross-origin form post rejected.",
   "notifications.explainer": "Link your own Teams chat to receive the alerts routed to you. Unlink at any time to stop them.",
+  "notifications.managed": "Your IT department sends messages to your Teams chat through Teamster, so it cannot be unlinked here. Link it to your account below to also receive the alerts routed to you.",
+  "notifications.unlink_managed": "Your IT department manages this chat, so it cannot be unlinked.",
   "notifications.heading": "Alerts in your Teams chat",
   "notifications.last_updated": "This last changed on {0} — redeeming a new code updates it, but so does Teams silently reconnecting the same chat, so a change here on its own is not proof of a new link.",
   "notifications.linked_as": "Linked as {0}.",

@@ -1,6 +1,7 @@
 # 0032. A link can be retired from the chat it belongs to
 
-* Status: Accepted
+* Status: Accepted, amended by [0061](0061-no-opt-out-when-installed-for-everyone.md): no unlink
+  and no retiring on removal while the app is installed for everyone
 * Date: 2026-09-18
 
 ## Context

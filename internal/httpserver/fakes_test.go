@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"maps"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -31,6 +32,7 @@ type fakeStore struct {
 	webhooks     map[string]models.WebhookEndpoint
 	accessTokens map[string]models.AccessToken
 	botTeams     map[string]models.BotTeam
+	directory    map[string]models.DirectoryUser
 	routes       map[string]models.Route
 	activeEvents map[string]models.ActiveEvent
 	// Keyed and cloned separately from activeEvents, because the real store
@@ -67,6 +69,7 @@ func newFakeStore() *fakeStore {
 		webhooks:       map[string]models.WebhookEndpoint{},
 		accessTokens:   map[string]models.AccessToken{},
 		botTeams:       map[string]models.BotTeam{},
+		directory:      map[string]models.DirectoryUser{},
 		routes:         map[string]models.Route{},
 		activeEvents:   map[string]models.ActiveEvent{},
 		activeChats:    map[string]models.ActiveEventRecipient{},
@@ -1598,32 +1601,90 @@ func (f *fakeStore) PruneEventSamples(ctx context.Context, cutoff time.Time, kee
 	return 0, f.failing("PruneEventSamples")
 }
 
-// Nothing in httpserver reads the directory yet.
-func (f *fakeStore) UpsertDirectoryUser(ctx context.Context, u models.DirectoryUser) error {
-	return store.ErrNotFound
+// The directory, kept only as far as the bot handlers use it.
+
+func (f *fakeStore) UpsertDirectoryUser(_ context.Context, u models.DirectoryUser) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("UpsertDirectoryUser"); err != nil {
+		return err
+	}
+	existing, ok := f.directory[u.AADObjectID]
+	if ok {
+		u.ConversationID, u.ServiceURL, u.InstallState = existing.ConversationID, existing.ServiceURL, existing.InstallState
+		u.InstalledAt, u.NextAttemptAt, u.CreatedAt = existing.InstalledAt, existing.NextAttemptAt, existing.CreatedAt
+	} else {
+		u.InstallState, u.CreatedAt = models.InstallUnknown, time.Now()
+	}
+	f.directory[u.AADObjectID] = u
+	return nil
 }
 
-func (f *fakeStore) GetDirectoryUser(ctx context.Context, aadObjectID string) (models.DirectoryUser, error) {
+func (f *fakeStore) GetDirectoryUser(_ context.Context, aadObjectID string) (models.DirectoryUser, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("GetDirectoryUser"); err != nil {
+		return models.DirectoryUser{}, err
+	}
+	u, ok := f.directory[aadObjectID]
+	if !ok {
+		return models.DirectoryUser{}, store.ErrNotFound
+	}
+	return u, nil
+}
+
+func (f *fakeStore) FindDirectoryUser(_ context.Context, address string) (models.DirectoryUser, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, u := range f.directory {
+		if strings.EqualFold(u.UserPrincipalName, address) || strings.EqualFold(u.Mail, address) {
+			return u, nil
+		}
+	}
 	return models.DirectoryUser{}, store.ErrNotFound
 }
 
-func (f *fakeStore) FindDirectoryUser(ctx context.Context, address string) (models.DirectoryUser, error) {
+func (f *fakeStore) GetDirectoryUserByConversation(_ context.Context, conversationID string) (models.DirectoryUser, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, u := range f.directory {
+		if conversationID != "" && u.ConversationID == conversationID {
+			return u, nil
+		}
+	}
 	return models.DirectoryUser{}, store.ErrNotFound
 }
 
-func (f *fakeStore) GetDirectoryUserByConversation(ctx context.Context, conversationID string) (models.DirectoryUser, error) {
-	return models.DirectoryUser{}, store.ErrNotFound
+func (f *fakeStore) SetDirectoryUserInstalled(_ context.Context, aadObjectID, conversationID, serviceURL string, at time.Time) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("SetDirectoryUserInstalled"); err != nil {
+		return err
+	}
+	u, ok := f.directory[aadObjectID]
+	if !ok {
+		return store.ErrNotFound
+	}
+	u.ConversationID, u.ServiceURL, u.InstallState, u.InstalledAt = conversationID, serviceURL, models.InstallInstalled, at
+	f.directory[aadObjectID] = u
+	return nil
 }
 
-func (f *fakeStore) SetDirectoryUserInstalled(ctx context.Context, aadObjectID, conversationID, serviceURL string, at time.Time) error {
-	return store.ErrNotFound
+func (f *fakeStore) MarkDirectoryUserRemoved(_ context.Context, aadObjectID string, at time.Time) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("MarkDirectoryUserRemoved"); err != nil {
+		return err
+	}
+	u, ok := f.directory[aadObjectID]
+	if !ok {
+		return store.ErrNotFound
+	}
+	u.InstallState, u.NextAttemptAt = models.InstallRemoved, at
+	f.directory[aadObjectID] = u
+	return nil
 }
-
 func (f *fakeStore) RecordDirectoryInstallFailure(ctx context.Context, aadObjectID string, state models.InstallState, lastError string, next, at time.Time) error {
-	return store.ErrNotFound
-}
-
-func (f *fakeStore) MarkDirectoryUserRemoved(ctx context.Context, aadObjectID string, at time.Time) error {
 	return store.ErrNotFound
 }
 

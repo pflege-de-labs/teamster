@@ -15,6 +15,10 @@ type Notifications struct {
 	Notice string
 	Error  string
 
+	// Managed is set while the app is installed for everyone: the chat cannot
+	// be unlinked then (ADR 0061).
+	Managed bool
+
 	// StatusUnknown is set when Recipient is nil because the lookup failed,
 	// not because this subject is actually unlinked -- the two look the same
 	// through a nil pointer alone, and telling someone who is linked that they
@@ -64,7 +68,11 @@ func truncatedName(name string) string {
 templ NotificationsPage(page Notifications) {
 	@Layout(i18n.T(ctx, "page.notifications"), &page.Viewer) {
 		@notificationsNotice(page)
-		<p class="text-sm text-slate-600">{ i18n.T(ctx, "notifications.explainer") }</p>
+		if page.Managed {
+			<p class="text-sm text-slate-600">{ i18n.T(ctx, "notifications.managed") }</p>
+		} else {
+			<p class="text-sm text-slate-600">{ i18n.T(ctx, "notifications.explainer") }</p>
+		}
 		@notificationsStatus(page)
 		if page.Minted != nil {
 			@notificationsMinted(*page.Minted)
@@ -118,7 +126,7 @@ templ notificationsStatus(page Notifications) {
 						{ i18n.T(ctx, "notifications.cancel_code") }
 					</button>
 				</form>
-				if page.Recipient != nil {
+				if page.Recipient != nil && !page.Managed {
 					<form method="post" action="/admin/notifications/unlink">
 						<button
 							type="submit"

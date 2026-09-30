@@ -92,6 +92,12 @@ type botFixture struct {
 
 func newBotFixture(t *testing.T) *botFixture {
 	t.Helper()
+	return newBotFixtureWith(t, nil)
+}
+
+// newBotFixtureWith lets a test change the bot configuration first.
+func newBotFixtureWith(t *testing.T, configure func(*config.BotConfig)) *botFixture {
+	t.Helper()
 
 	key := generateBotKey(t, "fixture-key", "msteams")
 	idp := newBotIDP(t, key)
@@ -105,6 +111,9 @@ func newBotFixture(t *testing.T) *botFixture {
 		Webhook: config.WebhookConfig{Token: "token"},
 		Admin:   config.AdminConfig{Username: "admin", Password: "pass"},
 		Bot:     botTestConfig(idp, clientID),
+	}
+	if configure != nil {
+		configure(&cfg.Bot)
 	}
 	srv, err := NewServer(quietLog, cfg, st, &fakeMessenger{}, botClient, &fakeMessenger{}, newRecordingTelemetry(), nil)
 	if err != nil {

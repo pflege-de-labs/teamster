@@ -221,8 +221,8 @@ config:
       # Bot Connector endpoint for a team that has not yet sent the bot an
       # activity; the team's own replaces it once one arrives.
       # service-url: https://smba.trafficmanager.net/teams/
-      # Install the Teams app for every member (ADR 0059). Only the periodic
-      # reconcile is in effect yet; see config.example.yaml for each key.
+      # Install the Teams app for every member (ADR 0059) and take away the
+      # opt-out (ADR 0061); see config.example.yaml for each key.
       # global-install: false
       # app-id: ""
       # catalog-app-id: ""
