@@ -25,6 +25,20 @@ type RenderData struct {
 	// Payload is the request body as decoded JSON, for a sender whose shape
 	// Event does not capture -- a Teams V2 MessageCard, say. Nil elsewhere.
 	Payload any
+	// Recipient is the person a chat message is rendered for, zero for a
+	// channel (ADR 0063). A value, not a pointer, so a template reads its
+	// fields without a nil check.
+	Recipient Person
+}
+
+// Person is who a message is rendered for.
+type Person struct {
+	ID          string
+	DisplayName string
+	GivenName   string
+	Surname     string
+	UPN         string
+	Mail        string
 }
 
 // Message is a template rendered against an event. Title is the line the Teams

@@ -181,6 +181,10 @@ type Store interface {
 	// zero for never.
 	RecordDirectoryInstallFailure(ctx context.Context, aadObjectID string, state models.InstallState, lastError string, next, at time.Time) error
 	MarkDirectoryUserRemoved(ctx context.Context, aadObjectID string, at time.Time) error
+	// MarkDirectoryUserBlocked and ClearDirectoryUserBlocked keep the
+	// informational blocked flag, as for recipients.
+	MarkDirectoryUserBlocked(ctx context.Context, aadObjectID string, at time.Time, reason string) error
+	ClearDirectoryUserBlocked(ctx context.Context, aadObjectID string) error
 	ListDirectoryUsersDue(ctx context.Context, now, reverifyBefore time.Time, limit int) ([]models.DirectoryUser, error)
 	// MarkDirectoryUsersDeparted retires everyone a complete listing that
 	// started at seenBefore did not return.

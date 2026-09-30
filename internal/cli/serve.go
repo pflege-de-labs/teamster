@@ -52,18 +52,23 @@ func sweepSessions(ctx context.Context, logger *slog.Logger, store sessionSweepe
 	}
 }
 
-// newReconciler wires the installer for every member of the tenant. Its owner
-// name tells replicas apart in the run table.
-func newReconciler(logger *slog.Logger, cfg *config.Config, st store.Store, dir *graph.Client, chats *bot.Client, rec people.Recorder) *people.Reconciler {
-	host, _ := os.Hostname()
-	owner := fmt.Sprintf("%s-%d", host, os.Getpid())
-	inst := people.NewInstaller(st, dir, chats, rec, people.InstallerConfig{
+// newInstaller opens chats with people, and installs the app for them when
+// bot.global-install allows.
+func newInstaller(cfg *config.Config, st store.Store, dir *graph.Client, chats *bot.Client, rec people.Recorder) *people.Installer {
+	return people.NewInstaller(st, dir, chats, rec, people.InstallerConfig{
 		BotID:        cfg.Bot.ClientID,
 		ServiceURL:   cfg.Bot.ServiceURL,
 		AppID:        cfg.Bot.AppID,
 		CatalogAppID: cfg.Bot.CatalogAppID,
-		Global:       true,
+		Global:       cfg.Bot.GlobalInstall,
 	})
+}
+
+// newReconciler wires the installer for every member of the tenant. Its owner
+// name tells replicas apart in the run table.
+func newReconciler(logger *slog.Logger, cfg *config.Config, st store.Store, dir *graph.Client, inst *people.Installer, rec people.Recorder) *people.Reconciler {
+	host, _ := os.Hostname()
+	owner := fmt.Sprintf("%s-%d", host, os.Getpid())
 	return people.NewReconciler(logger, st, dir, inst, rec, people.ReconcilerConfig{
 		TenantID:    cfg.Graph.TenantID,
 		Interval:    cfg.Bot.ReconcileInterval,
@@ -189,6 +194,7 @@ func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
 	var channels httpserver.ChannelTransport
 	// Nil unless bot.global-install is on (ADR 0059).
 	var reconciler *people.Reconciler
+	var serverOpts []httpserver.Option
 	if cfg.Bot.Configured() {
 		client, err := bot.NewClient(cfg.Bot, telemetry)
 		if err != nil {
@@ -196,8 +202,15 @@ func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
 		}
 		botClient = client
 		channels = httpserver.NewBotChannels(client, sqlStore, cfg.Bot, cfg.Graph.TenantID)
+		// Messages can name people whenever the bot is there; only installing
+		// for them waits on global install (ADR 0063).
+		inst := newInstaller(cfg, sqlStore, graphClient, client, telemetry)
+		serverOpts = append(serverOpts, httpserver.WithPeople(people.Finder{
+			Resolver:  people.NewResolver(sqlStore, graphClient, telemetry, cfg.Graph.TenantID, cfg.Bot.DirectoryTTL),
+			Installer: inst,
+		}))
 		if cfg.Bot.GlobalInstall {
-			reconciler = newReconciler(logger, cfg, sqlStore, graphClient, client, telemetry)
+			reconciler = newReconciler(logger, cfg, sqlStore, graphClient, inst, telemetry)
 		}
 	} else {
 		logger.Warn("bot not configured: every channel delivery will fail, see ADR 0045")
@@ -208,7 +221,7 @@ func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
 		return fmt.Errorf("samples: %w", err)
 	}
 
-	srv, err := httpserver.NewServer(logger, *cfg, sqlStore, graphClient, botClient, channels, telemetry, sampler)
+	srv, err := httpserver.NewServer(logger, *cfg, sqlStore, graphClient, botClient, channels, telemetry, sampler, serverOpts...)
 	if err != nil {
 		return fmt.Errorf("http server: %w", err)
 	}

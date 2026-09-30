@@ -943,18 +943,3 @@ func TestRoutingGraphDrawsAddressedPeople(t *testing.T) {
 		t.Errorf("match = %s, want the addressed delivery and node", rec.Body.String())
 	}
 }
-
-func TestAddressedDeliveryFailsUntilMessagesNamePeople(t *testing.T) {
-	t.Parallel()
-
-	for _, state := range []string{`"state":"open",`, ""} {
-		st := newFakeStore()
-		st.routes["pw"] = models.Route{ID: "pw", Name: "Passwords", Addressed: true, LabelSelector: map[string]string{"kind": "password"}}
-		handler := newTestServer(t, st, &fakeMessenger{}).Handler
-
-		rec := postWebhook(t, handler, "/webhook/universal", "token", `{`+state+`"key":"k","labels":{"kind":"password"}}`)
-		if rec.Code != http.StatusBadGateway {
-			t.Errorf("addressed delivery %q = %d, want 502 until messages can name people", state, rec.Code)
-		}
-	}
-}

@@ -98,6 +98,18 @@ func TestConformanceDirectoryUsers(t *testing.T) {
 		if got, _ := st.GetDirectoryUser(ctx, "oid-alice"); got.InstallState != models.InstallFailed || got.Attempts != 2 || got.LastError != "403 Forbidden" || !got.NextAttemptAt.Equal(next) {
 			t.Errorf("after two failures = %+v", got)
 		}
+		if err := st.MarkDirectoryUserBlocked(ctx, "oid-alice", at, "MessageWritesBlocked"); err != nil {
+			t.Fatalf("MarkDirectoryUserBlocked: %v", err)
+		}
+		if got, _ := st.GetDirectoryUser(ctx, "oid-alice"); got.BlockedReason != "MessageWritesBlocked" || !got.BlockedAt.Equal(at) {
+			t.Errorf("blocked = %q at %v", got.BlockedReason, got.BlockedAt)
+		}
+		if err := st.ClearDirectoryUserBlocked(ctx, "oid-alice"); err != nil {
+			t.Fatalf("ClearDirectoryUserBlocked: %v", err)
+		}
+		if got, _ := st.GetDirectoryUser(ctx, "oid-alice"); got.BlockedReason != "" || !got.BlockedAt.IsZero() {
+			t.Errorf("after clearing = %q at %v", got.BlockedReason, got.BlockedAt)
+		}
 		if err := st.MarkDirectoryUserRemoved(ctx, "oid-nobody", at); !errors.Is(err, store.ErrNotFound) {
 			t.Errorf("MarkDirectoryUserRemoved() for an unknown user = %v, want ErrNotFound", err)
 		}

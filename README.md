@@ -299,8 +299,9 @@ rather than at the next interval; `POST /api/people/install` does the same, and
 
 A route can deliver to **People named in the message** instead of a channel or one person: pick
 it in **Delivers to**. Only an admin may create, edit or delete such a route
-([ADR 0062](docs/adr/0062-a-route-may-deliver-to-the-people-a-message-names.md)). Messages cannot
-name people yet, so a delivery through one still fails; see [milestone 23](docs/roadmap.md).
+([ADR 0062](docs/adr/0062-a-route-may-deliver-to-the-people-a-message-names.md)). A message names
+the people in `recipients` or the `teamster_recipient` label; see
+[Messages to individual people](#messages-to-individual-people).
 
 Turning this on also needs a Teams app package: [`manifest/`](manifest/) holds the `manifest.json`
 and icons an operator uploads to Teams admin center so the bot can be installed at all, separate
@@ -410,6 +411,43 @@ such lifecycle, is delivered once and tracked nowhere, the same fire-and-forget 
 V2 webhook below has, just routed and templated first. Any other `state` is refused with `400`.
 Alertmanager's `firing` and `resolved` arrive as `open` and `closed`. See
 [ADR 0056](docs/adr/0056-events-not-alerts.md).
+
+### Messages to individual people
+
+A message names the people it is for in a top-level `recipients` list: UPNs, mail addresses or
+Entra object ids. A sender without such a field, such as Alertmanager, sets the label
+`teamster_recipient`, several addresses separated by commas. The list wins when both are there. A
+route whose **Delivers to** is **People named in the message** sends each of them their own message,
+rendered for them, so a template can greet them by `{{ .Recipient.GivenName }}`
+([ADR 0063](docs/adr/0063-a-message-names-its-recipients.md)). See
+[samples/universal-password-expiry.json](samples/universal-password-expiry.json).
+
+- A person is looked up in the directory Teamster keeps, and in Graph when they are not there or
+  the entry is older than `bot.directory-ttl`. Guests, disabled accounts and people who left are not
+  reached.
+- The bot needs a chat with them. With `bot.global-install` on, a message may install the app for
+  up to `bot.inline-install-budget` people who lack it; the rest wait for the next run.
+- A message may name at most `webhook.max-recipients` people (default 100) and is refused with
+  `400` above that. Up to `webhook.fanout-concurrency` people are sent to at once.
+- With `state` `open`, each person's message is updated in place on a repeat, and a `closed` post
+  with the same `key` sends each person the close; it does not need to repeat the recipients. A
+  message with no `key` gets one derived from its labels, time, url and recipients.
+
+The answer says who was not reached:
+
+| Answer | Means |
+| --- | --- |
+| `200 {"status":"ok"}` | Everything was delivered. |
+| `200 {"status":"partial", "delivered": n, "undelivered": [...]}` | Some people cannot be reached, and a retry will not change that. |
+| `422 {"status":"undelivered", ...}` | Nobody could be reached. Alertmanager does not retry a 4xx. |
+| `502` | Something that may come right failed. Retry. |
+
+Each entry in `undelivered` has the `recipient` as given and a `reason`: `invalid-address`,
+`unknown-recipient`, `ineligible`, `not-installed`, `no-recipient` (the route addresses people and
+the message named none) or `blocked` (the person blocked or removed the bot).
+
+A message without a `state` that is retried after a `502` is delivered again to everybody, because
+nothing identifies it as the same message. Use `state` `open` and a `key` when that matters.
 
 ### Authenticating a sender
 
@@ -735,6 +773,8 @@ Templates receive:
 - `Event` (the normalized event, below)
 - `Now` (RFC3339 string)
 - `Payload` (the request body as decoded JSON; Teams V2 only)
+- `Recipient` (who a chat message is rendered for: `ID`, `DisplayName`, `GivenName`, `Surname`,
+  `UPN`, `Mail`; empty for a channel, and only `ID` and `DisplayName` for a linked chat)
 
 Every event has the same core, whichever webhook it arrived at:
 
@@ -751,7 +791,7 @@ What only one webhook knows lives in that webhook's extension:
 | Extension | Fields |
 | --- | --- |
 | `.Event.Alertmanager` | `Annotations`, `StartsAt`, `EndsAt`, `GeneratorURL`, and the group's `Receiver`, `GroupKey`, `GroupLabels`, `CommonLabels`, `CommonAnnotations`, `ExternalURL` |
-| `.Event.Universal` | `Attributes`, `Time`, `URL` |
+| `.Event.Universal` | `Attributes`, `Time`, `URL`, `Recipients` |
 
 An extension is nil for every other webhook, and a template that reaches into a nil one fails to
 render. A template that handles one webhook only can read its extension directly —
@@ -869,6 +909,8 @@ See the JSON examples in [samples](samples):
 - [samples/universal-message.json](samples/universal-message.json)
 - [samples/universal-direct-message.json](samples/universal-direct-message.json) — direct
   content, for a route with no template
+- [samples/universal-password-expiry.json](samples/universal-password-expiry.json) — a message to
+  the people it names
 - [samples/teamsv2-card.json](samples/teamsv2-card.json)
 - [samples/teamsv2-text.json](samples/teamsv2-text.json)
 - [samples/teamsv2-messagecard.json](samples/teamsv2-messagecard.json)

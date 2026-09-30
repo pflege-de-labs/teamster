@@ -97,6 +97,10 @@ type Server struct {
 	// samples is nil when nothing samples, as in most tests.
 	samples sampler
 
+	// people is nil unless the bot is configured: messages then cannot name
+	// the people an addressed route delivers to (ADR 0063).
+	people peopleFinder
+
 	// now is the clock delivery stamps claims from. It is a field so a test
 	// can move time forward past a claim's staleness cutoff without waiting.
 	now func() time.Time
@@ -116,7 +120,7 @@ func readHeaderTimeout(readTimeout time.Duration) time.Duration {
 // NewServer returns an error rather than starting without an authorizer: a
 // policy file that does not parse would otherwise leave every check to fall
 // through to whatever the zero value decides.
-func NewServer(logger *slog.Logger, cfg config.Config, store store.Store, graphClient messenger, botClient botSender, channels ChannelTransport, tel telemetry, samples sampler) (*http.Server, error) {
+func NewServer(logger *slog.Logger, cfg config.Config, store store.Store, graphClient messenger, botClient botSender, channels ChannelTransport, tel telemetry, samples sampler, opts ...Option) (*http.Server, error) {
 	registerMIMETypes()
 
 	authorizer, err := authz.New()
@@ -169,6 +173,9 @@ func NewServer(logger *slog.Logger, cfg config.Config, store store.Store, graphC
 		broker:    brokerClient,
 		sealer:    sealer,
 		samples:   samples,
+	}
+	for _, opt := range opts {
+		opt(api)
 	}
 
 	mux := http.NewServeMux()

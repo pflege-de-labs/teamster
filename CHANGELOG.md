@@ -24,6 +24,11 @@ reasoning behind it in the [ADRs](docs/adr/).
 * A route may deliver to the people a message names, picked as **People named in the message** in
   **Delivers to**. Only admins may create one
   ([ADR 0062](docs/adr/0062-a-route-may-deliver-to-the-people-a-message-names.md)).
+* A universal message names its people in `recipients`, and any message in the
+  `teamster_recipient` label. Each person gets their own message, rendered with `.Recipient`, and
+  the answer lists who was not reached: `200 partial`, or `422` when nobody was
+  ([ADR 0063](docs/adr/0063-a-message-names-its-recipients.md),
+  [ADR 0064](docs/adr/0064-chat-claims-for-people-share-the-recipient-table.md)).
 * **People** (`/admin/people`, admins only) shows install progress for the whole tenant and starts
   a run on demand; `GET /api/people/runs/latest` and `POST /api/people/install` are the same over
   the API.

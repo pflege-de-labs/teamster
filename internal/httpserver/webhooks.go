@@ -40,6 +40,7 @@ func (s *Server) handleAlertmanager(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var all report
 	for _, alert := range payload.Alerts {
 		ev := models.Event{
 			Source: models.SourceAlertmanager,
@@ -60,13 +61,15 @@ func (s *Server) handleAlertmanager(w http.ResponseWriter, r *http.Request) {
 			},
 		}
 		s.metrics.WebhookReceived(ctx, ev.Source, string(ev.State))
-		if err := s.processEvent(ctx, ev); err != nil {
-			writeError(w, r, http.StatusBadGateway, err)
+		one, err := s.processEvent(ctx, ev)
+		all.add(one)
+		if err != nil {
+			writeReport(w, r, all, err)
 			return
 		}
 	}
 
-	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	writeReport(w, r, all, nil)
 }
 
 func (s *Server) handleUniversal(w http.ResponseWriter, r *http.Request) {
@@ -103,16 +106,13 @@ func (s *Server) handleUniversal(w http.ResponseWriter, r *http.Request) {
 			Attributes: payload.Attributes,
 			Time:       payload.Time,
 			URL:        payload.URL,
+			Recipients: payload.Recipients,
 		},
 	}
 
 	s.metrics.WebhookReceived(ctx, ev.Source, string(ev.State))
-	if err := s.processEvent(ctx, ev); err != nil {
-		writeError(w, r, http.StatusBadGateway, err)
-		return
-	}
-
-	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	rep, err := s.processEvent(ctx, ev)
+	writeReport(w, r, rep, err)
 }
 
 // alertmanagerState maps Alertmanager's vocabulary onto the event lifecycle.
@@ -133,7 +133,10 @@ func alertmanagerState(status string) models.EventState {
 // below, because that is what lets a repeat edit a card instead of posting a
 // second one and a close clear it. No state -- the normal case for a sender
 // with no lifecycle -- is delivered once and tracked nowhere (ADR 0035).
-func (s *Server) processEvent(ctx context.Context, ev models.Event) error {
+func (s *Server) processEvent(ctx context.Context, ev models.Event) (report, error) {
+	if err := s.checkRecipients(ev); err != nil {
+		return report{}, err
+	}
 	if ev.Key == "" {
 		ev.Key = deriveKey(ev)
 	}
@@ -148,37 +151,26 @@ func (s *Server) processEvent(ctx context.Context, ev models.Event) error {
 
 	result, err := s.router.Plan(ctx, ev.Labels)
 	if err != nil {
-		return fmt.Errorf("route: %w", err)
+		return report{}, fmt.Errorf("route: %w", err)
 	}
 	switch result.Reason {
 	case routing.ReasonNoRoutes:
-		return errors.New("no routes configured")
+		return report{}, errors.New("no routes configured")
 	case routing.ReasonNone:
-		return errors.New("no matching route and no default route")
+		return report{}, errors.New("no matching route and no default route")
 	}
 
-	switch ev.State {
-	case models.StateClosed:
-		return s.closeEvent(ctx, ev, result.Deliveries)
-	case models.StateOpen:
-		return s.deliverAll(ctx, ev, result.Deliveries, s.deliver)
-	default:
-		return s.deliverAll(ctx, ev, result.Deliveries, s.deliverOnce)
+	// A close walks the rows the open left, so it needs nobody resolved.
+	if ev.State == models.StateClosed {
+		return report{}, s.closeEvent(ctx, ev, result.Deliveries)
 	}
-}
 
-// deliverAll attempts every delivery and reports failures together, so one
-// channel refusing the message does not cost the others theirs.
-func (s *Server) deliverAll(ctx context.Context, ev models.Event, deliveries []routing.Delivery,
-	deliverFn func(context.Context, models.Event, routing.Delivery) error,
-) error {
-	var failures []error
-	for _, delivery := range deliveries {
-		if err := deliverFn(ctx, ev, delivery); err != nil {
-			failures = append(failures, fmt.Errorf("route %s: %w", delivery.RouteName, err))
-		}
-	}
-	return errors.Join(failures...)
+	// Every delivery is attempted, and failures are reported together, so one
+	// channel or person refusing the message does not cost the others theirs.
+	plan, rep, addressOf, expandErr := s.expandAddressed(ctx, ev, result.Deliveries)
+	delivered, deliverErr := s.deliverEvent(ctx, ev, plan, addressOf, ev.State != models.StateOpen)
+	rep.add(delivered)
+	return rep, errors.Join(expandErr, deliverErr)
 }
 
 // errCardInFlight says another instance is inside its Bot Connector call for this very
@@ -217,14 +209,19 @@ func (s *Server) deliver(ctx context.Context, ev models.Event, delivery routing.
 	case routing.DeliveryRecipient:
 		return s.deliverToRecipient(ctx, ev, delivery)
 	case routing.DeliveryAddressed:
-		return errAddressedUnsupported
+		return s.deliverAddressed(ctx, ev, delivery, false)
 	}
 	return s.deliverToChannel(ctx, ev, delivery)
 }
 
-// errAddressedUnsupported fails a delivery to the people a message names until
-// messages can name them.
-var errAddressedUnsupported = errors.New("this route delivers to the people a message names, which messages cannot do yet")
+// deliverAddressed sends to the person an addressed delivery was expanded to.
+// One that was not expanded means the deployment has no bot to find people with.
+func (s *Server) deliverAddressed(ctx context.Context, ev models.Event, delivery routing.Delivery, once bool) error {
+	if delivery.PersonID == "" {
+		return errNoBotConfigured
+	}
+	return s.deliverToPerson(ctx, ev, delivery, once)
+}
 
 // deliverOnce is deliver's counterpart for a message with no tracked
 // lifecycle: nothing identifies a later post as the same event, so there is
@@ -236,7 +233,7 @@ func (s *Server) deliverOnce(ctx context.Context, ev models.Event, delivery rout
 	case routing.DeliveryRecipient:
 		return s.deliverToRecipientOnce(ctx, ev, delivery)
 	case routing.DeliveryAddressed:
-		return errAddressedUnsupported
+		return s.deliverAddressed(ctx, ev, delivery, true)
 	}
 	return s.deliverToChannelOnce(ctx, ev, delivery)
 }
@@ -459,7 +456,7 @@ func (s *Server) closeChatMessages(ctx context.Context, ev models.Event, plan []
 			continue
 		}
 
-		rendered, err := s.renderMessage(ctx, ev, delivery)
+		rendered, err := s.renderMessageFor(ctx, ev, delivery, target.person)
 		if err != nil {
 			failures = append(failures, err)
 			continue
@@ -531,6 +528,17 @@ func (s *Server) channelDeliveryFor(ctx context.Context, card models.ActiveEvent
 // recipientDeliveryFor is the same for a chat message, and needs no store
 // lookup: a delivery names the recipient the row is keyed by directly.
 func recipientDeliveryFor(recipientID string, plan []routing.Delivery) (routing.Delivery, error) {
+	// A person's row is closed by the addressed route that opened it, or the
+	// first one the plan still has.
+	if oid, ok := strings.CutPrefix(recipientID, personKeyPrefix); ok {
+		addressed := deliveriesOfKind(plan, routing.DeliveryAddressed)
+		if len(addressed) == 0 {
+			return routing.Delivery{}, fmt.Errorf("no route renders the message to %s", oid)
+		}
+		delivery := addressed[0]
+		delivery.PersonID = oid
+		return delivery, nil
+	}
 	recipients := deliveriesOfKind(plan, routing.DeliveryRecipient)
 	for _, delivery := range recipients {
 		if delivery.RecipientID == recipientID {
@@ -569,6 +577,12 @@ func deliveriesOfKind(plan []routing.Delivery, kind routing.DeliveryKind) []rout
 // the built-in default, and every untemplated message carries the hint card
 // (ADR 0039). Between the two sits the source's default template (ADR 0055).
 func (s *Server) renderMessage(ctx context.Context, ev models.Event, delivery routing.Delivery) (templates.Message, error) {
+	return s.renderMessageFor(ctx, ev, delivery, templates.Person{})
+}
+
+// renderMessageFor renders for one person, whom the template reads as
+// .Recipient; a channel renders for nobody.
+func (s *Server) renderMessageFor(ctx context.Context, ev models.Event, delivery routing.Delivery, person templates.Person) (templates.Message, error) {
 	template, found, err := s.deliveryTemplate(ctx, ev, delivery)
 	if err != nil {
 		return templates.Message{}, err
@@ -588,8 +602,9 @@ func (s *Server) renderMessage(ctx context.Context, ev models.Event, delivery ro
 	}
 
 	rendered, err := templates.RenderMessage(template, templates.RenderData{
-		Event: ev,
-		Now:   time.Now().UTC().Format(time.RFC3339),
+		Event:     ev,
+		Now:       time.Now().UTC().Format(time.RFC3339),
+		Recipient: person,
 	})
 	if err != nil {
 		s.metrics.RenderFailed(ctx, template.ID, metrics.StageRender)
@@ -689,15 +704,6 @@ func (s *Server) channelTarget(ctx context.Context, delivery routing.Delivery) (
 		return models.Destination{}, fmt.Errorf("destination: %w", err)
 	}
 	return destination, nil
-}
-
-func (s *Server) recipientTarget(ctx context.Context, delivery routing.Delivery) (models.Recipient, error) {
-	recipient, err := s.store.GetRecipient(ctx, delivery.RecipientID)
-	if err != nil {
-		s.metrics.RenderFailed(ctx, delivery.TemplateID, metrics.StageRecipient)
-		return models.Recipient{}, fmt.Errorf("recipient: %w", err)
-	}
-	return recipient, nil
 }
 
 // chatMessage is the rendered template on its way to a chat rather than a
@@ -819,8 +825,10 @@ func (s *Server) clearRecipientBlocked(ctx context.Context, recipientID string) 
 // callbacks keep the informational flag on whichever row the chat came from
 // (ADR 0026).
 type chatTarget struct {
-	key          string
-	ref          bot.ConversationReference
+	key string
+	ref bot.ConversationReference
+	// person is who a message to this chat is rendered for (ADR 0063).
+	person       templates.Person
 	markBlocked  func(ctx context.Context, cause error)
 	clearBlocked func(ctx context.Context)
 }
@@ -830,6 +838,7 @@ func (s *Server) recipientChat(recipient models.Recipient) chatTarget {
 	return chatTarget{
 		key:          recipient.ID,
 		ref:          conversationRef(recipient),
+		person:       templates.Person{ID: recipient.AADObjectID, DisplayName: recipient.Name},
 		markBlocked:  func(ctx context.Context, cause error) { s.markRecipientBlocked(ctx, recipient.ID, cause) },
 		clearBlocked: func(ctx context.Context) { s.clearRecipientBlocked(ctx, recipient.ID) },
 	}
@@ -837,6 +846,13 @@ func (s *Server) recipientChat(recipient models.Recipient) chatTarget {
 
 // chatForKey finds the chat a claim row names, for closing it.
 func (s *Server) chatForKey(ctx context.Context, key string) (chatTarget, error) {
+	if oid, ok := strings.CutPrefix(key, personKeyPrefix); ok {
+		u, err := s.store.GetDirectoryUser(ctx, oid)
+		if err != nil {
+			return chatTarget{}, err
+		}
+		return s.personChat(u), nil
+	}
 	recipient, err := s.store.GetRecipient(ctx, key)
 	if err != nil {
 		return chatTarget{}, err
@@ -873,19 +889,21 @@ func (s *Server) deliverToRecipientOnce(ctx context.Context, ev models.Event, de
 // recipientMessage renders first and resolves second, so a broken template is
 // reported as that even when the recipient is gone too.
 func (s *Server) recipientMessage(ctx context.Context, ev models.Event, delivery routing.Delivery) (bot.Message, chatTarget, error) {
-	rendered, err := s.renderMessage(ctx, ev, delivery)
+	recipient, lookupErr := s.store.GetRecipient(ctx, delivery.RecipientID)
+	target := s.recipientChat(recipient)
+	rendered, err := s.renderMessageFor(ctx, ev, delivery, target.person)
 	if err != nil {
 		return bot.Message{}, chatTarget{}, err
 	}
-	recipient, err := s.recipientTarget(ctx, delivery)
-	if err != nil {
-		return bot.Message{}, chatTarget{}, err
+	if lookupErr != nil {
+		s.metrics.RenderFailed(ctx, delivery.TemplateID, metrics.StageRecipient)
+		return bot.Message{}, chatTarget{}, fmt.Errorf("recipient: %w", lookupErr)
 	}
 	msg, err := s.chatMessage(rendered)
 	if err != nil {
 		return bot.Message{}, chatTarget{}, err
 	}
-	return msg, s.recipientChat(recipient), nil
+	return msg, target, nil
 }
 
 // sendToChat claims, sends or edits one chat message, the chat counterpart of
@@ -1025,6 +1043,16 @@ func deriveKey(ev models.Event) string {
 		_, _ = h.Write([]byte(key))
 		_, _ = h.Write([]byte("="))
 		_, _ = h.Write([]byte(value))
+	}
+	// Only when there are some, so every other key stays as it was. The
+	// label is already hashed with the labels above.
+	if ev.Universal != nil && len(ev.Universal.Recipients) > 0 {
+		recipients := make([]string, 0, len(ev.Universal.Recipients))
+		for _, address := range models.AddressesOf(ev) {
+			recipients = append(recipients, strings.ToLower(address))
+		}
+		sort.Strings(recipients)
+		_, _ = h.Write([]byte("recipients=" + strings.Join(recipients, ",")))
 	}
 	return hex.EncodeToString(h.Sum(nil))
 }

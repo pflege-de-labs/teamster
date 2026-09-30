@@ -3,6 +3,7 @@ package models
 import (
 	"maps"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -70,5 +71,50 @@ func TestTemplateHandles(t *testing.T) {
 	only := Template{Sources: []string{SourceAlertmanager}}
 	if !only.Handles(SourceAlertmanager) || only.Handles(SourceUniversal) {
 		t.Errorf("Handles on %v is wrong", only.Sources)
+	}
+}
+
+func TestAddressesOf(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		ev   Event
+		want []string
+	}{
+		{name: "nobody", ev: Event{}},
+		{
+			name: "the list, trimmed and without repeats",
+			ev:   Event{Universal: &UniversalEvent{Recipients: []string{" alice@corp.example ", "ALICE@corp.example", "", "bob@corp.example"}}},
+			want: []string{"alice@corp.example", "bob@corp.example"},
+		},
+		{
+			name: "the label when there is no list",
+			ev:   Event{Labels: map[string]string{RecipientLabel: "alice@corp.example, bob@corp.example,"}},
+			want: []string{"alice@corp.example", "bob@corp.example"},
+		},
+		{
+			name: "the list wins over the label",
+			ev: Event{
+				Labels:    map[string]string{RecipientLabel: "bob@corp.example"},
+				Universal: &UniversalEvent{Recipients: []string{"alice@corp.example"}},
+			},
+			want: []string{"alice@corp.example"},
+		},
+		{
+			name: "an empty list falls back to the label",
+			ev:   Event{Labels: map[string]string{RecipientLabel: "bob@corp.example"}, Universal: &UniversalEvent{}},
+			want: []string{"bob@corp.example"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := AddressesOf(tt.ev); strings.Join(got, ",") != strings.Join(tt.want, ",") {
+				t.Errorf("AddressesOf() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }

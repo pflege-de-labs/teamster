@@ -412,6 +412,36 @@ type BrokerToken struct {
 // sets it, overwriting whatever the sender put there, so a route can trust it.
 const SourceLabel = "teamster_source"
 
+// RecipientLabel names the people an addressed route delivers to, comma
+// separated, for a sender with no recipients field of its own, such as
+// Alertmanager (ADR 0063). Unlike SourceLabel the sender sets it.
+const RecipientLabel = "teamster_recipient"
+
+// AddressesOf is who an event names: the universal recipients list when it
+// has one, else the RecipientLabel. Addresses are trimmed and deduplicated
+// ignoring case, in the order given. Like AttributesOf it is a function, so
+// templates cannot reach it.
+func AddressesOf(ev Event) []string {
+	var raw []string
+	if ev.Universal != nil && len(ev.Universal.Recipients) > 0 {
+		raw = ev.Universal.Recipients
+	} else if label := ev.Labels[RecipientLabel]; label != "" {
+		raw = strings.Split(label, ",")
+	}
+	seen := map[string]bool{}
+	out := make([]string, 0, len(raw))
+	for _, address := range raw {
+		address = strings.TrimSpace(address)
+		key := strings.ToLower(address)
+		if address == "" || seen[key] {
+			continue
+		}
+		seen[key] = true
+		out = append(out, address)
+	}
+	return out
+}
+
 // The values of SourceLabel, one per receiving webhook.
 const (
 	SourceAlertmanager = "alertmanager"
@@ -489,6 +519,8 @@ type UniversalEvent struct {
 	Attributes map[string]string `json:"attributes"`
 	Time       time.Time         `json:"time"`
 	URL        string            `json:"url"`
+	// Recipients are the people the sender named (ADR 0063).
+	Recipients []string `json:"recipients"`
 }
 
 // AttributesOf returns the free-text map of whichever extension ev carries. It
@@ -540,6 +572,9 @@ type UniversalWebhookPayload struct {
 	Attributes map[string]string `json:"attributes"`
 	Time       time.Time         `json:"time"`
 	URL        string            `json:"url"`
+	// Recipients names the people an addressed route delivers to: UPNs, mail
+	// addresses or Entra object ids (ADR 0063).
+	Recipients []string `json:"recipients"`
 }
 
 // SampleKind says which part of an event a sample came from.

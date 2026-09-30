@@ -94,6 +94,23 @@ func (s queryAdapter) MarkDirectoryUserRemoved(ctx context.Context, aadObjectID 
 	return oneRow(n, err, "mark directory user removed")
 }
 
+func (s queryAdapter) MarkDirectoryUserBlocked(ctx context.Context, aadObjectID string, at time.Time, reason string) error {
+	err := s.q.MarkDirectoryUserBlocked(ctx, sqlitedb.MarkDirectoryUserBlockedParams{
+		At: nullTime(at.UTC()), Reason: reason, AadObjectID: aadObjectID,
+	})
+	if err != nil {
+		return fmt.Errorf("mark directory user blocked: %w", err)
+	}
+	return nil
+}
+
+func (s queryAdapter) ClearDirectoryUserBlocked(ctx context.Context, aadObjectID string) error {
+	if err := s.q.ClearDirectoryUserBlocked(ctx, aadObjectID); err != nil {
+		return fmt.Errorf("clear directory user blocked: %w", err)
+	}
+	return nil
+}
+
 func (s queryAdapter) ListDirectoryUsersDue(ctx context.Context, now, reverifyBefore time.Time, limit int) ([]models.DirectoryUser, error) {
 	rows, err := s.q.ListDirectoryUsersDue(ctx, sqlitedb.ListDirectoryUsersDueParams{
 		Now:            nullTime(now.UTC()),

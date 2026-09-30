@@ -11,6 +11,17 @@ import (
 	"time"
 )
 
+const clearDirectoryUserBlocked = `-- name: ClearDirectoryUserBlocked :exec
+UPDATE directory_users
+SET blocked_at = NULL, blocked_reason = ''
+WHERE aad_object_id = ?1 AND blocked_at IS NOT NULL
+`
+
+func (q *Queries) ClearDirectoryUserBlocked(ctx context.Context, aadObjectID string) error {
+	_, err := q.db.ExecContext(ctx, clearDirectoryUserBlocked, aadObjectID)
+	return err
+}
+
 const countDirectoryUsersByState = `-- name: CountDirectoryUsersByState :many
 SELECT install_state, COUNT(*) AS users
 FROM directory_users
@@ -314,6 +325,26 @@ func (q *Queries) ListDirectoryUsersDue(ctx context.Context, arg ListDirectoryUs
 		return nil, err
 	}
 	return items, nil
+}
+
+const markDirectoryUserBlocked = `-- name: MarkDirectoryUserBlocked :exec
+UPDATE directory_users
+SET blocked_at = ?1, blocked_reason = ?2
+WHERE aad_object_id = ?3
+`
+
+type MarkDirectoryUserBlockedParams struct {
+	At          sql.NullTime
+	Reason      string
+	AadObjectID string
+}
+
+// MarkDirectoryUserBlocked and ClearDirectoryUserBlocked are the directory's
+// counterparts of the recipient statements: informational, never a gate, and
+// cleared after every success (ADR 0026).
+func (q *Queries) MarkDirectoryUserBlocked(ctx context.Context, arg MarkDirectoryUserBlockedParams) error {
+	_, err := q.db.ExecContext(ctx, markDirectoryUserBlocked, arg.At, arg.Reason, arg.AadObjectID)
+	return err
 }
 
 const markDirectoryUserRemoved = `-- name: MarkDirectoryUserRemoved :execrows
