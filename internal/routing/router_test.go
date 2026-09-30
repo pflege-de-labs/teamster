@@ -170,7 +170,7 @@ func (s stubStore) MarkDirectoryUserRemoved(ctx context.Context, aadObjectID str
 	return store.ErrNotFound
 }
 
-func (s stubStore) ListDirectoryUsersDue(ctx context.Context, now, reverifyBefore time.Time, limit int) ([]models.DirectoryUser, error) {
+func (s stubStore) ListDirectoryUsersDue(ctx context.Context, now, reverifyBefore time.Time, ignoreBackoff bool, limit int) ([]models.DirectoryUser, error) {
 	return nil, store.ErrNotFound
 }
 

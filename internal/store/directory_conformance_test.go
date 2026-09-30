@@ -187,7 +187,7 @@ func TestConformanceDirectoryUsersDue(t *testing.T) {
 		mustDo(st.RecordDirectoryInstallFailure(ctx, "g-ineligible-later", models.InstallIneligible, "no licence", now.Add(time.Hour), now))
 		mustDo(st.RecordDirectoryInstallFailure(ctx, "h-ineligible-due", models.InstallIneligible, "no licence", now.Add(-time.Minute), now))
 
-		due, err := st.ListDirectoryUsersDue(ctx, now, now.Add(-7*24*time.Hour), 10)
+		due, err := st.ListDirectoryUsersDue(ctx, now, now.Add(-7*24*time.Hour), false, 10)
 		if err != nil {
 			t.Fatalf("ListDirectoryUsersDue: %v", err)
 		}
@@ -198,7 +198,18 @@ func TestConformanceDirectoryUsersDue(t *testing.T) {
 		if fmt.Sprint(ids) != "[a-unknown d-failed-due f-installed-stale h-ineligible-due]" {
 			t.Errorf("due = %v", ids)
 		}
-		if due, _ := st.ListDirectoryUsersDue(ctx, now, now.Add(-7*24*time.Hour), 1); len(due) != 1 {
+		ignored, err := st.ListDirectoryUsersDue(ctx, now, now.Add(-7*24*time.Hour), true, 10)
+		if err != nil {
+			t.Fatalf("ListDirectoryUsersDue(ignore backoff): %v", err)
+		}
+		ids = nil
+		for _, u := range ignored {
+			ids = append(ids, u.AADObjectID)
+		}
+		if fmt.Sprint(ids) != "[a-unknown c-failed-later d-failed-due f-installed-stale g-ineligible-later h-ineligible-due]" {
+			t.Errorf("due ignoring backoff = %v", ids)
+		}
+		if due, _ := st.ListDirectoryUsersDue(ctx, now, now.Add(-7*24*time.Hour), false, 1); len(due) != 1 {
 			t.Errorf("ListDirectoryUsersDue(limit 1) = %d users", len(due))
 		}
 

@@ -1204,7 +1204,8 @@ A run:
    listing that fails part-way fails the run and marks nobody.
 3. Works through the people who are due, in batches of 100, with `bot.install-concurrency`
    workers. Due means an install state of `unknown`, `removed`, `failed` or `ineligible` whose next
-   attempt has come, or `installed` but not verified within `bot.reverify-interval`. Each person is
+   attempt has come, or `installed` but not verified within `bot.reverify-interval`. A manual run
+   ignores the next attempt, since an admin asks for one after fixing something. Each person is
    handled once per run.
 4. Purges people who departed 30 days ago, and finished runs of the same age.
 

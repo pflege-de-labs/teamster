@@ -181,7 +181,9 @@ func (r *Reconciler) install(ctx context.Context, p *progress) error {
 	seen := map[string]bool{}
 	for {
 		now := r.now()
-		due, err := r.store.ListDirectoryUsersDue(ctx, now, now.Add(-r.cfg.Reverify), dueBatch)
+		// An admin asks for a run after fixing something, so it does not wait out the backoff.
+		manual := p.run.Kind == models.RunManual
+		due, err := r.store.ListDirectoryUsersDue(ctx, now, now.Add(-r.cfg.Reverify), manual, dueBatch)
 		if err != nil {
 			return err
 		}

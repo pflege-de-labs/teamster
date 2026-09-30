@@ -177,7 +177,8 @@ type Querier interface {
 	// ListDirectoryUsersDue is a reconcile's work list: eligible people whose app
 	// is not known to be installed and whose next attempt has come, and installed
 	// ones not verified since reverify_before. An install Graph refused for the
-	// person is retried too: a licence or policy may change.
+	// person is retried too: a licence or policy may change. ignore_backoff takes
+	// them whenever their next attempt would be, for a run an admin asked for.
 	ListDirectoryUsersDue(ctx context.Context, arg ListDirectoryUsersDueParams) ([]DirectoryUser, error)
 	// The CAST keeps the parameter int64 in both dialects: Postgres would
 	// otherwise infer int32 for a LIMIT.

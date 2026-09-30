@@ -58,7 +58,7 @@ type Store interface {
 	FindDirectoryUser(ctx context.Context, address string) (models.DirectoryUser, error)
 	SetDirectoryUserInstalled(ctx context.Context, aadObjectID, conversationID, serviceURL string, at time.Time) error
 	RecordDirectoryInstallFailure(ctx context.Context, aadObjectID string, state models.InstallState, lastError string, next, at time.Time) error
-	ListDirectoryUsersDue(ctx context.Context, now, reverifyBefore time.Time, limit int) ([]models.DirectoryUser, error)
+	ListDirectoryUsersDue(ctx context.Context, now, reverifyBefore time.Time, ignoreBackoff bool, limit int) ([]models.DirectoryUser, error)
 	MarkDirectoryUsersDeparted(ctx context.Context, seenBefore, at time.Time) (int64, error)
 	PurgeDepartedDirectoryUsers(ctx context.Context, before time.Time) (int64, error)
 

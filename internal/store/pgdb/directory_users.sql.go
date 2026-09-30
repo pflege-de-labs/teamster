@@ -265,14 +265,15 @@ SELECT aad_object_id, tenant_id, user_principal_name, mail, upn_key, mail_key, d
 WHERE eligible
 	AND (
 		(install_state IN ('unknown', 'removed', 'failed', 'ineligible')
-			AND (next_attempt_at IS NULL OR next_attempt_at <= $1))
-		OR (install_state = 'installed' AND installed_at < $2)
+			AND (CAST($1 AS BOOLEAN) OR next_attempt_at IS NULL OR next_attempt_at <= $2))
+		OR (install_state = 'installed' AND installed_at < $3)
 	)
 ORDER BY aad_object_id
-LIMIT CAST($3 AS BIGINT)
+LIMIT CAST($4 AS BIGINT)
 `
 
 type ListDirectoryUsersDueParams struct {
+	IgnoreBackoff  bool
 	Now            sql.NullTime
 	ReverifyBefore sql.NullTime
 	MaxRows        int64
@@ -281,9 +282,15 @@ type ListDirectoryUsersDueParams struct {
 // ListDirectoryUsersDue is a reconcile's work list: eligible people whose app
 // is not known to be installed and whose next attempt has come, and installed
 // ones not verified since reverify_before. An install Graph refused for the
-// person is retried too: a licence or policy may change.
+// person is retried too: a licence or policy may change. ignore_backoff takes
+// them whenever their next attempt would be, for a run an admin asked for.
 func (q *Queries) ListDirectoryUsersDue(ctx context.Context, arg ListDirectoryUsersDueParams) ([]DirectoryUser, error) {
-	rows, err := q.db.QueryContext(ctx, listDirectoryUsersDue, arg.Now, arg.ReverifyBefore, arg.MaxRows)
+	rows, err := q.db.QueryContext(ctx, listDirectoryUsersDue,
+		arg.IgnoreBackoff,
+		arg.Now,
+		arg.ReverifyBefore,
+		arg.MaxRows,
+	)
 	if err != nil {
 		return nil, err
 	}

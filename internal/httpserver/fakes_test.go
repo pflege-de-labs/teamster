@@ -1689,7 +1689,7 @@ func (f *fakeStore) RecordDirectoryInstallFailure(ctx context.Context, aadObject
 	return store.ErrNotFound
 }
 
-func (f *fakeStore) ListDirectoryUsersDue(ctx context.Context, now, reverifyBefore time.Time, limit int) ([]models.DirectoryUser, error) {
+func (f *fakeStore) ListDirectoryUsersDue(ctx context.Context, now, reverifyBefore time.Time, ignoreBackoff bool, limit int) ([]models.DirectoryUser, error) {
 	return nil, store.ErrNotFound
 }
 

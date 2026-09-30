@@ -121,10 +121,11 @@ func (s queryAdapter) ClearDirectoryUserBlocked(ctx context.Context, aadObjectID
 	return nil
 }
 
-func (s queryAdapter) ListDirectoryUsersDue(ctx context.Context, now, reverifyBefore time.Time, limit int) ([]models.DirectoryUser, error) {
+func (s queryAdapter) ListDirectoryUsersDue(ctx context.Context, now, reverifyBefore time.Time, ignoreBackoff bool, limit int) ([]models.DirectoryUser, error) {
 	rows, err := s.q.ListDirectoryUsersDue(ctx, sqlitedb.ListDirectoryUsersDueParams{
 		Now:            nullTime(now.UTC()),
 		ReverifyBefore: nullTime(reverifyBefore.UTC()),
+		IgnoreBackoff:  ignoreBackoff,
 		MaxRows:        int64(limit),
 	})
 	if err != nil {
