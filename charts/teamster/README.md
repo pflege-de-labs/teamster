@@ -3,6 +3,8 @@
 Deploys [teamster](https://github.com/pflege-de-labs/teamster), a webhook bridge that routes
 Alertmanager and universal alerts to Microsoft Teams.
 
+Changes per chart release are in the [changelog](CHANGELOG.md).
+
 ## Install
 
 ```bash

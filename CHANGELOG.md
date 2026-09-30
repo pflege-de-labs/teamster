@@ -1,0 +1,207 @@
+# Changelog
+
+Notable changes to the Teamster service, one entry per release tag `vX.Y.Z`. The Helm chart is
+versioned separately; see [charts/teamster/CHANGELOG.md](charts/teamster/CHANGELOG.md).
+
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
+[Semantic Versioning](https://semver.org/). Before 1.0.0 a minor release may break things; those
+entries are marked **Breaking**. How each feature works is in the [README](README.md) and the
+reasoning behind it in the [ADRs](docs/adr/).
+
+## [Unreleased]
+
+### Added
+
+* Each webhook has a default template, used before the built-in message. A new installation is
+  seeded with a preset per webhook, and the template editor offers the same presets as starting
+  points ([ADR 0055](docs/adr/0055-each-webhook-has-a-default-template.md)).
+* The routing graph draws one origin per webhook, feeding the root routes its `teamster_source`
+  pin allows, and draws each Teams V2 endpoint straight to its channel. The template graph shows
+  each webhook's default template.
+* The sidebar footer shows the build version.
+
+### Fixed
+
+* The header no longer shifts after the page loads; the sidebar state is applied before first
+  paint ([ADR 0054](docs/adr/0054-apply-sidebar-state-before-first-paint.md)).
+
+## [0.8.0] — 2026-09-29
+
+### Added
+
+* The bot answers `/help`, `/status`, `/test` and `/unlink` in the personal chat
+  ([ADR 0048](docs/adr/0048-bot-answers-commands-in-the-personal-chat.md)).
+* Every alert carries a `teamster_source` label (`alertmanager`, `universal` or `teamsv2`), so
+  routes can tell the webhooks apart ([ADR 0052](docs/adr/0052-the-receiving-webhook-is-a-label.md)).
+* A template lists the webhooks it handles; pickers offer only matching templates, and a
+  mismatch at delivery sends the built-in message
+  ([ADR 0053](docs/adr/0053-templates-name-the-webhooks-they-handle.md)).
+* The global default route can render with a chosen template, set on its row or through
+  `GET`/`PUT /api/routes/global-default`, and carried in the export bundle
+  ([ADR 0050](docs/adr/0050-catch-all-template-is-a-setting.md)).
+* The template preview sits beside the editor.
+* `make manifest` builds the Teams app zip, named by version.
+* `log.level` and `log.format` (`text` or `json`); every request carries an `X-Request-ID`
+  that its log lines repeat.
+
+### Changed
+
+* **Breaking:** a route delivers to a channel *or* a person, chosen in one "Delivers to" field.
+  Editors may route only to their own chat; admins to anyone's. A child naming a person no longer
+  also posts to its parent's channel. Routes saved with both targets keep delivering to both and
+  are badged ([ADR 0047](docs/adr/0047-a-route-targets-a-channel-or-yourself.md)).
+* **Breaking:** logging moved to structured `log/slog`. A 5xx answers with the status and request
+  id only, no longer the store's or Graph's error text; an import that fails in the store is now
+  a 500 rather than a 400
+  ([ADR 0046](docs/adr/0046-structured-logging-and-error-boundary.md)).
+* A root route needs a target, and a child route that only refines needs a template of its own
+  ([ADR 0051](docs/adr/0051-root-routes-need-a-target-refinements-a-template.md)).
+
+### Fixed
+
+* A channel post is one Teams message rather than several
+  ([ADR 0049](docs/adr/0049-a-channel-post-is-one-teams-message.md)).
+* The request log no longer records the Teams V2 token from the path.
+* The app manifest declares `supportsChannelFeatures` for the team scope and refuses a package
+  version starting with 0.
+
+## [0.7.0] — 2026-09-28
+
+### Added
+
+* Webhooks accept `Authorization: Bearer`. Admins issue and revoke named tokens at
+  `/admin/tokens` or `/api/tokens`; `webhook.token` is optional
+  ([ADR 0044](docs/adr/0044-webhook-access-tokens.md)).
+* `/admin/teams` shows where the bot's Teams app is installed and what depends on each team. The
+  Team picker groups installed and not-installed Teams, and missing installs are marked on
+  destinations and counted in metrics.
+* Navigation moved to a sidebar, account controls and the language flag to a user menu
+  ([ADR 0042](docs/adr/0042-sidebar-navigation-and-user-menu.md)).
+
+### Changed
+
+* **Breaking:** channel cards are posted and edited through the Teams bot, because Microsoft
+  Graph refuses app-only channel posts. The bot must be configured and its app installed in each
+  team it posts to; Graph is used only to read Teams and channels. The Teams V2 endpoints post
+  through the bot too. A card posted by an earlier release is replaced on re-fire
+  ([ADR 0045](docs/adr/0045-channel-delivery-through-the-bot.md)).
+* `X-Teamster-Token` is deprecated in favour of `Authorization: Bearer`.
+
+## [0.6.0] — 2026-09-23
+
+### Added
+
+* A global default destination catches every message no route claims
+  ([ADR 0038](docs/adr/0038-global-default-destination.md)).
+* A route with no template sends a built-in message: title and text, the rest of the payload as
+  JSON, and a hint card linking to `server.external-url`
+  ([ADR 0039](docs/adr/0039-built-in-default-message.md)).
+* A Teams V2 endpoint may render through a template
+  ([ADR 0040](docs/adr/0040-teams-v2-endpoint-templates.md)).
+* "My Teams" in the Destinations picker lists the signed-in admin's own Teams when Keycloak
+  brokers the login against Entra (`auth.broker`)
+  ([ADR 0037](docs/adr/0037-delegated-teams-via-keycloak-broker-token.md)).
+* The template and route editors complete template fields, card properties and the label keys
+  and values seen in incoming alerts (`samples.*`)
+  ([ADR 0041](docs/adr/0041-editor-completion-from-sampled-labels.md)).
+
+## [0.5.0] — 2026-09-23
+
+### Added
+
+* Alerts in a person's chat: a Teams bot, a linking flow that lets a person opt their own chat in
+  and out, routes that deliver to a person, and `/admin/recipients`
+  ([ADR 0026](docs/adr/0026-alerts-in-a-persons-chat.md)).
+* Uninstalling the bot or sending `unlink`, `stop` or `unsubscribe` retires the link
+  ([ADR 0032](docs/adr/0032-retiring-a-link-from-the-chat.md)).
+* `POST /teamsv2/{team}/{channel}/{token}` accepts Teams V2 (Power Automate) payloads and posts
+  them straight to a channel ([ADR 0030](docs/adr/0030-teams-v2-compatible-webhooks.md)).
+* `/webhook/universal` accepts messages without an Alertmanager status; they are delivered once
+  and not tracked ([ADR 0035](docs/adr/0035-a-message-without-a-status-is-delivered-once.md)).
+* A route without a template sends the payload's own title, text or card
+  ([ADR 0036](docs/adr/0036-direct-content-when-a-route-has-no-template.md)).
+* `teamster completion` for bash, zsh and fish
+  ([ADR 0025](docs/adr/0025-shell-completion.md)).
+
+### Changed
+
+* Every matching root route delivers, not only the highest-priority one; the default route still
+  catches only what nothing else matched
+  ([ADR 0034](docs/adr/0034-fan-out-across-independent-routes.md)).
+* Message text is Markdown ([ADR 0029](docs/adr/0029-templates-are-markdown.md)).
+
+### Fixed
+
+* `teamster migrate` sets `busy_timeout` on SQLite.
+* Vendored browser libraries are pinned by version and checksum in `manifest.json`
+  ([ADR 0031](docs/adr/0031-vendored-browser-libraries-pinned-and-verified.md)).
+* Dependencies updated past GO-2026-5208.
+
+## [0.4.0] — 2026-09-14
+
+### Added
+
+* Postgres as a second store, chosen by `database.driver`, so several instances can share one
+  database ([ADR 0022](docs/adr/0022-postgres-second-backend.md)).
+* `teamster migrate up|down|status`, and `database.migrate` to verify the schema instead of
+  applying it on start ([ADR 0019](docs/adr/0019-goose-migrations.md)).
+* The Graph token endpoint and scope are configurable, for clouds other than the public one.
+
+### Fixed
+
+* Two concurrent requests for one alert no longer post two cards
+  ([ADR 0021](docs/adr/0021-claim-a-card-before-posting.md)).
+* Admin writes that two admins could race are guarded by the database.
+
+## [0.3.0] — 2026-09-14
+
+### Added
+
+* Metrics through OpenTelemetry: a Prometheus `/metrics` listener with native histograms, and
+  OTLP export ([ADR 0017](docs/adr/0017-metrics-through-opentelemetry.md)).
+
+## [0.2.0] — 2026-09-11
+
+### Added
+
+* Server-rendered admin UI ([ADR 0008](docs/adr/0008-templ-tailwind-admin-ui.md)) with select
+  lists, fuller record lists, and Team and channel pickers by name.
+* Template preview against a sample alert, and a card editor with a palette, a starter card and
+  live preview ([ADR 0014](docs/adr/0014-card-editor.md)).
+* Templates with a title, text and an optional card, so the Teams activity feed shows a readable
+  line ([ADR 0010](docs/adr/0010-message-shape.md)).
+* Nested routes with inheritance and fan-out
+  ([ADR 0011](docs/adr/0011-nested-routes.md)).
+* Routing visualization at `/admin/routing`, with a check that explains which route an alert
+  takes and highlights its path.
+* OIDC login for the admin UI, with basic auth kept as the bootstrap path
+  ([ADR 0009](docs/adr/0009-admin-authentication.md)).
+* Roles `admin`, `editor` and `viewer`, enforced with Cedar, and grants that limit a role to
+  Teams and channels ([ADR 0012](docs/adr/0012-role-based-authorization.md)).
+* Configuration export and import as a versioned bundle, over the API and as `teamster export`
+  and `teamster import` ([ADR 0013](docs/adr/0013-configuration-transfer.md)).
+* A localizable UI, in English and German, chosen by `Accept-Language` or the user, with
+  `ui.locale-dir` for overrides ([ADR 0015](docs/adr/0015-localizable-ui.md)).
+* Liveness and readiness probes.
+
+### Fixed
+
+* Server connections have bounded lifetimes.
+* Teams and channels sort by name with collation.
+
+## [0.1.0] — 2026-09-09
+
+First release: Alertmanager and universal webhooks, label-selector routing with a default route,
+Adaptive Cards posted to Teams channels, alert state in SQLite so a resolve updates its card, and
+an admin UI for templates, destinations and routes. Released as a signed container image and
+binaries with SBOMs ([ADR 0006](docs/adr/0006-release-rebuild-sbom-signing.md)).
+
+[Unreleased]: https://github.com/pflege-de-labs/teamster/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/pflege-de-labs/teamster/compare/v0.7.0...v0.8.0
+[0.7.0]: https://github.com/pflege-de-labs/teamster/compare/v0.6.0...v0.7.0
+[0.6.0]: https://github.com/pflege-de-labs/teamster/compare/v0.5.0...v0.6.0
+[0.5.0]: https://github.com/pflege-de-labs/teamster/compare/v0.4.0...v0.5.0
+[0.4.0]: https://github.com/pflege-de-labs/teamster/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/pflege-de-labs/teamster/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/pflege-de-labs/teamster/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/pflege-de-labs/teamster/releases/tag/v0.1.0

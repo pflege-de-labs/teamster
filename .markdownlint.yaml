@@ -18,3 +18,7 @@ MD010:
 # The quick start puts code fences between its steps, which splits it into
 # separate lists; renumbering each to 1 would render as 1, 1, 1.
 MD029: false
+
+# Keep a Changelog repeats Added/Changed/Fixed under every release.
+MD024:
+  siblings_only: true

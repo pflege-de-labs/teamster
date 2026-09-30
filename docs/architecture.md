@@ -32,6 +32,20 @@ component can be exercised with a substitute in tests. There is no package-level
 `NewServer` takes the unexported `messenger` and `botSender` interfaces rather than `*graph.Client`
 and `*bot.Client`, see [ADR 0002](adr/0002-messenger-interface.md).
 
+## Constraints
+
+Every feature works within these; the [roadmap](roadmap.md) points here.
+
+* One static binary with its assets embedded. No separate frontend deployment.
+* No runtime dependency on a CDN. A generator whose output is committed is allowed — templ and
+  Tailwind work that way ([ADR 0008](adr/0008-templ-tailwind-admin-ui.md)) — but a library the
+  browser fetches at page load is not. Vendored files go under `internal/httpserver/web/vendor/`,
+  pinned in `manifest.json` ([ADR 0031](adr/0031-vendored-browser-libraries-pinned-and-verified.md)).
+* Logic lives in Go where there is a choice, because that is what the coverage gate measures. The
+  browser renders; it does not decide.
+* The admin API is the only way the UI reaches the service, so anything the UI can do is
+  scriptable.
+
 ## Process lifecycle
 
 `main` derives a context from `signal.NotifyContext` for SIGINT and SIGTERM, then calls

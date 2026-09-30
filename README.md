@@ -140,6 +140,11 @@ does not matter.
 
 Graph is asked at most eight teams at a time, for at most five seconds per page, and each answer is
 kept for five minutes.
+
+Teamster cannot install the app into a team itself; a team owner or a Teams admin does that in
+Teams. Not yet confirmed against a real tenant: posting to private and shared channels, editing a
+card through its stored conversation id, and whether an app upgrade re-sends install events.
+
 `bot.tenant-type` distinguishes a registration that only ever signs in this tenant's users
 (`single`, the default) from one registered to accept any tenant's users (`multi`), which
 authenticates through a shared Microsoft endpoint rather than this tenant's own. `bot.metadata-url`
@@ -268,6 +273,9 @@ replace before packaging and how to build the zip.
 | `sqlite` | One file, no other runtime dependency, and exactly one instance: SQLite takes a single writer. The default. |
 | `postgres` | Several instances sharing one database. |
 
+Several instances means a few replicas behind one Service, each able to take any request. There is
+no queue, no leader election and no sharding.
+
 Postgres is configured with discrete settings rather than a connection string, because a config
 file value beats an environment variable — so a URL in the file would take the password with it:
 
@@ -375,7 +383,11 @@ Both webhooks take a token as `Authorization: Bearer <token>`. Two kinds of toke
 
 Prefer one issued token per sender, so each can be revoked without breaking the others. The
 `X-Teamster-Token: <token>` header from earlier releases still works for either kind, but is
-deprecated ([ADR 0044](docs/adr/0044-webhook-access-tokens.md)).
+deprecated and will be removed in a breaking release
+([ADR 0044](docs/adr/0044-webhook-access-tokens.md)).
+
+A token of either kind is accepted by both webhooks; it cannot be limited to one webhook or to a
+role's delivery grants.
 
 Alertmanager, with the token in a file mounted from a Secret:
 
@@ -1255,8 +1267,9 @@ machines, and by whoever is reading a log at three in the morning.
 
 ## Documentation
 
+- [Changelog](CHANGELOG.md)
 - [Architecture](docs/architecture.md)
-- [Helm chart](charts/teamster/README.md)
+- [Helm chart](charts/teamster/README.md) and its [changelog](charts/teamster/CHANGELOG.md)
 - [Configuring Keycloak for the admin login](docs/keycloak.md)
 - [Roadmap](docs/roadmap.md)
 - [Architecture Decision Records](docs/adr/)

@@ -14,3 +14,5 @@
 - [ ] Architecture documentation (`docs/architecture.md`) is up to date
 - [ ] An ADR is added under `docs/adr/` for any architectural decision
 - [ ] `README.md` and user documentation are up to date
+- [ ] `CHANGELOG.md` (and `charts/teamster/CHANGELOG.md` for chart changes) has an `Unreleased` entry
+- [ ] A shipped milestone is removed from `docs/roadmap.md`
