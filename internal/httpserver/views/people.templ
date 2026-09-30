@@ -2,7 +2,6 @@ package views
 
 import (
 	"strconv"
-	"time"
 
 	"github.com/pflege-de-labs/teamster/internal/i18n"
 	"github.com/pflege-de-labs/teamster/internal/models"
@@ -27,13 +26,6 @@ type StateCount struct {
 
 func (p People) active() bool {
 	return p.Run != nil && (p.Run.State == models.RunRequested || p.Run.State == models.RunRunning)
-}
-
-func when(t time.Time) string {
-	if t.IsZero() {
-		return "—"
-	}
-	return t.Format("2006-01-02 15:04")
 }
 
 templ PeoplePage(page People) {
@@ -78,11 +70,11 @@ templ peopleRun(run models.DirectoryRun) {
 			<dt class="text-slate-500">{ i18n.T(ctx, "people.run_state") }</dt>
 			<dd>{ i18n.T(ctx, "people.run." + string(run.State)) } ({ i18n.T(ctx, "people.kind." + string(run.Kind)) })</dd>
 			<dt class="text-slate-500">{ i18n.T(ctx, "people.run_requested") }</dt>
-			<dd>{ when(run.RequestedAt) } { run.RequestedBy }</dd>
+			<dd>{ stamp(ctx, run.RequestedAt) } { run.RequestedBy }</dd>
 			<dt class="text-slate-500">{ i18n.T(ctx, "people.run_started") }</dt>
-			<dd>{ when(run.StartedAt) }</dd>
+			<dd>{ stamp(ctx, run.StartedAt) }</dd>
 			<dt class="text-slate-500">{ i18n.T(ctx, "people.run_finished") }</dt>
-			<dd>{ when(run.FinishedAt) }</dd>
+			<dd>{ stamp(ctx, run.FinishedAt) }</dd>
 			<dt class="text-slate-500">{ i18n.T(ctx, "people.run_progress") }</dt>
 			<dd class="sm:col-span-3">
 				{ i18n.T(ctx, "people.run_counts", run.Total, run.Installed, run.Already, run.Failed, run.Ineligible) }
@@ -107,7 +99,7 @@ templ peopleProblems(problems []models.DirectoryUser) {
 						<li class="py-3 text-sm">
 							<div class="font-medium">{ truncatedName(firstNonEmpty(u.DisplayName, u.UserPrincipalName, u.AADObjectID)) }</div>
 							<div class="text-xs text-slate-500">
-								{ i18n.T(ctx, "people.state." + string(u.InstallState)) } · { i18n.T(ctx, "people.next_attempt", when(u.NextAttemptAt)) }
+								{ i18n.T(ctx, "people.state." + string(u.InstallState)) } · { i18n.T(ctx, "people.next_attempt", stamp(ctx, u.NextAttemptAt)) }
 							</div>
 							if u.LastError != "" {
 								<div class="break-words text-xs text-red-700">{ u.LastError }</div>

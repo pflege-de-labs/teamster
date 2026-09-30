@@ -10,7 +10,6 @@ import templruntime "github.com/a-h/templ/runtime"
 
 import (
 	"strconv"
-	"time"
 
 	"github.com/pflege-de-labs/teamster/internal/i18n"
 	"github.com/pflege-de-labs/teamster/internal/models"
@@ -35,13 +34,6 @@ type StateCount struct {
 
 func (p People) active() bool {
 	return p.Run != nil && (p.Run.State == models.RunRequested || p.Run.State == models.RunRunning)
-}
-
-func when(t time.Time) string {
-	if t.IsZero() {
-		return "—"
-	}
-	return t.Format("2006-01-02 15:04")
 }
 
 func PeoplePage(page People) templ.Component {
@@ -88,7 +80,7 @@ func PeoplePage(page People) templ.Component {
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "people.heading"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 43, Col: 104}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 35, Col: 104}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -101,7 +93,7 @@ func PeoplePage(page People) templ.Component {
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "people.explainer"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 45, Col: 71}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 37, Col: 71}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
@@ -119,7 +111,7 @@ func PeoplePage(page People) templ.Component {
 				var templ_7745c5c3_Var5 string
 				templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "people.state."+c.State))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 49, Col: 82}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 41, Col: 82}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 				if templ_7745c5c3_Err != nil {
@@ -132,7 +124,7 @@ func PeoplePage(page People) templ.Component {
 				var templ_7745c5c3_Var6 string
 				templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.FormatInt(c.Users, 10))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 50, Col: 74}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 42, Col: 74}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 				if templ_7745c5c3_Err != nil {
@@ -155,7 +147,7 @@ func PeoplePage(page People) templ.Component {
 				var templ_7745c5c3_Var7 string
 				templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "people.refresh"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 57, Col: 38}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 49, Col: 38}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 				if templ_7745c5c3_Err != nil {
@@ -235,7 +227,7 @@ func peopleRun(run models.DirectoryRun) templ.Component {
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "people.run_heading"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 76, Col: 107}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 68, Col: 107}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 		if templ_7745c5c3_Err != nil {
@@ -248,7 +240,7 @@ func peopleRun(run models.DirectoryRun) templ.Component {
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "people.run_state"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 78, Col: 63}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 70, Col: 63}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 		if templ_7745c5c3_Err != nil {
@@ -261,7 +253,7 @@ func peopleRun(run models.DirectoryRun) templ.Component {
 		var templ_7745c5c3_Var11 string
 		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "people.run."+string(run.State)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 79, Col: 55}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 71, Col: 55}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 		if templ_7745c5c3_Err != nil {
@@ -274,7 +266,7 @@ func peopleRun(run models.DirectoryRun) templ.Component {
 		var templ_7745c5c3_Var12 string
 		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "people.kind."+string(run.Kind)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 79, Col: 107}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 71, Col: 107}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 		if templ_7745c5c3_Err != nil {
@@ -287,7 +279,7 @@ func peopleRun(run models.DirectoryRun) templ.Component {
 		var templ_7745c5c3_Var13 string
 		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "people.run_requested"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 80, Col: 67}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 72, Col: 67}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 		if templ_7745c5c3_Err != nil {
@@ -298,9 +290,9 @@ func peopleRun(run models.DirectoryRun) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var14 string
-		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(when(run.RequestedAt))
+		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(stamp(ctx, run.RequestedAt))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 81, Col: 30}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 73, Col: 36}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 		if templ_7745c5c3_Err != nil {
@@ -313,7 +305,7 @@ func peopleRun(run models.DirectoryRun) templ.Component {
 		var templ_7745c5c3_Var15 string
 		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(run.RequestedBy)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 81, Col: 50}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 73, Col: 56}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 		if templ_7745c5c3_Err != nil {
@@ -326,7 +318,7 @@ func peopleRun(run models.DirectoryRun) templ.Component {
 		var templ_7745c5c3_Var16 string
 		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "people.run_started"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 82, Col: 65}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 74, Col: 65}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 		if templ_7745c5c3_Err != nil {
@@ -337,9 +329,9 @@ func peopleRun(run models.DirectoryRun) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var17 string
-		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(when(run.StartedAt))
+		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(stamp(ctx, run.StartedAt))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 83, Col: 28}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 75, Col: 34}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 		if templ_7745c5c3_Err != nil {
@@ -352,7 +344,7 @@ func peopleRun(run models.DirectoryRun) templ.Component {
 		var templ_7745c5c3_Var18 string
 		templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "people.run_finished"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 84, Col: 66}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 76, Col: 66}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 		if templ_7745c5c3_Err != nil {
@@ -363,9 +355,9 @@ func peopleRun(run models.DirectoryRun) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var19 string
-		templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(when(run.FinishedAt))
+		templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(stamp(ctx, run.FinishedAt))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 85, Col: 29}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 77, Col: 35}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 		if templ_7745c5c3_Err != nil {
@@ -378,7 +370,7 @@ func peopleRun(run models.DirectoryRun) templ.Component {
 		var templ_7745c5c3_Var20 string
 		templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "people.run_progress"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 86, Col: 66}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 78, Col: 66}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 		if templ_7745c5c3_Err != nil {
@@ -391,7 +383,7 @@ func peopleRun(run models.DirectoryRun) templ.Component {
 		var templ_7745c5c3_Var21 string
 		templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "people.run_counts", run.Total, run.Installed, run.Already, run.Failed, run.Ineligible))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 88, Col: 105}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 80, Col: 105}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 		if templ_7745c5c3_Err != nil {
@@ -409,7 +401,7 @@ func peopleRun(run models.DirectoryRun) templ.Component {
 			var templ_7745c5c3_Var22 string
 			templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "people.run_error"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 91, Col: 64}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 83, Col: 64}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 			if templ_7745c5c3_Err != nil {
@@ -422,7 +414,7 @@ func peopleRun(run models.DirectoryRun) templ.Component {
 			var templ_7745c5c3_Var23 string
 			templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(run.LastError)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 92, Col: 70}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 84, Col: 70}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 			if templ_7745c5c3_Err != nil {
@@ -469,7 +461,7 @@ func peopleProblems(problems []models.DirectoryUser) templ.Component {
 		var templ_7745c5c3_Var25 string
 		templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "people.problems_heading"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 100, Col: 112}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 92, Col: 112}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 		if templ_7745c5c3_Err != nil {
@@ -497,7 +489,7 @@ func peopleProblems(problems []models.DirectoryUser) templ.Component {
 				var templ_7745c5c3_Var26 string
 				templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(truncatedName(firstNonEmpty(u.DisplayName, u.UserPrincipalName, u.AADObjectID)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 108, Col: 113}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 100, Col: 113}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 				if templ_7745c5c3_Err != nil {
@@ -510,7 +502,7 @@ func peopleProblems(problems []models.DirectoryUser) templ.Component {
 				var templ_7745c5c3_Var27 string
 				templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "people.state."+string(u.InstallState)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 110, Col: 63}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 102, Col: 63}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 				if templ_7745c5c3_Err != nil {
@@ -521,9 +513,9 @@ func peopleProblems(problems []models.DirectoryUser) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var28 string
-				templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "people.next_attempt", when(u.NextAttemptAt)))
+				templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "people.next_attempt", stamp(ctx, u.NextAttemptAt)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 110, Col: 128}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 102, Col: 134}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 				if templ_7745c5c3_Err != nil {
@@ -541,7 +533,7 @@ func peopleProblems(problems []models.DirectoryUser) templ.Component {
 					var templ_7745c5c3_Var29 string
 					templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(u.LastError)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 113, Col: 67}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `people.templ`, Line: 105, Col: 67}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 					if templ_7745c5c3_Err != nil {

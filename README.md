@@ -1437,6 +1437,14 @@ A key no catalog carries renders as the key itself, which is a visible fault rat
 space. Webhook responses, API errors and log lines are deliberately not translated: they are read by
 machines, and by whoever is reading a log at three in the morning.
 
+## Time zone
+
+Times in the admin UI carry their zone, and are in UTC unless you pick otherwise. **Browser time** in
+the user menu switches to your browser's zone, and **UTC** switches back. The choice is remembered
+in a cookie, like the language. It needs JavaScript to read the browser's zone; without it, times
+stay in UTC. API responses and logs are always in UTC
+([ADR 0067](docs/adr/0067-times-in-the-admin-ui-follow-a-chosen-zone.md)).
+
 ## Documentation
 
 - [Changelog](CHANGELOG.md)

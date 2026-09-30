@@ -16,6 +16,8 @@ reasoning behind it in the [ADRs](docs/adr/).
   Teamster can use, what a leaked secret exposes, and smaller permission profiles. It also records
   why the Graph and bot registrations stay separate
   ([ADR 0066](docs/adr/0066-keep-separate-graph-and-bot-registrations.md)).
+* Times in the admin UI name their zone, and the user menu switches them between UTC and the
+  browser's zone ([ADR 0067](docs/adr/0067-times-in-the-admin-ui-follow-a-chosen-zone.md)).
 
 ### Fixed
 

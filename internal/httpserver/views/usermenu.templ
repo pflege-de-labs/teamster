@@ -32,6 +32,9 @@ templ userMenu(viewer Viewer) {
 			<div class="border-t border-slate-200 pt-3">
 				@languageFlags(languageOf(ctx))
 			</div>
+			<div class="border-t border-slate-200 pt-3">
+				@timeZoneSwitch(timeZoneOf(ctx))
+			</div>
 			<form method="post" action="/admin/logout" class="border-t border-slate-200 pt-3">
 				<button
 					type="submit"

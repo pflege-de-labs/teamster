@@ -420,9 +420,9 @@ func teamList(rows []TeamRow) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var19 string
-				templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "teams.last_heard", row.LastHeard.Format("2006-01-02 15:04")))
+				templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "teams.last_heard", stamp(ctx, row.LastHeard)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `teams.templ`, Line: 96, Col: 116}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `teams.templ`, Line: 96, Col: 101}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 				if templ_7745c5c3_Err != nil {

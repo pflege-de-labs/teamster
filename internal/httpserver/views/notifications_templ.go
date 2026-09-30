@@ -302,9 +302,9 @@ func notificationsStatus(page Notifications) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var11 string
-			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "notifications.linked_since", page.Recipient.CreatedAt.Format("2006-01-02 15:04")))
+			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "notifications.linked_since", stamp(ctx, page.Recipient.CreatedAt)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `notifications.templ`, Line: 105, Col: 134}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `notifications.templ`, Line: 105, Col: 119}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 			if templ_7745c5c3_Err != nil {
@@ -320,9 +320,9 @@ func notificationsStatus(page Notifications) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var12 string
-				templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "notifications.last_updated", page.Recipient.UpdatedAt.Format("2006-01-02 15:04")))
+				templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "notifications.last_updated", stamp(ctx, page.Recipient.UpdatedAt)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `notifications.templ`, Line: 107, Col: 135}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `notifications.templ`, Line: 107, Col: 120}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 				if templ_7745c5c3_Err != nil {
@@ -567,9 +567,9 @@ func notificationsMinted(minted MintedLink) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var26 string
-		templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "notifications.code_expires", minted.ExpiresAt.Format("2006-01-02 15:04")))
+		templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "notifications.code_expires", stamp(ctx, minted.ExpiresAt)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `notifications.templ`, Line: 174, Col: 125}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `notifications.templ`, Line: 174, Col: 110}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 		if templ_7745c5c3_Err != nil {

@@ -233,7 +233,7 @@ func TestNotificationsMintShowsAGroupedCodeAndOneLiveFlow(t *testing.T) {
 		if flow.Subject != "tester" {
 			t.Errorf("flow subject = %q, want the caller's own", flow.Subject)
 		}
-		if !strings.Contains(rec.Body.String(), flow.ExpiresAt.Format("2006-01-02 15:04")) {
+		if !strings.Contains(rec.Body.String(), flow.ExpiresAt.UTC().Format("2006-01-02 15:04 MST")) {
 			t.Errorf("the response does not show when %s expires", flow.ExpiresAt)
 		}
 	}
@@ -272,7 +272,7 @@ func TestNotificationsPageHidesRawTeamsIdentifiers(t *testing.T) {
 			t.Errorf("the page leaks %q", secret)
 		}
 	}
-	if strings.Count(body, linkedAt.Format("2006-01-02 15:04")) != 1 {
+	if strings.Count(body, linkedAt.UTC().Format("2006-01-02 15:04 MST")) != 1 {
 		t.Error("created and updated are equal, so the timestamp should render exactly once (linked since), not also as last changed")
 	}
 }

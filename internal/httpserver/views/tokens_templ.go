@@ -207,9 +207,9 @@ func tokenItem(t models.AccessToken) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var8 string
-		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "tokens.created", t.CreatedAt.Format("2006-01-02 15:04"), t.CreatedBy))
+		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "tokens.created", stamp(ctx, t.CreatedAt), t.CreatedBy))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `tokens.templ`, Line: 64, Col: 88}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `tokens.templ`, Line: 64, Col: 73}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 		if templ_7745c5c3_Err != nil {
@@ -231,9 +231,9 @@ func tokenItem(t models.AccessToken) templ.Component {
 			}
 		} else {
 			var templ_7745c5c3_Var10 string
-			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "tokens.last_used", t.LastUsedAt.Format("2006-01-02 15:04")))
+			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "tokens.last_used", stamp(ctx, t.LastUsedAt)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `tokens.templ`, Line: 70, Col: 79}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `tokens.templ`, Line: 70, Col: 64}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 			if templ_7745c5c3_Err != nil {

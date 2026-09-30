@@ -80,3 +80,5 @@ Architectural decisions are recorded here, one file per decision, in
 | [0063](0063-a-message-names-its-recipients.md) | A message names its recipients, and the answer says who was not reached | Accepted |
 | [0064](0064-chat-claims-for-people-share-the-recipient-table.md) | Chat claims for addressed people share the recipient claim table | Accepted |
 | [0065](0065-your-own-chat-is-found-from-your-sign-in.md) | Your own chat is found from your sign-in when the app is installed for everyone | Accepted |
+| [0066](0066-keep-separate-graph-and-bot-registrations.md) | Keep the Graph and bot registrations separate | Accepted |
+| [0067](0067-times-in-the-admin-ui-follow-a-chosen-zone.md) | Show times in the admin UI in UTC or the browser's zone | Accepted |

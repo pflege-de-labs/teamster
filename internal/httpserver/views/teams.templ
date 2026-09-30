@@ -93,7 +93,7 @@ templ teamList(rows []TeamRow) {
 				</div>
 				<div class="truncate text-xs text-slate-500">{ row.ID }</div>
 				if !row.LastHeard.IsZero() {
-					<div class="text-xs text-slate-500">{ i18n.T(ctx, "teams.last_heard", row.LastHeard.Format("2006-01-02 15:04")) }</div>
+					<div class="text-xs text-slate-500">{ i18n.T(ctx, "teams.last_heard", stamp(ctx, row.LastHeard)) }</div>
 				}
 				if len(row.Destinations) > 0 {
 					<div class="truncate text-xs text-slate-600">{ i18n.T(ctx, "teams.destinations", strings.Join(row.Destinations, ", ")) }</div>

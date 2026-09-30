@@ -61,13 +61,13 @@ templ tokenItem(t models.AccessToken) {
 		<div class="min-w-0">
 			<div class="truncate font-medium">{ t.Name }</div>
 			<div class="truncate text-xs text-slate-500">
-				{ i18n.T(ctx, "tokens.created", t.CreatedAt.Format("2006-01-02 15:04"), t.CreatedBy) }
+				{ i18n.T(ctx, "tokens.created", stamp(ctx, t.CreatedAt), t.CreatedBy) }
 			</div>
 			<div class="truncate text-xs text-slate-500">
 				if t.LastUsedAt.IsZero() {
 					{ i18n.T(ctx, "tokens.never_used") }
 				} else {
-					{ i18n.T(ctx, "tokens.last_used", t.LastUsedAt.Format("2006-01-02 15:04")) }
+					{ i18n.T(ctx, "tokens.last_used", stamp(ctx, t.LastUsedAt)) }
 				}
 			</div>
 		</div>
