@@ -255,3 +255,32 @@ func TestOneCard(t *testing.T) {
 		})
 	}
 }
+
+func TestBotChannelMessageSummary(t *testing.T) {
+	t.Parallel()
+
+	card := []json.RawMessage{json.RawMessage(`{"type":"AdaptiveCard","body":[]}`)}
+	tests := []struct {
+		name string
+		msg  graph.Message
+		want string
+	}{
+		{name: "a card keeps the title in the feed", msg: graph.Message{Title: "Disk full", Text: "<p>db-1</p>", Cards: card}, want: "Disk full"},
+		{name: "a card without a title takes the text", msg: graph.Message{Text: "<p>db-1 at <b>92%</b></p><p>more</p>", Cards: card}, want: "db-1 at 92%"},
+		{name: "text only carries the title too", msg: graph.Message{Title: "Disk full", Text: "<p>db-1</p>"}, want: "Disk full"},
+		{name: "a bare card has none", msg: graph.Message{Cards: card}, want: ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := botChannelMessage(tt.msg)
+			if err != nil {
+				t.Fatalf("botChannelMessage: %v", err)
+			}
+			if got.Summary != tt.want {
+				t.Errorf("Summary = %q, want %q", got.Summary, tt.want)
+			}
+		})
+	}
+}

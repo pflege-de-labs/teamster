@@ -157,20 +157,21 @@ func channelFailure(err error) string {
 // renders, as chatMessage does. A new channel post must be exactly one Teams
 // message -- text and a card, or two cards, are refused with "Activity
 // resulted into multiple skype activities" -- so any card takes the title and
-// text into itself.
+// text into itself, and the summary keeps the feed from showing "Card".
 func botChannelMessage(msg graph.Message) (bot.Message, error) {
 	text, err := templates.ToMarkdown(msg.Text)
 	if err != nil {
 		return bot.Message{}, fmt.Errorf("markdown: %w", err)
 	}
+	summary := templates.Summary(msg.Title, msg.Text)
 	if len(msg.Cards) == 0 {
-		return bot.Message{Title: msg.Title, Text: text}, nil
+		return bot.Message{Title: msg.Title, Text: text, Summary: summary}, nil
 	}
 	card, err := oneCard(msg.Title, text, msg.Cards)
 	if err != nil {
 		return bot.Message{}, err
 	}
-	return bot.Message{Card: card}, nil
+	return bot.Message{Card: card, Summary: summary}, nil
 }
 
 // oneCard folds a title, Markdown text and several Adaptive Cards into the

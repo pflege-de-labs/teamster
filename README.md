@@ -663,6 +663,10 @@ universal attribute `summary`, then `labels.alertname`, then `Update` — so a c
 still previews as something readable. Text without a title is left alone: the feed previews the
 text itself.
 
+The bot sends the title as the activity's `summary`, which is the line the feed shows. A channel
+post with a card also puts the title at the top of the card, because a new channel post can only
+be one card ([ADR 0057](docs/adr/0057-channel-posts-carry-a-feed-summary.md)).
+
 Message text is **Markdown**. It is rendered to HTML and sanitized before it is sent: `p`, `br`,
 `b`, `strong`, `i`, `em`, `u`, `s`, `code`, `pre`, `blockquote`, `ul`, `ol`, `li`, `h1`–`h3` and `a`
 survive, `script` and `style` are dropped with their contents, anything else is unwrapped to its

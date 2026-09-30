@@ -898,18 +898,20 @@ func TestTheNoticeRidesAlong(t *testing.T) {
 		wantText  string
 		// wantChannelText is matched against the channel message's HTML text.
 		wantChannelText string
+		wantSummary     string
 	}{
 		{name: "no notice", rendered: templates.Message{Card: card}, wantCards: []string{`{"card":true}`}, wantChat: `{"card":true}`},
 		{name: "a notice alone", rendered: templates.Message{Notice: notice}, wantCards: []string{`{"notice":true}`}, wantChat: `{"notice":true}`},
 		{
 			name: "a card and a notice", rendered: templates.Message{Text: "<p>hi</p>", Card: card, Notice: notice},
 			wantCards: []string{`{"card":true}`, `{"notice":true}`}, wantChat: `{"card":true}`,
-			wantText: "(https://teamster.example.com/admin#templates)",
+			wantText: "(https://teamster.example.com/admin#templates)", wantSummary: "hi",
 		},
 		{
 			// A channel post is one Teams message, so beside text the notice is text too.
 			name: "text and a notice", rendered: templates.Message{Text: "<p>hi</p>", Notice: notice},
 			wantCards: []string{}, wantChat: `{"notice":true}`, wantChannelText: "https://teamster.example.com/admin#templates",
+			wantSummary: "hi",
 		},
 	}
 
@@ -938,6 +940,9 @@ func TestTheNoticeRidesAlong(t *testing.T) {
 			}
 			if !strings.Contains(chat.Text, tt.wantText) {
 				t.Errorf("chat text = %q, want it to contain %q", chat.Text, tt.wantText)
+			}
+			if chat.Summary != tt.wantSummary {
+				t.Errorf("chat summary = %q, want %q", chat.Summary, tt.wantSummary)
 			}
 		})
 	}
