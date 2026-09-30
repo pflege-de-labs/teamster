@@ -24,6 +24,8 @@ A change is done when all of these hold:
 * [Architecture documentation](docs/architecture.md) reflects the change
 * An [ADR](docs/adr/) exists for every architectural decision the change makes
 * `README.md` and the user-facing documentation match the behaviour that shipped
+* A user-visible change has an entry under `Unreleased` in [CHANGELOG.md](CHANGELOG.md), and a
+  chart change one in [charts/teamster/CHANGELOG.md](charts/teamster/CHANGELOG.md)
 * A schema change leaves the *previous* release able to run against the new schema
 
 ## Schema changes
@@ -80,7 +82,9 @@ An accepted migration is never edited. It has already run somewhere.
   version in a trailing comment. Never reintroduce a floating tag; Renovate does the updating.
 * Releases are cut from `main` by tagging `vX.Y.Z`, which triggers the release workflow: it
   re-runs lint and tests on the tagged commit, rebuilds the image and binaries, attaches SBOMs
-  and signs everything with cosign.
+  and signs everything with cosign. Before tagging, move the changelog's `Unreleased` entries
+  under a heading for the new version; chart releases (`teamster-X.Y.Z`) do the same in the
+  chart changelog.
 
 ## Go conventions
 
@@ -111,8 +115,9 @@ An accepted migration is never edited. It has already run somewhere.
 
 Upcoming features and their intended order live in [docs/roadmap.md](docs/roadmap.md). A feature is
 designed before it is implemented: a design note in its pull request, an ADR when it changes how
-components are structured, and one feature per pull request. Update the roadmap when a milestone
-lands or the plan changes.
+components are structured, and one feature per pull request. The roadmap holds only work that is
+not implemented: when a milestone lands, remove it from the roadmap, record it in the changelog
+and document it in the README. Update the roadmap when the plan changes.
 
 ## Architecture decisions
 
