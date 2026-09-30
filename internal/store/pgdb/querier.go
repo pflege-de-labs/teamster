@@ -206,6 +206,9 @@ type Querier interface {
 	// The statements are the SQLite ones with ? replaced by $n. Edit the SQLite
 	// file and run make generate.
 	ListDestinations(ctx context.Context) ([]Destination, error)
+	// ListDirectoryUserProblems is what the people page lists: installs that
+	// failed or were refused, most recent first.
+	ListDirectoryUserProblems(ctx context.Context, maxRows int64) ([]DirectoryUser, error)
 	// ListDirectoryUsersDue is a reconcile's work list: eligible people whose app
 	// is not known to be installed and whose next attempt has come, and installed
 	// ones not verified since reverify_before.

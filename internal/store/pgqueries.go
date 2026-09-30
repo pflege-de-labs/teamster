@@ -530,6 +530,18 @@ func (p pgQueries) DeleteExcessEventSampleValues(ctx context.Context, keep int64
 	return p.q.DeleteExcessEventSampleValues(ctx, keep)
 }
 
+func (p pgQueries) ListDirectoryUserProblems(ctx context.Context, maxRows int64) ([]sqlitedb.DirectoryUser, error) {
+	rows, err := p.q.ListDirectoryUserProblems(ctx, maxRows)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]sqlitedb.DirectoryUser, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, sqlitedb.DirectoryUser(row))
+	}
+	return out, nil
+}
+
 func (p pgQueries) ListDirectoryUsersDue(ctx context.Context, arg sqlitedb.ListDirectoryUsersDueParams) ([]sqlitedb.DirectoryUser, error) {
 	rows, err := p.q.ListDirectoryUsersDue(ctx, pgdb.ListDirectoryUsersDueParams(arg))
 	if err != nil {

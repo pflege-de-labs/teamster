@@ -292,8 +292,12 @@ the tenant (not guests), so IT can message anyone without them linking a chat fi
 - The bot records every personal install it hears about, and greets a new install with
   `bot.welcome-message` when that is set. It says nothing otherwise.
 
-An admin button that starts a run, and addressing messages to people, are not built yet; see
-[milestone 23](docs/roadmap.md).
+**People** (`/admin/people`, admins only) shows how many people have the app, the latest run with
+its progress, and the installs that failed and why. **Install for all users** starts a run now,
+rather than at the next interval; `POST /api/people/install` does the same, and
+`GET /api/people/runs/latest` reports progress.
+
+Addressing messages to people is not built yet; see [milestone 23](docs/roadmap.md).
 
 Turning this on also needs a Teams app package: [`manifest/`](manifest/) holds the `manifest.json`
 and icons an operator uploads to Teams admin center so the bot can be installed at all, separate

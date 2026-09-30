@@ -115,3 +115,11 @@ SELECT install_state, COUNT(*) AS users
 FROM directory_users
 GROUP BY install_state
 ORDER BY install_state;
+
+-- ListDirectoryUserProblems is what the people page lists: installs that
+-- failed or were refused, most recent first.
+-- name: ListDirectoryUserProblems :many
+SELECT * FROM directory_users
+WHERE install_state IN ('failed', 'ineligible')
+ORDER BY updated_at DESC, aad_object_id
+LIMIT CAST(sqlc.arg(max_rows) AS BIGINT);

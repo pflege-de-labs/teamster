@@ -21,6 +21,9 @@ reasoning behind it in the [ADRs](docs/adr/).
   are refused, and removing the app no longer retires the link
   ([ADR 0061](docs/adr/0061-no-opt-out-when-installed-for-everyone.md)). The bot records personal
   installs and removals, and greets a new install with `bot.welcome-message`.
+* **People** (`/admin/people`, admins only) shows install progress for the whole tenant and starts
+  a run on demand; `GET /api/people/runs/latest` and `POST /api/people/install` are the same over
+  the API.
 * Each webhook has a default template, used before the built-in message. A new installation is
   seeded with a preset per webhook, and the template editor offers the same presets as starting
   points ([ADR 0055](docs/adr/0055-each-webhook-has-a-default-template.md)).

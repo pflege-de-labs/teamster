@@ -161,6 +161,19 @@ func TestConformanceDirectoryUsersDue(t *testing.T) {
 		if fmt.Sprint(counts) != fmt.Sprint(want) {
 			t.Errorf("counts = %v, want %v", counts, want)
 		}
+
+		problems, err := st.ListDirectoryUserProblems(ctx, 10)
+		if err != nil {
+			t.Fatalf("ListDirectoryUserProblems: %v", err)
+		}
+		if len(problems) != 3 {
+			t.Errorf("problems = %d, want the two failures and the ineligible one", len(problems))
+		}
+		for _, u := range problems {
+			if u.InstallState != models.InstallFailed && u.InstallState != models.InstallIneligible {
+				t.Errorf("problem %s is %s", u.AADObjectID, u.InstallState)
+			}
+		}
 	})
 }
 

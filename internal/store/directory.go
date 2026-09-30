@@ -129,6 +129,18 @@ func (s queryAdapter) PurgeDepartedDirectoryUsers(ctx context.Context, before ti
 	return n, nil
 }
 
+func (s queryAdapter) ListDirectoryUserProblems(ctx context.Context, limit int) ([]models.DirectoryUser, error) {
+	rows, err := s.q.ListDirectoryUserProblems(ctx, int64(limit))
+	if err != nil {
+		return nil, fmt.Errorf("list directory user problems: %w", err)
+	}
+	out := make([]models.DirectoryUser, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, directoryUserOf(row))
+	}
+	return out, nil
+}
+
 func (s queryAdapter) CountDirectoryUsersByState(ctx context.Context) (map[models.InstallState]int64, error) {
 	rows, err := s.q.CountDirectoryUsersByState(ctx)
 	if err != nil {

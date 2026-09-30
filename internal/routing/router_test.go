@@ -182,6 +182,10 @@ func (s stubStore) PurgeDepartedDirectoryUsers(ctx context.Context, before time.
 	return 0, store.ErrNotFound
 }
 
+func (s stubStore) ListDirectoryUserProblems(ctx context.Context, limit int) ([]models.DirectoryUser, error) {
+	return nil, store.ErrNotFound
+}
+
 func (s stubStore) CountDirectoryUsersByState(ctx context.Context) (map[models.InstallState]int64, error) {
 	return nil, store.ErrNotFound
 }

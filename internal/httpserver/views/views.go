@@ -39,6 +39,9 @@ type Viewer struct {
 	// CanComplete is whether the editors may fetch /api/samples; without it
 	// they still complete template syntax, but no label keys or values.
 	CanComplete bool
+	// PeopleEnabled is whether the app is installed for everyone, which is
+	// when /admin/people exists; the nav shows it to admins only.
+	PeopleEnabled bool
 }
 
 // roleLabel names the highest built-in role, translated, and says so plainly

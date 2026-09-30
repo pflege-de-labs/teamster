@@ -954,6 +954,23 @@ label values beyond the `samples.max-values-per-key` most recently seen per key.
 Postgres add to the same counts and run the same idempotent prune. See
 [ADR 0041](adr/0041-editor-completion-from-sampled-labels.md).
 
+### Installing for everyone: `/admin/people`
+
+Registered only when the bot is configured and `bot.global-install` is on, and listed in the sidebar
+for admins only (`Viewer.PeopleEnabled` and `CanManage`). `requestAuthorization` maps
+`/admin/people*` and `/api/people/*` to `administer` on `DirectoryInstall`, reads included, because
+the page lists people.
+
+The page shows the directory's counts by install state, the latest `directory_runs` row with its
+counters and last error, and up to 50 failed or ineligible people (`ListDirectoryUserProblems`).
+**Install for all users** posts to `/admin/people/install`, which requests a manual run through
+`formPostTo`. A reconciler tick on any replica claims it within 30 seconds. While a run is requested
+or running the button becomes a refresh link, and a second request is refused, because the unique
+index on active runs answers `ErrConflict`.
+
+`GET /api/people/runs/latest` returns the latest run and the counts, and `POST /api/people/install`
+answers 202 with the requested run, or 409 while one is active.
+
 ### Managing recipients
 
 `/admin/recipients` lists every recipient, the routes that target them by name, and the blocked

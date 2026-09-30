@@ -53,6 +53,7 @@ func (s *Server) viewerFor(r *http.Request) views.Viewer {
 	viewer.CanManage = s.authz.Allow(subject, roles, authz.ActionAdminister, authz.Resource{Type: "Grant"})
 	viewer.CanComplete = s.cfg.Samples.Enabled && s.mayComplete(r)
 	viewer.NotificationsEnabled = botConfigured(s.cfg.Bot)
+	viewer.PeopleEnabled = viewer.NotificationsEnabled && s.cfg.Bot.GlobalInstall
 	return viewer
 }
 
@@ -146,6 +147,11 @@ func requestAuthorization(r *http.Request) (string, authz.Resource) {
 	case path == "/api/tokens", strings.HasPrefix(path, "/api/tokens/"),
 		path == "/admin/tokens", strings.HasPrefix(path, "/admin/tokens/"):
 		return authz.ActionAdminister, authz.Resource{Type: "AccessToken"}
+	// Installing the app for the whole tenant, and the directory behind it,
+	// are the admin's, reads included: the page lists people (ADR 0059).
+	case path == "/admin/people", strings.HasPrefix(path, "/admin/people/"),
+		strings.HasPrefix(path, "/api/people/"):
+		return authz.ActionAdminister, authz.Resource{Type: "DirectoryInstall"}
 	// The global default decides where every unclaimed message lands, which is
 	// broader than any one destination an editor may change (ADR 0038).
 	case isDefaultDestinationPath(path) && r.Method != http.MethodGet && r.Method != http.MethodHead:
