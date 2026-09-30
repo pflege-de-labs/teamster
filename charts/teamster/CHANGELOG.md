@@ -8,6 +8,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.9.0] — 2026-09-30
+
+App version 0.10.0: the admin UI names the zone of every time and can show them in the browser's
+zone, and a manual run retries failed installs at once; see the
+[service changelog](../../CHANGELOG.md).
+
 ## [0.8.1] — 2026-09-30
 
 App version 0.9.1, which fixes global install when a Graph permission is missing; see the
@@ -105,7 +111,8 @@ an Ingress or HTTPRoute, configuration and credentials from values, `extraObject
 an optional startupProbe, and `helm test`
 ([ADR 0016](../../docs/adr/0016-helm-chart.md)).
 
-[Unreleased]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.8.1...HEAD
+[Unreleased]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.9.0...HEAD
+[0.9.0]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.8.1...teamster-0.9.0
 [0.8.1]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.8.0...teamster-0.8.1
 [0.8.0]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.7.1...teamster-0.8.0
 [0.7.1]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.7.0...teamster-0.7.1
