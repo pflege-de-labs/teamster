@@ -825,3 +825,75 @@ func TestPostToChannel(t *testing.T) {
 		})
 	}
 }
+
+func TestCreatePersonalConversation(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		status   int
+		body     string
+		insecure bool
+		want     string
+		wantErr  bool
+	}{
+		{name: "created", status: http.StatusCreated, body: `{"id":"a:1abc"}`, want: "a:1abc"},
+		{name: "app not installed", status: http.StatusForbidden, body: `{"error":{"code":"Forbidden","message":"bot is not installed"}}`, wantErr: true},
+		{name: "answer without an id", status: http.StatusCreated, body: `{}`, wantErr: true},
+		{name: "undecodable answer", status: http.StatusCreated, body: `not json`, wantErr: true},
+		{name: "plain http service url", insecure: true, wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var gotPath string
+			var gotBody struct {
+				IsGroup bool `json:"isGroup"`
+				Bot     struct {
+					ID string `json:"id"`
+				} `json:"bot"`
+				Members []struct {
+					ID          string `json:"id"`
+					AADObjectID string `json:"aadObjectId"`
+				} `json:"members"`
+				ChannelData struct {
+					Tenant struct {
+						ID string `json:"id"`
+					} `json:"tenant"`
+				} `json:"channelData"`
+				TenantID string `json:"tenantId"`
+			}
+			client, ref := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+				gotPath = r.URL.Path
+				raw, _ := io.ReadAll(r.Body)
+				_ = json.Unmarshal(raw, &gotBody)
+				w.WriteHeader(tt.status)
+				_, _ = w.Write([]byte(tt.body))
+			})
+			serviceURL := ref.ServiceURL + "/"
+			if tt.insecure {
+				serviceURL = "http://example.test/"
+			}
+
+			got, err := client.CreatePersonalConversation(t.Context(), serviceURL, "tenant", "bot-app", "oid-1")
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("CreatePersonalConversation() error = %v, want error %v", err, tt.wantErr)
+			}
+			if got != tt.want {
+				t.Errorf("CreatePersonalConversation() = %q, want %q", got, tt.want)
+			}
+			if tt.insecure {
+				return
+			}
+			if gotPath != "/v3/conversations" {
+				t.Errorf("path = %q, want /v3/conversations", gotPath)
+			}
+			if gotBody.IsGroup || gotBody.Bot.ID != "28:bot-app" || len(gotBody.Members) != 1 ||
+				gotBody.Members[0].AADObjectID != "oid-1" || gotBody.ChannelData.Tenant.ID != "tenant" || gotBody.TenantID != "tenant" {
+				t.Errorf("body = %+v, want a 1:1 conversation between the bot and oid-1 in the tenant", gotBody)
+			}
+		})
+	}
+}
