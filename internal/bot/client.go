@@ -56,6 +56,9 @@ type Message struct {
 	Card json.RawMessage
 	// Cards follow Card, in order: a Teams V2 message may bring several.
 	Cards []json.RawMessage
+	// Summary is the plain text the activity feed shows; without it a card
+	// previews as "Card" (ADR 0057).
+	Summary string
 }
 
 // markdownMetachars are the ASCII punctuation characters CommonMark gives
@@ -98,6 +101,7 @@ type activityAttachment struct {
 type activity struct {
 	Type        string               `json:"type"`
 	Text        string               `json:"text"`
+	Summary     string               `json:"summary,omitempty"`
 	Attachments []activityAttachment `json:"attachments,omitempty"`
 }
 
@@ -124,7 +128,7 @@ func (m Message) activity() activity {
 	}
 	text.WriteString(m.Text)
 
-	act := activity{Type: "message", Text: text.String()}
+	act := activity{Type: "message", Text: text.String(), Summary: m.Summary}
 	for _, card := range append([]json.RawMessage{m.Card}, m.Cards...) {
 		if len(card) == 0 {
 			continue

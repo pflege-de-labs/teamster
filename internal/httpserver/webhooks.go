@@ -725,7 +725,7 @@ func (s *Server) chatMessage(rendered templates.Message) (bot.Message, error) {
 	if err != nil {
 		return bot.Message{}, fmt.Errorf("markdown: %w", err)
 	}
-	msg := bot.Message{Title: rendered.Title, Text: text, Card: rendered.Card}
+	msg := bot.Message{Title: rendered.Title, Text: text, Card: rendered.Card, Summary: templates.Summary(rendered.Title, rendered.Text)}
 	if len(rendered.Notice) > 0 {
 		if len(msg.Card) == 0 {
 			msg.Card = rendered.Notice

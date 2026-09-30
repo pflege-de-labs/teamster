@@ -244,6 +244,9 @@ application post or edit channel messages, except for migration and for `policyV
 * **One message:** HTML is converted with `templates.ToMarkdown`, as for a chat.
   * A post without a card is text only.
   * With any card, the title, the text and every further card fold into the first card.
+  * Every activity carries `summary`, the line the activity feed shows: the title, or else the
+    first line of the text. Without it a card-only post previews as `Card`. See
+    [ADR 0057](adr/0057-channel-posts-carry-a-feed-summary.md).
   * The Connector refuses a new channel conversation whose activity Teams would split, with
     `Activity resulted into multiple skype activities`.
   * Beside plain text, the "no template" hint is a line of text rather than a card. See

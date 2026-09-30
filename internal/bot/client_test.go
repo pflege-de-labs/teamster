@@ -272,6 +272,7 @@ func TestSendMessageBody(t *testing.T) {
 		msg             Message
 		wantText        string
 		wantAttachments bool
+		wantSummary     any
 	}{
 		{
 			name:     "title and text combine into a bold markdown first line, separated by a blank line",
@@ -283,6 +284,13 @@ func TestSendMessageBody(t *testing.T) {
 			msg:             Message{Title: "Disk filling", Text: "92% used", Card: json.RawMessage(`{"type":"AdaptiveCard"}`)},
 			wantText:        "**Disk filling**\n\n92% used",
 			wantAttachments: true,
+		},
+		{
+			name:            "a summary is sent for the activity feed",
+			msg:             Message{Card: json.RawMessage(`{"type":"AdaptiveCard"}`), Summary: "Disk filling"},
+			wantText:        "",
+			wantAttachments: true,
+			wantSummary:     "Disk filling",
 		},
 		{
 			name:     "no title is just the text",
@@ -336,6 +344,9 @@ func TestSendMessageBody(t *testing.T) {
 			_, hasAttachments := gotBody["attachments"]
 			if hasAttachments != tt.wantAttachments {
 				t.Errorf("attachments present = %v, want %v (body: %+v)", hasAttachments, tt.wantAttachments, gotBody)
+			}
+			if gotBody["summary"] != tt.wantSummary {
+				t.Errorf("summary = %v, want %v", gotBody["summary"], tt.wantSummary)
 			}
 		})
 	}
@@ -801,7 +812,7 @@ func TestPostToChannel(t *testing.T) {
 				serviceURL = "http://example.test/"
 			}
 
-			msg := Message{Title: "t", Card: json.RawMessage(`{"a":1}`), Cards: []json.RawMessage{json.RawMessage(`{"b":2}`)}}
+			msg := Message{Title: "t", Card: json.RawMessage(`{"a":1}`), Cards: []json.RawMessage{json.RawMessage(`{"b":2}`)}, Summary: "feed line"}
 			got, err := client.PostToChannel(t.Context(), serviceURL, "tenant", "19:c@thread.tacv2", msg)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("PostToChannel() error = %v, want error %v", err, tt.wantErr)
@@ -819,8 +830,8 @@ func TestPostToChannel(t *testing.T) {
 			channel, _ := channelData["channel"].(map[string]any)
 			activity, _ := gotBody["activity"].(map[string]any)
 			attachments, _ := activity["attachments"].([]any)
-			if gotBody["isGroup"] != true || channel["id"] != "19:c@thread.tacv2" || len(attachments) != 2 {
-				t.Errorf("body = %+v, want a group conversation in the channel carrying both cards", gotBody)
+			if gotBody["isGroup"] != true || channel["id"] != "19:c@thread.tacv2" || len(attachments) != 2 || activity["summary"] != "feed line" {
+				t.Errorf("body = %+v, want a group conversation in the channel carrying both cards and the summary", gotBody)
 			}
 		})
 	}

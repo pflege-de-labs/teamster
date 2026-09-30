@@ -1,6 +1,6 @@
 # 0049. A channel post is one Teams message
 
-* Status: Accepted
+* Status: Accepted, amended by [0057](0057-channel-posts-carry-a-feed-summary.md)
 * Date: 2026-09-29
 
 ## Context

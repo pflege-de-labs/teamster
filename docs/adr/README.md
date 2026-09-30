@@ -63,7 +63,7 @@ Architectural decisions are recorded here, one file per decision, in
 | [0046](0046-structured-logging-and-error-boundary.md) | Log through slog and answer errors at one boundary | Accepted |
 | [0047](0047-a-route-targets-a-channel-or-yourself.md) | A route targets a channel or a person, and a person only themselves | Accepted, amended by [0051](0051-root-routes-need-a-target-refinements-a-template.md) |
 | [0048](0048-bot-answers-commands-in-the-personal-chat.md) | The bot answers commands in the personal chat | Accepted |
-| [0049](0049-a-channel-post-is-one-teams-message.md) | A channel post is one Teams message | Accepted |
+| [0049](0049-a-channel-post-is-one-teams-message.md) | A channel post is one Teams message | Accepted, amended by [0057](0057-channel-posts-carry-a-feed-summary.md) |
 | [0050](0050-catch-all-template-is-a-setting.md) | The catch-all route's template is a setting | Accepted |
 | [0051](0051-root-routes-need-a-target-refinements-a-template.md) | A root route needs a target, and a refinement that keeps it needs a new template | Accepted |
 | [0052](0052-the-receiving-webhook-is-a-label.md) | The receiving webhook is a label | Accepted |
@@ -71,3 +71,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0054](0054-apply-sidebar-state-before-first-paint.md) | Apply the sidebar state before first paint | Accepted |
 | [0055](0055-each-webhook-has-a-default-template.md) | Each webhook has a default template | Accepted |
 | [0056](0056-events-not-alerts.md) | Model what arrives as an event, not an alert | Accepted |
+| [0057](0057-channel-posts-carry-a-feed-summary.md) | Send the title as the activity summary | Accepted |
