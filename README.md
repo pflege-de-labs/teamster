@@ -100,8 +100,11 @@ The `graph` registration signs in as the application itself (client credentials)
 
 `User.ReadBasic.All` is not enough for `bot.global-install`: it cannot read or filter
 `accountEnabled` and `userType`, and Graph answers the member listing with
-`403 Authorization_RequestDenied`. The roles are baked into the access token, so restart Teamster
-after granting consent, or it keeps the old token for up to an hour.
+`403 Authorization_RequestDenied`. Of the install permissions Graph lists in a refusal, grant
+`TeamsAppInstallation.ReadWriteForUser.All`: the `Self` variants cover only a Teams app tied to the
+`graph` registration, and Teamster's app belongs to the bot registration. The roles are baked into
+the access token, so restart Teamster after granting consent, or it keeps the old token for up to
+an hour.
 
 **Graph does not post anything.** Microsoft Graph does not let an application post or edit
 channel messages:

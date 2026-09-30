@@ -264,7 +264,7 @@ const listDirectoryUsersDue = `-- name: ListDirectoryUsersDue :many
 SELECT aad_object_id, tenant_id, user_principal_name, mail, upn_key, mail_key, display_name, given_name, surname, eligible, conversation_id, service_url, install_state, installed_at, next_attempt_at, attempts, last_error, blocked_at, blocked_reason, directory_seen_at, created_at, updated_at FROM directory_users
 WHERE eligible
 	AND (
-		(install_state IN ('unknown', 'removed', 'failed')
+		(install_state IN ('unknown', 'removed', 'failed', 'ineligible')
 			AND (next_attempt_at IS NULL OR next_attempt_at <= ?1))
 		OR (install_state = 'installed' AND installed_at < ?2)
 	)
@@ -280,7 +280,8 @@ type ListDirectoryUsersDueParams struct {
 
 // ListDirectoryUsersDue is a reconcile's work list: eligible people whose app
 // is not known to be installed and whose next attempt has come, and installed
-// ones not verified since reverify_before.
+// ones not verified since reverify_before. An install Graph refused for the
+// person is retried too: a licence or policy may change.
 func (q *Queries) ListDirectoryUsersDue(ctx context.Context, arg ListDirectoryUsersDueParams) ([]DirectoryUser, error) {
 	rows, err := q.db.QueryContext(ctx, listDirectoryUsersDue, arg.Now, arg.ReverifyBefore, arg.MaxRows)
 	if err != nil {

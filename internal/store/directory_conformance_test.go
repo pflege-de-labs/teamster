@@ -171,7 +171,8 @@ func TestConformanceDirectoryUsersDue(t *testing.T) {
 		user("d-failed-due", true)
 		user("e-installed-fresh", true)
 		user("f-installed-stale", true)
-		user("g-ineligible", true)
+		user("g-ineligible-later", true)
+		user("h-ineligible-due", true)
 
 		mustDo := func(err error) {
 			t.Helper()
@@ -183,7 +184,8 @@ func TestConformanceDirectoryUsersDue(t *testing.T) {
 		mustDo(st.RecordDirectoryInstallFailure(ctx, "d-failed-due", models.InstallFailed, "x", now.Add(-time.Minute), now))
 		mustDo(st.SetDirectoryUserInstalled(ctx, "e-installed-fresh", "c1", "https://s/", now.Add(-time.Hour)))
 		mustDo(st.SetDirectoryUserInstalled(ctx, "f-installed-stale", "c2", "https://s/", now.Add(-10*24*time.Hour)))
-		mustDo(st.RecordDirectoryInstallFailure(ctx, "g-ineligible", models.InstallIneligible, "no licence", time.Time{}, now))
+		mustDo(st.RecordDirectoryInstallFailure(ctx, "g-ineligible-later", models.InstallIneligible, "no licence", now.Add(time.Hour), now))
+		mustDo(st.RecordDirectoryInstallFailure(ctx, "h-ineligible-due", models.InstallIneligible, "no licence", now.Add(-time.Minute), now))
 
 		due, err := st.ListDirectoryUsersDue(ctx, now, now.Add(-7*24*time.Hour), 10)
 		if err != nil {
@@ -193,7 +195,7 @@ func TestConformanceDirectoryUsersDue(t *testing.T) {
 		for _, u := range due {
 			ids = append(ids, u.AADObjectID)
 		}
-		if fmt.Sprint(ids) != "[a-unknown d-failed-due f-installed-stale]" {
+		if fmt.Sprint(ids) != "[a-unknown d-failed-due f-installed-stale h-ineligible-due]" {
 			t.Errorf("due = %v", ids)
 		}
 		if due, _ := st.ListDirectoryUsersDue(ctx, now, now.Add(-7*24*time.Hour), 1); len(due) != 1 {
@@ -204,7 +206,7 @@ func TestConformanceDirectoryUsersDue(t *testing.T) {
 		if err != nil {
 			t.Fatalf("CountDirectoryUsersByState: %v", err)
 		}
-		want := map[models.InstallState]int64{models.InstallUnknown: 2, models.InstallFailed: 2, models.InstallInstalled: 2, models.InstallIneligible: 1}
+		want := map[models.InstallState]int64{models.InstallUnknown: 2, models.InstallFailed: 2, models.InstallInstalled: 2, models.InstallIneligible: 2}
 		if fmt.Sprint(counts) != fmt.Sprint(want) {
 			t.Errorf("counts = %v, want %v", counts, want)
 		}
@@ -213,8 +215,8 @@ func TestConformanceDirectoryUsersDue(t *testing.T) {
 		if err != nil {
 			t.Fatalf("ListDirectoryUserProblems: %v", err)
 		}
-		if len(problems) != 3 {
-			t.Errorf("problems = %d, want the two failures and the ineligible one", len(problems))
+		if len(problems) != 4 {
+			t.Errorf("problems = %d, want the two failures and the two ineligible", len(problems))
 		}
 		for _, u := range problems {
 			if u.InstallState != models.InstallFailed && u.InstallState != models.InstallIneligible {

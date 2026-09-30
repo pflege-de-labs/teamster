@@ -1201,9 +1201,9 @@ A run:
 2. Marks everyone not seen since the start as `departed`, but only after a complete listing. A
    listing that fails part-way fails the run and marks nobody.
 3. Works through the people who are due, in batches of 100, with `bot.install-concurrency`
-   workers. Due means an install state of `unknown`, `removed` or `failed` whose next attempt has
-   come, or `installed` but not verified within `bot.reverify-interval`. Each person is handled
-   once per run.
+   workers. Due means an install state of `unknown`, `removed`, `failed` or `ineligible` whose next
+   attempt has come, or `installed` but not verified within `bot.reverify-interval`. Each person is
+   handled once per run.
 4. Purges people who departed 30 days ago, and finished runs of the same age.
 
 `people.Installer.Ensure` handles one person:
@@ -1214,9 +1214,10 @@ A run:
    `bot.catalog-app-id` or is looked up once and kept. After the install it asks for the chat up to
    three times, waiting 2 then 4 seconds, because a new installation takes a moment to answer.
 3. On failure it records the reason and a next attempt, one hour doubling per attempt up to a week.
-   A 403 `Authorization_RequestDenied` means the permission is missing: the rest of the run only
+   A 403 that is `Authorization_RequestDenied`, or whose message starts `Missing role permissions`
+   as the Teams endpoints answer, means the permission is missing: the rest of the run only
    discovers chats. So does an app the catalog does not have. Any other 4xx except 429 marks the
-   person `ineligible`.
+   person `ineligible`, which is retried on the same backoff since a licence or policy may change.
 
 Progress is written as a heartbeat every 25 people or 30 seconds, whichever comes first. A
 heartbeat that changes no row means another replica took the run over, and this one stops without
