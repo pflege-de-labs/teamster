@@ -143,6 +143,14 @@ for why and how. It only applies when Keycloak brokers the admin login against M
 an upstream identity provider, and needs configuration in three places: the Entra IdP link in
 Keycloak, the Entra app registration behind it, and Teamster itself.
 
+Two logins are involved, and each asks for its own scopes:
+
+* **Teamster → Keycloak** requests `auth.oidc-scopes` (default `profile,email,roles`). Leave it as
+  it is: Graph scopes mean nothing to Keycloak and do not belong there.
+* **Keycloak → Entra** requests the scopes configured on the identity provider link. This is where
+  the Graph scopes go, because the token Keycloak stores — and hands to Teamster later — is the one
+  Entra issues for this login.
+
 ### The Entra identity provider link in Keycloak
 
 **Identity providers → Microsoft** (or your Entra OIDC/SAML link) → the realm's link → **Settings**:
@@ -157,11 +165,32 @@ it finishes; Stored Tokens Readable is what lets `GET /broker/{alias}/token` han
 (without it, the endpoint answers `403`). The alias in that URL — `auth-broker-idp-alias` — is the
 link's own alias, shown in the identity provider list and in its settings URL.
 
-The login itself must additionally request whatever scope the delegated Graph permission below
-needs — `Team.ReadBasic.All` and `Channel.ReadBasic.All` are delegated permissions, not covered by
-`openid`/`profile`/`email` alone. Add them to the identity provider link's **Default Scopes** (or
-the mapper that sets them), so Keycloak asks Entra for them at every login, not only the first one
-an admin happens to grant consent for by hand.
+Reading the stored token also needs the `broker` client's `read-token` role on the admin's Keycloak
+account. Switching Stored Tokens Readable on grants it only to users who first sign in through the
+link afterwards; assign it by hand (**Users → user → Role mapping**, filter by client `broker`), or
+through a group or the realm's default roles, for everyone who already exists. If the `teamster`
+client has *Full Scope Allowed* off, add the role to its dedicated scope too, or it is left out of
+the token.
+
+Set the scopes Keycloak requests from Entra in the same link's **Scopes** field — **Default
+Scopes** on the Microsoft provider, **Advanced → Scopes** on a generic OpenID Connect provider —
+space-separated:
+
+```text
+openid profile email offline_access https://graph.microsoft.com/Team.ReadBasic.All https://graph.microsoft.com/Channel.ReadBasic.All
+```
+
+| Scope | Why |
+| --- | --- |
+| `openid`, `profile`, `email` | the login itself, as before |
+| `offline_access` | an Entra refresh token, so Keycloak can renew the stored token after it expires |
+| `https://graph.microsoft.com/Team.ReadBasic.All` | `GET /me/joinedTeams` — the admin's own Teams |
+| `https://graph.microsoft.com/Channel.ReadBasic.All` | `GET /teams/{id}/channels` — their channels |
+
+Keycloak sends this list at every login, so each token it stores carries the Graph scopes, not only
+the one from the login where an admin happened to consent by hand. The change applies from the
+next login: an admin already signed in has a stored token without the scopes and must sign out and
+in again.
 
 ### The Entra app registration
 
@@ -187,6 +216,13 @@ auth:
     idp-alias: "microsoft"                 # the Entra IdP link's own alias
     token-encryption-key: "<32 random bytes, base64>"
 ```
+
+`token-encryption-key` is configured in Teamster only — nothing in Keycloak or Entra refers to it.
+Teamster keeps each admin's Keycloak token in its own database, in `broker_tokens`, and this key
+encrypts it there; Keycloak's copy of the Entra token is Keycloak's own business. Every replica
+must be given the same key. Outside the YAML file it is
+`TEAMSTER_AUTH_BROKER_TOKEN_ENCRYPTION_KEY`, and in the Helm chart
+`credentials.brokerTokenEncryptionKey`.
 
 Generate the key once, e.g. `openssl rand -base64 32`, and keep it as durable as any other secret:
 losing it makes every already-stored broker token permanently unreadable, which fails the delegated
