@@ -48,7 +48,7 @@ type UIConfig struct {
 type MetricsConfig struct {
 	Enabled bool `help:"Collect metrics and export them." default:"false"`
 	// Loopback rather than every interface: the listener is unauthenticated and
-	// every collection asks the database how many alerts are open, so reaching
+	// every collection asks the database how many events are open, so reaching
 	// it should take a deliberate act of plumbing.
 	Addr            string        `help:"Address of the unauthenticated metrics listener." default:"127.0.0.1:9090"`
 	Path            string        `help:"Path the Prometheus exporter is served at." default:"/metrics"`
@@ -212,11 +212,11 @@ type LogConfig struct {
 	Format string `help:"Line format: text to read, json for a log pipeline." enum:"text,json" default:"text"`
 }
 
-// SamplesConfig bounds what is remembered of incoming alerts so the admin UI
+// SamplesConfig bounds what is remembered of incoming events so the admin UI
 // can complete label keys, label values and annotation keys (ADR 0041).
 // Annotation values are never kept, whatever these say.
 type SamplesConfig struct {
-	Enabled         bool          `help:"Remember label keys, label values and annotation keys of incoming alerts for editor completion." default:"true"`
+	Enabled         bool          `help:"Remember label keys, label values and attribute keys of incoming events for editor completion." default:"true"`
 	Retention       time.Duration `help:"How long a sample is kept after it was last seen." default:"720h"`
 	MaxValuesPerKey int           `help:"How many of the most recently seen values are kept per label key." name:"max-values-per-key" default:"50"`
 	MaxValueLength  int           `help:"Label values longer than this many bytes are not sampled." name:"max-value-length" default:"200"`

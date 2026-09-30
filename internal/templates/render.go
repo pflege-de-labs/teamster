@@ -11,19 +11,23 @@ import (
 	"github.com/pflege-de-labs/teamster/internal/models"
 )
 
-// DefaultTitle reproduces the summary line this service sent before templates
-// could name their own, so an existing card-only template keeps its behaviour.
-const DefaultTitle = `{{ default .Alert.Annotations.summary (default .Alert.Labels.alertname "Alert update") }}`
+// DefaultTitle is the summary line for a card-only template: the extension's
+// summary when there is one, else the alertname label. Each extension is read
+// under with, because a template for any source meets nil ones.
+const DefaultTitle = `{{ $summary := "" }}` +
+	`{{ with .Event.Alertmanager }}{{ $summary = index .Annotations "summary" }}{{ end }}` +
+	`{{ with .Event.Universal }}{{ $summary = index .Attributes "summary" }}{{ end }}` +
+	`{{ default $summary (default .Event.Labels.alertname "Update") }}`
 
 type RenderData struct {
-	Alert any
+	Event any
 	Now   string
 	// Payload is the request body as decoded JSON, for a sender whose shape
-	// Alert does not capture -- a Teams V2 MessageCard, say. Nil elsewhere.
+	// Event does not capture -- a Teams V2 MessageCard, say. Nil elsewhere.
 	Payload any
 }
 
-// Message is a template rendered against an alert. Title is the line the Teams
+// Message is a template rendered against an event. Title is the line the Teams
 // activity feed previews — a message that is only a card previews as "Card" —
 // and Card is nil for a template that sends text alone.
 //

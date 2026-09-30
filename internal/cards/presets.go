@@ -36,7 +36,7 @@ func Presets() []Preset {
 			LabelKey: "preset.universal",
 			Name:     "Universal webhook (default)",
 			Title:    universalTitle,
-			Text:     `{{ .Alert.Text }}`,
+			Text:     `{{ .Event.Text }}`,
 			Body:     universalBody,
 			Sources:  []string{models.SourceUniversal},
 		},
@@ -44,8 +44,8 @@ func Presets() []Preset {
 			Key:      models.SourceTeamsV2,
 			LabelKey: "preset.teamsv2",
 			Name:     "Teams V2 webhook (default)",
-			Title:    `{{ default .Alert.Title "Teams message" }}`,
-			Text:     `{{ .Alert.Text }}`,
+			Title:    `{{ default .Event.Title "Teams message" }}`,
+			Text:     `{{ .Event.Text }}`,
 			Body:     teamsV2Body,
 			Sources:  []string{models.SourceTeamsV2},
 		},
@@ -62,8 +62,8 @@ func PresetFor(source string) (Preset, bool) {
 	return Preset{}, false
 }
 
-const alertmanagerTitle = `{{ if eq .Alert.Status "resolved" }}Resolved{{ else }}Firing{{ end }}: ` +
-	`{{ default .Alert.Annotations.summary (default .Alert.Labels.alertname "Alert") }}`
+const alertmanagerTitle = `{{ if eq .Event.State "closed" }}Resolved{{ else }}Firing{{ end }}: ` +
+	`{{ default .Event.Alertmanager.Annotations.summary (default .Event.Labels.alertname "Alert") }}`
 
 // The label loop tracks its first element because JSON wants commas between
 // facts and text/template gives a map range no index.
@@ -74,7 +74,7 @@ const alertmanagerBody = `{
   "body": [
     {
       "type": "Container",
-      "style": {{ if eq .Alert.Status "resolved" }}"good"{{ else }}"attention"{{ end }},
+      "style": {{ if eq .Event.State "closed" }}"good"{{ else }}"attention"{{ end }},
       "bleed": true,
       "items": [
         {
@@ -82,27 +82,27 @@ const alertmanagerBody = `{
           "size": "Medium",
           "weight": "Bolder",
           "wrap": true,
-          "text": {{ toJSON (default .Alert.Annotations.summary (default .Alert.Labels.alertname "Alert")) }}
+          "text": {{ toJSON (default .Event.Alertmanager.Annotations.summary (default .Event.Labels.alertname "Alert")) }}
         },
         {
           "type": "TextBlock",
           "spacing": "None",
           "isSubtle": true,
           "wrap": true,
-          "text": {{ if eq .Alert.Status "resolved" }}"Resolved"{{ else }}{{ toJSON (printf "Firing · %s" (default .Alert.Labels.severity "no severity")) }}{{ end }}
+          "text": {{ if eq .Event.State "closed" }}"Resolved"{{ else }}{{ toJSON (printf "Firing · %s" (default .Event.Labels.severity "no severity")) }}{{ end }}
         }
       ]
     },
     {
       "type": "TextBlock",
       "wrap": true,
-      "text": {{ toJSON (default .Alert.Annotations.description "") }}
+      "text": {{ toJSON (default .Event.Alertmanager.Annotations.description "") }}
     },
     {
       "type": "FactSet",
       "facts": [
         {{- $first := true }}
-        {{- range $key, $value := .Alert.Labels }}{{ if ne $key "teamster_source" }}
+        {{- range $key, $value := .Event.Labels }}{{ if ne $key "teamster_source" }}
         {{- if not $first }},{{ end }}{{ $first = false }}
         { "title": {{ toJSON $key }}, "value": {{ toJSON $value }} }
         {{- end }}{{ end }}
@@ -112,38 +112,38 @@ const alertmanagerBody = `{
       "type": "FactSet",
       "separator": true,
       "facts": [
-        { "title": "Started", "value": {{ if .Alert.StartsAt.IsZero }}"unknown"{{ else }}{{ toJSON (.Alert.StartsAt.Format "2006-01-02 15:04:05 MST") }}{{ end }} }
-        {{- if and (eq .Alert.Status "resolved") (not .Alert.EndsAt.IsZero) }},
-        { "title": "Ended", "value": {{ toJSON (.Alert.EndsAt.Format "2006-01-02 15:04:05 MST") }} }
+        { "title": "Started", "value": {{ if .Event.Alertmanager.StartsAt.IsZero }}"unknown"{{ else }}{{ toJSON (.Event.Alertmanager.StartsAt.Format "2006-01-02 15:04:05 MST") }}{{ end }} }
+        {{- if and (eq .Event.State "closed") (not .Event.Alertmanager.EndsAt.IsZero) }},
+        { "title": "Ended", "value": {{ toJSON (.Event.Alertmanager.EndsAt.Format "2006-01-02 15:04:05 MST") }} }
         {{- end }}
       ]
     }
   ]
   {{- $actions := false }}
-  {{- if or .Alert.Generator .Alert.Annotations.runbook_url }},
+  {{- if or .Event.Alertmanager.GeneratorURL .Event.Alertmanager.Annotations.runbook_url }},
   "actions": [
-    {{- if .Alert.Generator }}{{ $actions = true }}
-    { "type": "Action.OpenUrl", "title": "Show source", "url": {{ toJSON .Alert.Generator }} }
+    {{- if .Event.Alertmanager.GeneratorURL }}{{ $actions = true }}
+    { "type": "Action.OpenUrl", "title": "Show source", "url": {{ toJSON .Event.Alertmanager.GeneratorURL }} }
     {{- end }}
-    {{- if .Alert.Annotations.runbook_url }}{{ if $actions }},{{ end }}
-    { "type": "Action.OpenUrl", "title": "Runbook", "url": {{ toJSON .Alert.Annotations.runbook_url }} }
+    {{- if .Event.Alertmanager.Annotations.runbook_url }}{{ if $actions }},{{ end }}
+    { "type": "Action.OpenUrl", "title": "Runbook", "url": {{ toJSON .Event.Alertmanager.Annotations.runbook_url }} }
     {{- end }}
   ]
   {{- end }}
 }`
 
-const universalTitle = `{{ default .Alert.Title (default .Alert.Annotations.summary (default .Alert.Labels.alertname "Message")) }}`
+const universalTitle = `{{ default .Event.Title (default .Event.Universal.Attributes.summary (default .Event.Labels.alertname "Message")) }}`
 
 // A sender's own card goes out as given; a sender's own text needs no card
 // beside it, so the body renders empty; anything else is shown as an alert.
-const universalBody = `{{ if .Alert.Card }}{{ toJSON .Alert.Card }}{{ else if not .Alert.Text }}{
+const universalBody = `{{ if .Event.Card }}{{ toJSON .Event.Card }}{{ else if not .Event.Text }}{
   "type": "AdaptiveCard",
   "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
   "version": "1.4",
   "body": [
     {
       "type": "Container",
-      "style": {{ if eq .Alert.Status "resolved" }}"good"{{ else if eq .Alert.Status "firing" }}"attention"{{ else }}"default"{{ end }},
+      "style": {{ if eq .Event.State "closed" }}"good"{{ else if eq .Event.State "open" }}"attention"{{ else }}"default"{{ end }},
       "bleed": true,
       "items": [
         {
@@ -151,14 +151,14 @@ const universalBody = `{{ if .Alert.Card }}{{ toJSON .Alert.Card }}{{ else if no
           "size": "Medium",
           "weight": "Bolder",
           "wrap": true,
-          "text": {{ toJSON (default .Alert.Annotations.summary (default .Alert.Labels.alertname "Message")) }}
+          "text": {{ toJSON (default .Event.Universal.Attributes.summary (default .Event.Labels.alertname "Message")) }}
         }
-        {{- if .Alert.Status }},
+        {{- if .Event.State }},
         {
           "type": "TextBlock",
           "spacing": "None",
           "isSubtle": true,
-          "text": {{ toJSON .Alert.Status }}
+          "text": {{ toJSON .Event.State }}
         }
         {{- end }}
       ]
@@ -166,18 +166,18 @@ const universalBody = `{{ if .Alert.Card }}{{ toJSON .Alert.Card }}{{ else if no
     {
       "type": "TextBlock",
       "wrap": true,
-      "text": {{ toJSON (default .Alert.Annotations.description "") }}
+      "text": {{ toJSON (default .Event.Universal.Attributes.description "") }}
     },
     {
       "type": "FactSet",
       "facts": [
         {{- $first := true }}
-        {{- range $key, $value := .Alert.Labels }}{{ if ne $key "teamster_source" }}
+        {{- range $key, $value := .Event.Labels }}{{ if ne $key "teamster_source" }}
         {{- if not $first }},{{ end }}{{ $first = false }}
         { "title": {{ toJSON $key }}, "value": {{ toJSON $value }} }
         {{- end }}{{ end }}
-        {{- if .Alert.Generator }}{{ if not $first }},{{ end }}
-        { "title": "Generator", "value": {{ toJSON .Alert.Generator }} }
+        {{- if .Event.Universal.URL }}{{ if not $first }},{{ end }}
+        { "title": "Generator", "value": {{ toJSON .Event.Universal.URL }} }
         {{- end }}
       ]
     }
@@ -186,4 +186,4 @@ const universalBody = `{{ if .Alert.Card }}{{ toJSON .Alert.Card }}{{ else if no
 
 // Parse has already turned a MessageCard into an Adaptive Card, so the first
 // card covers both card shapes; a text-only payload needs none.
-const teamsV2Body = `{{ if .Alert.Card }}{{ toJSON .Alert.Card }}{{ end }}`
+const teamsV2Body = `{{ if .Event.Card }}{{ toJSON .Event.Card }}{{ end }}`

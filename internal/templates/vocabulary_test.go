@@ -1,6 +1,7 @@
 package templates
 
 import (
+	"encoding/json"
 	"slices"
 	"testing"
 )
@@ -14,11 +15,15 @@ func TestEditorVocabulary(t *testing.T) {
 		list []string
 		want string
 	}{
-		{"the alert itself", v.Fields, ".Alert"},
-		{"an alert field", v.Fields, ".Alert.Status"},
+		{"the event itself", v.Fields, ".Event"},
+		{"an event field", v.Fields, ".Event.State"},
 		{"a top-level field", v.Fields, ".Now"},
-		{"labels are a label map", v.LabelMaps, ".Alert.Labels"},
-		{"annotations are an annotation map", v.AnnotationMaps, ".Alert.Annotations"},
+		{"an extension field", v.Fields, ".Event.Alertmanager.GroupKey"},
+		{"labels are a label map", v.LabelMaps, ".Event.Labels"},
+		{"group labels are a label map", v.LabelMaps, ".Event.Alertmanager.CommonLabels"},
+		{"annotations are an attribute map", v.AttributeMaps, ".Event.Alertmanager.Annotations"},
+		{"common annotations are an attribute map", v.AttributeMaps, ".Event.Alertmanager.CommonAnnotations"},
+		{"attributes are an attribute map", v.AttributeMaps, ".Event.Universal.Attributes"},
 		{"our own function", v.Functions, "default"},
 		{"another of ours", v.Functions, "toJSON"},
 		{"a text/template builtin", v.Functions, "printf"},
@@ -41,8 +46,27 @@ func TestEditorVocabulary(t *testing.T) {
 		}
 	}
 	for _, field := range v.Fields {
-		if field == ".Alert.StartsAt.wall" || field == ".Alert.Card.0" {
+		if field == ".Event.Alertmanager.StartsAt.wall" || field == ".Event.Card.0" {
 			t.Errorf("vocabulary offers %q, which no template can use", field)
+		}
+	}
+}
+
+// The editor reads these keys by name, so a renamed tag breaks completion silently.
+func TestEditorVocabularyJSONKeys(t *testing.T) {
+	t.Parallel()
+
+	raw, err := json.Marshal(EditorVocabulary())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var keys map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &keys); err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"fields", "labelMaps", "attributeMaps", "functions", "keywords"} {
+		if _, ok := keys[key]; !ok {
+			t.Errorf("vocabulary JSON lacks %q: %s", key, raw)
 		}
 	}
 }

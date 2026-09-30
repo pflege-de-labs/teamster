@@ -1,8 +1,8 @@
-// Package samples remembers which label keys, label values and annotation keys
-// incoming alerts carry, so the admin UI can offer them as completions while
+// Package samples remembers which label keys, label values and attribute keys
+// incoming events carry, so the admin UI can offer them as completions while
 // someone writes a template or a route. See ADR 0041.
 //
-// Observing an alert costs the delivery path a copy of its keys and a
+// Observing an event costs the delivery path a copy of its keys and a
 // non-blocking channel send. Everything else -- the in-memory LRU that
 // coalesces repeated tuples, the writes, the pruning -- happens on the single
 // worker goroutine Run starts, so a slow or broken database delays nothing but
@@ -23,8 +23,8 @@ import (
 
 // Store is the slice of store.Store the sampler writes through.
 type Store interface {
-	RecordAlertSamples(ctx context.Context, samples []models.AlertSample) error
-	PruneAlertSamples(ctx context.Context, cutoff time.Time, keepPerKey int) (int64, error)
+	RecordEventSamples(ctx context.Context, samples []models.EventSample) error
+	PruneEventSamples(ctx context.Context, cutoff time.Time, keepPerKey int) (int64, error)
 }
 
 const (
@@ -41,7 +41,7 @@ const (
 
 // tuple is what one sample row is keyed on.
 type tuple struct {
-	kind  models.AlertSampleKind
+	kind  models.SampleKind
 	key   string
 	value string
 }
@@ -64,7 +64,7 @@ func (e *entry) observe(at time.Time) {
 	e.last = at
 }
 
-// Sampler observes alerts and writes what they carried through Store. Its zero
+// Sampler observes events and writes what they carried through Store. Its zero
 // value is not usable; build one with New.
 type Sampler struct {
 	log     *slog.Logger
@@ -76,7 +76,7 @@ type Sampler struct {
 
 	// cache and spill belong to the worker goroutine alone.
 	cache *lru.Cache[tuple, *entry]
-	spill []models.AlertSample
+	spill []models.EventSample
 }
 
 // New builds a sampler. A disabled one observes nothing and Run returns at
@@ -106,31 +106,31 @@ func New(logger *slog.Logger, st Store, cfg config.SamplesConfig) (*Sampler, err
 	return s, nil
 }
 
-// observation is one alert's tuples and when it arrived.
+// observation is one event's tuples and when it arrived.
 type observation struct {
 	at     time.Time
 	tuples []tuple
 }
 
-// Observe queues one alert's labels and annotation keys. It never blocks: when
-// the worker has fallen behind, the alert is not sampled.
-func (s *Sampler) Observe(labels, annotations map[string]string) {
+// Observe queues one event's labels and attribute keys. It never blocks: when
+// the worker has fallen behind, the event is not sampled.
+func (s *Sampler) Observe(labels, attributes map[string]string) {
 	if s == nil || !s.cfg.Enabled {
 		return
 	}
-	tuples := make([]tuple, 0, len(labels)+len(annotations))
+	tuples := make([]tuple, 0, len(labels)+len(attributes))
 	for key, value := range labels {
 		if key == "" || len(value) > s.cfg.MaxValueLength {
 			continue
 		}
 		tuples = append(tuples, tuple{kind: models.SampleLabel, key: key, value: value})
 	}
-	for key := range annotations {
+	for key := range attributes {
 		if key == "" {
 			continue
 		}
 		// The value is deliberately dropped here, before it can reach a queue.
-		tuples = append(tuples, tuple{kind: models.SampleAnnotation, key: key})
+		tuples = append(tuples, tuple{kind: models.SampleAttribute, key: key})
 	}
 	if len(tuples) == 0 {
 		return
@@ -166,16 +166,16 @@ func (s *Sampler) Run(ctx context.Context) {
 	}
 }
 
-// record counts one alert's tuples and writes those that are new, or whose
+// record counts one event's tuples and writes those that are new, or whose
 // last write is at least a flush interval old.
 func (s *Sampler) record(ctx context.Context, obs observation) {
 	if dropped := s.dropped.Swap(0); dropped > 0 {
-		s.log.Warn("samples: dropped alerts while the writer was behind", "dropped", dropped)
+		s.log.Warn("samples: dropped events while the writer was behind", "dropped", dropped)
 	}
 
 	now := obs.at
 	var due []*entry
-	var batch []models.AlertSample
+	var batch []models.EventSample
 	for _, t := range obs.tuples {
 		e := s.entryFor(t)
 		e.observe(now)
@@ -192,8 +192,8 @@ func (s *Sampler) record(ctx context.Context, obs observation) {
 	}
 
 	// Marked written even on failure, so a broken database is retried once
-	// per flush interval rather than on every alert.
-	err := s.store.RecordAlertSamples(ctx, batch)
+	// per flush interval rather than on every event.
+	err := s.store.RecordEventSamples(ctx, batch)
 	for _, e := range due {
 		e.written = now
 		if err == nil {
@@ -244,20 +244,20 @@ func (s *Sampler) flushPending(ctx context.Context) {
 	}
 	flushCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), flushTimeout)
 	defer cancel()
-	if err := s.store.RecordAlertSamples(flushCtx, batch); err != nil {
+	if err := s.store.RecordEventSamples(flushCtx, batch); err != nil {
 		s.log.Error("samples: final flush", "err", err)
 	}
 }
 
 func (s *Sampler) prune(ctx context.Context) {
 	cutoff := s.now().Add(-s.cfg.Retention)
-	if _, err := s.store.PruneAlertSamples(ctx, cutoff, s.cfg.MaxValuesPerKey); err != nil && ctx.Err() == nil {
+	if _, err := s.store.PruneEventSamples(ctx, cutoff, s.cfg.MaxValuesPerKey); err != nil && ctx.Err() == nil {
 		s.log.Error("samples: prune", "err", err)
 	}
 }
 
-func sampleOf(t tuple, e *entry) models.AlertSample {
-	return models.AlertSample{
+func sampleOf(t tuple, e *entry) models.EventSample {
+	return models.EventSample{
 		Kind: t.kind, Key: t.key, Value: t.value,
 		SeenCount: e.pending, FirstSeen: e.first, LastSeen: e.last,
 	}

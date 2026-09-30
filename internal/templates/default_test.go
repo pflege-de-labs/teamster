@@ -14,40 +14,56 @@ func TestDefault(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		alert     models.Alert
+		ev        models.Event
 		wantTitle string
 		want      []string
 		wantNot   []string
 	}{
 		{
 			name: "an Alertmanager alert",
-			alert: models.Alert{
-				Source: "alertmanager", Status: "firing",
-				Labels:      map[string]string{"alertname": "HighCPU"},
-				Annotations: map[string]string{"summary": "CPU is hot", "description": "load **15**"},
-				StartsAt:    time.Date(2026, 9, 23, 12, 0, 0, 0, time.UTC),
+			ev: models.Event{
+				Source: "alertmanager", State: models.StateOpen,
+				Labels: map[string]string{"alertname": "HighCPU"},
+				Alertmanager: &models.AlertmanagerEvent{
+					Annotations: map[string]string{"summary": "CPU is hot", "description": "load **15**"},
+					StartsAt:    time.Date(2026, 9, 23, 12, 0, 0, 0, time.UTC),
+				},
 			},
 			wantTitle: "CPU is hot",
-			want:      []string{"<strong>Status:</strong> firing", "load <strong>15</strong>", "<pre><code", "2026-09-23T12:00:00Z"},
+			want:      []string{"<strong>State:</strong> open", "load <strong>15</strong>", "<pre><code", "2026-09-23T12:00:00Z"},
 			wantNot:   []string{"ends_at"},
 		},
 		{
-			name:      "no annotations",
-			alert:     models.Alert{Labels: map[string]string{"alertname": "DiskFull"}},
+			name: "a universal event",
+			ev: models.Event{
+				Source: "universal", Key: "deploy-42",
+				Labels: map[string]string{"service": "api"},
+				Universal: &models.UniversalEvent{
+					Attributes: map[string]string{"summary": "Deployed api", "description": "v1.2.3"},
+					URL:        "https://ci.example/42",
+				},
+			},
+			wantTitle: "Deployed api",
+			want:      []string{"v1.2.3", "&#34;attributes&#34;", "&#34;url&#34;: &#34;https://ci.example/42&#34;", "&#34;key&#34;: &#34;deploy-42&#34;"},
+			wantNot:   []string{"State:", "annotations", "&#34;time&#34;"},
+		},
+		{
+			name:      "no extension",
+			ev:        models.Event{Labels: map[string]string{"alertname": "DiskFull"}},
 			wantTitle: "DiskFull",
 			want:      []string{"&#34;alertname&#34;: &#34;DiskFull&#34;"},
-			wantNot:   []string{"Status:", "annotations"},
+			wantNot:   []string{"State:", "annotations"},
 		},
 		{
 			name:      "nothing at all",
-			alert:     models.Alert{},
-			wantTitle: "Alert update",
+			ev:        models.Event{},
+			wantTitle: "Update",
 			want:      []string{"{}"},
 		},
 		{
 			// A label cannot close the code block and smuggle Markdown in.
 			name:      "backticks in a label",
-			alert:     models.Alert{Labels: map[string]string{"alertname": "x```\n# heading"}},
+			ev:        models.Event{Labels: map[string]string{"alertname": "x```\n# heading"}},
 			wantTitle: "x``` # heading",
 			wantNot:   []string{"<h1>"},
 		},
@@ -57,7 +73,7 @@ func TestDefault(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			msg, err := Default(tt.alert)
+			msg, err := Default(tt.ev)
 			if err != nil {
 				t.Fatalf("Default: %v", err)
 			}

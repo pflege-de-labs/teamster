@@ -134,7 +134,7 @@ func TestServerRequestsCarryTheirRoute(t *testing.T) {
 
 	asRole(t, handler, http.MethodGet, "/api/templates", "")
 	postWebhook(t, handler, "/webhook/universal", "token",
-		`{"status":"firing","labels":{},"fingerprint":"fp"}`)
+		`{"state":"open","labels":{},"key":"fp"}`)
 
 	measured, ok := metricNamed(collect(t, reader), "http.server.request.duration")
 	if !ok {
@@ -191,35 +191,35 @@ func TestDeliveriesAreCounted(t *testing.T) {
 	}{
 		{
 			name: "a new card",
-			body: `{"status":"firing","labels":{},"fingerprint":"fp"}`,
+			body: `{"state":"open","labels":{},"key":"fp"}`,
 			want: [][2]string{{"route", metrics.OutcomePosted}},
 		},
 		{
 			name: "an update to one that exists",
 			setup: func(st *fakeStore, _ *fakeMessenger) {
-				st.activeAlerts[activeAlertKey("fp", "team", "channel")] = models.ActiveAlert{
-					Fingerprint: "fp", TeamID: "team", ChannelID: "channel", MessageID: "graph-1", ConversationID: "conversation-graph-1", PostedAt: testPostedAt,
+				st.activeEvents[activeEventKey("fp", "team", "channel")] = models.ActiveEvent{
+					Key: "fp", TeamID: "team", ChannelID: "channel", MessageID: "graph-1", ConversationID: "conversation-graph-1", PostedAt: testPostedAt,
 				}
 			},
-			body: `{"status":"firing","labels":{},"fingerprint":"fp"}`,
+			body: `{"state":"open","labels":{},"key":"fp"}`,
 			want: [][2]string{{"route", metrics.OutcomeUpdated}},
 		},
 		{
 			name:  "a channel that refuses it",
 			setup: func(_ *fakeStore, msg *fakeMessenger) { msg.postErr = errStore },
-			body:  `{"status":"firing","labels":{},"fingerprint":"fp"}`,
+			body:  `{"state":"open","labels":{},"key":"fp"}`,
 			want:  [][2]string{{"route", metrics.OutcomeFailed}},
 		},
 		{
 			name:   "a template that is gone",
 			setup:  func(st *fakeStore, _ *fakeMessenger) { delete(st.templates, "tmpl") },
-			body:   `{"status":"firing","labels":{},"fingerprint":"fp"}`,
+			body:   `{"state":"open","labels":{},"key":"fp"}`,
 			wantRe: [][2]string{{"tmpl", metrics.StageTemplate}},
 		},
 		{
 			name:   "a template that does not render",
 			setup:  func(st *fakeStore, _ *fakeMessenger) { st.templates["tmpl"] = models.Template{ID: "tmpl", Body: "{{"} },
-			body:   `{"status":"firing","labels":{},"fingerprint":"fp"}`,
+			body:   `{"state":"open","labels":{},"key":"fp"}`,
 			wantRe: [][2]string{{"tmpl", metrics.StageRender}},
 		},
 	}
@@ -253,8 +253,8 @@ func TestDeliveriesAreCounted(t *testing.T) {
 			if !equalPairs(renders, tt.wantRe) {
 				t.Errorf("render failures = %v, want %v", renders, tt.wantRe)
 			}
-			if len(receipts) != 1 || receipts[0] != [2]string{"universal", "firing"} {
-				t.Errorf("receipts = %v, want the alert counted once as it arrived", receipts)
+			if len(receipts) != 1 || receipts[0] != [2]string{"universal", "open"} {
+				t.Errorf("receipts = %v, want the event counted once as it arrived", receipts)
 			}
 		})
 	}

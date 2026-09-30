@@ -38,7 +38,7 @@ func TestServeSamplesWhatArrivesAndFlushesOnShutdown(t *testing.T) {
 	client := &http.Client{Transport: transport}
 	for range 2 {
 		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://%s/webhook/universal", cfg.Server.Addr),
-			strings.NewReader(`{"status":"firing","labels":{"team":"db"},"annotations":{"summary":"secret detail"}}`))
+			strings.NewReader(`{"state":"open","labels":{"team":"db"},"attributes":{"summary":"secret detail"}}`))
 		if err != nil {
 			t.Fatalf("new request: %v", err)
 		}
@@ -67,16 +67,16 @@ func TestServeSamplesWhatArrivesAndFlushesOnShutdown(t *testing.T) {
 		t.Fatalf("reopen store: %v", err)
 	}
 	defer func() { _ = st.Close() }()
-	rows, err := st.ListAlertSamples(t.Context(), 10)
+	rows, err := st.ListEventSamples(t.Context(), 10)
 	if err != nil {
-		t.Fatalf("ListAlertSamples: %v", err)
+		t.Fatalf("ListEventSamples: %v", err)
 	}
 
 	got := map[string]int64{}
 	for _, row := range rows {
 		got[string(row.Kind)+"/"+row.Key+"="+row.Value] = row.SeenCount
 	}
-	if got["label/team=db"] != 2 || got["annotation/summary="] != 2 || got["label/teamster_source=universal"] != 2 || len(got) != 3 {
+	if got["label/team=db"] != 2 || got["attribute/summary="] != 2 || got["label/teamster_source=universal"] != 2 || len(got) != 3 {
 		t.Errorf("stored samples = %v, want team=db, the source label and the summary key, twice each", got)
 	}
 }

@@ -15,20 +15,20 @@ import (
 
 type fakeStore struct {
 	mu      sync.Mutex
-	batches [][]models.AlertSample
+	batches [][]models.EventSample
 	prunes  []time.Time
 	keep    int
 	fail    error
 }
 
-func (f *fakeStore) RecordAlertSamples(_ context.Context, samples []models.AlertSample) error {
+func (f *fakeStore) RecordEventSamples(_ context.Context, samples []models.EventSample) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.batches = append(f.batches, append([]models.AlertSample(nil), samples...))
+	f.batches = append(f.batches, append([]models.EventSample(nil), samples...))
 	return f.fail
 }
 
-func (f *fakeStore) PruneAlertSamples(_ context.Context, cutoff time.Time, keep int) (int64, error) {
+func (f *fakeStore) PruneEventSamples(_ context.Context, cutoff time.Time, keep int) (int64, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.prunes = append(f.prunes, cutoff)
@@ -87,20 +87,20 @@ func TestObserveKeepsOnlyWhatMayBeStored(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name        string
-		cfg         config.SamplesConfig
-		labels      map[string]string
-		annotations map[string]string
-		want        []tuple
+		name       string
+		cfg        config.SamplesConfig
+		labels     map[string]string
+		attributes map[string]string
+		want       []tuple
 	}{
 		{
-			name:        "labels with values, annotations by key only",
-			cfg:         enabled(),
-			labels:      map[string]string{"env": "prod"},
-			annotations: map[string]string{"summary": "disk on db-1 holds customer 4711"},
+			name:       "labels with values, attributes by key only",
+			cfg:        enabled(),
+			labels:     map[string]string{"env": "prod"},
+			attributes: map[string]string{"summary": "disk on db-1 holds customer 4711"},
 			want: []tuple{
 				{kind: models.SampleLabel, key: "env", value: "prod"},
-				{kind: models.SampleAnnotation, key: "summary"},
+				{kind: models.SampleAttribute, key: "summary"},
 			},
 		},
 		{
@@ -121,7 +121,7 @@ func TestObserveKeepsOnlyWhatMayBeStored(t *testing.T) {
 			t.Parallel()
 
 			s, _ := newSampler(t, &fakeStore{}, tt.cfg)
-			s.Observe(tt.labels, tt.annotations)
+			s.Observe(tt.labels, tt.attributes)
 
 			var got []tuple
 			for _, batch := range drain(s) {
@@ -214,7 +214,7 @@ func TestAFailedWriteIsRetriedWithItsCount(t *testing.T) {
 	s.record(t.Context(), observation{at: c.t, tuples: env})
 	s.record(t.Context(), observation{at: c.t, tuples: env})
 	if got := len(st.batches); got != 1 {
-		t.Fatalf("%d attempts, want 1: a failure must not retry on every alert", got)
+		t.Fatalf("%d attempts, want 1: a failure must not retry on every event", got)
 	}
 
 	st.mu.Lock()
@@ -274,7 +274,7 @@ func TestRunWritesPrunesAndFlushesOnShutdown(t *testing.T) {
 	<-done
 
 	counts := st.counts()
-	if counts["label/env=prod"] != 2 || counts["annotation/summary="] != 1 {
+	if counts["label/env=prod"] != 2 || counts["attribute/summary="] != 1 {
 		t.Errorf("counts = %v, want env=prod twice and summary once", counts)
 	}
 	st.mu.Lock()
@@ -287,11 +287,11 @@ func TestRunWritesPrunesAndFlushesOnShutdown(t *testing.T) {
 	}
 	for _, batch := range st.batches {
 		for _, sample := range batch {
-			if sample.Kind == models.SampleAnnotation && sample.Value != "" {
-				t.Errorf("an annotation value reached the store: %+v", sample)
+			if sample.Kind == models.SampleAttribute && sample.Value != "" {
+				t.Errorf("an attribute value reached the store: %+v", sample)
 			}
 			if strings.Contains(sample.Value, "text") {
-				t.Errorf("annotation text reached the store: %+v", sample)
+				t.Errorf("attribute text reached the store: %+v", sample)
 			}
 		}
 	}

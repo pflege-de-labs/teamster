@@ -8,8 +8,8 @@ import (
 
 func modelsTemplate(text string) models.Template { return models.Template{Text: text} }
 
-func alertWithSummary(summary string) models.Alert {
-	return models.Alert{Annotations: map[string]string{"summary": summary}}
+func eventWithSummary(summary string) models.Event {
+	return models.Event{Alertmanager: &models.AlertmanagerEvent{Annotations: map[string]string{"summary": summary}}}
 }
 
 func TestSanitize(t *testing.T) {
@@ -92,8 +92,8 @@ func TestSanitizeNeutralisesTemplatedMarkup(t *testing.T) {
 	t.Parallel()
 
 	msg, err := RenderMessage(
-		modelsTemplate("<p>{{ .Alert.Annotations.summary }}</p>"),
-		RenderData{Alert: alertWithSummary(`<img src=x onerror="steal()">`)},
+		modelsTemplate("<p>{{ .Event.Alertmanager.Annotations.summary }}</p>"),
+		RenderData{Event: eventWithSummary(`<img src=x onerror="steal()">`)},
 	)
 	if err != nil {
 		t.Fatalf("RenderMessage: %v", err)

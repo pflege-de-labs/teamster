@@ -3,6 +3,7 @@ package templates
 import (
 	"reflect"
 	"slices"
+	"strings"
 
 	"github.com/pflege-de-labs/teamster/internal/models"
 )
@@ -11,14 +12,14 @@ import (
 // It is derived from RenderData and funcs, so a field or function added there
 // is offered without anyone editing the browser code.
 type Vocabulary struct {
-	// Fields are dotted paths such as .Alert.Labels, in declaration order.
+	// Fields are dotted paths such as .Event.Labels, in declaration order.
 	Fields []string `json:"fields"`
-	// LabelMaps and AnnotationMaps are the fields whose keys are label and
-	// annotation keys, which the editor completes from sampled alerts.
-	LabelMaps      []string `json:"labelMaps"`
-	AnnotationMaps []string `json:"annotationMaps"`
-	Functions      []string `json:"functions"`
-	Keywords       []string `json:"keywords"`
+	// LabelMaps and AttributeMaps are the fields whose keys are label and
+	// attribute keys, which the editor completes from sampled events.
+	LabelMaps     []string `json:"labelMaps"`
+	AttributeMaps []string `json:"attributeMaps"`
+	Functions     []string `json:"functions"`
+	Keywords      []string `json:"keywords"`
 }
 
 // text/template's own functions and actions, which its API does not list.
@@ -35,7 +36,7 @@ var (
 // EditorVocabulary describes the data every template is executed against.
 func EditorVocabulary() Vocabulary {
 	v := Vocabulary{Keywords: slices.Clone(actionKeywords)}
-	collectFields(&v, "", reflect.ValueOf(RenderData{Alert: models.Alert{}}))
+	collectFields(&v, "", reflect.ValueOf(RenderData{Event: models.Event{}}))
 
 	v.Functions = slices.Clone(builtinFunctions)
 	for name := range funcs() {
@@ -48,6 +49,10 @@ func EditorVocabulary() Vocabulary {
 func collectFields(v *Vocabulary, prefix string, value reflect.Value) {
 	if value.Kind() == reflect.Interface {
 		value = value.Elem()
+	}
+	// An extension is nil on the zero Event, but its fields are still offered.
+	if value.Kind() == reflect.Pointer {
+		value = reflect.New(value.Type().Elem()).Elem()
 	}
 	if value.Kind() != reflect.Struct {
 		return
@@ -62,11 +67,11 @@ func collectFields(v *Vocabulary, prefix string, value reflect.Value) {
 		v.Fields = append(v.Fields, path)
 
 		if field.Type == reflect.TypeFor[map[string]string]() {
-			switch field.Name {
-			case "Labels":
+			switch {
+			case strings.HasSuffix(field.Name, "Labels"):
 				v.LabelMaps = append(v.LabelMaps, path)
-			case "Annotations":
-				v.AnnotationMaps = append(v.AnnotationMaps, path)
+			case strings.HasSuffix(field.Name, "Annotations"), field.Name == "Attributes":
+				v.AttributeMaps = append(v.AttributeMaps, path)
 			}
 			continue
 		}

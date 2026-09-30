@@ -19,7 +19,7 @@ func TestTheGlobalDefaultRendersWithItsTemplate(t *testing.T) {
 	st, handler := seededServer(t, msg)
 	delete(st.routes, "route")
 	st.destinations["dest"] = models.Destination{ID: "dest", TeamID: "team", ChannelID: "channel", IsDefault: true}
-	st.templates["catch"] = models.Template{ID: "catch", Title: "Caught {{ .Alert.Title }}", Body: "{}"}
+	st.templates["catch"] = models.Template{ID: "catch", Title: "Caught {{ .Event.Title }}", Body: "{}"}
 	st.globalDefaultTemplate = "catch"
 
 	rec := postWebhook(t, handler, "/webhook/universal", "token", `{"labels":{"team":"nobody"},"title":"Unclaimed"}`)

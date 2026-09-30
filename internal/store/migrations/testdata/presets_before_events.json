@@ -1,0 +1,29 @@
+[
+  {
+    "Key": "alertmanager",
+    "Title": "{{ if eq .Alert.Status \"resolved\" }}Resolved{{ else }}Firing{{ end }}: {{ default .Alert.Annotations.summary (default .Alert.Labels.alertname \"Alert\") }}",
+    "Text": "",
+    "Body": "{\n  \"type\": \"AdaptiveCard\",\n  \"$schema\": \"http://adaptivecards.io/schemas/adaptive-card.json\",\n  \"version\": \"1.4\",\n  \"body\": [\n    {\n      \"type\": \"Container\",\n      \"style\": {{ if eq .Alert.Status \"resolved\" }}\"good\"{{ else }}\"attention\"{{ end }},\n      \"bleed\": true,\n      \"items\": [\n        {\n          \"type\": \"TextBlock\",\n          \"size\": \"Medium\",\n          \"weight\": \"Bolder\",\n          \"wrap\": true,\n          \"text\": {{ toJSON (default .Alert.Annotations.summary (default .Alert.Labels.alertname \"Alert\")) }}\n        },\n        {\n          \"type\": \"TextBlock\",\n          \"spacing\": \"None\",\n          \"isSubtle\": true,\n          \"wrap\": true,\n          \"text\": {{ if eq .Alert.Status \"resolved\" }}\"Resolved\"{{ else }}{{ toJSON (printf \"Firing · %s\" (default .Alert.Labels.severity \"no severity\")) }}{{ end }}\n        }\n      ]\n    },\n    {\n      \"type\": \"TextBlock\",\n      \"wrap\": true,\n      \"text\": {{ toJSON (default .Alert.Annotations.description \"\") }}\n    },\n    {\n      \"type\": \"FactSet\",\n      \"facts\": [\n        {{- $first := true }}\n        {{- range $key, $value := .Alert.Labels }}{{ if ne $key \"teamster_source\" }}\n        {{- if not $first }},{{ end }}{{ $first = false }}\n        { \"title\": {{ toJSON $key }}, \"value\": {{ toJSON $value }} }\n        {{- end }}{{ end }}\n      ]\n    },\n    {\n      \"type\": \"FactSet\",\n      \"separator\": true,\n      \"facts\": [\n        { \"title\": \"Started\", \"value\": {{ if .Alert.StartsAt.IsZero }}\"unknown\"{{ else }}{{ toJSON (.Alert.StartsAt.Format \"2006-01-02 15:04:05 MST\") }}{{ end }} }\n        {{- if and (eq .Alert.Status \"resolved\") (not .Alert.EndsAt.IsZero) }},\n        { \"title\": \"Ended\", \"value\": {{ toJSON (.Alert.EndsAt.Format \"2006-01-02 15:04:05 MST\") }} }\n        {{- end }}\n      ]\n    }\n  ]\n  {{- $actions := false }}\n  {{- if or .Alert.Generator .Alert.Annotations.runbook_url }},\n  \"actions\": [\n    {{- if .Alert.Generator }}{{ $actions = true }}\n    { \"type\": \"Action.OpenUrl\", \"title\": \"Show source\", \"url\": {{ toJSON .Alert.Generator }} }\n    {{- end }}\n    {{- if .Alert.Annotations.runbook_url }}{{ if $actions }},{{ end }}\n    { \"type\": \"Action.OpenUrl\", \"title\": \"Runbook\", \"url\": {{ toJSON .Alert.Annotations.runbook_url }} }\n    {{- end }}\n  ]\n  {{- end }}\n}",
+    "Sources": [
+      "alertmanager"
+    ]
+  },
+  {
+    "Key": "universal",
+    "Title": "{{ default .Alert.Title (default .Alert.Annotations.summary (default .Alert.Labels.alertname \"Message\")) }}",
+    "Text": "{{ .Alert.Text }}",
+    "Body": "{{ if .Alert.Card }}{{ toJSON .Alert.Card }}{{ else if not .Alert.Text }}{\n  \"type\": \"AdaptiveCard\",\n  \"$schema\": \"http://adaptivecards.io/schemas/adaptive-card.json\",\n  \"version\": \"1.4\",\n  \"body\": [\n    {\n      \"type\": \"Container\",\n      \"style\": {{ if eq .Alert.Status \"resolved\" }}\"good\"{{ else if eq .Alert.Status \"firing\" }}\"attention\"{{ else }}\"default\"{{ end }},\n      \"bleed\": true,\n      \"items\": [\n        {\n          \"type\": \"TextBlock\",\n          \"size\": \"Medium\",\n          \"weight\": \"Bolder\",\n          \"wrap\": true,\n          \"text\": {{ toJSON (default .Alert.Annotations.summary (default .Alert.Labels.alertname \"Message\")) }}\n        }\n        {{- if .Alert.Status }},\n        {\n          \"type\": \"TextBlock\",\n          \"spacing\": \"None\",\n          \"isSubtle\": true,\n          \"text\": {{ toJSON .Alert.Status }}\n        }\n        {{- end }}\n      ]\n    },\n    {\n      \"type\": \"TextBlock\",\n      \"wrap\": true,\n      \"text\": {{ toJSON (default .Alert.Annotations.description \"\") }}\n    },\n    {\n      \"type\": \"FactSet\",\n      \"facts\": [\n        {{- $first := true }}\n        {{- range $key, $value := .Alert.Labels }}{{ if ne $key \"teamster_source\" }}\n        {{- if not $first }},{{ end }}{{ $first = false }}\n        { \"title\": {{ toJSON $key }}, \"value\": {{ toJSON $value }} }\n        {{- end }}{{ end }}\n        {{- if .Alert.Generator }}{{ if not $first }},{{ end }}\n        { \"title\": \"Generator\", \"value\": {{ toJSON .Alert.Generator }} }\n        {{- end }}\n      ]\n    }\n  ]\n}{{ end }}",
+    "Sources": [
+      "universal"
+    ]
+  },
+  {
+    "Key": "teamsv2",
+    "Title": "{{ default .Alert.Title \"Teams message\" }}",
+    "Text": "{{ .Alert.Text }}",
+    "Body": "{{ if .Alert.Card }}{{ toJSON .Alert.Card }}{{ end }}",
+    "Sources": [
+      "teamsv2"
+    ]
+  }
+]

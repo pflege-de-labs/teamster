@@ -8,9 +8,9 @@ import (
 )
 
 func TestRenderValidJSON(t *testing.T) {
-	body := `{"type":"AdaptiveCard","version":"1.4","body":[{"type":"TextBlock","text":"{{ default (index .Alert "alertname") "unknown" }}"}]}`
+	body := `{"type":"AdaptiveCard","version":"1.4","body":[{"type":"TextBlock","text":"{{ default (index .Event "alertname") "unknown" }}"}]}`
 
-	payload, err := Render(body, RenderData{Alert: map[string]string{"alertname": "HighCPU"}})
+	payload, err := Render(body, RenderData{Event: map[string]string{"alertname": "HighCPU"}})
 	if err != nil {
 		t.Fatalf("Render returned error: %v", err)
 	}
@@ -22,7 +22,7 @@ func TestRenderValidJSON(t *testing.T) {
 func TestRenderInvalidJSON(t *testing.T) {
 	body := `{"type":"AdaptiveCard","body":[` // invalid JSON after template render
 
-	_, err := Render(body, RenderData{Alert: map[string]string{"alertname": "HighCPU"}})
+	_, err := Render(body, RenderData{Event: map[string]string{"alertname": "HighCPU"}})
 	if err == nil {
 		t.Fatalf("expected error for invalid JSON")
 	}
@@ -39,13 +39,13 @@ func TestRenderErrors(t *testing.T) {
 	}{
 		{
 			name:    "template does not parse",
-			body:    `{"text":"{{ .Alert"}`,
+			body:    `{"text":"{{ .Event"}`,
 			wantErr: "parse template",
 		},
 		{
 			name:    "template execution fails",
-			body:    `{"text":"{{ toJSON .Alert }}"}`,
-			data:    RenderData{Alert: make(chan int)},
+			body:    `{"text":"{{ toJSON .Event }}"}`,
+			data:    RenderData{Event: make(chan int)},
 			wantErr: "execute template",
 		},
 		{
@@ -81,9 +81,9 @@ func TestRenderHelpers(t *testing.T) {
 	}{
 		{
 			name: "toJSON encodes the alert",
-			body: `{"alert":{{ toJSON .Alert }}}`,
-			data: RenderData{Alert: map[string]string{"severity": "critical"}},
-			want: `{"alert":{"severity":"critical"}}`,
+			body: `{"event":{{ toJSON .Event }}}`,
+			data: RenderData{Event: map[string]string{"severity": "critical"}},
+			want: `{"event":{"severity":"critical"}}`,
 		},
 		{
 			name: "default fills in an empty value",
@@ -167,12 +167,12 @@ func TestRenderMessageSkipsAnEmptyCard(t *testing.T) {
 		{name: "card", alert: map[string]string{"card": "yes"}, wantCard: true},
 		{name: "no card", alert: map[string]string{}},
 	}
-	tmpl := models.Template{Title: "t", Body: `{{ if .Alert.card }}{"type":"AdaptiveCard"}{{ end }}` + "\n  "}
+	tmpl := models.Template{Title: "t", Body: `{{ if .Event.card }}{"type":"AdaptiveCard"}{{ end }}` + "\n  "}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			msg, err := RenderMessage(tmpl, RenderData{Alert: tt.alert})
+			msg, err := RenderMessage(tmpl, RenderData{Event: tt.alert})
 			if err != nil {
 				t.Fatalf("RenderMessage: %v", err)
 			}
@@ -181,7 +181,7 @@ func TestRenderMessageSkipsAnEmptyCard(t *testing.T) {
 			}
 		})
 	}
-	if _, err := Render(tmpl.Body, RenderData{Alert: map[string]string{}}); err == nil {
+	if _, err := Render(tmpl.Body, RenderData{Event: map[string]string{}}); err == nil {
 		t.Error("Render accepted an empty card; only RenderMessage may skip one")
 	}
 }

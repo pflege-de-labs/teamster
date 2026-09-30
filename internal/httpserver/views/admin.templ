@@ -41,7 +41,7 @@ templ templates(page Page) {
 						</div>
 						<p class="mt-1 text-xs text-slate-500">{ i18n.T(ctx, "templates.sources_hint") }</p>
 					</fieldset>
-					@editorLine("title", i18n.T(ctx, "templates.title_field"), "{{ .Alert.Annotations.summary }}", page.editingTemplate().Title, "template-line")
+					@editorLine("title", i18n.T(ctx, "templates.title_field"), "{{ .Event.Title }}", page.editingTemplate().Title, "template-line")
 					@editorField("message_text", i18n.T(ctx, "templates.text_field"), page.editingTemplate().Text, "4", "template")
 					@cardPalette(page)
 					@editorField("body", i18n.T(ctx, "templates.body_field"), page.editingTemplate().Body, "12", "card")
@@ -68,7 +68,7 @@ templ templates(page Page) {
 						</label>
 						<select
 							id="preview-sample"
-							aria-label={ i18n.T(ctx, "templates.sample_alert") }
+							aria-label={ i18n.T(ctx, "templates.sample_event") }
 							class="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm"
 						>
 							for _, name := range page.PreviewSamples {

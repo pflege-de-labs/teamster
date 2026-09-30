@@ -93,7 +93,7 @@ type Page struct {
 	Notice         string
 	Error          string
 
-	// Sample alerts the preview can render the template against.
+	// Sample events the preview can render the template against.
 	PreviewSamples []string
 
 	// Snippets and Starter are what the card palette inserts.

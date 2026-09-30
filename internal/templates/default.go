@@ -11,25 +11,26 @@ import (
 
 // Default is the message a delivery sends when nothing says what it should
 // look like: no template on the route, and no title, text or card in the
-// payload. It is best effort -- a readable title, the status and description,
-// and the whole alert as JSON -- so a reader can still act on it.
-func Default(alert models.Alert) (Message, error) {
-	title := alert.Annotations["summary"]
+// payload. It is best effort -- a readable title, the state and description,
+// and the whole event as JSON -- so a reader can still act on it.
+func Default(ev models.Event) (Message, error) {
+	attributes := models.AttributesOf(ev)
+	title := attributes["summary"]
 	if title == "" {
-		title = alert.Labels["alertname"]
+		title = ev.Labels["alertname"]
 	}
 	if title == "" {
-		title = "Alert update"
+		title = "Update"
 	}
 
 	var text strings.Builder
-	if alert.Status != "" {
-		fmt.Fprintf(&text, "**Status:** %s\n\n", alert.Status)
+	if ev.State != models.StateNone {
+		fmt.Fprintf(&text, "**State:** %s\n\n", ev.State)
 	}
-	if description := alert.Annotations["description"]; description != "" {
+	if description := attributes["description"]; description != "" {
 		text.WriteString(description + "\n\n")
 	}
-	payload, err := json.MarshalIndent(defaultPayload(alert), "", "  ")
+	payload, err := json.MarshalIndent(defaultPayload(ev), "", "  ")
 	if err != nil {
 		return Message{}, fmt.Errorf("payload: %w", err)
 	}
@@ -43,23 +44,33 @@ func Default(alert models.Alert) (Message, error) {
 	return Message{Title: strings.Join(strings.Fields(title), " "), Text: safe}, nil
 }
 
-// defaultPayload is the alert as a sender would recognise it: the fields it
+// defaultPayload is the event as a sender would recognise it: the fields it
 // set, without the ones only direct content uses, and without zero times.
-func defaultPayload(alert models.Alert) map[string]any {
+func defaultPayload(ev models.Event) map[string]any {
 	out := map[string]any{}
 	add := func(key string, value any, present bool) {
 		if present {
 			out[key] = value
 		}
 	}
-	add("source", alert.Source, alert.Source != "")
-	add("status", alert.Status, alert.Status != "")
-	add("labels", alert.Labels, len(alert.Labels) > 0)
-	add("annotations", alert.Annotations, len(alert.Annotations) > 0)
-	add("starts_at", alert.StartsAt.Format(time.RFC3339), !alert.StartsAt.IsZero())
-	add("ends_at", alert.EndsAt.Format(time.RFC3339), !alert.EndsAt.IsZero())
-	add("generator", alert.Generator, alert.Generator != "")
-	add("fingerprint", alert.Fingerprint, alert.Fingerprint != "")
+	addTime := func(key string, t time.Time) {
+		add(key, t.Format(time.RFC3339), !t.IsZero())
+	}
+	add("source", ev.Source, ev.Source != "")
+	add("key", ev.Key, ev.Key != "")
+	add("state", ev.State, ev.State != models.StateNone)
+	add("labels", ev.Labels, len(ev.Labels) > 0)
+	if am := ev.Alertmanager; am != nil {
+		add("annotations", am.Annotations, len(am.Annotations) > 0)
+		addTime("starts_at", am.StartsAt)
+		addTime("ends_at", am.EndsAt)
+		add("generator_url", am.GeneratorURL, am.GeneratorURL != "")
+	}
+	if u := ev.Universal; u != nil {
+		add("attributes", u.Attributes, len(u.Attributes) > 0)
+		addTime("time", u.Time)
+		add("url", u.URL, u.URL != "")
+	}
 	return out
 }
 

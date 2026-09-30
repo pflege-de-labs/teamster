@@ -64,7 +64,7 @@ type telemetry interface {
 	ClientTransport(base http.RoundTripper) http.RoundTripper
 }
 
-// sampler is what processAlert tells about every alert it sees, so the admin
+// sampler is what processEvent tells about every event it sees, so the admin
 // UI can complete label keys and values (ADR 0041). It must not block.
 type sampler interface {
 	Observe(labels, annotations map[string]string)

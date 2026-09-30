@@ -47,14 +47,14 @@ func TestPreviewRendersTheWholeMessage(t *testing.T) {
 	t.Parallel()
 
 	handler := newTestServer(t, newFakeStore(), &fakeMessenger{}).Handler
-	rec := postPreview(t, handler, `{"title":"{{ .Alert.Labels.alertname }} is {{ .Alert.Status }}","text":"<p>{{ .Alert.Annotations.summary }}</p><script>steal()</script>","sample":"firing"}`)
+	rec := postPreview(t, handler, `{"title":"{{ .Event.Labels.alertname }} is {{ .Event.State }}","text":"<p>{{ .Event.Universal.Attributes.summary }}</p><script>steal()</script>","sample":"open"}`)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("preview = %d, want 200 (%s)", rec.Code, rec.Body.String())
 	}
 
 	payload := decodePreview(t, rec)
-	if got := decodeString(t, payload["title"]); got != "HighMemory is firing" {
+	if got := decodeString(t, payload["title"]); got != "HighMemory is open" {
 		t.Errorf("title = %q, want the rendered feed line", got)
 	}
 	if got := decodeString(t, payload["text"]); got != "<p>Memory usage is above 80%</p>" {
@@ -69,7 +69,7 @@ func TestPreviewReportsATemplateThatSendsNothing(t *testing.T) {
 	t.Parallel()
 
 	handler := newTestServer(t, newFakeStore(), &fakeMessenger{}).Handler
-	rec := postPreview(t, handler, `{"sample":"firing"}`)
+	rec := postPreview(t, handler, `{"sample":"open"}`)
 
 	payload := decodePreview(t, rec)
 	for _, key := range []string{"title", "text", "card"} {
@@ -83,14 +83,14 @@ func TestPreviewRendersTheTemplate(t *testing.T) {
 	t.Parallel()
 
 	handler := newTestServer(t, newFakeStore(), &fakeMessenger{}).Handler
-	rec := postPreview(t, handler, `{"body":"{\"text\":\"{{ .Alert.Status }} {{ index .Alert.Labels \"alertname\" }}\"}","sample":"firing"}`)
+	rec := postPreview(t, handler, `{"body":"{\"text\":\"{{ .Event.State }} {{ index .Event.Labels \"alertname\" }}\"}","sample":"open"}`)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("preview = %d, want 200 (%s)", rec.Code, rec.Body.String())
 	}
 	card := string(decodePreview(t, rec)["card"])
-	if !strings.Contains(card, "firing HighMemory") {
-		t.Errorf("card = %s, want the sample alert rendered into it", card)
+	if !strings.Contains(card, "open HighMemory") {
+		t.Errorf("card = %s, want the sample event rendered into it", card)
 	}
 }
 
@@ -98,16 +98,16 @@ func TestPreviewUsesTheSelectedSample(t *testing.T) {
 	t.Parallel()
 
 	handler := newTestServer(t, newFakeStore(), &fakeMessenger{}).Handler
-	body := `{"body":"{\"text\":\"{{ .Alert.Status }}\"}","sample":%q}`
+	body := `{"body":"{\"text\":\"{{ .Event.State }}\"}","sample":%q}`
 
 	tests := []struct {
 		sample string
 		want   string
 	}{
-		{sample: "firing", want: "firing"},
-		{sample: "resolved", want: "resolved"},
-		{sample: "", want: "firing"},
-		{sample: "nonsense", want: "firing"},
+		{sample: "open", want: "open"},
+		{sample: "closed", want: "closed"},
+		{sample: "", want: "open"},
+		{sample: "nonsense", want: "open"},
 	}
 
 	for _, tt := range tests {
@@ -117,7 +117,7 @@ func TestPreviewUsesTheSelectedSample(t *testing.T) {
 			rec := postPreview(t, handler, strings.Replace(body, "%q", `"`+tt.sample+`"`, 1))
 			card := string(decodePreview(t, rec)["card"])
 			if !strings.Contains(card, tt.want) {
-				t.Errorf("card = %s, want status %q", card, tt.want)
+				t.Errorf("card = %s, want state %q", card, tt.want)
 			}
 		})
 	}
@@ -135,7 +135,7 @@ func TestPreviewReportsTemplateErrors(t *testing.T) {
 		body    string
 		wantErr string
 	}{
-		{name: "template does not parse", body: `{"body":"{{ .Alert"}`, wantErr: "parse template"},
+		{name: "template does not parse", body: `{"body":"{{ .Event"}`, wantErr: "parse template"},
 		{name: "output is not JSON", body: `{"body":"not json"}`, wantErr: "not valid JSON"},
 		{name: "field does not exist", body: `{"body":"{{ .Nope.Missing }}"}`, wantErr: "execute template"},
 	}
@@ -212,7 +212,7 @@ func TestAdminPageOffersThePreviewControls(t *testing.T) {
 
 	for _, want := range []string{
 		`id="preview-button"`, `id="preview-output"`, `id="template-form"`,
-		`<option value="firing">`, `<option value="resolved">`,
+		`<option value="open">`, `<option value="closed">`,
 		`src="/vendor/adaptivecards.min.js"`, `src="/preview.js"`,
 	} {
 		if !strings.Contains(body, want) {
@@ -266,7 +266,7 @@ func TestPreviewRendersTheTeamsV2Sample(t *testing.T) {
 	t.Parallel()
 
 	handler := newTestServer(t, newFakeStore(), &fakeMessenger{}).Handler
-	rec := postPreview(t, handler, `{"title":"{{ .Alert.Title }} / {{ .Payload.themeColor }} / {{ .Alert.Source }}","sample":"teamsv2"}`)
+	rec := postPreview(t, handler, `{"title":"{{ .Event.Title }} / {{ .Payload.themeColor }} / {{ .Event.Source }}","sample":"teamsv2"}`)
 	var answer struct {
 		Title string `json:"title"`
 		Error string `json:"error"`

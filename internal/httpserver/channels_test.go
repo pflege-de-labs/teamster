@@ -134,39 +134,39 @@ func TestBotChannelsUpdate(t *testing.T) {
 }
 
 // A card the previous release posted through Graph has no conversation, so
-// nothing can edit it: a re-fire replaces it and a resolve forgets it.
+// nothing can edit it: an update replaces it and a close forgets it.
 func TestUneditableCards(t *testing.T) {
 	t.Parallel()
 
-	legacy := models.ActiveAlert{Fingerprint: "fp-1", Status: "firing", TeamID: "team", ChannelID: "channel", MessageID: "graph-1", PostedAt: testPostedAt}
+	legacy := models.ActiveEvent{Key: "fp-1", State: models.StateOpen, TeamID: "team", ChannelID: "channel", MessageID: "graph-1", PostedAt: testPostedAt}
 
 	t.Run("a re-fire posts a successor", func(t *testing.T) {
 		t.Parallel()
 
 		msg := &fakeMessenger{}
 		st, handler := seededServer(t, msg)
-		st.activeAlerts[activeAlertKey("fp-1", "team", "channel")] = legacy
+		st.activeEvents[activeEventKey("fp-1", "team", "channel")] = legacy
 
-		if rec := postWebhook(t, handler, "/webhook/universal", "token", `{"status":"firing","labels":{},"fingerprint":"fp-1"}`); rec.Code != http.StatusOK {
+		if rec := postWebhook(t, handler, "/webhook/universal", "token", `{"state":"open","labels":{},"key":"fp-1"}`); rec.Code != http.StatusOK {
 			t.Fatalf("POST = %d (body %s)", rec.Code, rec.Body.String())
 		}
-		row := st.activeAlerts[activeAlertKey("fp-1", "team", "channel")]
+		row := st.activeEvents[activeEventKey("fp-1", "team", "channel")]
 		if len(msg.posts) != 1 || len(msg.updates) != 0 || row.ConversationID == "" || row.MessageID == "graph-1" {
 			t.Errorf("posts %d, updates %d, row %+v; want one new card recorded in place of the old", len(msg.posts), len(msg.updates), row)
 		}
 	})
 
-	t.Run("a resolve forgets it", func(t *testing.T) {
+	t.Run("a close forgets it", func(t *testing.T) {
 		t.Parallel()
 
 		msg := &fakeMessenger{}
 		st, handler := seededServer(t, msg)
-		st.activeAlerts[activeAlertKey("fp-1", "team", "channel")] = legacy
+		st.activeEvents[activeEventKey("fp-1", "team", "channel")] = legacy
 
-		if rec := postWebhook(t, handler, "/webhook/universal", "token", `{"status":"resolved","labels":{},"fingerprint":"fp-1"}`); rec.Code != http.StatusOK {
+		if rec := postWebhook(t, handler, "/webhook/universal", "token", `{"state":"closed","labels":{},"key":"fp-1"}`); rec.Code != http.StatusOK {
 			t.Fatalf("POST = %d (body %s)", rec.Code, rec.Body.String())
 		}
-		if _, ok := st.activeAlerts[activeAlertKey("fp-1", "team", "channel")]; ok || len(msg.updates) != 0 {
+		if _, ok := st.activeEvents[activeEventKey("fp-1", "team", "channel")]; ok || len(msg.updates) != 0 {
 			t.Errorf("row kept = %v, updates = %d; want it forgotten without an edit", ok, len(msg.updates))
 		}
 	})
@@ -175,10 +175,10 @@ func TestUneditableCards(t *testing.T) {
 		t.Parallel()
 
 		st, handler := seededServer(t, &fakeMessenger{})
-		st.activeAlerts[activeAlertKey("fp-1", "team", "channel")] = legacy
-		st.fail("DeleteActiveAlertCard")
+		st.activeEvents[activeEventKey("fp-1", "team", "channel")] = legacy
+		st.fail("DeleteActiveEventCard")
 
-		if rec := postWebhook(t, handler, "/webhook/universal", "token", `{"status":"firing","labels":{},"fingerprint":"fp-1"}`); rec.Code != http.StatusBadGateway {
+		if rec := postWebhook(t, handler, "/webhook/universal", "token", `{"state":"open","labels":{},"key":"fp-1"}`); rec.Code != http.StatusBadGateway {
 			t.Errorf("POST = %d, want 502", rec.Code)
 		}
 	})
@@ -201,7 +201,7 @@ func TestChannelDeliveryWithoutTheBot(t *testing.T) {
 		t.Fatalf("NewServer: %v", err)
 	}
 
-	rec := postWebhook(t, srv.Handler, "/webhook/universal", "token", `{"status":"firing","labels":{},"fingerprint":"fp-1"}`)
+	rec := postWebhook(t, srv.Handler, "/webhook/universal", "token", `{"state":"open","labels":{},"key":"fp-1"}`)
 	if rec.Code != http.StatusBadGateway || !strings.Contains(rec.Body.String(), "needs the bot") {
 		t.Errorf("POST = %d %s, want 502 naming the missing bot", rec.Code, rec.Body.String())
 	}

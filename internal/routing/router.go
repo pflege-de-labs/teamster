@@ -55,7 +55,7 @@ const (
 	DeliveryRecipient DeliveryKind = "recipient"
 )
 
-// A Delivery is one message this alert produces: where it goes and what renders
+// A Delivery is one message this event produces: where it goes and what renders
 // it, with the target and template already resolved through inheritance. Kind
 // says which of DestinationID or RecipientID is the one that applies; the
 // other is left zero.
@@ -69,7 +69,7 @@ type Delivery struct {
 	Reason        Reason       `json:"reason"`
 }
 
-// A Result is what an alert's labels produce: the deliveries, and why the tree
+// A Result is what an event's labels produce: the deliveries, and why the tree
 // was entered where it was. Roots is every root whose selector matched — more
 // than one is normal, since nothing stops two independent routes both naming
 // `severity=critical` — in the order they were evaluated. RootName is not

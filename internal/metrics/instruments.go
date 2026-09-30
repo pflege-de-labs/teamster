@@ -34,7 +34,7 @@ const (
 )
 
 // Rendering stages, so a failure says which lookup or which template broke
-// rather than only that the alert was rejected.
+// rather than only that the event was rejected.
 const (
 	StageTemplate    = "template"
 	StageDestination = "destination"
@@ -69,9 +69,9 @@ func (m *Metrics) instruments() error {
 	)
 	errs = append(errs, err)
 
-	m.activeAlerts, err = meter.Int64ObservableGauge(
-		"teamster.active_alerts",
-		metric.WithDescription("Cards currently tracked, one per alert per channel."),
+	m.activeEvents, err = meter.Int64ObservableGauge(
+		"teamster.active_events",
+		metric.WithDescription("Cards currently tracked, one per event per channel."),
 		metric.WithUnit("{card}"),
 	)
 	errs = append(errs, err)
@@ -96,16 +96,16 @@ func (m *Metrics) DeliveryRecorded(ctx context.Context, route, outcome string) {
 	))
 }
 
-// WebhookReceived counts an alert as it arrives, including the ones refused for
+// WebhookReceived counts an event as it arrives, including the ones refused for
 // a bad token — which are otherwise visible only as a 401 nobody is watching.
-func (m *Metrics) WebhookReceived(ctx context.Context, source, status string) {
+func (m *Metrics) WebhookReceived(ctx context.Context, source, state string) {
 	m.receipts.Add(ctx, 1, metric.WithAttributes(
 		attribute.String("source", source),
-		attribute.String("status", status),
+		attribute.String("state", state),
 	))
 }
 
-// RenderFailed counts an alert that never became a message. Today these surface
+// RenderFailed counts an event that never became a message. Today these surface
 // only as a 502 to whoever sent the webhook.
 func (m *Metrics) RenderFailed(ctx context.Context, templateID, stage string) {
 	m.renderFails.Add(ctx, 1, metric.WithAttributes(
@@ -114,11 +114,11 @@ func (m *Metrics) RenderFailed(ctx context.Context, templateID, stage string) {
 	))
 }
 
-// ObserveActiveAlerts asks the store how many cards are open, once per
+// ObserveActiveEvents asks the store how many cards are open, once per
 // collection. The callback runs on the collecting goroutine, so it has to be a
 // count and not a scan.
-func (m *Metrics) ObserveActiveAlerts(count func(context.Context) (int64, error)) error {
-	return m.observe(m.activeAlerts, &m.registration, count)
+func (m *Metrics) ObserveActiveEvents(count func(context.Context) (int64, error)) error {
+	return m.observe(m.activeEvents, &m.registration, count)
 }
 
 // ObserveDestinationsWithoutApp asks the store how many destinations lack the

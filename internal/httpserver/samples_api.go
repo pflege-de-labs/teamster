@@ -13,10 +13,10 @@ import (
 const maxListedSamples = 10000
 
 // samplesResponse is what the editor completes from. Label values are most
-// recently seen first; label and annotation keys are sorted by name.
+// recently seen first; label and attribute keys are sorted by name.
 type samplesResponse struct {
-	Labels      map[string][]string `json:"labels"`
-	Annotations []string            `json:"annotations"`
+	Labels     map[string][]string `json:"labels"`
+	Attributes []string            `json:"attributes"`
 }
 
 // handleSamples answers GET /api/samples. authorize has already required edit
@@ -28,15 +28,15 @@ func (s *Server) handleSamples(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := samplesResponse{Labels: map[string][]string{}, Annotations: []string{}}
+	resp := samplesResponse{Labels: map[string][]string{}, Attributes: []string{}}
 	if !s.cfg.Samples.Enabled {
 		writeJSON(w, http.StatusOK, resp)
 		return
 	}
 
-	rows, err := s.store.ListAlertSamples(r.Context(), maxListedSamples)
+	rows, err := s.store.ListEventSamples(r.Context(), maxListedSamples)
 	if err != nil {
-		logError(r.Context(), "list alert samples", err)
+		logError(r.Context(), "list event samples", err)
 		writeJSONError(w, http.StatusInternalServerError, "samples could not be loaded")
 		return
 	}
@@ -45,19 +45,19 @@ func (s *Server) handleSamples(w http.ResponseWriter, r *http.Request) {
 
 // groupSamples relies on the store's order: grouped by key, newest first.
 // Pruning runs hourly, so the cap is applied here too.
-func groupSamples(rows []models.AlertSample, maxValues int) samplesResponse {
-	resp := samplesResponse{Labels: map[string][]string{}, Annotations: []string{}}
+func groupSamples(rows []models.EventSample, maxValues int) samplesResponse {
+	resp := samplesResponse{Labels: map[string][]string{}, Attributes: []string{}}
 	for _, row := range rows {
 		switch row.Kind {
 		case models.SampleLabel:
 			if values := resp.Labels[row.Key]; len(values) < maxValues {
 				resp.Labels[row.Key] = append(values, row.Value)
 			}
-		case models.SampleAnnotation:
-			resp.Annotations = append(resp.Annotations, row.Key)
+		case models.SampleAttribute:
+			resp.Attributes = append(resp.Attributes, row.Key)
 		}
 	}
-	sort.Strings(resp.Annotations)
+	sort.Strings(resp.Attributes)
 	return resp
 }
 

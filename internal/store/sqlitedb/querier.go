@@ -10,16 +10,16 @@ import (
 )
 
 type Querier interface {
-	// ClaimActiveAlert takes the right to post the card for one channel. A row
+	// ClaimActiveEvent takes the right to post the card for one channel. A row
 	// comes back only when the claim is ours; a claim somebody else is still
 	// working on, and a row that already carries a card, both leave this returning
 	// nothing, and the caller reads the row to find out which.
-	ClaimActiveAlert(ctx context.Context, arg ClaimActiveAlertParams) (ActiveAlert, error)
-	// ClaimActiveAlertRecipient takes the right to send or update the message for
+	ClaimActiveEvent(ctx context.Context, arg ClaimActiveEventParams) (ActiveEvent, error)
+	// ClaimActiveEventRecipient takes the right to send or update the message for
 	// one recipient. A row comes back only when the claim is ours; see
-	// ClaimActiveAlert for what a caller does with the two ways this can come back
+	// ClaimActiveEvent for what a caller does with the two ways this can come back
 	// empty.
-	ClaimActiveAlertRecipient(ctx context.Context, arg ClaimActiveAlertRecipientParams) (ActiveAlertRecipient, error)
+	ClaimActiveEventRecipient(ctx context.Context, arg ClaimActiveEventRecipientParams) (ActiveEventRecipient, error)
 	ClearDefaultDestination(ctx context.Context) error
 	// ClearRecipientBlocked is MarkRecipientBlocked's mirror, run after a
 	// successful send or update. It is a no-op, not an error, on a recipient that
@@ -35,18 +35,18 @@ type Querier interface {
 	// ClearSettingValue drops a key only while it still holds value, so deleting
 	// a template forgets it as the catch-all's without touching another choice.
 	ClearSettingValue(ctx context.Context, arg ClearSettingValueParams) error
-	// CompleteActiveAlertClaim records the card the claim produced. The guard is
+	// CompleteActiveEventClaim records the card the claim produced. The guard is
 	// what makes a lost claim visible: zero rows means somebody else's card is
 	// recorded under this key, so the one just posted is an orphan and the caller
 	// has to say so rather than overwrite them.
-	CompleteActiveAlertClaim(ctx context.Context, arg CompleteActiveAlertClaimParams) (string, error)
-	// CompleteActiveAlertRecipientClaim records the message the claim produced.
-	// See CompleteActiveAlertClaim: zero rows means somebody else's message is
+	CompleteActiveEventClaim(ctx context.Context, arg CompleteActiveEventClaimParams) (string, error)
+	// CompleteActiveEventRecipientClaim records the message the claim produced.
+	// See CompleteActiveEventClaim: zero rows means somebody else's message is
 	// recorded under this key, so the one just sent is an orphan.
-	CompleteActiveAlertRecipientClaim(ctx context.Context, arg CompleteActiveAlertRecipientClaimParams) (string, error)
-	// CountActiveAlerts counts cards, not claims: a claim in flight is not yet
+	CompleteActiveEventRecipientClaim(ctx context.Context, arg CompleteActiveEventRecipientClaimParams) (string, error)
+	// CountActiveEvents counts cards, not claims: a claim in flight is not yet
 	// something this service is keeping up to date.
-	CountActiveAlerts(ctx context.Context) (int64, error)
+	CountActiveEvents(ctx context.Context) (int64, error)
 	CountDestinations(ctx context.Context) (int64, error)
 	// CountDestinationsWithoutBotTeam counts destinations in a team the bot is
 	// not known to be installed in, which is what a missing install alert reads.
@@ -65,30 +65,30 @@ type Querier interface {
 	CreateTemplate(ctx context.Context, arg CreateTemplateParams) error
 	CreateWebhookEndpoint(ctx context.Context, arg CreateWebhookEndpointParams) error
 	DeleteAccessToken(ctx context.Context, id string) error
-	// DeleteActiveAlertCard removes the row for one card, and only if it is still
+	// DeleteActiveEventCard removes the row for one card, and only if it is still
 	// that card: a resolve that raced a refire must not delete the new card's row.
-	DeleteActiveAlertCard(ctx context.Context, arg DeleteActiveAlertCardParams) error
-	// DeleteActiveAlertRecipientCard removes the row for one message, and only if
+	DeleteActiveEventCard(ctx context.Context, arg DeleteActiveEventCardParams) error
+	// DeleteActiveEventRecipientCard removes the row for one message, and only if
 	// it is still that message: a resolve that raced a refire must not delete the
 	// new message's row.
-	DeleteActiveAlertRecipientCard(ctx context.Context, arg DeleteActiveAlertRecipientCardParams) error
-	// DeleteActiveAlertRecipientsFor removes every in-flight or posted row for one
-	// recipient, regardless of fingerprint or message id. It is what unlinking a
-	// recipient runs inside the same transaction as the delete itself: an alert
+	DeleteActiveEventRecipientCard(ctx context.Context, arg DeleteActiveEventRecipientCardParams) error
+	// DeleteActiveEventRecipientsFor removes every in-flight or posted row for one
+	// recipient, regardless of event_key or message id. It is what unlinking a
+	// recipient runs inside the same transaction as the delete itself: an event
 	// claimed or posted to a person who no longer exists has nobody left to
 	// notify and nothing left to keep, and a stranded row would otherwise fail a
 	// resolve forever (see recipientMissing in webhooks.go for the mirror-image
 	// defence against a row that was stranded some other way).
-	DeleteActiveAlertRecipientsFor(ctx context.Context, recipientID string) error
-	DeleteAlertSamplesSeenBefore(ctx context.Context, lastSeen time.Time) (int64, error)
+	DeleteActiveEventRecipientsFor(ctx context.Context, recipientID string) error
 	DeleteBotTeam(ctx context.Context, teamID string) error
 	DeleteBrokerToken(ctx context.Context, sessionID string) error
 	DeleteDestination(ctx context.Context, id string) error
+	DeleteEventSamplesSeenBefore(ctx context.Context, lastSeen time.Time) (int64, error)
 	// Keeps the most recently seen values of each label key and deletes the rest.
 	// A correlated count rather than a window function in a subquery, because the
 	// same text has to run on SQLite and Postgres. The tie-break on value makes
 	// two rows seen at the same instant rank the same way on every run.
-	DeleteExcessAlertSampleValues(ctx context.Context, keep int64) (int64, error)
+	DeleteExcessEventSampleValues(ctx context.Context, keep int64) (int64, error)
 	DeleteExpiredLinkFlows(ctx context.Context, expiresAt time.Time) error
 	DeleteExpiredLoginFlows(ctx context.Context, expiresAt time.Time) error
 	DeleteExpiredSessions(ctx context.Context, expiresAt time.Time) error
@@ -111,8 +111,8 @@ type Querier interface {
 	// the digest in SQL leaks nothing a timing attack could use: the digest of a
 	// guess says nothing about the digest of the token.
 	GetAccessTokenByHash(ctx context.Context, tokenHash string) (AccessToken, error)
-	GetActiveAlert(ctx context.Context, arg GetActiveAlertParams) (ActiveAlert, error)
-	GetActiveAlertRecipient(ctx context.Context, arg GetActiveAlertRecipientParams) (ActiveAlertRecipient, error)
+	GetActiveEvent(ctx context.Context, arg GetActiveEventParams) (ActiveEvent, error)
+	GetActiveEventRecipient(ctx context.Context, arg GetActiveEventRecipientParams) (ActiveEventRecipient, error)
 	GetBotTeam(ctx context.Context, teamID string) (BotTeam, error)
 	GetBrokerToken(ctx context.Context, sessionID string) (BrokerToken, error)
 	GetDefaultDestination(ctx context.Context) (Destination, error)
@@ -140,18 +140,18 @@ type Querier interface {
 	// got there first, so a one-time step runs once even across replicas.
 	InsertSettingIfAbsent(ctx context.Context, arg InsertSettingIfAbsentParams) (int64, error)
 	ListAccessTokens(ctx context.Context) ([]AccessToken, error)
-	// ListActiveAlertRecipients returns every message sent for an alert, one per
+	// ListActiveEventRecipients returns every message sent for an event, one per
 	// recipient it fanned out to, and any claim still in flight.
-	ListActiveAlertRecipients(ctx context.Context, fingerprint string) ([]ActiveAlertRecipient, error)
-	// ListActiveAlerts returns every card posted for an alert, one per channel it
+	ListActiveEventRecipients(ctx context.Context, eventKey string) ([]ActiveEventRecipient, error)
+	// ListActiveEvents returns every card posted for an event, one per channel it
 	// fanned out to, and any claim still in flight. The order is stable so that
 	// delivery, and its tests, see them the same way every time.
-	ListActiveAlerts(ctx context.Context, fingerprint string) ([]ActiveAlert, error)
-	// The CAST keeps the parameter int64 in both dialects: Postgres would
-	// otherwise infer int32 for a LIMIT.
-	ListAlertSamples(ctx context.Context, maxRows int64) ([]AlertSample, error)
+	ListActiveEvents(ctx context.Context, eventKey string) ([]ActiveEvent, error)
 	ListBotTeams(ctx context.Context) ([]BotTeam, error)
 	ListDestinations(ctx context.Context) ([]Destination, error)
+	// The CAST keeps the parameter int64 in both dialects: Postgres would
+	// otherwise infer int32 for a LIMIT.
+	ListEventSamples(ctx context.Context, maxRows int64) ([]EventSample, error)
 	ListGrants(ctx context.Context) ([]Grant, error)
 	ListRecipients(ctx context.Context) ([]Recipient, error)
 	ListRoutes(ctx context.Context) ([]Route, error)
@@ -171,16 +171,16 @@ type Querier interface {
 	// better: reap what is dead, then claim what is free.
 	ReapStaleClaim(ctx context.Context, arg ReapStaleClaimParams) (int64, error)
 	// ReapStaleClaimRecipient is ReapStaleClaim mirrored for a chat delivery; see
-	// active_alerts.sql for why it is a statement of its own rather than folded
+	// active_events.sql for why it is a statement of its own rather than folded
 	// into the claim below.
 	ReapStaleClaimRecipient(ctx context.Context, arg ReapStaleClaimRecipientParams) (int64, error)
-	// ReleaseActiveAlertClaim hands a claim back when the post failed, so the next
+	// ReleaseActiveEventClaim hands a claim back when the post failed, so the next
 	// attempt does not have to wait out the staleness cutoff. Deleting is safe
 	// because posted_at IS NULL says no card was ever created under it.
-	ReleaseActiveAlertClaim(ctx context.Context, arg ReleaseActiveAlertClaimParams) error
-	// ReleaseActiveAlertRecipientClaim hands a claim back when the send failed, so
+	ReleaseActiveEventClaim(ctx context.Context, arg ReleaseActiveEventClaimParams) error
+	// ReleaseActiveEventRecipientClaim hands a claim back when the send failed, so
 	// the next attempt does not have to wait out the staleness cutoff.
-	ReleaseActiveAlertRecipientClaim(ctx context.Context, arg ReleaseActiveAlertRecipientClaimParams) error
+	ReleaseActiveEventRecipientClaim(ctx context.Context, arg ReleaseActiveEventRecipientClaimParams) error
 	RotateWebhookEndpointToken(ctx context.Context, arg RotateWebhookEndpointTokenParams) error
 	// TakeLinkFlow redeems a code once: the row is gone whether or not it had
 	// expired, so a code read over somebody's shoulder and typed twice binds
@@ -190,17 +190,17 @@ type Querier interface {
 	// expired, so a replayed callback finds nothing.
 	TakeLoginFlow(ctx context.Context, state string) (LoginFlow, error)
 	TouchAccessToken(ctx context.Context, arg TouchAccessTokenParams) error
-	// TouchActiveAlert records that an existing card was updated. It matches on the
+	// TouchActiveEvent records that an existing card was updated. It matches on the
 	// message id so that a resolve-then-refire cycle, which replaces the card, does
 	// not have its newer row stamped by an update to the older one.
-	TouchActiveAlert(ctx context.Context, arg TouchActiveAlertParams) error
-	// TouchActiveAlertRecipient records that an existing message was updated. It
-	// matches on the message id, like TouchActiveAlert, so a resolve-then-refire
+	TouchActiveEvent(ctx context.Context, arg TouchActiveEventParams) error
+	// TouchActiveEventRecipient records that an existing message was updated. It
+	// matches on the message id, like TouchActiveEvent, so a resolve-then-refire
 	// cycle does not have its newer row stamped by an update meant for the older
 	// one. Matching an empty message id against an empty message id is an
 	// ordinary equality, not a NULL comparison, so a card whose send returned no
 	// id is still reachable here.
-	TouchActiveAlertRecipient(ctx context.Context, arg TouchActiveAlertRecipientParams) error
+	TouchActiveEventRecipient(ctx context.Context, arg TouchActiveEventRecipientParams) error
 	UpdateBrokerToken(ctx context.Context, arg UpdateBrokerTokenParams) error
 	UpdateDestination(ctx context.Context, arg UpdateDestinationParams) error
 	// The update deliberately leaves subject alone: it is who this binding belongs
@@ -217,13 +217,13 @@ type Querier interface {
 	// The token is written by its own statement, so editing an endpoint cannot
 	// silently rotate the secret the sender is using.
 	UpdateWebhookEndpoint(ctx context.Context, arg UpdateWebhookEndpointParams) error
-	// Adds to the count rather than replacing it, so replicas sharing one
-	// database each contribute what they saw. last_seen only moves forward, so a
-	// replica with a slow clock cannot make a key look older than it is.
-	UpsertAlertSample(ctx context.Context, arg UpsertAlertSampleParams) error
 	// UpsertBotTeam records an install, or a newer service URL for one: both come
 	// from the same authenticated activity, and the latest one wins.
 	UpsertBotTeam(ctx context.Context, arg UpsertBotTeamParams) error
+	// Adds to the count rather than replacing it, so replicas sharing one
+	// database each contribute what they saw. last_seen only moves forward, so a
+	// replica with a slow clock cannot make a key look older than it is.
+	UpsertEventSample(ctx context.Context, arg UpsertEventSampleParams) error
 	UpsertSetting(ctx context.Context, arg UpsertSettingParams) error
 }
 

@@ -175,7 +175,7 @@ func (s *Server) sendTestAlert(ctx context.Context, activity botActivity) {
 		return
 	}
 
-	alert := models.Alert{
+	alert := models.Event{
 		Source: "teamster", Labels: map[string]string{"alertname": "TeamsterTest"},
 		Title: testTitle, Text: testText,
 	}

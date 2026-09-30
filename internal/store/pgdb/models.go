@@ -18,9 +18,9 @@ type AccessToken struct {
 	LastUsedAt sql.NullTime
 }
 
-type ActiveAlert struct {
-	Fingerprint    string
-	Status         string
+type ActiveEvent struct {
+	EventKey       string
+	State          string
 	TeamID         string
 	ChannelID      string
 	MessageID      string
@@ -31,24 +31,15 @@ type ActiveAlert struct {
 	ConversationID string
 }
 
-type ActiveAlertRecipient struct {
-	Fingerprint string
-	Status      string
+type ActiveEventRecipient struct {
+	EventKey    string
+	State       string
 	RecipientID string
 	MessageID   string
 	ClaimOwner  string
 	ClaimedAt   sql.NullTime
 	PostedAt    sql.NullTime
 	LastUpdate  time.Time
-}
-
-type AlertSample struct {
-	Kind      string
-	Key       string
-	Value     string
-	SeenCount int64
-	FirstSeen time.Time
-	LastSeen  time.Time
 }
 
 type BotTeam struct {
@@ -74,6 +65,15 @@ type Destination struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	IsDefault bool
+}
+
+type EventSample struct {
+	Kind      string
+	Key       string
+	Value     string
+	SeenCount int64
+	FirstSeen time.Time
+	LastSeen  time.Time
 }
 
 type Grant struct {

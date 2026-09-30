@@ -27,7 +27,7 @@ async function load() {
   const ctx = {
     cm,
     samples: loadSamples(),
-    vocabulary: readJSON("template-vocabulary") || { fields: [], labelMaps: [], annotationMaps: [], functions: [], keywords: [] },
+    vocabulary: readJSON("template-vocabulary") || { fields: [], labelMaps: [], attributeMaps: [], functions: [], keywords: [] },
     card: cardSchema(),
     template: goTemplate(cm),
   };
@@ -43,13 +43,13 @@ async function load() {
 // Fetched once per page; only editors are sent the endpoint, see layout.templ.
 function loadSamples() {
   const meta = document.querySelector('meta[name="teamster-samples"]');
-  const empty = { labels: {}, annotations: [] };
+  const empty = { labels: {}, attributes: [] };
   if (!meta) return Promise.resolve(empty);
   return fetch(meta.content, { headers: { Accept: "application/json" } })
     .then((res) => (res.ok ? res.json() : empty))
     .then((body) => ({
       labels: body && typeof body.labels === "object" && body.labels ? body.labels : {},
-      annotations: body && Array.isArray(body.annotations) ? body.annotations : [],
+      attributes: body && Array.isArray(body.attributes) ? body.attributes : [],
     }))
     .catch(() => empty);
 }
@@ -303,7 +303,7 @@ function templateSource(ctx) {
     if (inside === null || inside.trimStart().startsWith("/*")) return null;
     const samples = await ctx.samples;
 
-    // index .Alert.Labels "se|
+    // index .Event.Labels "se|
     const indexed = /\bindex\s+(\.[\w.]+)\s+"([^"]*)$/.exec(inside);
     if (indexed) {
       const keys = keysOf(indexed[1], vocab, samples);
@@ -349,7 +349,7 @@ function templateSource(ctx) {
 
 function keysOf(base, vocab, samples) {
   if (vocab.labelMaps.includes(base)) return Object.keys(samples.labels).sort();
-  if (vocab.annotationMaps.includes(base)) return samples.annotations;
+  if (vocab.attributeMaps.includes(base)) return samples.attributes;
   return null;
 }
 
