@@ -182,6 +182,14 @@ func (s stubStore) PurgeDepartedDirectoryUsers(ctx context.Context, before time.
 	return 0, store.ErrNotFound
 }
 
+func (s stubStore) MarkDirectoryUserBlocked(ctx context.Context, aadObjectID string, at time.Time, reason string) error {
+	return store.ErrNotFound
+}
+
+func (s stubStore) ClearDirectoryUserBlocked(ctx context.Context, aadObjectID string) error {
+	return store.ErrNotFound
+}
+
 func (s stubStore) ListDirectoryUserProblems(ctx context.Context, limit int) ([]models.DirectoryUser, error) {
 	return nil, store.ErrNotFound
 }

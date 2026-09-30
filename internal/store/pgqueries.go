@@ -33,6 +33,10 @@ func (p pgQueries) ClearDefaultDestination(ctx context.Context) error {
 	return p.q.ClearDefaultDestination(ctx)
 }
 
+func (p pgQueries) ClearDirectoryUserBlocked(ctx context.Context, aadObjectID string) error {
+	return p.q.ClearDirectoryUserBlocked(ctx, aadObjectID)
+}
+
 func (p pgQueries) ClaimActiveEvent(ctx context.Context, arg sqlitedb.ClaimActiveEventParams) (sqlitedb.ActiveEvent, error) {
 	row, err := p.q.ClaimActiveEvent(ctx, pgdb.ClaimActiveEventParams(arg))
 	return sqlitedb.ActiveEvent(row), err
@@ -508,6 +512,10 @@ func (p pgQueries) UpdateWebhookEndpoint(ctx context.Context, arg sqlitedb.Updat
 
 func (p pgQueries) ClearRecipientBlocked(ctx context.Context, id string) error {
 	return p.q.ClearRecipientBlocked(ctx, id)
+}
+
+func (p pgQueries) MarkDirectoryUserBlocked(ctx context.Context, arg sqlitedb.MarkDirectoryUserBlockedParams) error {
+	return p.q.MarkDirectoryUserBlocked(ctx, pgdb.MarkDirectoryUserBlockedParams(arg))
 }
 
 func (p pgQueries) MarkDirectoryUserRemoved(ctx context.Context, arg sqlitedb.MarkDirectoryUserRemovedParams) (int64, error) {

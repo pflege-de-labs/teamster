@@ -123,3 +123,16 @@ SELECT * FROM directory_users
 WHERE install_state IN ('failed', 'ineligible')
 ORDER BY updated_at DESC, aad_object_id
 LIMIT CAST(sqlc.arg(max_rows) AS BIGINT);
+
+-- MarkDirectoryUserBlocked and ClearDirectoryUserBlocked are the directory's
+-- counterparts of the recipient statements: informational, never a gate, and
+-- cleared after every success (ADR 0026).
+-- name: MarkDirectoryUserBlocked :exec
+UPDATE directory_users
+SET blocked_at = sqlc.arg(at), blocked_reason = sqlc.arg(reason)
+WHERE aad_object_id = sqlc.arg(aad_object_id);
+
+-- name: ClearDirectoryUserBlocked :exec
+UPDATE directory_users
+SET blocked_at = NULL, blocked_reason = ''
+WHERE aad_object_id = sqlc.arg(aad_object_id) AND blocked_at IS NOT NULL;

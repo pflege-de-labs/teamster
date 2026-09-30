@@ -1,7 +1,8 @@
 # 0035. A message posted without a status is delivered once, not tracked
 
 * Status: Superseded by [0056](0056-events-not-alerts.md) in part: the alert names are gone, the
-  one-shot delivery stands
+  one-shot delivery stands; refined by [0063](0063-a-message-names-its-recipients.md): a message to
+  several people answers per person
 * Date: 2026-09-21
 
 ## Context

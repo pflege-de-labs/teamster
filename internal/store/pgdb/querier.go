@@ -25,6 +25,7 @@ type Querier interface {
 	// stopped writing heartbeats.
 	ClaimDirectoryRun(ctx context.Context, arg ClaimDirectoryRunParams) (int64, error)
 	ClearDefaultDestination(ctx context.Context) error
+	ClearDirectoryUserBlocked(ctx context.Context, aadObjectID string) error
 	// ClearRecipientBlocked is MarkRecipientBlocked's mirror, run after a
 	// successful send or update. It is a no-op, not an error, on a recipient that
 	// was never blocked: delivery calls it after every success, not only after a
@@ -242,6 +243,10 @@ type Querier interface {
 	// file and run make generate.
 	ListWebhookEndpoints(ctx context.Context) ([]WebhookEndpoint, error)
 	MarkDefaultDestination(ctx context.Context, id string) (int64, error)
+	// MarkDirectoryUserBlocked and ClearDirectoryUserBlocked are the directory's
+	// counterparts of the recipient statements: informational, never a gate, and
+	// cleared after every success (ADR 0026).
+	MarkDirectoryUserBlocked(ctx context.Context, arg MarkDirectoryUserBlockedParams) error
 	// MarkDirectoryUserRemoved follows Teams telling the bot it was removed. The
 	// conversation id stays: a reinstall reopens the same chat.
 	MarkDirectoryUserRemoved(ctx context.Context, arg MarkDirectoryUserRemovedParams) (int64, error)

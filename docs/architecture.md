@@ -208,9 +208,44 @@ case. `processEvent` switches on the state: `closeEvent` for closed, the claim p
 one-shot delivery otherwise. See
 [ADR 0035](adr/0035-a-message-without-a-status-is-delivered-once.md).
 
-Handler errors map to `400` for malformed JSON or an unknown universal `state`, `401` for a missing
-or unknown token (with `WWW-Authenticate: Bearer`), `503` when the token lookup itself fails, and
-`502` when routing, rendering, the store or the Bot Connector fails.
+Handler errors map to `400` for malformed JSON, an unknown universal `state` or more recipients
+than `webhook.max-recipients`, `401` for a missing or unknown token (with `WWW-Authenticate:
+Bearer`), `503` when the token lookup itself fails, and `502` when routing, rendering, the store or
+the Bot Connector fails.
+
+### Addressed messages
+
+A route that delivers to the people a message names produces one unexpanded `addressed` delivery
+([ADR 0062](adr/0062-a-route-may-deliver-to-the-people-a-message-names.md)). For an open or one-shot
+event, `processEvent` hands the plan to `expandAddressed`
+([ADR 0063](adr/0063-a-message-names-its-recipients.md)):
+
+* The addresses are `models.AddressesOf(ev)`: `UniversalEvent.Recipients`, else the
+  `teamster_recipient` label split on commas, trimmed and deduplicated without regard to case.
+* Each address is resolved once per event through the `peopleFinder` that `WithPeople` injected.
+  That is `people.Finder`, a `Resolver` and an `Installer`, built in `ServeCmd` whenever the bot is
+  configured. `Ensure` may install for a person without a chat while the per-request
+  `bot.inline-install-budget` lasts, and only with `bot.global-install` on.
+* A permanent failure (`people.Reason`) becomes an `undelivered` entry and a `teamster.deliveries`
+  outcome named after the reason. A transient one fails the request.
+* Every person reached becomes a copy of the delivery with `PersonID` set; two addresses for one
+  person are one delivery. Without a finder the delivery stays unexpanded and fails with
+  `errNoBotConfigured`.
+
+`deliverEvent` delivers channels and linked chats one after the other, and the people in parallel,
+at most `webhook.fanout-concurrency` at a time. `deliverToPerson` renders with `.Recipient` set to
+the directory user and sends through `sendToChat` or `sendToChatOnce` on a `personChat`: claim key
+`aad:<oid>`, the blocked flag on `directory_users`
+([ADR 0064](adr/0064-chat-claims-for-people-share-the-recipient-table.md)). A person who blocked the
+bot is reported as `blocked` rather than failing the request.
+
+`writeReport` answers: 200 `ok` when nothing is undelivered, 200 `partial` with the list when some
+were delivered, 422 `undelivered` when none were, and the error otherwise. `closeEvent` needs no
+recipients: `chatForKey` resolves an `aad:` row to the directory user, and `recipientDeliveryFor`
+renders it with the first addressed delivery the plan still has.
+
+`deriveKey` hashes the sorted, lower-cased recipients after the labels, and only when the list is not
+empty, so every other derived key is unchanged.
 
 ### Events
 
@@ -1104,10 +1139,9 @@ non-`https` value is refused at startup rather than registering a route that wou
 `bot-global-install` starts the reconciler described in
 [Installing the app for everyone](#installing-the-app-for-everyone). It reads `bot-app-id`,
 `bot-catalog-app-id`, `bot-reconcile-interval`, `bot-reverify-interval` and
-`bot-install-concurrency`; the inbound handler reads `bot-welcome-message`.
-`bot-inline-install-budget`, `bot-directory-ttl`,
-`webhook-max-recipients` and `webhook-fanout-concurrency` are parsed and validated but not read yet.
-They configure addressing messages to people.
+`bot-install-concurrency`; the inbound handler reads `bot-welcome-message`. Addressed messages read
+`bot-inline-install-budget`, `bot-directory-ttl`, `webhook-max-recipients` and
+`webhook-fanout-concurrency`; see [Addressed messages](#addressed-messages).
 `validateGlobalInstall` gates the install settings on `bot-global-install`. It requires the bot to be
 configured and the app to be findable, keeps a reconcile at least five minutes apart, and caps
 install workers at 16. `bot-directory-ttl` is checked whenever the bot is configured, and
@@ -1187,7 +1221,7 @@ Progress is written as a heartbeat every 25 people or 30 seconds, whichever come
 heartbeat that changes no row means another replica took the run over, and this one stops without
 finishing it.
 
-`people.Resolver` turns an address into a directory user. It is not wired to a caller yet:
+`people.Resolver` turns an address into a directory user, for [addressed messages](#addressed-messages):
 
 * A GUID is an object id. An address with `@` is a UPN, then a mail address. Anything else is
   invalid.

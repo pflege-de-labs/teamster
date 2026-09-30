@@ -112,3 +112,10 @@ func directoryUserOf(u graph.User, tenantID string, seen time.Time) models.Direc
 		DirectorySeenAt:   seen,
 	}
 }
+
+// Finder resolves an address and makes sure the bot can reach the person,
+// which is what delivering an addressed message needs.
+type Finder struct {
+	*Resolver
+	*Installer
+}

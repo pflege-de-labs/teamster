@@ -1780,3 +1780,26 @@ func (f *fakeStore) LatestDirectoryRun(context.Context) (models.DirectoryRun, er
 	}
 	return f.runs[len(f.runs)-1], nil
 }
+
+func (f *fakeStore) MarkDirectoryUserBlocked(_ context.Context, aadObjectID string, at time.Time, reason string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("MarkDirectoryUserBlocked"); err != nil {
+		return err
+	}
+	if u, ok := f.directory[aadObjectID]; ok {
+		u.BlockedAt, u.BlockedReason = at, reason
+		f.directory[aadObjectID] = u
+	}
+	return nil
+}
+
+func (f *fakeStore) ClearDirectoryUserBlocked(_ context.Context, aadObjectID string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if u, ok := f.directory[aadObjectID]; ok {
+		u.BlockedAt, u.BlockedReason = time.Time{}, ""
+		f.directory[aadObjectID] = u
+	}
+	return nil
+}

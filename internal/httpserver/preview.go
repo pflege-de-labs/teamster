@@ -101,7 +101,7 @@ const previewTeamsV2Body = `{"@type":"MessageCard","themeColor":"FF0000","summar
 func previewData(name string) templates.RenderData {
 	now := time.Now().UTC().Format(time.RFC3339)
 	if name != teamsV2Source {
-		return templates.RenderData{Event: previewEvent(name), Now: now}
+		return templates.RenderData{Event: previewEvent(name), Now: now, Recipient: previewRecipient()}
 	}
 	// A constant, and TestPreviewRendersTheTeamsV2Sample proves it parses.
 	msg, _ := teamsv2.Parse([]byte(previewTeamsV2Body))
@@ -112,6 +112,15 @@ func previewData(name string) templates.RenderData {
 		ev.Card = msg.Cards[0]
 	}
 	return templates.RenderData{Event: ev, Now: now, Payload: payload}
+}
+
+// previewRecipient is who a preview renders for, so a template that greets
+// .Recipient shows what a person would read (ADR 0063).
+func previewRecipient() templates.Person {
+	return templates.Person{
+		ID: "00000000-0000-0000-0000-000000000000", DisplayName: "Alex Example", GivenName: "Alex",
+		Surname: "Example", UPN: "alex.example@example.com", Mail: "alex.example@example.com",
+	}
 }
 
 func previewEvent(name string) models.Event {

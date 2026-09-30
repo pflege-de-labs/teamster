@@ -19,6 +19,8 @@ func TestEditorVocabulary(t *testing.T) {
 		{"an event field", v.Fields, ".Event.State"},
 		{"a top-level field", v.Fields, ".Now"},
 		{"an extension field", v.Fields, ".Event.Alertmanager.GroupKey"},
+		{"who a chat message is for", v.Fields, ".Recipient.GivenName"},
+		{"who a universal event names", v.Fields, ".Event.Universal.Recipients"},
 		{"labels are a label map", v.LabelMaps, ".Event.Labels"},
 		{"group labels are a label map", v.LabelMaps, ".Event.Alertmanager.CommonLabels"},
 		{"annotations are an attribute map", v.AttributeMaps, ".Event.Alertmanager.Annotations"},
