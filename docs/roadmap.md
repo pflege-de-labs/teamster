@@ -64,33 +64,28 @@ Grant a user or a group the right to route to someone else's chat. This extends 
 
 ## Milestone 23 — Messages to individual people
 
-IT wants to message individual employees, for example about a password that is about to expire,
-without each person opting in first. Groundwork shipped: Graph user lookup and per-user install
-(#141), a personal conversation by Entra object id (#142), and the configuration (#145).
-
-### 23.1 Install for everyone
-
-`bot.global-install` installs the Teams app for every enabled member of the tenant, from a button on
-a new `/admin/people` page and on a periodic reconcile. While it is on, nobody can opt out
-([ADR 0059](adr/0059-install-the-teams-app-for-every-member.md)).
-
-### 23.2 Addressed messages
-
-A universal event names its people in a top-level `recipients` list, as UPNs, mail addresses or
-object ids; the `teamster_recipient` label does the same for any source. A route gets a third
-target, "people named in the message", so nothing is configured per person. Each person gets their
-own rendering, and templates read `.Recipient`. A message that reaches some people and not others
-answers `partial`, listing who was not reached and why.
-
-### 23.3 Your own chat without a code
-
-With global install on, an admin-UI user's own chat is found from their sign-in claims (Entra
-object id, then UPN, then verified mail), replacing the link code.
+Installing the app for everyone, messages addressed to the people they name, and binding a user's
+own chat from their sign-in are built
+([ADR 0059](adr/0059-install-the-teams-app-for-every-member.md) to
+[ADR 0065](adr/0065-your-own-chat-is-found-from-your-sign-in.md)); see the
+[changelog](../CHANGELOG.md). What is left:
 
 ### 23.4 Idempotent one-shot fan-out
 
 A one-shot event (no `state`) retried after a 502 reaches everyone again. An explicit `key` could
 serve as an idempotency key for a short window. Only if senders need it.
+
+### 23.5 Verify against a real tenant
+
+Whether the Bot Connector accepts an Entra object id as the member of a new personal conversation,
+whether the public service URL works before any activity has arrived, whether `From.aadObjectId` on
+a personal install event names the person when Graph did the install, and how long a first run on a
+large tenant takes under Graph's throttling.
+
+### 23.6 A counter for Graph throttling
+
+`teamster.graph.throttled`, from a hook in the Graph client's retry, so a slow run can be told from
+a stuck one.
 
 ## Milestone 24 — Announcements
 
@@ -139,7 +134,7 @@ Smaller items left open when a milestone shipped. Each is picked up on its own.
 | 3 | 21 App package from teamster | — | — |
 | 4 | 22 Personal routes by grant | — | — |
 | 5 | 20.4 More commands | 20.2 | — |
-| 6 | 23 Messages to individual people | — | Graph consent: `User.Read.All`, `TeamsAppInstallation.ReadWriteForUser.All` |
+| 6 | 23.4–23.6 Messages to individual people, the rest | 23 | a test tenant for 23.5 |
 | 7 | 24 Announcements | 23 | — |
 
 Follow-ups are unordered and can be pulled in between milestones.
