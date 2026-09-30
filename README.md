@@ -37,6 +37,9 @@ signal kills it immediately.
 - Routes (label selector -> destination + template)
 - Access tokens for the senders (see [Authenticating a sender](#authenticating-a-sender))
 
+`/admin` puts templates, destinations, webhooks and routes on tabs; `/admin?tab=routes` opens one
+directly.
+
 ## Configuration
 
 Configuration comes from YAML files, environment variables and flags. `teamster --help` lists
@@ -1269,6 +1272,12 @@ a column beside the editor on a wide screen and below it on a narrow one. It ren
 against a sample event and the browser draws the result, as you type or on demand, so a template
 can be checked before any event arrives. The samples are an Alertmanager alert, an open event,
 a closed event, a general message and a Teams V2 webhook payload.
+
+The preview switches between **Rendered**, **Channel JSON** and **Chat JSON**. The two JSON views
+are the exact bodies the bot would send to the Bot Connector for a channel post and for a personal
+chat, apart from the tenant and channel IDs, which are placeholders. They show what a channel post
+does to a template: a card takes the title and text into itself, and the title becomes the
+activity's `summary`.
 
 The fragments are defined in `internal/cards` and rendered by a test against a sample event and an
 empty one, so the palette cannot offer something the renderer rejects. They also show the quoting

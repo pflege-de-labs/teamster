@@ -72,3 +72,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0055](0055-each-webhook-has-a-default-template.md) | Each webhook has a default template | Accepted |
 | [0056](0056-events-not-alerts.md) | Model what arrives as an event, not an alert | Accepted |
 | [0057](0057-channel-posts-carry-a-feed-summary.md) | Send the title as the activity summary | Accepted |
+| [0058](0058-preview-shows-the-wire-payload.md) | The preview shows the payload delivery sends | Accepted |

@@ -19,6 +19,11 @@ reasoning behind it in the [ADRs](docs/adr/).
   pin allows, and draws each Teams V2 endpoint straight to its channel. The template graph shows
   each webhook's default template.
 * The sidebar footer shows the build version.
+* `/admin` shows templates, destinations, webhooks, routes and grants as tabs rather than one long
+  page. `?tab=` opens one, and a save lands back on the tab it came from.
+* The template preview can show the JSON the bot would send to the Bot Connector, for a channel
+  post and for a chat, besides the rendered message
+  ([ADR 0058](docs/adr/0058-preview-shows-the-wire-payload.md)).
 
 ### Changed
 
