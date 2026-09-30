@@ -102,9 +102,9 @@ templ notificationsStatus(page Notifications) {
 		<div class="space-y-4 px-6 py-6">
 			if page.Recipient != nil {
 				<p class="text-sm text-slate-700">{ i18n.T(ctx, "notifications.linked_as", truncatedName(page.Recipient.Name)) }</p>
-				<p class="text-xs text-slate-500">{ i18n.T(ctx, "notifications.linked_since", page.Recipient.CreatedAt.Format("2006-01-02 15:04")) }</p>
+				<p class="text-xs text-slate-500">{ i18n.T(ctx, "notifications.linked_since", stamp(ctx, page.Recipient.CreatedAt)) }</p>
 				if !page.Recipient.UpdatedAt.Equal(page.Recipient.CreatedAt) {
-					<p class="text-xs text-slate-500">{ i18n.T(ctx, "notifications.last_updated", page.Recipient.UpdatedAt.Format("2006-01-02 15:04")) }</p>
+					<p class="text-xs text-slate-500">{ i18n.T(ctx, "notifications.last_updated", stamp(ctx, page.Recipient.UpdatedAt)) }</p>
 				}
 			} else if page.StatusUnknown {
 				<p class="text-sm text-slate-600">{ i18n.T(ctx, "notifications.status_unknown") }</p>
@@ -171,7 +171,7 @@ templ notificationsMinted(minted MintedLink) {
 				<li>{ i18n.T(ctx, "notifications.step_chat") }</li>
 				<li>{ i18n.T(ctx, "notifications.step_send") }</li>
 			</ol>
-			<p class="text-xs text-slate-500">{ i18n.T(ctx, "notifications.code_expires", minted.ExpiresAt.Format("2006-01-02 15:04")) }</p>
+			<p class="text-xs text-slate-500">{ i18n.T(ctx, "notifications.code_expires", stamp(ctx, minted.ExpiresAt)) }</p>
 		</div>
 	</section>
 }

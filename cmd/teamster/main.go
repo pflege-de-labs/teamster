@@ -7,6 +7,9 @@ import (
 	"os/signal"
 	"syscall"
 
+	// A distroless image or a Windows host may carry no zone database.
+	_ "time/tzdata"
+
 	"github.com/pflege-de-labs/teamster/internal/cli"
 )
 

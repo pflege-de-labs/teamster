@@ -125,7 +125,7 @@ func UserInfoPage(page UserInfo) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = userInfoRow("userinfo.expires", page.ExpiresAt.UTC().Format("2006-01-02 15:04 MST")).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = userInfoRow("userinfo.expires", stamp(ctx, page.ExpiresAt)).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

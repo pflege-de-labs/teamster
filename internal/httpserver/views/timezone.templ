@@ -1,0 +1,35 @@
+package views
+
+import "github.com/pflege-de-labs/teamster/internal/i18n"
+
+// timeZoneSwitch picks UTC or the browser's zone. The browser button needs
+// timezone.js to read the zone, so it stays hidden without scripts.
+templ timeZoneSwitch(choice TimeZoneChoice) {
+	<form method="post" action="/admin/timezone" id="timezone-switch" class="flex flex-wrap items-center gap-2" aria-label={ i18n.T(ctx, "timezone.label") }>
+		<input type="hidden" name="return" value={ choice.Return }/>
+		<input type="hidden" name="zone" value=""/>
+		@timeZoneButton("utc", i18n.T(ctx, "timezone.utc"), choice.utc(), false)
+		if choice.utc() {
+			@timeZoneButton("browser", i18n.T(ctx, "timezone.browser"), false, true)
+		} else {
+			@timeZoneButton("browser", i18n.T(ctx, "timezone.browser_zone", choice.Location.String()), true, true)
+		}
+	</form>
+}
+
+templ timeZoneButton(value, name string, current, needsScript bool) {
+	<button
+		type="submit"
+		name="timezone"
+		value={ value }
+		if current {
+			aria-current="true"
+		}
+		if needsScript {
+			hidden
+		}
+		class="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:border-slate-400 hover:bg-slate-50 aria-[current=true]:border-sky-500 aria-[current=true]:ring-2 aria-[current=true]:ring-sky-200"
+	>
+		{ name }
+	</button>
+}

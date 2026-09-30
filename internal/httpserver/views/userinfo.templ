@@ -40,7 +40,7 @@ templ UserInfoPage(page UserInfo) {
 					if page.Identity.Email != "" {
 						@userInfoRow("userinfo.email", page.Identity.Email)
 					}
-					@userInfoRow("userinfo.expires", page.ExpiresAt.UTC().Format("2006-01-02 15:04 MST"))
+					@userInfoRow("userinfo.expires", stamp(ctx, page.ExpiresAt))
 					@userInfoRow("userinfo.role", page.Viewer.roleLabel(ctx))
 					@userInfoList("userinfo.roles", roleNames(ctx, page.Viewer.Roles), "")
 					if page.Source == "oidc" {

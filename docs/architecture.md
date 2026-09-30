@@ -954,7 +954,12 @@ there is no session to hold a CSRF token. See
 Every signed-in page shares `layout.templ`. The pages are listed in a sidebar (`sidebar` in
 `usermenu.templ`). The header holds a `<details>` user menu under the user's name and the highest
 built-in role, translated. It holds a link to `/admin/userinfo`, the languages as flag buttons
-(served from `web/flags/`, named by their alt text) and the sign-out form. Without JavaScript the
+(served from `web/flags/`, named by their alt text), the time zone switch and the sign-out form.
+`localized` puts the zone from the `teamster_timezone` cookie, UTC by default, into the context,
+and `stamp(ctx, t)` formats every time on a page in it with the zone's abbreviation. The
+**Browser time** button stays hidden until `web/timezone.js` has filled in the browser's IANA zone;
+`POST /admin/timezone` checks the zone with `time.LoadLocation` before storing it
+([ADR 0067](adr/0067-times-in-the-admin-ui-follow-a-chosen-zone.md)). Without JavaScript the
 sidebar is always open and the menu opens natively.
 An inline script in `<head>` marks `<html>` with `js` and, when the sidebar was folded,
 `sidebar-closed`, so the burger and the sidebar are in their final state on first paint.

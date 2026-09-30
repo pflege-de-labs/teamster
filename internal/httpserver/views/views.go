@@ -12,6 +12,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/pflege-de-labs/teamster/internal/authz"
 	"github.com/pflege-de-labs/teamster/internal/cards"
@@ -559,6 +560,43 @@ func WithLanguageChoice(ctx context.Context, choice LanguageChoice) context.Cont
 func languageOf(ctx context.Context) LanguageChoice {
 	choice, _ := ctx.Value(languageContextKey{}).(LanguageChoice)
 	return choice
+}
+
+// TimeZoneChoice is the zone every time on a page is shown in.
+type TimeZoneChoice struct {
+	Location *time.Location
+	// Return is the page to come back to after switching.
+	Return string
+}
+
+func (c TimeZoneChoice) utc() bool {
+	return c.Location == nil || c.Location == time.UTC
+}
+
+type timeZoneContextKey struct{}
+
+// WithTimeZone carries the zone in the context, for the same reason as
+// WithLanguageChoice.
+func WithTimeZone(ctx context.Context, choice TimeZoneChoice) context.Context {
+	return context.WithValue(ctx, timeZoneContextKey{}, choice)
+}
+
+func timeZoneOf(ctx context.Context) TimeZoneChoice {
+	choice, _ := ctx.Value(timeZoneContextKey{}).(TimeZoneChoice)
+	return choice
+}
+
+// stamp shows t in the operator's zone, named, so a time is never read in the
+// wrong one.
+func stamp(ctx context.Context, t time.Time) string {
+	if t.IsZero() {
+		return "—"
+	}
+	loc := timeZoneOf(ctx).Location
+	if loc == nil {
+		loc = time.UTC
+	}
+	return t.In(loc).Format("2006-01-02 15:04 MST")
 }
 
 type versionContextKey struct{}

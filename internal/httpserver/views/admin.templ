@@ -138,7 +138,7 @@ templ templates(page Page) {
 									}
 								</div>
 								<div class="truncate text-xs text-slate-500">
-									{ templateShape(ctx, t) } · { sourcesText(ctx, t) } · { i18n.T(ctx, "templates.updated", t.UpdatedAt.Format("2006-01-02 15:04")) }
+									{ templateShape(ctx, t) } · { sourcesText(ctx, t) } · { i18n.T(ctx, "templates.updated", stamp(ctx, t.UpdatedAt)) }
 								</div>
 							</div>
 							<div class="flex shrink-0 items-center gap-2">

@@ -80,6 +80,10 @@ func (s *Server) localized(next http.Handler) http.Handler {
 			Chosen:    fromCookie,
 			Return:    r.URL.RequestURI(),
 		})
+		ctx = views.WithTimeZone(ctx, views.TimeZoneChoice{
+			Location: timeZonePreference(r),
+			Return:   r.URL.RequestURI(),
+		})
 		ctx = views.WithVersion(ctx, s.cfg.Version)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})

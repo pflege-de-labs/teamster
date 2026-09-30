@@ -296,12 +296,13 @@ func NewServer(logger *slog.Logger, cfg config.Config, store store.Store, graphC
 	// Choosing a language needs no session: the login page is the first thing
 	// somebody reads in the wrong one.
 	authMux.HandleFunc("/admin/language", api.handleLanguage)
+	authMux.HandleFunc("/admin/timezone", api.handleTimeZone)
 
 	// The stylesheet, icons and scripts are public: the login page needs them
 	// before anyone has a session, and none of them is sensitive.
 	for _, asset := range []string{
 		"/favicon.ico", "/site.webmanifest", "/styles.css",
-		"/preview.js", "/sources.js", "/pickers.js", "/routing.js", "/language.js", "/nav.js", "/tabs.js", "/permissions.js", "/editor.js", "/flags/", "/icons/", "/vendor/",
+		"/preview.js", "/sources.js", "/pickers.js", "/routing.js", "/language.js", "/timezone.js", "/nav.js", "/tabs.js", "/permissions.js", "/editor.js", "/flags/", "/icons/", "/vendor/",
 	} {
 		mux.HandleFunc(asset, api.handleAssets)
 	}
@@ -311,6 +312,7 @@ func NewServer(logger *slog.Logger, cfg config.Config, store store.Store, graphC
 	mux.Handle("/admin/auth/", authMux)
 	mux.Handle("/admin/logout", authMux)
 	mux.Handle("/admin/language", authMux)
+	mux.Handle("/admin/timezone", authMux)
 	// Every signed-in user may read their own user info, role or not.
 	mux.Handle("/admin/userinfo", api.requireSession(http.HandlerFunc(api.handleUserInfoPage)))
 	mux.Handle("/admin", api.requireSession(api.authorize(adminMux)))
