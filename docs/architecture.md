@@ -1196,7 +1196,8 @@ Every replica ticks every 30 seconds, offset by a random delay. A tick reads the
 A run:
 
 1. Lists the enabled members through Graph and upserts each into `directory_users`, stamped with
-   the run's start.
+   the run's start. A 403 `Authorization_RequestDenied` fails the run with an error naming the
+   missing `User.Read.All`.
 2. Marks everyone not seen since the start as `departed`, but only after a complete listing. A
    listing that fails part-way fails the run and marks nobody.
 3. Works through the people who are due, in batches of 100, with `bot.install-concurrency`

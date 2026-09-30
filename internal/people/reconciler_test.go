@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"strings"
 	"testing"
 	"time"
 
@@ -145,22 +146,41 @@ func TestRunRetiresPeopleWhoLeft(t *testing.T) {
 func TestRunFailsWhenTheListingFails(t *testing.T) {
 	t.Parallel()
 
-	st := openStore(t)
-	f := newReconcilerFixture(t, st, 6*time.Hour)
-	f.g.listErr = &graph.APIError{Status: 403, Code: "Authorization_RequestDenied"}
-	if err := st.UpsertDirectoryUser(t.Context(), models.DirectoryUser{AADObjectID: "oid-known", TenantID: "tenant", Eligible: true, DirectorySeenAt: f.clock.now().Add(-time.Hour)}); err != nil {
-		t.Fatal(err)
+	tests := []struct {
+		name     string
+		err      error
+		wantHint bool
+	}{
+		{name: "missing permission", err: &graph.APIError{Status: 403, Code: "Authorization_RequestDenied"}, wantHint: true},
+		{name: "graph failure", err: &graph.APIError{Status: 500, Code: "InternalServerError"}},
 	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-	if err := f.r.Tick(t.Context()); err == nil {
-		t.Fatal("Tick() = nil, want the listing failure")
-	}
-	run, _ := st.LatestDirectoryRun(t.Context())
-	if run.State != models.RunFailed || run.LastError == "" {
-		t.Errorf("run = %+v, want failed with the reason", run)
-	}
-	if u, _ := st.GetDirectoryUser(t.Context(), "oid-known"); u.InstallState == models.InstallDeparted {
-		t.Error("a failed listing marked somebody departed")
+			st := openStore(t)
+			f := newReconcilerFixture(t, st, 6*time.Hour)
+			f.g.listErr = tt.err
+			if err := st.UpsertDirectoryUser(t.Context(), models.DirectoryUser{AADObjectID: "oid-known", TenantID: "tenant", Eligible: true, DirectorySeenAt: f.clock.now().Add(-time.Hour)}); err != nil {
+				t.Fatal(err)
+			}
+
+			err := f.r.Tick(t.Context())
+			var apiErr *graph.APIError
+			if !errors.As(err, &apiErr) {
+				t.Fatalf("Tick() = %v, want the listing failure", err)
+			}
+			run, _ := st.LatestDirectoryRun(t.Context())
+			if run.State != models.RunFailed || run.LastError == "" {
+				t.Errorf("run = %+v, want failed with the reason", run)
+			}
+			if got := strings.Contains(run.LastError, "User.Read.All"); got != tt.wantHint {
+				t.Errorf("run error %q names User.Read.All = %v, want %v", run.LastError, got, tt.wantHint)
+			}
+			if u, _ := st.GetDirectoryUser(t.Context(), "oid-known"); u.InstallState == models.InstallDeparted {
+				t.Error("a failed listing marked somebody departed")
+			}
+		})
 	}
 }
 

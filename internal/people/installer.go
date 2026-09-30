@@ -146,13 +146,11 @@ func (i *Installer) installed(ctx context.Context, u models.DirectoryUser, conv,
 func (i *Installer) failed(ctx context.Context, u models.DirectoryUser, cause error) (models.DirectoryUser, string, error) {
 	state, outcome := models.InstallFailed, OutcomeFailed
 	var apiErr *graph.APIError
-	if errors.As(cause, &apiErr) {
-		switch {
-		case apiErr.Status == http.StatusForbidden && apiErr.Code == "Authorization_RequestDenied":
-			i.forbidden.Store(true)
-		case apiErr.Status >= 400 && apiErr.Status < 500 && apiErr.Status != http.StatusTooManyRequests:
-			state, outcome = models.InstallIneligible, OutcomeIneligible
-		}
+	switch {
+	case permissionDenied(cause):
+		i.forbidden.Store(true)
+	case errors.As(cause, &apiErr) && apiErr.Status >= 400 && apiErr.Status < 500 && apiErr.Status != http.StatusTooManyRequests:
+		state, outcome = models.InstallIneligible, OutcomeIneligible
 	}
 
 	now := i.now()
