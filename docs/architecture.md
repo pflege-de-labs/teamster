@@ -19,6 +19,7 @@ that runs more than one instance. SQLite is the option with no other runtime dep
 | `internal/logging` | Builds the `slog` logger from `log.*` and carries a request's logger in its context. See [Logging and errors](#logging-and-errors). |
 | `internal/samples` | Remembers the label keys, label values and attribute keys incoming events carry, for editor completion. See [Editor completion](#editor-completion). |
 | `internal/graph` | Microsoft Graph client: OAuth2 client credentials, list Teams and channels. It posts nothing: Graph does not let an application post or edit channel messages (ADR 0045). It also reads directory users and the organization app catalog, and installs the Teams app in a user's personal scope; those calls take a context and retry while Graph throttles (429/503), waiting as long as `Retry-After` says, up to 30 seconds. `BrokerClient` is the delegated-Teams half (ADR 0037): the same Graph endpoints, called with a per-request Entra bearer token instead of the app-only credential. |
+| `internal/people` | Resolves an object id, UPN or mail address to a directory user, opens the bot's chat with them, installing the Teams app through Graph when allowed, and reconciles installs for the whole tenant. See [Installing the app for everyone](#installing-the-app-for-everyone). |
 | `internal/bot` | Bot Framework Connector client: a second, separate OAuth2 client credentials flow. It starts channel posts, sends to a person's chat, and edits both. `CreatePersonalConversation` opens the bot's 1:1 chat with a user by Entra object id, which works only once the app is installed for them. See [Bot configuration](#bot-configuration) and [Inbound bot messages](#inbound-bot-messages). |
 | `internal/store` | `Store` interface, its SQLite and Postgres backends sharing one adapter; `internal/store/migrations` owns the schema for templates, destinations, routes, recipients, webhook endpoints, access tokens, active events, broker tokens and event samples. |
 | `internal/models` | Shared data types: `Event` and its extensions, `Route`, `Template`, `Destination`, `Recipient`, `ActiveEvent`, `AccessToken`, `BrokerToken`, `EventSample` and the two webhook payload shapes. See [Events](#events). |
@@ -584,6 +585,13 @@ listener: LIFO runs them in reverse, so the server drains, the scrape endpoint c
 export goes out, and only then does the database close — which the active-events gauge reads on every
 collection.
 
+Installing for everyone adds four instruments, none of which names a person:
+
+* `teamster.app.installs`, by `outcome`: `installed`, `already`, `failed` or `ineligible`.
+* `teamster.directory.lookups`, by `result`: `store`, `graph`, `negative-cache` or `unknown`.
+* `teamster.directory.runs`, by `kind` and `outcome`: `done`, `failed` or `lost`.
+* `teamster.directory.users`, a gauge by install `state`.
+
 ## Logging and errors
 
 Everything logs through one `log/slog` logger, built from `log.level` and `log.format` in
@@ -1056,11 +1064,12 @@ on `metrics.enabled` today. Once the feature is on, `bot-metadata-url` is requir
 `https`: it is the trust anchor every inbound activity is checked against, so an empty or
 non-`https` value is refused at startup rather than registering a route that would 502 forever.
 
-`bot-global-install` and the settings beside it (`bot-app-id`, `bot-catalog-app-id`,
-`bot-reconcile-interval`, `bot-reverify-interval`, `bot-install-concurrency`,
-`bot-inline-install-budget`, `bot-welcome-message`, `bot-directory-ttl`), and
-`webhook-max-recipients` and `webhook-fanout-concurrency`, are parsed and validated but not read yet.
-They configure installing the Teams app for every enabled member and addressing messages to people.
+`bot-global-install` starts the reconciler described in
+[Installing the app for everyone](#installing-the-app-for-everyone). It reads `bot-app-id`,
+`bot-catalog-app-id`, `bot-reconcile-interval`, `bot-reverify-interval` and
+`bot-install-concurrency`. `bot-inline-install-budget`, `bot-welcome-message`, `bot-directory-ttl`,
+`webhook-max-recipients` and `webhook-fanout-concurrency` are parsed and validated but not read yet.
+They configure addressing messages to people.
 `validateGlobalInstall` gates the install settings on `bot-global-install`. It requires the bot to be
 configured and the app to be findable, keeps a reconcile at least five minutes apart, and caps
 install workers at 16. `bot-directory-ttl` is checked whenever the bot is configured, and
@@ -1096,6 +1105,58 @@ turns the feature on exposes no unauthenticated path and offers nobody a page in
 talk to a bot that isn't there. See [Inbound bot messages](#inbound-bot-messages) for what validates
 a request once the route exists, and [Linking a chat](#linking-a-chat) for how a person ends up
 receiving anything through it.
+
+## Installing the app for everyone
+
+With `bot.global-install` on, `ServeCmd` starts a `people.Reconciler` in every replica
+([ADR 0059](adr/0059-install-the-teams-app-for-every-member.md)). It stops with the process
+context; a run cut short is taken over by another replica or requested again.
+
+Every replica ticks every 30 seconds, offset by a random delay. A tick reads the latest
+`directory_runs` row:
+
+* **A run is requested, or running with a heartbeat older than two minutes:** the replica claims it.
+  The claim is an `UPDATE ... WHERE`, so only one replica gets it.
+* **No run is active and `bot.reconcile-interval` has passed since the last was requested:** the
+  replica requests a periodic run. If another replica requested one first, the unique index refuses
+  the second request and the replica waits for the next tick.
+
+A run:
+
+1. Lists the enabled members through Graph and upserts each into `directory_users`, stamped with
+   the run's start.
+2. Marks everyone not seen since the start as `departed`, but only after a complete listing. A
+   listing that fails part-way fails the run and marks nobody.
+3. Works through the people who are due, in batches of 100, with `bot.install-concurrency`
+   workers. Due means an install state of `unknown`, `removed` or `failed` whose next attempt has
+   come, or `installed` but not verified within `bot.reverify-interval`. Each person is handled
+   once per run.
+4. Purges people who departed 30 days ago, and finished runs of the same age.
+
+`people.Installer.Ensure` handles one person:
+
+1. It tries `CreatePersonalConversation` first. That succeeds whenever the app is installed, a setup
+   policy included, and then nothing is written to Graph.
+2. Otherwise, when installing is allowed, it installs through Graph. The catalog id comes from
+   `bot.catalog-app-id` or is looked up once and kept. After the install it asks for the chat up to
+   three times, waiting 2 then 4 seconds, because a new installation takes a moment to answer.
+3. On failure it records the reason and a next attempt, one hour doubling per attempt up to a week.
+   A 403 `Authorization_RequestDenied` means the permission is missing: the rest of the run only
+   discovers chats. So does an app the catalog does not have. Any other 4xx except 429 marks the
+   person `ineligible`.
+
+Progress is written as a heartbeat every 25 people or 30 seconds, whichever comes first. A
+heartbeat that changes no row means another replica took the run over, and this one stops without
+finishing it.
+
+`people.Resolver` turns an address into a directory user. It is not wired to a caller yet:
+
+* A GUID is an object id. An address with `@` is a UPN, then a mail address. Anything else is
+  invalid.
+* A stored row younger than `bot.directory-ttl` answers without Graph.
+* An address Graph does not know is remembered for ten minutes, in a map of at most 1024
+  entries per process.
+* A disabled account, a guest or someone departed is `ineligible`.
 
 ## Inbound bot messages
 

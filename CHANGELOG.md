@@ -12,6 +12,11 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 ### Added
 
+* `bot.global-install` installs the bot's Teams app for every enabled member of the tenant, on a
+  periodic run shared across replicas
+  ([ADR 0059](docs/adr/0059-install-the-teams-app-for-every-member.md)). Four metrics follow it:
+  `teamster.app.installs`, `teamster.directory.lookups`, `teamster.directory.runs` and
+  `teamster.directory.users`.
 * Each webhook has a default template, used before the built-in message. A new installation is
   seeded with a preset per webhook, and the template editor offers the same presets as starting
   points ([ADR 0055](docs/adr/0055-each-webhook-has-a-default-template.md)).

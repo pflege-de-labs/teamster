@@ -10,8 +10,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
-* The global-install keys under `config.settings.bot` are documented in `values.yaml`. They
-  do nothing yet.
+* The global-install keys under `config.settings.bot` are documented in `values.yaml`.
 
 ## [0.7.1] — 2026-09-29
 

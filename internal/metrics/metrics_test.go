@@ -521,3 +521,54 @@ func TestShutdownIsSafeTwice(t *testing.T) {
 		t.Errorf("second shutdown: %v", err)
 	}
 }
+
+func TestDirectoryInstruments(t *testing.T) {
+	t.Parallel()
+
+	m := newTestMetrics(t, enabled())
+	ctx := t.Context()
+	m.AppInstall(ctx, "installed")
+	m.AppInstall(ctx, "installed")
+	m.DirectoryLookup(ctx, "store")
+	m.ReconcileRun(ctx, "periodic", "done")
+	for _, counts := range []map[string]int64{{"unknown": 9}, {"installed": 4, "failed": 1}} {
+		// Registering again replaces the first callback rather than adding one.
+		if err := m.ObserveDirectoryUsers(func(context.Context) (map[string]int64, error) { return counts, nil }); err != nil {
+			t.Fatalf("ObserveDirectoryUsers: %v", err)
+		}
+	}
+
+	format := expfmt.NewFormat(expfmt.TypeProtoDelim)
+	got := families(t, scrape(t, m, string(format)).Body, format)
+
+	if f := got["teamster_app_installs_total"]; f == nil || f.Metric[0].Counter.GetValue() != 2 {
+		t.Errorf("app installs = %v, want 2", f)
+	}
+	for _, name := range []string{"teamster_directory_lookups_total", "teamster_directory_runs_total"} {
+		if f := got[name]; f == nil || f.Metric[0].Counter.GetValue() != 1 {
+			t.Errorf("%s = %v, want 1", name, f)
+		}
+	}
+	users := map[string]float64{}
+	for _, metric := range got["teamster_directory_users"].GetMetric() {
+		for _, label := range metric.Label {
+			if label.GetName() == "state" {
+				users[label.GetValue()] = metric.Gauge.GetValue()
+			}
+		}
+	}
+	if len(users) != 2 || users["installed"] != 4 || users["failed"] != 1 {
+		t.Errorf("directory users = %v, want installed 4 and failed 1 only", users)
+	}
+}
+
+func TestObserveDirectoryUsersIsANoOpWhenDisabled(t *testing.T) {
+	t.Parallel()
+
+	if err := Disabled().ObserveDirectoryUsers(func(context.Context) (map[string]int64, error) {
+		t.Error("a disabled pipeline asked for the directory counts")
+		return nil, nil
+	}); err != nil {
+		t.Errorf("ObserveDirectoryUsers() = %v", err)
+	}
+}

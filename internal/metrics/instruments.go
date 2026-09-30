@@ -83,7 +83,98 @@ func (m *Metrics) instruments() error {
 	)
 	errs = append(errs, err)
 
+	m.installs, err = meter.Int64Counter(
+		"teamster.app.installs",
+		metric.WithDescription("Attempts to make the bot's Teams app reach a person, by outcome."),
+		metric.WithUnit("{install}"),
+	)
+	errs = append(errs, err)
+
+	m.lookups, err = meter.Int64Counter(
+		"teamster.directory.lookups",
+		metric.WithDescription("Addresses resolved to a person, by where the answer came from."),
+		metric.WithUnit("{lookup}"),
+	)
+	errs = append(errs, err)
+
+	m.reconcileRuns, err = meter.Int64Counter(
+		"teamster.directory.runs",
+		metric.WithDescription("Runs that install the Teams app for the tenant, by kind and outcome."),
+		metric.WithUnit("{run}"),
+	)
+	errs = append(errs, err)
+
+	m.directoryUsers, err = meter.Int64ObservableGauge(
+		"teamster.directory.users",
+		metric.WithDescription("People in the directory, by install state."),
+		metric.WithUnit("{person}"),
+	)
+	errs = append(errs, err)
+
 	return errors.Join(errs...)
+}
+
+// AppInstall counts one person the installer handled, never who, so the
+// attribute stays small whatever the tenant's size.
+func (m *Metrics) AppInstall(ctx context.Context, outcome string) {
+	m.installs.Add(ctx, 1, metric.WithAttributes(attribute.String("outcome", outcome)))
+}
+
+// DirectoryLookup counts a resolved address by source, which shows how much
+// Graph the store is saving.
+func (m *Metrics) DirectoryLookup(ctx context.Context, result string) {
+	m.lookups.Add(ctx, 1, metric.WithAttributes(attribute.String("result", result)))
+}
+
+// ReconcileRun counts a finished install run.
+func (m *Metrics) ReconcileRun(ctx context.Context, kind, outcome string) {
+	m.reconcileRuns.Add(ctx, 1, metric.WithAttributes(
+		attribute.String("kind", kind),
+		attribute.String("outcome", outcome),
+	))
+}
+
+// ObserveDirectoryUsers asks the store for people per install state, once per
+// collection and cached like the other gauges.
+func (m *Metrics) ObserveDirectoryUsers(count func(context.Context) (map[string]int64, error)) error {
+	if !m.enabled {
+		return nil
+	}
+	if m.directoryReg != nil {
+		if err := m.directoryReg.Unregister(); err != nil {
+			return err
+		}
+		m.directoryReg = nil
+	}
+
+	var (
+		mu    sync.Mutex
+		value map[string]int64
+		taken time.Time
+	)
+	registration, err := m.provider.Meter(scope).RegisterCallback(
+		func(ctx context.Context, observer metric.Observer) error {
+			mu.Lock()
+			defer mu.Unlock()
+			if value == nil || time.Since(taken) >= gaugeTTL {
+				fresh, err := count(ctx)
+				if err != nil {
+					return err
+				}
+				value, taken = fresh, time.Now()
+			}
+			for state, n := range value {
+				observer.ObserveInt64(m.directoryUsers, n, metric.WithAttributes(attribute.String("state", state)))
+			}
+			return nil
+		},
+		m.directoryUsers,
+	)
+	if err != nil {
+		return err
+	}
+	m.directoryReg = registration
+	return nil
 }
 
 // DeliveryRecorded counts one message on its way to a channel. The route is the
