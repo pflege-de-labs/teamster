@@ -1,0 +1,130 @@
+package views
+
+import (
+	"strconv"
+	"time"
+
+	"github.com/pflege-de-labs/teamster/internal/i18n"
+	"github.com/pflege-de-labs/teamster/internal/models"
+)
+
+// People is the page at /admin/people: installing the bot's app for every
+// member of the tenant (ADR 0059).
+type People struct {
+	Viewer   Viewer
+	Counts   []StateCount
+	Run      *models.DirectoryRun
+	Problems []models.DirectoryUser
+	Notice   string
+	Error    string
+}
+
+// StateCount is how many people are in one install state.
+type StateCount struct {
+	State string
+	Users int64
+}
+
+func (p People) active() bool {
+	return p.Run != nil && (p.Run.State == models.RunRequested || p.Run.State == models.RunRunning)
+}
+
+func when(t time.Time) string {
+	if t.IsZero() {
+		return "—"
+	}
+	return t.Format("2006-01-02 15:04")
+}
+
+templ PeoplePage(page People) {
+	@Layout(i18n.T(ctx, "page.people"), &page.Viewer) {
+		@notice(page.Error, page.Notice)
+		<section class="rounded-lg border border-slate-200 bg-white shadow-sm">
+			<h2 class="border-b border-slate-200 px-6 py-4 text-lg font-semibold">{ i18n.T(ctx, "people.heading") }</h2>
+			<div class="space-y-6 px-6 py-6">
+				<p class="text-sm text-slate-600">{ i18n.T(ctx, "people.explainer") }</p>
+				<dl class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+					for _, c := range page.Counts {
+						<div class="rounded-md border border-slate-200 px-4 py-3">
+							<dt class="text-xs text-slate-500">{ i18n.T(ctx, "people.state." + c.State) }</dt>
+							<dd class="text-2xl font-semibold">{ strconv.FormatInt(c.Users, 10) }</dd>
+						</div>
+					}
+				</dl>
+				<div class="flex flex-wrap items-center gap-3">
+					if page.active() {
+						<a href="/admin/people" class="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+							{ i18n.T(ctx, "people.refresh") }
+						</a>
+					} else {
+						<form method="post" action="/admin/people/install">
+							@submit(i18n.T(ctx, "people.install"))
+						</form>
+					}
+				</div>
+			</div>
+		</section>
+		if page.Run != nil {
+			@peopleRun(*page.Run)
+		}
+		@peopleProblems(page.Problems)
+	}
+}
+
+templ peopleRun(run models.DirectoryRun) {
+	<section class="rounded-lg border border-slate-200 bg-white shadow-sm">
+		<h2 class="border-b border-slate-200 px-6 py-4 text-lg font-semibold">{ i18n.T(ctx, "people.run_heading") }</h2>
+		<dl class="grid grid-cols-2 gap-x-6 gap-y-2 px-6 py-6 text-sm sm:grid-cols-4">
+			<dt class="text-slate-500">{ i18n.T(ctx, "people.run_state") }</dt>
+			<dd>{ i18n.T(ctx, "people.run." + string(run.State)) } ({ i18n.T(ctx, "people.kind." + string(run.Kind)) })</dd>
+			<dt class="text-slate-500">{ i18n.T(ctx, "people.run_requested") }</dt>
+			<dd>{ when(run.RequestedAt) } { run.RequestedBy }</dd>
+			<dt class="text-slate-500">{ i18n.T(ctx, "people.run_started") }</dt>
+			<dd>{ when(run.StartedAt) }</dd>
+			<dt class="text-slate-500">{ i18n.T(ctx, "people.run_finished") }</dt>
+			<dd>{ when(run.FinishedAt) }</dd>
+			<dt class="text-slate-500">{ i18n.T(ctx, "people.run_progress") }</dt>
+			<dd class="sm:col-span-3">
+				{ i18n.T(ctx, "people.run_counts", run.Total, run.Installed, run.Already, run.Failed, run.Ineligible) }
+			</dd>
+			if run.LastError != "" {
+				<dt class="text-slate-500">{ i18n.T(ctx, "people.run_error") }</dt>
+				<dd class="break-words text-red-700 sm:col-span-3">{ run.LastError }</dd>
+			}
+		</dl>
+	</section>
+}
+
+templ peopleProblems(problems []models.DirectoryUser) {
+	<section class="rounded-lg border border-slate-200 bg-white shadow-sm">
+		<h2 class="border-b border-slate-200 px-6 py-4 text-lg font-semibold">{ i18n.T(ctx, "people.problems_heading") }</h2>
+		<div class="px-6 py-6">
+			if len(problems) == 0 {
+				@empty(i18n.T(ctx, "people.problems_empty"))
+			} else {
+				<ul class="divide-y divide-slate-200">
+					for _, u := range problems {
+						<li class="py-3 text-sm">
+							<div class="font-medium">{ truncatedName(firstNonEmpty(u.DisplayName, u.UserPrincipalName, u.AADObjectID)) }</div>
+							<div class="text-xs text-slate-500">
+								{ i18n.T(ctx, "people.state." + string(u.InstallState)) } · { i18n.T(ctx, "people.next_attempt", when(u.NextAttemptAt)) }
+							</div>
+							if u.LastError != "" {
+								<div class="break-words text-xs text-red-700">{ u.LastError }</div>
+							}
+						</li>
+					}
+				</ul>
+			}
+		</div>
+	</section>
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
+}

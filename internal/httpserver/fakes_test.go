@@ -33,6 +33,7 @@ type fakeStore struct {
 	accessTokens map[string]models.AccessToken
 	botTeams     map[string]models.BotTeam
 	directory    map[string]models.DirectoryUser
+	runs         []models.DirectoryRun
 	routes       map[string]models.Route
 	activeEvents map[string]models.ActiveEvent
 	// Keyed and cloned separately from activeEvents, because the real store
@@ -1700,19 +1701,7 @@ func (f *fakeStore) PurgeDepartedDirectoryUsers(ctx context.Context, before time
 	return 0, store.ErrNotFound
 }
 
-func (f *fakeStore) CountDirectoryUsersByState(ctx context.Context) (map[models.InstallState]int64, error) {
-	return nil, store.ErrNotFound
-}
-
-func (f *fakeStore) RequestDirectoryRun(ctx context.Context, r models.DirectoryRun) (models.DirectoryRun, error) {
-	return models.DirectoryRun{}, store.ErrNotFound
-}
-
 func (f *fakeStore) GetDirectoryRun(ctx context.Context, id string) (models.DirectoryRun, error) {
-	return models.DirectoryRun{}, store.ErrNotFound
-}
-
-func (f *fakeStore) LatestDirectoryRun(ctx context.Context) (models.DirectoryRun, error) {
 	return models.DirectoryRun{}, store.ErrNotFound
 }
 
@@ -1730,4 +1719,64 @@ func (f *fakeStore) FinishDirectoryRun(ctx context.Context, id, owner string, st
 
 func (f *fakeStore) PruneDirectoryRuns(ctx context.Context, before time.Time) (int64, error) {
 	return 0, store.ErrNotFound
+}
+
+func (f *fakeStore) CountDirectoryUsersByState(context.Context) (map[models.InstallState]int64, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("CountDirectoryUsersByState"); err != nil {
+		return nil, err
+	}
+	out := map[models.InstallState]int64{}
+	for _, u := range f.directory {
+		out[u.InstallState]++
+	}
+	return out, nil
+}
+
+func (f *fakeStore) ListDirectoryUserProblems(_ context.Context, limit int) ([]models.DirectoryUser, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("ListDirectoryUserProblems"); err != nil {
+		return nil, err
+	}
+	var out []models.DirectoryUser
+	for _, u := range f.directory {
+		if (u.InstallState == models.InstallFailed || u.InstallState == models.InstallIneligible) && len(out) < limit {
+			out = append(out, u)
+		}
+	}
+	return out, nil
+}
+
+func (f *fakeStore) RequestDirectoryRun(_ context.Context, r models.DirectoryRun) (models.DirectoryRun, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("RequestDirectoryRun"); err != nil {
+		return models.DirectoryRun{}, err
+	}
+	for _, existing := range f.runs {
+		if existing.State == models.RunRequested || existing.State == models.RunRunning {
+			return models.DirectoryRun{}, store.ErrConflict
+		}
+	}
+	r.ID = fmt.Sprintf("run-%d", len(f.runs)+1)
+	r.State = models.RunRequested
+	if r.RequestedAt.IsZero() {
+		r.RequestedAt = time.Now()
+	}
+	f.runs = append(f.runs, r)
+	return r, nil
+}
+
+func (f *fakeStore) LatestDirectoryRun(context.Context) (models.DirectoryRun, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("LatestDirectoryRun"); err != nil {
+		return models.DirectoryRun{}, err
+	}
+	if len(f.runs) == 0 {
+		return models.DirectoryRun{}, store.ErrNotFound
+	}
+	return f.runs[len(f.runs)-1], nil
 }

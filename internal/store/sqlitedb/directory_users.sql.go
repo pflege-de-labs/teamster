@@ -194,6 +194,61 @@ func (q *Queries) GetDirectoryUserByConversation(ctx context.Context, conversati
 	return i, err
 }
 
+const listDirectoryUserProblems = `-- name: ListDirectoryUserProblems :many
+SELECT aad_object_id, tenant_id, user_principal_name, mail, upn_key, mail_key, display_name, given_name, surname, eligible, conversation_id, service_url, install_state, installed_at, next_attempt_at, attempts, last_error, blocked_at, blocked_reason, directory_seen_at, created_at, updated_at FROM directory_users
+WHERE install_state IN ('failed', 'ineligible')
+ORDER BY updated_at DESC, aad_object_id
+LIMIT CAST(?1 AS BIGINT)
+`
+
+// ListDirectoryUserProblems is what the people page lists: installs that
+// failed or were refused, most recent first.
+func (q *Queries) ListDirectoryUserProblems(ctx context.Context, maxRows int64) ([]DirectoryUser, error) {
+	rows, err := q.db.QueryContext(ctx, listDirectoryUserProblems, maxRows)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DirectoryUser
+	for rows.Next() {
+		var i DirectoryUser
+		if err := rows.Scan(
+			&i.AadObjectID,
+			&i.TenantID,
+			&i.UserPrincipalName,
+			&i.Mail,
+			&i.UpnKey,
+			&i.MailKey,
+			&i.DisplayName,
+			&i.GivenName,
+			&i.Surname,
+			&i.Eligible,
+			&i.ConversationID,
+			&i.ServiceUrl,
+			&i.InstallState,
+			&i.InstalledAt,
+			&i.NextAttemptAt,
+			&i.Attempts,
+			&i.LastError,
+			&i.BlockedAt,
+			&i.BlockedReason,
+			&i.DirectorySeenAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listDirectoryUsersDue = `-- name: ListDirectoryUsersDue :many
 SELECT aad_object_id, tenant_id, user_principal_name, mail, upn_key, mail_key, display_name, given_name, surname, eligible, conversation_id, service_url, install_state, installed_at, next_attempt_at, attempts, last_error, blocked_at, blocked_reason, directory_seen_at, created_at, updated_at FROM directory_users
 WHERE eligible

@@ -240,6 +240,14 @@ func NewServer(logger *slog.Logger, cfg config.Config, store store.Store, graphC
 		adminMux.HandleFunc("/admin/notifications/cancel", api.formPostTo("/admin/notifications", api.cancelLink))
 		adminMux.HandleFunc("/admin/notifications/unlink", api.formPostTo("/admin/notifications", api.unlinkNotifications))
 	}
+	// Only where the app is installed for everyone; the page has nothing to
+	// show otherwise (ADR 0059).
+	if botConfigured(cfg.Bot) && cfg.Bot.GlobalInstall {
+		adminMux.HandleFunc("/admin/people", api.handlePeoplePage)
+		adminMux.HandleFunc("/admin/people/install", api.formPostTo("/admin/people", api.requestInstallRun))
+		adminMux.HandleFunc("/api/people/runs/latest", api.handlePeopleRuns)
+		adminMux.HandleFunc("/api/people/install", api.handlePeopleInstall)
+	}
 	adminMux.HandleFunc("/admin/teams", api.handleTeamsPage)
 	adminMux.HandleFunc("/admin/recipients", api.handleRecipientsPage)
 	adminMux.HandleFunc("/admin/recipients/delete", api.formPostTo("/admin/recipients", api.deleteRecipientForm))

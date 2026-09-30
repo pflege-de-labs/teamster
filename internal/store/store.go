@@ -187,6 +187,8 @@ type Store interface {
 	MarkDirectoryUsersDeparted(ctx context.Context, seenBefore, at time.Time) (int64, error)
 	PurgeDepartedDirectoryUsers(ctx context.Context, before time.Time) (int64, error)
 	CountDirectoryUsersByState(ctx context.Context) (map[models.InstallState]int64, error)
+	// ListDirectoryUserProblems lists failed and refused installs, newest first.
+	ListDirectoryUserProblems(ctx context.Context, limit int) ([]models.DirectoryUser, error)
 
 	// RequestDirectoryRun reports ErrConflict while another run is requested or
 	// running.
