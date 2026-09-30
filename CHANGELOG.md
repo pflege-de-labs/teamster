@@ -10,6 +10,8 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 ## [Unreleased]
 
+## [0.9.1] — 2026-09-30
+
 ### Fixed
 
 * A global install run refused for a missing permission now names `User.Read.All` in its error,
@@ -256,7 +258,8 @@ Adaptive Cards posted to Teams channels, alert state in SQLite so a resolve upda
 an admin UI for templates, destinations and routes. Released as a signed container image and
 binaries with SBOMs ([ADR 0006](docs/adr/0006-release-rebuild-sbom-signing.md)).
 
-[Unreleased]: https://github.com/pflege-de-labs/teamster/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/pflege-de-labs/teamster/compare/v0.9.1...HEAD
+[0.9.1]: https://github.com/pflege-de-labs/teamster/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/pflege-de-labs/teamster/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/pflege-de-labs/teamster/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/pflege-de-labs/teamster/compare/v0.6.0...v0.7.0
