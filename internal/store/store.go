@@ -188,7 +188,9 @@ type Store interface {
 	// informational blocked flag, as for recipients.
 	MarkDirectoryUserBlocked(ctx context.Context, aadObjectID string, at time.Time, reason string) error
 	ClearDirectoryUserBlocked(ctx context.Context, aadObjectID string) error
-	ListDirectoryUsersDue(ctx context.Context, now, reverifyBefore time.Time, limit int) ([]models.DirectoryUser, error)
+	// ListDirectoryUsersDue with ignoreBackoff takes everyone not installed,
+	// whenever their next attempt would be.
+	ListDirectoryUsersDue(ctx context.Context, now, reverifyBefore time.Time, ignoreBackoff bool, limit int) ([]models.DirectoryUser, error)
 	// MarkDirectoryUsersDeparted retires everyone a complete listing that
 	// started at seenBefore did not return.
 	MarkDirectoryUsersDeparted(ctx context.Context, seenBefore, at time.Time) (int64, error)

@@ -17,6 +17,11 @@ reasoning behind it in the [ADRs](docs/adr/).
   why the Graph and bot registrations stay separate
   ([ADR 0066](docs/adr/0066-keep-separate-graph-and-bot-registrations.md)).
 
+### Fixed
+
+* A run started with **Install for all users** retries every failed and ineligible install at once
+  instead of waiting out each person's backoff, so granting a permission takes effect with one run.
+
 ## [0.9.1] — 2026-09-30
 
 ### Fixed

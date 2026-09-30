@@ -315,7 +315,9 @@ the tenant (not guests), so IT can message anyone without them linking a chat fi
 **People** (`/admin/people`, admins only) shows how many people have the app, the latest run with
 its progress, and the installs that failed and why. **Install for all users** starts a run now,
 rather than at the next interval; `POST /api/people/install` does the same, and
-`GET /api/people/runs/latest` reports progress.
+`GET /api/people/runs/latest` reports progress. A run started this way retries every failed and
+ineligible install at once, without waiting for its next attempt, so it is the step to take after
+granting a permission.
 
 A route can deliver to **People named in the message** instead of a channel or one person: pick
 it in **Delivers to**. Only an admin may create, edit or delete such a route

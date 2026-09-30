@@ -143,6 +143,53 @@ func TestRunRetiresPeopleWhoLeft(t *testing.T) {
 	}
 }
 
+func TestManualRunIgnoresTheBackoff(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name         string
+		kind         models.RunKind
+		wantInstalls int
+	}{
+		{name: "periodic run waits", kind: models.RunPeriodic},
+		{name: "manual run retries", kind: models.RunManual, wantInstalls: 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			interval := time.Duration(0)
+			if tt.kind == models.RunPeriodic {
+				interval = 6 * time.Hour
+			}
+			st := openStore(t)
+			f := newReconcilerFixture(t, st, interval, member("oid-a", "a@corp.example", ""))
+			ctx := t.Context()
+			if err := st.UpsertDirectoryUser(ctx, models.DirectoryUser{AADObjectID: "oid-a", TenantID: "tenant", Eligible: true, DirectorySeenAt: f.clock.now()}); err != nil {
+				t.Fatal(err)
+			}
+			if err := st.RecordDirectoryInstallFailure(ctx, "oid-a", models.InstallIneligible, "refused", f.clock.now().Add(time.Hour), f.clock.now()); err != nil {
+				t.Fatal(err)
+			}
+			if tt.kind == models.RunManual {
+				if _, err := st.RequestDirectoryRun(ctx, models.DirectoryRun{Kind: models.RunManual, RequestedBy: "admin", RequestedAt: f.clock.now()}); err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			if err := f.r.Tick(ctx); err != nil {
+				t.Fatalf("Tick: %v", err)
+			}
+			if run, _ := st.LatestDirectoryRun(ctx); run.Kind != tt.kind || run.State != models.RunDone {
+				t.Fatalf("run = %+v, want a finished %s run", run, tt.kind)
+			}
+			if f.g.installs != tt.wantInstalls {
+				t.Errorf("installs = %d, want %d", f.g.installs, tt.wantInstalls)
+			}
+		})
+	}
+}
+
 func TestRunFailsWhenTheListingFails(t *testing.T) {
 	t.Parallel()
 

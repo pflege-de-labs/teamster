@@ -92,13 +92,14 @@ WHERE aad_object_id = sqlc.arg(aad_object_id);
 -- ListDirectoryUsersDue is a reconcile's work list: eligible people whose app
 -- is not known to be installed and whose next attempt has come, and installed
 -- ones not verified since reverify_before. An install Graph refused for the
--- person is retried too: a licence or policy may change.
+-- person is retried too: a licence or policy may change. ignore_backoff takes
+-- them whenever their next attempt would be, for a run an admin asked for.
 -- name: ListDirectoryUsersDue :many
 SELECT * FROM directory_users
 WHERE eligible
 	AND (
 		(install_state IN ('unknown', 'removed', 'failed', 'ineligible')
-			AND (next_attempt_at IS NULL OR next_attempt_at <= sqlc.arg(now)))
+			AND (CAST(sqlc.arg(ignore_backoff) AS BOOLEAN) OR next_attempt_at IS NULL OR next_attempt_at <= sqlc.arg(now)))
 		OR (install_state = 'installed' AND installed_at < sqlc.arg(reverify_before))
 	)
 ORDER BY aad_object_id
