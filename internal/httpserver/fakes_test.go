@@ -1597,3 +1597,76 @@ func (f *fakeStore) PruneEventSamples(ctx context.Context, cutoff time.Time, kee
 	defer f.mu.Unlock()
 	return 0, f.failing("PruneEventSamples")
 }
+
+// Nothing in httpserver reads the directory yet.
+func (f *fakeStore) UpsertDirectoryUser(ctx context.Context, u models.DirectoryUser) error {
+	return store.ErrNotFound
+}
+
+func (f *fakeStore) GetDirectoryUser(ctx context.Context, aadObjectID string) (models.DirectoryUser, error) {
+	return models.DirectoryUser{}, store.ErrNotFound
+}
+
+func (f *fakeStore) FindDirectoryUser(ctx context.Context, address string) (models.DirectoryUser, error) {
+	return models.DirectoryUser{}, store.ErrNotFound
+}
+
+func (f *fakeStore) GetDirectoryUserByConversation(ctx context.Context, conversationID string) (models.DirectoryUser, error) {
+	return models.DirectoryUser{}, store.ErrNotFound
+}
+
+func (f *fakeStore) SetDirectoryUserInstalled(ctx context.Context, aadObjectID, conversationID, serviceURL string, at time.Time) error {
+	return store.ErrNotFound
+}
+
+func (f *fakeStore) RecordDirectoryInstallFailure(ctx context.Context, aadObjectID string, state models.InstallState, lastError string, next, at time.Time) error {
+	return store.ErrNotFound
+}
+
+func (f *fakeStore) MarkDirectoryUserRemoved(ctx context.Context, aadObjectID string, at time.Time) error {
+	return store.ErrNotFound
+}
+
+func (f *fakeStore) ListDirectoryUsersDue(ctx context.Context, now, reverifyBefore time.Time, limit int) ([]models.DirectoryUser, error) {
+	return nil, store.ErrNotFound
+}
+
+func (f *fakeStore) MarkDirectoryUsersDeparted(ctx context.Context, seenBefore, at time.Time) (int64, error) {
+	return 0, store.ErrNotFound
+}
+
+func (f *fakeStore) PurgeDepartedDirectoryUsers(ctx context.Context, before time.Time) (int64, error) {
+	return 0, store.ErrNotFound
+}
+
+func (f *fakeStore) CountDirectoryUsersByState(ctx context.Context) (map[models.InstallState]int64, error) {
+	return nil, store.ErrNotFound
+}
+
+func (f *fakeStore) RequestDirectoryRun(ctx context.Context, r models.DirectoryRun) (models.DirectoryRun, error) {
+	return models.DirectoryRun{}, store.ErrNotFound
+}
+
+func (f *fakeStore) GetDirectoryRun(ctx context.Context, id string) (models.DirectoryRun, error) {
+	return models.DirectoryRun{}, store.ErrNotFound
+}
+
+func (f *fakeStore) LatestDirectoryRun(ctx context.Context) (models.DirectoryRun, error) {
+	return models.DirectoryRun{}, store.ErrNotFound
+}
+
+func (f *fakeStore) ClaimDirectoryRun(ctx context.Context, id, owner string, now, staleBefore time.Time) (bool, error) {
+	return false, store.ErrNotFound
+}
+
+func (f *fakeStore) HeartbeatDirectoryRun(ctx context.Context, id, owner string, counts models.RunCounts, now time.Time) (bool, error) {
+	return false, store.ErrNotFound
+}
+
+func (f *fakeStore) FinishDirectoryRun(ctx context.Context, id, owner string, state models.RunState, counts models.RunCounts, lastError string, now time.Time) (bool, error) {
+	return false, store.ErrNotFound
+}
+
+func (f *fakeStore) PruneDirectoryRuns(ctx context.Context, before time.Time) (int64, error) {
+	return 0, store.ErrNotFound
+}

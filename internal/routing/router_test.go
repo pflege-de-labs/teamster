@@ -141,6 +141,79 @@ func (s stubStore) CountDestinationsWithoutBotTeam(ctx context.Context) (int64, 
 	return 0, store.ErrNotFound
 }
 
+// Routing never reads the directory.
+func (s stubStore) UpsertDirectoryUser(ctx context.Context, u models.DirectoryUser) error {
+	return store.ErrNotFound
+}
+
+func (s stubStore) GetDirectoryUser(ctx context.Context, aadObjectID string) (models.DirectoryUser, error) {
+	return models.DirectoryUser{}, store.ErrNotFound
+}
+
+func (s stubStore) FindDirectoryUser(ctx context.Context, address string) (models.DirectoryUser, error) {
+	return models.DirectoryUser{}, store.ErrNotFound
+}
+
+func (s stubStore) GetDirectoryUserByConversation(ctx context.Context, conversationID string) (models.DirectoryUser, error) {
+	return models.DirectoryUser{}, store.ErrNotFound
+}
+
+func (s stubStore) SetDirectoryUserInstalled(ctx context.Context, aadObjectID, conversationID, serviceURL string, at time.Time) error {
+	return store.ErrNotFound
+}
+
+func (s stubStore) RecordDirectoryInstallFailure(ctx context.Context, aadObjectID string, state models.InstallState, lastError string, next, at time.Time) error {
+	return store.ErrNotFound
+}
+
+func (s stubStore) MarkDirectoryUserRemoved(ctx context.Context, aadObjectID string, at time.Time) error {
+	return store.ErrNotFound
+}
+
+func (s stubStore) ListDirectoryUsersDue(ctx context.Context, now, reverifyBefore time.Time, limit int) ([]models.DirectoryUser, error) {
+	return nil, store.ErrNotFound
+}
+
+func (s stubStore) MarkDirectoryUsersDeparted(ctx context.Context, seenBefore, at time.Time) (int64, error) {
+	return 0, store.ErrNotFound
+}
+
+func (s stubStore) PurgeDepartedDirectoryUsers(ctx context.Context, before time.Time) (int64, error) {
+	return 0, store.ErrNotFound
+}
+
+func (s stubStore) CountDirectoryUsersByState(ctx context.Context) (map[models.InstallState]int64, error) {
+	return nil, store.ErrNotFound
+}
+
+func (s stubStore) RequestDirectoryRun(ctx context.Context, r models.DirectoryRun) (models.DirectoryRun, error) {
+	return models.DirectoryRun{}, store.ErrNotFound
+}
+
+func (s stubStore) GetDirectoryRun(ctx context.Context, id string) (models.DirectoryRun, error) {
+	return models.DirectoryRun{}, store.ErrNotFound
+}
+
+func (s stubStore) LatestDirectoryRun(ctx context.Context) (models.DirectoryRun, error) {
+	return models.DirectoryRun{}, store.ErrNotFound
+}
+
+func (s stubStore) ClaimDirectoryRun(ctx context.Context, id, owner string, now, staleBefore time.Time) (bool, error) {
+	return false, store.ErrNotFound
+}
+
+func (s stubStore) HeartbeatDirectoryRun(ctx context.Context, id, owner string, counts models.RunCounts, now time.Time) (bool, error) {
+	return false, store.ErrNotFound
+}
+
+func (s stubStore) FinishDirectoryRun(ctx context.Context, id, owner string, state models.RunState, counts models.RunCounts, lastError string, now time.Time) (bool, error) {
+	return false, store.ErrNotFound
+}
+
+func (s stubStore) PruneDirectoryRuns(ctx context.Context, before time.Time) (int64, error) {
+	return 0, store.ErrNotFound
+}
+
 func (s stubStore) DeleteBotTeam(ctx context.Context, teamID string) error {
 	return store.ErrNotFound
 }

@@ -67,6 +67,49 @@ type Destination struct {
 	IsDefault bool
 }
 
+type DirectoryRun struct {
+	ID          string
+	Kind        string
+	RequestedBy string
+	RequestedAt time.Time
+	State       string
+	Owner       string
+	HeartbeatAt sql.NullTime
+	StartedAt   sql.NullTime
+	FinishedAt  sql.NullTime
+	Total       int64
+	Installed   int64
+	Already     int64
+	Failed      int64
+	Ineligible  int64
+	LastError   string
+}
+
+type DirectoryUser struct {
+	AadObjectID       string
+	TenantID          string
+	UserPrincipalName string
+	Mail              string
+	UpnKey            string
+	MailKey           string
+	DisplayName       string
+	GivenName         string
+	Surname           string
+	Eligible          bool
+	ConversationID    string
+	ServiceUrl        string
+	InstallState      string
+	InstalledAt       sql.NullTime
+	NextAttemptAt     sql.NullTime
+	Attempts          int64
+	LastError         string
+	BlockedAt         sql.NullTime
+	BlockedReason     string
+	DirectorySeenAt   time.Time
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+}
+
 type EventSample struct {
 	Kind      string
 	Key       string

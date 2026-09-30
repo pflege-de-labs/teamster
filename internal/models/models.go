@@ -94,6 +94,88 @@ type BotTeam struct {
 	UpdatedAt  time.Time `json:"updated_at"`
 }
 
+// InstallState is how far installing the Teams app for a directory user got
+// (ADR 0059).
+type InstallState string
+
+const (
+	InstallUnknown    InstallState = "unknown"
+	InstallInstalled  InstallState = "installed"
+	InstallRemoved    InstallState = "removed"
+	InstallFailed     InstallState = "failed"
+	InstallIneligible InstallState = "ineligible"
+	InstallDeparted   InstallState = "departed"
+)
+
+// A DirectoryUser is a person the bot can message without a link code, as
+// Graph last described them (ADR 0060). The zero time means unset.
+type DirectoryUser struct {
+	AADObjectID       string       `json:"aad_object_id"`
+	TenantID          string       `json:"tenant_id"`
+	UserPrincipalName string       `json:"user_principal_name"`
+	Mail              string       `json:"mail"`
+	DisplayName       string       `json:"display_name"`
+	GivenName         string       `json:"given_name"`
+	Surname           string       `json:"surname"`
+	Eligible          bool         `json:"eligible"`
+	ConversationID    string       `json:"conversation_id"`
+	ServiceURL        string       `json:"service_url"`
+	InstallState      InstallState `json:"install_state"`
+	InstalledAt       time.Time    `json:"installed_at"`
+	NextAttemptAt     time.Time    `json:"next_attempt_at"`
+	Attempts          int64        `json:"attempts"`
+	LastError         string       `json:"last_error"`
+	BlockedAt         time.Time    `json:"blocked_at"`
+	BlockedReason     string       `json:"blocked_reason"`
+	DirectorySeenAt   time.Time    `json:"directory_seen_at"`
+	CreatedAt         time.Time    `json:"created_at"`
+	UpdatedAt         time.Time    `json:"updated_at"`
+}
+
+// RunKind says who asked for a directory run.
+type RunKind string
+
+const (
+	RunManual   RunKind = "manual"
+	RunPeriodic RunKind = "periodic"
+)
+
+// RunState is where a directory run is.
+type RunState string
+
+const (
+	RunRequested RunState = "requested"
+	RunRunning   RunState = "running"
+	RunDone      RunState = "done"
+	RunFailed    RunState = "failed"
+)
+
+// RunCounts is a directory run's progress.
+type RunCounts struct {
+	Total      int64 `json:"total"`
+	Installed  int64 `json:"installed"`
+	Already    int64 `json:"already"`
+	Failed     int64 `json:"failed"`
+	Ineligible int64 `json:"ineligible"`
+}
+
+// A DirectoryRun is one pass that installs the Teams app for the tenant. Only
+// one can be requested or running at a time, and its owner holds it while its
+// heartbeat is fresh.
+type DirectoryRun struct {
+	ID          string    `json:"id"`
+	Kind        RunKind   `json:"kind"`
+	RequestedBy string    `json:"requested_by"`
+	RequestedAt time.Time `json:"requested_at"`
+	State       RunState  `json:"state"`
+	Owner       string    `json:"owner"`
+	HeartbeatAt time.Time `json:"heartbeat_at"`
+	StartedAt   time.Time `json:"started_at"`
+	FinishedAt  time.Time `json:"finished_at"`
+	RunCounts
+	LastError string `json:"last_error"`
+}
+
 // An AccessToken is a named credential for the alertmanager and universal
 // webhooks (ADR 0044). TokenHash is a SHA-256 digest; the token is shown once,
 // when it is issued. LastUsedAt is zero for a token never presented.

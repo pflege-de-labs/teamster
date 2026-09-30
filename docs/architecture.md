@@ -768,6 +768,21 @@ breaks the previous release on purpose ([ADR 0056](adr/0056-events-not-alerts.md
 Down reverses it; the Alertmanager group fields have no old name and are left alone. The earlier
 paragraphs name tables as those migrations created them.
 
+`directory_users` and `directory_runs` came with installing the Teams app for everyone, by `0020`
+in SQLite and `0017` in Postgres ([ADR 0059](adr/0059-install-the-teams-app-for-every-member.md),
+[ADR 0060](adr/0060-directory-users-are-not-recipients.md)):
+
+* A `directory_users` row is a person the bot can message without a link code, keyed by Entra object
+  id. It holds what Graph last said about them, including lower-cased `upn_key` and `mail_key` for
+  lookups that ignore case. It also holds the chat the bot has with them and how far installing the
+  app got: `install_state`, the next attempt, a count of attempts and the last error.
+* A `directory_runs` row is one install run, with its progress counters. A partial unique index
+  over a constant admits one row that is `requested` or `running`, so the table is also the lease
+  that keeps replicas from running two at once. The owner writes a heartbeat, and a replica may
+  claim a running row once that heartbeat is stale.
+
+Both are new tables and nothing else, so the previous release ignores them.
+
 `database.migrate` decides what opening the store does about a schema that is behind: `auto`
 applies what is missing, `verify` refuses and names `teamster migrate up`, `off` asks nothing.
 `teamster export` always verifies — reading a database must not migrate it. A migration must leave

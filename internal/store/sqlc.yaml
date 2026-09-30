@@ -24,6 +24,8 @@ sql:
             go_type: "bool"
           - column: "destinations.is_default"
             go_type: "bool"
+          - column: "directory_users.eligible"
+            go_type: "bool"
   - engine: "postgresql"
     schema: "migrations/postgres"
     queries: "queries/postgres"
