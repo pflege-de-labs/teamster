@@ -106,6 +106,10 @@ The `graph` registration signs in as the application itself (client credentials)
 the access token, so restart Teamster after granting consent, or it keeps the old token for up to
 an hour.
 
+What each permission reaches beyond Teamster's use, what a leaked secret exposes, and how to run
+with fewer permissions are covered in
+[Entra permissions and how to minimise them](docs/permissions.md).
+
 **Graph does not post anything.** Microsoft Graph does not let an application post or edit
 channel messages:
 
@@ -1437,6 +1441,7 @@ machines, and by whoever is reading a log at three in the morning.
 - [Architecture](docs/architecture.md)
 - [Helm chart](charts/teamster/README.md) and its [changelog](charts/teamster/CHANGELOG.md)
 - [Configuring Keycloak for the admin login](docs/keycloak.md)
+- [Entra permissions and how to minimise them](docs/permissions.md)
 - [Roadmap](docs/roadmap.md)
 - [Architecture Decision Records](docs/adr/)
 - [Contribution rules and definition of done](AGENTS.md)

@@ -1127,7 +1127,9 @@ See [README](../README.md#configuration) for the concrete paths and
 `config.BotConfig` (`bot.*` / `TEAMSTER_BOT_*`) holds a second Entra registration, separate from
 `GraphConfig`, for the Bot Framework identity that posts channel cards and sends alerts to a
 person's chat ([ADR 0045](adr/0045-channel-delivery-through-the-bot.md),
-[ADR 0026](adr/0026-alerts-in-a-persons-chat.md)). Without it no channel delivery succeeds, and
+[ADR 0026](adr/0026-alerts-in-a-persons-chat.md); kept separate by
+[ADR 0066](adr/0066-keep-separate-graph-and-bot-registrations.md), permissions in
+[Entra permissions](permissions.md)). Without it no channel delivery succeeds, and
 `ServeCmd` logs so at startup. `bot-service-url`, when set, must be `https`: the bot's token goes
 there with every channel post to a team not yet in `bot_teams`. `config.Validate` gates the bot on
 `bot-tenant-id`, `bot-client-id` and `bot-client-secret` being set together — all three empty
