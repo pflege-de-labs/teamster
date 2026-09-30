@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -366,6 +367,53 @@ func (c *Client) PostToChannel(ctx context.Context, serviceURL, tenantID, channe
 	// Posted but not editable is still posted: failing here would be retried
 	// into a second card.
 	return ChannelPost{ConversationID: res.ID, ActivityID: res.ActivityID}, nil
+}
+
+type personalConversationRequest struct {
+	IsGroup     bool                       `json:"isGroup"`
+	Bot         idRef                      `json:"bot"`
+	Members     []memberRef                `json:"members"`
+	ChannelData personalChannelDataRequest `json:"channelData"`
+	TenantID    string                     `json:"tenantId"`
+}
+
+type personalChannelDataRequest struct {
+	Tenant idRef `json:"tenant"`
+}
+
+type memberRef struct {
+	ID          string `json:"id"`
+	AADObjectID string `json:"aadObjectId"`
+}
+
+// CreatePersonalConversation opens, or finds again, the bot's 1:1 chat with
+// the user and returns its conversation id. It succeeds only when the bot's
+// app is installed for that user, however it got there, which makes it the
+// install check as well. botID is the bot's app id, bot.client-id.
+func (c *Client) CreatePersonalConversation(ctx context.Context, serviceURL, tenantID, botID, userObjectID string) (string, error) {
+	base, err := serviceBase(serviceURL)
+	if err != nil {
+		return "", err
+	}
+	resBody, err := c.doRequest(ctx, http.MethodPost, base+"/v3/conversations", personalConversationRequest{
+		Bot: idRef{ID: "28:" + botID},
+		// Teams accepts the Entra object id where it would take a "29:" id.
+		Members:     []memberRef{{ID: userObjectID, AADObjectID: userObjectID}},
+		ChannelData: personalChannelDataRequest{Tenant: idRef{ID: tenantID}},
+		TenantID:    tenantID,
+	})
+	if err != nil {
+		return "", err
+	}
+
+	var res channelConversationResponse
+	if err := json.Unmarshal(resBody, &res); err != nil {
+		return "", fmt.Errorf("decode conversation response: %w", err)
+	}
+	if res.ID == "" {
+		return "", errors.New("bot connector created a conversation without an id")
+	}
+	return res.ID, nil
 }
 
 // UpdateMessage replaces the content of a previously sent activity.
