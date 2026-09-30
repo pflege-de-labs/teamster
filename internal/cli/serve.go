@@ -105,10 +105,10 @@ func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
 	// The collection's own context, not the process one: the last collection
 	// is the one shutdown forces, by which time the process context is already
 	// cancelled and reading the gauge through it would fail.
-	if err := telemetry.ObserveActiveAlerts(func(ctx context.Context) (int64, error) {
-		return sqlStore.CountActiveAlerts(ctx)
+	if err := telemetry.ObserveActiveEvents(func(ctx context.Context) (int64, error) {
+		return sqlStore.CountActiveEvents(ctx)
 	}); err != nil {
-		return fmt.Errorf("active alerts gauge: %w", err)
+		return fmt.Errorf("active events gauge: %w", err)
 	}
 	if err := telemetry.ObserveDestinationsWithoutApp(sqlStore.CountDestinationsWithoutBotTeam); err != nil {
 		return fmt.Errorf("destinations without app gauge: %w", err)

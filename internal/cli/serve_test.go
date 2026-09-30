@@ -288,8 +288,8 @@ func TestServeExportsMetricsAndStopsThem(t *testing.T) {
 	}
 	// The gauge reads the store, so its presence proves the callback was
 	// registered against a database that is still open.
-	if !strings.Contains(string(body), "teamster_active_alerts") {
-		t.Errorf("the exposition carries no active alerts gauge:\n%s", body)
+	if !strings.Contains(string(body), "teamster_active_events") {
+		t.Errorf("the exposition carries no active events gauge:\n%s", body)
 	}
 
 	if got := received(); got != 0 {

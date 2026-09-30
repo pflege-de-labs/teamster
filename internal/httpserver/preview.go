@@ -58,7 +58,7 @@ func (s *Server) handlePreview(w http.ResponseWriter, r *http.Request) {
 }
 
 func previewSamples() []string {
-	return []string{models.SourceAlertmanager, "firing", "resolved", "message", teamsV2Source}
+	return []string{models.SourceAlertmanager, "open", "closed", "message", teamsV2Source}
 }
 
 // previewTeamsV2Body is what a Teams V2 sender posts, for previewing a
@@ -67,74 +67,80 @@ const previewTeamsV2Body = `{"@type":"MessageCard","themeColor":"FF0000","summar
 	`"title":"Build failed","text":"Pipeline **main** failed at step *test*.",` +
 	`"sections":[{"facts":[{"name":"Branch","value":"main"},{"name":"Commit","value":"4f2a91c"}]}]}`
 
-// previewData is what a sample renders against: an alert, and for a Teams V2
+// previewData is what a sample renders against: an event, and for a Teams V2
 // sample the payload a template reaches through .Payload.
 func previewData(name string) templates.RenderData {
 	now := time.Now().UTC().Format(time.RFC3339)
 	if name != teamsV2Source {
-		return templates.RenderData{Alert: previewAlert(name), Now: now}
+		return templates.RenderData{Event: previewEvent(name), Now: now}
 	}
 	// A constant, and TestPreviewRendersTheTeamsV2Sample proves it parses.
 	msg, _ := teamsv2.Parse([]byte(previewTeamsV2Body))
 	var payload any
 	_ = json.Unmarshal([]byte(previewTeamsV2Body), &payload)
-	alert := models.Alert{Source: teamsV2Source, Labels: models.WithSourceLabel(nil, teamsV2Source), Title: msg.Title, Text: msg.Text}
+	ev := models.Event{Source: teamsV2Source, Labels: models.WithSourceLabel(nil, teamsV2Source), Title: msg.Title, Text: msg.Text}
 	if len(msg.Cards) > 0 {
-		alert.Card = msg.Cards[0]
+		ev.Card = msg.Cards[0]
 	}
-	return templates.RenderData{Alert: alert, Now: now, Payload: payload}
+	return templates.RenderData{Event: ev, Now: now, Payload: payload}
 }
 
-func previewAlert(name string) models.Alert {
-	alert := models.Alert{
+func previewEvent(name string) models.Event {
+	if name == models.SourceAlertmanager {
+		// What processEvent makes of one entry of an Alertmanager group.
+		return models.Event{
+			Source: models.SourceAlertmanager,
+			Key:    "9f9f5f4a1f",
+			State:  models.StateOpen,
+			Labels: map[string]string{
+				"alertname":        "HighCPU",
+				"severity":         "critical",
+				"service":          "api",
+				models.SourceLabel: models.SourceAlertmanager,
+			},
+			Alertmanager: &models.AlertmanagerEvent{
+				Annotations: map[string]string{
+					"summary":     "CPU usage is above 90%",
+					"description": "api service is spiking CPU",
+				},
+				StartsAt:     time.Date(2026, 2, 9, 9, 0, 0, 0, time.UTC),
+				GeneratorURL: "http://prometheus.example/rule",
+				Receiver:     "teamster",
+				GroupKey:     `{}:{alertname="HighCPU"}`,
+				GroupLabels:  map[string]string{"alertname": "HighCPU"},
+				ExternalURL:  "http://alertmanager.example",
+			},
+		}
+	}
+
+	ev := models.Event{
 		Source: models.SourceUniversal,
-		Status: "firing",
+		Key:    "2a6d3b7f1c",
+		State:  models.StateOpen,
 		Labels: map[string]string{
 			"alertname":        "HighMemory",
 			"severity":         "warning",
 			"service":          "worker",
 			models.SourceLabel: models.SourceUniversal,
 		},
-		Annotations: map[string]string{
-			"summary":     "Memory usage is above 80%",
-			"description": "worker service memory is high",
+		Universal: &models.UniversalEvent{
+			Attributes: map[string]string{
+				"summary":     "Memory usage is above 80%",
+				"description": "worker service memory is high",
+			},
+			Time: time.Date(2026, 2, 9, 9, 0, 0, 0, time.UTC),
+			URL:  "https://grafana.example/d/worker",
 		},
-		StartsAt:    time.Date(2026, 2, 9, 9, 0, 0, 0, time.UTC),
-		Generator:   "custom",
-		Fingerprint: "2a6d3b7f1c",
 	}
-
 	switch name {
-	case models.SourceAlertmanager:
-		// What processAlert makes of one entry of an Alertmanager group.
-		alert.Source = models.SourceAlertmanager
-		alert.Labels = map[string]string{
-			"alertname":        "HighCPU",
-			"severity":         "critical",
-			"service":          "api",
-			models.SourceLabel: models.SourceAlertmanager,
-		}
-		alert.Annotations = map[string]string{
-			"summary":     "CPU usage is above 90%",
-			"description": "api service is spiking CPU",
-		}
-		alert.Generator = "http://prometheus.example/rule"
-		alert.Fingerprint = "9f9f5f4a1f"
-		return alert
-	case "resolved":
-		alert.Status = "resolved"
-		alert.EndsAt = time.Date(2026, 2, 9, 10, 30, 0, 0, time.UTC)
-		return alert
+	case "closed":
+		ev.State = models.StateClosed
 	case "message":
-		// A general message has no lifecycle: no status, no start time, no
-		// fingerprint -- exactly the fields a one-shot delivery never uses.
-		// Labels and annotations stay, since those are what routing and the
-		// template still see regardless.
-		alert.Status = ""
-		alert.StartsAt = time.Time{}
-		alert.Fingerprint = ""
-		return alert
-	default:
-		return alert
+		// A general message has no lifecycle: no state, no time, no key --
+		// exactly the fields a one-shot delivery never uses.
+		ev.State = models.StateNone
+		ev.Key = ""
+		ev.Universal.Time = time.Time{}
 	}
+	return ev
 }

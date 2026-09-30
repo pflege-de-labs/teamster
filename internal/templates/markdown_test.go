@@ -136,7 +136,7 @@ func TestMessageReachesBothTransports(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			msg, err := RenderMessage(models.Template{Text: tt.text}, RenderData{Alert: sampleAlert()})
+			msg, err := RenderMessage(models.Template{Text: tt.text}, RenderData{Event: sampleEvent()})
 			if err != nil {
 				t.Fatalf("RenderMessage: %v", err)
 			}
@@ -199,8 +199,8 @@ func TestAlertDataCannotEscapeIntoEitherTransport(t *testing.T) {
 			t.Parallel()
 
 			msg, err := RenderMessage(
-				models.Template{Text: "{{ .Alert.Annotations.summary }}"},
-				RenderData{Alert: models.Alert{Annotations: map[string]string{"summary": tt.summary}}},
+				models.Template{Text: "{{ .Event.Alertmanager.Annotations.summary }}"},
+				RenderData{Event: models.Event{Alertmanager: &models.AlertmanagerEvent{Annotations: map[string]string{"summary": tt.summary}}}},
 			)
 			if err != nil {
 				t.Fatalf("RenderMessage: %v", err)
@@ -236,7 +236,7 @@ func TestRawHTMLPassesThroughTheMarkdownParser(t *testing.T) {
 
 	msg, err := RenderMessage(
 		models.Template{Text: "<p><b>still here</b></p>"},
-		RenderData{Alert: sampleAlert()},
+		RenderData{Event: sampleEvent()},
 	)
 	if err != nil {
 		t.Fatalf("RenderMessage: %v", err)

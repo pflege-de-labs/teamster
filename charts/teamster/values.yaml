@@ -86,7 +86,7 @@ database:
 # database.driver=postgres, where nothing is written outside /tmp.
 #
 # Turning this off runs on an emptyDir: every template, destination, route and
-# active alert is lost when the pod restarts. Useful for a demo, nothing else.
+# active event is lost when the pod restarts. Useful for a demo, nothing else.
 persistence:
   enabled: true
   mountPath: /data
@@ -247,8 +247,8 @@ config:
     # log:
     #   level: info       # debug, info, warn or error
     #   format: json      # text or json
-    # Label keys, label values and annotation keys remembered from incoming
-    # alerts, so the template and route editors can complete them. Annotation
+    # Label keys, label values and attribute keys remembered from incoming
+    # events, so the template and route editors can complete them. Attribute
     # values are never stored. On by default; the values shown are the defaults.
     # samples:
     #   enabled: true
@@ -403,7 +403,7 @@ readinessProbe:
 # enough that liveness covers it — so there is no startupProbe by default.
 #
 # The case for one is the first start after an upgrade that rebuilds a table:
-# with a large active_alerts, that can outlast the liveness probe's patience,
+# with a large active_events, that can outlast the liveness probe's patience,
 # and a liveness failure during startup is a restart loop that never finishes
 # the migration. Uncomment this then, and give failureThreshold × periodSeconds
 # more time than the migration needs.

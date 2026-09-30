@@ -28,26 +28,26 @@ func (p pgQueries) ClearDefaultDestination(ctx context.Context) error {
 	return p.q.ClearDefaultDestination(ctx)
 }
 
-func (p pgQueries) ClaimActiveAlert(ctx context.Context, arg sqlitedb.ClaimActiveAlertParams) (sqlitedb.ActiveAlert, error) {
-	row, err := p.q.ClaimActiveAlert(ctx, pgdb.ClaimActiveAlertParams(arg))
-	return sqlitedb.ActiveAlert(row), err
+func (p pgQueries) ClaimActiveEvent(ctx context.Context, arg sqlitedb.ClaimActiveEventParams) (sqlitedb.ActiveEvent, error) {
+	row, err := p.q.ClaimActiveEvent(ctx, pgdb.ClaimActiveEventParams(arg))
+	return sqlitedb.ActiveEvent(row), err
 }
 
-func (p pgQueries) ClaimActiveAlertRecipient(ctx context.Context, arg sqlitedb.ClaimActiveAlertRecipientParams) (sqlitedb.ActiveAlertRecipient, error) {
-	row, err := p.q.ClaimActiveAlertRecipient(ctx, pgdb.ClaimActiveAlertRecipientParams(arg))
-	return sqlitedb.ActiveAlertRecipient(row), err
+func (p pgQueries) ClaimActiveEventRecipient(ctx context.Context, arg sqlitedb.ClaimActiveEventRecipientParams) (sqlitedb.ActiveEventRecipient, error) {
+	row, err := p.q.ClaimActiveEventRecipient(ctx, pgdb.ClaimActiveEventRecipientParams(arg))
+	return sqlitedb.ActiveEventRecipient(row), err
 }
 
-func (p pgQueries) CompleteActiveAlertClaim(ctx context.Context, arg sqlitedb.CompleteActiveAlertClaimParams) (string, error) {
-	return p.q.CompleteActiveAlertClaim(ctx, pgdb.CompleteActiveAlertClaimParams(arg))
+func (p pgQueries) CompleteActiveEventClaim(ctx context.Context, arg sqlitedb.CompleteActiveEventClaimParams) (string, error) {
+	return p.q.CompleteActiveEventClaim(ctx, pgdb.CompleteActiveEventClaimParams(arg))
 }
 
-func (p pgQueries) CompleteActiveAlertRecipientClaim(ctx context.Context, arg sqlitedb.CompleteActiveAlertRecipientClaimParams) (string, error) {
-	return p.q.CompleteActiveAlertRecipientClaim(ctx, pgdb.CompleteActiveAlertRecipientClaimParams(arg))
+func (p pgQueries) CompleteActiveEventRecipientClaim(ctx context.Context, arg sqlitedb.CompleteActiveEventRecipientClaimParams) (string, error) {
+	return p.q.CompleteActiveEventRecipientClaim(ctx, pgdb.CompleteActiveEventRecipientClaimParams(arg))
 }
 
-func (p pgQueries) CountActiveAlerts(ctx context.Context) (int64, error) {
-	return p.q.CountActiveAlerts(ctx)
+func (p pgQueries) CountActiveEvents(ctx context.Context) (int64, error) {
+	return p.q.CountActiveEvents(ctx)
 }
 
 func (p pgQueries) CountDestinations(ctx context.Context) (int64, error) {
@@ -106,16 +106,16 @@ func (p pgQueries) DeleteAccessToken(ctx context.Context, id string) error {
 	return p.q.DeleteAccessToken(ctx, id)
 }
 
-func (p pgQueries) DeleteActiveAlertCard(ctx context.Context, arg sqlitedb.DeleteActiveAlertCardParams) error {
-	return p.q.DeleteActiveAlertCard(ctx, pgdb.DeleteActiveAlertCardParams(arg))
+func (p pgQueries) DeleteActiveEventCard(ctx context.Context, arg sqlitedb.DeleteActiveEventCardParams) error {
+	return p.q.DeleteActiveEventCard(ctx, pgdb.DeleteActiveEventCardParams(arg))
 }
 
-func (p pgQueries) DeleteActiveAlertRecipientCard(ctx context.Context, arg sqlitedb.DeleteActiveAlertRecipientCardParams) error {
-	return p.q.DeleteActiveAlertRecipientCard(ctx, pgdb.DeleteActiveAlertRecipientCardParams(arg))
+func (p pgQueries) DeleteActiveEventRecipientCard(ctx context.Context, arg sqlitedb.DeleteActiveEventRecipientCardParams) error {
+	return p.q.DeleteActiveEventRecipientCard(ctx, pgdb.DeleteActiveEventRecipientCardParams(arg))
 }
 
-func (p pgQueries) DeleteActiveAlertRecipientsFor(ctx context.Context, recipientID string) error {
-	return p.q.DeleteActiveAlertRecipientsFor(ctx, recipientID)
+func (p pgQueries) DeleteActiveEventRecipientsFor(ctx context.Context, recipientID string) error {
+	return p.q.DeleteActiveEventRecipientsFor(ctx, recipientID)
 }
 
 func (p pgQueries) DeleteBotTeam(ctx context.Context, teamID string) error {
@@ -179,14 +179,14 @@ func (p pgQueries) GetAccessTokenByHash(ctx context.Context, tokenHash string) (
 	return sqlitedb.AccessToken(row), err
 }
 
-func (p pgQueries) GetActiveAlert(ctx context.Context, arg sqlitedb.GetActiveAlertParams) (sqlitedb.ActiveAlert, error) {
-	row, err := p.q.GetActiveAlert(ctx, pgdb.GetActiveAlertParams(arg))
-	return sqlitedb.ActiveAlert(row), err
+func (p pgQueries) GetActiveEvent(ctx context.Context, arg sqlitedb.GetActiveEventParams) (sqlitedb.ActiveEvent, error) {
+	row, err := p.q.GetActiveEvent(ctx, pgdb.GetActiveEventParams(arg))
+	return sqlitedb.ActiveEvent(row), err
 }
 
-func (p pgQueries) GetActiveAlertRecipient(ctx context.Context, arg sqlitedb.GetActiveAlertRecipientParams) (sqlitedb.ActiveAlertRecipient, error) {
-	row, err := p.q.GetActiveAlertRecipient(ctx, pgdb.GetActiveAlertRecipientParams(arg))
-	return sqlitedb.ActiveAlertRecipient(row), err
+func (p pgQueries) GetActiveEventRecipient(ctx context.Context, arg sqlitedb.GetActiveEventRecipientParams) (sqlitedb.ActiveEventRecipient, error) {
+	row, err := p.q.GetActiveEventRecipient(ctx, pgdb.GetActiveEventRecipientParams(arg))
+	return sqlitedb.ActiveEventRecipient(row), err
 }
 
 func (p pgQueries) GetBotTeam(ctx context.Context, teamID string) (sqlitedb.BotTeam, error) {
@@ -261,26 +261,26 @@ func (p pgQueries) ListAccessTokens(ctx context.Context) ([]sqlitedb.AccessToken
 	return out, nil
 }
 
-func (p pgQueries) ListActiveAlerts(ctx context.Context, fingerprint string) ([]sqlitedb.ActiveAlert, error) {
-	rows, err := p.q.ListActiveAlerts(ctx, fingerprint)
+func (p pgQueries) ListActiveEvents(ctx context.Context, key string) ([]sqlitedb.ActiveEvent, error) {
+	rows, err := p.q.ListActiveEvents(ctx, key)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]sqlitedb.ActiveAlert, 0, len(rows))
+	out := make([]sqlitedb.ActiveEvent, 0, len(rows))
 	for _, row := range rows {
-		out = append(out, sqlitedb.ActiveAlert(row))
+		out = append(out, sqlitedb.ActiveEvent(row))
 	}
 	return out, nil
 }
 
-func (p pgQueries) ListActiveAlertRecipients(ctx context.Context, fingerprint string) ([]sqlitedb.ActiveAlertRecipient, error) {
-	rows, err := p.q.ListActiveAlertRecipients(ctx, fingerprint)
+func (p pgQueries) ListActiveEventRecipients(ctx context.Context, key string) ([]sqlitedb.ActiveEventRecipient, error) {
+	rows, err := p.q.ListActiveEventRecipients(ctx, key)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]sqlitedb.ActiveAlertRecipient, 0, len(rows))
+	out := make([]sqlitedb.ActiveEventRecipient, 0, len(rows))
 	for _, row := range rows {
-		out = append(out, sqlitedb.ActiveAlertRecipient(row))
+		out = append(out, sqlitedb.ActiveEventRecipient(row))
 	}
 	return out, nil
 }
@@ -381,12 +381,12 @@ func (p pgQueries) ReapStaleClaimRecipient(ctx context.Context, arg sqlitedb.Rea
 	return p.q.ReapStaleClaimRecipient(ctx, pgdb.ReapStaleClaimRecipientParams(arg))
 }
 
-func (p pgQueries) ReleaseActiveAlertClaim(ctx context.Context, arg sqlitedb.ReleaseActiveAlertClaimParams) error {
-	return p.q.ReleaseActiveAlertClaim(ctx, pgdb.ReleaseActiveAlertClaimParams(arg))
+func (p pgQueries) ReleaseActiveEventClaim(ctx context.Context, arg sqlitedb.ReleaseActiveEventClaimParams) error {
+	return p.q.ReleaseActiveEventClaim(ctx, pgdb.ReleaseActiveEventClaimParams(arg))
 }
 
-func (p pgQueries) ReleaseActiveAlertRecipientClaim(ctx context.Context, arg sqlitedb.ReleaseActiveAlertRecipientClaimParams) error {
-	return p.q.ReleaseActiveAlertRecipientClaim(ctx, pgdb.ReleaseActiveAlertRecipientClaimParams(arg))
+func (p pgQueries) ReleaseActiveEventRecipientClaim(ctx context.Context, arg sqlitedb.ReleaseActiveEventRecipientClaimParams) error {
+	return p.q.ReleaseActiveEventRecipientClaim(ctx, pgdb.ReleaseActiveEventRecipientClaimParams(arg))
 }
 
 func (p pgQueries) RotateWebhookEndpointToken(ctx context.Context, arg sqlitedb.RotateWebhookEndpointTokenParams) error {
@@ -407,12 +407,12 @@ func (p pgQueries) TouchAccessToken(ctx context.Context, arg sqlitedb.TouchAcces
 	return p.q.TouchAccessToken(ctx, pgdb.TouchAccessTokenParams(arg))
 }
 
-func (p pgQueries) TouchActiveAlert(ctx context.Context, arg sqlitedb.TouchActiveAlertParams) error {
-	return p.q.TouchActiveAlert(ctx, pgdb.TouchActiveAlertParams(arg))
+func (p pgQueries) TouchActiveEvent(ctx context.Context, arg sqlitedb.TouchActiveEventParams) error {
+	return p.q.TouchActiveEvent(ctx, pgdb.TouchActiveEventParams(arg))
 }
 
-func (p pgQueries) TouchActiveAlertRecipient(ctx context.Context, arg sqlitedb.TouchActiveAlertRecipientParams) error {
-	return p.q.TouchActiveAlertRecipient(ctx, pgdb.TouchActiveAlertRecipientParams(arg))
+func (p pgQueries) TouchActiveEventRecipient(ctx context.Context, arg sqlitedb.TouchActiveEventRecipientParams) error {
+	return p.q.TouchActiveEventRecipient(ctx, pgdb.TouchActiveEventRecipientParams(arg))
 }
 
 func (p pgQueries) UpdateBrokerToken(ctx context.Context, arg sqlitedb.UpdateBrokerTokenParams) error {
@@ -447,22 +447,22 @@ func (p pgQueries) MarkRecipientBlocked(ctx context.Context, arg sqlitedb.MarkRe
 	return p.q.MarkRecipientBlocked(ctx, pgdb.MarkRecipientBlockedParams(arg))
 }
 
-func (p pgQueries) DeleteAlertSamplesSeenBefore(ctx context.Context, lastSeen time.Time) (int64, error) {
-	return p.q.DeleteAlertSamplesSeenBefore(ctx, lastSeen)
+func (p pgQueries) DeleteEventSamplesSeenBefore(ctx context.Context, lastSeen time.Time) (int64, error) {
+	return p.q.DeleteEventSamplesSeenBefore(ctx, lastSeen)
 }
 
-func (p pgQueries) DeleteExcessAlertSampleValues(ctx context.Context, keep int64) (int64, error) {
-	return p.q.DeleteExcessAlertSampleValues(ctx, keep)
+func (p pgQueries) DeleteExcessEventSampleValues(ctx context.Context, keep int64) (int64, error) {
+	return p.q.DeleteExcessEventSampleValues(ctx, keep)
 }
 
-func (p pgQueries) ListAlertSamples(ctx context.Context, maxRows int64) ([]sqlitedb.AlertSample, error) {
-	rows, err := p.q.ListAlertSamples(ctx, maxRows)
+func (p pgQueries) ListEventSamples(ctx context.Context, maxRows int64) ([]sqlitedb.EventSample, error) {
+	rows, err := p.q.ListEventSamples(ctx, maxRows)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]sqlitedb.AlertSample, 0, len(rows))
+	out := make([]sqlitedb.EventSample, 0, len(rows))
 	for _, row := range rows {
-		out = append(out, sqlitedb.AlertSample(row))
+		out = append(out, sqlitedb.EventSample(row))
 	}
 	return out, nil
 }
@@ -471,8 +471,8 @@ func (p pgQueries) UpsertBotTeam(ctx context.Context, arg sqlitedb.UpsertBotTeam
 	return p.q.UpsertBotTeam(ctx, pgdb.UpsertBotTeamParams(arg))
 }
 
-func (p pgQueries) UpsertAlertSample(ctx context.Context, arg sqlitedb.UpsertAlertSampleParams) error {
-	return p.q.UpsertAlertSample(ctx, pgdb.UpsertAlertSampleParams(arg))
+func (p pgQueries) UpsertEventSample(ctx context.Context, arg sqlitedb.UpsertEventSampleParams) error {
+	return p.q.UpsertEventSample(ctx, pgdb.UpsertEventSampleParams(arg))
 }
 
 func (p pgQueries) GetSetting(ctx context.Context, key string) (string, error) {

@@ -3,10 +3,13 @@
 // one of them: a palette that inserts a card the renderer rejects is worse than
 // no palette.
 //
-// Every value that comes from an alert is written as `{{ toJSON … }}` without
+// Every value that comes from an event is written as `{{ toJSON … }}` without
 // surrounding quotes, rather than as `"{{ … }}"`. toJSON emits the quotes and
-// escapes what is inside them, so an alert whose summary contains a quotation
+// escapes what is inside them, so an event whose title contains a quotation
 // mark produces a card instead of broken JSON.
+//
+// A fragment reads a webhook's extension only under with, because it may be
+// dropped into a template for any source (ADR 0056).
 package cards
 
 // A Snippet is one thing an operator can drop into a template. Body is a card
@@ -23,9 +26,9 @@ type Snippet struct {
 }
 
 // Starter is what a new template begins as: a whole card that renders against
-// any alert, showing the shape of the thing rather than an empty box. Every
-// field an alert carries is there to be deleted, which is easier than
-// remembering what is available.
+// any event, showing the shape of the thing rather than an empty box. Every
+// field is there to be deleted, which is easier than remembering what is
+// available.
 const Starter = `{
   "type": "AdaptiveCard",
   "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
@@ -36,22 +39,32 @@ const Starter = `{
       "size": "Medium",
       "weight": "Bolder",
       "wrap": true,
-      "text": {{ toJSON (default .Alert.Annotations.summary .Alert.Labels.alertname) }}
+      "text": {{ toJSON (default .Event.Title (default .Event.Labels.alertname "Event")) }}
     },
     {
       "type": "FactSet",
       "facts": [
-        { "title": "Status", "value": {{ toJSON .Alert.Status }} },
-        { "title": "Severity", "value": {{ toJSON (default .Alert.Labels.severity "unset") }} },
-        { "title": "Started", "value": {{ toJSON .Alert.StartsAt }} }
+        { "title": "Source", "value": {{ toJSON .Event.Source }} },
+        { "title": "State", "value": {{ toJSON (default (print .Event.State) "none") }} },
+        { "title": "Severity", "value": {{ toJSON (default .Event.Labels.severity "unset") }} }
       ]
-    },
+    }
+    {{- with .Event.Alertmanager }},
     {
       "type": "TextBlock",
       "wrap": true,
       "isSubtle": true,
-      "text": {{ toJSON (default .Alert.Annotations.description "") }}
+      "text": {{ toJSON (default .Annotations.description "") }}
     }
+    {{- end }}
+    {{- with .Event.Universal }},
+    {
+      "type": "TextBlock",
+      "wrap": true,
+      "isSubtle": true,
+      "text": {{ toJSON (default .Attributes.description "") }}
+    }
+    {{- end }}
   ]
 }`
 
@@ -67,7 +80,7 @@ func Snippets() []Snippet {
 			Body: `{
   "type": "TextBlock",
   "wrap": true,
-  "text": {{ toJSON .Alert.Labels.alertname }}
+  "text": {{ toJSON .Event.Labels.alertname }}
 }`,
 		},
 		{
@@ -77,8 +90,8 @@ func Snippets() []Snippet {
 			Body: `{
   "type": "FactSet",
   "facts": [
-    { "title": "Status", "value": {{ toJSON .Alert.Status }} },
-    { "title": "Severity", "value": {{ toJSON (default .Alert.Labels.severity "unset") }} }
+    { "title": "State", "value": {{ toJSON .Event.State }} },
+    { "title": "Severity", "value": {{ toJSON (default .Event.Labels.severity "unset") }} }
   ]
 }`,
 		},
@@ -93,14 +106,14 @@ func Snippets() []Snippet {
       "type": "Column",
       "width": "stretch",
       "items": [
-        { "type": "TextBlock", "wrap": true, "text": {{ toJSON .Alert.Labels.alertname }} }
+        { "type": "TextBlock", "wrap": true, "text": {{ toJSON .Event.Labels.alertname }} }
       ]
     },
     {
       "type": "Column",
       "width": "auto",
       "items": [
-        { "type": "TextBlock", "wrap": true, "text": {{ toJSON .Alert.Status }} }
+        { "type": "TextBlock", "wrap": true, "text": {{ toJSON .Event.State }} }
       ]
     }
   ]
@@ -116,7 +129,7 @@ func Snippets() []Snippet {
     {
       "type": "Action.OpenUrl",
       "title": "Runbook",
-      "url": {{ toJSON (default .Alert.Annotations.runbook_url "https://example.invalid") }}
+      "url": {{ with .Event.Alertmanager }}{{ toJSON (default .Annotations.runbook_url "https://example.invalid") }}{{ else }}"https://example.invalid"{{ end }}
     }
   ]
 }`,
@@ -129,26 +142,26 @@ func Snippets() []Snippet {
   "type": "TextBlock",
   "wrap": true,
   "fontType": "Monospace",
-  "text": {{ toJSON (toJSON .Alert.Labels) }}
+  "text": {{ toJSON (toJSON .Event.Labels) }}
 }`,
 		},
 		{
 			Name:     "conditional",
 			LabelKey: "palette.conditional",
 			HelpKey:  "palette.conditional_help",
-			Body: `{{ if eq .Alert.Status "firing" }}
+			Body: `{{ if eq .Event.State "closed" }}
 {
   "type": "TextBlock",
   "wrap": true,
-  "color": "Attention",
-  "text": {{ toJSON (print "Firing since " .Alert.StartsAt) }}
+  "color": "Good",
+  "text": {{ toJSON (print "Closed as of " .Now) }}
 }
 {{ else }}
 {
   "type": "TextBlock",
   "wrap": true,
-  "color": "Good",
-  "text": {{ toJSON (print "Resolved at " .Alert.EndsAt) }}
+  "color": "Attention",
+  "text": {{ toJSON (print "Open as of " .Now) }}
 }
 {{ end }}`,
 		},

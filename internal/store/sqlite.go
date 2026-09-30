@@ -139,9 +139,9 @@ func (s *SQLiteStore) SeedTemplates(ctx context.Context, templates []models.Temp
 	return seeded, err
 }
 
-// RecordAlertSamples overrides queryAdapter's to commit the batch at once.
-func (s *SQLiteStore) RecordAlertSamples(ctx context.Context, samples []models.AlertSample) error {
-	return recordAlertSamplesInTx(ctx, s, samples)
+// RecordEventSamples overrides queryAdapter's to commit the batch at once.
+func (s *SQLiteStore) RecordEventSamples(ctx context.Context, samples []models.EventSample) error {
+	return recordEventSamplesInTx(ctx, s, samples)
 }
 
 // Ping is a round trip to the database rather than a look at a connection

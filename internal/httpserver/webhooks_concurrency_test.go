@@ -16,10 +16,10 @@ import (
 // until the test has watched the losers come back, so the interleaving is
 // arranged rather than hoped for.
 
-// TestConcurrentFiringPostsOneCard is the bug in one test. Several requests for
-// the same alert arrive at once, all of them find no card, and exactly one is
+// TestConcurrentOpenEventsPostOneCard is the bug in one test. Several requests for
+// the same event arrive at once, all of them find no card, and exactly one is
 // allowed to create it.
-func TestConcurrentFiringPostsOneCard(t *testing.T) {
+func TestConcurrentOpenEventsPostOneCard(t *testing.T) {
 	t.Parallel()
 
 	const callers = 4
@@ -33,7 +33,7 @@ func TestConcurrentFiringPostsOneCard(t *testing.T) {
 	for range callers {
 		go func() {
 			rec := postWebhook(t, handler, "/webhook/universal", "token",
-				`{"status":"firing","labels":{},"fingerprint":"fp-1"}`)
+				`{"state":"open","labels":{},"key":"fp-1"}`)
 			done <- rec.Code
 		}()
 	}
@@ -90,12 +90,12 @@ func TestRetryAfterAnInFlightCardUpdatesIt(t *testing.T) {
 	_, handler := seededServer(t, msg)
 
 	first := postWebhook(t, handler, "/webhook/universal", "token",
-		`{"status":"firing","labels":{},"fingerprint":"fp-1"}`)
+		`{"state":"open","labels":{},"key":"fp-1"}`)
 	if first.Code != http.StatusOK {
 		t.Fatalf("first POST = %d, want 200", first.Code)
 	}
 	second := postWebhook(t, handler, "/webhook/universal", "token",
-		`{"status":"firing","labels":{},"fingerprint":"fp-1"}`)
+		`{"state":"open","labels":{},"key":"fp-1"}`)
 	if second.Code != http.StatusOK {
 		t.Fatalf("second POST = %d, want 200", second.Code)
 	}
@@ -106,7 +106,7 @@ func TestRetryAfterAnInFlightCardUpdatesIt(t *testing.T) {
 		t.Errorf("posted %d cards, want 1", len(msg.posts))
 	}
 	if len(msg.updates) != 1 {
-		t.Errorf("updates = %d, want the second alert to edit the first card", len(msg.updates))
+		t.Errorf("updates = %d, want the second event to edit the first card", len(msg.updates))
 	}
 }
 
@@ -119,12 +119,12 @@ func TestClaimIsReleasedWhenTheGraphPostFails(t *testing.T) {
 	st, handler := seededServer(t, msg)
 
 	if rec := postWebhook(t, handler, "/webhook/universal", "token",
-		`{"status":"firing","labels":{},"fingerprint":"fp-1"}`); rec.Code != http.StatusBadGateway {
+		`{"state":"open","labels":{},"key":"fp-1"}`); rec.Code != http.StatusBadGateway {
 		t.Fatalf("POST = %d, want 502", rec.Code)
 	}
 
 	st.mu.Lock()
-	remaining := len(st.activeAlerts)
+	remaining := len(st.activeEvents)
 	st.mu.Unlock()
 	if remaining != 0 {
 		t.Errorf("%d rows left behind, want the claim released", remaining)
@@ -134,7 +134,7 @@ func TestClaimIsReleasedWhenTheGraphPostFails(t *testing.T) {
 	msg.postErr = nil
 	msg.mu.Unlock()
 	if rec := postWebhook(t, handler, "/webhook/universal", "token",
-		`{"status":"firing","labels":{},"fingerprint":"fp-1"}`); rec.Code != http.StatusOK {
+		`{"state":"open","labels":{},"key":"fp-1"}`); rec.Code != http.StatusOK {
 		t.Errorf("retry = %d, want 200 without waiting out the cutoff", rec.Code)
 	}
 }
@@ -161,18 +161,18 @@ func TestStaleClaimIsRecoveredAndFreshOneIsNot(t *testing.T) {
 
 			// A claim somebody else took, with no card behind it.
 			abandoned := time.Now().UTC().Add(-tt.age)
-			st.activeAlerts[activeAlertKey("fp-1", "team", "channel")] = models.ActiveAlert{
-				Fingerprint: "fp-1",
-				Status:      "firing",
-				TeamID:      "team",
-				ChannelID:   "channel",
-				ClaimOwner:  "somebody-else",
-				ClaimedAt:   abandoned,
-				LastUpdate:  abandoned,
+			st.activeEvents[activeEventKey("fp-1", "team", "channel")] = models.ActiveEvent{
+				Key:        "fp-1",
+				State:      models.StateOpen,
+				TeamID:     "team",
+				ChannelID:  "channel",
+				ClaimOwner: "somebody-else",
+				ClaimedAt:  abandoned,
+				LastUpdate: abandoned,
 			}
 
 			rec := postWebhook(t, handler, "/webhook/universal", "token",
-				`{"status":"firing","labels":{},"fingerprint":"fp-1"}`)
+				`{"state":"open","labels":{},"key":"fp-1"}`)
 			if rec.Code != tt.wantCode {
 				t.Errorf("POST = %d, want %d", rec.Code, tt.wantCode)
 			}
@@ -188,25 +188,25 @@ func TestStaleClaimIsRecoveredAndFreshOneIsNot(t *testing.T) {
 
 // Resolving must not touch a claim that has no card yet: editing is impossible
 // and deleting would strand the message the other instance is about to post.
-func TestResolveLeavesAnInFlightClaimAlone(t *testing.T) {
+func TestCloseLeavesAnInFlightClaimAlone(t *testing.T) {
 	t.Parallel()
 
 	msg := &fakeMessenger{}
 	st, handler := seededServer(t, msg)
 
 	claimed := time.Now().UTC()
-	st.activeAlerts[activeAlertKey("fp-1", "team", "channel")] = models.ActiveAlert{
-		Fingerprint: "fp-1",
-		Status:      "firing",
-		TeamID:      "team",
-		ChannelID:   "channel",
-		ClaimOwner:  "somebody-else",
-		ClaimedAt:   claimed,
-		LastUpdate:  claimed,
+	st.activeEvents[activeEventKey("fp-1", "team", "channel")] = models.ActiveEvent{
+		Key:        "fp-1",
+		State:      models.StateOpen,
+		TeamID:     "team",
+		ChannelID:  "channel",
+		ClaimOwner: "somebody-else",
+		ClaimedAt:  claimed,
+		LastUpdate: claimed,
 	}
 
 	rec := postWebhook(t, handler, "/webhook/universal", "token",
-		`{"status":"resolved","labels":{},"fingerprint":"fp-1"}`)
+		`{"state":"closed","labels":{},"key":"fp-1"}`)
 	if rec.Code != http.StatusBadGateway {
 		t.Errorf("POST = %d, want 502 so the sender retries", rec.Code)
 	}
@@ -220,7 +220,7 @@ func TestResolveLeavesAnInFlightClaimAlone(t *testing.T) {
 
 	st.mu.Lock()
 	defer st.mu.Unlock()
-	if _, found := st.activeAlerts[activeAlertKey("fp-1", "team", "channel")]; !found {
+	if _, found := st.activeEvents[activeEventKey("fp-1", "team", "channel")]; !found {
 		t.Error("the claim was deleted, which would strand the card being posted")
 	}
 }
@@ -234,10 +234,10 @@ func TestACompletedClaimThatWasTakenIsReported(t *testing.T) {
 
 	msg := &fakeMessenger{}
 	st, handler := seededServer(t, msg)
-	st.fail("CompleteActiveAlertClaim")
+	st.fail("CompleteActiveEventClaim")
 
 	rec := postWebhook(t, handler, "/webhook/universal", "token",
-		`{"status":"firing","labels":{},"fingerprint":"fp-1"}`)
+		`{"state":"open","labels":{},"key":"fp-1"}`)
 	if rec.Code != http.StatusBadGateway {
 		t.Errorf("POST = %d, want the failure surfaced rather than swallowed", rec.Code)
 	}
@@ -259,13 +259,13 @@ func TestFanOutClaimsEachChannelSeparately(t *testing.T) {
 	st.routes["second"] = models.Route{ID: "second", TemplateID: "tmpl", DestinationID: "other", IsDefault: false}
 
 	if rec := postWebhook(t, handler, "/webhook/universal", "token",
-		`{"status":"firing","labels":{},"fingerprint":"fp-1"}`); rec.Code != http.StatusOK {
+		`{"state":"open","labels":{},"key":"fp-1"}`); rec.Code != http.StatusOK {
 		t.Fatalf("POST = %d, want 200", rec.Code)
 	}
 
-	cards, err := st.ListActiveAlerts(t.Context(), "fp-1")
+	cards, err := st.ListActiveEvents(t.Context(), "fp-1")
 	if err != nil {
-		t.Fatalf("ListActiveAlerts: %v", err)
+		t.Fatalf("ListActiveEvents: %v", err)
 	}
 	for _, card := range cards {
 		if !card.Posted() {
@@ -280,9 +280,9 @@ func TestClaimLostIsComparable(t *testing.T) {
 	t.Parallel()
 
 	st := newFakeStore()
-	claim := models.AlertClaim{Fingerprint: "fp", TeamID: "team", ChannelID: "channel", Owner: "nobody"}
+	claim := models.EventClaim{Key: "fp", TeamID: "team", ChannelID: "channel", Owner: "nobody"}
 
-	err := st.CompleteActiveAlertClaim(t.Context(), claim, "message-1", "", time.Now())
+	err := st.CompleteActiveEventClaim(t.Context(), claim, "message-1", "", time.Now())
 	if !errors.Is(err, store.ErrClaimLost) {
 		t.Errorf("completing a claim nobody holds = %v, want ErrClaimLost", err)
 	}

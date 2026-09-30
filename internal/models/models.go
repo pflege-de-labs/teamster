@@ -25,7 +25,7 @@ type Template struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-// Handles reports whether the template can render an alert from source.
+// Handles reports whether the template can render an event from source.
 func (t Template) Handles(source string) bool {
 	return len(t.Sources) == 0 || slices.Contains(t.Sources, source)
 }
@@ -137,7 +137,7 @@ type Recipient struct {
 }
 
 // Blocked reports whether this recipient's bot conversation is known broken,
-// mirroring ActiveAlert.Posted.
+// mirroring ActiveEvent.Posted.
 func (r Recipient) Blocked() bool { return !r.BlockedAt.IsZero() }
 
 // A LinkFlow is a one-time code an authenticated admin-UI session generated, to
@@ -172,22 +172,21 @@ type Route struct {
 	UpdatedAt     time.Time         `json:"updated_at"`
 }
 
-// An ActiveAlert is one card this service posted. An alert that fans out to
-// several channels has one of these per channel, which is why the key is the
-// fingerprint together with the Team and channel.
-// An ActiveAlert is one card: the message this service posted to one channel
-// for one alert, and is keeping up to date until the alert resolves.
+// An ActiveEvent is one card: the message this service posted to one channel
+// for one event, and is keeping up to date until the event closes. An event
+// that fans out to several channels has one per channel, which is why the key
+// is the event key together with the Team and channel.
 //
 // A row exists from the moment delivery claims the right to post, which is
 // before the card does. PostedAt is what tells the two apart: while it is zero
 // the row is a claim in flight and MessageID is empty, because there is no
 // message yet to name.
-type ActiveAlert struct {
-	Fingerprint string `json:"fingerprint"`
-	Status      string `json:"status"`
-	TeamID      string `json:"team_id"`
-	ChannelID   string `json:"channel_id"`
-	MessageID   string `json:"message_id"`
+type ActiveEvent struct {
+	Key       string     `json:"key"`
+	State     EventState `json:"state"`
+	TeamID    string     `json:"team_id"`
+	ChannelID string     `json:"channel_id"`
+	MessageID string     `json:"message_id"`
 	// ConversationID is the channel conversation the bot created for the
 	// card; empty for a card the bot cannot edit (ADR 0045).
 	ConversationID string    `json:"conversation_id,omitempty"`
@@ -199,55 +198,55 @@ type ActiveAlert struct {
 
 // Posted reports whether a card exists for this row, as opposed to a claim on
 // the right to post one.
-func (a ActiveAlert) Posted() bool { return !a.PostedAt.IsZero() }
+func (a ActiveEvent) Posted() bool { return !a.PostedAt.IsZero() }
 
-// An AlertClaim is the right to post one card, asked for before the Graph call
+// An EventClaim is the right to post one card, asked for before the Graph call
 // and completed after it. Owner is unique to the attempt rather than to the
 // process: it only has to answer "is this still mine to finish".
-type AlertClaim struct {
-	Fingerprint string
-	TeamID      string
-	ChannelID   string
-	Status      string
-	Owner       string
-	At          time.Time
+type EventClaim struct {
+	Key       string
+	TeamID    string
+	ChannelID string
+	State     EventState
+	Owner     string
+	At        time.Time
 	// StaleBefore is the age at which a claim is presumed abandoned, because
 	// whatever took it died between claiming and posting.
 	StaleBefore time.Time
 }
 
-// An ActiveAlertRecipient is AlertClaim's card mirrored for a chat delivery: one
-// message a bot sent to one person for one alert, kept up to date until it
-// resolves. It is a parallel table to ActiveAlert rather than a wider key on
+// An ActiveEventRecipient is ActiveEvent mirrored for a chat delivery: one
+// message a bot sent to one person for one event, kept up to date until it
+// closes. It is a parallel table to ActiveEvent rather than a wider key on
 // it, because a person has neither a Team nor a channel for that table's CHECK
 // to hold (see ADR 0026 and ADR 0021).
 //
-// Unlike ActiveAlert, an empty MessageID does not always mean "claimed, not
+// Unlike ActiveEvent, an empty MessageID does not always mean "claimed, not
 // posted": bot.SendMessage returning ("", nil) is a documented success --
 // delivered, but with nothing to name it by for a later edit. PostedAt is the
 // only reliable state machine here.
-type ActiveAlertRecipient struct {
-	Fingerprint string    `json:"fingerprint"`
-	Status      string    `json:"status"`
-	RecipientID string    `json:"recipient_id"`
-	MessageID   string    `json:"message_id"`
-	ClaimOwner  string    `json:"claim_owner,omitempty"`
-	ClaimedAt   time.Time `json:"claimed_at,omitempty"`
-	PostedAt    time.Time `json:"posted_at,omitempty"`
-	LastUpdate  time.Time `json:"last_update"`
+type ActiveEventRecipient struct {
+	Key         string     `json:"key"`
+	State       EventState `json:"state"`
+	RecipientID string     `json:"recipient_id"`
+	MessageID   string     `json:"message_id"`
+	ClaimOwner  string     `json:"claim_owner,omitempty"`
+	ClaimedAt   time.Time  `json:"claimed_at,omitempty"`
+	PostedAt    time.Time  `json:"posted_at,omitempty"`
+	LastUpdate  time.Time  `json:"last_update"`
 }
 
 // Posted reports whether a card exists for this row, as opposed to a claim on
 // the right to post one.
-func (a ActiveAlertRecipient) Posted() bool { return !a.PostedAt.IsZero() }
+func (a ActiveEventRecipient) Posted() bool { return !a.PostedAt.IsZero() }
 
-// A RecipientClaim is AlertClaim's counterpart for a chat delivery: the right
+// A RecipientClaim is EventClaim's counterpart for a chat delivery: the right
 // to send or update one person's message, asked for before the Bot Connector
 // call and completed after it.
 type RecipientClaim struct {
-	Fingerprint string
+	Key         string
 	RecipientID string
-	Status      string
+	State       EventState
 	Owner       string
 	At          time.Time
 	StaleBefore time.Time
@@ -325,13 +324,7 @@ type BrokerToken struct {
 	UpdatedAt    time.Time `json:"-"`
 }
 
-// Alert is the internal shape one webhook-delivered message takes, whether or
-// not it is alert-shaped. Title/Text/Card let a sender supply the message
-// directly rather than authoring a Template that pulls it back out of
-// Annotations; a route's own Template wins when it has one, so these are the
-// fallback for a route with none, never an override of one that exists. See
-// ADR 0036.
-// SourceLabel names the webhook an alert arrived at (ADR 0052). The server
+// SourceLabel names the webhook an event arrived at (ADR 0052). The server
 // sets it, overwriting whatever the sender put there, so a route can trust it.
 const SourceLabel = "teamster_source"
 
@@ -351,18 +344,80 @@ func WithSourceLabel(labels map[string]string, source string) map[string]string 
 	return out
 }
 
-type Alert struct {
-	Source      string            `json:"source"`
-	Status      string            `json:"status"`
-	Labels      map[string]string `json:"labels"`
-	Annotations map[string]string `json:"annotations"`
-	StartsAt    time.Time         `json:"starts_at"`
-	EndsAt      time.Time         `json:"ends_at"`
-	Generator   string            `json:"generator"`
-	Fingerprint string            `json:"fingerprint"`
-	Title       string            `json:"title"`
-	Text        string            `json:"text"`
-	Card        json.RawMessage   `json:"card"`
+// EventState is where an event is in its lifecycle. StateNone is the normal
+// case for a sender with no lifecycle: delivered once, tracked nowhere (ADR
+// 0035). Open and closed opt into the claim protocol, which is what lets a
+// repeat edit a card instead of posting a second one.
+type EventState string
+
+const (
+	StateNone   EventState = ""
+	StateOpen   EventState = "open"
+	StateClosed EventState = "closed"
+)
+
+// Valid reports whether s is one of the three states.
+func (s EventState) Valid() bool {
+	return s == StateNone || s == StateOpen || s == StateClosed
+}
+
+// An Event is the internal shape of one webhook-delivered message (ADR 0056).
+// The core holds what every webhook has; anything only one webhook knows lives
+// in that webhook's extension, which is nil for every other source.
+//
+// Title/Text/Card let a sender supply the message directly rather than
+// authoring a Template; a route's own Template wins when it has one, so these
+// are the fallback for a route with none (ADR 0036). No adapter fills them
+// from anything else.
+type Event struct {
+	Source string     `json:"source"`
+	Key    string     `json:"key"`
+	State  EventState `json:"state"`
+	// Labels are what routes select on.
+	Labels map[string]string `json:"labels"`
+	Title  string            `json:"title"`
+	Text   string            `json:"text"`
+	Card   json.RawMessage   `json:"card"`
+
+	Alertmanager *AlertmanagerEvent `json:"alertmanager,omitempty"`
+	Universal    *UniversalEvent    `json:"universal,omitempty"`
+}
+
+// AlertmanagerEvent is what one Alertmanager alert carries beyond the core,
+// together with the fields of the group notification it arrived in.
+type AlertmanagerEvent struct {
+	Annotations  map[string]string `json:"annotations"`
+	StartsAt     time.Time         `json:"starts_at"`
+	EndsAt       time.Time         `json:"ends_at"`
+	GeneratorURL string            `json:"generator_url"`
+
+	Receiver          string            `json:"receiver"`
+	GroupKey          string            `json:"group_key"`
+	GroupLabels       map[string]string `json:"group_labels"`
+	CommonLabels      map[string]string `json:"common_labels"`
+	CommonAnnotations map[string]string `json:"common_annotations"`
+	ExternalURL       string            `json:"external_url"`
+}
+
+// UniversalEvent is what a universal webhook payload carries beyond the core.
+type UniversalEvent struct {
+	// Attributes are free text; only their keys are ever sampled (ADR 0041).
+	Attributes map[string]string `json:"attributes"`
+	Time       time.Time         `json:"time"`
+	URL        string            `json:"url"`
+}
+
+// AttributesOf returns the free-text map of whichever extension ev carries. It
+// is a function rather than a method so templates cannot reach it: a template
+// names the source it reads.
+func AttributesOf(ev Event) map[string]string {
+	switch {
+	case ev.Alertmanager != nil:
+		return ev.Alertmanager.Annotations
+	case ev.Universal != nil:
+		return ev.Universal.Attributes
+	}
+	return nil
 }
 
 type AlertmanagerPayload struct {
@@ -387,38 +442,36 @@ type AlertmanagerAlert struct {
 	Fingerprint  string            `json:"fingerprint"`
 }
 
-// UniversalWebhookPayload is deliberately not alert-shaped underneath: every
-// field but Labels and Annotations is optional. Status opts into the tracked
-// alert lifecycle (ADR 0033); Title/Text/Card let a sender supply the message
-// directly instead of authoring a Template (ADR 0036). A payload using
-// neither is just labels and annotations, routed through whichever route's
-// own Template renders it.
+// UniversalWebhookPayload is the universal webhook's wire format. Only Labels
+// matters for routing; State opts into the tracked lifecycle, and Title/Text/
+// Card let a sender supply the message directly (ADR 0036). The rest becomes
+// the event's Universal extension.
 type UniversalWebhookPayload struct {
-	Status      string            `json:"status"`
-	Labels      map[string]string `json:"labels"`
-	Annotations map[string]string `json:"annotations"`
-	StartsAt    time.Time         `json:"starts_at"`
-	EndsAt      time.Time         `json:"ends_at"`
-	Generator   string            `json:"generator"`
-	Fingerprint string            `json:"fingerprint"`
-	Title       string            `json:"title"`
-	Text        string            `json:"text"`
-	Card        json.RawMessage   `json:"card"`
+	Key        string            `json:"key"`
+	State      EventState        `json:"state"`
+	Labels     map[string]string `json:"labels"`
+	Title      string            `json:"title"`
+	Text       string            `json:"text"`
+	Card       json.RawMessage   `json:"card"`
+	Attributes map[string]string `json:"attributes"`
+	Time       time.Time         `json:"time"`
+	URL        string            `json:"url"`
 }
 
-// AlertSampleKind says which half of an alert a sample came from.
-type AlertSampleKind string
+// SampleKind says which part of an event a sample came from.
+type SampleKind string
 
 const (
-	SampleLabel      AlertSampleKind = "label"
-	SampleAnnotation AlertSampleKind = "annotation"
+	SampleLabel     SampleKind = "label"
+	SampleAttribute SampleKind = "attribute"
 )
 
-// An AlertSample is one label key and value, or one annotation key, that recent
-// alerts carried. The admin UI completes from these (ADR 0041). Value is always
-// empty for an annotation: annotation values are free text and are never kept.
-type AlertSample struct {
-	Kind      AlertSampleKind
+// An EventSample is one label key and value, or one attribute key, that recent
+// events carried. The admin UI completes from these (ADR 0041). Value is always
+// empty for an attribute: attribute values are free text and are never kept.
+// Alertmanager annotations are attributes here.
+type EventSample struct {
+	Kind      SampleKind
 	Key       string
 	Value     string
 	SeenCount int64

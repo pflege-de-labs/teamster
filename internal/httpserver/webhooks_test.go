@@ -14,33 +14,67 @@ import (
 	"github.com/pflege-de-labs/teamster/internal/templates"
 )
 
-func TestHashFingerprintDeterministic(t *testing.T) {
+func TestDeriveKeyIgnoresLabelOrder(t *testing.T) {
+	t.Parallel()
+
 	baseTime := time.Date(2025, 12, 7, 20, 7, 0, 0, time.UTC)
-
-	alertA := models.Alert{
+	evA := models.Event{
 		Source:    "universal",
-		Generator: "custom",
-		StartsAt:  baseTime,
-		Labels: map[string]string{
-			"severity":  "critical",
-			"alertname": "HighCPU",
-		},
+		Labels:    map[string]string{"severity": "critical", "alertname": "HighCPU"},
+		Universal: &models.UniversalEvent{URL: "custom", Time: baseTime},
 	}
-	alertB := models.Alert{
+	evB := models.Event{
 		Source:    "universal",
-		Generator: "custom",
-		StartsAt:  baseTime,
-		Labels: map[string]string{
-			"alertname": "HighCPU",
-			"severity":  "critical",
-		},
+		Labels:    map[string]string{"alertname": "HighCPU", "severity": "critical"},
+		Universal: &models.UniversalEvent{URL: "custom", Time: baseTime},
 	}
 
-	hashA := hashFingerprint(alertA)
-	hashB := hashFingerprint(alertB)
+	if keyA, keyB := deriveKey(evA), deriveKey(evB); keyA != keyB {
+		t.Fatalf("expected deterministic key, got %s and %s", keyA, keyB)
+	}
+}
 
-	if hashA != hashB {
-		t.Fatalf("expected deterministic hash, got %s and %s", hashA, hashB)
+// The wanted values are what hashFingerprint produced before the event model,
+// so a card posted by the previous release is still found by its key.
+func TestDeriveKeyMatchesThePreviousRelease(t *testing.T) {
+	t.Parallel()
+
+	at := time.Date(2025, 12, 7, 20, 7, 0, 0, time.UTC)
+	labels := map[string]string{"alertname": "HighCPU", "severity": "critical"}
+
+	tests := []struct {
+		name string
+		ev   models.Event
+		want string
+	}{
+		{
+			name: "universal",
+			ev: models.Event{
+				Source:    models.SourceUniversal,
+				Labels:    labels,
+				Universal: &models.UniversalEvent{URL: "https://example.com/gen", Time: at},
+			},
+			want: "a477e1342ae8e0f6e12d2219a9c18f32767497e3771047d97c3596073da851c2",
+		},
+		{
+			name: "alertmanager",
+			ev: models.Event{
+				Source:       models.SourceAlertmanager,
+				Labels:       labels,
+				Alertmanager: &models.AlertmanagerEvent{GeneratorURL: "https://prom.example.com/graph", StartsAt: at},
+			},
+			want: "48f629981ca91130d3285930d979515a7e47f27cabee1fe169f13367e5e9403c",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := deriveKey(tt.ev); got != tt.want {
+				t.Fatalf("deriveKey = %s, want %s", got, tt.want)
+			}
+		})
 	}
 }
 
@@ -53,7 +87,7 @@ func seededServer(t *testing.T, msg *fakeMessenger) (*fakeStore, http.Handler) {
 
 func seededStore() *fakeStore {
 	st := newFakeStore()
-	st.templates["tmpl"] = models.Template{ID: "tmpl", Body: `{"text":"{{ .Alert.Status }}"}`}
+	st.templates["tmpl"] = models.Template{ID: "tmpl", Body: `{"text":"{{ .Event.State }}"}`}
 	st.destinations["dest"] = models.Destination{ID: "dest", TeamID: "team", ChannelID: "channel"}
 	st.routes["route"] = models.Route{ID: "route", TemplateID: "tmpl", DestinationID: "dest", IsDefault: true}
 	return st
@@ -116,7 +150,7 @@ func TestUniversalWebhookPostsANewCard(t *testing.T) {
 	msg := &fakeMessenger{messageID: "graph-1"}
 	st, handler := seededServer(t, msg)
 
-	rec := postWebhook(t, handler, "/webhook/universal", "token", `{"status":"firing","labels":{"alertname":"HighCPU"},"annotations":{"summary":"CPU spiking"},"fingerprint":"fp-1"}`)
+	rec := postWebhook(t, handler, "/webhook/universal", "token", `{"state":"open","labels":{"alertname":"HighCPU"},"attributes":{"summary":"CPU spiking"},"key":"fp-1"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("POST = %d, want 200 (body %s)", rec.Code, rec.Body.String())
 	}
@@ -128,31 +162,31 @@ func TestUniversalWebhookPostsANewCard(t *testing.T) {
 		t.Errorf("posted to %s/%s, want team/channel", msg.posts[0].teamID, msg.posts[0].channelID)
 	}
 	if msg.posts[0].msg.Title != "CPU spiking" {
-		t.Errorf("title = %q, want the annotation", msg.posts[0].msg.Title)
+		t.Errorf("title = %q, want the summary attribute", msg.posts[0].msg.Title)
 	}
-	if cardOf(msg.posts[0].msg) != `{"text":"firing"}` {
+	if cardOf(msg.posts[0].msg) != `{"text":"open"}` {
 		t.Errorf("card = %s, want the rendered template", cardOf(msg.posts[0].msg))
 	}
 
-	active, ok := st.activeAlerts[activeAlertKey("fp-1", "team", "channel")]
+	active, ok := st.activeEvents[activeEventKey("fp-1", "team", "channel")]
 	if !ok {
-		t.Fatal("no active alert stored")
+		t.Fatal("no active event stored")
 	}
 	if active.MessageID != "graph-1" {
 		t.Errorf("stored message ID = %q, want graph-1", active.MessageID)
 	}
 }
 
-// A message with no status is /webhook/universal's baseline case: routed and
-// rendered like an alert, but delivered once and tracked nowhere, because
+// A message with no state is /webhook/universal's baseline case: routed and
+// rendered like any event, but delivered once and tracked nowhere, because
 // nothing about it says there will be a later post to find and edit.
-func TestUniversalMessageWithoutAStatusPostsOnceAndIsNotTracked(t *testing.T) {
+func TestUniversalMessageWithoutAStatePostsOnceAndIsNotTracked(t *testing.T) {
 	t.Parallel()
 
 	msg := &fakeMessenger{messageID: "graph-1"}
 	st, handler := seededServer(t, msg)
 
-	rec := postWebhook(t, handler, "/webhook/universal", "token", `{"labels":{"app":"checkout"},"annotations":{"summary":"Deployment finished"}}`)
+	rec := postWebhook(t, handler, "/webhook/universal", "token", `{"labels":{"app":"checkout"},"attributes":{"summary":"Deployment finished"}}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("POST = %d, want 200 (body %s)", rec.Code, rec.Body.String())
 	}
@@ -161,26 +195,26 @@ func TestUniversalMessageWithoutAStatusPostsOnceAndIsNotTracked(t *testing.T) {
 		t.Fatalf("posted %d messages, want 1", len(msg.posts))
 	}
 	if msg.posts[0].msg.Title != "Deployment finished" {
-		t.Errorf("title = %q, want the annotation", msg.posts[0].msg.Title)
+		t.Errorf("title = %q, want the summary attribute", msg.posts[0].msg.Title)
 	}
 
-	if len(st.activeAlerts) != 0 {
-		t.Errorf("active alerts = %d, want none: nothing is tracked for a status-less message", len(st.activeAlerts))
+	if len(st.activeEvents) != 0 {
+		t.Errorf("active events = %d, want none: nothing is tracked for a stateless message", len(st.activeEvents))
 	}
 }
 
-// The core guarantee of the untracked path: without a fingerprint to claim
+// The core guarantee of the untracked path: without a key to claim
 // against, a repeat post is a second message, not an edit of the first. This
 // is what rules out reusing the claim-and-update path for the baseline case --
-// two unrelated one-off messages that happened to compute the same fingerprint
+// two unrelated one-off messages that happened to compute the same key
 // would otherwise silently overwrite each other's card.
-func TestUniversalMessageWithoutAStatusPostsFreshEachTime(t *testing.T) {
+func TestUniversalMessageWithoutAStatePostsFreshEachTime(t *testing.T) {
 	t.Parallel()
 
 	msg := &fakeMessenger{messageID: "graph-1"}
 	_, handler := seededServer(t, msg)
 
-	body := `{"labels":{},"annotations":{"summary":"build finished"}}`
+	body := `{"labels":{},"attributes":{"summary":"build finished"}}`
 	for range 2 {
 		rec := postWebhook(t, handler, "/webhook/universal", "token", body)
 		if rec.Code != http.StatusOK {
@@ -196,25 +230,37 @@ func TestUniversalMessageWithoutAStatusPostsFreshEachTime(t *testing.T) {
 	}
 }
 
-// A status the sender made up -- not "firing" or "resolved" -- is not an error
-// any more: it takes the same untracked path an absent status does. Reuses the
-// payload that used to be this test suite's "unknown status" failure case.
-func TestUniversalMessageWithAnUnrecognizedStatusIsOneShot(t *testing.T) {
+// A state outside the lifecycle is refused rather than delivered once, so a
+// sender still speaking Alertmanager's firing/resolved finds out.
+func TestUniversalWebhookRejectsAnUnknownState(t *testing.T) {
 	t.Parallel()
 
-	msg := &fakeMessenger{messageID: "graph-1"}
-	st, handler := seededServer(t, msg)
-
-	rec := postWebhook(t, handler, "/webhook/universal", "token", `{"status":"flapping","labels":{},"fingerprint":"fp"}`)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("POST = %d, want 200 (body %s)", rec.Code, rec.Body.String())
+	tests := []struct {
+		name  string
+		state string
+	}{
+		{name: "alertmanager vocabulary", state: "firing"},
+		{name: "made up", state: "flapping"},
 	}
 
-	if len(msg.posts) != 1 {
-		t.Fatalf("posted %d messages, want 1", len(msg.posts))
-	}
-	if len(st.activeAlerts) != 0 {
-		t.Errorf("active alerts = %d, want none: an unrecognized status is not the alert lifecycle", len(st.activeAlerts))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			msg := &fakeMessenger{messageID: "graph-1"}
+			st, handler := seededServer(t, msg)
+
+			rec := postWebhook(t, handler, "/webhook/universal", "token", `{"state":"`+tt.state+`","labels":{},"key":"fp"}`)
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("POST = %d, want 400 (body %s)", rec.Code, rec.Body.String())
+			}
+			if !strings.Contains(rec.Body.String(), tt.state) {
+				t.Errorf("body = %s, want it to name the state", rec.Body.String())
+			}
+			if len(msg.posts) != 0 || len(st.activeEvents) != 0 {
+				t.Errorf("posts = %d, active events = %d, want nothing delivered", len(msg.posts), len(st.activeEvents))
+			}
+		})
 	}
 }
 
@@ -231,7 +277,7 @@ func TestUniversalWebhookDeliversDirectContentWithoutATemplate(t *testing.T) {
 	}
 
 	rec := postWebhook(t, handler, "/webhook/universal", "token",
-		`{"status":"firing","labels":{"team":"direct"},"fingerprint":"fp-direct",`+
+		`{"state":"open","labels":{"team":"direct"},"key":"fp-direct",`+
 			`"title":"Disk full","text":"**disk** almost full","card":{"text":"raw card"}}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("POST = %d, want 200 (body %s)", rec.Code, rec.Body.String())
@@ -283,7 +329,7 @@ func TestUniversalWebhookTemplateWinsOverDirectContent(t *testing.T) {
 	_, handler := seededServer(t, msg)
 
 	rec := postWebhook(t, handler, "/webhook/universal", "token",
-		`{"status":"firing","labels":{"alertname":"HighCPU"},"fingerprint":"fp-both",`+
+		`{"state":"open","labels":{"alertname":"HighCPU"},"key":"fp-both",`+
 			`"title":"Ignored title","text":"ignored text","card":{"text":"ignored card"}}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("POST = %d, want 200 (body %s)", rec.Code, rec.Body.String())
@@ -292,7 +338,7 @@ func TestUniversalWebhookTemplateWinsOverDirectContent(t *testing.T) {
 	if len(msg.posts) != 1 {
 		t.Fatalf("posted %d messages, want 1", len(msg.posts))
 	}
-	if cardOf(msg.posts[0].msg) != `{"text":"firing"}` {
+	if cardOf(msg.posts[0].msg) != `{"text":"open"}` {
 		t.Errorf("card = %s, want the route's template rendered, not the payload's card", cardOf(msg.posts[0].msg))
 	}
 }
@@ -328,7 +374,7 @@ func TestUntemplatedMessageGetsTheBuiltInDefault(t *testing.T) {
 			handler := mustServer(t, cfg, st, msg).Handler
 
 			rec := postWebhook(t, handler, "/webhook/universal", "token",
-				`{"status":"firing","labels":{"team":"direct","alertname":"DiskFull"},"annotations":{"description":"disk *almost* full"},"fingerprint":"fp-empty"}`)
+				`{"state":"open","labels":{"team":"direct","alertname":"DiskFull"},"attributes":{"description":"disk *almost* full"},"key":"fp-empty"}`)
 			if rec.Code != http.StatusOK {
 				t.Fatalf("POST = %d, want 200 (body %s)", rec.Code, rec.Body.String())
 			}
@@ -339,7 +385,7 @@ func TestUntemplatedMessageGetsTheBuiltInDefault(t *testing.T) {
 			if posted.Title != "DiskFull" {
 				t.Errorf("title = %q, want the alertname", posted.Title)
 			}
-			for _, want := range []string{"<strong>Status:</strong> firing", "disk <em>almost</em> full", "<pre><code", "&#34;alertname&#34;: &#34;DiskFull&#34;"} {
+			for _, want := range []string{"<strong>State:</strong> open", "disk <em>almost</em> full", "<pre><code", "&#34;alertname&#34;: &#34;DiskFull&#34;"} {
 				if !strings.Contains(posted.Text, want) {
 					t.Errorf("text = %q, want it to contain %q", posted.Text, want)
 				}
@@ -366,21 +412,21 @@ func TestUntemplatedMessageGetsTheBuiltInDefault(t *testing.T) {
 // must carry a posting time too -- the schema's CHECK says so.
 var testPostedAt = time.Date(2026, 9, 8, 10, 0, 0, 0, time.UTC)
 
-func TestRepeatedFiringAlertUpdatesTheCard(t *testing.T) {
+func TestRepeatedOpenEventUpdatesTheCard(t *testing.T) {
 	t.Parallel()
 
 	msg := &fakeMessenger{}
 	st, handler := seededServer(t, msg)
-	st.activeAlerts[activeAlertKey("fp-1", "team", "channel")] = models.ActiveAlert{
-		Fingerprint: "fp-1",
-		Status:      "firing",
-		TeamID:      "team",
-		ChannelID:   "channel",
-		MessageID:   "graph-1", ConversationID: "conversation-graph-1",
+	st.activeEvents[activeEventKey("fp-1", "team", "channel")] = models.ActiveEvent{
+		Key:       "fp-1",
+		State:     models.StateOpen,
+		TeamID:    "team",
+		ChannelID: "channel",
+		MessageID: "graph-1", ConversationID: "conversation-graph-1",
 		PostedAt: testPostedAt,
 	}
 
-	rec := postWebhook(t, handler, "/webhook/universal", "token", `{"status":"firing","labels":{},"fingerprint":"fp-1"}`)
+	rec := postWebhook(t, handler, "/webhook/universal", "token", `{"state":"open","labels":{},"key":"fp-1"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("POST = %d, want 200 (body %s)", rec.Code, rec.Body.String())
 	}
@@ -390,39 +436,39 @@ func TestRepeatedFiringAlertUpdatesTheCard(t *testing.T) {
 	if len(msg.updates) != 1 || msg.updates[0].messageID != "graph-1" {
 		t.Errorf("updates = %+v, want one update of graph-1", msg.updates)
 	}
-	if _, ok := st.activeAlerts[activeAlertKey("fp-1", "team", "channel")]; !ok {
-		t.Error("active alert was removed, want it kept while firing")
+	if _, ok := st.activeEvents[activeEventKey("fp-1", "team", "channel")]; !ok {
+		t.Error("active event was removed, want it kept while open")
 	}
 }
 
-func TestResolvedAlertUpdatesAndClearsTheCard(t *testing.T) {
+func TestClosedEventUpdatesAndClearsTheCard(t *testing.T) {
 	t.Parallel()
 
 	msg := &fakeMessenger{}
 	st, handler := seededServer(t, msg)
-	st.activeAlerts[activeAlertKey("fp-1", "team", "channel")] = models.ActiveAlert{
-		Fingerprint: "fp-1", TeamID: "team", ChannelID: "channel", MessageID: "graph-1", ConversationID: "conversation-graph-1", PostedAt: testPostedAt,
+	st.activeEvents[activeEventKey("fp-1", "team", "channel")] = models.ActiveEvent{
+		Key: "fp-1", TeamID: "team", ChannelID: "channel", MessageID: "graph-1", ConversationID: "conversation-graph-1", PostedAt: testPostedAt,
 	}
 
-	rec := postWebhook(t, handler, "/webhook/universal", "token", `{"status":"resolved","labels":{},"fingerprint":"fp-1"}`)
+	rec := postWebhook(t, handler, "/webhook/universal", "token", `{"state":"closed","labels":{},"key":"fp-1"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("POST = %d, want 200 (body %s)", rec.Code, rec.Body.String())
 	}
 	if len(msg.updates) != 1 {
 		t.Fatalf("updates = %d, want 1", len(msg.updates))
 	}
-	if _, ok := st.activeAlerts[activeAlertKey("fp-1", "team", "channel")]; ok {
-		t.Error("active alert still stored, want it deleted once resolved")
+	if _, ok := st.activeEvents[activeEventKey("fp-1", "team", "channel")]; ok {
+		t.Error("active event still stored, want it deleted once closed")
 	}
 }
 
-func TestResolvedAlertWithoutAnActiveCardIsANoOp(t *testing.T) {
+func TestClosedEventWithoutAnActiveCardIsANoOp(t *testing.T) {
 	t.Parallel()
 
 	msg := &fakeMessenger{}
 	_, handler := seededServer(t, msg)
 
-	rec := postWebhook(t, handler, "/webhook/universal", "token", `{"status":"resolved","labels":{},"fingerprint":"unknown"}`)
+	rec := postWebhook(t, handler, "/webhook/universal", "token", `{"state":"closed","labels":{},"key":"unknown"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("POST = %d, want 200", rec.Code)
 	}
@@ -464,15 +510,50 @@ func TestAlertmanagerAlertWithoutAnnotationsUsesTheAlertname(t *testing.T) {
 	}
 }
 
-func TestAlertWithoutSummaryOrAlertnameGetsAGenericSummary(t *testing.T) {
+// The group an alert arrived in reaches the template beside the alert itself.
+func TestAlertmanagerGroupFieldsReachTheTemplate(t *testing.T) {
+	t.Parallel()
+
+	msg := &fakeMessenger{}
+	st, handler := seededServer(t, msg)
+	st.templates["tmpl"] = models.Template{
+		ID: "tmpl",
+		Title: "{{ .Event.State }} {{ .Event.Alertmanager.Receiver }} {{ .Event.Alertmanager.GroupKey }} " +
+			"{{ .Event.Alertmanager.GroupLabels.alertname }} {{ .Event.Alertmanager.CommonLabels.team }} " +
+			"{{ .Event.Alertmanager.CommonAnnotations.runbook }} {{ .Event.Alertmanager.ExternalURL }} " +
+			"{{ .Event.Alertmanager.Annotations.summary }} {{ .Event.Alertmanager.GeneratorURL }}",
+	}
+
+	rec := postWebhook(t, handler, "/webhook/alertmanager", "token", `{
+		"receiver":"teamster","status":"firing","groupKey":"{}:{alertname=\"Disk\"}",
+		"groupLabels":{"alertname":"Disk"},"commonLabels":{"team":"db"},
+		"commonAnnotations":{"runbook":"rb"},"externalURL":"http://am.example",
+		"alerts":[{"status":"firing","labels":{"alertname":"Disk","team":"db"},
+			"annotations":{"summary":"disk full"},"generatorURL":"http://prom.example","fingerprint":"fp"}]}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("POST = %d, want 200 (body %s)", rec.Code, rec.Body.String())
+	}
+	if len(msg.posts) != 1 {
+		t.Fatalf("posted %d messages, want 1", len(msg.posts))
+	}
+	want := `open teamster {}:{alertname="Disk"} Disk db rb http://am.example disk full http://prom.example`
+	if got := msg.posts[0].msg.Title; got != want {
+		t.Errorf("title = %q, want %q", got, want)
+	}
+	if _, ok := st.activeEvents[activeEventKey("fp", "team", "channel")]; !ok {
+		t.Error("no active event under the Alertmanager fingerprint, want it used as the key")
+	}
+}
+
+func TestEventWithoutSummaryOrAlertnameGetsAGenericSummary(t *testing.T) {
 	t.Parallel()
 
 	msg := &fakeMessenger{}
 	_, handler := seededServer(t, msg)
 
-	postWebhook(t, handler, "/webhook/universal", "token", `{"status":"firing","labels":{},"fingerprint":"fp"}`)
+	postWebhook(t, handler, "/webhook/universal", "token", `{"state":"open","labels":{},"key":"fp"}`)
 
-	if len(msg.posts) != 1 || msg.posts[0].msg.Title != "Alert update" {
+	if len(msg.posts) != 1 || msg.posts[0].msg.Title != "Update" {
 		t.Errorf("summary = %+v, want the generic fallback", msg.posts)
 	}
 }
@@ -486,18 +567,18 @@ func TestTemplateWithoutACardPostsTextOnly(t *testing.T) {
 	st, handler := seededServer(t, msg)
 	st.templates["tmpl"] = models.Template{
 		ID:    "tmpl",
-		Title: "{{ .Alert.Labels.alertname }} {{ .Alert.Status }}",
-		Text:  "<p>{{ .Alert.Annotations.summary }}</p><script>steal()</script>",
+		Title: "{{ .Event.Labels.alertname }} {{ .Event.State }}",
+		Text:  "<p>{{ .Event.Universal.Attributes.summary }}</p><script>steal()</script>",
 	}
 
 	postWebhook(t, handler, "/webhook/universal", "token",
-		`{"status":"firing","labels":{"alertname":"HighCPU"},"annotations":{"summary":"CPU spiking"},"fingerprint":"fp"}`)
+		`{"state":"open","labels":{"alertname":"HighCPU"},"attributes":{"summary":"CPU spiking"},"key":"fp"}`)
 
 	if len(msg.posts) != 1 {
 		t.Fatalf("posted %d messages, want 1", len(msg.posts))
 	}
 	posted := msg.posts[0].msg
-	if posted.Title != "HighCPU firing" {
+	if posted.Title != "HighCPU open" {
 		t.Errorf("title = %q, want the rendered template", posted.Title)
 	}
 	if posted.Text != "<p>CPU spiking</p>" {
@@ -508,25 +589,25 @@ func TestTemplateWithoutACardPostsTextOnly(t *testing.T) {
 	}
 }
 
-func TestAlertWithoutFingerprintGetsAHashedOne(t *testing.T) {
+func TestEventWithoutAKeyGetsADerivedOne(t *testing.T) {
 	t.Parallel()
 
 	msg := &fakeMessenger{}
 	st, handler := seededServer(t, msg)
 
-	postWebhook(t, handler, "/webhook/universal", "token", `{"status":"firing","labels":{"alertname":"HighCPU"}}`)
+	postWebhook(t, handler, "/webhook/universal", "token", `{"state":"open","labels":{"alertname":"HighCPU"}}`)
 
-	if len(st.activeAlerts) != 1 {
-		t.Fatalf("stored %d active alerts, want 1", len(st.activeAlerts))
+	if len(st.activeEvents) != 1 {
+		t.Fatalf("stored %d active events, want 1", len(st.activeEvents))
 	}
-	for _, active := range st.activeAlerts {
-		if len(active.Fingerprint) != 64 {
-			t.Errorf("fingerprint = %q, want a SHA-256 hex digest", active.Fingerprint)
+	for _, active := range st.activeEvents {
+		if len(active.Key) != 64 {
+			t.Errorf("key = %q, want a SHA-256 hex digest", active.Key)
 		}
 	}
 }
 
-func TestProcessAlertFailures(t *testing.T) {
+func TestProcessEventFailures(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -537,25 +618,25 @@ func TestProcessAlertFailures(t *testing.T) {
 	}{
 		{
 			name:    "no route matches",
-			body:    `{"status":"firing","labels":{},"fingerprint":"fp"}`,
+			body:    `{"state":"open","labels":{},"key":"fp"}`,
 			setup:   func(st *fakeStore, _ *fakeMessenger) { delete(st.routes, "route") },
 			wantErr: "no routes configured",
 		},
 		{
 			name:    "template is missing",
-			body:    `{"status":"firing","labels":{},"fingerprint":"fp"}`,
+			body:    `{"state":"open","labels":{},"key":"fp"}`,
 			setup:   func(st *fakeStore, _ *fakeMessenger) { delete(st.templates, "tmpl") },
 			wantErr: "template:",
 		},
 		{
 			name:    "destination is missing",
-			body:    `{"status":"firing","labels":{},"fingerprint":"fp"}`,
+			body:    `{"state":"open","labels":{},"key":"fp"}`,
 			setup:   func(st *fakeStore, _ *fakeMessenger) { delete(st.destinations, "dest") },
 			wantErr: "destination:",
 		},
 		{
 			name: "template does not render",
-			body: `{"status":"firing","labels":{},"fingerprint":"fp"}`,
+			body: `{"state":"open","labels":{},"key":"fp"}`,
 			setup: func(st *fakeStore, _ *fakeMessenger) {
 				st.templates["tmpl"] = models.Template{ID: "tmpl", Body: "{{"}
 			},
@@ -563,49 +644,49 @@ func TestProcessAlertFailures(t *testing.T) {
 		},
 		{
 			name:    "graph rejects the post",
-			body:    `{"status":"firing","labels":{},"fingerprint":"fp"}`,
+			body:    `{"state":"open","labels":{},"key":"fp"}`,
 			setup:   func(_ *fakeStore, msg *fakeMessenger) { msg.postErr = errors.New("graph down") },
 			wantErr: "channel post:",
 		},
 		{
 			name:    "graph rejects the one-shot post",
-			body:    `{"labels":{},"fingerprint":"fp"}`,
+			body:    `{"labels":{},"key":"fp"}`,
 			setup:   func(_ *fakeStore, msg *fakeMessenger) { msg.postErr = errors.New("graph down") },
 			wantErr: "channel post:",
 		},
 		{
 			name: "graph rejects the update",
-			body: `{"status":"firing","labels":{},"fingerprint":"fp"}`,
+			body: `{"state":"open","labels":{},"key":"fp"}`,
 			setup: func(st *fakeStore, msg *fakeMessenger) {
-				st.activeAlerts[activeAlertKey("fp", "team", "channel")] = models.ActiveAlert{
-					Fingerprint: "fp", TeamID: "team", ChannelID: "channel", MessageID: "graph-1", ConversationID: "conversation-graph-1", PostedAt: testPostedAt,
+				st.activeEvents[activeEventKey("fp", "team", "channel")] = models.ActiveEvent{
+					Key: "fp", TeamID: "team", ChannelID: "channel", MessageID: "graph-1", ConversationID: "conversation-graph-1", PostedAt: testPostedAt,
 				}
 				msg.updateErr = errors.New("graph down")
 			},
 			wantErr: "channel update:",
 		},
 		{
-			name: "graph rejects the resolve update",
-			body: `{"status":"resolved","labels":{},"fingerprint":"fp"}`,
+			name: "graph rejects the close update",
+			body: `{"state":"closed","labels":{},"key":"fp"}`,
 			setup: func(st *fakeStore, msg *fakeMessenger) {
-				st.activeAlerts[activeAlertKey("fp", "team", "channel")] = models.ActiveAlert{
-					Fingerprint: "fp", TeamID: "team", ChannelID: "channel", MessageID: "graph-1", ConversationID: "conversation-graph-1", PostedAt: testPostedAt,
+				st.activeEvents[activeEventKey("fp", "team", "channel")] = models.ActiveEvent{
+					Key: "fp", TeamID: "team", ChannelID: "channel", MessageID: "graph-1", ConversationID: "conversation-graph-1", PostedAt: testPostedAt,
 				}
 				msg.updateErr = errors.New("graph down")
 			},
 			wantErr: "channel update:",
 		},
 		{
-			name:    "claiming the card fails while firing",
-			body:    `{"status":"firing","labels":{},"fingerprint":"fp"}`,
-			setup:   func(st *fakeStore, _ *fakeMessenger) { st.fail("ClaimActiveAlert") },
-			wantErr: "claim active alert:",
+			name:    "claiming the card fails while open",
+			body:    `{"state":"open","labels":{},"key":"fp"}`,
+			setup:   func(st *fakeStore, _ *fakeMessenger) { st.fail("ClaimActiveEvent") },
+			wantErr: "claim active event:",
 		},
 		{
-			name:    "active alert lookup fails while resolving",
-			body:    `{"status":"resolved","labels":{},"fingerprint":"fp"}`,
-			setup:   func(st *fakeStore, _ *fakeMessenger) { st.fail("ListActiveAlerts") },
-			wantErr: "active alert lookup:",
+			name:    "active event lookup fails while closing",
+			body:    `{"state":"closed","labels":{},"key":"fp"}`,
+			setup:   func(st *fakeStore, _ *fakeMessenger) { st.fail("ListActiveEvents") },
+			wantErr: "active event lookup:",
 		},
 	}
 
@@ -635,7 +716,7 @@ func TestProcessAlertFailures(t *testing.T) {
 	}
 }
 
-// nestedServer seeds a parent route with a child that sends the same alert to a
+// nestedServer seeds a parent route with a child that sends the same event to a
 // second channel, which is the whole point of the tree.
 func nestedServer(t *testing.T, msg *fakeMessenger, greedy bool) (*fakeStore, http.Handler) {
 	t.Helper()
@@ -660,7 +741,7 @@ func TestNestedRoutesFanOut(t *testing.T) {
 	st, handler := nestedServer(t, msg, false)
 
 	postWebhook(t, handler, "/webhook/universal", "token",
-		`{"status":"firing","labels":{"severity":"critical","team":"payments"},"fingerprint":"fp"}`)
+		`{"state":"open","labels":{"severity":"critical","team":"payments"},"key":"fp"}`)
 
 	if len(msg.posts) != 2 {
 		t.Fatalf("posted %d messages, want one per channel: %+v", len(msg.posts), msg.posts)
@@ -672,9 +753,9 @@ func TestNestedRoutesFanOut(t *testing.T) {
 	if !channels["channel"] || !channels["escalation-channel"] {
 		t.Errorf("channels = %v, want the parent's and the child's", channels)
 	}
-	// One card per channel, so resolving later can update both.
-	if len(st.activeAlerts) != 2 {
-		t.Errorf("stored %d cards, want one per channel", len(st.activeAlerts))
+	// One card per channel, so closing later can update both.
+	if len(st.activeEvents) != 2 {
+		t.Errorf("stored %d cards, want one per channel", len(st.activeEvents))
 	}
 }
 
@@ -687,7 +768,7 @@ func TestIndependentRoutesBothFire(t *testing.T) {
 
 	msg := &fakeMessenger{}
 	st := newFakeStore()
-	st.templates["tmpl"] = models.Template{ID: "tmpl", Body: `{"text":"{{ .Alert.Status }}"}`}
+	st.templates["tmpl"] = models.Template{ID: "tmpl", Body: `{"text":"{{ .Event.State }}"}`}
 	st.destinations["ops"] = models.Destination{ID: "ops", TeamID: "team", ChannelID: "ops-channel"}
 	st.destinations["audit"] = models.Destination{ID: "audit", TeamID: "team", ChannelID: "audit-channel"}
 	st.routes["ops"] = models.Route{
@@ -701,7 +782,7 @@ func TestIndependentRoutesBothFire(t *testing.T) {
 	handler := newTestServer(t, st, msg).Handler
 
 	postWebhook(t, handler, "/webhook/universal", "token",
-		`{"status":"firing","labels":{"team":"payments"},"fingerprint":"fp"}`)
+		`{"state":"open","labels":{"team":"payments"},"key":"fp"}`)
 
 	if len(msg.posts) != 2 {
 		t.Fatalf("posted %d messages, want one per matching route: %+v", len(msg.posts), msg.posts)
@@ -713,8 +794,8 @@ func TestIndependentRoutesBothFire(t *testing.T) {
 	if !channels["ops-channel"] || !channels["audit-channel"] {
 		t.Errorf("channels = %v, want both routes' own", channels)
 	}
-	if len(st.activeAlerts) != 2 {
-		t.Errorf("stored %d cards, want one per channel", len(st.activeAlerts))
+	if len(st.activeEvents) != 2 {
+		t.Errorf("stored %d cards, want one per channel", len(st.activeEvents))
 	}
 }
 
@@ -725,7 +806,7 @@ func TestGreedyChildTakesDeliveryFromItsParent(t *testing.T) {
 	_, handler := nestedServer(t, msg, true)
 
 	postWebhook(t, handler, "/webhook/universal", "token",
-		`{"status":"firing","labels":{"severity":"critical","team":"payments"},"fingerprint":"fp"}`)
+		`{"state":"open","labels":{"severity":"critical","team":"payments"},"key":"fp"}`)
 
 	if len(msg.posts) != 1 {
 		t.Fatalf("posted %d messages, want only the child's: %+v", len(msg.posts), msg.posts)
@@ -743,31 +824,31 @@ func TestChildInheritsTheParentTemplate(t *testing.T) {
 	_, handler := nestedServer(t, msg, false)
 
 	postWebhook(t, handler, "/webhook/universal", "token",
-		`{"status":"firing","labels":{"severity":"critical","team":"payments"},"fingerprint":"fp"}`)
+		`{"state":"open","labels":{"severity":"critical","team":"payments"},"key":"fp"}`)
 
 	for _, post := range msg.posts {
-		if cardOf(post.msg) != `{"text":"firing"}` {
+		if cardOf(post.msg) != `{"text":"open"}` {
 			t.Errorf("card in %s = %s, want the inherited template's", post.channelID, cardOf(post.msg))
 		}
 	}
 }
 
-func TestResolvingClearsEveryCard(t *testing.T) {
+func TestClosingClearsEveryCard(t *testing.T) {
 	t.Parallel()
 
 	msg := &fakeMessenger{}
 	st, handler := nestedServer(t, msg, false)
 
-	firing := `{"status":"firing","labels":{"severity":"critical","team":"payments"},"fingerprint":"fp"}`
-	postWebhook(t, handler, "/webhook/universal", "token", firing)
+	opened := `{"state":"open","labels":{"severity":"critical","team":"payments"},"key":"fp"}`
+	postWebhook(t, handler, "/webhook/universal", "token", opened)
 	postWebhook(t, handler, "/webhook/universal", "token",
-		`{"status":"resolved","labels":{"severity":"critical","team":"payments"},"fingerprint":"fp"}`)
+		`{"state":"closed","labels":{"severity":"critical","team":"payments"},"key":"fp"}`)
 
 	if len(msg.updates) != 2 {
 		t.Fatalf("updated %d cards, want both: %+v", len(msg.updates), msg.updates)
 	}
-	if len(st.activeAlerts) != 0 {
-		t.Errorf("cards still stored = %+v, want all of them cleared", st.activeAlerts)
+	if len(st.activeEvents) != 0 {
+		t.Errorf("cards still stored = %+v, want all of them cleared", st.activeEvents)
 	}
 }
 
@@ -780,15 +861,15 @@ func TestOneFailedDeliveryDoesNotStopTheOthers(t *testing.T) {
 	st, handler := nestedServer(t, msg, false)
 
 	rec := postWebhook(t, handler, "/webhook/universal", "token",
-		`{"status":"firing","labels":{"severity":"critical","team":"payments"},"fingerprint":"fp"}`)
+		`{"state":"open","labels":{"severity":"critical","team":"payments"},"key":"fp"}`)
 
 	if rec.Code != http.StatusBadGateway {
 		t.Errorf("POST = %d, want 502 so the sender retries", rec.Code)
 	}
-	if len(st.activeAlerts) != 1 {
-		t.Fatalf("stored %d cards, want the one that was posted", len(st.activeAlerts))
+	if len(st.activeEvents) != 1 {
+		t.Fatalf("stored %d cards, want the one that was posted", len(st.activeEvents))
 	}
-	for _, card := range st.activeAlerts {
+	for _, card := range st.activeEvents {
 		if card.ChannelID != "channel" {
 			t.Errorf("stored card is for %q, want the channel that accepted it", card.ChannelID)
 		}

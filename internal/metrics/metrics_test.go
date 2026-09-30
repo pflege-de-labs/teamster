@@ -191,10 +191,10 @@ func TestDisabled(t *testing.T) {
 	// Every recorder is safe on a disabled pipeline, which is what lets the
 	// call sites record without asking.
 	m.DeliveryRecorded(context.Background(), "route", OutcomePosted)
-	m.WebhookReceived(context.Background(), "alertmanager", "firing")
+	m.WebhookReceived(context.Background(), "alertmanager", "open")
 	m.RenderFailed(context.Background(), "tmpl", StageRender)
-	if err := m.ObserveActiveAlerts(func(context.Context) (int64, error) { return 0, nil }); err != nil {
-		t.Errorf("ObserveActiveAlerts: %v", err)
+	if err := m.ObserveActiveEvents(func(context.Context) (int64, error) { return 0, nil }); err != nil {
+		t.Errorf("ObserveActiveEvents: %v", err)
 	}
 	if err := m.Shutdown(context.Background()); err != nil {
 		t.Errorf("Shutdown: %v", err)
@@ -338,23 +338,23 @@ func TestStartReportsABindFailure(t *testing.T) {
 	}
 }
 
-func TestObserveActiveAlerts(t *testing.T) {
+func TestObserveActiveEvents(t *testing.T) {
 	t.Parallel()
 
 	m := newTestMetrics(t, enabled())
-	if err := m.ObserveActiveAlerts(func(context.Context) (int64, error) { return 7, nil }); err != nil {
-		t.Fatalf("ObserveActiveAlerts: %v", err)
+	if err := m.ObserveActiveEvents(func(context.Context) (int64, error) { return 7, nil }); err != nil {
+		t.Fatalf("ObserveActiveEvents: %v", err)
 	}
 
 	format := expfmt.NewFormat(expfmt.TypeProtoDelim)
 	rec := scrape(t, m, string(format))
 
-	family := families(t, rec.Body, format)["teamster_active_alerts"]
+	family := families(t, rec.Body, format)["teamster_active_events"]
 	if family == nil {
-		t.Fatal("no active alerts gauge in the exposition")
+		t.Fatal("no active events gauge in the exposition")
 	}
 	if got := family.Metric[0].Gauge.GetValue(); got != 7 {
-		t.Errorf("active alerts = %v, want 7", got)
+		t.Errorf("active events = %v, want 7", got)
 	}
 }
 
@@ -431,19 +431,19 @@ func TestRouteOf(t *testing.T) {
 // Registering the gauge twice must replace the callback, not leave the first
 // one running against whatever it closed over — for this gauge, a database
 // somebody may be about to close.
-func TestObservingActiveAlertsTwiceReplacesTheCallback(t *testing.T) {
+func TestObservingActiveEventsTwiceReplacesTheCallback(t *testing.T) {
 	t.Parallel()
 
 	m := newTestMetrics(t, enabled())
 
 	var first, second atomic.Int64
-	if err := m.ObserveActiveAlerts(func(context.Context) (int64, error) {
+	if err := m.ObserveActiveEvents(func(context.Context) (int64, error) {
 		first.Add(1)
 		return 1, nil
 	}); err != nil {
 		t.Fatalf("first registration: %v", err)
 	}
-	if err := m.ObserveActiveAlerts(func(context.Context) (int64, error) {
+	if err := m.ObserveActiveEvents(func(context.Context) (int64, error) {
 		second.Add(1)
 		return 2, nil
 	}); err != nil {
@@ -469,11 +469,11 @@ func TestScrapingInALoopDoesNotQueryInALoop(t *testing.T) {
 	m := newTestMetrics(t, enabled())
 
 	var queries atomic.Int64
-	if err := m.ObserveActiveAlerts(func(context.Context) (int64, error) {
+	if err := m.ObserveActiveEvents(func(context.Context) (int64, error) {
 		queries.Add(1)
 		return 3, nil
 	}); err != nil {
-		t.Fatalf("ObserveActiveAlerts: %v", err)
+		t.Fatalf("ObserveActiveEvents: %v", err)
 	}
 
 	for range 20 {

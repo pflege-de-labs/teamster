@@ -54,26 +54,35 @@ func TestPresetsRender(t *testing.T) {
 	t.Parallel()
 
 	start := time.Date(2026, 2, 9, 8, 15, 0, 0, time.UTC)
-	firing := models.Alert{
-		Source: models.SourceAlertmanager, Status: "firing",
-		Labels:      map[string]string{"alertname": "HighCPU", "severity": "critical", models.SourceLabel: "alertmanager"},
-		Annotations: map[string]string{"summary": "CPU above 90%", "description": "api is spiking", "runbook_url": "https://example.test/rb"},
-		StartsAt:    start, Generator: "http://prometheus.example/rule",
+	firing := models.Event{
+		Source: models.SourceAlertmanager, State: models.StateOpen,
+		Labels: map[string]string{"alertname": "HighCPU", "severity": "critical", models.SourceLabel: "alertmanager"},
+		Alertmanager: &models.AlertmanagerEvent{
+			Annotations: map[string]string{"summary": "CPU above 90%", "description": "api is spiking", "runbook_url": "https://example.test/rb"},
+			StartsAt:    start, GeneratorURL: "http://prometheus.example/rule",
+		},
 	}
 	resolved := firing
-	resolved.Status = "resolved"
-	resolved.EndsAt = start.Add(time.Hour)
-	resolved.Generator = ""
+	resolved.State = models.StateClosed
+	resolvedAM := *firing.Alertmanager
+	resolvedAM.EndsAt = start.Add(time.Hour)
+	resolvedAM.GeneratorURL = ""
+	resolved.Alertmanager = &resolvedAM
+	emptyAM := models.Event{Source: models.SourceAlertmanager, Alertmanager: &models.AlertmanagerEvent{}}
 
-	universal := models.Alert{Source: models.SourceUniversal, Status: "firing", Labels: map[string]string{"alertname": "HighMemory"}, Generator: "custom"}
-	direct := models.Alert{Source: models.SourceUniversal, Title: "Deploy finished", Text: "worker **v1.4.2**"}
+	universal := models.Event{
+		Source: models.SourceUniversal, State: models.StateOpen, Labels: map[string]string{"alertname": "HighMemory"},
+		Universal: &models.UniversalEvent{URL: "custom"},
+	}
+	direct := models.Event{Source: models.SourceUniversal, Title: "Deploy finished", Text: "worker **v1.4.2**", Universal: &models.UniversalEvent{}}
+	emptyUniversal := models.Event{Source: models.SourceUniversal, Universal: &models.UniversalEvent{}}
 	withCard := direct
 	withCard.Card = json.RawMessage(`{"type":"AdaptiveCard","version":"1.4","body":[]}`)
 
 	cases := []struct {
 		name      string
 		source    string
-		alert     models.Alert
+		alert     models.Event
 		payload   any
 		wantTitle string
 		wantCard  bool
@@ -84,12 +93,12 @@ func TestPresetsRender(t *testing.T) {
 			inCard: []string{`"attention"`, `"HighCPU"`, "Show source", "Runbook", "2026-02-09 08:15:00 UTC"}},
 		{name: "alertmanager resolved", source: models.SourceAlertmanager, alert: resolved, wantTitle: "Resolved: CPU above 90%", wantCard: true,
 			inCard: []string{`"good"`, "Ended", "Runbook"}},
-		{name: "alertmanager empty", source: models.SourceAlertmanager, wantTitle: "Firing: Alert", wantCard: true, inCard: []string{"unknown"}},
+		{name: "alertmanager empty", source: models.SourceAlertmanager, alert: emptyAM, wantTitle: "Firing: Alert", wantCard: true, inCard: []string{"unknown"}},
 		{name: "universal alert", source: models.SourceUniversal, alert: universal, wantTitle: "HighMemory", wantCard: true,
 			inCard: []string{"Generator", "custom"}},
 		{name: "universal direct text", source: models.SourceUniversal, alert: direct, wantTitle: "Deploy finished", wantText: "<strong>v1.4.2</strong>"},
 		{name: "universal direct card", source: models.SourceUniversal, alert: withCard, wantTitle: "Deploy finished", wantCard: true},
-		{name: "universal empty", source: models.SourceUniversal, wantTitle: "Message", wantCard: true},
+		{name: "universal empty", source: models.SourceUniversal, alert: emptyUniversal, wantTitle: "Message", wantCard: true},
 		{name: "teamsv2 empty", source: models.SourceTeamsV2, wantTitle: "Teams message"},
 	}
 	for _, tc := range cases {
@@ -97,7 +106,7 @@ func TestPresetsRender(t *testing.T) {
 			t.Parallel()
 
 			p, _ := PresetFor(tc.source)
-			msg, err := templates.RenderMessage(p.Template(), templates.RenderData{Alert: tc.alert, Now: "now", Payload: tc.payload})
+			msg, err := templates.RenderMessage(p.Template(), templates.RenderData{Event: tc.alert, Now: "now", Payload: tc.payload})
 			if err != nil {
 				t.Fatalf("render: %v", err)
 			}
@@ -148,14 +157,14 @@ func TestTeamsV2PresetRendersTheSamples(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			alert := models.Alert{Source: models.SourceTeamsV2, Title: parsed.Title, Text: parsed.Text}
+			ev := models.Event{Source: models.SourceTeamsV2, Title: parsed.Title, Text: parsed.Text}
 			if len(parsed.Cards) > 0 {
-				alert.Card = parsed.Cards[0]
+				ev.Card = parsed.Cards[0]
 			}
 			var payload any
 			_ = json.Unmarshal(body, &payload)
 
-			msg, err := templates.RenderMessage(p.Template(), templates.RenderData{Alert: alert, Payload: payload})
+			msg, err := templates.RenderMessage(p.Template(), templates.RenderData{Event: ev, Payload: payload})
 			if err != nil {
 				t.Fatalf("render: %v", err)
 			}

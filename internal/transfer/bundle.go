@@ -55,7 +55,7 @@ type Directory interface {
 }
 
 // Export reads the whole configuration. Sessions, login flows, link flows,
-// recipients, webhook endpoints and active alerts are runtime state and are
+// recipients, webhook endpoints and active events are runtime state and are
 // deliberately absent, as are all credentials: what comes back is what an
 // operator configured, and nothing that would be dangerous in a backup.
 //

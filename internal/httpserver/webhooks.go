@@ -41,18 +41,26 @@ func (s *Server) handleAlertmanager(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, alert := range payload.Alerts {
-		model := models.Alert{
-			Source:      models.SourceAlertmanager,
-			Status:      alert.Status,
-			Labels:      alert.Labels,
-			Annotations: alert.Annotations,
-			StartsAt:    alert.StartsAt,
-			EndsAt:      alert.EndsAt,
-			Generator:   alert.GeneratorURL,
-			Fingerprint: alert.Fingerprint,
+		ev := models.Event{
+			Source: models.SourceAlertmanager,
+			Key:    alert.Fingerprint,
+			State:  alertmanagerState(alert.Status),
+			Labels: alert.Labels,
+			Alertmanager: &models.AlertmanagerEvent{
+				Annotations:       alert.Annotations,
+				StartsAt:          alert.StartsAt,
+				EndsAt:            alert.EndsAt,
+				GeneratorURL:      alert.GeneratorURL,
+				Receiver:          payload.Receiver,
+				GroupKey:          payload.GroupKey,
+				GroupLabels:       payload.GroupLabels,
+				CommonLabels:      payload.CommonLabels,
+				CommonAnnotations: payload.CommonAnnotations,
+				ExternalURL:       payload.ExternalURL,
+			},
 		}
-		s.metrics.WebhookReceived(ctx, model.Source, model.Status)
-		if err := s.processAlert(ctx, model); err != nil {
+		s.metrics.WebhookReceived(ctx, ev.Source, string(ev.State))
+		if err := s.processEvent(ctx, ev); err != nil {
 			writeError(w, r, http.StatusBadGateway, err)
 			return
 		}
@@ -76,23 +84,30 @@ func (s *Server) handleUniversal(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusBadRequest, "invalid JSON")
 		return
 	}
-
-	model := models.Alert{
-		Source:      models.SourceUniversal,
-		Status:      payload.Status,
-		Labels:      payload.Labels,
-		Annotations: payload.Annotations,
-		StartsAt:    payload.StartsAt,
-		EndsAt:      payload.EndsAt,
-		Generator:   payload.Generator,
-		Fingerprint: payload.Fingerprint,
-		Title:       payload.Title,
-		Text:        payload.Text,
-		Card:        payload.Card,
+	// Refused rather than delivered once, so a sender still speaking the old
+	// firing/resolved vocabulary finds out instead of losing its updates.
+	if !payload.State.Valid() {
+		writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("unknown state %q; want open, closed or none", payload.State))
+		return
 	}
 
-	s.metrics.WebhookReceived(ctx, model.Source, model.Status)
-	if err := s.processAlert(ctx, model); err != nil {
+	ev := models.Event{
+		Source: models.SourceUniversal,
+		Key:    payload.Key,
+		State:  payload.State,
+		Labels: payload.Labels,
+		Title:  payload.Title,
+		Text:   payload.Text,
+		Card:   payload.Card,
+		Universal: &models.UniversalEvent{
+			Attributes: payload.Attributes,
+			Time:       payload.Time,
+			URL:        payload.URL,
+		},
+	}
+
+	s.metrics.WebhookReceived(ctx, ev.Source, string(ev.State))
+	if err := s.processEvent(ctx, ev); err != nil {
 		writeError(w, r, http.StatusBadGateway, err)
 		return
 	}
@@ -100,30 +115,38 @@ func (s *Server) handleUniversal(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
-// processAlert routes and delivers one message. Status decides the lifecycle,
-// not whether the message is accepted at all: "firing" and "resolved" are the
-// Alertmanager vocabulary and opt into the claim protocol below, because that
-// is what lets a repeat firing edit a card instead of posting a second one and
-// a resolve clear it. Any other value -- including none, which is the normal
-// case for a sender that has no such lifecycle -- is delivered once and
-// tracked nowhere: /webhook/universal is a general message hook first, and an
-// alert feed is one shape a message can take, not a requirement on all of
-// them. Rejecting anything unrecognised here would demand every sender speak
-// Alertmanager's vocabulary to use a "universal" endpoint.
-func (s *Server) processAlert(ctx context.Context, alert models.Alert) error {
-	if alert.Fingerprint == "" {
-		alert.Fingerprint = hashFingerprint(alert)
+// alertmanagerState maps Alertmanager's vocabulary onto the event lifecycle.
+// Anything else it might send is delivered once rather than refused: the
+// payload is Alertmanager's, not something its sender can correct.
+func alertmanagerState(status string) models.EventState {
+	switch status {
+	case "firing":
+		return models.StateOpen
+	case "resolved":
+		return models.StateClosed
 	}
-	// After the fingerprint, so a card posted before the label existed is
-	// still the one a later firing or resolve finds.
-	alert.Labels = models.WithSourceLabel(alert.Labels, alert.Source)
-	// Before routing, so an alert no route matches yet still teaches the
+	return models.StateNone
+}
+
+// processEvent routes and delivers one event. State decides the lifecycle, not
+// whether the event is accepted: open and closed opt into the claim protocol
+// below, because that is what lets a repeat edit a card instead of posting a
+// second one and a close clear it. No state -- the normal case for a sender
+// with no lifecycle -- is delivered once and tracked nowhere (ADR 0035).
+func (s *Server) processEvent(ctx context.Context, ev models.Event) error {
+	if ev.Key == "" {
+		ev.Key = deriveKey(ev)
+	}
+	// After the key, so a card posted before the label existed is still the
+	// one a later update or close finds.
+	ev.Labels = models.WithSourceLabel(ev.Labels, ev.Source)
+	// Before routing, so an event no route matches yet still teaches the
 	// editor the labels a route for it would select on.
 	if s.samples != nil {
-		s.samples.Observe(alert.Labels, alert.Annotations)
+		s.samples.Observe(ev.Labels, models.AttributesOf(ev))
 	}
 
-	result, err := s.router.Plan(ctx, alert.Labels)
+	result, err := s.router.Plan(ctx, ev.Labels)
 	if err != nil {
 		return fmt.Errorf("route: %w", err)
 	}
@@ -134,24 +157,24 @@ func (s *Server) processAlert(ctx context.Context, alert models.Alert) error {
 		return errors.New("no matching route and no default route")
 	}
 
-	switch alert.Status {
-	case "resolved":
-		return s.resolveAlert(ctx, alert, result.Deliveries)
-	case "firing":
-		return s.deliverAll(ctx, alert, result.Deliveries, s.deliver)
+	switch ev.State {
+	case models.StateClosed:
+		return s.closeEvent(ctx, ev, result.Deliveries)
+	case models.StateOpen:
+		return s.deliverAll(ctx, ev, result.Deliveries, s.deliver)
 	default:
-		return s.deliverAll(ctx, alert, result.Deliveries, s.deliverOnce)
+		return s.deliverAll(ctx, ev, result.Deliveries, s.deliverOnce)
 	}
 }
 
 // deliverAll attempts every delivery and reports failures together, so one
 // channel refusing the message does not cost the others theirs.
-func (s *Server) deliverAll(ctx context.Context, alert models.Alert, deliveries []routing.Delivery,
-	deliverFn func(context.Context, models.Alert, routing.Delivery) error,
+func (s *Server) deliverAll(ctx context.Context, ev models.Event, deliveries []routing.Delivery,
+	deliverFn func(context.Context, models.Event, routing.Delivery) error,
 ) error {
 	var failures []error
 	for _, delivery := range deliveries {
-		if err := deliverFn(ctx, alert, delivery); err != nil {
+		if err := deliverFn(ctx, ev, delivery); err != nil {
 			failures = append(failures, fmt.Errorf("route %s: %w", delivery.RouteName, err))
 		}
 	}
@@ -189,11 +212,11 @@ func (s *Server) claimTTL() time.Duration {
 // nothing if the process dies holding it. The claim row does — it is the only
 // record that a post was in flight, which is what lets the next attempt take
 // over rather than wait forever or post a second card.
-func (s *Server) deliver(ctx context.Context, alert models.Alert, delivery routing.Delivery) error {
+func (s *Server) deliver(ctx context.Context, ev models.Event, delivery routing.Delivery) error {
 	if delivery.Kind == routing.DeliveryRecipient {
-		return s.deliverToRecipient(ctx, alert, delivery)
+		return s.deliverToRecipient(ctx, ev, delivery)
 	}
-	return s.deliverToChannel(ctx, alert, delivery)
+	return s.deliverToChannel(ctx, ev, delivery)
 }
 
 // deliverOnce is deliver's counterpart for a message with no tracked
@@ -201,15 +224,15 @@ func (s *Server) deliver(ctx context.Context, alert models.Alert, delivery routi
 // nothing to claim and nothing to update -- it is rendered and sent exactly
 // once, the same fire-and-forget contract /teamsv2/... already has, just
 // routed and templated first.
-func (s *Server) deliverOnce(ctx context.Context, alert models.Alert, delivery routing.Delivery) error {
+func (s *Server) deliverOnce(ctx context.Context, ev models.Event, delivery routing.Delivery) error {
 	if delivery.Kind == routing.DeliveryRecipient {
-		return s.deliverToRecipientOnce(ctx, alert, delivery)
+		return s.deliverToRecipientOnce(ctx, ev, delivery)
 	}
-	return s.deliverToChannelOnce(ctx, alert, delivery)
+	return s.deliverToChannelOnce(ctx, ev, delivery)
 }
 
-func (s *Server) deliverToChannel(ctx context.Context, alert models.Alert, delivery routing.Delivery) error {
-	rendered, err := s.renderMessage(ctx, alert, delivery)
+func (s *Server) deliverToChannel(ctx context.Context, ev models.Event, delivery routing.Delivery) error {
+	rendered, err := s.renderMessage(ctx, ev, delivery)
 	if err != nil {
 		return err
 	}
@@ -220,34 +243,34 @@ func (s *Server) deliverToChannel(ctx context.Context, alert models.Alert, deliv
 	msg := s.channelMessage(rendered)
 
 	now := s.now()
-	claim := models.AlertClaim{
-		Fingerprint: alert.Fingerprint,
+	claim := models.EventClaim{
+		Key:         ev.Key,
 		TeamID:      destination.TeamID,
 		ChannelID:   destination.ChannelID,
-		Status:      alert.Status,
+		State:       ev.State,
 		Owner:       uuid.NewString(),
 		At:          now,
 		StaleBefore: now.Add(-s.claimTTL()),
 	}
 
-	card, outcome, err := s.store.ClaimActiveAlert(ctx, claim)
+	card, outcome, err := s.store.ClaimActiveEvent(ctx, claim)
 	if err != nil {
-		return fmt.Errorf("claim active alert: %w", err)
+		return fmt.Errorf("claim active event: %w", err)
 	}
 
 	switch outcome {
 	case store.ClaimPosted:
 		if card.ConversationID == "" {
-			return s.replaceUneditableCard(ctx, alert, delivery, card)
+			return s.replaceUneditableCard(ctx, ev, delivery, card)
 		}
-		// The card for this channel already exists, so the alert is an update
+		// The card for this channel already exists, so the event is an update
 		// to it rather than a second card.
 		if err := s.channels.UpdateInChannel(ctx, card.TeamID, card.ChannelID, cardOfRow(card), msg); err != nil {
 			s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), channelFailure(err))
 			return fmt.Errorf("channel update: %w", err)
 		}
 		s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeUpdated)
-		return s.store.TouchActiveAlert(ctx, card, alert.Status, s.now())
+		return s.store.TouchActiveEvent(ctx, card, ev.State, s.now())
 	case store.ClaimHeld:
 		s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeFailed)
 		return errCardInFlight
@@ -258,14 +281,14 @@ func (s *Server) deliverToChannel(ctx context.Context, alert models.Alert, deliv
 		s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), channelFailure(err))
 		// The claim is ours and nothing was posted under it, so it goes back
 		// now rather than making the next attempt wait out the cutoff.
-		if release := s.store.ReleaseActiveAlertClaim(ctx, claim); release != nil {
-			logError(ctx, "release alert claim", release)
+		if release := s.store.ReleaseActiveEventClaim(ctx, claim); release != nil {
+			logError(ctx, "release event claim", release)
 		}
 		return fmt.Errorf("channel post: %w", err)
 	}
 	s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomePosted)
 
-	if err := s.store.CompleteActiveAlertClaim(ctx, claim, posted.MessageID, posted.ConversationID, s.now()); err != nil {
+	if err := s.store.CompleteActiveEventClaim(ctx, claim, posted.MessageID, posted.ConversationID, s.now()); err != nil {
 		if errors.Is(err, store.ErrClaimLost) {
 			// The window this cannot close: the post succeeded, and by the time
 			// it was recorded the row belonged to somebody else's card. The Bot
@@ -281,23 +304,23 @@ func (s *Server) deliverToChannel(ctx context.Context, alert models.Alert, deliv
 
 // replaceUneditableCard forgets a card nothing can edit -- one the previous
 // release posted through Graph -- and posts its successor (ADR 0045).
-func (s *Server) replaceUneditableCard(ctx context.Context, alert models.Alert, delivery routing.Delivery, card models.ActiveAlert) error {
-	if err := s.store.DeleteActiveAlertCard(ctx, card.Fingerprint, card.TeamID, card.ChannelID, card.MessageID); err != nil {
+func (s *Server) replaceUneditableCard(ctx context.Context, ev models.Event, delivery routing.Delivery, card models.ActiveEvent) error {
+	if err := s.store.DeleteActiveEventCard(ctx, card.Key, card.TeamID, card.ChannelID, card.MessageID); err != nil {
 		return fmt.Errorf("forget uneditable card: %w", err)
 	}
-	return s.deliverToChannel(ctx, alert, delivery)
+	return s.deliverToChannel(ctx, ev, delivery)
 }
 
-func cardOfRow(card models.ActiveAlert) channelCard {
+func cardOfRow(card models.ActiveEvent) channelCard {
 	return channelCard{ConversationID: card.ConversationID, MessageID: card.MessageID}
 }
 
 // deliverToChannelOnce is deliverToChannel without the claim: render, resolve
-// the destination, post. Nothing is written to active_alerts, so a second
-// message with the same fingerprint posts a second card rather than editing
+// the destination, post. Nothing is written to active_events, so a second
+// message with the same key posts a second card rather than editing
 // this one -- the point of the untracked path, not an oversight of it.
-func (s *Server) deliverToChannelOnce(ctx context.Context, alert models.Alert, delivery routing.Delivery) error {
-	rendered, err := s.renderMessage(ctx, alert, delivery)
+func (s *Server) deliverToChannelOnce(ctx context.Context, ev models.Event, delivery routing.Delivery) error {
+	rendered, err := s.renderMessage(ctx, ev, delivery)
 	if err != nil {
 		return err
 	}
@@ -315,30 +338,30 @@ func (s *Server) deliverToChannelOnce(ctx context.Context, alert models.Alert, d
 	return nil
 }
 
-// resolveAlert walks the messages that went out rather than the plan, because
+// closeEvent walks the messages that went out rather than the plan, because
 // the routes may have changed since: a card in a channel the plan no longer
-// names still has to stop saying the alert is firing. Both tables are walked
+// names still has to stop saying the event is open. Both tables are walked
 // for that reason -- a chat message is as stranded as a card is.
-func (s *Server) resolveAlert(ctx context.Context, alert models.Alert, plan []routing.Delivery) error {
-	failures := s.resolveChannelCards(ctx, alert, plan)
-	failures = append(failures, s.resolveChatMessages(ctx, alert, plan)...)
+func (s *Server) closeEvent(ctx context.Context, ev models.Event, plan []routing.Delivery) error {
+	failures := s.closeChannelCards(ctx, ev, plan)
+	failures = append(failures, s.closeChatMessages(ctx, ev, plan)...)
 	return errors.Join(failures...)
 }
 
-func (s *Server) resolveChannelCards(ctx context.Context, alert models.Alert, plan []routing.Delivery) []error {
-	active, err := s.store.ListActiveAlerts(ctx, alert.Fingerprint)
+func (s *Server) closeChannelCards(ctx context.Context, ev models.Event, plan []routing.Delivery) []error {
+	active, err := s.store.ListActiveEvents(ctx, ev.Key)
 	if err != nil {
-		return []error{fmt.Errorf("active alert lookup: %w", err)}
+		return []error{fmt.Errorf("active event lookup: %w", err)}
 	}
 
 	var failures []error
 	for _, card := range active {
 		// A claim in flight has no card yet, so there is nothing to edit and
 		// nothing to forget: deleting it would strand the message the other
-		// instance is about to post, still saying the alert fires. Reporting
+		// instance is about to post, still saying the event is open. Reporting
 		// it retryable is the same reasoning as the failed update below --
 		// the sender's retry is what puts it right, by which time the card
-		// exists and this becomes an ordinary resolve.
+		// exists and this becomes an ordinary close.
 		if !card.Posted() {
 			failures = append(failures, fmt.Errorf("channel %s: %w", card.ChannelID, errCardInFlight))
 			continue
@@ -350,14 +373,14 @@ func (s *Server) resolveChannelCards(ctx context.Context, alert models.Alert, pl
 			continue
 		}
 
-		rendered, err := s.renderMessage(ctx, alert, delivery)
+		rendered, err := s.renderMessage(ctx, ev, delivery)
 		if err != nil {
 			failures = append(failures, err)
 			continue
 		}
 		msg := s.channelMessage(rendered)
 		// The row outlives a failed update on purpose: it is the only record that
-		// this channel still holds a card claiming the alert fires, and the
+		// this channel still holds a card claiming the event is open, and the
 		// sender's retry is what puts that right. A card nothing can edit is
 		// only forgotten.
 		if card.ConversationID != "" {
@@ -368,24 +391,24 @@ func (s *Server) resolveChannelCards(ctx context.Context, alert models.Alert, pl
 			}
 			s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeUpdated)
 		}
-		// Deleting by message id, so a resolve that raced a refire forgets the
+		// Deleting by message id, so a close that raced a reopen forgets the
 		// card it just edited rather than the newer one that replaced it.
-		if err := s.store.DeleteActiveAlertCard(ctx, card.Fingerprint, card.TeamID, card.ChannelID, card.MessageID); err != nil {
+		if err := s.store.DeleteActiveEventCard(ctx, card.Key, card.TeamID, card.ChannelID, card.MessageID); err != nil {
 			failures = append(failures, err)
 		}
 	}
 	return failures
 }
 
-// resolveChatMessages sends the resolution rather than editing the message the
-// firing produced. ADR 0026: an edit in Teams shows an "Edited" marker and does
-// not re-notify, so an in-place resolve would be silent -- and the one thing
+// closeChatMessages sends the resolution rather than editing the message the
+// open event produced. ADR 0026: an edit in Teams shows an "Edited" marker and does
+// not re-notify, so an in-place close would be silent -- and the one thing
 // the person on call is waiting for is being told it cleared. Sending also
 // means this path never needs the stored activity id.
-func (s *Server) resolveChatMessages(ctx context.Context, alert models.Alert, plan []routing.Delivery) []error {
-	active, err := s.store.ListActiveAlertRecipients(ctx, alert.Fingerprint)
+func (s *Server) closeChatMessages(ctx context.Context, ev models.Event, plan []routing.Delivery) []error {
+	active, err := s.store.ListActiveEventRecipients(ctx, ev.Key)
 	if err != nil {
-		return []error{fmt.Errorf("active alert recipient lookup: %w", err)}
+		return []error{fmt.Errorf("active event recipient lookup: %w", err)}
 	}
 	if len(active) > 0 && s.bot == nil {
 		return []error{errNoBotConfigured}
@@ -412,12 +435,12 @@ func (s *Server) resolveChatMessages(ctx context.Context, alert models.Alert, pl
 				// The recipient is gone -- unlinked since this row was
 				// claimed or posted, or a row stranded some other way before
 				// unlinking cascaded (DeleteRecipient in internal/store). This
-				// is not swallowing an error: the resolve itself has not
+				// is not swallowing an error: the close itself has not
 				// failed, only the row it was about to act on no longer names
 				// anybody to notify or anything to keep, and forgetting it is
-				// what lets the alert resolve instead of failing against the
+				// what lets the event close instead of failing against the
 				// same 404 on every retry.
-				if forget := s.store.DeleteActiveAlertRecipientCard(ctx, card.Fingerprint, card.RecipientID, card.MessageID); forget != nil {
+				if forget := s.store.DeleteActiveEventRecipientCard(ctx, card.Key, card.RecipientID, card.MessageID); forget != nil {
 					logError(ctx, "forget orphaned recipient card", forget)
 				}
 				continue
@@ -426,7 +449,7 @@ func (s *Server) resolveChatMessages(ctx context.Context, alert models.Alert, pl
 			continue
 		}
 
-		rendered, err := s.renderMessage(ctx, alert, delivery)
+		rendered, err := s.renderMessage(ctx, ev, delivery)
 		if err != nil {
 			failures = append(failures, err)
 			continue
@@ -446,14 +469,14 @@ func (s *Server) resolveChatMessages(ctx context.Context, alert models.Alert, pl
 				// alert from trying again.
 				s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeBlocked)
 				s.markRecipientBlocked(ctx, card.RecipientID, err)
-				if forget := s.store.DeleteActiveAlertRecipientCard(ctx, card.Fingerprint, card.RecipientID, card.MessageID); forget != nil {
+				if forget := s.store.DeleteActiveEventRecipientCard(ctx, card.Key, card.RecipientID, card.MessageID); forget != nil {
 					logError(ctx, "forget blocked recipient card", forget)
 				}
 				failures = append(failures, fmt.Errorf("bot send: %w", err))
 				continue
 			}
 			// The row outlives a failed send for the channel path's reason: it
-			// is the only record that this person was told the alert fires.
+			// is the only record that this person was told the event is open.
 			s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeFailed)
 			failures = append(failures, fmt.Errorf("bot send: %w", err))
 			continue
@@ -461,9 +484,9 @@ func (s *Server) resolveChatMessages(ctx context.Context, alert models.Alert, pl
 		s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomePosted)
 		s.clearRecipientBlocked(ctx, card.RecipientID)
 
-		// Deleting by message id, so a resolve that raced a refire forgets the
-		// row it just resolved rather than the newer one that replaced it.
-		if err := s.store.DeleteActiveAlertRecipientCard(ctx, card.Fingerprint, card.RecipientID, card.MessageID); err != nil {
+		// Deleting by message id, so a close that raced a reopen forgets the
+		// row it just closed rather than the newer one that replaced it.
+		if err := s.store.DeleteActiveEventRecipientCard(ctx, card.Key, card.RecipientID, card.MessageID); err != nil {
 			failures = append(failures, err)
 		}
 	}
@@ -472,13 +495,13 @@ func (s *Server) resolveChatMessages(ctx context.Context, alert models.Alert, pl
 
 // The delivery that owns a card is the one pointing at its channel; a card the
 // plan no longer covers is rendered with the first template the plan names,
-// which is better than leaving it claiming the alert still fires.
+// which is better than leaving it claiming the event is still open.
 //
 // The fallback stays inside the kind. A plan that fans out to a channel and a
 // person has deliveries of both, and handing a channel card the recipient one
 // would render it against a template chosen for a chat -- picked, at that, by
 // nothing better than position in the slice.
-func (s *Server) channelDeliveryFor(ctx context.Context, card models.ActiveAlert, plan []routing.Delivery) (routing.Delivery, error) {
+func (s *Server) channelDeliveryFor(ctx context.Context, card models.ActiveEvent, plan []routing.Delivery) (routing.Delivery, error) {
 	channels := deliveriesOfKind(plan, routing.DeliveryChannel)
 	for _, delivery := range channels {
 		destination, err := s.store.GetDestination(ctx, delivery.DestinationID)
@@ -535,13 +558,13 @@ func deliveriesOfKind(plan []routing.Delivery, kind routing.DeliveryKind) []rout
 // blank out a working template. A payload with nothing direct to send gets
 // the built-in default, and every untemplated message carries the hint card
 // (ADR 0039). Between the two sits the source's default template (ADR 0055).
-func (s *Server) renderMessage(ctx context.Context, alert models.Alert, delivery routing.Delivery) (templates.Message, error) {
-	template, found, err := s.deliveryTemplate(ctx, alert, delivery)
+func (s *Server) renderMessage(ctx context.Context, ev models.Event, delivery routing.Delivery) (templates.Message, error) {
+	template, found, err := s.deliveryTemplate(ctx, ev, delivery)
 	if err != nil {
 		return templates.Message{}, err
 	}
 	if !found {
-		msg, err := untemplatedMessage(alert)
+		msg, err := untemplatedMessage(ev)
 		// A route whose template names other sources has one; saying there is
 		// none would send somebody to create a second.
 		if err == nil && delivery.TemplateID == "" {
@@ -555,7 +578,7 @@ func (s *Server) renderMessage(ctx context.Context, alert models.Alert, delivery
 	}
 
 	rendered, err := templates.RenderMessage(template, templates.RenderData{
-		Alert: alert,
+		Event: ev,
 		Now:   time.Now().UTC().Format(time.RFC3339),
 	})
 	if err != nil {
@@ -566,24 +589,24 @@ func (s *Server) renderMessage(ctx context.Context, alert models.Alert, delivery
 }
 
 // deliveryTemplate is the template a delivery renders with: the route's own
-// when it handles the alert's source, otherwise that source's default (ADR
+// when it handles the event's source, otherwise that source's default (ADR
 // 0055). found is false when neither exists.
-func (s *Server) deliveryTemplate(ctx context.Context, alert models.Alert, delivery routing.Delivery) (models.Template, bool, error) {
+func (s *Server) deliveryTemplate(ctx context.Context, ev models.Event, delivery routing.Delivery) (models.Template, bool, error) {
 	if delivery.TemplateID != "" {
 		template, err := s.store.GetTemplate(ctx, delivery.TemplateID)
 		if err != nil {
 			s.metrics.RenderFailed(ctx, delivery.TemplateID, metrics.StageTemplate)
 			return models.Template{}, false, fmt.Errorf("template: %w", err)
 		}
-		if template.Handles(alert.Source) {
+		if template.Handles(ev.Source) {
 			return template, true, nil
 		}
 		// A template written for another webhook's payload would render it
 		// wrong or not at all (ADR 0053).
 		logging.FromContext(ctx).Warn("template does not handle this source; using the source's default",
-			"template", template.Name, "source", alert.Source, "route", delivery.RouteName)
+			"template", template.Name, "source", ev.Source, "route", delivery.RouteName)
 	}
-	return s.sourceDefaultTemplate(ctx, alert.Source)
+	return s.sourceDefaultTemplate(ctx, ev.Source)
 }
 
 // sourceDefaultTemplate is the template chosen for every message from source
@@ -615,11 +638,11 @@ const templatesPanelPath = "/admin#templates"
 
 // untemplatedMessage is the payload's own content when it has any, and the
 // built-in default when it has none.
-func untemplatedMessage(alert models.Alert) (templates.Message, error) {
-	if alert.Title == "" && alert.Text == "" && len(alert.Card) == 0 {
-		return templates.Default(alert)
+func untemplatedMessage(ev models.Event) (templates.Message, error) {
+	if ev.Title == "" && ev.Text == "" && len(ev.Card) == 0 {
+		return templates.Default(ev)
 	}
-	return directMessage(alert)
+	return directMessage(ev)
 }
 
 // directMessage builds a Message straight from what the sender supplied,
@@ -630,21 +653,21 @@ func untemplatedMessage(alert models.Alert) (templates.Message, error) {
 // to skip by not using a template. The card is passed through as given, the
 // same way a template's rendered card is: valid JSON is required, the
 // contents are not otherwise validated.
-func directMessage(alert models.Alert) (templates.Message, error) {
-	msg := templates.Message{Title: alert.Title}
-	if alert.Text != "" {
-		safe, err := templates.RenderText(alert.Text)
+func directMessage(ev models.Event) (templates.Message, error) {
+	msg := templates.Message{Title: ev.Title}
+	if ev.Text != "" {
+		safe, err := templates.RenderText(ev.Text)
 		if err != nil {
 			return templates.Message{}, fmt.Errorf("text: %w", err)
 		}
 		msg.Text = safe
 	}
-	if len(alert.Card) > 0 {
+	if len(ev.Card) > 0 {
 		var probe any
-		if err := json.Unmarshal(alert.Card, &probe); err != nil {
+		if err := json.Unmarshal(ev.Card, &probe); err != nil {
 			return templates.Message{}, fmt.Errorf("card: not valid JSON: %w", err)
 		}
-		msg.Card = alert.Card
+		msg.Card = ev.Card
 	}
 	return msg, nil
 }
@@ -762,7 +785,7 @@ func blockedReason(err error) string {
 }
 
 // markRecipientBlocked and clearRecipientBlocked are best effort, exactly like
-// the DeleteActiveAlertRecipientCard calls beside them: the flag is
+// the DeleteActiveEventRecipientCard calls beside them: the flag is
 // informational (ADR 0026), so a failure to write it must not fail the
 // delivery it describes, nor undo a send or update that already succeeded.
 func (s *Server) markRecipientBlocked(ctx context.Context, recipientID string, cause error) {
@@ -788,14 +811,14 @@ func (s *Server) clearRecipientBlocked(ctx context.Context, recipientID string) 
 // row and is counted under its own outcome, so it stops re-attempting within
 // this alert and is visible as something other than noise. And an activity id
 // of "" is a documented success, not a claim in flight: the message was
-// delivered but cannot be edited later, so the next firing touches the row
+// delivered but cannot be edited later, so the next update touches the row
 // rather than sending a second copy.
-func (s *Server) deliverToRecipient(ctx context.Context, alert models.Alert, delivery routing.Delivery) error {
+func (s *Server) deliverToRecipient(ctx context.Context, ev models.Event, delivery routing.Delivery) error {
 	if s.bot == nil {
 		return errNoBotConfigured
 	}
 
-	rendered, err := s.renderMessage(ctx, alert, delivery)
+	rendered, err := s.renderMessage(ctx, ev, delivery)
 	if err != nil {
 		return err
 	}
@@ -811,36 +834,36 @@ func (s *Server) deliverToRecipient(ctx context.Context, alert models.Alert, del
 
 	now := s.now()
 	claim := models.RecipientClaim{
-		Fingerprint: alert.Fingerprint,
+		Key:         ev.Key,
 		RecipientID: recipient.ID,
-		Status:      alert.Status,
+		State:       ev.State,
 		Owner:       uuid.NewString(),
 		At:          now,
 		StaleBefore: now.Add(-s.claimTTL()),
 	}
 
-	card, outcome, err := s.store.ClaimActiveAlertRecipient(ctx, claim)
+	card, outcome, err := s.store.ClaimActiveEventRecipient(ctx, claim)
 	if err != nil {
-		return fmt.Errorf("claim active alert recipient: %w", err)
+		return fmt.Errorf("claim active event recipient: %w", err)
 	}
 
 	switch outcome {
 	case store.ClaimPosted:
 		// A re-fire edits the message in place. Teams marks it edited and does
-		// not re-notify, which is what a repeated firing should do.
+		// not re-notify, which is what a repeated open event should do.
 		if card.MessageID == "" {
 			// Delivered, but the Connector named nothing to edit. Sending again
 			// would be a second copy of a message the person already has, so
 			// the row is only restamped.
 			s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeUpdated)
 			s.clearRecipientBlocked(ctx, card.RecipientID)
-			return s.store.TouchActiveAlertRecipient(ctx, card, alert.Status, s.now())
+			return s.store.TouchActiveEventRecipient(ctx, card, ev.State, s.now())
 		}
 		if err := s.bot.UpdateMessage(ctx, ref, card.MessageID, msg); err != nil {
 			if recipientBlocked(err) {
 				s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeBlocked)
 				s.markRecipientBlocked(ctx, card.RecipientID, err)
-				if forget := s.store.DeleteActiveAlertRecipientCard(ctx, card.Fingerprint, card.RecipientID, card.MessageID); forget != nil {
+				if forget := s.store.DeleteActiveEventRecipientCard(ctx, card.Key, card.RecipientID, card.MessageID); forget != nil {
 					logError(ctx, "forget blocked recipient card", forget)
 				}
 				return fmt.Errorf("bot update: %w", err)
@@ -850,7 +873,7 @@ func (s *Server) deliverToRecipient(ctx context.Context, alert models.Alert, del
 		}
 		s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeUpdated)
 		s.clearRecipientBlocked(ctx, card.RecipientID)
-		return s.store.TouchActiveAlertRecipient(ctx, card, alert.Status, s.now())
+		return s.store.TouchActiveEventRecipient(ctx, card, ev.State, s.now())
 	case store.ClaimHeld:
 		s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeFailed)
 		return errCardInFlight
@@ -867,7 +890,7 @@ func (s *Server) deliverToRecipient(ctx context.Context, alert models.Alert, del
 		// The claim is ours and nothing was sent under it, so it goes back now
 		// rather than making the next attempt wait out the cutoff. That is the
 		// same row a permanent failure has to drop, so one release covers both.
-		if release := s.store.ReleaseActiveAlertRecipientClaim(ctx, claim); release != nil {
+		if release := s.store.ReleaseActiveEventRecipientClaim(ctx, claim); release != nil {
 			logError(ctx, "release recipient claim", release)
 		}
 		return fmt.Errorf("bot send: %w", err)
@@ -875,7 +898,7 @@ func (s *Server) deliverToRecipient(ctx context.Context, alert models.Alert, del
 	s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomePosted)
 	s.clearRecipientBlocked(ctx, recipient.ID)
 
-	if err := s.store.CompleteActiveAlertRecipientClaim(ctx, claim, activityID, s.now()); err != nil {
+	if err := s.store.CompleteActiveEventRecipientClaim(ctx, claim, activityID, s.now()); err != nil {
 		if errors.Is(err, store.ErrClaimLost) {
 			// The same window deliverToChannel cannot close: the message was
 			// sent, and by the time it was recorded the row was somebody
@@ -889,16 +912,16 @@ func (s *Server) deliverToRecipient(ctx context.Context, alert models.Alert, del
 }
 
 // deliverToRecipientOnce is deliverToRecipient without the claim: no
-// RecipientClaim, no ActiveAlertRecipient row, no blocked-flag bookkeeping --
+// RecipientClaim, no ActiveEventRecipient row, no blocked-flag bookkeeping --
 // that machinery exists to stop a *repeated* delivery failure from reading as
 // noise, and a message that is never repeated has no repeats to distinguish.
 // A failed send here is recorded and returned exactly like any other failure.
-func (s *Server) deliverToRecipientOnce(ctx context.Context, alert models.Alert, delivery routing.Delivery) error {
+func (s *Server) deliverToRecipientOnce(ctx context.Context, ev models.Event, delivery routing.Delivery) error {
 	if s.bot == nil {
 		return errNoBotConfigured
 	}
 
-	rendered, err := s.renderMessage(ctx, alert, delivery)
+	rendered, err := s.renderMessage(ctx, ev, delivery)
 	if err != nil {
 		return err
 	}
@@ -930,18 +953,28 @@ func routeLabel(delivery routing.Delivery) string {
 	return delivery.RouteID
 }
 
-func hashFingerprint(alert models.Alert) string {
+// deriveKey identifies an event whose sender gave it no key: the same source,
+// origin, start and labels are the same event.
+func deriveKey(ev models.Event) string {
+	var url string
+	var at time.Time
+	switch {
+	case ev.Alertmanager != nil:
+		url, at = ev.Alertmanager.GeneratorURL, ev.Alertmanager.StartsAt
+	case ev.Universal != nil:
+		url, at = ev.Universal.URL, ev.Universal.Time
+	}
 	h := sha256.New()
-	_, _ = h.Write([]byte(alert.Source))
-	_, _ = h.Write([]byte(alert.Generator))
-	_, _ = h.Write([]byte(alert.StartsAt.Format(time.RFC3339)))
-	keys := make([]string, 0, len(alert.Labels))
-	for key := range alert.Labels {
+	_, _ = h.Write([]byte(ev.Source))
+	_, _ = h.Write([]byte(url))
+	_, _ = h.Write([]byte(at.Format(time.RFC3339)))
+	keys := make([]string, 0, len(ev.Labels))
+	for key := range ev.Labels {
 		keys = append(keys, key)
 	}
 	sort.Strings(keys)
 	for _, key := range keys {
-		value := alert.Labels[key]
+		value := ev.Labels[key]
 		_, _ = h.Write([]byte(key))
 		_, _ = h.Write([]byte("="))
 		_, _ = h.Write([]byte(value))

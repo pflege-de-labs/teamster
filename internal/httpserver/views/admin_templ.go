@@ -250,7 +250,7 @@ func templates(page Page) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = editorLine("title", i18n.T(ctx, "templates.title_field"), "{{ .Alert.Annotations.summary }}", page.editingTemplate().Title, "template-line").Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = editorLine("title", i18n.T(ctx, "templates.title_field"), "{{ .Event.Title }}", page.editingTemplate().Title, "template-line").Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -315,7 +315,7 @@ func templates(page Page) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var12 string
-				templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.ResolveAttributeValue(i18n.T(ctx, "templates.sample_alert"))
+				templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.ResolveAttributeValue(i18n.T(ctx, "templates.sample_event"))
 				if templ_7745c5c3_Err != nil {
 					return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 71, Col: 57}
 				}

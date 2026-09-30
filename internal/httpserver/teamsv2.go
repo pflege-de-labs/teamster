@@ -45,8 +45,8 @@ var slugPattern = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,62}[a-z0-9])?$`)
 // goes to, which is the whole contract of the webhook this replaces. It renders
 // the endpoint's template when it names one, and otherwise sends the payload as
 // given with a hint card after it (ADR 0040). Nothing is written to
-// active_alerts, because there is no fingerprint and no status -- there is
-// nothing later to update or resolve.
+// active_events, because there is no key and no state -- there is
+// nothing later to update or close.
 func (s *Server) handleTeamsV2(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	if r.Method != http.MethodPost {
@@ -130,12 +130,12 @@ func (s *Server) teamsV2Message(ctx context.Context, endpoint models.WebhookEndp
 	var payload any
 	_ = json.Unmarshal(body, &payload)
 	// Never routed (ADR 0030), but a template reads the label like any other.
-	alert := models.Alert{Source: teamsV2Source, Labels: models.WithSourceLabel(nil, teamsV2Source), Title: msg.Title, Text: msg.Text}
+	ev := models.Event{Source: teamsV2Source, Labels: models.WithSourceLabel(nil, teamsV2Source), Title: msg.Title, Text: msg.Text}
 	if len(msg.Cards) > 0 {
-		alert.Card = msg.Cards[0]
+		ev.Card = msg.Cards[0]
 	}
 	rendered, err := templates.RenderMessage(template, templates.RenderData{
-		Alert:   alert,
+		Event:   ev,
 		Now:     s.now().Format(time.RFC3339),
 		Payload: payload,
 	})

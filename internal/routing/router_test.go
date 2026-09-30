@@ -231,64 +231,64 @@ func (s stubStore) GetRoute(ctx context.Context, id string) (models.Route, error
 	return models.Route{}, store.ErrNotFound
 }
 
-func (s stubStore) ClaimActiveAlert(ctx context.Context, _ models.AlertClaim) (models.ActiveAlert, store.ClaimOutcome, error) {
-	return models.ActiveAlert{}, store.ClaimHeld, store.ErrNotFound
+func (s stubStore) ClaimActiveEvent(ctx context.Context, _ models.EventClaim) (models.ActiveEvent, store.ClaimOutcome, error) {
+	return models.ActiveEvent{}, store.ClaimHeld, store.ErrNotFound
 }
 
-func (s stubStore) CompleteActiveAlertClaim(ctx context.Context, _ models.AlertClaim, _, _ string, _ time.Time) error {
+func (s stubStore) CompleteActiveEventClaim(ctx context.Context, _ models.EventClaim, _, _ string, _ time.Time) error {
 	return store.ErrNotFound
 }
 
-func (s stubStore) ReleaseActiveAlertClaim(ctx context.Context, _ models.AlertClaim) error {
+func (s stubStore) ReleaseActiveEventClaim(ctx context.Context, _ models.EventClaim) error {
 	return store.ErrNotFound
 }
 
-func (s stubStore) TouchActiveAlert(ctx context.Context, _ models.ActiveAlert, _ string, _ time.Time) error {
+func (s stubStore) TouchActiveEvent(ctx context.Context, _ models.ActiveEvent, _ models.EventState, _ time.Time) error {
 	return store.ErrNotFound
 }
 
-func (s stubStore) ListActiveAlerts(ctx context.Context, fingerprint string) ([]models.ActiveAlert, error) {
+func (s stubStore) ListActiveEvents(ctx context.Context, fingerprint string) ([]models.ActiveEvent, error) {
 	return nil, store.ErrNotFound
 }
 
-func (s stubStore) CountActiveAlerts(ctx context.Context) (int64, error) { return 0, store.ErrNotFound }
+func (s stubStore) CountActiveEvents(ctx context.Context) (int64, error) { return 0, store.ErrNotFound }
 
-func (s stubStore) GetActiveAlert(ctx context.Context, fingerprint, teamID, channelID string) (models.ActiveAlert, error) {
-	return models.ActiveAlert{}, store.ErrNotFound
+func (s stubStore) GetActiveEvent(ctx context.Context, fingerprint, teamID, channelID string) (models.ActiveEvent, error) {
+	return models.ActiveEvent{}, store.ErrNotFound
 }
 
-func (s stubStore) DeleteActiveAlertCard(ctx context.Context, _, _, _, _ string) error {
+func (s stubStore) DeleteActiveEventCard(ctx context.Context, _, _, _, _ string) error {
 	return store.ErrNotFound
 }
 
 // The chat half of the claim protocol. Routing never reaches it -- planning is
 // what this package does, delivery is the server's -- but Store is one
 // interface, so it is implemented here for the compiler.
-func (s stubStore) ClaimActiveAlertRecipient(ctx context.Context, _ models.RecipientClaim) (models.ActiveAlertRecipient, store.ClaimOutcome, error) {
-	return models.ActiveAlertRecipient{}, store.ClaimHeld, store.ErrNotFound
+func (s stubStore) ClaimActiveEventRecipient(ctx context.Context, _ models.RecipientClaim) (models.ActiveEventRecipient, store.ClaimOutcome, error) {
+	return models.ActiveEventRecipient{}, store.ClaimHeld, store.ErrNotFound
 }
 
-func (s stubStore) CompleteActiveAlertRecipientClaim(ctx context.Context, _ models.RecipientClaim, _ string, _ time.Time) error {
+func (s stubStore) CompleteActiveEventRecipientClaim(ctx context.Context, _ models.RecipientClaim, _ string, _ time.Time) error {
 	return store.ErrNotFound
 }
 
-func (s stubStore) ReleaseActiveAlertRecipientClaim(ctx context.Context, _ models.RecipientClaim) error {
+func (s stubStore) ReleaseActiveEventRecipientClaim(ctx context.Context, _ models.RecipientClaim) error {
 	return store.ErrNotFound
 }
 
-func (s stubStore) TouchActiveAlertRecipient(ctx context.Context, _ models.ActiveAlertRecipient, _ string, _ time.Time) error {
+func (s stubStore) TouchActiveEventRecipient(ctx context.Context, _ models.ActiveEventRecipient, _ models.EventState, _ time.Time) error {
 	return store.ErrNotFound
 }
 
-func (s stubStore) ListActiveAlertRecipients(ctx context.Context, fingerprint string) ([]models.ActiveAlertRecipient, error) {
+func (s stubStore) ListActiveEventRecipients(ctx context.Context, fingerprint string) ([]models.ActiveEventRecipient, error) {
 	return nil, store.ErrNotFound
 }
 
-func (s stubStore) DeleteActiveAlertRecipientCard(ctx context.Context, _, _, _ string) error {
+func (s stubStore) DeleteActiveEventRecipientCard(ctx context.Context, _, _, _ string) error {
 	return store.ErrNotFound
 }
 
-func (s stubStore) DeleteActiveAlertRecipientsFor(ctx context.Context, recipientID string) error {
+func (s stubStore) DeleteActiveEventRecipientsFor(ctx context.Context, recipientID string) error {
 	return store.ErrNotFound
 }
 
@@ -340,15 +340,15 @@ func (s stubStore) UpdateBrokerToken(ctx context.Context, _ models.BrokerToken) 
 
 func (s stubStore) DeleteBrokerToken(ctx context.Context, _ string) error { return store.ErrNotFound }
 
-func (s stubStore) RecordAlertSamples(ctx context.Context, _ []models.AlertSample) error {
+func (s stubStore) RecordEventSamples(ctx context.Context, _ []models.EventSample) error {
 	return store.ErrNotFound
 }
 
-func (s stubStore) ListAlertSamples(ctx context.Context, _ int) ([]models.AlertSample, error) {
+func (s stubStore) ListEventSamples(ctx context.Context, _ int) ([]models.EventSample, error) {
 	return nil, store.ErrNotFound
 }
 
-func (s stubStore) PruneAlertSamples(ctx context.Context, _ time.Time, _ int) (int64, error) {
+func (s stubStore) PruneEventSamples(ctx context.Context, _ time.Time, _ int) (int64, error) {
 	return 0, store.ErrNotFound
 }
 

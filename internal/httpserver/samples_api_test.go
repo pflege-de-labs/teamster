@@ -27,9 +27,9 @@ func samplesConfig(enabled bool) config.Config {
 func seededSamples() *fakeStore {
 	st := newFakeStore()
 	now := time.Now().UTC()
-	st.samples = []models.AlertSample{
-		{Kind: models.SampleAnnotation, Key: "summary", SeenCount: 1, LastSeen: now},
-		{Kind: models.SampleAnnotation, Key: "description", SeenCount: 1, LastSeen: now},
+	st.samples = []models.EventSample{
+		{Kind: models.SampleAttribute, Key: "summary", SeenCount: 1, LastSeen: now},
+		{Kind: models.SampleAttribute, Key: "description", SeenCount: 1, LastSeen: now},
 		{Kind: models.SampleLabel, Key: "env", Value: "prod", SeenCount: 3, LastSeen: now},
 		{Kind: models.SampleLabel, Key: "env", Value: "stage", SeenCount: 1, LastSeen: now},
 		{Kind: models.SampleLabel, Key: "env", Value: "dev", SeenCount: 1, LastSeen: now},
@@ -50,11 +50,11 @@ func TestSamplesEndpoint(t *testing.T) {
 		want       *samplesResponse
 	}{
 		{
-			name: "an editor gets labels capped per key and annotation keys by name", enabled: true,
+			name: "an editor gets labels capped per key and attribute keys by name", enabled: true,
 			roles: []authz.Role{authz.RoleEditor}, method: http.MethodGet, wantStatus: http.StatusOK,
 			want: &samplesResponse{
-				Labels:      map[string][]string{"env": {"prod", "stage"}},
-				Annotations: []string{"description", "summary"},
+				Labels:     map[string][]string{"env": {"prod", "stage"}},
+				Attributes: []string{"description", "summary"},
 			},
 		},
 		{
@@ -68,7 +68,7 @@ func TestSamplesEndpoint(t *testing.T) {
 		{
 			name: "disabled answers empty rather than with what an earlier run kept", enabled: false,
 			roles: []authz.Role{authz.RoleEditor}, method: http.MethodGet, wantStatus: http.StatusOK,
-			want: &samplesResponse{Labels: map[string][]string{}, Annotations: []string{}},
+			want: &samplesResponse{Labels: map[string][]string{}, Attributes: []string{}},
 		},
 		{
 			name: "a store failure is a 500", enabled: true, fail: true,
@@ -85,7 +85,7 @@ func TestSamplesEndpoint(t *testing.T) {
 
 			st := sessionAs(seededSamples(), tt.roles...)
 			if tt.fail {
-				st.fail("ListAlertSamples")
+				st.fail("ListEventSamples")
 			}
 			handler := mustServer(t, samplesConfig(tt.enabled), st, &fakeMessenger{}).Handler
 
@@ -140,31 +140,37 @@ func TestTheLayoutAdvertisesSamplesOnlyToEditors(t *testing.T) {
 }
 
 type recordingSampler struct {
-	mu       sync.Mutex
-	observed []map[string]string
+	mu         sync.Mutex
+	observed   []map[string]string
+	attributes []map[string]string
 }
 
-func (r *recordingSampler) Observe(labels, _ map[string]string) {
+func (r *recordingSampler) Observe(labels, attributes map[string]string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.observed = append(r.observed, labels)
+	r.attributes = append(r.attributes, attributes)
 }
 
-// Sampling happens before routing, so an alert nothing routes still counts.
-func TestEveryIncomingAlertIsSampled(t *testing.T) {
+// Sampling happens before routing, so an event nothing routes still counts.
+func TestEveryIncomingEventIsSampled(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name string
-		path string
-		body string
-		want map[string]string
+		name      string
+		path      string
+		body      string
+		want      map[string]string
+		wantAttrs map[string]string
 	}{
-		{"universal", "/webhook/universal", `{"status":"firing","labels":{"team":"db"}}`, map[string]string{"team": "db", models.SourceLabel: models.SourceUniversal}},
+		{
+			"universal", "/webhook/universal", `{"state":"open","labels":{"team":"db"},"attributes":{"summary":"s"}}`,
+			map[string]string{"team": "db", models.SourceLabel: models.SourceUniversal}, map[string]string{"summary": "s"},
+		},
 		{
 			"alertmanager", "/webhook/alertmanager",
-			`{"status":"firing","alerts":[{"status":"firing","labels":{"alertname":"Disk"}}]}`,
-			map[string]string{"alertname": "Disk", models.SourceLabel: models.SourceAlertmanager},
+			`{"status":"firing","alerts":[{"status":"firing","labels":{"alertname":"Disk"},"annotations":{"runbook":"r"}}]}`,
+			map[string]string{"alertname": "Disk", models.SourceLabel: models.SourceAlertmanager}, map[string]string{"runbook": "r"},
 		},
 	}
 	for _, tt := range tests {
@@ -181,7 +187,10 @@ func TestEveryIncomingAlertIsSampled(t *testing.T) {
 			rec.mu.Lock()
 			defer rec.mu.Unlock()
 			if len(rec.observed) != 1 || !reflect.DeepEqual(rec.observed[0], tt.want) {
-				t.Errorf("observed %v, want one alert labelled %v", rec.observed, tt.want)
+				t.Errorf("observed %v, want one event labelled %v", rec.observed, tt.want)
+			}
+			if len(rec.attributes) != 1 || !reflect.DeepEqual(rec.attributes[0], tt.wantAttrs) {
+				t.Errorf("attributes %v, want %v", rec.attributes, tt.wantAttrs)
 			}
 		})
 	}

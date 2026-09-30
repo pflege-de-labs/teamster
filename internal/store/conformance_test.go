@@ -1089,23 +1089,23 @@ func TestConformanceDeletingARecipientCascadesActiveAlertRows(t *testing.T) {
 		}
 
 		claim := models.RecipientClaim{
-			Fingerprint: "fp-1", RecipientID: recipient.ID, Status: "firing",
+			Key: "fp-1", RecipientID: recipient.ID, State: "firing",
 			Owner: "owner", At: now, StaleBefore: now.Add(-time.Minute),
 		}
-		if _, outcome, err := st.ClaimActiveAlertRecipient(ctx, claim); err != nil || outcome != store.ClaimAcquired {
-			t.Fatalf("ClaimActiveAlertRecipient = %v/%v, want acquired", outcome, err)
+		if _, outcome, err := st.ClaimActiveEventRecipient(ctx, claim); err != nil || outcome != store.ClaimAcquired {
+			t.Fatalf("ClaimActiveEventRecipient = %v/%v, want acquired", outcome, err)
 		}
-		if err := st.CompleteActiveAlertRecipientClaim(ctx, claim, "activity-1", now); err != nil {
-			t.Fatalf("CompleteActiveAlertRecipientClaim: %v", err)
+		if err := st.CompleteActiveEventRecipientClaim(ctx, claim, "activity-1", now); err != nil {
+			t.Fatalf("CompleteActiveEventRecipientClaim: %v", err)
 		}
 
 		if err := st.DeleteRecipient(ctx, recipient.ID); err != nil {
 			t.Fatalf("DeleteRecipient: %v", err)
 		}
 
-		rows, err := st.ListActiveAlertRecipients(ctx, "fp-1")
+		rows, err := st.ListActiveEventRecipients(ctx, "fp-1")
 		if err != nil {
-			t.Fatalf("ListActiveAlertRecipients: %v", err)
+			t.Fatalf("ListActiveEventRecipients: %v", err)
 		}
 		if len(rows) != 0 {
 			t.Errorf("active_alert_recipients = %+v after DeleteRecipient, want the cascade to have removed them", rows)
@@ -1203,11 +1203,11 @@ func TestConformanceConcurrentClaims(t *testing.T) {
 			go func() {
 				defer wg.Done()
 				<-start
-				_, outcome, err := st.ClaimActiveAlert(ctx, models.AlertClaim{
-					Fingerprint: "fp",
+				_, outcome, err := st.ClaimActiveEvent(ctx, models.EventClaim{
+					Key:         "fp",
 					TeamID:      "team",
 					ChannelID:   "channel",
-					Status:      "firing",
+					State:       "firing",
 					Owner:       fmt.Sprintf("owner-%d", i),
 					At:          now,
 					StaleBefore: now.Add(-time.Minute),
@@ -1242,12 +1242,12 @@ func TestConformanceClaimLifecycle(t *testing.T) {
 		ctx := t.Context()
 		now := time.Now().UTC()
 
-		claim := models.AlertClaim{
-			Fingerprint: "fp", TeamID: "team", ChannelID: "channel", Status: "firing",
+		claim := models.EventClaim{
+			Key: "fp", TeamID: "team", ChannelID: "channel", State: "firing",
 			Owner: "mine", At: now, StaleBefore: now.Add(-time.Minute),
 		}
 
-		card, outcome, err := st.ClaimActiveAlert(ctx, claim)
+		card, outcome, err := st.ClaimActiveEvent(ctx, claim)
 		if err != nil || outcome != store.ClaimAcquired {
 			t.Fatalf("claim = %v/%v, want acquired", outcome, err)
 		}
@@ -1255,14 +1255,14 @@ func TestConformanceClaimLifecycle(t *testing.T) {
 			t.Error("a fresh claim reports a card, want none yet")
 		}
 
-		if err := st.CompleteActiveAlertClaim(ctx, claim, "message-1", "conversation-1", now); err != nil {
-			t.Fatalf("CompleteActiveAlertClaim: %v", err)
+		if err := st.CompleteActiveEventClaim(ctx, claim, "message-1", "conversation-1", now); err != nil {
+			t.Fatalf("CompleteActiveEventClaim: %v", err)
 		}
 
 		// A second writer now finds a card rather than a claim.
 		theirs := claim
 		theirs.Owner = "theirs"
-		existing, outcome, err := st.ClaimActiveAlert(ctx, theirs)
+		existing, outcome, err := st.ClaimActiveEvent(ctx, theirs)
 		if err != nil || outcome != store.ClaimPosted {
 			t.Fatalf("claim over a card = %v/%v, want posted", outcome, err)
 		}
@@ -1271,14 +1271,14 @@ func TestConformanceClaimLifecycle(t *testing.T) {
 		}
 
 		// And completing the claim they never had must not take it from us.
-		if err := st.CompleteActiveAlertClaim(ctx, theirs, "message-2", "", now); !errors.Is(err, store.ErrClaimLost) {
+		if err := st.CompleteActiveEventClaim(ctx, theirs, "message-2", "", now); !errors.Is(err, store.ErrClaimLost) {
 			t.Errorf("completing a lost claim = %v, want ErrClaimLost", err)
 		}
 
-		if err := st.DeleteActiveAlertCard(ctx, "fp", "team", "channel", "message-1"); err != nil {
-			t.Fatalf("DeleteActiveAlertCard: %v", err)
+		if err := st.DeleteActiveEventCard(ctx, "fp", "team", "channel", "message-1"); err != nil {
+			t.Fatalf("DeleteActiveEventCard: %v", err)
 		}
-		if _, err := st.GetActiveAlert(ctx, "fp", "team", "channel"); !errors.Is(err, store.ErrNotFound) {
+		if _, err := st.GetActiveEvent(ctx, "fp", "team", "channel"); !errors.Is(err, store.ErrNotFound) {
 			t.Errorf("after the delete = %v, want ErrNotFound", err)
 		}
 	})
@@ -1343,10 +1343,10 @@ func TestConformanceConcurrentRecipientClaims(t *testing.T) {
 			go func() {
 				defer wg.Done()
 				<-start
-				_, outcome, err := st.ClaimActiveAlertRecipient(ctx, models.RecipientClaim{
-					Fingerprint: "fp",
+				_, outcome, err := st.ClaimActiveEventRecipient(ctx, models.RecipientClaim{
+					Key:         "fp",
 					RecipientID: "person",
-					Status:      "firing",
+					State:       "firing",
 					Owner:       fmt.Sprintf("owner-%d", i),
 					At:          now,
 					StaleBefore: now.Add(-time.Minute),
@@ -1382,11 +1382,11 @@ func TestConformanceRecipientClaimLifecycle(t *testing.T) {
 		now := time.Now().UTC().Truncate(time.Microsecond)
 
 		claim := models.RecipientClaim{
-			Fingerprint: "fp", RecipientID: "person", Status: "firing",
+			Key: "fp", RecipientID: "person", State: "firing",
 			Owner: "mine", At: now, StaleBefore: now.Add(-time.Minute),
 		}
 
-		card, outcome, err := st.ClaimActiveAlertRecipient(ctx, claim)
+		card, outcome, err := st.ClaimActiveEventRecipient(ctx, claim)
 		if err != nil || outcome != store.ClaimAcquired {
 			t.Fatalf("claim = %v/%v, want acquired", outcome, err)
 		}
@@ -1394,13 +1394,13 @@ func TestConformanceRecipientClaimLifecycle(t *testing.T) {
 			t.Error("a fresh claim reports a message, want none yet")
 		}
 
-		if err := st.CompleteActiveAlertRecipientClaim(ctx, claim, "activity-1", now); err != nil {
-			t.Fatalf("CompleteActiveAlertRecipientClaim: %v", err)
+		if err := st.CompleteActiveEventRecipientClaim(ctx, claim, "activity-1", now); err != nil {
+			t.Fatalf("CompleteActiveEventRecipientClaim: %v", err)
 		}
 
 		theirs := claim
 		theirs.Owner = "theirs"
-		existing, outcome, err := st.ClaimActiveAlertRecipient(ctx, theirs)
+		existing, outcome, err := st.ClaimActiveEventRecipient(ctx, theirs)
 		if err != nil || outcome != store.ClaimPosted {
 			t.Fatalf("claim over a message = %v/%v, want posted", outcome, err)
 		}
@@ -1411,19 +1411,19 @@ func TestConformanceRecipientClaimLifecycle(t *testing.T) {
 			t.Errorf("PostedAt = %v, want %v", got, now)
 		}
 
-		if err := st.CompleteActiveAlertRecipientClaim(ctx, theirs, "activity-2", now); !errors.Is(err, store.ErrClaimLost) {
+		if err := st.CompleteActiveEventRecipientClaim(ctx, theirs, "activity-2", now); !errors.Is(err, store.ErrClaimLost) {
 			t.Errorf("completing a lost claim = %v, want ErrClaimLost", err)
 		}
 
 		// Touch matches on the message id, so an update meant for an older
 		// message cannot restamp a newer one.
 		later := now.Add(time.Minute)
-		if err := st.TouchActiveAlertRecipient(ctx, existing, "firing", later); err != nil {
-			t.Fatalf("TouchActiveAlertRecipient: %v", err)
+		if err := st.TouchActiveEventRecipient(ctx, existing, "firing", later); err != nil {
+			t.Fatalf("TouchActiveEventRecipient: %v", err)
 		}
-		listed, err := st.ListActiveAlertRecipients(ctx, "fp")
+		listed, err := st.ListActiveEventRecipients(ctx, "fp")
 		if err != nil {
-			t.Fatalf("ListActiveAlertRecipients: %v", err)
+			t.Fatalf("ListActiveEventRecipients: %v", err)
 		}
 		if len(listed) != 1 {
 			t.Fatalf("listed %d messages, want 1", len(listed))
@@ -1432,12 +1432,12 @@ func TestConformanceRecipientClaimLifecycle(t *testing.T) {
 			t.Errorf("LastUpdate = %v, want %v", got, later)
 		}
 
-		if err := st.DeleteActiveAlertRecipientCard(ctx, "fp", "person", "activity-1"); err != nil {
-			t.Fatalf("DeleteActiveAlertRecipientCard: %v", err)
+		if err := st.DeleteActiveEventRecipientCard(ctx, "fp", "person", "activity-1"); err != nil {
+			t.Fatalf("DeleteActiveEventRecipientCard: %v", err)
 		}
-		listed, err = st.ListActiveAlertRecipients(ctx, "fp")
+		listed, err = st.ListActiveEventRecipients(ctx, "fp")
 		if err != nil {
-			t.Fatalf("ListActiveAlertRecipients: %v", err)
+			t.Fatalf("ListActiveEventRecipients: %v", err)
 		}
 		if len(listed) != 0 {
 			t.Errorf("after the delete %d messages remain, want 0", len(listed))
@@ -1458,20 +1458,20 @@ func TestConformanceRecipientMessageWithoutAnActivityID(t *testing.T) {
 		now := time.Now().UTC().Truncate(time.Microsecond)
 
 		claim := models.RecipientClaim{
-			Fingerprint: "fp", RecipientID: "person", Status: "firing",
+			Key: "fp", RecipientID: "person", State: "firing",
 			Owner: "mine", At: now, StaleBefore: now.Add(-time.Minute),
 		}
-		if _, _, err := st.ClaimActiveAlertRecipient(ctx, claim); err != nil {
-			t.Fatalf("ClaimActiveAlertRecipient: %v", err)
+		if _, _, err := st.ClaimActiveEventRecipient(ctx, claim); err != nil {
+			t.Fatalf("ClaimActiveEventRecipient: %v", err)
 		}
-		if err := st.CompleteActiveAlertRecipientClaim(ctx, claim, "", now); err != nil {
+		if err := st.CompleteActiveEventRecipientClaim(ctx, claim, "", now); err != nil {
 			t.Fatalf("completing with no activity id: %v", err)
 		}
 
 		// The next firing must find a posted message rather than a free slot.
 		theirs := claim
 		theirs.Owner = "theirs"
-		existing, outcome, err := st.ClaimActiveAlertRecipient(ctx, theirs)
+		existing, outcome, err := st.ClaimActiveEventRecipient(ctx, theirs)
 		if err != nil {
 			t.Fatalf("second claim: %v", err)
 		}
@@ -1484,15 +1484,15 @@ func TestConformanceRecipientMessageWithoutAnActivityID(t *testing.T) {
 
 		// And an empty id is an ordinary equality here, not a NULL, so the row
 		// stays reachable by both of the statements keyed on it.
-		if err := st.TouchActiveAlertRecipient(ctx, existing, "firing", now.Add(time.Minute)); err != nil {
-			t.Fatalf("TouchActiveAlertRecipient: %v", err)
+		if err := st.TouchActiveEventRecipient(ctx, existing, "firing", now.Add(time.Minute)); err != nil {
+			t.Fatalf("TouchActiveEventRecipient: %v", err)
 		}
-		if err := st.DeleteActiveAlertRecipientCard(ctx, "fp", "person", ""); err != nil {
-			t.Fatalf("DeleteActiveAlertRecipientCard: %v", err)
+		if err := st.DeleteActiveEventRecipientCard(ctx, "fp", "person", ""); err != nil {
+			t.Fatalf("DeleteActiveEventRecipientCard: %v", err)
 		}
-		listed, err := st.ListActiveAlertRecipients(ctx, "fp")
+		listed, err := st.ListActiveEventRecipients(ctx, "fp")
 		if err != nil {
-			t.Fatalf("ListActiveAlertRecipients: %v", err)
+			t.Fatalf("ListActiveEventRecipients: %v", err)
 		}
 		if len(listed) != 0 {
 			t.Errorf("%d messages remain, want 0", len(listed))
@@ -1512,26 +1512,26 @@ func TestConformanceRecipientClaimRelease(t *testing.T) {
 		now := time.Now().UTC()
 
 		claim := models.RecipientClaim{
-			Fingerprint: "fp", RecipientID: "person", Status: "firing",
+			Key: "fp", RecipientID: "person", State: "firing",
 			Owner: "mine", At: now, StaleBefore: now.Add(-time.Minute),
 		}
-		if _, _, err := st.ClaimActiveAlertRecipient(ctx, claim); err != nil {
-			t.Fatalf("ClaimActiveAlertRecipient: %v", err)
+		if _, _, err := st.ClaimActiveEventRecipient(ctx, claim); err != nil {
+			t.Fatalf("ClaimActiveEventRecipient: %v", err)
 		}
 
 		notMine := claim
 		notMine.Owner = "theirs"
-		if err := st.ReleaseActiveAlertRecipientClaim(ctx, notMine); err != nil {
-			t.Fatalf("ReleaseActiveAlertRecipientClaim: %v", err)
+		if err := st.ReleaseActiveEventRecipientClaim(ctx, notMine); err != nil {
+			t.Fatalf("ReleaseActiveEventRecipientClaim: %v", err)
 		}
-		if _, outcome, err := st.ClaimActiveAlertRecipient(ctx, notMine); err != nil || outcome != store.ClaimHeld {
+		if _, outcome, err := st.ClaimActiveEventRecipient(ctx, notMine); err != nil || outcome != store.ClaimHeld {
 			t.Fatalf("after a foreign release = %v/%v, want the claim still held", outcome, err)
 		}
 
-		if err := st.ReleaseActiveAlertRecipientClaim(ctx, claim); err != nil {
-			t.Fatalf("ReleaseActiveAlertRecipientClaim: %v", err)
+		if err := st.ReleaseActiveEventRecipientClaim(ctx, claim); err != nil {
+			t.Fatalf("ReleaseActiveEventRecipientClaim: %v", err)
 		}
-		if _, outcome, err := st.ClaimActiveAlertRecipient(ctx, notMine); err != nil || outcome != store.ClaimAcquired {
+		if _, outcome, err := st.ClaimActiveEventRecipient(ctx, notMine); err != nil || outcome != store.ClaimAcquired {
 			t.Fatalf("after releasing our own = %v/%v, want acquirable", outcome, err)
 		}
 	})
@@ -1547,35 +1547,35 @@ func TestConformanceChannelAndChatClaimsAreIndependent(t *testing.T) {
 		ctx := t.Context()
 		now := time.Now().UTC()
 
-		channel := models.AlertClaim{
-			Fingerprint: "fp", TeamID: "team", ChannelID: "channel", Status: "firing",
+		channel := models.EventClaim{
+			Key: "fp", TeamID: "team", ChannelID: "channel", State: "firing",
 			Owner: "mine", At: now, StaleBefore: now.Add(-time.Minute),
 		}
 		chat := models.RecipientClaim{
-			Fingerprint: "fp", RecipientID: "person", Status: "firing",
+			Key: "fp", RecipientID: "person", State: "firing",
 			Owner: "mine", At: now, StaleBefore: now.Add(-time.Minute),
 		}
 
-		if _, _, err := st.ClaimActiveAlert(ctx, channel); err != nil {
-			t.Fatalf("ClaimActiveAlert: %v", err)
+		if _, _, err := st.ClaimActiveEvent(ctx, channel); err != nil {
+			t.Fatalf("ClaimActiveEvent: %v", err)
 		}
-		if _, _, err := st.ClaimActiveAlertRecipient(ctx, chat); err != nil {
-			t.Fatalf("ClaimActiveAlertRecipient: %v", err)
+		if _, _, err := st.ClaimActiveEventRecipient(ctx, chat); err != nil {
+			t.Fatalf("ClaimActiveEventRecipient: %v", err)
 		}
-		if err := st.CompleteActiveAlertClaim(ctx, channel, "message-1", "", now); err != nil {
-			t.Fatalf("CompleteActiveAlertClaim: %v", err)
+		if err := st.CompleteActiveEventClaim(ctx, channel, "message-1", "", now); err != nil {
+			t.Fatalf("CompleteActiveEventClaim: %v", err)
 		}
-		if err := st.CompleteActiveAlertRecipientClaim(ctx, chat, "activity-1", now); err != nil {
-			t.Fatalf("CompleteActiveAlertRecipientClaim: %v", err)
+		if err := st.CompleteActiveEventRecipientClaim(ctx, chat, "activity-1", now); err != nil {
+			t.Fatalf("CompleteActiveEventRecipientClaim: %v", err)
 		}
 
 		// Resolving the chat leaves the card alone.
-		if err := st.DeleteActiveAlertRecipientCard(ctx, "fp", "person", "activity-1"); err != nil {
-			t.Fatalf("DeleteActiveAlertRecipientCard: %v", err)
+		if err := st.DeleteActiveEventRecipientCard(ctx, "fp", "person", "activity-1"); err != nil {
+			t.Fatalf("DeleteActiveEventRecipientCard: %v", err)
 		}
-		cards, err := st.ListActiveAlerts(ctx, "fp")
+		cards, err := st.ListActiveEvents(ctx, "fp")
 		if err != nil {
-			t.Fatalf("ListActiveAlerts: %v", err)
+			t.Fatalf("ListActiveEvents: %v", err)
 		}
 		if len(cards) != 1 {
 			t.Errorf("%d cards remain, want the channel card untouched", len(cards))

@@ -182,9 +182,9 @@ func (s *PostgresStore) SeedTemplates(ctx context.Context, templates []models.Te
 	return seeded, err
 }
 
-// RecordAlertSamples overrides queryAdapter's to commit the batch at once.
-func (s *PostgresStore) RecordAlertSamples(ctx context.Context, samples []models.AlertSample) error {
-	return recordAlertSamplesInTx(ctx, s, samples)
+// RecordEventSamples overrides queryAdapter's to commit the batch at once.
+func (s *PostgresStore) RecordEventSamples(ctx context.Context, samples []models.EventSample) error {
+	return recordEventSamplesInTx(ctx, s, samples)
 }
 
 func (s *PostgresStore) WithTx(ctx context.Context, fn func(ctx context.Context, tx Store) error) error {

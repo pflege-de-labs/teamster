@@ -492,8 +492,8 @@ func (s queryAdapter) DeleteRecipient(ctx context.Context, id string) error {
 
 // deleteRecipientCascade is the store-level DeleteRecipient both SQLiteStore
 // and PostgresStore expose, overriding queryAdapter's single-statement one:
-// an alert claimed or posted to this recipient must not survive the person it
-// was claimed for, or a resolve would fail against a row nothing will ever
+// an event claimed or posted to this recipient must not survive the person it
+// was claimed for, or a close would fail against a row nothing will ever
 // clear again (see internal/httpserver/webhooks.go's handling of a recipient
 // GetRecipient can no longer find, which is the defence for a row stranded
 // some other way). Running inside one transaction is what makes "unlinked but
@@ -503,7 +503,7 @@ func deleteRecipientCascade(ctx context.Context, s interface {
 	WithTx(ctx context.Context, fn func(ctx context.Context, tx Store) error) error
 }, id string) error {
 	return s.WithTx(ctx, func(ctx context.Context, tx Store) error {
-		if err := tx.DeleteActiveAlertRecipientsFor(ctx, id); err != nil {
+		if err := tx.DeleteActiveEventRecipientsFor(ctx, id); err != nil {
 			return err
 		}
 		return tx.DeleteRecipient(ctx, id)
@@ -901,51 +901,51 @@ func routeOf(row sqlitedb.Route) models.Route {
 	}
 }
 
-// ClaimActiveAlert reaps an abandoned claim and then takes the row, both in
+// ClaimActiveEvent reaps an abandoned claim and then takes the row, both in
 // one transaction. Two statements rather than one upsert with a WHERE, because
 // the two need different timestamps -- the cutoff and this claim's own -- and
 // sqlc folds two parameters that infer the same column name into one. Reading
 // the row afterwards is what turns "the insert did nothing" into a reason.
-func (s queryAdapter) ClaimActiveAlert(ctx context.Context, claim models.AlertClaim) (models.ActiveAlert, ClaimOutcome, error) {
+func (s queryAdapter) ClaimActiveEvent(ctx context.Context, claim models.EventClaim) (models.ActiveEvent, ClaimOutcome, error) {
 	reaped, err := s.q.ReapStaleClaim(ctx, sqlitedb.ReapStaleClaimParams{
-		Fingerprint: claim.Fingerprint,
-		TeamID:      claim.TeamID,
-		ChannelID:   claim.ChannelID,
-		ClaimedAt:   sql.NullTime{Time: claim.StaleBefore, Valid: true},
+		EventKey:  claim.Key,
+		TeamID:    claim.TeamID,
+		ChannelID: claim.ChannelID,
+		ClaimedAt: sql.NullTime{Time: claim.StaleBefore, Valid: true},
 	})
 	if err != nil {
-		return models.ActiveAlert{}, ClaimHeld, fmt.Errorf("reap stale claim: %w", err)
+		return models.ActiveEvent{}, ClaimHeld, fmt.Errorf("reap stale claim: %w", err)
 	}
 
-	row, err := s.q.ClaimActiveAlert(ctx, sqlitedb.ClaimActiveAlertParams{
-		Fingerprint: claim.Fingerprint,
-		TeamID:      claim.TeamID,
-		ChannelID:   claim.ChannelID,
-		Status:      claim.Status,
-		ClaimOwner:  claim.Owner,
-		ClaimedAt:   sql.NullTime{Time: claim.At, Valid: true},
-		LastUpdate:  claim.At,
+	row, err := s.q.ClaimActiveEvent(ctx, sqlitedb.ClaimActiveEventParams{
+		EventKey:   claim.Key,
+		TeamID:     claim.TeamID,
+		ChannelID:  claim.ChannelID,
+		State:      string(claim.State),
+		ClaimOwner: claim.Owner,
+		ClaimedAt:  sql.NullTime{Time: claim.At, Valid: true},
+		LastUpdate: claim.At,
 	})
 	switch {
 	case err == nil:
 		if reaped > 0 {
-			return activeAlertOf(row), ClaimRecovered, nil
+			return activeEventOf(row), ClaimRecovered, nil
 		}
-		return activeAlertOf(row), ClaimAcquired, nil
+		return activeEventOf(row), ClaimAcquired, nil
 	case !errors.Is(notFound(err), ErrNotFound):
-		return models.ActiveAlert{}, ClaimHeld, fmt.Errorf("claim active alert: %w", err)
+		return models.ActiveEvent{}, ClaimHeld, fmt.Errorf("claim active event: %w", err)
 	}
 
 	// The insert conflicted, so somebody was there first. Which of the two
 	// answers it is depends on whether they got as far as posting.
-	existing, err := s.GetActiveAlert(ctx, claim.Fingerprint, claim.TeamID, claim.ChannelID)
+	existing, err := s.GetActiveEvent(ctx, claim.Key, claim.TeamID, claim.ChannelID)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
-			// Gone between the two statements: a resolve deleted it. Treat it
+			// Gone between the two statements: a close deleted it. Treat it
 			// as held rather than looping, and let the sender retry.
-			return models.ActiveAlert{}, ClaimHeld, nil
+			return models.ActiveEvent{}, ClaimHeld, nil
 		}
-		return models.ActiveAlert{}, ClaimHeld, err
+		return models.ActiveEvent{}, ClaimHeld, err
 	}
 	if existing.Posted() {
 		return existing, ClaimPosted, nil
@@ -953,12 +953,12 @@ func (s queryAdapter) ClaimActiveAlert(ctx context.Context, claim models.AlertCl
 	return existing, ClaimHeld, nil
 }
 
-func (s queryAdapter) CompleteActiveAlertClaim(ctx context.Context, claim models.AlertClaim, messageID, conversationID string, at time.Time) error {
-	_, err := s.q.CompleteActiveAlertClaim(ctx, sqlitedb.CompleteActiveAlertClaimParams{
-		Fingerprint:    claim.Fingerprint,
+func (s queryAdapter) CompleteActiveEventClaim(ctx context.Context, claim models.EventClaim, messageID, conversationID string, at time.Time) error {
+	_, err := s.q.CompleteActiveEventClaim(ctx, sqlitedb.CompleteActiveEventClaimParams{
+		EventKey:       claim.Key,
 		TeamID:         claim.TeamID,
 		ChannelID:      claim.ChannelID,
-		Status:         claim.Status,
+		State:          string(claim.State),
 		MessageID:      messageID,
 		ClaimOwner:     claim.Owner,
 		ClaimedAt:      sql.NullTime{Time: claim.At, Valid: true},
@@ -974,106 +974,106 @@ func (s queryAdapter) CompleteActiveAlertClaim(ctx context.Context, claim models
 		// card. The message just posted has nothing pointing at it.
 		return ErrClaimLost
 	default:
-		return fmt.Errorf("complete active alert claim: %w", err)
+		return fmt.Errorf("complete active event claim: %w", err)
 	}
 }
 
-func (s queryAdapter) ReleaseActiveAlertClaim(ctx context.Context, claim models.AlertClaim) error {
-	err := s.q.ReleaseActiveAlertClaim(ctx, sqlitedb.ReleaseActiveAlertClaimParams{
-		Fingerprint: claim.Fingerprint,
-		TeamID:      claim.TeamID,
-		ChannelID:   claim.ChannelID,
-		ClaimOwner:  claim.Owner,
+func (s queryAdapter) ReleaseActiveEventClaim(ctx context.Context, claim models.EventClaim) error {
+	err := s.q.ReleaseActiveEventClaim(ctx, sqlitedb.ReleaseActiveEventClaimParams{
+		EventKey:   claim.Key,
+		TeamID:     claim.TeamID,
+		ChannelID:  claim.ChannelID,
+		ClaimOwner: claim.Owner,
 	})
 	if err != nil {
-		return fmt.Errorf("release active alert claim: %w", err)
+		return fmt.Errorf("release active event claim: %w", err)
 	}
 	return nil
 }
 
-func (s queryAdapter) TouchActiveAlert(ctx context.Context, card models.ActiveAlert, status string, at time.Time) error {
-	err := s.q.TouchActiveAlert(ctx, sqlitedb.TouchActiveAlertParams{
-		Status:      status,
-		LastUpdate:  at,
-		Fingerprint: card.Fingerprint,
-		TeamID:      card.TeamID,
-		ChannelID:   card.ChannelID,
-		MessageID:   card.MessageID,
+func (s queryAdapter) TouchActiveEvent(ctx context.Context, card models.ActiveEvent, state models.EventState, at time.Time) error {
+	err := s.q.TouchActiveEvent(ctx, sqlitedb.TouchActiveEventParams{
+		State:      string(state),
+		LastUpdate: at,
+		EventKey:   card.Key,
+		TeamID:     card.TeamID,
+		ChannelID:  card.ChannelID,
+		MessageID:  card.MessageID,
 	})
 	if err != nil {
-		return fmt.Errorf("touch active alert: %w", err)
+		return fmt.Errorf("touch active event: %w", err)
 	}
 	return nil
 }
 
-func (s queryAdapter) ListActiveAlerts(ctx context.Context, fingerprint string) ([]models.ActiveAlert, error) {
-	rows, err := s.q.ListActiveAlerts(ctx, fingerprint)
+func (s queryAdapter) ListActiveEvents(ctx context.Context, key string) ([]models.ActiveEvent, error) {
+	rows, err := s.q.ListActiveEvents(ctx, key)
 	if err != nil {
-		return nil, fmt.Errorf("list active alerts: %w", err)
+		return nil, fmt.Errorf("list active events: %w", err)
 	}
 	if len(rows) == 0 {
 		return nil, nil
 	}
-	out := make([]models.ActiveAlert, 0, len(rows))
+	out := make([]models.ActiveEvent, 0, len(rows))
 	for _, row := range rows {
-		out = append(out, activeAlertOf(row))
+		out = append(out, activeEventOf(row))
 	}
 	return out, nil
 }
 
-func (s queryAdapter) CountActiveAlerts(ctx context.Context) (int64, error) {
-	count, err := s.q.CountActiveAlerts(ctx)
+func (s queryAdapter) CountActiveEvents(ctx context.Context) (int64, error) {
+	count, err := s.q.CountActiveEvents(ctx)
 	if err != nil {
-		return 0, fmt.Errorf("count active alerts: %w", err)
+		return 0, fmt.Errorf("count active events: %w", err)
 	}
 	return count, nil
 }
 
-func (s queryAdapter) GetActiveAlert(ctx context.Context, fingerprint, teamID, channelID string) (models.ActiveAlert, error) {
-	row, err := s.q.GetActiveAlert(ctx, sqlitedb.GetActiveAlertParams{
-		Fingerprint: fingerprint,
-		TeamID:      teamID,
-		ChannelID:   channelID,
+func (s queryAdapter) GetActiveEvent(ctx context.Context, key, teamID, channelID string) (models.ActiveEvent, error) {
+	row, err := s.q.GetActiveEvent(ctx, sqlitedb.GetActiveEventParams{
+		EventKey:  key,
+		TeamID:    teamID,
+		ChannelID: channelID,
 	})
 	if err != nil {
 		if err := notFound(err); errors.Is(err, ErrNotFound) {
-			return models.ActiveAlert{}, err
+			return models.ActiveEvent{}, err
 		}
-		return models.ActiveAlert{}, fmt.Errorf("get active alert: %w", err)
+		return models.ActiveEvent{}, fmt.Errorf("get active event: %w", err)
 	}
-	return activeAlertOf(row), nil
+	return activeEventOf(row), nil
 }
 
-func (s queryAdapter) DeleteActiveAlertCard(ctx context.Context, fingerprint, teamID, channelID, messageID string) error {
-	err := s.q.DeleteActiveAlertCard(ctx, sqlitedb.DeleteActiveAlertCardParams{
-		Fingerprint: fingerprint,
-		TeamID:      teamID,
-		ChannelID:   channelID,
-		MessageID:   messageID,
+func (s queryAdapter) DeleteActiveEventCard(ctx context.Context, key, teamID, channelID, messageID string) error {
+	err := s.q.DeleteActiveEventCard(ctx, sqlitedb.DeleteActiveEventCardParams{
+		EventKey:  key,
+		TeamID:    teamID,
+		ChannelID: channelID,
+		MessageID: messageID,
 	})
 	if err != nil {
-		return fmt.Errorf("delete active alert card: %w", err)
+		return fmt.Errorf("delete active event card: %w", err)
 	}
 	return nil
 }
 
-// ClaimActiveAlertRecipient is ClaimActiveAlert mirrored for a chat delivery;
+// ClaimActiveEventRecipient is ClaimActiveEvent mirrored for a chat delivery;
 // see that method's comment for why reaping and claiming are two statements
 // rather than one.
-func (s queryAdapter) ClaimActiveAlertRecipient(ctx context.Context, claim models.RecipientClaim) (models.ActiveAlertRecipient, ClaimOutcome, error) {
+func (s queryAdapter) ClaimActiveEventRecipient(ctx context.Context, claim models.RecipientClaim) (models.ActiveEventRecipient, ClaimOutcome, error) {
 	reaped, err := s.q.ReapStaleClaimRecipient(ctx, sqlitedb.ReapStaleClaimRecipientParams{
-		Fingerprint: claim.Fingerprint,
+		EventKey:    claim.Key,
 		RecipientID: claim.RecipientID,
 		ClaimedAt:   sql.NullTime{Time: claim.StaleBefore, Valid: true},
 	})
 	if err != nil {
-		return models.ActiveAlertRecipient{}, ClaimHeld, fmt.Errorf("reap stale claim recipient: %w", err)
+		return models.ActiveEventRecipient{}, ClaimHeld, fmt.Errorf("reap stale claim recipient: %w", err)
 	}
 
-	row, err := s.q.ClaimActiveAlertRecipient(ctx, sqlitedb.ClaimActiveAlertRecipientParams{
-		Fingerprint: claim.Fingerprint,
+	row, err := s.q.ClaimActiveEventRecipient(ctx, sqlitedb.ClaimActiveEventRecipientParams{
+		EventKey:    claim.Key,
 		RecipientID: claim.RecipientID,
-		Status:      claim.Status,
+		State:       string(claim.State),
 		ClaimOwner:  claim.Owner,
 		ClaimedAt:   sql.NullTime{Time: claim.At, Valid: true},
 		LastUpdate:  claim.At,
@@ -1081,19 +1081,19 @@ func (s queryAdapter) ClaimActiveAlertRecipient(ctx context.Context, claim model
 	switch {
 	case err == nil:
 		if reaped > 0 {
-			return activeAlertRecipientOf(row), ClaimRecovered, nil
+			return activeEventRecipientOf(row), ClaimRecovered, nil
 		}
-		return activeAlertRecipientOf(row), ClaimAcquired, nil
+		return activeEventRecipientOf(row), ClaimAcquired, nil
 	case !errors.Is(notFound(err), ErrNotFound):
-		return models.ActiveAlertRecipient{}, ClaimHeld, fmt.Errorf("claim active alert recipient: %w", err)
+		return models.ActiveEventRecipient{}, ClaimHeld, fmt.Errorf("claim active event recipient: %w", err)
 	}
 
-	existing, err := s.getActiveAlertRecipient(ctx, claim.Fingerprint, claim.RecipientID)
+	existing, err := s.getActiveEventRecipient(ctx, claim.Key, claim.RecipientID)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
-			return models.ActiveAlertRecipient{}, ClaimHeld, nil
+			return models.ActiveEventRecipient{}, ClaimHeld, nil
 		}
-		return models.ActiveAlertRecipient{}, ClaimHeld, err
+		return models.ActiveEventRecipient{}, ClaimHeld, err
 	}
 	if existing.Posted() {
 		return existing, ClaimPosted, nil
@@ -1101,11 +1101,11 @@ func (s queryAdapter) ClaimActiveAlertRecipient(ctx context.Context, claim model
 	return existing, ClaimHeld, nil
 }
 
-func (s queryAdapter) CompleteActiveAlertRecipientClaim(ctx context.Context, claim models.RecipientClaim, messageID string, at time.Time) error {
-	_, err := s.q.CompleteActiveAlertRecipientClaim(ctx, sqlitedb.CompleteActiveAlertRecipientClaimParams{
-		Fingerprint: claim.Fingerprint,
+func (s queryAdapter) CompleteActiveEventRecipientClaim(ctx context.Context, claim models.RecipientClaim, messageID string, at time.Time) error {
+	_, err := s.q.CompleteActiveEventRecipientClaim(ctx, sqlitedb.CompleteActiveEventRecipientClaimParams{
+		EventKey:    claim.Key,
 		RecipientID: claim.RecipientID,
-		Status:      claim.Status,
+		State:       string(claim.State),
 		MessageID:   messageID,
 		ClaimOwner:  claim.Owner,
 		ClaimedAt:   sql.NullTime{Time: claim.At, Valid: true},
@@ -1118,91 +1118,91 @@ func (s queryAdapter) CompleteActiveAlertRecipientClaim(ctx context.Context, cla
 	case errors.Is(notFound(err), ErrNotFound):
 		return ErrClaimLost
 	default:
-		return fmt.Errorf("complete active alert recipient claim: %w", err)
+		return fmt.Errorf("complete active event recipient claim: %w", err)
 	}
 }
 
-func (s queryAdapter) ReleaseActiveAlertRecipientClaim(ctx context.Context, claim models.RecipientClaim) error {
-	err := s.q.ReleaseActiveAlertRecipientClaim(ctx, sqlitedb.ReleaseActiveAlertRecipientClaimParams{
-		Fingerprint: claim.Fingerprint,
+func (s queryAdapter) ReleaseActiveEventRecipientClaim(ctx context.Context, claim models.RecipientClaim) error {
+	err := s.q.ReleaseActiveEventRecipientClaim(ctx, sqlitedb.ReleaseActiveEventRecipientClaimParams{
+		EventKey:    claim.Key,
 		RecipientID: claim.RecipientID,
 		ClaimOwner:  claim.Owner,
 	})
 	if err != nil {
-		return fmt.Errorf("release active alert recipient claim: %w", err)
+		return fmt.Errorf("release active event recipient claim: %w", err)
 	}
 	return nil
 }
 
-func (s queryAdapter) TouchActiveAlertRecipient(ctx context.Context, card models.ActiveAlertRecipient, status string, at time.Time) error {
-	err := s.q.TouchActiveAlertRecipient(ctx, sqlitedb.TouchActiveAlertRecipientParams{
-		Status:      status,
+func (s queryAdapter) TouchActiveEventRecipient(ctx context.Context, card models.ActiveEventRecipient, state models.EventState, at time.Time) error {
+	err := s.q.TouchActiveEventRecipient(ctx, sqlitedb.TouchActiveEventRecipientParams{
+		State:       string(state),
 		LastUpdate:  at,
-		Fingerprint: card.Fingerprint,
+		EventKey:    card.Key,
 		RecipientID: card.RecipientID,
 		MessageID:   card.MessageID,
 	})
 	if err != nil {
-		return fmt.Errorf("touch active alert recipient: %w", err)
+		return fmt.Errorf("touch active event recipient: %w", err)
 	}
 	return nil
 }
 
-func (s queryAdapter) ListActiveAlertRecipients(ctx context.Context, fingerprint string) ([]models.ActiveAlertRecipient, error) {
-	rows, err := s.q.ListActiveAlertRecipients(ctx, fingerprint)
+func (s queryAdapter) ListActiveEventRecipients(ctx context.Context, key string) ([]models.ActiveEventRecipient, error) {
+	rows, err := s.q.ListActiveEventRecipients(ctx, key)
 	if err != nil {
-		return nil, fmt.Errorf("list active alert recipients: %w", err)
+		return nil, fmt.Errorf("list active event recipients: %w", err)
 	}
 	if len(rows) == 0 {
 		return nil, nil
 	}
-	out := make([]models.ActiveAlertRecipient, 0, len(rows))
+	out := make([]models.ActiveEventRecipient, 0, len(rows))
 	for _, row := range rows {
-		out = append(out, activeAlertRecipientOf(row))
+		out = append(out, activeEventRecipientOf(row))
 	}
 	return out, nil
 }
 
-// getActiveAlertRecipient is not part of Store: it exists only to let
-// ClaimActiveAlertRecipient read the row an insert conflicted against, the
-// same role GetActiveAlert plays for ClaimActiveAlert.
-func (s queryAdapter) getActiveAlertRecipient(ctx context.Context, fingerprint, recipientID string) (models.ActiveAlertRecipient, error) {
-	row, err := s.q.GetActiveAlertRecipient(ctx, sqlitedb.GetActiveAlertRecipientParams{
-		Fingerprint: fingerprint,
+// getActiveEventRecipient is not part of Store: it exists only to let
+// ClaimActiveEventRecipient read the row an insert conflicted against, the
+// same role GetActiveEvent plays for ClaimActiveEvent.
+func (s queryAdapter) getActiveEventRecipient(ctx context.Context, key, recipientID string) (models.ActiveEventRecipient, error) {
+	row, err := s.q.GetActiveEventRecipient(ctx, sqlitedb.GetActiveEventRecipientParams{
+		EventKey:    key,
 		RecipientID: recipientID,
 	})
 	if err != nil {
 		if err := notFound(err); errors.Is(err, ErrNotFound) {
-			return models.ActiveAlertRecipient{}, err
+			return models.ActiveEventRecipient{}, err
 		}
-		return models.ActiveAlertRecipient{}, fmt.Errorf("get active alert recipient: %w", err)
+		return models.ActiveEventRecipient{}, fmt.Errorf("get active event recipient: %w", err)
 	}
-	return activeAlertRecipientOf(row), nil
+	return activeEventRecipientOf(row), nil
 }
 
-func (s queryAdapter) DeleteActiveAlertRecipientCard(ctx context.Context, fingerprint, recipientID, messageID string) error {
-	err := s.q.DeleteActiveAlertRecipientCard(ctx, sqlitedb.DeleteActiveAlertRecipientCardParams{
-		Fingerprint: fingerprint,
+func (s queryAdapter) DeleteActiveEventRecipientCard(ctx context.Context, key, recipientID, messageID string) error {
+	err := s.q.DeleteActiveEventRecipientCard(ctx, sqlitedb.DeleteActiveEventRecipientCardParams{
+		EventKey:    key,
 		RecipientID: recipientID,
 		MessageID:   messageID,
 	})
 	if err != nil {
-		return fmt.Errorf("delete active alert recipient card: %w", err)
+		return fmt.Errorf("delete active event recipient card: %w", err)
 	}
 	return nil
 }
 
-func (s queryAdapter) DeleteActiveAlertRecipientsFor(ctx context.Context, recipientID string) error {
-	if err := s.q.DeleteActiveAlertRecipientsFor(ctx, recipientID); err != nil {
-		return fmt.Errorf("delete active alert recipients for: %w", err)
+func (s queryAdapter) DeleteActiveEventRecipientsFor(ctx context.Context, recipientID string) error {
+	if err := s.q.DeleteActiveEventRecipientsFor(ctx, recipientID); err != nil {
+		return fmt.Errorf("delete active event recipients for: %w", err)
 	}
 	return nil
 }
 
-func activeAlertRecipientOf(row sqlitedb.ActiveAlertRecipient) models.ActiveAlertRecipient {
-	return models.ActiveAlertRecipient{
-		Fingerprint: row.Fingerprint,
-		Status:      row.Status,
+func activeEventRecipientOf(row sqlitedb.ActiveEventRecipient) models.ActiveEventRecipient {
+	return models.ActiveEventRecipient{
+		Key:         row.EventKey,
+		State:       models.EventState(row.State),
 		RecipientID: row.RecipientID,
 		MessageID:   row.MessageID,
 		ClaimOwner:  row.ClaimOwner,
@@ -1212,10 +1212,10 @@ func activeAlertRecipientOf(row sqlitedb.ActiveAlertRecipient) models.ActiveAler
 	}
 }
 
-func activeAlertOf(row sqlitedb.ActiveAlert) models.ActiveAlert {
-	return models.ActiveAlert{
-		Fingerprint:    row.Fingerprint,
-		Status:         row.Status,
+func activeEventOf(row sqlitedb.ActiveEvent) models.ActiveEvent {
+	return models.ActiveEvent{
+		Key:            row.EventKey,
+		State:          models.EventState(row.State),
 		TeamID:         row.TeamID,
 		ChannelID:      row.ChannelID,
 		MessageID:      row.MessageID,
@@ -1548,9 +1548,9 @@ func nullTime(t time.Time) sql.NullTime {
 	return sql.NullTime{Time: t, Valid: !t.IsZero()}
 }
 
-func (s queryAdapter) RecordAlertSamples(ctx context.Context, samples []models.AlertSample) error {
+func (s queryAdapter) RecordEventSamples(ctx context.Context, samples []models.EventSample) error {
 	for _, sample := range samples {
-		err := s.q.UpsertAlertSample(ctx, sqlitedb.UpsertAlertSampleParams{
+		err := s.q.UpsertEventSample(ctx, sqlitedb.UpsertEventSampleParams{
 			Kind:      string(sample.Kind),
 			Key:       sample.Key,
 			Value:     sample.Value,
@@ -1559,34 +1559,34 @@ func (s queryAdapter) RecordAlertSamples(ctx context.Context, samples []models.A
 			LastSeen:  sample.LastSeen,
 		})
 		if err != nil {
-			return fmt.Errorf("record alert sample %s %q: %w", sample.Kind, sample.Key, err)
+			return fmt.Errorf("record event sample %s %q: %w", sample.Kind, sample.Key, err)
 		}
 	}
 	return nil
 }
 
-// recordAlertSamplesInTx is the store-level RecordAlertSamples: one commit per
+// recordEventSamplesInTx is the store-level RecordEventSamples: one commit per
 // batch rather than per row, which on SQLite is one fsync instead of dozens.
-func recordAlertSamplesInTx(ctx context.Context, s interface {
+func recordEventSamplesInTx(ctx context.Context, s interface {
 	WithTx(ctx context.Context, fn func(ctx context.Context, tx Store) error) error
-}, samples []models.AlertSample) error {
+}, samples []models.EventSample) error {
 	if len(samples) == 0 {
 		return nil
 	}
 	return s.WithTx(ctx, func(ctx context.Context, tx Store) error {
-		return tx.RecordAlertSamples(ctx, samples)
+		return tx.RecordEventSamples(ctx, samples)
 	})
 }
 
-func (s queryAdapter) ListAlertSamples(ctx context.Context, limit int) ([]models.AlertSample, error) {
-	rows, err := s.q.ListAlertSamples(ctx, int64(limit))
+func (s queryAdapter) ListEventSamples(ctx context.Context, limit int) ([]models.EventSample, error) {
+	rows, err := s.q.ListEventSamples(ctx, int64(limit))
 	if err != nil {
-		return nil, fmt.Errorf("list alert samples: %w", err)
+		return nil, fmt.Errorf("list event samples: %w", err)
 	}
-	out := make([]models.AlertSample, 0, len(rows))
+	out := make([]models.EventSample, 0, len(rows))
 	for _, row := range rows {
-		out = append(out, models.AlertSample{
-			Kind:      models.AlertSampleKind(row.Kind),
+		out = append(out, models.EventSample{
+			Kind:      models.SampleKind(row.Kind),
 			Key:       row.Key,
 			Value:     row.Value,
 			SeenCount: row.SeenCount,
@@ -1597,14 +1597,14 @@ func (s queryAdapter) ListAlertSamples(ctx context.Context, limit int) ([]models
 	return out, nil
 }
 
-func (s queryAdapter) PruneAlertSamples(ctx context.Context, cutoff time.Time, keepPerKey int) (int64, error) {
-	expired, err := s.q.DeleteAlertSamplesSeenBefore(ctx, cutoff)
+func (s queryAdapter) PruneEventSamples(ctx context.Context, cutoff time.Time, keepPerKey int) (int64, error) {
+	expired, err := s.q.DeleteEventSamplesSeenBefore(ctx, cutoff)
 	if err != nil {
-		return 0, fmt.Errorf("prune expired alert samples: %w", err)
+		return 0, fmt.Errorf("prune expired event samples: %w", err)
 	}
-	excess, err := s.q.DeleteExcessAlertSampleValues(ctx, int64(keepPerKey))
+	excess, err := s.q.DeleteExcessEventSampleValues(ctx, int64(keepPerKey))
 	if err != nil {
-		return expired, fmt.Errorf("prune excess alert sample values: %w", err)
+		return expired, fmt.Errorf("prune excess event sample values: %w", err)
 	}
 	return expired + excess, nil
 }

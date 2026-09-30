@@ -3,7 +3,7 @@
     "app": "checkout",
     "environment": "production"
   },
-  "annotations": {
+  "attributes": {
     "summary": "Deployment finished",
     "description": "checkout v2.14.0 rolled out to production"
   }

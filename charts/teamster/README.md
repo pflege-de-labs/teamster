@@ -40,7 +40,7 @@ replica would serve a database of its own — and a Deployment rolls with `Recre
 
 `persistence` applies to `sqlite` only and is ignored under `postgres`, where nothing is written
 outside `/tmp`. `persistence.enabled=false` runs on an `emptyDir`: every template, destination,
-route and active alert is lost when the pod restarts, which is a demo setting and nothing more.
+route and active event is lost when the pod restarts, which is a demo setting and nothing more.
 
 ### Bring your own Postgres
 

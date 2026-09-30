@@ -62,7 +62,7 @@ func TestUpBuildsTheSchemaFromNothing(t *testing.T) {
 		t.Fatalf("Up: %v", err)
 	}
 
-	for _, table := range []string{"templates", "destinations", "routes", "grants", "sessions", "login_flows", "active_alerts"} {
+	for _, table := range []string{"templates", "destinations", "routes", "grants", "sessions", "login_flows", "active_events", "active_event_recipients", "event_samples"} {
 		var name string
 		err := db.QueryRowContext(ctx, "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?", table).Scan(&name)
 		if err != nil {

@@ -15,8 +15,8 @@ var (
 	ErrDefaultDestination = errors.New("destination is the global default; choose another global default first")
 	// ErrClaimLost means the row this caller claimed now belongs to somebody
 	// else's card. Whatever it posted is unreachable: no row names it, so
-	// nothing will ever update or resolve it.
-	ErrClaimLost = errors.New("alert claim was taken by another writer")
+	// nothing will ever update or close it.
+	ErrClaimLost = errors.New("event claim was taken by another writer")
 	// ErrConflict means a write collided with another row on a primary key or
 	// unique index, so the caller minting the key -- a link code, say -- can
 	// simply try again with a new one instead of surfacing a constraint
@@ -36,7 +36,7 @@ const (
 	// ClaimRecovered: a claim was there but its owner never posted and the
 	// staleness cutoff has passed, so it has been taken over.
 	ClaimRecovered
-	// ClaimPosted: a card already exists, and this alert is an update to it.
+	// ClaimPosted: a card already exists, and this event is an update to it.
 	ClaimPosted
 	// ClaimHeld: another writer is inside its Graph call for this very card.
 	ClaimHeld
@@ -224,62 +224,62 @@ type Store interface {
 	CreateLoginFlow(ctx context.Context, f models.LoginFlow) error
 	TakeLoginFlow(ctx context.Context, state string) (models.LoginFlow, error)
 
-	// ClaimActiveAlert takes the right to post the card for one channel, or
+	// ClaimActiveEvent takes the right to post the card for one channel, or
 	// reports who has it. The Graph call that follows happens outside any
 	// transaction, so the claim row is the only record that a post is in
 	// flight — which is what lets a process that dies mid-post be recovered
-	// rather than leave the alert stuck.
-	ClaimActiveAlert(ctx context.Context, claim models.AlertClaim) (models.ActiveAlert, ClaimOutcome, error)
-	// CompleteActiveAlertClaim records the card the claim produced. It returns
+	// rather than leave the event stuck.
+	ClaimActiveEvent(ctx context.Context, claim models.EventClaim) (models.ActiveEvent, ClaimOutcome, error)
+	// CompleteActiveEventClaim records the card the claim produced. It returns
 	// ErrClaimLost when the claim is no longer the caller's, which means the
 	// message just posted is an orphan and nothing can adopt it.
-	CompleteActiveAlertClaim(ctx context.Context, claim models.AlertClaim, messageID, conversationID string, at time.Time) error
-	// ReleaseActiveAlertClaim hands back a claim whose post failed, so the next
+	CompleteActiveEventClaim(ctx context.Context, claim models.EventClaim, messageID, conversationID string, at time.Time) error
+	// ReleaseActiveEventClaim hands back a claim whose post failed, so the next
 	// attempt need not wait out the staleness cutoff.
-	ReleaseActiveAlertClaim(ctx context.Context, claim models.AlertClaim) error
-	// TouchActiveAlert records that an existing card was updated. It matches on
+	ReleaseActiveEventClaim(ctx context.Context, claim models.EventClaim) error
+	// TouchActiveEvent records that an existing card was updated. It matches on
 	// the message id, so an update to a card that has since been replaced does
 	// not stamp its replacement.
-	TouchActiveAlert(ctx context.Context, card models.ActiveAlert, status string, at time.Time) error
-	ListActiveAlerts(ctx context.Context, fingerprint string) ([]models.ActiveAlert, error)
-	// CountActiveAlerts is how many cards this service is currently keeping up
+	TouchActiveEvent(ctx context.Context, card models.ActiveEvent, state models.EventState, at time.Time) error
+	ListActiveEvents(ctx context.Context, key string) ([]models.ActiveEvent, error)
+	// CountActiveEvents is how many cards this service is currently keeping up
 	// to date. It runs on every metrics collection, so it counts rather than
 	// reads.
-	CountActiveAlerts(ctx context.Context) (int64, error)
-	GetActiveAlert(ctx context.Context, fingerprint, teamID, channelID string) (models.ActiveAlert, error)
-	// DeleteActiveAlertCard forgets one card, and only if it is still that
-	// card: a resolve racing a refire must not delete the new card's row.
-	DeleteActiveAlertCard(ctx context.Context, fingerprint, teamID, channelID, messageID string) error
+	CountActiveEvents(ctx context.Context) (int64, error)
+	GetActiveEvent(ctx context.Context, key, teamID, channelID string) (models.ActiveEvent, error)
+	// DeleteActiveEventCard forgets one card, and only if it is still that
+	// card: a close racing a reopen must not delete the new card's row.
+	DeleteActiveEventCard(ctx context.Context, key, teamID, channelID, messageID string) error
 
 	// The six methods below are the claim protocol above, mirrored for a chat
-	// delivery against active_alert_recipients rather than active_alerts: a
+	// delivery against active_event_recipients rather than active_events: a
 	// person has no Team or channel to key on, so it is a parallel table
 	// rather than a wider key (ADR 0026). See ADR 0021 for the protocol these
 	// mirror.
-	ClaimActiveAlertRecipient(ctx context.Context, claim models.RecipientClaim) (models.ActiveAlertRecipient, ClaimOutcome, error)
-	CompleteActiveAlertRecipientClaim(ctx context.Context, claim models.RecipientClaim, messageID string, at time.Time) error
-	ReleaseActiveAlertRecipientClaim(ctx context.Context, claim models.RecipientClaim) error
-	TouchActiveAlertRecipient(ctx context.Context, card models.ActiveAlertRecipient, status string, at time.Time) error
-	ListActiveAlertRecipients(ctx context.Context, fingerprint string) ([]models.ActiveAlertRecipient, error)
-	// DeleteActiveAlertRecipientCard forgets one card, and only if it is still
-	// that card: a resolve racing a refire must not delete the new card's row.
-	DeleteActiveAlertRecipientCard(ctx context.Context, fingerprint, recipientID, messageID string) error
-	// DeleteActiveAlertRecipientsFor forgets every row for one recipient,
-	// regardless of fingerprint or message id. SQLiteStore and PostgresStore
+	ClaimActiveEventRecipient(ctx context.Context, claim models.RecipientClaim) (models.ActiveEventRecipient, ClaimOutcome, error)
+	CompleteActiveEventRecipientClaim(ctx context.Context, claim models.RecipientClaim, messageID string, at time.Time) error
+	ReleaseActiveEventRecipientClaim(ctx context.Context, claim models.RecipientClaim) error
+	TouchActiveEventRecipient(ctx context.Context, card models.ActiveEventRecipient, state models.EventState, at time.Time) error
+	ListActiveEventRecipients(ctx context.Context, key string) ([]models.ActiveEventRecipient, error)
+	// DeleteActiveEventRecipientCard forgets one card, and only if it is still
+	// that card: a close racing a reopen must not delete the new card's row.
+	DeleteActiveEventRecipientCard(ctx context.Context, key, recipientID, messageID string) error
+	// DeleteActiveEventRecipientsFor forgets every row for one recipient,
+	// regardless of key or message id. SQLiteStore and PostgresStore
 	// call it inside the same transaction as DeleteRecipient, so unlinking
-	// someone cannot strand a claimed or posted row that a resolve would then
+	// someone cannot strand a claimed or posted row that a close would then
 	// fail against forever.
-	DeleteActiveAlertRecipientsFor(ctx context.Context, recipientID string) error
+	DeleteActiveEventRecipientsFor(ctx context.Context, recipientID string) error
 
-	// RecordAlertSamples adds each sample's SeenCount to what is stored for its
+	// RecordEventSamples adds each sample's SeenCount to what is stored for its
 	// kind, key and value, creating the row if there is none (ADR 0041).
 	// SQLiteStore and PostgresStore commit the whole batch in one transaction.
-	RecordAlertSamples(ctx context.Context, samples []models.AlertSample) error
-	// ListAlertSamples returns at most limit samples, grouped by kind and key
+	RecordEventSamples(ctx context.Context, samples []models.EventSample) error
+	// ListEventSamples returns at most limit samples, grouped by kind and key
 	// and most recently seen first within each key.
-	ListAlertSamples(ctx context.Context, limit int) ([]models.AlertSample, error)
-	// PruneAlertSamples forgets samples last seen before cutoff, and label
+	ListEventSamples(ctx context.Context, limit int) ([]models.EventSample, error)
+	// PruneEventSamples forgets samples last seen before cutoff, and label
 	// values beyond the keepPerKey most recently seen for each key. Replicas
 	// sharing a database may all run it: a second run finds nothing to delete.
-	PruneAlertSamples(ctx context.Context, cutoff time.Time, keepPerKey int) (int64, error)
+	PruneEventSamples(ctx context.Context, cutoff time.Time, keepPerKey int) (int64, error)
 }

@@ -1,5 +1,5 @@
 // Package metrics is what this service says about itself: how long requests
-// take, how many alerts it delivered, how many cards it is keeping up to date.
+// take, how many events it delivered, how many cards it is keeping up to date.
 //
 // Everything is recorded against the OpenTelemetry metric API once, and read by
 // as many exporters as the deployment configures — the Prometheus exporter on
@@ -42,7 +42,7 @@ type Metrics struct {
 	deliveries   metric.Int64Counter
 	receipts     metric.Int64Counter
 	renderFails  metric.Int64Counter
-	activeAlerts metric.Int64ObservableGauge
+	activeEvents metric.Int64ObservableGauge
 	registration metric.Registration
 	withoutApp   metric.Int64ObservableGauge
 	appReg       metric.Registration

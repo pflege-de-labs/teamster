@@ -8,7 +8,7 @@ import (
 	"github.com/pflege-de-labs/teamster/internal/models"
 )
 
-// A route can select on the webhook an alert arrived at (ADR 0052), and a
+// A route can select on the webhook an event arrived at (ADR 0052), and a
 // sender cannot claim another one.
 func TestRoutesSelectOnTheSourceLabel(t *testing.T) {
 	t.Parallel()
@@ -26,13 +26,13 @@ func TestRoutesSelectOnTheSourceLabel(t *testing.T) {
 		},
 		{
 			name: "universal", path: "/webhook/universal",
-			body:        `{"status":"firing","labels":{"alertname":"Disk"},"fingerprint":"fp-u"}`,
+			body:        `{"state":"open","labels":{"alertname":"Disk"},"key":"fp-u"}`,
 			wantChannel: "u-channel",
 		},
 		{
 			// The server's value wins over the sender's.
 			name: "a universal sender claiming alertmanager", path: "/webhook/universal",
-			body:        `{"status":"firing","labels":{"alertname":"Disk","teamster_source":"alertmanager"},"fingerprint":"fp-s"}`,
+			body:        `{"state":"open","labels":{"alertname":"Disk","teamster_source":"alertmanager"},"key":"fp-s"}`,
 			wantChannel: "u-channel",
 		},
 	}
@@ -61,24 +61,24 @@ func TestRoutesSelectOnTheSourceLabel(t *testing.T) {
 	}
 }
 
-// A fingerprint computed from the labels ignores the source label, so a card
-// posted before the label existed is still the one a later resolve finds.
-func TestTheSourceLabelLeavesTheFingerprintAlone(t *testing.T) {
+// A key derived from the labels ignores the source label, so a card
+// posted before the label existed is still the one a later close finds.
+func TestTheSourceLabelLeavesTheKeyAlone(t *testing.T) {
 	t.Parallel()
 
 	msg := &fakeMessenger{messageID: "graph-1"}
 	st, handler := seededServer(t, msg)
 
-	if rec := postWebhook(t, handler, "/webhook/universal", "token", `{"status":"firing","labels":{"team":"db"}}`); rec.Code != http.StatusOK {
+	if rec := postWebhook(t, handler, "/webhook/universal", "token", `{"state":"open","labels":{"team":"db"}}`); rec.Code != http.StatusOK {
 		t.Fatalf("POST = %d, want 200 (%s)", rec.Code, rec.Body.String())
 	}
-	want := hashFingerprint(models.Alert{Source: models.SourceUniversal, Labels: map[string]string{"team": "db"}})
-	for key := range st.activeAlerts {
+	want := deriveKey(models.Event{Source: models.SourceUniversal, Labels: map[string]string{"team": "db"}, Universal: &models.UniversalEvent{}})
+	for key := range st.activeEvents {
 		if !strings.HasPrefix(key, want) {
-			t.Errorf("active alert %q, want it keyed by fingerprint %s", key, want)
+			t.Errorf("active event %q, want it keyed by %s", key, want)
 		}
 	}
-	if len(st.activeAlerts) != 1 {
-		t.Errorf("active alerts = %d, want 1", len(st.activeAlerts))
+	if len(st.activeEvents) != 1 {
+		t.Errorf("active events = %d, want 1", len(st.activeEvents))
 	}
 }

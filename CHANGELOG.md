@@ -20,6 +20,21 @@ reasoning behind it in the [ADRs](docs/adr/).
   each webhook's default template.
 * The sidebar footer shows the build version.
 
+### Changed
+
+* **Breaking:** what arrives is an event, not an alert
+  ([ADR 0056](docs/adr/0056-events-not-alerts.md)). Templates read `.Event` instead of `.Alert`,
+  with `State` (`open`/`closed`) and `Key` in place of `Status` and `Fingerprint`. What only one
+  webhook knows is under `.Event.Alertmanager` or `.Event.Universal`, and Alertmanager's group
+  fields are now available there. Stored templates are rewritten by the migration.
+* **Breaking:** `/webhook/universal` takes `key`, `state`, `attributes`, `time` and `url` instead
+  of `fingerprint`, `status`, `annotations`, `starts_at` and `generator`; `ends_at` is gone. An
+  unknown `state` is refused with 400.
+* **Breaking:** the metric `teamster.active_alerts` is now `teamster.active_events`, and the
+  `status` attribute of `teamster.webhook.receipts` is now `state`.
+* **Breaking:** the schema migration renames the alert tables and cannot be run by the previous
+  release.
+
 ### Fixed
 
 * The header no longer shifts after the page loads; the sidebar state is applied before first

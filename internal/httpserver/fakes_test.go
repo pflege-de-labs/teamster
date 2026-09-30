@@ -32,16 +32,16 @@ type fakeStore struct {
 	accessTokens map[string]models.AccessToken
 	botTeams     map[string]models.BotTeam
 	routes       map[string]models.Route
-	activeAlerts map[string]models.ActiveAlert
-	// Keyed and cloned separately from activeAlerts, because the real store
+	activeEvents map[string]models.ActiveEvent
+	// Keyed and cloned separately from activeEvents, because the real store
 	// keeps chat messages in their own table for the reason ADR 0026 gives.
-	activeChats  map[string]models.ActiveAlertRecipient
+	activeChats  map[string]models.ActiveEventRecipient
 	grants       map[string]models.Grant
 	sessions     map[string]models.Session
 	brokerTokens map[string]models.BrokerToken
 	loginFlows   map[string]models.LoginFlow
 	linkFlows    map[string]models.LinkFlow
-	samples      []models.AlertSample
+	samples      []models.EventSample
 	// globalDefaultTemplate is the catch-all's template; "" is the built-in one.
 	globalDefaultTemplate string
 	// sourceDefaults maps a source to its default template.
@@ -68,8 +68,8 @@ func newFakeStore() *fakeStore {
 		accessTokens:   map[string]models.AccessToken{},
 		botTeams:       map[string]models.BotTeam{},
 		routes:         map[string]models.Route{},
-		activeAlerts:   map[string]models.ActiveAlert{},
-		activeChats:    map[string]models.ActiveAlertRecipient{},
+		activeEvents:   map[string]models.ActiveEvent{},
+		activeChats:    map[string]models.ActiveEventRecipient{},
 		sessions: map[string]models.Session{
 			// Seeded so the request helpers can act as a signed-in operator; a
 			// test that cares about being signed out builds its own request.
@@ -407,8 +407,8 @@ func (f *fakeStore) UpdateRecipient(ctx context.Context, r models.Recipient) (mo
 }
 
 // DeleteRecipient cascades to that recipient's active_alert_recipients rows,
-// mirroring the real store's SQLiteStore/PostgresStore override: an alert
-// claimed or posted to this person must not survive them, or a resolve would
+// mirroring the real store's SQLiteStore/PostgresStore override: an event
+// claimed or posted to this person must not survive them, or a close would
 // fail against a row nothing will ever clear again.
 func (f *fakeStore) DeleteRecipient(ctx context.Context, id string) error {
 	f.mu.Lock()
@@ -417,7 +417,7 @@ func (f *fakeStore) DeleteRecipient(ctx context.Context, id string) error {
 		return err
 	}
 	delete(f.recipients, id)
-	f.deleteActiveAlertRecipientsForLocked(id)
+	f.deleteActiveEventRecipientsForLocked(id)
 	return nil
 }
 
@@ -978,9 +978,9 @@ func (f *fakeStore) TakeLoginFlow(ctx context.Context, state string) (models.Log
 	return flow, nil
 }
 
-// Keyed like the real store: one card per alert per channel.
-func activeAlertKey(fingerprint, teamID, channelID string) string {
-	return fingerprint + "\x00" + teamID + "\x00" + channelID
+// Keyed like the real store: one card per event per channel.
+func activeEventKey(key, teamID, channelID string) string {
+	return key + "\x00" + teamID + "\x00" + channelID
 }
 
 func (f *fakeStore) Ping(ctx context.Context) error {
@@ -1006,7 +1006,7 @@ func (f *fakeStore) WithTx(ctx context.Context, fn func(context.Context, store.S
 		recipients:   maps.Clone(f.recipients),
 		routes:       maps.Clone(f.routes),
 		grants:       maps.Clone(f.grants),
-		activeAlerts: maps.Clone(f.activeAlerts),
+		activeEvents: maps.Clone(f.activeEvents),
 		activeChats:  maps.Clone(f.activeChats),
 		sessions:     maps.Clone(f.sessions),
 		loginFlows:   maps.Clone(f.loginFlows),
@@ -1027,7 +1027,7 @@ func (f *fakeStore) WithTx(ctx context.Context, fn func(context.Context, store.S
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.templates, f.destinations, f.routes = snapshot.templates, snapshot.destinations, snapshot.routes
-	f.recipients, f.grants, f.activeAlerts = snapshot.recipients, snapshot.grants, snapshot.activeAlerts
+	f.recipients, f.grants, f.activeEvents = snapshot.recipients, snapshot.grants, snapshot.activeEvents
 	f.activeChats = snapshot.activeChats
 	f.sessions, f.loginFlows, f.linkFlows = snapshot.sessions, snapshot.loginFlows, snapshot.linkFlows
 	f.globalDefaultTemplate = snapshot.globalDefaultTemplate
@@ -1055,7 +1055,7 @@ func (f *fakeStore) WithSerializableTx(ctx context.Context, fn func(context.Cont
 		recipients:   maps.Clone(f.recipients),
 		routes:       maps.Clone(f.routes),
 		grants:       maps.Clone(f.grants),
-		activeAlerts: maps.Clone(f.activeAlerts),
+		activeEvents: maps.Clone(f.activeEvents),
 		activeChats:  maps.Clone(f.activeChats),
 		sessions:     maps.Clone(f.sessions),
 		loginFlows:   maps.Clone(f.loginFlows),
@@ -1073,7 +1073,7 @@ func (f *fakeStore) WithSerializableTx(ctx context.Context, fn func(context.Cont
 	}
 
 	f.templates, f.destinations, f.routes = snapshot.templates, snapshot.destinations, snapshot.routes
-	f.recipients, f.grants, f.activeAlerts = snapshot.recipients, snapshot.grants, snapshot.activeAlerts
+	f.recipients, f.grants, f.activeEvents = snapshot.recipients, snapshot.grants, snapshot.activeEvents
 	f.activeChats = snapshot.activeChats
 	f.sessions, f.loginFlows, f.linkFlows = snapshot.sessions, snapshot.loginFlows, snapshot.linkFlows
 	f.globalDefaultTemplate = snapshot.globalDefaultTemplate
@@ -1137,15 +1137,15 @@ func (f *fakeStore) DeleteGrant(ctx context.Context, id string) error {
 // The claim methods run under the one mutex, which makes them atomic in the
 // same way the real store's single statements are. A fake that claimed in two
 // steps would pass tests the real thing would fail.
-func (f *fakeStore) ClaimActiveAlert(ctx context.Context, claim models.AlertClaim) (models.ActiveAlert, store.ClaimOutcome, error) {
+func (f *fakeStore) ClaimActiveEvent(ctx context.Context, claim models.EventClaim) (models.ActiveEvent, store.ClaimOutcome, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if err := f.failing("ClaimActiveAlert"); err != nil {
-		return models.ActiveAlert{}, store.ClaimHeld, err
+	if err := f.failing("ClaimActiveEvent"); err != nil {
+		return models.ActiveEvent{}, store.ClaimHeld, err
 	}
 
-	key := activeAlertKey(claim.Fingerprint, claim.TeamID, claim.ChannelID)
-	existing, found := f.activeAlerts[key]
+	key := activeEventKey(claim.Key, claim.TeamID, claim.ChannelID)
+	existing, found := f.activeEvents[key]
 	switch {
 	case found && existing.Posted():
 		return existing, store.ClaimPosted, nil
@@ -1153,82 +1153,82 @@ func (f *fakeStore) ClaimActiveAlert(ctx context.Context, claim models.AlertClai
 		return existing, store.ClaimHeld, nil
 	}
 
-	card := models.ActiveAlert{
-		Fingerprint: claim.Fingerprint,
-		Status:      claim.Status,
-		TeamID:      claim.TeamID,
-		ChannelID:   claim.ChannelID,
-		ClaimOwner:  claim.Owner,
-		ClaimedAt:   claim.At,
-		LastUpdate:  claim.At,
+	card := models.ActiveEvent{
+		Key:        claim.Key,
+		State:      claim.State,
+		TeamID:     claim.TeamID,
+		ChannelID:  claim.ChannelID,
+		ClaimOwner: claim.Owner,
+		ClaimedAt:  claim.At,
+		LastUpdate: claim.At,
 	}
-	f.activeAlerts[key] = card
+	f.activeEvents[key] = card
 	if found {
 		return card, store.ClaimRecovered, nil
 	}
 	return card, store.ClaimAcquired, nil
 }
 
-func (f *fakeStore) CompleteActiveAlertClaim(ctx context.Context, claim models.AlertClaim, messageID, conversationID string, at time.Time) error {
+func (f *fakeStore) CompleteActiveEventClaim(ctx context.Context, claim models.EventClaim, messageID, conversationID string, at time.Time) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if err := f.failing("CompleteActiveAlertClaim"); err != nil {
+	if err := f.failing("CompleteActiveEventClaim"); err != nil {
 		return err
 	}
 
-	key := activeAlertKey(claim.Fingerprint, claim.TeamID, claim.ChannelID)
-	existing, found := f.activeAlerts[key]
+	key := activeEventKey(claim.Key, claim.TeamID, claim.ChannelID)
+	existing, found := f.activeEvents[key]
 	if !found || existing.Posted() || existing.ClaimOwner != claim.Owner {
 		return store.ErrClaimLost
 	}
 	existing.MessageID = messageID
 	existing.ConversationID = conversationID
-	existing.Status = claim.Status
+	existing.State = claim.State
 	existing.PostedAt = at
 	existing.LastUpdate = at
-	f.activeAlerts[key] = existing
+	f.activeEvents[key] = existing
 	return nil
 }
 
-func (f *fakeStore) ReleaseActiveAlertClaim(ctx context.Context, claim models.AlertClaim) error {
+func (f *fakeStore) ReleaseActiveEventClaim(ctx context.Context, claim models.EventClaim) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if err := f.failing("ReleaseActiveAlertClaim"); err != nil {
+	if err := f.failing("ReleaseActiveEventClaim"); err != nil {
 		return err
 	}
 
-	key := activeAlertKey(claim.Fingerprint, claim.TeamID, claim.ChannelID)
-	if existing, found := f.activeAlerts[key]; found && !existing.Posted() && existing.ClaimOwner == claim.Owner {
-		delete(f.activeAlerts, key)
+	key := activeEventKey(claim.Key, claim.TeamID, claim.ChannelID)
+	if existing, found := f.activeEvents[key]; found && !existing.Posted() && existing.ClaimOwner == claim.Owner {
+		delete(f.activeEvents, key)
 	}
 	return nil
 }
 
-func (f *fakeStore) TouchActiveAlert(ctx context.Context, card models.ActiveAlert, status string, at time.Time) error {
+func (f *fakeStore) TouchActiveEvent(ctx context.Context, card models.ActiveEvent, state models.EventState, at time.Time) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if err := f.failing("TouchActiveAlert"); err != nil {
+	if err := f.failing("TouchActiveEvent"); err != nil {
 		return err
 	}
 
-	key := activeAlertKey(card.Fingerprint, card.TeamID, card.ChannelID)
-	if existing, found := f.activeAlerts[key]; found && existing.MessageID == card.MessageID {
-		existing.Status = status
+	key := activeEventKey(card.Key, card.TeamID, card.ChannelID)
+	if existing, found := f.activeEvents[key]; found && existing.MessageID == card.MessageID {
+		existing.State = state
 		existing.LastUpdate = at
-		f.activeAlerts[key] = existing
+		f.activeEvents[key] = existing
 	}
 	return nil
 }
 
-func (f *fakeStore) ListActiveAlerts(ctx context.Context, fingerprint string) ([]models.ActiveAlert, error) {
+func (f *fakeStore) ListActiveEvents(ctx context.Context, key string) ([]models.ActiveEvent, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if err := f.failing("ListActiveAlerts"); err != nil {
+	if err := f.failing("ListActiveEvents"); err != nil {
 		return nil, err
 	}
-	var out []models.ActiveAlert
-	for _, a := range f.activeAlerts {
-		if a.Fingerprint == fingerprint {
+	var out []models.ActiveEvent
+	for _, a := range f.activeEvents {
+		if a.Key == key {
 			out = append(out, a)
 		}
 	}
@@ -1241,14 +1241,14 @@ func (f *fakeStore) ListActiveAlerts(ctx context.Context, fingerprint string) ([
 	return out, nil
 }
 
-func (f *fakeStore) CountActiveAlerts(ctx context.Context) (int64, error) {
+func (f *fakeStore) CountActiveEvents(ctx context.Context) (int64, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if err := f.failing("CountActiveAlerts"); err != nil {
+	if err := f.failing("CountActiveEvents"); err != nil {
 		return 0, err
 	}
 	var cards int64
-	for _, a := range f.activeAlerts {
+	for _, a := range f.activeEvents {
 		if a.Posted() {
 			cards++
 		}
@@ -1256,35 +1256,35 @@ func (f *fakeStore) CountActiveAlerts(ctx context.Context) (int64, error) {
 	return cards, nil
 }
 
-func (f *fakeStore) GetActiveAlert(ctx context.Context, fingerprint, teamID, channelID string) (models.ActiveAlert, error) {
+func (f *fakeStore) GetActiveEvent(ctx context.Context, key, teamID, channelID string) (models.ActiveEvent, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if err := f.failing("GetActiveAlert"); err != nil {
-		return models.ActiveAlert{}, err
+	if err := f.failing("GetActiveEvent"); err != nil {
+		return models.ActiveEvent{}, err
 	}
-	a, ok := f.activeAlerts[activeAlertKey(fingerprint, teamID, channelID)]
+	a, ok := f.activeEvents[activeEventKey(key, teamID, channelID)]
 	if !ok {
-		return models.ActiveAlert{}, store.ErrNotFound
+		return models.ActiveEvent{}, store.ErrNotFound
 	}
 	return a, nil
 }
 
-// Keyed like the real store: one message per alert per person.
-func activeChatKey(fingerprint, recipientID string) string {
-	return fingerprint + "\x00" + recipientID
+// Keyed like the real store: one message per event per person.
+func activeChatKey(key, recipientID string) string {
+	return key + "\x00" + recipientID
 }
 
 // The chat half of the claim protocol, mirroring the channel methods above --
 // including running under the one mutex, so a fake cannot pass a race the real
 // store would lose.
-func (f *fakeStore) ClaimActiveAlertRecipient(ctx context.Context, claim models.RecipientClaim) (models.ActiveAlertRecipient, store.ClaimOutcome, error) {
+func (f *fakeStore) ClaimActiveEventRecipient(ctx context.Context, claim models.RecipientClaim) (models.ActiveEventRecipient, store.ClaimOutcome, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if err := f.failing("ClaimActiveAlertRecipient"); err != nil {
-		return models.ActiveAlertRecipient{}, store.ClaimHeld, err
+	if err := f.failing("ClaimActiveEventRecipient"); err != nil {
+		return models.ActiveEventRecipient{}, store.ClaimHeld, err
 	}
 
-	key := activeChatKey(claim.Fingerprint, claim.RecipientID)
+	key := activeChatKey(claim.Key, claim.RecipientID)
 	existing, found := f.activeChats[key]
 	switch {
 	case found && existing.Posted():
@@ -1293,9 +1293,9 @@ func (f *fakeStore) ClaimActiveAlertRecipient(ctx context.Context, claim models.
 		return existing, store.ClaimHeld, nil
 	}
 
-	card := models.ActiveAlertRecipient{
-		Fingerprint: claim.Fingerprint,
-		Status:      claim.Status,
+	card := models.ActiveEventRecipient{
+		Key:         claim.Key,
+		State:       claim.State,
 		RecipientID: claim.RecipientID,
 		ClaimOwner:  claim.Owner,
 		ClaimedAt:   claim.At,
@@ -1308,65 +1308,65 @@ func (f *fakeStore) ClaimActiveAlertRecipient(ctx context.Context, claim models.
 	return card, store.ClaimAcquired, nil
 }
 
-func (f *fakeStore) CompleteActiveAlertRecipientClaim(ctx context.Context, claim models.RecipientClaim, messageID string, at time.Time) error {
+func (f *fakeStore) CompleteActiveEventRecipientClaim(ctx context.Context, claim models.RecipientClaim, messageID string, at time.Time) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if err := f.failing("CompleteActiveAlertRecipientClaim"); err != nil {
+	if err := f.failing("CompleteActiveEventRecipientClaim"); err != nil {
 		return err
 	}
 
-	key := activeChatKey(claim.Fingerprint, claim.RecipientID)
+	key := activeChatKey(claim.Key, claim.RecipientID)
 	existing, found := f.activeChats[key]
 	if !found || existing.Posted() || existing.ClaimOwner != claim.Owner {
 		return store.ErrClaimLost
 	}
 	existing.MessageID = messageID
-	existing.Status = claim.Status
+	existing.State = claim.State
 	existing.PostedAt = at
 	existing.LastUpdate = at
 	f.activeChats[key] = existing
 	return nil
 }
 
-func (f *fakeStore) ReleaseActiveAlertRecipientClaim(ctx context.Context, claim models.RecipientClaim) error {
+func (f *fakeStore) ReleaseActiveEventRecipientClaim(ctx context.Context, claim models.RecipientClaim) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if err := f.failing("ReleaseActiveAlertRecipientClaim"); err != nil {
+	if err := f.failing("ReleaseActiveEventRecipientClaim"); err != nil {
 		return err
 	}
 
-	key := activeChatKey(claim.Fingerprint, claim.RecipientID)
+	key := activeChatKey(claim.Key, claim.RecipientID)
 	if existing, found := f.activeChats[key]; found && !existing.Posted() && existing.ClaimOwner == claim.Owner {
 		delete(f.activeChats, key)
 	}
 	return nil
 }
 
-func (f *fakeStore) TouchActiveAlertRecipient(ctx context.Context, card models.ActiveAlertRecipient, status string, at time.Time) error {
+func (f *fakeStore) TouchActiveEventRecipient(ctx context.Context, card models.ActiveEventRecipient, state models.EventState, at time.Time) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if err := f.failing("TouchActiveAlertRecipient"); err != nil {
+	if err := f.failing("TouchActiveEventRecipient"); err != nil {
 		return err
 	}
 
-	key := activeChatKey(card.Fingerprint, card.RecipientID)
+	key := activeChatKey(card.Key, card.RecipientID)
 	if existing, found := f.activeChats[key]; found && existing.MessageID == card.MessageID {
-		existing.Status = status
+		existing.State = state
 		existing.LastUpdate = at
 		f.activeChats[key] = existing
 	}
 	return nil
 }
 
-func (f *fakeStore) ListActiveAlertRecipients(ctx context.Context, fingerprint string) ([]models.ActiveAlertRecipient, error) {
+func (f *fakeStore) ListActiveEventRecipients(ctx context.Context, key string) ([]models.ActiveEventRecipient, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if err := f.failing("ListActiveAlertRecipients"); err != nil {
+	if err := f.failing("ListActiveEventRecipients"); err != nil {
 		return nil, err
 	}
-	var out []models.ActiveAlertRecipient
+	var out []models.ActiveEventRecipient
 	for _, a := range f.activeChats {
-		if a.Fingerprint == fingerprint {
+		if a.Key == key {
 			out = append(out, a)
 		}
 	}
@@ -1374,33 +1374,33 @@ func (f *fakeStore) ListActiveAlertRecipients(ctx context.Context, fingerprint s
 	return out, nil
 }
 
-func (f *fakeStore) DeleteActiveAlertRecipientCard(ctx context.Context, fingerprint, recipientID, messageID string) error {
+func (f *fakeStore) DeleteActiveEventRecipientCard(ctx context.Context, eventKey, recipientID, messageID string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if err := f.failing("DeleteActiveAlertRecipientCard"); err != nil {
+	if err := f.failing("DeleteActiveEventRecipientCard"); err != nil {
 		return err
 	}
-	key := activeChatKey(fingerprint, recipientID)
+	key := activeChatKey(eventKey, recipientID)
 	if existing, found := f.activeChats[key]; found && existing.MessageID == messageID {
 		delete(f.activeChats, key)
 	}
 	return nil
 }
 
-func (f *fakeStore) DeleteActiveAlertRecipientsFor(ctx context.Context, recipientID string) error {
+func (f *fakeStore) DeleteActiveEventRecipientsFor(ctx context.Context, recipientID string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if err := f.failing("DeleteActiveAlertRecipientsFor"); err != nil {
+	if err := f.failing("DeleteActiveEventRecipientsFor"); err != nil {
 		return err
 	}
-	f.deleteActiveAlertRecipientsForLocked(recipientID)
+	f.deleteActiveEventRecipientsForLocked(recipientID)
 	return nil
 }
 
-// deleteActiveAlertRecipientsForLocked is the unlocked body both
-// DeleteActiveAlertRecipientsFor and DeleteRecipient's cascade share -- f.mu
+// deleteActiveEventRecipientsForLocked is the unlocked body both
+// DeleteActiveEventRecipientsFor and DeleteRecipient's cascade share -- f.mu
 // is not reentrant, so DeleteRecipient cannot simply call the locking method.
-func (f *fakeStore) deleteActiveAlertRecipientsForLocked(recipientID string) {
+func (f *fakeStore) deleteActiveEventRecipientsForLocked(recipientID string) {
 	for key, card := range f.activeChats {
 		if card.RecipientID == recipientID {
 			delete(f.activeChats, key)
@@ -1408,15 +1408,15 @@ func (f *fakeStore) deleteActiveAlertRecipientsForLocked(recipientID string) {
 	}
 }
 
-func (f *fakeStore) DeleteActiveAlertCard(ctx context.Context, fingerprint, teamID, channelID, messageID string) error {
+func (f *fakeStore) DeleteActiveEventCard(ctx context.Context, eventKey, teamID, channelID, messageID string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if err := f.failing("DeleteActiveAlertCard"); err != nil {
+	if err := f.failing("DeleteActiveEventCard"); err != nil {
 		return err
 	}
-	key := activeAlertKey(fingerprint, teamID, channelID)
-	if existing, found := f.activeAlerts[key]; found && existing.MessageID == messageID {
-		delete(f.activeAlerts, key)
+	key := activeEventKey(eventKey, teamID, channelID)
+	if existing, found := f.activeEvents[key]; found && existing.MessageID == messageID {
+		delete(f.activeEvents, key)
 	}
 	return nil
 }
@@ -1558,11 +1558,11 @@ func cardOf(msg graph.Message) string {
 	return string(msg.Cards[0])
 }
 
-// RecordAlertSamples merges by kind, key and value, as the upsert does.
-func (f *fakeStore) RecordAlertSamples(ctx context.Context, samples []models.AlertSample) error {
+// RecordEventSamples merges by kind, key and value, as the upsert does.
+func (f *fakeStore) RecordEventSamples(ctx context.Context, samples []models.EventSample) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if err := f.failing("RecordAlertSamples"); err != nil {
+	if err := f.failing("RecordEventSamples"); err != nil {
 		return err
 	}
 next:
@@ -1579,21 +1579,21 @@ next:
 	return nil
 }
 
-func (f *fakeStore) ListAlertSamples(ctx context.Context, limit int) ([]models.AlertSample, error) {
+func (f *fakeStore) ListEventSamples(ctx context.Context, limit int) ([]models.EventSample, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if err := f.failing("ListAlertSamples"); err != nil {
+	if err := f.failing("ListEventSamples"); err != nil {
 		return nil, err
 	}
-	out := append([]models.AlertSample(nil), f.samples...)
+	out := append([]models.EventSample(nil), f.samples...)
 	if len(out) > limit {
 		out = out[:limit]
 	}
 	return out, nil
 }
 
-func (f *fakeStore) PruneAlertSamples(ctx context.Context, cutoff time.Time, keepPerKey int) (int64, error) {
+func (f *fakeStore) PruneEventSamples(ctx context.Context, cutoff time.Time, keepPerKey int) (int64, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	return 0, f.failing("PruneAlertSamples")
+	return 0, f.failing("PruneEventSamples")
 }

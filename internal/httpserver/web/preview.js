@@ -168,7 +168,7 @@
           title: valueOf("title"),
           text: valueOf("message_text"),
           body: valueOf("body"),
-          sample: sample ? sample.value : "firing",
+          sample: sample ? sample.value : "open",
         }),
       });
       payload = await res.json();

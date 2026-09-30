@@ -137,7 +137,7 @@ func TestASentenceIsNotBuiltByConcatenation(t *testing.T) {
 	}
 }
 
-// The palette buttons, the sample alerts and the words the Team and channel
+// The palette buttons, the sample events and the words the Team and channel
 // pickers build themselves with are part of the UI, so they are translated too.
 func TestPaletteSamplesAndPickersAreTranslated(t *testing.T) {
 	t.Parallel()
@@ -148,8 +148,7 @@ func TestPaletteSamplesAndPickersAreTranslated(t *testing.T) {
 	german := pageIn(t, handler, "/admin", "de")
 	for _, want := range []string{
 		"Fakten",                    // a palette button
-		"Nur bei ausgelöstem Alarm", // another, with its own help text
-		"Alarm: ausgelöst",          // a sample alert in the preview selector
+		"Offen oder geschlossen",    // another, with its own help text
 		`data-picker-label="Kanal"`, // what the channel picker will call itself
 		"— Team auswählen —",        // and what it shows before a choice is made
 	} {
@@ -161,9 +160,13 @@ func TestPaletteSamplesAndPickersAreTranslated(t *testing.T) {
 	if strings.Contains(german, "palette.") {
 		t.Error("a catalog key rendered instead of its text")
 	}
+	// The preview selector's sample events are catalog entries too.
+	if strings.Contains(german, ">sample.") {
+		t.Error("a sample event rendered its catalog key instead of its text")
+	}
 
 	english := pageIn(t, handler, "/admin", "en")
-	for _, want := range []string{"Facts", "firing alert", `data-picker-label="Channel"`, "— choose a team —"} {
+	for _, want := range []string{"Facts", "open event", `data-picker-label="Channel"`, "— choose a team —"} {
 		if !strings.Contains(english, want) {
 			t.Errorf("the English page is missing %q", want)
 		}
