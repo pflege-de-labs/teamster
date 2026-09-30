@@ -112,6 +112,9 @@ type PostgresConfig struct {
 type WebhookConfig struct {
 	// Optional since ADR 0044: tokens issued in the admin UI admit senders too.
 	Token string `help:"Deployment-wide webhook token, accepted as Authorization: Bearer. Optional when tokens are issued in the admin UI."`
+	// Both bound one request's fan-out to people, which has to finish within server-write-timeout.
+	MaxRecipients     int `help:"Most people one message may address." name:"max-recipients" default:"100"`
+	FanoutConcurrency int `help:"How many people one message is delivered to at once." name:"fanout-concurrency" default:"8"`
 }
 
 type AdminConfig struct {
@@ -189,6 +192,17 @@ type BotConfig struct {
 	TimeoutSec  int    `help:"Timeout in seconds for Bot Connector API calls." default:"10"`
 	// Used for a team no install event has named yet; see ADR 0045.
 	ServiceURL string `help:"Bot Connector endpoint for a team whose own is not yet known." name:"service-url" default:"https://smba.trafficmanager.net/teams/"`
+
+	GlobalInstall bool `help:"Install the Teams app for every enabled member of the tenant, and let nobody opt out." name:"global-install" default:"false"`
+	// Only an org-published app can be installed through Graph, found by one of these.
+	AppID               string        `help:"Teams app id, the manifest's id, used to find the app in the organization catalog." name:"app-id"`
+	CatalogAppID        string        `help:"Teams app catalog id; empty looks it up from bot-app-id or bot-client-id." name:"catalog-app-id"`
+	ReconcileInterval   time.Duration `help:"How often installs are checked for new and returning members; 0 checks only when an admin asks." name:"reconcile-interval" default:"6h"`
+	ReverifyInterval    time.Duration `help:"How long an install is trusted before it is checked again." name:"reverify-interval" default:"168h"`
+	InstallConcurrency  int           `help:"How many installs run at once during a reconcile." name:"install-concurrency" default:"4"`
+	InlineInstallBudget int           `help:"How many people one message may install the app for before it is delivered." name:"inline-install-budget" default:"5"`
+	WelcomeMessage      string        `help:"Sent once when the app is installed for a person; empty sends nothing." name:"welcome-message"`
+	DirectoryTTL        time.Duration `help:"How long a looked-up person is trusted before Graph is asked again." name:"directory-ttl" default:"24h"`
 }
 
 // Configured is the single place that decides whether the feature is on at
@@ -310,6 +324,55 @@ func validateMetrics(cfg Config) error {
 	return nil
 }
 
+// minReconcileInterval keeps a reconcile, which lists the whole tenant, from
+// running back to back.
+const minReconcileInterval = 5 * time.Minute
+
+// maxInstallConcurrency stays below the point where Graph throttles installs
+// harder than more workers gain.
+const maxInstallConcurrency = 16
+
+// maxRecipients caps webhook-max-recipients; a bigger audience is a broadcast.
+const maxRecipients = 1000
+
+// validateGlobalInstall is gated on GlobalInstall, like the bot on its
+// credentials. The directory TTL applies whenever the bot is configured,
+// because a message can address people the app reached some other way.
+func validateGlobalInstall(cfg BotConfig) error {
+	if cfg.Configured() && cfg.DirectoryTTL <= 0 {
+		return fmt.Errorf("bot-directory-ttl must be positive, not %s", cfg.DirectoryTTL)
+	}
+	if !cfg.GlobalInstall {
+		return nil
+	}
+	switch {
+	case !cfg.Configured():
+		return fmt.Errorf("bot-global-install needs the bot configured: bot-client-id, bot-client-secret and bot-tenant-id")
+	case cfg.AppID == "" && cfg.CatalogAppID == "":
+		return fmt.Errorf("bot-global-install needs bot-app-id or bot-catalog-app-id to find the app to install")
+	case cfg.ReconcileInterval < 0 || (cfg.ReconcileInterval > 0 && cfg.ReconcileInterval < minReconcileInterval):
+		return fmt.Errorf("bot-reconcile-interval must be 0 or at least %s, not %s", minReconcileInterval, cfg.ReconcileInterval)
+	case cfg.ReverifyInterval <= 0:
+		return fmt.Errorf("bot-reverify-interval must be positive, not %s", cfg.ReverifyInterval)
+	case cfg.InstallConcurrency < 1 || cfg.InstallConcurrency > maxInstallConcurrency:
+		return fmt.Errorf("bot-install-concurrency must be between 1 and %d, not %d", maxInstallConcurrency, cfg.InstallConcurrency)
+	case cfg.InlineInstallBudget < 0:
+		return fmt.Errorf("bot-inline-install-budget must not be negative, not %d", cfg.InlineInstallBudget)
+	}
+	return nil
+}
+
+// validateWebhook bounds the fan-out of a message addressed to people.
+func validateWebhook(cfg WebhookConfig) error {
+	if cfg.MaxRecipients < 1 || cfg.MaxRecipients > maxRecipients {
+		return fmt.Errorf("webhook-max-recipients must be between 1 and %d, not %d", maxRecipients, cfg.MaxRecipients)
+	}
+	if cfg.FanoutConcurrency < 1 {
+		return fmt.Errorf("webhook-fanout-concurrency must be positive, not %d", cfg.FanoutConcurrency)
+	}
+	return nil
+}
+
 // validateBot gates the whole feature on all three bot credentials being set
 // together, mirroring validateMetrics: a deployment that wants no chat
 // delivery configures nothing, and a partial credential is refused rather than
@@ -407,6 +470,12 @@ func Validate(cfg Config) error {
 		return err
 	}
 	if err := validateBot(cfg.Bot); err != nil {
+		return err
+	}
+	if err := validateGlobalInstall(cfg.Bot); err != nil {
+		return err
+	}
+	if err := validateWebhook(cfg.Webhook); err != nil {
 		return err
 	}
 	// Failing closed: an issuer without accepted values would admit everyone the

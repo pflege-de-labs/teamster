@@ -176,6 +176,35 @@ bot:
   # Bot Connector endpoint for a team that has not yet sent the bot an
   # activity. A team's own endpoint replaces it once one arrives (ADR 0045).
   service-url: "https://smba.trafficmanager.net/teams/"
+  # Installing the Teams app for everybody, so IT can message any employee
+  # without them linking a chat first. Not in effect yet: these are read once
+  # the installer and addressed messages land.
+  #
+  # global-install also takes away the opt-out: nobody can unlink the chat.
+  # It needs the app published to the organization catalog, and on the graph
+  # registration below User.Read.All, TeamsAppInstallation.ReadWriteForUser.All
+  # and, unless catalog-app-id is set, AppCatalog.Read.All.
+  global-install: false
+  # The manifest's id; the catalog id is looked up from it, or from client-id.
+  app-id: ""
+  catalog-app-id: ""
+  # 0 installs only when an admin asks; otherwise at least 5m.
+  reconcile-interval: "6h"
+  reverify-interval: "168h"
+  install-concurrency: 4
+  # Installs one incoming message may wait for before it is delivered.
+  inline-install-budget: 5
+  # Sent once to a person the app was just installed for; empty says nothing.
+  welcome-message: ""
+  # How long a person looked up in Graph is trusted.
+  directory-ttl: "24h"
+
+# Bounds for a message addressed to people rather than routed to a channel.
+# Not in effect yet, like global-install above. The fan-out has to finish
+# within server.write-timeout.
+webhook:
+  max-recipients: 100
+  fanout-concurrency: 8
 
 graph:
   tenant-id: "your-tenant-id"

@@ -1041,6 +1041,16 @@ on `metrics.enabled` today. Once the feature is on, `bot-metadata-url` is requir
 `https`: it is the trust anchor every inbound activity is checked against, so an empty or
 non-`https` value is refused at startup rather than registering a route that would 502 forever.
 
+`bot-global-install` and the settings beside it (`bot-app-id`, `bot-catalog-app-id`,
+`bot-reconcile-interval`, `bot-reverify-interval`, `bot-install-concurrency`,
+`bot-inline-install-budget`, `bot-welcome-message`, `bot-directory-ttl`), and
+`webhook-max-recipients` and `webhook-fanout-concurrency`, are parsed and validated but not read yet.
+They configure installing the Teams app for every enabled member and addressing messages to people.
+`validateGlobalInstall` gates the install settings on `bot-global-install`. It requires the bot to be
+configured and the app to be findable, keeps a reconcile at least five minutes apart, and caps
+install workers at 16. `bot-directory-ttl` is checked whenever the bot is configured, and
+`webhook-max-recipients` is capped at 1000: a larger audience is a broadcast, not a message.
+
 `internal/bot.NewClient` mirrors `graph.NewClient`: an `oauth2/clientcredentials` flow with the
 instrumented transport injected below oauth2's, so a token refresh is measured against the token
 endpoint rather than billed to the Bot Connector. `bot.TokenURL` derives
