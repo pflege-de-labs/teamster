@@ -49,7 +49,7 @@ Architectural decisions are recorded here, one file per decision, in
 | [0032](0032-retiring-a-link-from-the-chat.md) | A link can be retired from the chat it belongs to | Accepted |
 | [0033](0033-split-httproute-external-and-internal.md) | Split the chart's HTTPRoute into external and internal | Accepted |
 | [0034](0034-fan-out-across-independent-routes.md) | Every matching root route delivers, not only the highest priority one | Accepted |
-| [0035](0035-a-message-without-a-status-is-delivered-once.md) | A message posted without a status is delivered once, not tracked | Accepted |
+| [0035](0035-a-message-without-a-status-is-delivered-once.md) | A message posted without a status is delivered once, not tracked | Superseded in part by [0056](0056-events-not-alerts.md) |
 | [0036](0036-direct-content-when-a-route-has-no-template.md) | A route with no template sends the payload's own title, text and card | Superseded in part by [0039](0039-built-in-default-message.md) |
 | [0037](0037-delegated-teams-via-keycloak-broker-token.md) | Delegated Teams/Channels via Keycloak broker token pass-through | Accepted |
 | [0038](0038-global-default-destination.md) | Catch every unclaimed message in a global default destination | Accepted |
@@ -70,3 +70,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0053](0053-templates-name-the-webhooks-they-handle.md) | Templates name the webhooks they handle | Accepted |
 | [0054](0054-apply-sidebar-state-before-first-paint.md) | Apply the sidebar state before first paint | Accepted |
 | [0055](0055-each-webhook-has-a-default-template.md) | Each webhook has a default template | Accepted |
+| [0056](0056-events-not-alerts.md) | Model what arrives as an event, not an alert | Accepted |
