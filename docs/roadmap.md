@@ -49,8 +49,9 @@ chat. The selector is parsed into the same `map[string]string` that `parseSelect
 A `teamster manifest` subcommand and a download on `/admin/teams` build the app zip from one shared
 builder.
 
-* Inputs: `bot.client-id`, a new `bot.app-id`, the developer fields, and a version derived from the
-  release.
+* Inputs: `bot.client-id`, `bot.app-id` (added for milestone 23), the developer fields, and a
+  version derived from the release. With `bot.global-install` on, `/unlink` is left out of the
+  command list.
 * The app ID and bot ID then cannot drift apart from the running configuration, and every release
   is newer than the installed app.
 * The download is admin-only through Cedar.
@@ -60,6 +61,47 @@ builder.
 
 Grant a user or a group the right to route to someone else's chat. This extends the Cedar
 `deliverToRecipient` policy from ADR 0047 rather than adding Go checks.
+
+## Milestone 23 — Messages to individual people
+
+IT wants to message individual employees, for example about a password that is about to expire,
+without each person opting in first. Groundwork shipped: Graph user lookup and per-user install
+(#141), a personal conversation by Entra object id (#142), and the configuration (#145).
+
+### 23.1 Install for everyone
+
+`bot.global-install` installs the Teams app for every enabled member of the tenant, from a button on
+a new `/admin/people` page and on a periodic reconcile. While it is on, nobody can opt out
+([ADR 0059](adr/0059-install-the-teams-app-for-every-member.md)).
+
+### 23.2 Addressed messages
+
+A universal event names its people in a top-level `recipients` list, as UPNs, mail addresses or
+object ids; the `teamster_recipient` label does the same for any source. A route gets a third
+target, "people named in the message", so nothing is configured per person. Each person gets their
+own rendering, and templates read `.Recipient`. A message that reaches some people and not others
+answers `partial`, listing who was not reached and why.
+
+### 23.3 Your own chat without a code
+
+With global install on, an admin-UI user's own chat is found from their sign-in claims (Entra
+object id, then UPN, then verified mail), replacing the link code.
+
+### 23.4 Idempotent one-shot fan-out
+
+A one-shot event (no `state`) retried after a 502 reaches everyone again. An explicit `key` could
+serve as an idempotency key for a short window. Only if senders need it.
+
+## Milestone 24 — Announcements
+
+A webhook that messages every directory user, or an Entra group, at once. Not a bigger
+`recipients` list: it needs its own shape.
+
+* Accepted with 202 and delivered from a durable job, paced against the Bot Connector's limits.
+* Cancellable, with progress, and an audit of who sent what to whom.
+* Its own Cedar action.
+
+Follows milestone 23, whose `directory_users` and run table it builds on.
 
 ## Follow-ups from shipped work
 
@@ -73,9 +115,9 @@ Smaller items left open when a milestone shipped. Each is picked up on its own.
   ([ADR 0044](adr/0044-webhook-access-tokens.md)).
 * **Scoped webhook tokens.** Limit an access token to one webhook, or to a role's delivery grants.
   Additive.
-* **Install the Teams app from Teamster.** Graph allows installing the app into a team; a separate
-  ADR would decide whether Teamster should
-  ([ADR 0045](adr/0045-channel-delivery-through-the-bot.md)).
+* **Install the Teams app into a team from Teamster.** Graph allows it; a separate ADR would decide
+  whether Teamster should ([ADR 0045](adr/0045-channel-delivery-through-the-bot.md)). Installing
+  for people is milestone 23.
 * **Verify bot delivery against a real tenant.** Whether an edit through the stored conversation id
   updates the channel post, whether an app upgrade re-sends install events, and whether the bot can
   post to private and shared channels.
@@ -97,6 +139,8 @@ Smaller items left open when a milestone shipped. Each is picked up on its own.
 | 3 | 21 App package from teamster | — | — |
 | 4 | 22 Personal routes by grant | — | — |
 | 5 | 20.4 More commands | 20.2 | — |
+| 6 | 23 Messages to individual people | — | Graph consent: `User.Read.All`, `TeamsAppInstallation.ReadWriteForUser.All` |
+| 7 | 24 Announcements | 23 | — |
 
 Follow-ups are unordered and can be pulled in between milestones.
 

@@ -73,3 +73,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0056](0056-events-not-alerts.md) | Model what arrives as an event, not an alert | Accepted |
 | [0057](0057-channel-posts-carry-a-feed-summary.md) | Send the title as the activity summary | Accepted |
 | [0058](0058-preview-shows-the-wire-payload.md) | The preview shows the payload delivery sends | Accepted |
+| [0059](0059-install-the-teams-app-for-every-member.md) | Install the Teams app for every member of the tenant | Accepted |
