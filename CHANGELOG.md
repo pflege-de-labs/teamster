@@ -10,6 +10,13 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 ## [Unreleased]
 
+### Added
+
+* [Entra permissions and how to minimise them](docs/permissions.md) documents every permission
+  Teamster can use, what a leaked secret exposes, and smaller permission profiles. It also records
+  why the Graph and bot registrations stay separate
+  ([ADR 0066](docs/adr/0066-keep-separate-graph-and-bot-registrations.md)).
+
 ## [0.9.1] — 2026-09-30
 
 ### Fixed

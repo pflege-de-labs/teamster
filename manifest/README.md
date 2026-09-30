@@ -82,6 +82,9 @@ To reuse an existing app registration instead, create an Azure Bot resource with
 registration", set its messaging endpoint to the same URL, and enable the Microsoft Teams channel
 under Channels — the Azure resource does not enable it for you.
 
+Keep this registration apart from the `graph` one; see
+[Entra permissions and how to minimise them](../docs/permissions.md).
+
 ## Packaging and uploading
 
 Teams expects a zip containing exactly `manifest.json`, `color.png` and `outline.png` at its root

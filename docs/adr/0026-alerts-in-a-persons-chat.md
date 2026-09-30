@@ -5,7 +5,10 @@
   this bot; amended by [0047](0047-a-route-targets-a-channel-or-yourself.md): a route targets a
   channel or a person, and an editor only their own chat; amended by
   [0065](0065-your-own-chat-is-found-from-your-sign-in.md): with global install on, the chat is
-  bound from the sign-in instead of a link code
+  bound from the sign-in instead of a link code; amended by
+  [0066](0066-keep-separate-graph-and-bot-registrations.md): the two registrations are
+  re-examined against the `Self` install permissions and kept — permission scope and how to
+  minimise it in [Entra permissions](../permissions.md)
 * Date: 2026-09-15
 
 ## Context
