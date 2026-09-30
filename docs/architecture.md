@@ -1401,6 +1401,19 @@ Only the `conversationUpdate` greets: the link instructions, or with global inst
 
 ## Linking a chat
 
+With `bot.global-install` on, none of this section's codes are used: the chat is bound from the
+sign-in ([ADR 0065](adr/0065-your-own-chat-is-found-from-your-sign-in.md)). `verifyIDToken` keeps
+`object_id` (from `auth.object-id-claim`, found by the same `claimLookup` as the roles),
+`username` and `email_verified` in the session's identity. `bindOwnChat` matches them against the
+directory through the `peopleFinder`, in order: object id, username equal to the UPN, verified
+email. It then upserts a recipient keyed by the session subject with the person's chat. It runs
+after the callback and from the notifications page, both without installing. **Set up my chat
+now** (`/admin/notifications/setup`) runs it with installing allowed. A local login never binds.
+Minting, cancelling, `POST /api/recipients/link` and a code typed into the chat are refused.
+`followPersonsChat` moves every recipient with a person's object id onto the chat the bot records
+for them, using `UpdateRecipientChatsForObjectID` and the index SQLite `0022` / Postgres `0019`
+add.
+
 `POST /api/recipients/link` mints a one-time code bound to the caller's own subject, for that
 person to type or paste to the bot in their 1:1 Teams chat. It requires a real session —
 `currentSession`, not the principal a middleware already attached to the request — because

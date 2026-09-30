@@ -166,6 +166,14 @@ channel or a person.
 
 #### Linking your chat
 
+With [`bot.global-install`](#installing-the-bot-for-everyone) on, there is nothing to link: signing
+in finds your Teams chat from your Entra account, and **Notifications** says whether it did. If the
+bot has no chat with you yet, **Set up my chat now** installs it. Link codes are not used then
+([ADR 0065](docs/adr/0065-your-own-chat-is-found-from-your-sign-in.md)). With Keycloak in front of
+Entra, see [Finding each user's own Teams chat](docs/keycloak.md#finding-each-users-own-teams-chat).
+
+Otherwise:
+
 1. Any signed-in person — `viewer` and up — opens **Notifications** (`/admin/notifications`) in the
    admin UI and asks for a code. The same thing is available to a script as `POST
    /api/recipients/link`, which returns the code as JSON:

@@ -118,6 +118,23 @@ the mismatch is usually obvious without touching Keycloak. To see a token direct
 realm's account console and inspect the token, or enable Keycloak's event logging and read the
 `CODE_TO_TOKEN` events.
 
+## Finding each user's own Teams chat
+
+With `bot.global-install` on, Teamster binds a signed-in user to their own Teams chat by their
+Entra object id instead of a link code ([ADR 0065](adr/0065-your-own-chat-is-found-from-your-sign-in.md)).
+It reads the id from the claim named by `auth.object-id-claim` (default `oid`), in the id token,
+userinfo or the access token.
+
+When Keycloak federates the login against Entra, it does not pass `oid` on by itself:
+
+1. On the Entra identity provider, add a mapper of type **Attribute Importer** with **Claim** `oid`
+   and **User Attribute Name** `entra_oid`. Sync mode `force` keeps it current on every login.
+2. On the Teamster client's dedicated scope, add a mapper of type **User Attribute** with **User
+   Attribute** `entra_oid` and **Token Claim Name** `oid`. Turn on *Add to ID token*.
+
+Without the mapper, Teamster falls back to `preferred_username` when it equals the user's UPN, then
+to `email` when `email_verified` is true. That is enough in most tenants.
+
 ## Delegated Teams and channels
 
 `auth-broker-enabled` lets the Destinations picker offer each admin their own Teams and channels

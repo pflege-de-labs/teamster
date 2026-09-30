@@ -574,6 +574,10 @@ func (p pgQueries) ListEventSamples(ctx context.Context, maxRows int64) ([]sqlit
 	return out, nil
 }
 
+func (p pgQueries) UpdateRecipientChatsForObjectID(ctx context.Context, arg sqlitedb.UpdateRecipientChatsForObjectIDParams) (int64, error) {
+	return p.q.UpdateRecipientChatsForObjectID(ctx, pgdb.UpdateRecipientChatsForObjectIDParams(arg))
+}
+
 func (p pgQueries) UpsertBotTeam(ctx context.Context, arg sqlitedb.UpsertBotTeamParams) error {
 	return p.q.UpsertBotTeam(ctx, pgdb.UpsertBotTeamParams(arg))
 }

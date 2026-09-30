@@ -40,7 +40,7 @@ Architectural decisions are recorded here, one file per decision, in
 | [0023](0023-chart-deploys-either-shape.md) | The chart deploys either shape | Accepted |
 | [0024](0024-trivy-image-scanning.md) | Scan images with Trivy and report to SecObserve | Accepted |
 | [0025](0025-shell-completion.md) | Shell completion is generated from the command tree | Accepted |
-| [0026](0026-alerts-in-a-persons-chat.md) | Alerts reach a person's chat through a Bot Framework bot | Accepted, amended by [0045](0045-channel-delivery-through-the-bot.md), [0047](0047-a-route-targets-a-channel-or-yourself.md) |
+| [0026](0026-alerts-in-a-persons-chat.md) | Alerts reach a person's chat through a Bot Framework bot | Accepted, amended by [0045](0045-channel-delivery-through-the-bot.md), [0047](0047-a-route-targets-a-channel-or-yourself.md), [0065](0065-your-own-chat-is-found-from-your-sign-in.md) |
 | [0027](0027-notify-on-link-displacement.md) | A displaced recipient conversation is notified, not left silent | Accepted |
 | [0028](0028-self-service-unlink-and-code-cancellation.md) | Self-service unlink resolves from the session, and a code can be cancelled | Accepted, amended by [0061](0061-no-opt-out-when-installed-for-everyone.md) |
 | [0029](0029-templates-are-markdown.md) | Message text is authored as Markdown and sanitized once for both transports | Accepted |
@@ -79,3 +79,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0062](0062-a-route-may-deliver-to-the-people-a-message-names.md) | A route may deliver to the people a message names | Accepted |
 | [0063](0063-a-message-names-its-recipients.md) | A message names its recipients, and the answer says who was not reached | Accepted |
 | [0064](0064-chat-claims-for-people-share-the-recipient-table.md) | Chat claims for addressed people share the recipient claim table | Accepted |
+| [0065](0065-your-own-chat-is-found-from-your-sign-in.md) | Your own chat is found from your sign-in when the app is installed for everyone | Accepted |

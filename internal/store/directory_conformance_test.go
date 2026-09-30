@@ -116,6 +116,41 @@ func TestConformanceDirectoryUsers(t *testing.T) {
 	})
 }
 
+func TestConformanceRecipientsFollowTheirPersonsChat(t *testing.T) {
+	t.Parallel()
+
+	eachBackend(t, func(t *testing.T, open func(t *testing.T) store.Store) {
+		st := open(t)
+		ctx := t.Context()
+		for _, r := range []models.Recipient{
+			{Subject: "alice-oidc", AADObjectID: "oid-alice", ConversationID: "old", ServiceURL: "https://s/", BotChannelID: "msteams"},
+			{Subject: "alice-local", AADObjectID: "oid-alice", ConversationID: "old", ServiceURL: "https://s/", BotChannelID: "msteams"},
+			{Subject: "bob", AADObjectID: "oid-bob", ConversationID: "bob", ServiceURL: "https://s/", BotChannelID: "msteams"},
+			{Subject: "nobody", ConversationID: "x", ServiceURL: "https://s/", BotChannelID: "msteams"},
+		} {
+			if _, err := st.CreateRecipient(ctx, r); err != nil {
+				t.Fatalf("CreateRecipient: %v", err)
+			}
+		}
+		at := time.Date(2026, 9, 30, 12, 0, 0, 0, time.UTC)
+		if n, err := st.UpdateRecipientChatsForObjectID(ctx, "oid-alice", "new", "https://s2/", at); err != nil || n != 2 {
+			t.Fatalf("UpdateRecipientChatsForObjectID() = %d, %v, want both of Alice's", n, err)
+		}
+		if n, _ := st.UpdateRecipientChatsForObjectID(ctx, "oid-alice", "new", "https://s2/", at); n != 0 {
+			t.Errorf("a second update moved %d, want none", n)
+		}
+		if n, _ := st.UpdateRecipientChatsForObjectID(ctx, "", "new", "https://s2/", at); n != 0 {
+			t.Errorf("an empty object id moved %d recipients", n)
+		}
+		if r, _ := st.GetRecipientBySubject(ctx, "alice-local"); r.ConversationID != "new" || r.ServiceURL != "https://s2/" {
+			t.Errorf("alice-local = %+v", r)
+		}
+		if r, _ := st.GetRecipientBySubject(ctx, "bob"); r.ConversationID != "bob" {
+			t.Errorf("bob moved: %+v", r)
+		}
+	})
+}
+
 func TestConformanceDirectoryUsersDue(t *testing.T) {
 	t.Parallel()
 

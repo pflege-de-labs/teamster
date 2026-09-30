@@ -75,3 +75,11 @@ WHERE id = $3;
 UPDATE recipients
 SET blocked_at = NULL, blocked_reason = ''
 WHERE id = $1 AND blocked_at IS NOT NULL;
+
+-- UpdateRecipientChatsForObjectID moves every recipient bound to a person onto
+-- the chat the bot has with them now (ADR 0065).
+-- name: UpdateRecipientChatsForObjectID :execrows
+UPDATE recipients
+SET conversation_id = sqlc.arg(conversation_id), service_url = sqlc.arg(service_url), updated_at = sqlc.arg(at)
+WHERE aad_object_id = sqlc.arg(aad_object_id) AND aad_object_id <> ''
+	AND (conversation_id <> sqlc.arg(conversation_id) OR service_url <> sqlc.arg(service_url));

@@ -88,6 +88,7 @@ func TestParseExampleConfig(t *testing.T) {
 			OIDCScopes:       []string{"profile", "email", "roles"},
 			Claim:            "realm_access.roles",
 			GroupsClaim:      "groups",
+			ObjectIDClaim:    "oid",
 			DefaultRole:      "viewer",
 			SessionTTL:       12 * time.Hour,
 			Broker:           BrokerConfig{IdPAlias: "microsoft"},

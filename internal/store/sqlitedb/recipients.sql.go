@@ -271,3 +271,32 @@ func (q *Queries) UpdateRecipient(ctx context.Context, arg UpdateRecipientParams
 	)
 	return err
 }
+
+const updateRecipientChatsForObjectID = `-- name: UpdateRecipientChatsForObjectID :execrows
+UPDATE recipients
+SET conversation_id = ?1, service_url = ?2, updated_at = ?3
+WHERE aad_object_id = ?4 AND aad_object_id <> ''
+	AND (conversation_id <> ?1 OR service_url <> ?2)
+`
+
+type UpdateRecipientChatsForObjectIDParams struct {
+	ConversationID string
+	ServiceUrl     string
+	At             time.Time
+	AadObjectID    string
+}
+
+// UpdateRecipientChatsForObjectID moves every recipient bound to a person onto
+// the chat the bot has with them now (ADR 0065).
+func (q *Queries) UpdateRecipientChatsForObjectID(ctx context.Context, arg UpdateRecipientChatsForObjectIDParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateRecipientChatsForObjectID,
+		arg.ConversationID,
+		arg.ServiceUrl,
+		arg.At,
+		arg.AadObjectID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}

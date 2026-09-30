@@ -221,6 +221,15 @@ func (s *Server) handleAuthCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Best-effort as well: the chat can be found again from the
+	// notifications page (ADR 0065).
+	if s.managedChats() {
+		session := models.Session{Subject: subject, Name: name, Source: "oidc", Identity: identity}
+		if _, _, err := s.bindOwnChat(ctx, session, false); err != nil {
+			logError(ctx, "bind own chat", err)
+		}
+	}
+
 	// Best-effort: the broker token is what makes "my Teams" work, not what
 	// makes login work. A failure here must not cost somebody who logged in
 	// correctly their session, so it is logged and the login still succeeds --
@@ -265,7 +274,11 @@ func (s *Server) verifyIDToken(ctx context.Context, provider *oidc.Provider, tok
 		ClaimValues: values,
 		ClaimSource: source,
 	}
-	identity.Email, _ = claims["email"].(string)
+	var oids []string
+	if s.cfg.Auth.ObjectIDClaim != "" {
+		oids, _ = lookup.find(s.cfg.Auth.ObjectIDClaim)
+	}
+	applySignInClaims(&identity, claims, oids)
 	if s.cfg.Auth.GroupsClaim != "" {
 		identity.Groups, identity.GroupsSource = lookup.find(s.cfg.Auth.GroupsClaim)
 	}
@@ -381,4 +394,15 @@ func providerError(code, description string) string {
 
 func loginFailed(w http.ResponseWriter, r *http.Request, message string) {
 	http.Redirect(w, r, "/admin/login?error="+urlQueryEscape(message), http.StatusFound)
+}
+
+// applySignInClaims copies what finds a user's own Teams chat from the id token
+// claims (ADR 0065). oids is the object-id claim wherever it was found.
+func applySignInClaims(identity *models.Identity, claims map[string]any, oids []string) {
+	identity.Email, _ = claims["email"].(string)
+	identity.EmailVerified, _ = claims["email_verified"].(bool)
+	identity.Username, _ = claims["preferred_username"].(string)
+	if len(oids) > 0 {
+		identity.ObjectID = oids[0]
+	}
 }

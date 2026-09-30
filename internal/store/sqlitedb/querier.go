@@ -260,6 +260,9 @@ type Querier interface {
 	// whatever redeems the code passes the zero value for both and the flag
 	// clears itself, the same self-healing rule a successful delivery follows.
 	UpdateRecipient(ctx context.Context, arg UpdateRecipientParams) error
+	// UpdateRecipientChatsForObjectID moves every recipient bound to a person onto
+	// the chat the bot has with them now (ADR 0065).
+	UpdateRecipientChatsForObjectID(ctx context.Context, arg UpdateRecipientChatsForObjectIDParams) (int64, error)
 	UpdateRoute(ctx context.Context, arg UpdateRouteParams) error
 	UpdateTemplate(ctx context.Context, arg UpdateTemplateParams) error
 	// The token is written by its own statement, so editing an endpoint cannot

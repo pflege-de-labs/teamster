@@ -94,6 +94,16 @@ func (s queryAdapter) MarkDirectoryUserRemoved(ctx context.Context, aadObjectID 
 	return oneRow(n, err, "mark directory user removed")
 }
 
+func (s queryAdapter) UpdateRecipientChatsForObjectID(ctx context.Context, aadObjectID, conversationID, serviceURL string, at time.Time) (int64, error) {
+	n, err := s.q.UpdateRecipientChatsForObjectID(ctx, sqlitedb.UpdateRecipientChatsForObjectIDParams{
+		ConversationID: conversationID, ServiceUrl: serviceURL, At: at.UTC(), AadObjectID: aadObjectID,
+	})
+	if err != nil {
+		return 0, fmt.Errorf("update recipient chats: %w", err)
+	}
+	return n, nil
+}
+
 func (s queryAdapter) MarkDirectoryUserBlocked(ctx context.Context, aadObjectID string, at time.Time, reason string) error {
 	err := s.q.MarkDirectoryUserBlocked(ctx, sqlitedb.MarkDirectoryUserBlockedParams{
 		At: nullTime(at.UTC()), Reason: reason, AadObjectID: aadObjectID,

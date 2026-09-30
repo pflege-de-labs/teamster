@@ -306,7 +306,9 @@ func (s *Server) recordDirectoryChat(ctx context.Context, activity botActivity) 
 	}
 	if err != nil {
 		logError(ctx, "record directory chat", err)
+		return
 	}
+	s.followPersonsChat(ctx, oid, activity.Conversation.ID, activity.ServiceURL)
 }
 
 // refreshDirectoryChat keeps a known person's chat and service URL current
@@ -329,7 +331,9 @@ func (s *Server) refreshDirectoryChat(ctx context.Context, activity botActivity)
 	}
 	if err := s.store.SetDirectoryUserInstalled(ctx, oid, activity.Conversation.ID, activity.ServiceURL, time.Now().UTC()); err != nil {
 		logError(ctx, "refresh directory chat", err)
+		return
 	}
+	s.followPersonsChat(ctx, oid, activity.Conversation.ID, activity.ServiceURL)
 }
 
 // botWasAdded reports whether this activity's membersAdded includes the bot
@@ -368,6 +372,8 @@ const (
 		"link code whenever you want them back."
 	unlinkNotLinkedReply = "This chat is not linked to anyone's alerts, so there is nothing " +
 		"to unlink."
+	linkNotNeededReply = "Link codes are not needed here: signing in to the Teamster admin UI " +
+		"connects this chat to your account."
 )
 
 // mentionMarkup strips <at>...</at> mention tags Teams inserts around the
@@ -421,6 +427,11 @@ func (s *Server) handleBotMessage(ctx context.Context, activity botActivity) {
 	}
 
 	code := normalizeLinkCode(activity.Text, activity.Entities)
+	// A managed chat is bound from sign-in; a code has nothing to do (ADR 0065).
+	if code != "" && s.managedChats() {
+		s.replyText(ctx, activity, linkNotNeededReply)
+		return
+	}
 	if code == "" {
 		s.replyText(ctx, activity, linkNeutralReply)
 		return

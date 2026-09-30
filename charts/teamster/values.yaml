@@ -247,6 +247,8 @@ config:
       # claim names none of them for; empty means no access.
       # default-role: viewer
       # session-ttl: 12h
+      # Entra object id claim; finds a user's own Teams chat with global install.
+      # object-id-claim: oid
       # Delegated Teams/Channels in the Destinations picker, off by default. It
       # needs Keycloak brokering the login against Entra, and
       # credentials.brokerTokenEncryptionKey below -- never the key itself here.

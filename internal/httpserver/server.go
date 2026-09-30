@@ -246,6 +246,7 @@ func NewServer(logger *slog.Logger, cfg config.Config, store store.Store, graphC
 		adminMux.HandleFunc("/admin/notifications/link", api.handleMintLink)
 		adminMux.HandleFunc("/admin/notifications/cancel", api.formPostTo("/admin/notifications", api.cancelLink))
 		adminMux.HandleFunc("/admin/notifications/unlink", api.formPostTo("/admin/notifications", api.unlinkNotifications))
+		adminMux.HandleFunc("/admin/notifications/setup", api.formPostTo("/admin/notifications", api.setupOwnChat))
 	}
 	// Only where the app is installed for everyone; the page has nothing to
 	// show otherwise (ADR 0059).

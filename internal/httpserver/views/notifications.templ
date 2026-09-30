@@ -16,8 +16,12 @@ type Notifications struct {
 	Error  string
 
 	// Managed is set while the app is installed for everyone: the chat cannot
-	// be unlinked then (ADR 0061).
+	// be unlinked then (ADR 0061), and is found from the sign-in rather than
+	// a code (ADR 0065).
 	Managed bool
+	// Bind is how finding the chat went on a managed page with no recipient:
+	// no_account, no_chat or local.
+	Bind string
 
 	// StatusUnknown is set when Recipient is nil because the lookup failed,
 	// not because this subject is actually unlinked -- the two look the same
@@ -104,11 +108,23 @@ templ notificationsStatus(page Notifications) {
 				}
 			} else if page.StatusUnknown {
 				<p class="text-sm text-slate-600">{ i18n.T(ctx, "notifications.status_unknown") }</p>
+			} else if page.Managed {
+				<p class="text-sm text-slate-600">{ i18n.T(ctx, "notifications.bind_" + page.Bind) }</p>
 			} else {
 				<p class="text-sm text-slate-600">{ i18n.T(ctx, "notifications.not_linked") }</p>
 			}
 			<div class="flex flex-wrap gap-3">
-				if page.Recipient == nil {
+				if page.Managed && page.Bind == "no_chat" {
+					<form method="post" action="/admin/notifications/setup">
+						<button
+							type="submit"
+							class="rounded-md bg-sky-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-sky-700"
+						>
+							{ i18n.T(ctx, "notifications.setup") }
+						</button>
+					</form>
+				}
+				if page.Recipient == nil && !page.Managed {
 					<form method="post" action="/admin/notifications/link">
 						<button
 							type="submit"
@@ -118,14 +134,16 @@ templ notificationsStatus(page Notifications) {
 						</button>
 					</form>
 				}
-				<form method="post" action="/admin/notifications/cancel">
-					<button
-						type="submit"
-						class="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:border-red-400 hover:bg-red-50 hover:text-red-700"
-					>
-						{ i18n.T(ctx, "notifications.cancel_code") }
-					</button>
-				</form>
+				if !page.Managed {
+					<form method="post" action="/admin/notifications/cancel">
+						<button
+							type="submit"
+							class="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:border-red-400 hover:bg-red-50 hover:text-red-700"
+						>
+							{ i18n.T(ctx, "notifications.cancel_code") }
+						</button>
+					</form>
+				}
 				if page.Recipient != nil && !page.Managed {
 					<form method="post" action="/admin/notifications/unlink">
 						<button

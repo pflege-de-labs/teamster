@@ -181,6 +181,9 @@ type Store interface {
 	// zero for never.
 	RecordDirectoryInstallFailure(ctx context.Context, aadObjectID string, state models.InstallState, lastError string, next, at time.Time) error
 	MarkDirectoryUserRemoved(ctx context.Context, aadObjectID string, at time.Time) error
+	// UpdateRecipientChatsForObjectID moves the recipients bound to a person
+	// onto their current chat, reporting how many moved.
+	UpdateRecipientChatsForObjectID(ctx context.Context, aadObjectID, conversationID, serviceURL string, at time.Time) (int64, error)
 	// MarkDirectoryUserBlocked and ClearDirectoryUserBlocked keep the
 	// informational blocked flag, as for recipients.
 	MarkDirectoryUserBlocked(ctx context.Context, aadObjectID string, at time.Time, reason string) error
