@@ -14,6 +14,10 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 * A global install run refused for a missing permission now names `User.Read.All` in its error,
   and the README explains why `User.ReadBasic.All` is not enough.
+* An install Graph refused for a missing `TeamsAppInstallation.*ForUser*` permission stops installs
+  for the run instead of marking each person `ineligible`.
+* People marked `ineligible` are retried on their backoff, one hour doubling up to a week, so those
+  marked by the permission bug above recover once the permission is granted.
 
 ## [0.9.0] — 2026-09-30
 

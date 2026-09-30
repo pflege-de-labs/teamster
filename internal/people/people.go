@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/pflege-de-labs/teamster/internal/graph"
@@ -40,10 +41,14 @@ func Reason(err error) string {
 }
 
 // permissionDenied reports whether Graph refused err because the registration
-// lacks a permission, rather than because of the object asked about.
+// lacks a permission, rather than because of the object asked about. The Teams
+// endpoints say so with a generic Forbidden code, so only their message tells.
 func permissionDenied(err error) bool {
 	var apiErr *graph.APIError
-	return errors.As(err, &apiErr) && apiErr.Status == http.StatusForbidden && apiErr.Code == "Authorization_RequestDenied"
+	if !errors.As(err, &apiErr) || apiErr.Status != http.StatusForbidden {
+		return false
+	}
+	return apiErr.Code == "Authorization_RequestDenied" || strings.HasPrefix(apiErr.Message, "Missing role permissions")
 }
 
 // Store is the part of store.Store this package uses.

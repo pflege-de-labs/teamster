@@ -129,25 +129,39 @@ func TestEnsureTrustsAStoredChatUnlessVerifying(t *testing.T) {
 func TestEnsureStopsInstallingWithoutPermission(t *testing.T) {
 	t.Parallel()
 
-	g := newFakeGraph()
-	g.installFn = func(string) (bool, error) {
-		return false, &graph.APIError{Status: 403, Code: "Authorization_RequestDenied"}
+	tests := []struct {
+		name string
+		err  *graph.APIError
+	}{
+		{name: "directory refusal", err: &graph.APIError{Status: 403, Code: "Authorization_RequestDenied"}},
+		{name: "missing Teams role", err: &graph.APIError{Status: 403, Code: "Forbidden", Message: "Missing role permissions on the request. API requires one of 'TeamsAppInstallation.ReadWriteForUser.All'."}},
 	}
-	inst, _, u := installerFixture(t, g, newFakeChats(), true)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-	for range 3 {
-		if _, _, err := inst.Ensure(t.Context(), u, false, true); !errors.Is(err, ErrNotInstalled) {
-			t.Fatalf("Ensure() = %v, want ErrNotInstalled", err)
-		}
-	}
-	if g.installs != 1 {
-		t.Errorf("installs = %d, want Graph asked once, then skipped", g.installs)
-	}
+			g := newFakeGraph()
+			g.installFn = func(string) (bool, error) { return false, tt.err }
+			inst, st, u := installerFixture(t, g, newFakeChats(), true)
 
-	inst.ResetPermission()
-	_, _, _ = inst.Ensure(t.Context(), u, false, true)
-	if g.installs != 2 {
-		t.Errorf("installs after ResetPermission = %d, want asked again", g.installs)
+			for range 3 {
+				if _, _, err := inst.Ensure(t.Context(), u, false, true); !errors.Is(err, ErrNotInstalled) {
+					t.Fatalf("Ensure() = %v, want ErrNotInstalled", err)
+				}
+			}
+			if g.installs != 1 {
+				t.Errorf("installs = %d, want Graph asked once, then skipped", g.installs)
+			}
+			if got, _ := st.GetDirectoryUser(t.Context(), u.AADObjectID); got.InstallState != models.InstallFailed {
+				t.Errorf("install state = %s, want failed, not a verdict on the person", got.InstallState)
+			}
+
+			inst.ResetPermission()
+			_, _, _ = inst.Ensure(t.Context(), u, false, true)
+			if g.installs != 2 {
+				t.Errorf("installs after ResetPermission = %d, want asked again", g.installs)
+			}
+		})
 	}
 }
 
