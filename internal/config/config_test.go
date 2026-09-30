@@ -106,7 +106,14 @@ func TestParseExampleConfig(t *testing.T) {
 			MetadataURL: "https://login.botframework.com/v1/.well-known/openidconfiguration",
 			ServiceURL:  "https://smba.trafficmanager.net/teams/",
 			TimeoutSec:  10,
+
+			ReconcileInterval:   6 * time.Hour,
+			ReverifyInterval:    168 * time.Hour,
+			InstallConcurrency:  4,
+			InlineInstallBudget: 5,
+			DirectoryTTL:        24 * time.Hour,
 		},
+		Webhook: WebhookConfig{MaxRecipients: 100, FanoutConcurrency: 8},
 		Samples: SamplesConfig{
 			Enabled:         true,
 			Retention:       720 * time.Hour,
@@ -143,6 +150,15 @@ func TestParseBotConfigFieldsMap(t *testing.T) {
 		"  scope: https://bot.example/.default",
 		"  metadata-url: https://bot.example/.well-known/openidconfiguration",
 		"  timeout-sec: 42",
+		"  global-install: true",
+		"  app-id: app-1",
+		"  catalog-app-id: cat-1",
+		"  reconcile-interval: 1h",
+		"  reverify-interval: 48h",
+		"  install-concurrency: 2",
+		"  inline-install-budget: 3",
+		"  welcome-message: Hello",
+		"  directory-ttl: 2h",
 		"webhook:",
 		"  token: t",
 	}, "\n")
@@ -158,6 +174,16 @@ func TestParseBotConfigFieldsMap(t *testing.T) {
 		MetadataURL:  "https://bot.example/.well-known/openidconfiguration",
 		ServiceURL:   "https://smba.trafficmanager.net/teams/",
 		TimeoutSec:   42,
+
+		GlobalInstall:       true,
+		AppID:               "app-1",
+		CatalogAppID:        "cat-1",
+		ReconcileInterval:   time.Hour,
+		ReverifyInterval:    48 * time.Hour,
+		InstallConcurrency:  2,
+		InlineInstallBudget: 3,
+		WelcomeMessage:      "Hello",
+		DirectoryTTL:        2 * time.Hour,
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("parsed Bot config = %+v, want %+v", got, want)
@@ -229,7 +255,7 @@ func TestValidate(t *testing.T) {
 
 	valid := Config{
 		Database: DatabaseConfig{Driver: "sqlite", Path: "teamster.db"},
-		Webhook:  WebhookConfig{Token: "token"},
+		Webhook:  WebhookConfig{Token: "token", MaxRecipients: 100, FanoutConcurrency: 8},
 		Admin:    AdminConfig{Username: "admin", Password: "secret"},
 		Graph:    GraphConfig{TenantID: "tenant", ClientID: "client", ClientSecret: "secret"},
 	}
@@ -295,7 +321,7 @@ func TestParseEnvPrecedence(t *testing.T) {
 func completeConfig() Config {
 	return Config{
 		Database: DatabaseConfig{Driver: "sqlite", Path: "teamster.db"},
-		Webhook:  WebhookConfig{Token: "token"},
+		Webhook:  WebhookConfig{Token: "token", MaxRecipients: 100, FanoutConcurrency: 8},
 		Admin:    AdminConfig{Username: "admin", Password: "secret"},
 		Graph:    GraphConfig{TenantID: "tenant", ClientID: "client", ClientSecret: "secret"},
 		Auth: AuthConfig{
@@ -405,7 +431,7 @@ func TestValidateBot(t *testing.T) {
 			mutate: func(c *Config) {
 				c.Bot = BotConfig{
 					TenantID: "tenant", ClientID: "client", ClientSecret: "secret", TimeoutSec: 10,
-					MetadataURL: "https://bot.example/.well-known/openidconfiguration",
+					MetadataURL: "https://bot.example/.well-known/openidconfiguration", DirectoryTTL: time.Hour,
 				}
 			},
 		},
@@ -434,7 +460,7 @@ func TestValidateBot(t *testing.T) {
 			mutate: func(c *Config) {
 				c.Bot = BotConfig{
 					ClientID: "client", ClientSecret: "secret", TenantType: "multi", TimeoutSec: 10,
-					MetadataURL: "https://bot.example/.well-known/openidconfiguration",
+					MetadataURL: "https://bot.example/.well-known/openidconfiguration", DirectoryTTL: time.Hour,
 				}
 			},
 		},
@@ -450,7 +476,7 @@ func TestValidateBot(t *testing.T) {
 			mutate: func(c *Config) {
 				c.Bot = BotConfig{
 					TenantID: "tenant", ClientID: "client", ClientSecret: "secret", TenantType: "multi", TimeoutSec: 10,
-					MetadataURL: "https://bot.example/.well-known/openidconfiguration",
+					MetadataURL: "https://bot.example/.well-known/openidconfiguration", DirectoryTTL: time.Hour,
 				}
 			},
 		},
@@ -492,8 +518,8 @@ func TestValidateBot(t *testing.T) {
 			mutate: func(c *Config) {
 				c.Bot = BotConfig{
 					TenantID: "tenant", ClientID: "client", ClientSecret: "secret", TimeoutSec: 10,
-					MetadataURL: "https://bot.example/.well-known/openidconfiguration",
-					ServiceURL:  "http://smba.example/",
+					MetadataURL: "https://bot.example/.well-known/openidconfiguration", DirectoryTTL: time.Hour,
+					ServiceURL: "http://smba.example/",
 				}
 			},
 			wantErr: "bot-service-url must be an https URL",
@@ -714,7 +740,7 @@ func TestValidateRequiresAnAbsoluteRedirectURL(t *testing.T) {
 
 	base := Config{
 		Database: DatabaseConfig{Driver: "sqlite", Path: "teamster.db"},
-		Webhook:  WebhookConfig{Token: "token"},
+		Webhook:  WebhookConfig{Token: "token", MaxRecipients: 100, FanoutConcurrency: 8},
 		Admin:    AdminConfig{Username: "admin", Password: "secret"},
 		Graph:    GraphConfig{TenantID: "tenant", ClientID: "client", ClientSecret: "secret"},
 		Auth: AuthConfig{
@@ -785,6 +811,101 @@ func TestValidateSamples(t *testing.T) {
 				t.Errorf("validateSamples() = %v, want nil", err)
 			case tt.wantErr != "" && (err == nil || !strings.Contains(err.Error(), tt.wantErr)):
 				t.Errorf("validateSamples() = %v, want an error naming %s", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidateGlobalInstall(t *testing.T) {
+	t.Parallel()
+
+	// bot is a configured bot with every global-install setting valid.
+	bot := func(mutate func(*BotConfig)) func(*Config) {
+		return func(c *Config) {
+			c.Bot = BotConfig{
+				TenantID: "tenant", ClientID: "client", ClientSecret: "secret", TimeoutSec: 10,
+				MetadataURL:   "https://bot.example/.well-known/openidconfiguration",
+				GlobalInstall: true, AppID: "app-1",
+				ReconcileInterval: 6 * time.Hour, ReverifyInterval: 168 * time.Hour,
+				InstallConcurrency: 4, InlineInstallBudget: 5, DirectoryTTL: 24 * time.Hour,
+			}
+			mutate(&c.Bot)
+		}
+	}
+
+	tests := []struct {
+		name    string
+		mutate  func(*Config)
+		wantErr string
+	}{
+		{name: "off, and nothing else set", mutate: func(*Config) {}},
+		{name: "fully configured", mutate: bot(func(*BotConfig) {})},
+		{name: "found by catalog id alone", mutate: bot(func(b *BotConfig) { b.AppID, b.CatalogAppID = "", "cat-1" })},
+		{name: "only on request", mutate: bot(func(b *BotConfig) { b.ReconcileInterval = 0 })},
+		{name: "no inline installs", mutate: bot(func(b *BotConfig) { b.InlineInstallBudget = 0 })},
+		{name: "off ignores the install settings", mutate: bot(func(b *BotConfig) { b.GlobalInstall, b.AppID, b.InstallConcurrency = false, "", 0 })},
+		{
+			name:    "without a bot",
+			mutate:  func(c *Config) { c.Bot = BotConfig{GlobalInstall: true, AppID: "app-1"} },
+			wantErr: "bot-global-install needs the bot configured",
+		},
+		{name: "no way to find the app", mutate: bot(func(b *BotConfig) { b.AppID = "" }), wantErr: "bot-app-id or bot-catalog-app-id"},
+		{name: "reconciling back to back", mutate: bot(func(b *BotConfig) { b.ReconcileInterval = time.Minute }), wantErr: "bot-reconcile-interval must be 0 or at least"},
+		{name: "a negative reconcile interval", mutate: bot(func(b *BotConfig) { b.ReconcileInterval = -time.Hour }), wantErr: "bot-reconcile-interval"},
+		{name: "never reverified", mutate: bot(func(b *BotConfig) { b.ReverifyInterval = 0 }), wantErr: "bot-reverify-interval must be positive"},
+		{name: "no install workers", mutate: bot(func(b *BotConfig) { b.InstallConcurrency = 0 }), wantErr: "bot-install-concurrency must be between"},
+		{name: "too many install workers", mutate: bot(func(b *BotConfig) { b.InstallConcurrency = 17 }), wantErr: "bot-install-concurrency must be between"},
+		{name: "a negative inline budget", mutate: bot(func(b *BotConfig) { b.InlineInstallBudget = -1 }), wantErr: "bot-inline-install-budget"},
+		{name: "a bot without a directory ttl", mutate: bot(func(b *BotConfig) { b.GlobalInstall, b.DirectoryTTL = false, 0 }), wantErr: "bot-directory-ttl must be positive"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := completeConfig()
+			tt.mutate(&cfg)
+
+			err := Validate(cfg)
+			switch {
+			case tt.wantErr == "" && err != nil:
+				t.Errorf("Validate() = %v, want it accepted", err)
+			case tt.wantErr != "" && (err == nil || !strings.Contains(err.Error(), tt.wantErr)):
+				t.Errorf("Validate() = %v, want an error containing %q", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidateWebhookFanout(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		webhook WebhookConfig
+		wantErr string
+	}{
+		{name: "defaults", webhook: WebhookConfig{MaxRecipients: 100, FanoutConcurrency: 8}},
+		{name: "the cap itself", webhook: WebhookConfig{MaxRecipients: 1000, FanoutConcurrency: 1}},
+		{name: "nobody", webhook: WebhookConfig{MaxRecipients: 0, FanoutConcurrency: 8}, wantErr: "webhook-max-recipients must be between"},
+		{name: "a broadcast", webhook: WebhookConfig{MaxRecipients: 1001, FanoutConcurrency: 8}, wantErr: "webhook-max-recipients must be between"},
+		{name: "no workers", webhook: WebhookConfig{MaxRecipients: 100}, wantErr: "webhook-fanout-concurrency must be positive"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := completeConfig()
+			cfg.Webhook = tt.webhook
+			cfg.Webhook.Token = "token"
+
+			err := Validate(cfg)
+			switch {
+			case tt.wantErr == "" && err != nil:
+				t.Errorf("Validate() = %v, want it accepted", err)
+			case tt.wantErr != "" && (err == nil || !strings.Contains(err.Error(), tt.wantErr)):
+				t.Errorf("Validate() = %v, want an error containing %q", err, tt.wantErr)
 			}
 		})
 	}

@@ -25,7 +25,7 @@ func validConfig(t *testing.T) *config.Config {
 	return &config.Config{
 		Server:   config.ServerConfig{Addr: "127.0.0.1:0", ShutdownTimeout: 5 * time.Second},
 		Database: config.DatabaseConfig{Path: filepath.Join(t.TempDir(), "serve.db")},
-		Webhook:  config.WebhookConfig{Token: "token"},
+		Webhook:  config.WebhookConfig{Token: "token", MaxRecipients: 100, FanoutConcurrency: 8},
 		Admin:    config.AdminConfig{Username: "admin", Password: "pass"},
 		Graph: config.GraphConfig{
 			TenantID:     "tenant",
@@ -129,6 +129,7 @@ func TestServeConstructsABotClientWhenConfigured(t *testing.T) {
 		ClientSecret: "secret",
 		TimeoutSec:   10,
 		MetadataURL:  "https://bot.invalid/.well-known/openid-configuration",
+		DirectoryTTL: 24 * time.Hour,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())

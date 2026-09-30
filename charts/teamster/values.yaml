@@ -221,6 +221,17 @@ config:
       # Bot Connector endpoint for a team that has not yet sent the bot an
       # activity; the team's own replaces it once one arrives.
       # service-url: https://smba.trafficmanager.net/teams/
+      # Install the Teams app for every member and take away the opt-out.
+      # Not in effect yet; see config.example.yaml for what each key does.
+      # global-install: false
+      # app-id: ""
+      # catalog-app-id: ""
+      # reconcile-interval: 6h
+      # reverify-interval: 168h
+      # install-concurrency: 4
+      # inline-install-budget: 5
+      # welcome-message: ""
+      # directory-ttl: 24h
     # Who may administer the service. Leave oidc-discovery-url empty to use the
     # local login only.
     auth: {}
