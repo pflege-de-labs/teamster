@@ -194,7 +194,7 @@ func TestPreviewAssetsAreServed(t *testing.T) {
 
 	handler := newTestServer(t, newFakeStore(), &fakeMessenger{}).Handler
 
-	for _, path := range []string{"/vendor/adaptivecards.min.js", "/preview.js"} {
+	for _, path := range []string{"/vendor/adaptivecards.min.js", "/preview.js", "/tabs.js"} {
 		rec := do(t, handler, http.MethodGet, path, "")
 		if rec.Code != http.StatusOK {
 			t.Errorf("GET %s = %d, want 200", path, rec.Code)
@@ -213,7 +213,9 @@ func TestAdminPageOffersThePreviewControls(t *testing.T) {
 	for _, want := range []string{
 		`id="preview-button"`, `id="preview-output"`, `id="template-form"`,
 		`<option value="open">`, `<option value="closed">`,
-		`src="/vendor/adaptivecards.min.js"`, `src="/preview.js"`,
+		`src="/vendor/adaptivecards.min.js"`, `src="/preview.js"`, `src="/tabs.js"`,
+		`id="preview-views"`, `data-preview-view="rendered" aria-pressed="true"`,
+		`data-preview-view="channel" aria-pressed="false"`, `data-preview-view="chat" aria-pressed="false"`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("admin page is missing %q", want)
@@ -277,4 +279,70 @@ func TestPreviewRendersTheTeamsV2Sample(t *testing.T) {
 	if answer.Title != "Build failed / FF0000 / teamsv2" {
 		t.Errorf("title = %q (error %q), want the sample's title, payload and source", answer.Title, answer.Error)
 	}
+}
+
+func TestPreviewShowsWhatDeliverySends(t *testing.T) {
+	t.Parallel()
+
+	card := `{"type":"AdaptiveCard","version":"1.5","body":[{"type":"TextBlock","text":"own"}]}`
+	tests := []struct {
+		name            string
+		body            string
+		wantChannel     []string
+		wantChat        []string
+		unwantedChannel []string
+	}{
+		{
+			name:        "a card takes the title into itself in a channel",
+			body:        `{"title":"Disk full","text":"on db1","body":` + jsonString(card) + `,"sample":"open"}`,
+			wantChannel: []string{`"isGroup":true`, "channel-id", `"summary":"Disk full"`, `"text":"Disk full"`, `"text":"own"`},
+			// The chat keeps the text beside the card.
+			wantChat:        []string{`"text":"**Disk full**\n\non db1"`, `"summary":"Disk full"`, `"contentType":"application/vnd.microsoft.card.adaptive"`},
+			unwantedChannel: []string{`"text":"**Disk full**`},
+		},
+		{
+			name:            "text only has no attachment",
+			body:            `{"title":"Disk full","text":"on db1","sample":"open"}`,
+			wantChannel:     []string{`"text":"**Disk full**\n\non db1"`},
+			wantChat:        []string{`"text":"**Disk full**\n\non db1"`},
+			unwantedChannel: []string{`"attachments"`},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			rec := postPreview(t, newTestServer(t, newFakeStore(), &fakeMessenger{}).Handler, tt.body)
+			if rec.Code != http.StatusOK {
+				t.Fatalf("preview = %d (%s)", rec.Code, rec.Body.String())
+			}
+			var got struct {
+				Payloads map[string]json.RawMessage `json:"payloads"`
+			}
+			if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+				t.Fatalf("decode: %v", err)
+			}
+			channel, chat := string(got.Payloads["channel"]), string(got.Payloads["chat"])
+			for _, want := range tt.wantChannel {
+				if !strings.Contains(channel, want) {
+					t.Errorf("channel payload %s\nwant it to contain %s", channel, want)
+				}
+			}
+			for _, unwanted := range tt.unwantedChannel {
+				if strings.Contains(channel, unwanted) {
+					t.Errorf("channel payload %s\nwant it without %s", channel, unwanted)
+				}
+			}
+			for _, want := range tt.wantChat {
+				if !strings.Contains(chat, want) {
+					t.Errorf("chat payload %s\nwant it to contain %s", chat, want)
+				}
+			}
+		})
+	}
+}
+
+func jsonString(s string) string {
+	b, _ := json.Marshal(s)
+	return string(b)
 }

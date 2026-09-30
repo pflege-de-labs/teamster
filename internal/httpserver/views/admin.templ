@@ -115,6 +115,7 @@ templ templates(page Page) {
 							}
 						</select>
 					</div>
+					@previewViews()
 					<div id="preview-output" class="peer space-y-3 empty:hidden"></div>
 					<p class="hidden rounded-md border border-dashed border-slate-300 px-4 py-6 text-center text-sm text-slate-500 peer-empty:block">
 						{ i18n.T(ctx, "preview.empty") }
@@ -511,6 +512,31 @@ templ grants(page Page) {
 			</a>
 		}
 	}
+}
+
+// The preview draws the message, or shows the JSON the bot would send for it.
+// The script has no catalog, so its words travel as data attributes.
+templ previewViews() {
+	<div
+		id="preview-views"
+		role="group"
+		aria-label={ i18n.T(ctx, "preview.view") }
+		class="inline-flex overflow-hidden rounded-md border border-slate-300 text-sm"
+		data-note={ i18n.T(ctx, "preview.json_note") }
+		data-copy={ i18n.T(ctx, "preview.copy") }
+		data-copied={ i18n.T(ctx, "preview.copied") }
+	>
+		for _, view := range []string{"rendered", "channel", "chat"} {
+			<button
+				type="button"
+				data-preview-view={ view }
+				aria-pressed={ strconv.FormatBool(view == "rendered") }
+				class="border-l border-slate-300 px-3 py-1.5 text-slate-700 first:border-l-0 hover:bg-sky-50 aria-pressed:bg-sky-600 aria-pressed:text-white"
+			>
+				{ i18n.T(ctx, "preview.view_"+view) }
+			</button>
+		}
+	</div>
 }
 
 // The palette inserts card elements at the cursor. The fragments come from Go,
