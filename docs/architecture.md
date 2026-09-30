@@ -193,6 +193,12 @@ Teams does not re-notify and a silent close is the one thing the person on call 
 repeated open edits, for the mirror-image reason. See
 [ADR 0026](adr/0026-alerts-in-a-persons-chat.md).
 
+The chat side runs on a `chatTarget`: the key its claim rows are stored under, the conversation
+reference, and callbacks that set or clear the blocked flag on the row the chat came from.
+`sendToChat` and `sendToChatOnce` claim, send and edit against a target, and never ask who it
+belongs to. A linked recipient's target is keyed by the recipient id (`recipientChat`), and
+`closeEvent` finds a row's target again with `chatForKey`.
+
 The diagram above is `State` in `{open, closed}`, the only values that put a message through the
 claim protocol at all. An empty `State` takes a third, untracked path instead: render, resolve the
 destination or recipient, then a channel post or `bot.SendMessage` once, unconditionally. Nothing

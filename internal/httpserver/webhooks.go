@@ -429,7 +429,7 @@ func (s *Server) closeChatMessages(ctx context.Context, ev models.Event, plan []
 			continue
 		}
 
-		recipient, err := s.store.GetRecipient(ctx, card.RecipientID)
+		target, err := s.chatForKey(ctx, card.RecipientID)
 		if err != nil {
 			if errors.Is(err, store.ErrNotFound) {
 				// The recipient is gone -- unlinked since this row was
@@ -460,7 +460,7 @@ func (s *Server) closeChatMessages(ctx context.Context, ev models.Event, plan []
 			continue
 		}
 
-		if _, err := s.bot.SendMessage(ctx, conversationRef(recipient), msg); err != nil {
+		if _, err := s.bot.SendMessage(ctx, target.ref, msg); err != nil {
 			if recipientBlocked(err) {
 				// Nothing will reach this person until somebody acts, so the
 				// row goes rather than being retried into the same error on
@@ -468,7 +468,7 @@ func (s *Server) closeChatMessages(ctx context.Context, ev models.Event, plan []
 				// informational only, per ADR 0026: it never stops the next
 				// alert from trying again.
 				s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeBlocked)
-				s.markRecipientBlocked(ctx, card.RecipientID, err)
+				target.markBlocked(ctx, err)
 				if forget := s.store.DeleteActiveEventRecipientCard(ctx, card.Key, card.RecipientID, card.MessageID); forget != nil {
 					logError(ctx, "forget blocked recipient card", forget)
 				}
@@ -482,7 +482,7 @@ func (s *Server) closeChatMessages(ctx context.Context, ev models.Event, plan []
 			continue
 		}
 		s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomePosted)
-		s.clearRecipientBlocked(ctx, card.RecipientID)
+		target.clearBlocked(ctx)
 
 		// Deleting by message id, so a close that raced a reopen forgets the
 		// row it just closed rather than the newer one that replaced it.
@@ -804,38 +804,94 @@ func (s *Server) clearRecipientBlocked(ctx context.Context, recipientID string) 
 	}
 }
 
-// deliverToRecipient is deliverToChannel's counterpart for a person's chat, and
-// claims the same way for the same reason -- see deliver above.
-//
-// Two things differ, both from ADR 0026. A permanent failure drops the claim
-// row and is counted under its own outcome, so it stops re-attempting within
-// this alert and is visible as something other than noise. And an activity id
-// of "" is a documented success, not a claim in flight: the message was
-// delivered but cannot be edited later, so the next update touches the row
-// rather than sending a second copy.
+// chatTarget is a chat a delivery reaches, whoever it belongs to. key is what
+// its claim rows in active_event_recipients are keyed by, and the blocked
+// callbacks keep the informational flag on whichever row the chat came from
+// (ADR 0026).
+type chatTarget struct {
+	key          string
+	ref          bot.ConversationReference
+	markBlocked  func(ctx context.Context, cause error)
+	clearBlocked func(ctx context.Context)
+}
+
+// recipientChat is a linked recipient's chat.
+func (s *Server) recipientChat(recipient models.Recipient) chatTarget {
+	return chatTarget{
+		key:          recipient.ID,
+		ref:          conversationRef(recipient),
+		markBlocked:  func(ctx context.Context, cause error) { s.markRecipientBlocked(ctx, recipient.ID, cause) },
+		clearBlocked: func(ctx context.Context) { s.clearRecipientBlocked(ctx, recipient.ID) },
+	}
+}
+
+// chatForKey finds the chat a claim row names, for closing it.
+func (s *Server) chatForKey(ctx context.Context, key string) (chatTarget, error) {
+	recipient, err := s.store.GetRecipient(ctx, key)
+	if err != nil {
+		return chatTarget{}, err
+	}
+	return s.recipientChat(recipient), nil
+}
+
+// deliverToRecipient is deliverToChannel's counterpart for a person's chat:
+// it renders, finds the recipient and hands both to sendToChat.
 func (s *Server) deliverToRecipient(ctx context.Context, ev models.Event, delivery routing.Delivery) error {
 	if s.bot == nil {
 		return errNoBotConfigured
 	}
-
-	rendered, err := s.renderMessage(ctx, ev, delivery)
+	msg, target, err := s.recipientMessage(ctx, ev, delivery)
 	if err != nil {
 		return err
+	}
+	return s.sendToChat(ctx, ev, delivery, msg, target)
+}
+
+// deliverToRecipientOnce is deliverToRecipient for an event with no tracked
+// lifecycle.
+func (s *Server) deliverToRecipientOnce(ctx context.Context, ev models.Event, delivery routing.Delivery) error {
+	if s.bot == nil {
+		return errNoBotConfigured
+	}
+	msg, target, err := s.recipientMessage(ctx, ev, delivery)
+	if err != nil {
+		return err
+	}
+	return s.sendToChatOnce(ctx, delivery, msg, target)
+}
+
+// recipientMessage renders first and resolves second, so a broken template is
+// reported as that even when the recipient is gone too.
+func (s *Server) recipientMessage(ctx context.Context, ev models.Event, delivery routing.Delivery) (bot.Message, chatTarget, error) {
+	rendered, err := s.renderMessage(ctx, ev, delivery)
+	if err != nil {
+		return bot.Message{}, chatTarget{}, err
 	}
 	recipient, err := s.recipientTarget(ctx, delivery)
 	if err != nil {
-		return err
+		return bot.Message{}, chatTarget{}, err
 	}
 	msg, err := s.chatMessage(rendered)
 	if err != nil {
-		return err
+		return bot.Message{}, chatTarget{}, err
 	}
-	ref := conversationRef(recipient)
+	return msg, s.recipientChat(recipient), nil
+}
 
+// sendToChat claims, sends or edits one chat message, the chat counterpart of
+// deliverToChannel -- see deliver for why it claims.
+//
+// Two things differ, both from ADR 0026. A permanent failure drops the claim
+// row and is counted under its own outcome, so it stops re-attempting within
+// this event and is visible as something other than noise. And an activity id
+// of "" is a documented success, not a claim in flight: the message was
+// delivered but cannot be edited later, so the next update touches the row
+// rather than sending a second copy.
+func (s *Server) sendToChat(ctx context.Context, ev models.Event, delivery routing.Delivery, msg bot.Message, target chatTarget) error {
 	now := s.now()
 	claim := models.RecipientClaim{
 		Key:         ev.Key,
-		RecipientID: recipient.ID,
+		RecipientID: target.key,
 		State:       ev.State,
 		Owner:       uuid.NewString(),
 		At:          now,
@@ -856,13 +912,13 @@ func (s *Server) deliverToRecipient(ctx context.Context, ev models.Event, delive
 			// would be a second copy of a message the person already has, so
 			// the row is only restamped.
 			s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeUpdated)
-			s.clearRecipientBlocked(ctx, card.RecipientID)
+			target.clearBlocked(ctx)
 			return s.store.TouchActiveEventRecipient(ctx, card, ev.State, s.now())
 		}
-		if err := s.bot.UpdateMessage(ctx, ref, card.MessageID, msg); err != nil {
+		if err := s.bot.UpdateMessage(ctx, target.ref, card.MessageID, msg); err != nil {
 			if recipientBlocked(err) {
 				s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeBlocked)
-				s.markRecipientBlocked(ctx, card.RecipientID, err)
+				target.markBlocked(ctx, err)
 				if forget := s.store.DeleteActiveEventRecipientCard(ctx, card.Key, card.RecipientID, card.MessageID); forget != nil {
 					logError(ctx, "forget blocked recipient card", forget)
 				}
@@ -872,19 +928,19 @@ func (s *Server) deliverToRecipient(ctx context.Context, ev models.Event, delive
 			return fmt.Errorf("bot update: %w", err)
 		}
 		s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeUpdated)
-		s.clearRecipientBlocked(ctx, card.RecipientID)
+		target.clearBlocked(ctx)
 		return s.store.TouchActiveEventRecipient(ctx, card, ev.State, s.now())
 	case store.ClaimHeld:
 		s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeFailed)
 		return errCardInFlight
 	}
 
-	activityID, err := s.bot.SendMessage(ctx, ref, msg)
+	activityID, err := s.bot.SendMessage(ctx, target.ref, msg)
 	if err != nil {
 		failure := metrics.OutcomeFailed
 		if recipientBlocked(err) {
 			failure = metrics.OutcomeBlocked
-			s.markRecipientBlocked(ctx, recipient.ID, err)
+			target.markBlocked(ctx, err)
 		}
 		s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), failure)
 		// The claim is ours and nothing was sent under it, so it goes back now
@@ -896,7 +952,7 @@ func (s *Server) deliverToRecipient(ctx context.Context, ev models.Event, delive
 		return fmt.Errorf("bot send: %w", err)
 	}
 	s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomePosted)
-	s.clearRecipientBlocked(ctx, recipient.ID)
+	target.clearBlocked(ctx)
 
 	if err := s.store.CompleteActiveEventRecipientClaim(ctx, claim, activityID, s.now()); err != nil {
 		if errors.Is(err, store.ErrClaimLost) {
@@ -904,38 +960,19 @@ func (s *Server) deliverToRecipient(ctx context.Context, ev models.Event, delive
 			// sent, and by the time it was recorded the row was somebody
 			// else's. It can only be reported.
 			logError(ctx, "orphaned chat message", fmt.Errorf("recipient %s activity %s: %w",
-				recipient.ID, activityID, err))
+				target.key, activityID, err))
 		}
 		return err
 	}
 	return nil
 }
 
-// deliverToRecipientOnce is deliverToRecipient without the claim: no
-// RecipientClaim, no ActiveEventRecipient row, no blocked-flag bookkeeping --
-// that machinery exists to stop a *repeated* delivery failure from reading as
-// noise, and a message that is never repeated has no repeats to distinguish.
-// A failed send here is recorded and returned exactly like any other failure.
-func (s *Server) deliverToRecipientOnce(ctx context.Context, ev models.Event, delivery routing.Delivery) error {
-	if s.bot == nil {
-		return errNoBotConfigured
-	}
-
-	rendered, err := s.renderMessage(ctx, ev, delivery)
-	if err != nil {
-		return err
-	}
-	recipient, err := s.recipientTarget(ctx, delivery)
-	if err != nil {
-		return err
-	}
-	msg, err := s.chatMessage(rendered)
-	if err != nil {
-		return err
-	}
-	ref := conversationRef(recipient)
-
-	if _, err := s.bot.SendMessage(ctx, ref, msg); err != nil {
+// sendToChatOnce is sendToChat without the claim: no ActiveEventRecipient row
+// and no blocked-flag bookkeeping -- that machinery exists to stop a
+// *repeated* delivery failure from reading as noise, and a message that is
+// never repeated has no repeats to distinguish.
+func (s *Server) sendToChatOnce(ctx context.Context, delivery routing.Delivery, msg bot.Message, target chatTarget) error {
+	if _, err := s.bot.SendMessage(ctx, target.ref, msg); err != nil {
 		s.metrics.DeliveryRecorded(ctx, routeLabel(delivery), metrics.OutcomeFailed)
 		return fmt.Errorf("bot send: %w", err)
 	}
