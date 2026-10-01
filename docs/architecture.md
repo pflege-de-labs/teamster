@@ -17,7 +17,7 @@ that runs more than one instance. SQLite is the option with no other runtime dep
 | `internal/routing` | Selects a route for an event's labels. |
 | `internal/templates` | Renders an Adaptive Card from a Go template plus event data, and describes that data for the editor's completion (`EditorVocabulary`). |
 | `internal/logging` | Builds the `slog` logger from `log.*` and carries a request's logger in its context. See [Logging and errors](#logging-and-errors). |
-| `internal/audit` | Records configuration changes: a `store.Store` decorator that emits an event per write, a `Recorder` that fans events out to sinks (database, JSON lines file), and the retention pruner. See [Audit trail](#audit-trail). |
+| `internal/audit` | Records configuration changes: a `store.Store` decorator that emits an event per write, a `Recorder` that fans events out to sinks (database, JSON lines file, NATS JetStream), and the retention pruner. See [Audit trail](#audit-trail). |
 | `internal/samples` | Remembers the label keys, label values and attribute keys incoming events carry, for editor completion. See [Editor completion](#editor-completion). |
 | `internal/graph` | Microsoft Graph client: OAuth2 client credentials, list Teams and channels. It posts nothing: Graph does not let an application post or edit channel messages (ADR 0045). It also reads directory users and the organization app catalog, and installs the Teams app in a user's personal scope; those calls take a context and retry while Graph throttles (429/503), waiting as long as `Retry-After` says, up to 30 seconds. `BrokerClient` is the delegated-Teams half (ADR 0037): the same Graph endpoints, called with a per-request Entra bearer token instead of the app-only credential. |
 | `internal/people` | Resolves an object id, UPN or mail address to a directory user, opens the bot's chat with them, installing the Teams app through Graph when allowed, and reconciles installs for the whole tenant. See [Installing the app for everyone](#installing-the-app-for-everyone). |
@@ -618,7 +618,8 @@ See [ADR 0070](adr/0070-audit-configuration-changes-at-the-store.md).
 handler ──► audit.Wrap ──► store ──► commit
                 │                      │
                 └─ buffer (in a tx) ───┴─► Recorder ─┬─► database sink (sync)
-                                                     └─► file sink (queued)
+                                                     ├─► file sink (queued)
+                                                     └─► NATS sink (queued)
 ```
 
 * **Actor.** The actor comes from the context. `withPrincipal` sets it with `via` `session` or
@@ -629,6 +630,10 @@ handler ──► audit.Wrap ──► store ──► commit
 * **Delivery.** The database sink is written before the request returns. Other sinks have a
   bounded queue each and can only lag. A full queue drops the event (`teamster.audit.dropped`). A
   failed write is logged and counted (`teamster.audit.failed`), and the request still succeeds.
+* **NATS JetStream.** The NATS sink publishes to `<prefix>.<type>.<action>` with `Nats-Msg-Id` set
+  to the event id. It waits for the stream's acknowledgement and retries twice. It connects without
+  waiting for the server, so an outage queues events instead of stopping the start. See
+  [ADR 0071](adr/0071-publish-audit-events-to-nats-jetstream.md).
 * **Shutdown.** `serve` closes the recorder after the HTTP drain, within
   `server.shutdown-timeout`, so the queues empty before the store closes.
 * **Opt-in.** Without `audit.database` or a sink there is no recorder, and `audit.Wrap` returns the

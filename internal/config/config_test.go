@@ -129,6 +129,7 @@ func TestParseExampleConfig(t *testing.T) {
 			RetentionCount: 100000,
 			PruneInterval:  time.Hour,
 			QueueSize:      1024,
+			NATS:           AuditNATSConfig{SubjectPrefix: "teamster.audit", Stream: "TEAMSTER_AUDIT", Timeout: 5 * time.Second},
 		},
 		Log: LogConfig{Level: "info", Format: "text"},
 	}
@@ -835,6 +836,7 @@ func TestValidateSamples(t *testing.T) {
 func TestValidateAudit(t *testing.T) {
 	t.Parallel()
 
+	natsOK := AuditNATSConfig{URL: "nats://nats:4222", SubjectPrefix: "teamster.audit", Stream: "AUDIT", CreateStream: true, Timeout: time.Second}
 	valid := AuditConfig{File: "-", Database: true, RetentionAge: time.Hour, PruneInterval: time.Minute, QueueSize: 1}
 	tests := []struct {
 		name    string
@@ -849,6 +851,13 @@ func TestValidateAudit(t *testing.T) {
 		{name: "prune interval", mutate: func(c *AuditConfig) { c.PruneInterval = 0 }, wantErr: "audit-prune-interval"},
 		{name: "queue size", mutate: func(c *AuditConfig) { c.QueueSize = 0 }, wantErr: "audit-queue-size"},
 		{name: "unused bounds are not checked", mutate: func(c *AuditConfig) { *c = AuditConfig{} }},
+		{name: "nats", mutate: func(c *AuditConfig) { c.NATS = natsOK }},
+		{name: "nats without a prefix", mutate: func(c *AuditConfig) { c.NATS = natsOK; c.NATS.SubjectPrefix = "" }, wantErr: "audit-nats-subject-prefix"},
+		{name: "nats wildcard prefix", mutate: func(c *AuditConfig) { c.NATS = natsOK; c.NATS.SubjectPrefix = "audit.>" }, wantErr: "audit-nats-subject-prefix"},
+		{name: "nats trailing dot", mutate: func(c *AuditConfig) { c.NATS = natsOK; c.NATS.SubjectPrefix = "audit." }, wantErr: "audit-nats-subject-prefix"},
+		{name: "nats stream to create", mutate: func(c *AuditConfig) { c.NATS = natsOK; c.NATS.Stream = "" }, wantErr: "audit-nats-stream"},
+		{name: "nats timeout", mutate: func(c *AuditConfig) { c.NATS = natsOK; c.NATS.Timeout = 0 }, wantErr: "audit-nats-timeout"},
+		{name: "nats needs a queue", mutate: func(c *AuditConfig) { c.File = ""; c.NATS = natsOK; c.QueueSize = 0 }, wantErr: "audit-queue-size"},
 		{name: "no retention needs no interval", mutate: func(c *AuditConfig) { c.RetentionAge, c.PruneInterval = 0, 0 }},
 	}
 	for _, tt := range tests {

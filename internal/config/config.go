@@ -231,12 +231,23 @@ type LogConfig struct {
 
 // AuditConfig says where the record of configuration changes goes (ADR 0070).
 type AuditConfig struct {
-	File           string        `help:"Append audit events to this file as JSON lines; - is stdout, empty is off."`
-	Database       bool          `help:"Keep audit events in the database, which the admin UI lists. Audit is off unless this or a sink is configured."`
-	RetentionAge   time.Duration `help:"Forget database audit events older than this; 0 keeps them regardless of age." name:"retention-age" default:"2160h"`
-	RetentionCount int           `help:"Keep at most this many database audit events; 0 is no limit." name:"retention-count" default:"100000"`
-	PruneInterval  time.Duration `help:"How often database audit retention is applied." name:"prune-interval" default:"1h"`
-	QueueSize      int           `help:"Events held for each sink other than the database before new ones are dropped." name:"queue-size" default:"1024"`
+	File           string          `help:"Append audit events to this file as JSON lines; - is stdout, empty is off."`
+	Database       bool            `help:"Keep audit events in the database, which the admin UI lists. Audit is off unless this or a sink is configured."`
+	RetentionAge   time.Duration   `help:"Forget database audit events older than this; 0 keeps them regardless of age." name:"retention-age" default:"2160h"`
+	RetentionCount int             `help:"Keep at most this many database audit events; 0 is no limit." name:"retention-count" default:"100000"`
+	PruneInterval  time.Duration   `help:"How often database audit retention is applied." name:"prune-interval" default:"1h"`
+	QueueSize      int             `help:"Events held for each sink other than the database before new ones are dropped." name:"queue-size" default:"1024"`
+	NATS           AuditNATSConfig `embed:"" prefix:"nats-"`
+}
+
+// AuditNATSConfig publishes audit events to NATS JetStream (ADR 0071).
+type AuditNATSConfig struct {
+	URL           string        `help:"NATS server URL, such as nats://nats:4222; empty is off." name:"url"`
+	SubjectPrefix string        `help:"Events are published to <prefix>.<resource type>.<action>." name:"subject-prefix" default:"teamster.audit"`
+	Stream        string        `help:"JetStream stream that captures the subjects." default:"TEAMSTER_AUDIT"`
+	CreateStream  bool          `help:"Create or update the stream at start." name:"create-stream"`
+	CredsFile     string        `help:"NATS credentials file (JWT and NKey seed)." name:"creds-file"`
+	Timeout       time.Duration `help:"Connect timeout, and how long creating the stream may take." default:"5s"`
 }
 
 // validateAudit checks only the bounds a configured sink uses.
@@ -248,7 +259,13 @@ func validateAudit(cfg AuditConfig) error {
 		return fmt.Errorf("audit-retention-count must not be negative, not %d", cfg.RetentionCount)
 	case cfg.Database && (cfg.RetentionAge > 0 || cfg.RetentionCount > 0) && cfg.PruneInterval <= 0:
 		return fmt.Errorf("audit-prune-interval must be positive, not %s", cfg.PruneInterval)
-	case cfg.File != "" && cfg.QueueSize <= 0:
+	case cfg.NATS.URL != "" && (cfg.NATS.SubjectPrefix == "" || strings.ContainsAny(cfg.NATS.SubjectPrefix, "*> \t") || strings.HasPrefix(cfg.NATS.SubjectPrefix, ".") || strings.HasSuffix(cfg.NATS.SubjectPrefix, ".")):
+		return fmt.Errorf("audit-nats-subject-prefix must be a subject without wildcards, not %q", cfg.NATS.SubjectPrefix)
+	case cfg.NATS.URL != "" && cfg.NATS.CreateStream && cfg.NATS.Stream == "":
+		return fmt.Errorf("audit-nats-stream is required with audit-nats-create-stream")
+	case cfg.NATS.URL != "" && cfg.NATS.Timeout <= 0:
+		return fmt.Errorf("audit-nats-timeout must be positive, not %s", cfg.NATS.Timeout)
+	case (cfg.File != "" || cfg.NATS.URL != "") && cfg.QueueSize <= 0:
 		return fmt.Errorf("audit-queue-size must be positive, not %d", cfg.QueueSize)
 	}
 	return nil

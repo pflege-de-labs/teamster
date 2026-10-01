@@ -97,7 +97,7 @@ func (c *ImportCmd) Run(ctx context.Context, cfg *config.Config) error {
 	if err != nil {
 		return fmt.Errorf("log: %w", err)
 	}
-	recorder, err := newRecorder(logger, cfg.Audit, sqlStore, nil)
+	recorder, err := newRecorder(ctx, logger, cfg.Audit, sqlStore, nil)
 	if err != nil {
 		return fmt.Errorf("audit: %w", err)
 	}

@@ -6,6 +6,8 @@ TAILWIND_VERSION ?= v4.3.3
 SQLC_VERSION ?= v1.31.1
 POSTGRES_IMAGE ?= postgres:18-alpine
 POSTGRES_DSN ?= postgres://teamster:teamster@127.0.0.1:15432/teamster?sslmode=disable
+NATS_IMAGE ?= nats:2-alpine
+NATS_URL ?= nats://127.0.0.1:14222
 COVERAGE_OUT ?= coverage.out
 BINARY       ?= bin/teamster
 IMAGE        ?= teamster
@@ -13,7 +15,7 @@ CHART        ?= charts/teamster
 CONTAINER_TOOL ?= $(shell command -v docker >/dev/null 2>&1 && echo docker || echo podman)
 VERSION      ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 
-.PHONY: all build run test test-postgres db-up db-down coverage coverage-html fmt lint tidy hooks tools generate icons manifest preview-manifest vendor vendor-record image image-run chart-lint clean
+.PHONY: all build run test test-postgres db-up db-down nats-up nats-down test-nats coverage coverage-html fmt lint tidy hooks tools generate icons manifest preview-manifest vendor vendor-record image image-run chart-lint clean
 
 # The admin UI wears logo 1; logo 2 is the README header.
 ICON_SOURCE := images/favicons/logo-teamster-1
@@ -136,6 +138,17 @@ db-down:
 
 test-postgres:
 	TEAMSTER_TEST_POSTGRES_DSN="$(POSTGRES_DSN)" go test -race ./internal/store/...
+
+# The audit trail's JetStream sink is tested against a real server the same way.
+nats-up:
+	$(CONTAINER_TOOL) run -d --rm --name teamster-nats -p 14222:4222 $(NATS_IMAGE) -js
+	@echo "nats ready on $(NATS_URL)"
+
+nats-down:
+	-$(CONTAINER_TOOL) stop teamster-nats
+
+test-nats:
+	TEAMSTER_TEST_NATS_URL="$(NATS_URL)" go test -race -run NATS ./internal/audit/...
 
 coverage-html: coverage
 	go tool cover -html=$(COVERAGE_OUT) -o coverage.html

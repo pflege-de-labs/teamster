@@ -250,5 +250,15 @@ audit:
   retention-age: "2160h"
   retention-count: 100000
   prune-interval: "1h"
-  # Events waiting for the file before new ones are dropped and counted.
+  # Events waiting for each of file and nats before new ones are dropped and counted.
   queue-size: 1024
+  # NATS JetStream (ADR 0071): each event goes to <subject-prefix>.<type>.<action>
+  # with its id as Nats-Msg-Id, so the stream drops a retried duplicate.
+  nats:
+    url: ""
+    subject-prefix: "teamster.audit"
+    stream: "TEAMSTER_AUDIT"
+    # Create or update the stream at start; leave off where streams are managed elsewhere.
+    create-stream: false
+    creds-file: ""
+    timeout: "5s"

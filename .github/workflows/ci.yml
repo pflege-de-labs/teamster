@@ -80,11 +80,16 @@ jobs:
           - 5432:5432
     env:
       TEAMSTER_TEST_POSTGRES_DSN: postgres://teamster:teamster@127.0.0.1:5432/teamster?sslmode=disable
+      TEAMSTER_TEST_NATS_URL: nats://127.0.0.1:4222
+      # A step rather than a service: JetStream needs the -js flag, which services cannot pass.
+      NATS_IMAGE: nats:2.15.0-alpine@sha256:ac8f88a6494bffc2c2a5289a0ca61cb28a9145c11ba5677cf24265d07f46d8d4
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version: stable
+      - name: Start NATS with JetStream
+        run: docker run -d --name nats -p 4222:4222 "$NATS_IMAGE" -js
       - run: make coverage
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()

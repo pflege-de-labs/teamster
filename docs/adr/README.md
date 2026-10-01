@@ -85,3 +85,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0068](0068-commands-are-words-addressed-to-the-bot.md) | Name the bot's commands without a slash | Accepted |
 | [0069](0069-the-bot-answers-commands-in-team-channels.md) | The bot answers commands in team channels | Accepted |
 | [0070](0070-audit-configuration-changes-at-the-store.md) | Audit configuration changes at the store boundary | Accepted |
+| [0071](0071-publish-audit-events-to-nats-jetstream.md) | Publish audit events to NATS JetStream | Accepted |
