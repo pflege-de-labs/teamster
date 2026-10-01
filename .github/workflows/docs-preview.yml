@@ -1,0 +1,49 @@
+name: docs-preview
+
+on:
+  pull_request:
+    types: [opened, synchronize, closed]
+
+permissions:
+  contents: read
+
+env:
+  HUGO_VERSION: "0.167.0"
+  SITE: https://pflege-de-labs.github.io
+  DOCS_ROOT: /teamster/
+
+concurrency:
+  group: docs-preview-${{ github.event.number }}
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    # A fork's token cannot push to gh-pages.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0 # enableGitInfo reads each page's last commit
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        if: github.event.action != 'closed'
+        with:
+          go-version-file: go.mod
+      - uses: peaceiris/actions-hugo@2752ce1d29631191ea3f27c23495fa06139a5b78 # v3.2.1
+        if: github.event.action != 'closed'
+        with:
+          hugo-version: ${{ env.HUGO_VERSION }}
+      - name: Build
+        if: github.event.action != 'closed'
+        env:
+          HUGO_PARAMS_DOCVERSION: pr-${{ github.event.number }}
+          HUGO_PARAMS_DOCSROOT: ${{ env.DOCS_ROOT }}
+        run: hugo --gc --minify --buildDrafts --baseURL "$SITE${DOCS_ROOT}pr-preview/pr-${{ github.event.number }}/"
+      - uses: rossjrw/pr-preview-action@ffa7509e91a3ec8dfc2e5536c4d5c1acdf7a6de9 # v1.8.1
+        with:
+          source-dir: public
+          preview-branch: gh-pages
+          umbrella-dir: pr-preview

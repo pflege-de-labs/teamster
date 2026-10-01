@@ -1,0 +1,4 @@
+<meta name="docs-version" content="{{ site.Params.docVersion }}" />
+<meta name="docs-root" content="{{ site.Params.docsRoot }}" />
+{{- $js := resources.Get "js/versions.js" | minify | fingerprint }}
+<script defer src="{{ $js.RelPermalink }}" integrity="{{ $js.Data.Integrity }}"></script>
