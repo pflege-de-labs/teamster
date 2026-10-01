@@ -96,7 +96,7 @@ A webhook that messages every directory user, or an Entra group, at once. Not a 
 
 Follows milestone 23, whose `directory_users` and run table it builds on.
 
-## Milestone 25 — Webhook permissions and scoped tokens
+## Milestone 25 — Self-service scoped tokens
 
 Every record has owners who can share it, groups decide access, and users mint their own tokens.
 The audit trail it builds on shipped first
@@ -104,11 +104,10 @@ The audit trail it builds on shipped first
 [ADR 0071](adr/0071-publish-audit-events-to-nats-jetstream.md)), as did the user registry
 ([ADR 0072](adr/0072-remember-who-signed-in.md)), the versioned policy snapshot
 ([ADR 0073](adr/0073-authorize-from-a-versioned-policy-snapshot.md)), local groups
-([ADR 0074](adr/0074-local-groups-and-provider-groups.md)) and owning and sharing records
-([ADR 0075](adr/0075-own-and-share-records-through-generated-policies.md)). Each step is one pull request:
+([ADR 0074](adr/0074-local-groups-and-provider-groups.md)), owning and sharing records
+([ADR 0075](adr/0075-own-and-share-records-through-generated-policies.md)) and webhook permissions
+([ADR 0076](adr/0076-webhook-permissions-and-access-overviews.md)). Each step is one pull request:
 
-* **25.6 Webhook permissions and overviews.** `use` on `Webhook::"alertmanager"`, `"universal"` or
-  `"*"`. Admins get a permissions overview with the loaded Cedar text, and each user gets their own.
 * **25.7 Self-service scoped tokens.** A token's scope is at most its creator's permissions, and is
   checked against them again on every use.
 
@@ -129,8 +128,9 @@ Smaller items left open when a milestone shipped. Each is picked up on its own.
 * **Verify bot delivery against a real tenant.** Whether an edit through the stored conversation id
   updates the channel post, whether an app upgrade re-sends install events, and whether the bot can
   post to private and shared channels.
-* **Where Cedar policies live.** Policies are embedded defaults derived from the three roles. An
-  operator file or policies edited in the admin UI are still open
+* **Where Cedar policies live.** Grants are generated policies
+  ([ADR 0075](adr/0075-own-and-share-records-through-generated-policies.md)); the role policies
+  are still embedded. An operator file of extra policies is still open
   ([ADR 0012](adr/0012-role-based-authorization.md)).
 * **Activity-feed notifications.** Route C from milestone 13: `sendActivityNotification` with
   `TeamsActivity.Send`, a notification rather than a chat message, if a lighter option than the bot
@@ -149,7 +149,7 @@ Smaller items left open when a milestone shipped. Each is picked up on its own.
 | 5 | 20.4 More commands | 20.2 | — |
 | 6 | 23.4–23.6 Messages to individual people, the rest | 23 | a test tenant for 23.5 |
 | 7 | 24 Announcements | 23 | — |
-| 8 | 25.6–25.7 Webhook permissions and scoped tokens | — | — |
+| 8 | 25.7 Self-service scoped tokens | — | — |
 
 Follow-ups are unordered and can be pulled in between milestones.
 

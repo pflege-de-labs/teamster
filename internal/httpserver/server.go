@@ -283,6 +283,9 @@ func NewServer(logger *slog.Logger, cfg config.Config, store store.Store, graphC
 	adminMux.HandleFunc("/admin/webhooks", api.handleWebhookForm)
 	adminMux.HandleFunc("/admin/webhooks/rotate", api.handleWebhookRotate)
 	adminMux.HandleFunc("/admin/webhooks/delete", api.formPost("webhooks", api.deleteWebhookEndpoint))
+	adminMux.HandleFunc("/admin/access", api.handleAccessPage)
+	adminMux.HandleFunc("/admin/access/webhooks", api.formPostTo("/admin/access", api.webhookLevelForm))
+	adminMux.HandleFunc("/api/access/webhooks", api.handleWebhookLevelAPI)
 	adminMux.HandleFunc("/admin/sharing/grant", api.handleShareForm)
 	adminMux.HandleFunc("/admin/sharing/revoke", api.handleUnshareForm)
 	adminMux.HandleFunc("/api/sharing", api.handleSharingAPI)
@@ -335,6 +338,7 @@ func NewServer(logger *slog.Logger, cfg config.Config, store store.Store, graphC
 	mux.Handle("/admin/timezone", authMux)
 	// Every signed-in user may read their own user info, role or not.
 	mux.Handle("/admin/userinfo", api.requireSession(http.HandlerFunc(api.handleUserInfoPage)))
+	mux.Handle("/admin/me", api.requireSession(http.HandlerFunc(api.handleMyAccess)))
 	mux.Handle("/admin", api.requireSession(api.authorize(adminMux)))
 	mux.Handle("/admin/", api.requireSession(api.authorize(adminMux)))
 	mux.Handle("/", api.requireSession(api.authorize(adminMux)))

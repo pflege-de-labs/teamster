@@ -408,6 +408,13 @@ counted. A grant of `attach` on a destination is a grant holder's delivery scope
 `attach` is not. Sharing takes `share`, ownership takes `transfer`, and nobody grants more than
 they hold. See [ADR 0075](adr/0075-own-and-share-records-through-generated-policies.md).
 
+The webhooks are resources too: `Webhook::"alertmanager"` and `Webhook::"universal"`, both in
+`Webhook::"*"`. `use` is sending to one. Editors may use both. Anyone else needs a `use` grant on
+one or on `*`, and `administer` on `*` makes a webhook admin. `/admin/access` is the admins'
+overview: webhook levels, every grant, the policies in force, and "Who can?", which answers with
+Cedar's deciding policies. `/admin/me` shows anyone signed in their own roles, groups, webhooks and
+grants. See [ADR 0076](adr/0076-webhook-permissions-and-access-overviews.md).
+
 The policies and entities are an immutable snapshot that `authz.Engine` hands out, versioned by the
 single row in `authz_generation`. `authorize` reads the generation once per request. When it has
 moved, the engine rebuilds the snapshot from the store's model, once, and every check in the request

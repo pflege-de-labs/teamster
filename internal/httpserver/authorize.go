@@ -286,6 +286,12 @@ func requestAuthorization(r *http.Request) (string, authz.Resource) {
 	case path == "/admin/users", strings.HasPrefix(path, "/admin/users/"),
 		path == "/api/users", strings.HasPrefix(path, "/api/users/"):
 		return authz.ActionAdminister, authz.Resource{Type: "User"}
+	// Who may send to the webhooks is the webhook admins' (ADR 0076); the
+	// overview of everyone's access is the admins'.
+	case path == "/admin/access/webhooks", path == "/api/access/webhooks":
+		return authz.ActionAdminister, authz.WebhookResource(authz.WebhooksAll)
+	case path == "/admin/access", strings.HasPrefix(path, "/admin/access/"), strings.HasPrefix(path, "/api/access/"):
+		return authz.ActionAdminister, authz.Resource{Type: "Access"}
 	// The trail names everyone who changed anything, and what it held before.
 	case path == "/admin/audit", path == "/api/audit":
 		return authz.ActionAdminister, authz.Resource{Type: "Audit"}

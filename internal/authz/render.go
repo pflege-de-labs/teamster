@@ -35,6 +35,9 @@ type GeneratedPolicy struct {
 // Validate refuses a grant that would not render, or would render to something
 // other than what it says.
 func (g Grant) Validate() error {
+	if g.ResourceType == "Webhook" {
+		return g.validateWebhook()
+	}
 	if g.PrincipalID == "" || g.ResourceID == "" {
 		return fmt.Errorf("a grant needs a principal and a resource")
 	}
@@ -61,6 +64,28 @@ func (g Grant) Validate() error {
 	return nil
 }
 
+// validateWebhook allows use on one webhook or both, and administer on both.
+func (g Grant) validateWebhook() error {
+	if g.PrincipalID == "" || !slices.Contains([]string{"user", "group", "idp_group", "role"}, g.PrincipalType) {
+		return fmt.Errorf("a grant needs a principal")
+	}
+	if !slices.Contains([]string{WebhookAlertmanager, WebhookUniversal, WebhooksAll}, g.ResourceID) {
+		return fmt.Errorf("unknown webhook %q", g.ResourceID)
+	}
+	if len(g.Actions) == 0 {
+		return fmt.Errorf("a grant needs at least one action")
+	}
+	for _, action := range g.Actions {
+		switch {
+		case action == ActionUse:
+		case action == ActionAdminister && g.ResourceID == WebhooksAll:
+		default:
+			return fmt.Errorf("a webhook grant holds use, and administer on both webhooks, not %q", action)
+		}
+	}
+	return nil
+}
+
 // Render builds the grant's policy from the AST, never from text, so no id can
 // smuggle Cedar syntax into it.
 func (g Grant) Render() (*cedar.Policy, error) {
@@ -82,7 +107,14 @@ func (g Grant) Render() (*cedar.Policy, error) {
 	for _, action := range g.Actions {
 		actions = append(actions, actionUID(action))
 	}
-	policy = policy.ActionInSet(actions...).ResourceEq(Resource{Type: g.ResourceType, ID: g.ResourceID}.uid())
+	policy = policy.ActionInSet(actions...)
+	resource := Resource{Type: g.ResourceType, ID: g.ResourceID}.uid()
+	if g.ResourceType == "Webhook" && g.ResourceID == WebhooksAll {
+		// Both webhooks are in "*", so a grant on it reaches each.
+		policy = policy.ResourceIn(resource)
+	} else {
+		policy = policy.ResourceEq(resource)
+	}
 	return cedar.NewPolicyFromAST(policy), nil
 }
 
@@ -157,4 +189,85 @@ func (a *Authorizer) HasGrants(p Principal) bool {
 		}
 	}
 	return false
+}
+
+// An Explanation is a decision and the policies that made it.
+type Explanation struct {
+	Allowed  bool
+	Policies []ExplainedPolicy
+}
+
+// ExplainedPolicy is one deciding policy, by id and as text.
+type ExplainedPolicy struct {
+	ID   string
+	Text string
+}
+
+// Explain is AllowFor, with the policies that decided it.
+func (a *Authorizer) Explain(p Principal, action string, resource Resource) Explanation {
+	extra := cedar.EntityMap{}
+	principal := a.principalEntity(p, extra, cedar.Record{})
+	decision, diagnostic := cedar.Authorize(a.policies, overlay{base: a.entities, extra: extra}, cedar.Request{
+		Principal: principal,
+		Action:    actionUID(action),
+		Resource:  resource.uid(),
+	})
+	out := Explanation{Allowed: decision == cedar.Allow}
+	for _, reason := range diagnostic.Reasons {
+		text := ""
+		if policy := a.policies.Get(reason.PolicyID); policy != nil {
+			text = string(policy.MarshalCedar())
+		}
+		out.Policies = append(out.Policies, ExplainedPolicy{ID: string(reason.PolicyID), Text: text})
+	}
+	return out
+}
+
+// GroupsOf is every local group the principal is in, however deep.
+func (a *Authorizer) GroupsOf(p Principal) []string {
+	start := make([]cedar.EntityUID, 0, len(p.IdPGroups)+len(a.userGroups[p.Subject]))
+	for _, name := range p.IdPGroups {
+		start = append(start, IdPGroupResource(name).uid())
+	}
+	for _, group := range a.userGroups[p.Subject] {
+		start = append(start, GroupResource(group).uid())
+	}
+	seen := map[cedar.EntityUID]bool{}
+	var groups []string
+	for len(start) > 0 {
+		uid := start[len(start)-1]
+		start = start[:len(start)-1]
+		if seen[uid] {
+			continue
+		}
+		seen[uid] = true
+		if uid.Type == "Group" {
+			groups = append(groups, string(uid.ID))
+		}
+		if entity, ok := a.entities[uid]; ok {
+			for parent := range entity.Parents.All() {
+				start = append(start, parent)
+			}
+		}
+	}
+	slices.Sort(groups)
+	return groups
+}
+
+// PoliciesFor are the generated policies that name the principal, through
+// its subject, a role, a provider group or a local group.
+func (a *Authorizer) PoliciesFor(p Principal) []GeneratedPolicy {
+	groups := a.GroupsOf(p)
+	var out []GeneratedPolicy
+	for _, policy := range a.generated {
+		g := policy.Grant
+		switch {
+		case g.PrincipalType == "user" && g.PrincipalID == p.Subject,
+			g.PrincipalType == "role" && slices.Contains(p.Roles, Role(g.PrincipalID)),
+			g.PrincipalType == "idp_group" && slices.Contains(p.IdPGroups, g.PrincipalID),
+			g.PrincipalType == "group" && slices.Contains(groups, g.PrincipalID):
+			out = append(out, policy)
+		}
+	}
+	return out
 }

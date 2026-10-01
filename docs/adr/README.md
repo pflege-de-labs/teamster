@@ -90,3 +90,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0073](0073-authorize-from-a-versioned-policy-snapshot.md) | Authorize from a versioned policy snapshot | Accepted |
 | [0074](0074-local-groups-and-provider-groups.md) | Local groups, with provider groups as members | Accepted |
 | [0075](0075-own-and-share-records-through-generated-policies.md) | Own and share records through generated Cedar policies | Accepted |
+| [0076](0076-webhook-permissions-and-access-overviews.md) | Webhook permissions, and overviews of who may do what | Accepted |
