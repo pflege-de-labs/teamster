@@ -617,3 +617,29 @@ func (p pgQueries) InsertSettingIfAbsent(ctx context.Context, arg sqlitedb.Inser
 func (p pgQueries) ClearSettingValue(ctx context.Context, arg sqlitedb.ClearSettingValueParams) error {
 	return p.q.ClearSettingValue(ctx, pgdb.ClearSettingValueParams(arg))
 }
+
+// The audit trail (ADR 0070).
+
+func (p pgQueries) InsertAuditEvent(ctx context.Context, arg sqlitedb.InsertAuditEventParams) error {
+	return p.q.InsertAuditEvent(ctx, pgdb.InsertAuditEventParams(arg))
+}
+
+func (p pgQueries) ListAuditEvents(ctx context.Context, arg sqlitedb.ListAuditEventsParams) ([]sqlitedb.AuditEvent, error) {
+	rows, err := p.q.ListAuditEvents(ctx, pgdb.ListAuditEventsParams(arg))
+	if err != nil {
+		return nil, err
+	}
+	out := make([]sqlitedb.AuditEvent, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, sqlitedb.AuditEvent(row))
+	}
+	return out, nil
+}
+
+func (p pgQueries) DeleteAuditEventsBefore(ctx context.Context, occurredAt time.Time) (int64, error) {
+	return p.q.DeleteAuditEventsBefore(ctx, occurredAt)
+}
+
+func (p pgQueries) DeleteAuditEventsBeyond(ctx context.Context, keep int64) (int64, error) {
+	return p.q.DeleteAuditEventsBeyond(ctx, keep)
+}

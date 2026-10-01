@@ -313,6 +313,15 @@ type Store interface {
 	// fail against forever.
 	DeleteActiveEventRecipientsFor(ctx context.Context, recipientID string) error
 
+	// InsertAuditEvent appends one event to the audit trail (ADR 0070).
+	InsertAuditEvent(ctx context.Context, e models.AuditEvent) error
+	// ListAuditEvents returns events newest first, at most filter.Limit of them.
+	ListAuditEvents(ctx context.Context, filter models.AuditFilter) ([]models.AuditEvent, error)
+	// PruneAuditEvents forgets events older than cutoff, unless cutoff is zero,
+	// and all but the newest keep events, unless keep is zero. Replicas sharing
+	// a database may all run it: a second run finds nothing to delete.
+	PruneAuditEvents(ctx context.Context, cutoff time.Time, keep int) (int64, error)
+
 	// RecordEventSamples adds each sample's SeenCount to what is stored for its
 	// kind, key and value, creating the row if there is none (ADR 0041).
 	// SQLiteStore and PostgresStore commit the whole batch in one transaction.

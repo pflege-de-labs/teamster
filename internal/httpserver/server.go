@@ -281,6 +281,8 @@ func NewServer(logger *slog.Logger, cfg config.Config, store store.Store, graphC
 	adminMux.HandleFunc("/admin/webhooks", api.handleWebhookForm)
 	adminMux.HandleFunc("/admin/webhooks/rotate", api.handleWebhookRotate)
 	adminMux.HandleFunc("/admin/webhooks/delete", api.formPost("webhooks", api.deleteWebhookEndpoint))
+	adminMux.HandleFunc("/admin/audit", api.handleAuditPage)
+	adminMux.HandleFunc("/api/audit", api.handleAuditAPI)
 	adminMux.HandleFunc("/admin/tokens", api.handleTokensPage)
 	adminMux.HandleFunc("/admin/tokens/new", api.handleTokenForm)
 	adminMux.HandleFunc("/admin/tokens/delete", api.formPostTo("/admin/tokens", api.revokeAccessTokenForm))

@@ -6,8 +6,12 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/user"
 
+	"github.com/pflege-de-labs/teamster/internal/audit"
 	"github.com/pflege-de-labs/teamster/internal/config"
+	"github.com/pflege-de-labs/teamster/internal/logging"
+	"github.com/pflege-de-labs/teamster/internal/models"
 	"github.com/pflege-de-labs/teamster/internal/store"
 	"github.com/pflege-de-labs/teamster/internal/transfer"
 )
@@ -89,13 +93,32 @@ func (c *ImportCmd) Run(ctx context.Context, cfg *config.Config) error {
 	}
 	defer func() { _ = sqlStore.Close() }()
 
-	result, err := transfer.Import(ctx, sqlStore, bundle, mode, c.DryRun)
+	logger, err := logging.New(cfg.Log, os.Stderr)
+	if err != nil {
+		return fmt.Errorf("log: %w", err)
+	}
+	recorder, err := newRecorder(logger, cfg.Audit, sqlStore, nil)
+	if err != nil {
+		return fmt.Errorf("audit: %w", err)
+	}
+	defer func() { _ = recorder.Close(context.WithoutCancel(ctx)) }()
+
+	result, err := transfer.Import(audit.WithActor(ctx, cliActor()), audit.Wrap(sqlStore, recorder), bundle, mode, c.DryRun)
 	if err != nil {
 		return err
 	}
 
 	report(os.Stdout, result)
 	return nil
+}
+
+// cliActor is whoever ran the command, as far as the operating system knows.
+func cliActor() models.Actor {
+	name := "unknown"
+	if u, err := user.Current(); err == nil {
+		name = u.Username
+	}
+	return models.Actor{Subject: name, Via: models.ViaCLI}
 }
 
 // report prints the diff as lines rather than JSON: this is read by a person

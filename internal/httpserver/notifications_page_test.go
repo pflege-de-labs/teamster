@@ -167,7 +167,7 @@ func TestNotificationsHandlersResolveIdentityFromTheSessionNotThePrincipal(t *te
 	withStrayPrincipal := func(r *http.Request) *http.Request {
 		r.AddCookie(&http.Cookie{Name: sessionCookie, Value: testSessionID})
 		r.SetBasicAuth("admin", "pass")
-		return r.WithContext(withPrincipal(r.Context(), "attacker", "Attacker", []authz.Role{authz.RoleAdmin}))
+		return r.WithContext(withPrincipal(r.Context(), "attacker", "Attacker", models.ViaSession, []authz.Role{authz.RoleAdmin}))
 	}
 
 	mintReq := withStrayPrincipal(httptest.NewRequest(http.MethodPost, "/admin/notifications/link", strings.NewReader("")))

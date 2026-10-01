@@ -30,6 +30,8 @@ type Viewer struct {
 	// CanManage decides whether the permissions tab is offered. The page
 	// refuses the request either way; this is what keeps it out of the nav.
 	CanManage bool
+	// CanAudit decides whether the nav offers the audit trail.
+	CanAudit bool
 	// NotificationsEnabled decides whether the nav offers the notifications
 	// page. Unlike CanManage this is not a per-viewer permission -- the page
 	// itself is offered to every role -- but a deployment-wide switch: the

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/pflege-de-labs/teamster/internal/audit"
 	"github.com/pflege-de-labs/teamster/internal/authz"
 	"github.com/pflege-de-labs/teamster/internal/httpserver/views"
 	"github.com/pflege-de-labs/teamster/internal/models"
@@ -25,10 +26,12 @@ func isPageRequest(r *http.Request) bool {
 }
 
 // withPrincipal carries who is asking into the handlers, so authorization reads
-// it from one place rather than each handler re-deriving it.
-func withPrincipal(ctx context.Context, subject, name string, roles []authz.Role) context.Context {
+// it from one place rather than each handler re-deriving it. via is how they
+// proved it, which the audit trail records.
+func withPrincipal(ctx context.Context, subject, name, via string, roles []authz.Role) context.Context {
 	ctx = context.WithValue(ctx, subjectKey, subject)
 	ctx = context.WithValue(ctx, nameKey, name)
+	ctx = audit.WithActor(ctx, models.Actor{Subject: subject, Name: name, Via: via})
 	return context.WithValue(ctx, roleKey, roles)
 }
 
@@ -51,6 +54,7 @@ func (s *Server) viewerFor(r *http.Request) views.Viewer {
 	viewer := viewerOf(r)
 	subject, roles := principalOf(r)
 	viewer.CanManage = s.authz.Allow(subject, roles, authz.ActionAdminister, authz.Resource{Type: "Grant"})
+	viewer.CanAudit = s.authz.Allow(subject, roles, authz.ActionAdminister, authz.Resource{Type: "Audit"})
 	viewer.CanComplete = s.cfg.Samples.Enabled && s.mayComplete(r)
 	viewer.NotificationsEnabled = botConfigured(s.cfg.Bot)
 	viewer.PeopleEnabled = viewer.NotificationsEnabled && s.cfg.Bot.GlobalInstall
@@ -147,6 +151,9 @@ func requestAuthorization(r *http.Request) (string, authz.Resource) {
 	case path == "/api/tokens", strings.HasPrefix(path, "/api/tokens/"),
 		path == "/admin/tokens", strings.HasPrefix(path, "/admin/tokens/"):
 		return authz.ActionAdminister, authz.Resource{Type: "AccessToken"}
+	// The trail names everyone who changed anything, and what it held before.
+	case path == "/admin/audit", path == "/api/audit":
+		return authz.ActionAdminister, authz.Resource{Type: "Audit"}
 	// Installing the app for the whole tenant, and the directory behind it,
 	// are the admin's, reads included: the page lists people (ADR 0059).
 	case path == "/admin/people", strings.HasPrefix(path, "/admin/people/"),

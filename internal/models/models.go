@@ -604,3 +604,51 @@ type EventSample struct {
 	FirstSeen time.Time
 	LastSeen  time.Time
 }
+
+// How an actor proved who they are, recorded on every audit event.
+const (
+	ViaSession = "session"
+	ViaBasic   = "basic"
+	ViaToken   = "token"
+	ViaCLI     = "cli"
+	ViaSystem  = "system"
+)
+
+// An Actor is who caused an audit event. TokenID names the access token a
+// request arrived with, when it arrived with one.
+type Actor struct {
+	Subject string `json:"subject"`
+	Name    string `json:"name,omitempty"`
+	Via     string `json:"via"`
+	TokenID string `json:"token_id,omitempty"`
+}
+
+// An AuditEvent is one change to the configuration (ADR 0070). Action is
+// "<resource>.<verb>", such as "template.update". Before and After are JSON
+// snapshots of the record; Before is empty for a create, After for a delete.
+type AuditEvent struct {
+	ID           string          `json:"id"`
+	OccurredAt   time.Time       `json:"occurred_at"`
+	Actor        Actor           `json:"actor"`
+	Action       string          `json:"action"`
+	ResourceType string          `json:"resource_type"`
+	ResourceID   string          `json:"resource_id,omitempty"`
+	RequestID    string          `json:"request_id,omitempty"`
+	Before       json.RawMessage `json:"before,omitempty"`
+	After        json.RawMessage `json:"after,omitempty"`
+}
+
+// An AuditFilter narrows ListAuditEvents. Empty fields match everything, and
+// a zero Since or Until leaves that end of the range open. The cursor is the
+// last event of the previous page.
+type AuditFilter struct {
+	Actor        string
+	ResourceType string
+	ResourceID   string
+	Action       string
+	Since        time.Time
+	Until        time.Time
+	CursorID     string
+	CursorAt     time.Time
+	Limit        int
+}

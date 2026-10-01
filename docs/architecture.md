@@ -17,6 +17,7 @@ that runs more than one instance. SQLite is the option with no other runtime dep
 | `internal/routing` | Selects a route for an event's labels. |
 | `internal/templates` | Renders an Adaptive Card from a Go template plus event data, and describes that data for the editor's completion (`EditorVocabulary`). |
 | `internal/logging` | Builds the `slog` logger from `log.*` and carries a request's logger in its context. See [Logging and errors](#logging-and-errors). |
+| `internal/audit` | Records configuration changes: a `store.Store` decorator that emits an event per write, a `Recorder` that fans events out to sinks (database, JSON lines file), and the retention pruner. See [Audit trail](#audit-trail). |
 | `internal/samples` | Remembers the label keys, label values and attribute keys incoming events carry, for editor completion. See [Editor completion](#editor-completion). |
 | `internal/graph` | Microsoft Graph client: OAuth2 client credentials, list Teams and channels. It posts nothing: Graph does not let an application post or edit channel messages (ADR 0045). It also reads directory users and the organization app catalog, and installs the Teams app in a user's personal scope; those calls take a context and retry while Graph throttles (429/503), waiting as long as `Retry-After` says, up to 30 seconds. `BrokerClient` is the delegated-Teams half (ADR 0037): the same Graph endpoints, called with a per-request Entra bearer token instead of the app-only credential. |
 | `internal/people` | Resolves an object id, UPN or mail address to a directory user, opens the bot's chat with them, installing the Teams app through Graph when allowed, and reconciles installs for the whole tenant. See [Installing the app for everyone](#installing-the-app-for-everyone). |
@@ -605,6 +606,37 @@ given a deadline of its own without changing any caller.
 commands are three doors onto the same code. See
 [ADR 0013](adr/0013-configuration-transfer.md).
 
+## Audit trail
+
+`audit.Wrap` decorates the store that `serve` hands to `httpserver.NewServer`, and the one
+`teamster import` writes through. Each configuration write it overrides reads the record first. It
+emits an event with `before` and `after` snapshots only when the write succeeded and changed
+something. Reads and delivery bookkeeping pass straight through.
+See [ADR 0070](adr/0070-audit-configuration-changes-at-the-store.md).
+
+```text
+handler ──► audit.Wrap ──► store ──► commit
+                │                      │
+                └─ buffer (in a tx) ───┴─► Recorder ─┬─► database sink (sync)
+                                                     └─► file sink (queued)
+```
+
+* **Actor.** The actor comes from the context. `withPrincipal` sets it with `via` `session` or
+  `basic`, the logging middleware adds the request id, and `teamster import` sets the
+  operating-system user with `via` `cli`. Without one, the actor is `teamster`/`system`.
+* **Transactions.** Inside `WithTx` and `WithSerializableTx` events wait for the commit. A rollback
+  or a dry run records nothing, and a serializable retry starts its buffer again.
+* **Delivery.** The database sink is written before the request returns. Other sinks have a
+  bounded queue each and can only lag. A full queue drops the event (`teamster.audit.dropped`). A
+  failed write is logged and counted (`teamster.audit.failed`), and the request still succeeds.
+* **Shutdown.** `serve` closes the recorder after the HTTP drain, within
+  `server.shutdown-timeout`, so the queues empty before the store closes.
+* **Retention.** Every replica runs `audit.Pruner` every `audit.prune-interval`. It deletes events
+  older than `audit.retention-age` and all but the newest `audit.retention-count`. Either limit is
+  off at `0`.
+* **Reading.** `/admin/audit` and `GET /api/audit` are admin-only. They filter by actor, action,
+  type and id, and page newest first by `(occurred_at, id)`.
+
 ## Metrics
 
 `internal/metrics` owns one OpenTelemetry pipeline and as many readers as the configuration asks for:
@@ -641,6 +673,8 @@ Installing for everyone adds four instruments, none of which names a person:
 * `teamster.directory.lookups`, by `result`: `store`, `graph`, `negative-cache` or `unknown`.
 * `teamster.directory.runs`, by `kind` and `outcome`: `done`, `failed` or `lost`.
 * `teamster.directory.users`, a gauge by install `state`.
+
+The audit trail adds two, by `sink`: `teamster.audit.failed` and `teamster.audit.dropped`.
 
 ## Logging and errors
 
@@ -845,6 +879,10 @@ Both are new tables and nothing else, so the previous release ignores them.
 names, by `0021` in SQLite and `0018` in Postgres
 ([ADR 0062](adr/0062-a-route-may-deliver-to-the-people-a-message-names.md)). The previous release
 never reads it, so it sees an addressed route as one with no target and delivers nothing through it.
+
+`audit_events` came with the audit trail, by `0023` in SQLite and `0020` in Postgres
+([ADR 0070](adr/0070-audit-configuration-changes-at-the-store.md)). It is append-only, and pruning
+deletes by `occurred_at`. It is a new table and nothing else, so the previous release ignores it.
 
 `database.migrate` decides what opening the store does about a schema that is behind: `auto`
 applies what is missing, `verify` refuses and names `teamster migrate up`, `off` asks nothing.

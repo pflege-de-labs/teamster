@@ -8,6 +8,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+* `config.settings.audit` documents the audit trail's settings. `file: "-"` sends the JSON lines to
+  the pod's stdout, for the cluster's log pipeline.
+
 ## [0.9.0] — 2026-09-30
 
 App version 0.10.0: the admin UI names the zone of every time and can show them in the browser's

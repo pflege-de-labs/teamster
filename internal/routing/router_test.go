@@ -441,6 +441,18 @@ func (s stubStore) PruneEventSamples(ctx context.Context, _ time.Time, _ int) (i
 	return 0, store.ErrNotFound
 }
 
+func (s stubStore) InsertAuditEvent(context.Context, models.AuditEvent) error {
+	return store.ErrNotFound
+}
+
+func (s stubStore) ListAuditEvents(context.Context, models.AuditFilter) ([]models.AuditEvent, error) {
+	return nil, store.ErrNotFound
+}
+
+func (s stubStore) PruneAuditEvents(context.Context, time.Time, int) (int64, error) {
+	return 0, store.ErrNotFound
+}
+
 func (s stubStore) CreateLoginFlow(ctx context.Context, _ models.LoginFlow) error {
 	return store.ErrNotFound
 }

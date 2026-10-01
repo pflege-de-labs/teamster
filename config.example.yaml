@@ -237,3 +237,16 @@ samples:
   # flush-interval rather than once per event.
   lru-size: 4096
   flush-interval: "5m"
+
+# Who changed the configuration, and how (ADR 0070).
+audit:
+  # JSON lines appended to a file; "-" is stdout. Empty writes no file.
+  file: ""
+  # The trail /admin/audit lists.
+  database: true
+  # Database retention: either limit, or both; 0 switches one off.
+  retention-age: "2160h"
+  retention-count: 0
+  prune-interval: "1h"
+  # Events waiting for the file before new ones are dropped and counted.
+  queue-size: 1024

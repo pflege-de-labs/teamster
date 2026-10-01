@@ -52,6 +52,9 @@ type Metrics struct {
 	reconcileRuns  metric.Int64Counter
 	directoryUsers metric.Int64ObservableGauge
 	directoryReg   metric.Registration
+
+	auditFailed  metric.Int64Counter
+	auditDropped metric.Int64Counter
 }
 
 // New builds the pipeline the configuration asks for. It never returns a nil

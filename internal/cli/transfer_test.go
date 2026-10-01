@@ -71,7 +71,10 @@ func TestImportCommandAppliesAnExport(t *testing.T) {
 		t.Fatalf("export: %v", err)
 	}
 
-	target := &config.Config{Database: config.DatabaseConfig{Path: filepath.Join(t.TempDir(), "target.db")}}
+	target := &config.Config{
+		Database: config.DatabaseConfig{Path: filepath.Join(t.TempDir(), "target.db")},
+		Audit:    config.AuditConfig{Database: true},
+	}
 	if err := (&ImportCmd{File: bundlePath, Mode: "replace"}).Run(t.Context(), target); err != nil {
 		t.Fatalf("import: %v", err)
 	}
@@ -88,6 +91,14 @@ func TestImportCommandAppliesAnExport(t *testing.T) {
 	}
 	if len(templates) != 1 || templates[0].ID != "tmpl" {
 		t.Errorf("templates = %+v, want the bundle applied with its ids", templates)
+	}
+
+	events, err := st.ListAuditEvents(ctx, models.AuditFilter{ResourceType: "Template", ResourceID: "tmpl"})
+	if err != nil {
+		t.Fatalf("ListAuditEvents: %v", err)
+	}
+	if len(events) != 1 || events[0].Action != "template.create" || events[0].Actor.Via != models.ViaCLI {
+		t.Errorf("audit trail = %+v, want the import recorded as a cli change", events)
 	}
 }
 

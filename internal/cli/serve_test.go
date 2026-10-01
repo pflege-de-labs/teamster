@@ -27,6 +27,7 @@ func validConfig(t *testing.T) *config.Config {
 		Database: config.DatabaseConfig{Path: filepath.Join(t.TempDir(), "serve.db")},
 		Webhook:  config.WebhookConfig{Token: "token", MaxRecipients: 100, FanoutConcurrency: 8},
 		Admin:    config.AdminConfig{Username: "admin", Password: "pass"},
+		Audit:    config.AuditConfig{Database: true, PruneInterval: time.Hour, QueueSize: 16},
 		Graph: config.GraphConfig{
 			TenantID:     "tenant",
 			ClientID:     "client",

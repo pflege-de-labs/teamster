@@ -94,6 +94,30 @@ A webhook that messages every directory user, or an Entra group, at once. Not a 
 
 Follows milestone 23, whose `directory_users` and run table it builds on.
 
+## Milestone 25 — Ownership, groups and scoped tokens
+
+Every record has owners who can share it, groups decide access, and users mint their own tokens.
+The audit trail it builds on shipped first
+([ADR 0070](adr/0070-audit-configuration-changes-at-the-store.md)). Each step is one pull request:
+
+* **25.1 Audit to NATS JetStream.** A sink that publishes each event to
+  `<prefix>.<type>.<action>` with `Nats-Msg-Id` set to the event id, so the stream deduplicates.
+* **25.2 A user registry.** A `users` table written at sign-in, so users can be picked in the UI and
+  disabled.
+* **25.3 A versioned policy snapshot.** The Cedar policy set and entities are built from the store,
+  and each request checks a generation number, so replicas pick up changes without lag. Records are
+  checked in the handlers, not only per collection. Behaviour does not change.
+* **25.4 Groups.** Local groups whose members are users, other groups or IdP groups from the groups
+  claim. This supersedes "groups decide nothing" in
+  [ADR 0043](adr/0043-session-keeps-sign-in-identity.md).
+* **25.5 Ownership and per-record permissions.** Permission rows are rendered to Cedar `permit`
+  policies. An `own` row makes a principal an owner. Owners share `read`, `update`, `delete` and
+  `attach`, and pass on ownership. Milestone 22 becomes a `deliverToRecipient` row.
+* **25.6 Webhook permissions and overviews.** `use` on `Webhook::"alertmanager"`, `"universal"` or
+  `"*"`. Admins get a permissions overview with the loaded Cedar text, and each user gets their own.
+* **25.7 Self-service scoped tokens.** A token's scope is at most its creator's permissions, and is
+  checked against them again on every use.
+
 ## Follow-ups from shipped work
 
 Smaller items left open when a milestone shipped. Each is picked up on its own.
@@ -104,8 +128,7 @@ Smaller items left open when a milestone shipped. Each is picked up on its own.
 * **Retire `X-Teamster-Token`.** Remove the header in a breaking release, and decide whether
   `webhook.token` stays as the declarative bootstrap token
   ([ADR 0044](adr/0044-webhook-access-tokens.md)).
-* **Scoped webhook tokens.** Limit an access token to one webhook, or to a role's delivery grants.
-  Additive.
+* **Scoped webhook tokens.** Planned as milestone 25.7.
 * **Install the Teams app into a team from Teamster.** Graph allows it; a separate ADR would decide
   whether Teamster should ([ADR 0045](adr/0045-channel-delivery-through-the-bot.md)). Installing
   for people is milestone 23.
@@ -132,6 +155,7 @@ Smaller items left open when a milestone shipped. Each is picked up on its own.
 | 5 | 20.4 More commands | 20.2 | — |
 | 6 | 23.4–23.6 Messages to individual people, the rest | 23 | a test tenant for 23.5 |
 | 7 | 24 Announcements | 23 | — |
+| 8 | 25.1–25.7 Ownership, groups and scoped tokens | — | — |
 
 Follow-ups are unordered and can be pulled in between milestones.
 

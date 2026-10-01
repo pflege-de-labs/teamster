@@ -279,6 +279,16 @@ config:
     #   max-value-length: 200
     #   lru-size: 4096
     #   flush-interval: 5m
+    # Who changed the configuration (ADR 0070). The database copy is what
+    # /admin/audit lists; "-" also writes JSON lines to stdout for the log
+    # pipeline. The values shown are the defaults, except file.
+    # audit:
+    #   file: "-"
+    #   database: true
+    #   retention-age: 2160h
+    #   retention-count: 0
+    #   prune-interval: 1h
+    #   queue-size: 1024
     # The admin UI's text. locale-dir points at catalog files that override the
     # built-in wording; mount them if you use it.
     ui:

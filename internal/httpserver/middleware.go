@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pflege-de-labs/teamster/internal/audit"
 	"github.com/pflege-de-labs/teamster/internal/logging"
 )
 
@@ -25,6 +26,7 @@ func (s *Server) logging(next http.Handler) http.Handler {
 		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
 
 		ctx := context.WithValue(logging.WithLogger(r.Context(), logger), requestIDKey{}, id)
+		ctx = audit.WithRequestID(ctx, id)
 		next.ServeHTTP(rec, r.WithContext(ctx))
 
 		// Probes arrive every few seconds and say nothing on their own.

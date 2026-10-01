@@ -42,6 +42,21 @@ type ActiveEventRecipient struct {
 	LastUpdate  time.Time
 }
 
+type AuditEvent struct {
+	ID           string
+	OccurredAt   time.Time
+	ActorSubject string
+	ActorName    string
+	ActorVia     string
+	ActorTokenID string
+	Action       string
+	ResourceType string
+	ResourceID   string
+	RequestID    string
+	Before       sql.NullString
+	After        sql.NullString
+}
+
 type BotTeam struct {
 	TeamID     string
 	TenantID   string

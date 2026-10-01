@@ -123,6 +123,12 @@ func TestParseExampleConfig(t *testing.T) {
 			LRUSize:         4096,
 			FlushInterval:   5 * time.Minute,
 		},
+		Audit: AuditConfig{
+			Database:      true,
+			RetentionAge:  2160 * time.Hour,
+			PruneInterval: time.Hour,
+			QueueSize:     1024,
+		},
 		Log: LogConfig{Level: "info", Format: "text"},
 	}
 	if !reflect.DeepEqual(got, want) {
@@ -820,6 +826,42 @@ func TestValidateSamples(t *testing.T) {
 				t.Errorf("validateSamples() = %v, want nil", err)
 			case tt.wantErr != "" && (err == nil || !strings.Contains(err.Error(), tt.wantErr)):
 				t.Errorf("validateSamples() = %v, want an error naming %s", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidateAudit(t *testing.T) {
+	t.Parallel()
+
+	valid := AuditConfig{File: "-", Database: true, RetentionAge: time.Hour, PruneInterval: time.Minute, QueueSize: 1}
+	tests := []struct {
+		name    string
+		mutate  func(*AuditConfig)
+		wantErr string
+	}{
+		{name: "valid", mutate: func(*AuditConfig) {}},
+		{name: "no limits", mutate: func(c *AuditConfig) { c.RetentionAge, c.RetentionCount = 0, 0 }},
+		{name: "count only", mutate: func(c *AuditConfig) { c.RetentionAge, c.RetentionCount = 0, 10 }},
+		{name: "negative age", mutate: func(c *AuditConfig) { c.RetentionAge = -time.Hour }, wantErr: "audit-retention-age"},
+		{name: "negative count", mutate: func(c *AuditConfig) { c.RetentionCount = -1 }, wantErr: "audit-retention-count"},
+		{name: "prune interval", mutate: func(c *AuditConfig) { c.PruneInterval = 0 }, wantErr: "audit-prune-interval"},
+		{name: "queue size", mutate: func(c *AuditConfig) { c.QueueSize = 0 }, wantErr: "audit-queue-size"},
+		{name: "unused bounds are not checked", mutate: func(c *AuditConfig) { *c = AuditConfig{} }},
+		{name: "no retention needs no interval", mutate: func(c *AuditConfig) { c.RetentionAge, c.PruneInterval = 0, 0 }},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := valid
+			tt.mutate(&cfg)
+			err := validateAudit(cfg)
+			switch {
+			case tt.wantErr == "" && err != nil:
+				t.Errorf("validateAudit() = %v, want nil", err)
+			case tt.wantErr != "" && (err == nil || !strings.Contains(err.Error(), tt.wantErr)):
+				t.Errorf("validateAudit() = %v, want an error naming %s", err, tt.wantErr)
 			}
 		})
 	}
