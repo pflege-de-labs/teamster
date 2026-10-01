@@ -129,7 +129,10 @@ func TestParseExampleConfig(t *testing.T) {
 			RetentionCount: 100000,
 			PruneInterval:  time.Hour,
 			QueueSize:      1024,
-			NATS:           AuditNATSConfig{SubjectPrefix: "teamster.audit", Stream: "TEAMSTER_AUDIT", Timeout: 5 * time.Second},
+			NATS: AuditNATSConfig{
+				SubjectPrefix: "teamster.audit", Stream: "TEAMSTER_AUDIT", Timeout: 5 * time.Second,
+				BackfillInterval: 2 * time.Second, BackfillSettle: 5 * time.Second,
+			},
 		},
 		Log: LogConfig{Level: "info", Format: "text"},
 	}
@@ -857,6 +860,15 @@ func TestValidateAudit(t *testing.T) {
 		{name: "nats trailing dot", mutate: func(c *AuditConfig) { c.NATS = natsOK; c.NATS.SubjectPrefix = "audit." }, wantErr: "audit-nats-subject-prefix"},
 		{name: "nats stream to create", mutate: func(c *AuditConfig) { c.NATS = natsOK; c.NATS.Stream = "" }, wantErr: "audit-nats-stream"},
 		{name: "nats timeout", mutate: func(c *AuditConfig) { c.NATS = natsOK; c.NATS.Timeout = 0 }, wantErr: "audit-nats-timeout"},
+		{name: "backfill", mutate: func(c *AuditConfig) {
+			c.NATS = natsOK
+			c.NATS.Backfill, c.NATS.BackfillInterval, c.NATS.BackfillSettle = true, time.Second, time.Second
+		}},
+		{name: "backfill without the database", mutate: func(c *AuditConfig) {
+			c.NATS = natsOK
+			c.Database, c.NATS.Backfill, c.NATS.BackfillInterval = false, true, time.Second
+		}, wantErr: "audit-nats-backfill needs audit-database"},
+		{name: "backfill that never runs", mutate: func(c *AuditConfig) { c.NATS = natsOK; c.NATS.Backfill = true }, wantErr: "audit-nats-backfill-interval"},
 		{name: "nats needs a queue", mutate: func(c *AuditConfig) { c.File = ""; c.NATS = natsOK; c.QueueSize = 0 }, wantErr: "audit-queue-size"},
 		{name: "no retention needs no interval", mutate: func(c *AuditConfig) { c.RetentionAge, c.PruneInterval = 0, 0 }},
 	}

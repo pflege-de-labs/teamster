@@ -681,6 +681,12 @@ handler ──► audit.Wrap ──► store ──► commit
   to the event id. It waits for the stream's acknowledgement and retries twice. It connects without
   waiting for the server, so an outage queues events instead of stopping the start. See
   [ADR 0071](adr/0071-publish-audit-events-to-nats-jetstream.md).
+* **Backfill.** With `audit.nats.backfill`, NATS is fed by an `audit.Relay` instead of a queue.
+  The relay reads the trail after its cursor, oldest first. It holds back events younger than the
+  settle window, publishes in order, and advances the cursor in `settings` by compare-and-swap. A
+  failed publish leaves the cursor where it was, so the trail buffers an outage. Every replica
+  relays; the CAS and `Nats-Msg-Id` deduplication absorb the overlap. See
+  [ADR 0078](adr/0078-the-trail-buffers-the-nats-export.md).
 * **Shutdown.** `serve` closes the recorder after the HTTP drain, within
   `server.shutdown-timeout`, so the queues empty before the store closes.
 * **Opt-in.** Without `audit.database` or a sink there is no recorder, and `audit.Wrap` returns the

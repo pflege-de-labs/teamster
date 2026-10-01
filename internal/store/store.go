@@ -357,6 +357,15 @@ type Store interface {
 	InsertAuditEvent(ctx context.Context, e models.AuditEvent) error
 	// ListAuditEvents returns events newest first, at most filter.Limit of them.
 	ListAuditEvents(ctx context.Context, filter models.AuditFilter) ([]models.AuditEvent, error)
+	// ListAuditEventsAfter returns events after cursor and before until,
+	// oldest first, at most limit of them (ADR 0078).
+	ListAuditEventsAfter(ctx context.Context, cursor models.AuditCursor, until time.Time, limit int) ([]models.AuditEvent, error)
+	// AuditCursor is where the named relay got to, and false when it has none.
+	AuditCursor(ctx context.Context, name string) (models.AuditCursor, bool, error)
+	// AdvanceAuditCursor moves the named relay's cursor from one value to the
+	// next, and reports false when another writer moved it first. A zero from
+	// creates the cursor, and only if there is none.
+	AdvanceAuditCursor(ctx context.Context, name string, from, to models.AuditCursor) (bool, error)
 	// PruneAuditEvents forgets events older than cutoff, unless cutoff is zero,
 	// and all but the newest keep events, unless keep is zero. Replicas sharing
 	// a database may all run it: a second run finds nothing to delete.

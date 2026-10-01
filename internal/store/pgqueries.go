@@ -791,3 +791,21 @@ func (p pgQueries) DeletePermissionsForResource(ctx context.Context, arg sqlited
 func (p pgQueries) DeletePermissionsForPrincipal(ctx context.Context, arg sqlitedb.DeletePermissionsForPrincipalParams) error {
 	return p.q.DeletePermissionsForPrincipal(ctx, pgdb.DeletePermissionsForPrincipalParams(arg))
 }
+
+// The audit relay (ADR 0078).
+
+func (p pgQueries) ListAuditEventsAfter(ctx context.Context, arg sqlitedb.ListAuditEventsAfterParams) ([]sqlitedb.AuditEvent, error) {
+	rows, err := p.q.ListAuditEventsAfter(ctx, pgdb.ListAuditEventsAfterParams(arg))
+	if err != nil {
+		return nil, err
+	}
+	out := make([]sqlitedb.AuditEvent, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, sqlitedb.AuditEvent(row))
+	}
+	return out, nil
+}
+
+func (p pgQueries) ReplaceSettingValue(ctx context.Context, arg sqlitedb.ReplaceSettingValueParams) (int64, error) {
+	return p.q.ReplaceSettingValue(ctx, pgdb.ReplaceSettingValueParams(arg))
+}

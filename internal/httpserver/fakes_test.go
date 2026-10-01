@@ -2264,3 +2264,15 @@ func (f *fakeStore) DeletePermissionsFor(_ context.Context, typ, id string) erro
 	f.authzGen++
 	return nil
 }
+
+func (f *fakeStore) ListAuditEventsAfter(context.Context, models.AuditCursor, time.Time, int) ([]models.AuditEvent, error) {
+	return nil, nil
+}
+
+func (f *fakeStore) AuditCursor(context.Context, string) (models.AuditCursor, bool, error) {
+	return models.AuditCursor{}, false, nil
+}
+
+func (f *fakeStore) AdvanceAuditCursor(context.Context, string, models.AuditCursor, models.AuditCursor) (bool, error) {
+	return true, nil
+}

@@ -3,7 +3,9 @@ package store
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/pflege-de-labs/teamster/internal/models"
@@ -62,26 +64,7 @@ func (s queryAdapter) ListAuditEvents(ctx context.Context, filter models.AuditFi
 	if err != nil {
 		return nil, fmt.Errorf("list audit events: %w", err)
 	}
-	out := make([]models.AuditEvent, 0, len(rows))
-	for _, row := range rows {
-		out = append(out, models.AuditEvent{
-			ID:         row.ID,
-			OccurredAt: row.OccurredAt.UTC(),
-			Actor: models.Actor{
-				Subject: row.ActorSubject,
-				Name:    row.ActorName,
-				Via:     row.ActorVia,
-				TokenID: row.ActorTokenID,
-			},
-			Action:       row.Action,
-			ResourceType: row.ResourceType,
-			ResourceID:   row.ResourceID,
-			RequestID:    row.RequestID,
-			Before:       rawJSON(row.Before),
-			After:        rawJSON(row.After),
-		})
-	}
-	return out, nil
+	return auditEventsOf(rows), nil
 }
 
 func (s queryAdapter) PruneAuditEvents(ctx context.Context, cutoff time.Time, keep int) (int64, error) {
@@ -112,4 +95,90 @@ func rawJSON(value sql.NullString) []byte {
 		return nil
 	}
 	return []byte(value.String)
+}
+
+func auditEventsOf(rows []sqlitedb.AuditEvent) []models.AuditEvent {
+	out := make([]models.AuditEvent, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, models.AuditEvent{
+			ID:         row.ID,
+			OccurredAt: row.OccurredAt.UTC(),
+			Actor: models.Actor{
+				Subject: row.ActorSubject,
+				Name:    row.ActorName,
+				Via:     row.ActorVia,
+				TokenID: row.ActorTokenID,
+			},
+			Action:       row.Action,
+			ResourceType: row.ResourceType,
+			ResourceID:   row.ResourceID,
+			RequestID:    row.RequestID,
+			Before:       rawJSON(row.Before),
+			After:        rawJSON(row.After),
+		})
+	}
+	return out
+}
+
+func (s queryAdapter) ListAuditEventsAfter(ctx context.Context, cursor models.AuditCursor, until time.Time, limit int) ([]models.AuditEvent, error) {
+	if limit <= 0 || limit > auditPageMax {
+		limit = auditPageMax
+	}
+	rows, err := s.q.ListAuditEventsAfter(ctx, sqlitedb.ListAuditEventsAfterParams{
+		CursorAt: cursor.At.UTC(), CursorID: cursor.ID, Until: until.UTC(), MaxRows: int64(limit),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("list audit events after cursor: %w", err)
+	}
+	return auditEventsOf(rows), nil
+}
+
+// auditCursorKey names a relay's cursor in settings.
+func auditCursorKey(name string) string { return "audit.cursor." + name }
+
+// encodeCursor is a cursor as a settings value; the time sorts as written.
+func encodeCursor(c models.AuditCursor) string {
+	return c.At.UTC().Format(time.RFC3339Nano) + " " + c.ID
+}
+
+func decodeCursor(value string) (models.AuditCursor, error) {
+	at, id, ok := strings.Cut(value, " ")
+	if !ok {
+		return models.AuditCursor{}, fmt.Errorf("audit cursor %q has no id", value)
+	}
+	t, err := time.Parse(time.RFC3339Nano, at)
+	if err != nil {
+		return models.AuditCursor{}, fmt.Errorf("audit cursor %q: %w", value, err)
+	}
+	return models.AuditCursor{At: t.UTC(), ID: id}, nil
+}
+
+func (s queryAdapter) AuditCursor(ctx context.Context, name string) (models.AuditCursor, bool, error) {
+	value, err := s.q.GetSetting(ctx, auditCursorKey(name))
+	if errors.Is(notFound(err), ErrNotFound) {
+		return models.AuditCursor{}, false, nil
+	}
+	if err != nil {
+		return models.AuditCursor{}, false, fmt.Errorf("read audit cursor: %w", err)
+	}
+	cursor, err := decodeCursor(value)
+	return cursor, err == nil, err
+}
+
+func (s queryAdapter) AdvanceAuditCursor(ctx context.Context, name string, from, to models.AuditCursor) (bool, error) {
+	var n int64
+	var err error
+	if from.IsZero() {
+		n, err = s.q.InsertSettingIfAbsent(ctx, sqlitedb.InsertSettingIfAbsentParams{
+			Key: auditCursorKey(name), Value: encodeCursor(to), UpdatedAt: nowUTC(),
+		})
+	} else {
+		n, err = s.q.ReplaceSettingValue(ctx, sqlitedb.ReplaceSettingValueParams{
+			Next: encodeCursor(to), UpdatedAt: nowUTC(), Key: auditCursorKey(name), Current: encodeCursor(from),
+		})
+	}
+	if err != nil {
+		return false, fmt.Errorf("advance audit cursor: %w", err)
+	}
+	return n == 1, nil
 }

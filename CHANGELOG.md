@@ -12,6 +12,9 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 ### Added
 
+* `audit.nats.backfill` publishes audit events to NATS from the database trail, so events missed
+  while NATS was unreachable are sent once it is back
+  ([ADR 0078](docs/adr/0078-the-trail-buffers-the-nats-export.md)).
 * [Configuring Keycloak](docs/keycloak.md#as-code) sets up the delegated Teams picker's broker
   token with Terraform or Crossplane. It uses a generic OpenID Connect link to Entra, covers
   *Full Scope Allowed* off and on, and grants `read-token` through an identity provider mapper or a

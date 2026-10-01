@@ -195,6 +195,9 @@ type Querier interface {
 	// page; an empty cursor id starts from the newest. Each filter left empty
 	// matches everything, so one statement serves every combination of them.
 	ListAuditEvents(ctx context.Context, arg ListAuditEventsParams) ([]AuditEvent, error)
+	// Oldest first from just after the cursor, for a relay catching up. until
+	// holds back events young enough that an older one may still commit.
+	ListAuditEventsAfter(ctx context.Context, arg ListAuditEventsAfterParams) ([]AuditEvent, error)
 	ListBotTeams(ctx context.Context) ([]BotTeam, error)
 	ListDestinations(ctx context.Context) ([]Destination, error)
 	// ListDirectoryUserProblems is what the people page lists: installs that
@@ -261,6 +264,9 @@ type Querier interface {
 	// the next attempt does not have to wait out the staleness cutoff.
 	ReleaseActiveEventRecipientClaim(ctx context.Context, arg ReleaseActiveEventRecipientClaimParams) error
 	RemoveGroupMember(ctx context.Context, arg RemoveGroupMemberParams) (int64, error)
+	// ReplaceSettingValue moves a key from one value to the next, and only from
+	// that one: two replicas advancing the same cursor cannot both win.
+	ReplaceSettingValue(ctx context.Context, arg ReplaceSettingValueParams) (int64, error)
 	RotateWebhookEndpointToken(ctx context.Context, arg RotateWebhookEndpointTokenParams) error
 	// SetDirectoryUserInstalled records the chat the bot has with a person, which
 	// is proof the app is installed however it got there.

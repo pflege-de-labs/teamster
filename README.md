@@ -1249,6 +1249,9 @@ audit:
     stream: "TEAMSTER_AUDIT"
     create-stream: false            # create or update the stream at start
     creds-file: ""                  # JWT and NKey seed, if the server wants them
+    backfill: false                 # publish from the database trail, catching up after outages
+    backfill-interval: "2s"
+    backfill-settle: "5s"
 ```
 
 Both retention limits apply, whichever is reached first. A sink such as the file or NATS receives
@@ -1262,6 +1265,14 @@ the event id is the `Nats-Msg-Id`, so the stream drops a retried duplicate. Subs
 server that is down does not stop Teamster: events wait in the queue and are counted when they
 are dropped. Put a URL that carries credentials in `TEAMSTER_AUDIT_NATS_URL` rather than in the
 file. See [ADR 0071](docs/adr/0071-publish-audit-events-to-nats-jetstream.md).
+
+With `audit.nats.backfill: true` the database trail is the buffer for NATS. This needs
+`audit.database`. Events are published from the trail in order, and the position is kept in the
+database. If NATS is unreachable, Teamster catches up once it is back, including after a restart.
+Changes made by `teamster import` are published by the running server. Turning backfill on starts
+from the newest event: history is not sent. An outage longer than the database retention loses
+what retention pruned meanwhile, so size `retention-age` and `retention-count` for the longest
+outage you want to ride out. See [ADR 0078](docs/adr/0078-the-trail-buffers-the-nats-export.md).
 
 A failed audit write never fails the change. It is logged and counted in `teamster.audit.failed`,
 and events dropped from a full queue are counted in `teamster.audit.dropped`. `teamster import`

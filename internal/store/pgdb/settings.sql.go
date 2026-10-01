@@ -73,6 +73,33 @@ func (q *Queries) InsertSettingIfAbsent(ctx context.Context, arg InsertSettingIf
 	return result.RowsAffected()
 }
 
+const replaceSettingValue = `-- name: ReplaceSettingValue :execrows
+UPDATE settings SET value = $1, updated_at = $2
+WHERE key = $3 AND value = $4
+`
+
+type ReplaceSettingValueParams struct {
+	Next      string
+	UpdatedAt time.Time
+	Key       string
+	Current   string
+}
+
+// ReplaceSettingValue moves a key from one value to the next, and only from
+// that one: two replicas advancing the same cursor cannot both win.
+func (q *Queries) ReplaceSettingValue(ctx context.Context, arg ReplaceSettingValueParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, replaceSettingValue,
+		arg.Next,
+		arg.UpdatedAt,
+		arg.Key,
+		arg.Current,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const upsertSetting = `-- name: UpsertSetting :exec
 INSERT INTO settings (key, value, updated_at)
 VALUES ($1, $2, $3)
