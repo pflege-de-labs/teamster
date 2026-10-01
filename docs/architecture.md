@@ -105,6 +105,10 @@ and SLSA provenance attestations and is signed with cosign by digest, and the re
 ship per-binary SBOMs under a signed `checksums.txt`. `:latest` only ever moves forward, to the
 newest stable release. See [ADR 0006](adr/0006-release-rebuild-sbom-signing.md).
 
+The user documentation is a Hugo site built from the `pages` and `pages-vX.Y` branches and
+served by GitHub Pages from `gh-pages`, one directory per minor release plus `dev/` for `main`. See
+[ADR 0080](adr/0080-publish-user-docs-as-a-versioned-site.md).
+
 ### Kubernetes
 
 The Helm chart in [charts/teamster](../charts/teamster) deploys the image, and it is published as

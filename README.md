@@ -1619,6 +1619,7 @@ stay in UTC. API responses and logs are always in UTC
 
 ## Documentation
 
+- [User documentation](https://pflege-de-labs.github.io/teamster/), per release
 - [Changelog](CHANGELOG.md)
 - [Architecture](docs/architecture.md)
 - [Helm chart](charts/teamster/README.md) and its [changelog](charts/teamster/CHANGELOG.md)
