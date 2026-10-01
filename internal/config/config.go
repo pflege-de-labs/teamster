@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/base64"
 	"fmt"
+	"net"
 	"net/url"
 	"strings"
 	"time"
@@ -299,6 +300,13 @@ func validateDatabase(cfg DatabaseConfig) error {
 // validateMetrics refuses a configuration that would start a listener nobody
 // can scrape, or none at all while claiming to be enabled. Everything here is
 // gated on Enabled: a deployment that wants no metrics configures nothing.
+// ephemeral is a listen address with port 0, which the kernel picks and two
+// listeners therefore never share.
+func ephemeral(addr string) bool {
+	_, port, err := net.SplitHostPort(addr)
+	return err == nil && port == "0"
+}
+
 func validateMetrics(cfg Config) error {
 	if !cfg.Metrics.Enabled {
 		return nil
@@ -312,7 +320,7 @@ func validateMetrics(cfg Config) error {
 		}
 		// Two listeners on one address fail at bind time with an error that
 		// names neither of them.
-		if cfg.Metrics.Addr == cfg.Server.Addr {
+		if cfg.Metrics.Addr == cfg.Server.Addr && !ephemeral(cfg.Metrics.Addr) {
 			return fmt.Errorf("metrics addr %q is the address the server already listens on", cfg.Metrics.Addr)
 		}
 		if !strings.HasPrefix(cfg.Metrics.Path, "/") {

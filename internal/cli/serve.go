@@ -25,7 +25,10 @@ import (
 )
 
 // ServeCmd runs the HTTP server until ctx is cancelled.
-type ServeCmd struct{}
+type ServeCmd struct {
+	// ready lets tests learn the bound addresses instead of guessing a free port.
+	ready func(server, metrics string)
+}
 
 // sessionSweeper is the one method the sweep needs. Taking the interface
 // rather than the store keeps the sweeper testable and independent of which
@@ -235,6 +238,9 @@ func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
 
 	url := url.URL{Scheme: "http", Host: listener.Addr().String()}
 	logger.Info("listening", "url", url.String())
+	if c.ready != nil {
+		c.ready(listener.Addr().String(), metricsAddr)
+	}
 
 	go sweepSessions(ctx, logger, sqlStore)
 

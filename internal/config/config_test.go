@@ -382,6 +382,14 @@ func TestValidateMetrics(t *testing.T) {
 			wantErr: "the address the server already listens on",
 		},
 		{
+			// Port 0 is picked by the kernel per listener, so the two never clash.
+			name: "both on an ephemeral port",
+			mutate: func(c *Config) {
+				c.Server.Addr = "127.0.0.1:0"
+				c.Metrics = MetricsConfig{Enabled: true, Prometheus: true, Addr: "127.0.0.1:0", Path: "/metrics"}
+			},
+		},
+		{
 			name: "a path that is not one",
 			mutate: func(c *Config) {
 				c.Metrics = MetricsConfig{Enabled: true, Prometheus: true, Addr: "127.0.0.1:9090", Path: "metrics"}

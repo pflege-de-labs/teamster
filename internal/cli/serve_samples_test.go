@@ -19,7 +19,7 @@ func TestServeSamplesWhatArrivesAndFlushesOnShutdown(t *testing.T) {
 	t.Parallel()
 
 	cfg := validConfig(t)
-	cfg.Server.Addr = freePort(t)
+	cfg.Server.Addr = "127.0.0.1:0"
 	cfg.Samples = config.SamplesConfig{
 		Enabled: true, Retention: time.Hour, MaxValuesPerKey: 5,
 		MaxValueLength: 64, LRUSize: 16, FlushInterval: time.Hour,
@@ -27,9 +27,7 @@ func TestServeSamplesWhatArrivesAndFlushesOnShutdown(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	done := make(chan error, 1)
-	go func() { done <- (&ServeCmd{}).Run(ctx, cfg) }()
-	waitForServer(t, cfg.Server.Addr)
+	addr, _, done := serve(ctx, t, cfg)
 
 	// Own transport, emptied before shutdown: a spare connection the shared
 	// DefaultClient dialled but never used is StateNew, which Shutdown only
@@ -37,7 +35,7 @@ func TestServeSamplesWhatArrivesAndFlushesOnShutdown(t *testing.T) {
 	transport := &http.Transport{}
 	client := &http.Client{Transport: transport}
 	for range 2 {
-		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://%s/webhook/universal", cfg.Server.Addr),
+		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://%s/webhook/universal", addr),
 			strings.NewReader(`{"state":"open","labels":{"team":"db"},"attributes":{"summary":"secret detail"}}`))
 		if err != nil {
 			t.Fatalf("new request: %v", err)
