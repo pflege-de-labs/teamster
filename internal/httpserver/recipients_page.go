@@ -22,12 +22,11 @@ func (s *Server) handleRecipientsPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, roles := principalOf(r)
 	page := views.Recipients{
 		Notice:  r.URL.Query().Get("notice"),
 		Error:   r.URL.Query().Get("error"),
 		Viewer:  s.viewerFor(r),
-		CanEdit: s.authz.Allow(principalSubject(r), roles, authz.ActionEdit, authz.Resource{Type: "Recipient"}),
+		CanEdit: s.allow(r, authz.ActionEdit, authz.Resource{Type: "Recipient"}),
 	}
 
 	recipients, err := s.store.ListRecipients(ctx)

@@ -122,8 +122,8 @@ auth:
   # resource_access.<client>.roles. The claim is read from the id token, then
   # userinfo, then the access token, so Keycloak's default mappers suffice.
   claim: "realm_access.roles"
-  # groups-claim is looked up the same way and only shown on the user info
-  # page; it decides nothing. Keycloak sends it with a "Group Membership"
+  # groups-claim is looked up the same way. Its values can be members of
+  # local groups (ADR 0074). Keycloak sends it with a "Group Membership"
   # mapper. Leave it empty to skip the lookup.
   groups-claim: "groups"
   # Roles are read from that claim by name, one to one: a provider role called
@@ -237,3 +237,33 @@ samples:
   # flush-interval rather than once per event.
   lru-size: 4096
   flush-interval: "5m"
+
+# Who changed the configuration, and how (ADR 0070). Off unless database or a
+# sink is set; database alone is the simplest setup.
+audit:
+  # JSON lines appended to a file; "-" is stdout. Empty writes no file.
+  file: ""
+  # The trail /admin/audit lists.
+  database: true
+  # Database retention: both limits apply, whichever is reached first; 0
+  # switches one off. The defaults are 90 days and 100000 events.
+  retention-age: "2160h"
+  retention-count: 100000
+  prune-interval: "1h"
+  # Events waiting for each of file and nats before new ones are dropped and counted.
+  queue-size: 1024
+  # NATS JetStream (ADR 0071): each event goes to <subject-prefix>.<type>.<action>
+  # with its id as Nats-Msg-Id, so the stream drops a retried duplicate.
+  nats:
+    url: ""
+    subject-prefix: "teamster.audit"
+    stream: "TEAMSTER_AUDIT"
+    # Create or update the stream at start; leave off where streams are managed elsewhere.
+    create-stream: false
+    creds-file: ""
+    timeout: "5s"
+    # Publish from the database trail rather than a queue, so events missed
+    # while NATS was down are sent once it is back (ADR 0078). Needs database.
+    backfill: false
+    backfill-interval: "2s"
+    backfill-settle: "5s"

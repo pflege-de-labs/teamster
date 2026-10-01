@@ -26,7 +26,7 @@ Architectural decisions are recorded here, one file per decision, in
 | [0009](0009-admin-authentication.md) | Admin authentication by Keycloak login or local credentials | Accepted |
 | [0010](0010-message-shape.md) | A template decides the title, text and card of a message | Superseded by 0028 |
 | [0011](0011-nested-routes.md) | Routes form a tree and an alert can fan out | Accepted |
-| [0012](0012-role-based-authorization.md) | Roles are authorized with Cedar, evaluated in-process | Accepted |
+| [0012](0012-role-based-authorization.md) | Roles are authorized with Cedar, evaluated in-process | Accepted, extended by [0075](0075-own-and-share-records-through-generated-policies.md) |
 | [0013](0013-configuration-transfer.md) | Configuration moves as a versioned JSON bundle | Accepted |
 | [0014](0014-card-editor.md) | Better JSON editing instead of a card designer | Accepted |
 | [0015](0015-localizable-ui.md) | The UI's text lives in per-language catalogs | Accepted |
@@ -57,8 +57,8 @@ Architectural decisions are recorded here, one file per decision, in
 | [0040](0040-teams-v2-endpoint-templates.md) | A Teams V2 endpoint may name a template | Accepted |
 | [0041](0041-editor-completion-from-sampled-labels.md) | Complete templates and routes from labels sampled off incoming alerts | Accepted |
 | [0042](0042-sidebar-navigation-and-user-menu.md) | Move page links to a sidebar and account controls to a user menu | Accepted, partly superseded by 0054 |
-| [0043](0043-session-keeps-sign-in-identity.md) | Keep what the identity provider said on the session row | Accepted |
-| [0044](0044-webhook-access-tokens.md) | Authenticate the alert webhooks with issued Bearer tokens | Accepted |
+| [0043](0043-session-keeps-sign-in-identity.md) | Keep what the identity provider said on the session row | Accepted, partly superseded by [0074](0074-local-groups-and-provider-groups.md) |
+| [0044](0044-webhook-access-tokens.md) | Authenticate the alert webhooks with issued Bearer tokens | Accepted, partly superseded by [0077](0077-scoped-tokens-answer-to-their-creator.md) |
 | [0045](0045-channel-delivery-through-the-bot.md) | Deliver channel messages through the Bot Framework bot | Accepted, amended by [0049](0049-a-channel-post-is-one-teams-message.md), [0059](0059-install-the-teams-app-for-every-member.md); superseded in part by [0069](0069-the-bot-answers-commands-in-team-channels.md) |
 | [0046](0046-structured-logging-and-error-boundary.md) | Log through slog and answer errors at one boundary | Accepted |
 | [0047](0047-a-route-targets-a-channel-or-yourself.md) | A route targets a channel or a person, and a person only themselves | Accepted, amended by [0051](0051-root-routes-need-a-target-refinements-a-template.md), [0062](0062-a-route-may-deliver-to-the-people-a-message-names.md) |
@@ -84,3 +84,12 @@ Architectural decisions are recorded here, one file per decision, in
 | [0067](0067-times-in-the-admin-ui-follow-a-chosen-zone.md) | Show times in the admin UI in UTC or the browser's zone | Accepted |
 | [0068](0068-commands-are-words-addressed-to-the-bot.md) | Name the bot's commands without a slash | Accepted |
 | [0069](0069-the-bot-answers-commands-in-team-channels.md) | The bot answers commands in team channels | Accepted |
+| [0070](0070-audit-configuration-changes-at-the-store.md) | Audit configuration changes at the store boundary | Accepted |
+| [0071](0071-publish-audit-events-to-nats-jetstream.md) | Publish audit events to NATS JetStream | Accepted |
+| [0072](0072-remember-who-signed-in.md) | Remember who signed in, and let an admin disable them | Accepted |
+| [0073](0073-authorize-from-a-versioned-policy-snapshot.md) | Authorize from a versioned policy snapshot | Accepted |
+| [0074](0074-local-groups-and-provider-groups.md) | Local groups, with provider groups as members | Accepted |
+| [0075](0075-own-and-share-records-through-generated-policies.md) | Own and share records through generated Cedar policies | Accepted |
+| [0076](0076-webhook-permissions-and-access-overviews.md) | Webhook permissions, and overviews of who may do what | Accepted |
+| [0077](0077-scoped-tokens-answer-to-their-creator.md) | Scoped tokens answer to their creator, on every use | Accepted |
+| [0078](0078-the-trail-buffers-the-nats-export.md) | The database trail can buffer the NATS export | Accepted |

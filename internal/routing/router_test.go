@@ -14,6 +14,8 @@ import (
 )
 
 type stubStore struct {
+	// The router reads routes and the global defaults; anything else is not called.
+	store.Store
 	routes []models.Route
 	err    error
 	// fallback is the global default destination; empty means there is none.

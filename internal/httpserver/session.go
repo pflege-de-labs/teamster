@@ -24,11 +24,23 @@ func newToken() (string, error) {
 	return base64.RawURLEncoding.EncodeToString(raw), nil
 }
 
+// errUserDisabled refuses a sign-in an admin has switched off (ADR 0072).
+var errUserDisabled = errors.New("this account is disabled in Teamster")
+
 // startSession returns the session id it generated, alongside the error:
 // handleAuthCallback needs it to key the broker_tokens row it persists right
 // after, and the id did not exist before this call to hand in.
 func (s *Server) startSession(w http.ResponseWriter, r *http.Request, subject, name, source string, roles []authz.Role, identity models.Identity) (string, error) {
 	ctx := r.Context()
+	// The local login is the way back in, so it cannot be disabled.
+	if source != sourceLocal {
+		if user, err := s.store.GetUser(ctx, subject); err == nil && user.Disabled() {
+			return "", errUserDisabled
+		} else if err != nil && !isNotFound(err) {
+			return "", err
+		}
+	}
+
 	id, err := newToken()
 	if err != nil {
 		return "", err
@@ -41,6 +53,13 @@ func (s *Server) startSession(w http.ResponseWriter, r *http.Request, subject, n
 	}); err != nil {
 		return "", err
 	}
+	// Best effort: the session is valid either way; the registry catches up next time.
+	if err := s.store.RecordSignIn(ctx, models.User{
+		Subject: subject, Source: source, Name: name, Email: identity.Email,
+		Roles: roleNames(roles), IdPGroups: identity.Groups, LastSeen: now,
+	}); err != nil {
+		logError(ctx, "record sign-in", err)
+	}
 
 	http.SetCookie(w, &http.Cookie{
 		Name:     sessionCookie,
@@ -52,6 +71,17 @@ func (s *Server) startSession(w http.ResponseWriter, r *http.Request, subject, n
 		Expires:  now.Add(s.sessionTTL()),
 	})
 	return id, nil
+}
+
+// sourceLocal is the local login's session source.
+const sourceLocal = "local"
+
+func roleNames(roles []authz.Role) []string {
+	names := make([]string, 0, len(roles))
+	for _, role := range roles {
+		names = append(names, string(role))
+	}
+	return names
 }
 
 func (s *Server) sessionTTL() time.Duration {
@@ -116,7 +146,7 @@ func isNotFound(err error) bool {
 func (s *Server) requireSession(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if session, ok := s.currentSession(r); ok {
-			next.ServeHTTP(w, r.WithContext(withPrincipal(r.Context(), session.Subject, session.Name, rolesOf(session))))
+			next.ServeHTTP(w, r.WithContext(withPrincipal(r.Context(), session.Subject, session.Name, models.ViaSession, rolesOf(session), session.Identity.Groups)))
 			return
 		}
 		http.Redirect(w, r, "/admin/login", http.StatusFound)

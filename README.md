@@ -484,10 +484,14 @@ nothing identifies it as the same message. Use `state` `open` and a `key` when t
 
 Both webhooks take a token as `Authorization: Bearer <token>`. Two kinds of token are accepted:
 
-- **An access token issued at `/admin/tokens`** (admins only). Name it after the sender, copy it
-  — it is shown once and stored only as a digest — and revoke it when the sender goes away. The
-  page lists when each token was last used. Scripts can do the same through `POST /api/tokens`
-  with `{"name": "…"}`, `GET /api/tokens` and `DELETE /api/tokens/{id}`.
+- **An access token issued at `/admin/tokens`.** Anyone who may use a webhook can mint one (see
+  [Who may do what](#who-may-do-what)): editors and admins for both webhooks, anyone else for the
+  webhooks granted to them. Name it after the sender and choose the webhooks it may send to.
+  Copy it at once: it is shown once and stored only as a digest. Revoke it when the sender goes
+  away. You see and revoke your own tokens; webhook admins and admins see and revoke everyone's.
+  The page lists when each token was last used. Scripts can do the same through `POST /api/tokens`
+  with `{"name": "…", "scope": ["alertmanager"]}`, `GET /api/tokens` and
+  `DELETE /api/tokens/{id}`.
 - **`webhook.token`** (`TEAMSTER_WEBHOOK_TOKEN`), one deployment-wide token from configuration.
   It is optional. Use it when a sender has to be configured declaratively before anyone can sign
   in to issue a token.
@@ -497,8 +501,12 @@ Prefer one issued token per sender, so each can be revoked without breaking the 
 deprecated and will be removed in a breaking release
 ([ADR 0044](docs/adr/0044-webhook-access-tokens.md)).
 
-A token of either kind is accepted by both webhooks; it cannot be limited to one webhook or to a
-role's delivery grants.
+**A token sends only where its creator may send, now.** Every use checks two things in Cedar: the
+token's own scope must name the webhook, and its creator, with the roles and groups of their last
+sign-in, must still be allowed to use it. Disabling the creator, removing them from a group, or
+taking away their webhook level revokes their tokens at the next request. Tokens issued before this
+release, and `webhook.token`, are unscoped: both webhooks, whoever made them. Mint new ones to bind
+them. See [ADR 0077](docs/adr/0077-scoped-tokens-answer-to-their-creator.md).
 
 Alertmanager, with the token in a file mounted from a Secret:
 
@@ -553,7 +561,12 @@ curl -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
 - **`403 RBAC: access denied`**: this is not Teamster's answer. It is the wording of Envoy's RBAC
   filter, so a service mesh (an Istio `AuthorizationPolicy`) or a gateway in front of the pod
   refused the request before it arrived. Allow the sender's workload to reach the webhook path
-  there. Teamster never answers `403` on `/webhook/*`.
+  there. Teamster's own `403` on `/webhook/*` is JSON: `{"error": "the token's scope, or its
+  creator, does not allow this webhook"}`.
+- **`403` with that JSON body**: a scoped token was used for a webhook its scope does not name, or
+  its creator may no longer use it (disabled, removed from a group, or a level taken away). The
+  log line `webhook refused` names the token and its creator, and the refusal is counted in
+  `teamster.webhook.receipts` with state `forbidden`.
 - **`503`**: Teamster could not check the token because the database did not answer. The sender
   should retry, as it does for any 5xx.
 
@@ -583,8 +596,8 @@ message text is for — so the control is the token, not the allowlist:
 - **Do not expose the webhook endpoints to the internet** if only in-cluster senders need them.
   Alertmanager posting from inside the same cluster needs no ingress at all.
 - **Give each sender its own issued token**, so one can be revoked without breaking the others.
-  Every token reaches every route, so senders in different trust boundaries still need separate
-  deployments.
+  Scope it to the one webhook the sender uses. A token still reaches every route behind that
+  webhook, so senders in different trust boundaries still need separate deployments.
 - **Terminate TLS in front of Teamster.** The token travels in a header on every request.
 - A refused token is counted (`teamster.webhook.receipts`, state `refused`), so a token being
   guessed at is visible rather than silent. Alert on it.
@@ -1020,6 +1033,83 @@ policies define, what the admin UI asks about when it decides whether to show a 
 `auth.default-role` may be set to. Removing or renaming them in the policy file breaks the UI;
 adding to them does not.
 
+### Owning and sharing records
+
+Whoever creates a template, destination, route, webhook endpoint or group **owns** it. Records that
+existed before this release are owned by the admins. Editing a record shows **Who may do what**,
+where an owner, or anyone holding `share`, gives a user, a group, a provider group or a role these
+actions:
+
+| Action | Lets them |
+| --- | --- |
+| `read` | see the record |
+| `update` | change it |
+| `delete` | delete it |
+| `attach` | point routes and webhooks at it: a destination they may route into, a template they may render with |
+| `share` | give others what they hold themselves |
+| `own` | everything, including passing ownership on |
+
+Granting `own`, or taking it away, takes ownership yourself. Nobody can give more than they hold.
+Someone with no role but a shared record sees `/admin` with just what was shared. Pages built from
+the whole configuration stay closed to them: the routing graph, previews and the export. Editors
+keep editing everything. `create` on a whole collection is granted through the API:
+
+```bash
+curl -u admin:pw -X POST http://localhost:8080/api/sharing -d '{"principal_type": "group",
+  "principal_id": "<group id>", "resource_type": "Route", "resource_id": "*", "actions": ["create"]}'
+```
+
+`GET /api/sharing?type=Template&id=…` lists a record's permissions, and `DELETE /api/sharing/{id}`
+revokes one. Every change is audited in its own transaction. Each permission is a Cedar policy; see
+[ADR 0075](docs/adr/0075-own-and-share-records-through-generated-policies.md).
+
+### Who may do what
+
+**/admin/access** (admins) shows:
+
+- every grant;
+- who may send to the webhooks;
+- the Cedar policies in force, both the embedded ones and the ones generated from grants;
+- **Who can?**, which takes a subject, an action and a resource and names the policies that allow
+  or refuse it.
+
+**My access** in the user menu (`/admin/me`) shows anyone signed in their roles, groups, webhooks
+and the grants that name them.
+
+Webhook permission is set per user, group, provider group or role, at one of five levels:
+
+| Level | Webhooks |
+| --- | --- |
+| none | none |
+| Alertmanager | `/webhook/alertmanager` |
+| Universal | `/webhook/universal` |
+| both | both |
+| admin | both, and managing everyone's tokens |
+
+Editors and admins may use both webhooks without a level. The API is `PUT /api/access/webhooks`
+with `{"principal_type": "group", "principal_id": "…", "level": "alertmanager"}`. See
+[ADR 0076](docs/adr/0076-webhook-permissions-and-access-overviews.md).
+
+### Groups
+
+A group at **/admin/groups** collects users, other groups, and the groups your identity provider
+names in `auth.groups-claim`. Editors create and change groups, and everyone can see them. Groups
+nest, but a group can never contain itself. Permissions on individual records are granted to
+groups as well as to users. Every membership change is recorded in the [audit trail](#audit-trail)
+in the same transaction: if it cannot be recorded, it does not happen. The API is `/api/groups`,
+`/api/groups/{id}` and `/api/groups/{id}/members` with `{"type": "user|group|idp_group", "id": "…"}`.
+Groups are not part of a configuration bundle. See
+[ADR 0074](docs/adr/0074-local-groups-and-provider-groups.md).
+
+### Users
+
+Everyone who signs in is listed at **/admin/users** (admins only), with the roles and groups their
+provider sent at their last sign-in. **Disable** ends that user's sessions at once and refuses
+their next sign-in until an admin enables them again. The local login cannot be disabled, because
+it is the way back in, and nobody can disable themselves. The API is `GET /api/users?q=…`, and
+`POST` or `DELETE /api/users/disabled` with `{"subject": "…"}`. Both changes are recorded in the
+[audit trail](#audit-trail). See [ADR 0072](docs/adr/0072-remember-who-signed-in.md).
+
 ### Limiting a role to Teams and channels
 
 An admin can narrow where a role may deliver on **Permissions** (`/admin/permissions`): pick a role,
@@ -1092,6 +1182,9 @@ bundle. It carries **no credentials** (webhook access tokens included — issue 
 bundle lands) and no runtime state, so it can live in a repository beside
 the rest of a deployment's configuration.
 
+Groups and record permissions are **not** carried either: they name people of one tenant. Records
+a bundle creates are owned by the admins until someone shares them.
+
 Linked people are **not** carried: a link binds one person to one conversation in one tenant, so it
 would mean nothing where the bundle lands. A bundle whose route names a person is refused on import
 rather than imported as a route that looks like it delivers there and never does — clear the route's
@@ -1120,6 +1213,70 @@ belong to one tenant, though: a bundle carried to another imports cleanly and th
 The bundle therefore carries the Team and channel names beside the ids, and the HTTP import names
 the destinations this tenant cannot resolve — see
 [ADR 0013](docs/adr/0013-configuration-transfer.md).
+
+## Audit trail
+
+Auditing is off until you configure it. With it on, every change to the configuration is
+recorded: templates, destinations, routes, webhook endpoints, access tokens, grants, the default
+template and destination, linked chats, and install runs someone asked for. An event says who made
+the change, how they signed in (`session`, `basic` or `cli`), the request id, and the record before
+and after. Credentials are never included.
+
+Admins read the trail at **/admin/audit**, or with `GET /api/audit`. Both filter by `actor`,
+`action`, `type` and `id`, and `since`/`until` filter by time (RFC 3339). Results are newest first.
+To get the next page of API results, pass the `next` value back as `cursor` and `at`.
+
+The simplest setup keeps the trail in the database:
+
+```yaml
+audit:
+  database: true
+```
+
+Everything else is optional; the values shown are the defaults:
+
+```yaml
+audit:
+  database: true            # the trail /admin/audit lists
+  retention-age: "2160h"    # forget events older than 90 days; 0 keeps them regardless of age
+  retention-count: 100000   # keep at most this many events; 0 is no limit
+  prune-interval: "1h"
+  file: ""                  # also append JSON lines to a file; "-" is stdout
+  queue-size: 1024          # events waiting per sink (file, nats) before new ones are dropped
+  nats:
+    url: ""                         # publish to NATS JetStream, e.g. nats://nats:4222; empty is off
+    subject-prefix: "teamster.audit"
+    stream: "TEAMSTER_AUDIT"
+    create-stream: false            # create or update the stream at start
+    creds-file: ""                  # JWT and NKey seed, if the server wants them
+    backfill: false                 # publish from the database trail, catching up after outages
+    backfill-interval: "2s"
+    backfill-settle: "5s"
+```
+
+Both retention limits apply, whichever is reached first. A sink such as the file or NATS receives
+the events recorded while it is configured. Turning one on later does not send it older events from
+the database.
+
+With `audit.nats.url` set, each event is also published to JetStream. The subject is
+`<subject-prefix>.<resource type>.<action>`, for example `teamster.audit.Route.route.delete`, and
+the event id is the `Nats-Msg-Id`, so the stream drops a retried duplicate. Subscribe to
+`teamster.audit.>` for everything, or to `teamster.audit.*.route.>` for route changes. A NATS
+server that is down does not stop Teamster: events wait in the queue and are counted when they
+are dropped. Put a URL that carries credentials in `TEAMSTER_AUDIT_NATS_URL` rather than in the
+file. See [ADR 0071](docs/adr/0071-publish-audit-events-to-nats-jetstream.md).
+
+With `audit.nats.backfill: true` the database trail is the buffer for NATS. This needs
+`audit.database`. Events are published from the trail in order, and the position is kept in the
+database. If NATS is unreachable, Teamster catches up once it is back, including after a restart.
+Changes made by `teamster import` are published by the running server. Turning backfill on starts
+from the newest event: history is not sent. An outage longer than the database retention loses
+what retention pruned meanwhile, so size `retention-age` and `retention-count` for the longest
+outage you want to ride out. See [ADR 0078](docs/adr/0078-the-trail-buffers-the-nats-export.md).
+
+A failed audit write never fails the change. It is logged and counted in `teamster.audit.failed`,
+and events dropped from a full queue are counted in `teamster.audit.dropped`. `teamster import`
+records its changes too. See [ADR 0070](docs/adr/0070-audit-configuration-changes-at-the-store.md).
 
 ## Logging
 
@@ -1370,6 +1527,8 @@ make coverage       # coverage report, fails below 75%
 make coverage-html  # writes coverage.html
 make lint           # golangci-lint
 make build          # builds bin/teamster
+make db-up test-postgres  # the store suite against Postgres in a container
+make nats-up test-nats    # the audit sink against NATS JetStream in a container
 ```
 
 Contributions must meet the definition of done in [AGENTS.md](AGENTS.md): 75% coverage, clean

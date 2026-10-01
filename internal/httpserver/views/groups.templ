@@ -1,0 +1,161 @@
+package views
+
+import (
+	"github.com/pflege-de-labs/teamster/internal/i18n"
+	"github.com/pflege-de-labs/teamster/internal/models"
+)
+
+// Groups is the page at /admin/groups (ADR 0074). Selected, when set, is the
+// group shown with its members.
+type Groups struct {
+	Viewer   Viewer
+	Groups   []models.Group
+	Selected *GroupDetail
+	CanEdit  bool
+	Notice   string
+	Error    string
+}
+
+// GroupDetail is one group, its members, and what the member picker offers.
+type GroupDetail struct {
+	Group   models.Group
+	Members []GroupMemberView
+	// Suggestions are user subjects, group ids and provider group names.
+	Users     []models.User
+	Others    []models.Group
+	IdPGroups []string
+	CanEdit   bool
+	CanDelete bool
+	Sharing   *Sharing
+}
+
+// GroupMemberView is a member and the name to show for it.
+type GroupMemberView struct {
+	Member models.GroupMember
+	Label  string
+}
+
+templ GroupsPage(page Groups) {
+	@Layout(i18n.T(ctx, "page.groups"), &page.Viewer) {
+		@notice(page.Error, page.Notice)
+		<div class="grid gap-6 lg:grid-cols-3">
+			<section class="rounded-lg border border-slate-200 bg-white shadow-sm">
+				<h2 class="border-b border-slate-200 px-6 py-4 text-lg font-semibold">{ i18n.T(ctx, "groups.heading") }</h2>
+				<div class="space-y-4 px-6 py-6">
+					<p class="text-sm text-slate-600">{ i18n.T(ctx, "groups.explainer") }</p>
+					if len(page.Groups) == 0 {
+						@empty(i18n.T(ctx, "groups.empty"))
+					} else {
+						<ul class="divide-y divide-slate-200">
+							for _, g := range page.Groups {
+								<li class="py-2">
+									<a href={ templ.SafeURL("/admin/groups?id=" + g.ID) } class="font-medium text-sky-700 hover:underline">{ g.Name }</a>
+									if g.Description != "" {
+										<div class="truncate text-xs text-slate-500">{ g.Description }</div>
+									}
+								</li>
+							}
+						</ul>
+					}
+					if page.CanEdit {
+						<form method="post" action="/admin/groups/save" class="space-y-3 border-t border-slate-200 pt-4">
+							@textField("name", i18n.T(ctx, "groups.name"), "on-call", "")
+							@textField("description", i18n.T(ctx, "groups.description"), "", "")
+							@submit(i18n.T(ctx, "groups.create"))
+						</form>
+					}
+				</div>
+			</section>
+			if page.Selected != nil {
+				@groupDetail(*page.Selected)
+			}
+		</div>
+	}
+}
+
+templ groupDetail(detail GroupDetail) {
+	<section class="rounded-lg border border-slate-200 bg-white shadow-sm lg:col-span-2">
+		<h2 class="border-b border-slate-200 px-6 py-4 text-lg font-semibold">{ detail.Group.Name }</h2>
+		<div class="space-y-6 px-6 py-6">
+			<p class="font-mono text-xs text-slate-500">{ i18n.T(ctx, "groups.cedar", detail.Group.ID) }</p>
+			if detail.CanEdit {
+				<form method="post" action="/admin/groups/save" class="grid gap-3 sm:grid-cols-3 sm:items-end">
+					<input type="hidden" name="id" value={ detail.Group.ID }/>
+					@textField("name", i18n.T(ctx, "groups.name"), "", detail.Group.Name)
+					@textField("description", i18n.T(ctx, "groups.description"), "", detail.Group.Description)
+					@submit(i18n.T(ctx, "groups.save"))
+				</form>
+			}
+			<div>
+				<h3 class="mb-2 text-sm font-semibold">{ i18n.T(ctx, "groups.members") }</h3>
+				if len(detail.Members) == 0 {
+					@empty(i18n.T(ctx, "groups.no_members"))
+				} else {
+					<ul class="divide-y divide-slate-200">
+						for _, m := range detail.Members {
+							<li class="flex items-center justify-between gap-4 py-2">
+								<div class="min-w-0">
+									<span class="mr-2 rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600">{ i18n.T(ctx, "groups.type." + string(m.Member.Type)) }</span>
+									<span class="font-medium">{ m.Label }</span>
+									if m.Label != m.Member.ID {
+										<span class="font-mono text-xs text-slate-500">{ m.Member.ID }</span>
+									}
+								</div>
+								if detail.CanEdit {
+									<form method="post" action="/admin/groups/members/remove" class="shrink-0">
+										<input type="hidden" name="group_id" value={ detail.Group.ID }/>
+										<input type="hidden" name="type" value={ string(m.Member.Type) }/>
+										<input type="hidden" name="member" value={ m.Member.ID }/>
+										<button type="submit" class="rounded-md border border-slate-300 px-3 py-1 text-sm text-slate-700 hover:border-red-400 hover:bg-red-50 hover:text-red-700">
+											{ i18n.T(ctx, "groups.remove") }
+										</button>
+									</form>
+								}
+							</li>
+						}
+					</ul>
+				}
+			</div>
+			if detail.CanEdit {
+				<form method="post" action="/admin/groups/members/add" class="grid gap-3 sm:grid-cols-3 sm:items-end">
+					<input type="hidden" name="group_id" value={ detail.Group.ID }/>
+					<label class="block">
+						<span class="text-sm font-medium">{ i18n.T(ctx, "groups.member_type") }</span>
+						<select name="type" class="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm">
+							<option value="user">{ i18n.T(ctx, "groups.type.user") }</option>
+							<option value="group">{ i18n.T(ctx, "groups.type.group") }</option>
+							<option value="idp_group">{ i18n.T(ctx, "groups.type.idp_group") }</option>
+						</select>
+					</label>
+					<label class="block">
+						<span class="text-sm font-medium">{ i18n.T(ctx, "groups.member") }</span>
+						<input name="member" list="group-member-suggestions" required class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm"/>
+					</label>
+					<datalist id="group-member-suggestions">
+						for _, u := range detail.Users {
+							<option value={ u.Subject }>{ displayName(u) }</option>
+						}
+						for _, g := range detail.Others {
+							<option value={ g.ID }>{ g.Name }</option>
+						}
+						for _, name := range detail.IdPGroups {
+							<option value={ name }>{ name }</option>
+						}
+					</datalist>
+					@submit(i18n.T(ctx, "groups.add"))
+				</form>
+			}
+			if detail.Sharing != nil {
+				@sharingPanel(*detail.Sharing)
+			}
+			if detail.CanDelete {
+				<form method="post" action="/admin/groups/delete" class="border-t border-slate-200 pt-4">
+					<input type="hidden" name="id" value={ detail.Group.ID }/>
+					<button type="submit" class="rounded-md border border-red-300 px-3 py-1.5 text-sm text-red-700 hover:bg-red-50">
+						{ i18n.T(ctx, "groups.delete") }
+					</button>
+				</form>
+			}
+		</div>
+	</section>
+}

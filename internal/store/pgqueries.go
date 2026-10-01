@@ -617,3 +617,195 @@ func (p pgQueries) InsertSettingIfAbsent(ctx context.Context, arg sqlitedb.Inser
 func (p pgQueries) ClearSettingValue(ctx context.Context, arg sqlitedb.ClearSettingValueParams) error {
 	return p.q.ClearSettingValue(ctx, pgdb.ClearSettingValueParams(arg))
 }
+
+// The audit trail (ADR 0070).
+
+func (p pgQueries) InsertAuditEvent(ctx context.Context, arg sqlitedb.InsertAuditEventParams) error {
+	return p.q.InsertAuditEvent(ctx, pgdb.InsertAuditEventParams(arg))
+}
+
+func (p pgQueries) ListAuditEvents(ctx context.Context, arg sqlitedb.ListAuditEventsParams) ([]sqlitedb.AuditEvent, error) {
+	rows, err := p.q.ListAuditEvents(ctx, pgdb.ListAuditEventsParams(arg))
+	if err != nil {
+		return nil, err
+	}
+	out := make([]sqlitedb.AuditEvent, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, sqlitedb.AuditEvent(row))
+	}
+	return out, nil
+}
+
+func (p pgQueries) DeleteAuditEventsBefore(ctx context.Context, occurredAt time.Time) (int64, error) {
+	return p.q.DeleteAuditEventsBefore(ctx, occurredAt)
+}
+
+func (p pgQueries) DeleteAuditEventsBeyond(ctx context.Context, keep int64) (int64, error) {
+	return p.q.DeleteAuditEventsBeyond(ctx, keep)
+}
+
+// Users (ADR 0072).
+
+func (p pgQueries) UpsertUser(ctx context.Context, arg sqlitedb.UpsertUserParams) error {
+	return p.q.UpsertUser(ctx, pgdb.UpsertUserParams(arg))
+}
+
+func (p pgQueries) GetUser(ctx context.Context, subject string) (sqlitedb.User, error) {
+	row, err := p.q.GetUser(ctx, subject)
+	return sqlitedb.User(row), err
+}
+
+func (p pgQueries) ListUsers(ctx context.Context, arg sqlitedb.ListUsersParams) ([]sqlitedb.User, error) {
+	rows, err := p.q.ListUsers(ctx, pgdb.ListUsersParams(arg))
+	if err != nil {
+		return nil, err
+	}
+	out := make([]sqlitedb.User, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, sqlitedb.User(row))
+	}
+	return out, nil
+}
+
+func (p pgQueries) SetUserDisabled(ctx context.Context, arg sqlitedb.SetUserDisabledParams) (int64, error) {
+	return p.q.SetUserDisabled(ctx, pgdb.SetUserDisabledParams(arg))
+}
+
+func (p pgQueries) DeleteBrokerTokensForSubject(ctx context.Context, subject string) error {
+	return p.q.DeleteBrokerTokensForSubject(ctx, subject)
+}
+
+func (p pgQueries) DeleteSessionsForSubject(ctx context.Context, subject string) error {
+	return p.q.DeleteSessionsForSubject(ctx, subject)
+}
+
+// The authorization generation (ADR 0073).
+
+func (p pgQueries) GetAuthzGeneration(ctx context.Context) (int64, error) {
+	return p.q.GetAuthzGeneration(ctx)
+}
+
+func (p pgQueries) BumpAuthzGeneration(ctx context.Context) error {
+	return p.q.BumpAuthzGeneration(ctx)
+}
+
+// Groups (ADR 0074).
+
+func (p pgQueries) ListGroups(ctx context.Context) ([]sqlitedb.UserGroup, error) {
+	rows, err := p.q.ListGroups(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]sqlitedb.UserGroup, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, sqlitedb.UserGroup(row))
+	}
+	return out, nil
+}
+
+func (p pgQueries) GetGroup(ctx context.Context, id string) (sqlitedb.UserGroup, error) {
+	row, err := p.q.GetGroup(ctx, id)
+	return sqlitedb.UserGroup(row), err
+}
+
+func (p pgQueries) CreateGroup(ctx context.Context, arg sqlitedb.CreateGroupParams) error {
+	return p.q.CreateGroup(ctx, pgdb.CreateGroupParams(arg))
+}
+
+func (p pgQueries) UpdateGroup(ctx context.Context, arg sqlitedb.UpdateGroupParams) (int64, error) {
+	return p.q.UpdateGroup(ctx, pgdb.UpdateGroupParams(arg))
+}
+
+func (p pgQueries) DeleteGroup(ctx context.Context, id string) (int64, error) {
+	return p.q.DeleteGroup(ctx, id)
+}
+
+func (p pgQueries) DeleteGroupMemberships(ctx context.Context, id string) error {
+	return p.q.DeleteGroupMemberships(ctx, id)
+}
+
+func (p pgQueries) ListGroupMembers(ctx context.Context, groupID string) ([]sqlitedb.UserGroupMember, error) {
+	rows, err := p.q.ListGroupMembers(ctx, groupID)
+	return convertMembers(rows), err
+}
+
+func (p pgQueries) ListAllGroupMembers(ctx context.Context) ([]sqlitedb.UserGroupMember, error) {
+	rows, err := p.q.ListAllGroupMembers(ctx)
+	return convertMembers(rows), err
+}
+
+func convertMembers(rows []pgdb.UserGroupMember) []sqlitedb.UserGroupMember {
+	out := make([]sqlitedb.UserGroupMember, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, sqlitedb.UserGroupMember(row))
+	}
+	return out
+}
+
+func (p pgQueries) AddGroupMember(ctx context.Context, arg sqlitedb.AddGroupMemberParams) error {
+	return p.q.AddGroupMember(ctx, pgdb.AddGroupMemberParams(arg))
+}
+
+func (p pgQueries) RemoveGroupMember(ctx context.Context, arg sqlitedb.RemoveGroupMemberParams) (int64, error) {
+	return p.q.RemoveGroupMember(ctx, pgdb.RemoveGroupMemberParams(arg))
+}
+
+// Permissions (ADR 0075).
+
+func (p pgQueries) ListPermissions(ctx context.Context) ([]sqlitedb.Permission, error) {
+	rows, err := p.q.ListPermissions(ctx)
+	return convertPermissions(rows), err
+}
+
+func (p pgQueries) ListPermissionsForResource(ctx context.Context, arg sqlitedb.ListPermissionsForResourceParams) ([]sqlitedb.Permission, error) {
+	rows, err := p.q.ListPermissionsForResource(ctx, pgdb.ListPermissionsForResourceParams(arg))
+	return convertPermissions(rows), err
+}
+
+func convertPermissions(rows []pgdb.Permission) []sqlitedb.Permission {
+	out := make([]sqlitedb.Permission, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, sqlitedb.Permission(row))
+	}
+	return out
+}
+
+func (p pgQueries) GetPermission(ctx context.Context, id string) (sqlitedb.Permission, error) {
+	row, err := p.q.GetPermission(ctx, id)
+	return sqlitedb.Permission(row), err
+}
+
+func (p pgQueries) UpsertPermission(ctx context.Context, arg sqlitedb.UpsertPermissionParams) (sqlitedb.Permission, error) {
+	row, err := p.q.UpsertPermission(ctx, pgdb.UpsertPermissionParams(arg))
+	return sqlitedb.Permission(row), err
+}
+
+func (p pgQueries) DeletePermission(ctx context.Context, id string) (int64, error) {
+	return p.q.DeletePermission(ctx, id)
+}
+
+func (p pgQueries) DeletePermissionsForResource(ctx context.Context, arg sqlitedb.DeletePermissionsForResourceParams) error {
+	return p.q.DeletePermissionsForResource(ctx, pgdb.DeletePermissionsForResourceParams(arg))
+}
+
+func (p pgQueries) DeletePermissionsForPrincipal(ctx context.Context, arg sqlitedb.DeletePermissionsForPrincipalParams) error {
+	return p.q.DeletePermissionsForPrincipal(ctx, pgdb.DeletePermissionsForPrincipalParams(arg))
+}
+
+// The audit relay (ADR 0078).
+
+func (p pgQueries) ListAuditEventsAfter(ctx context.Context, arg sqlitedb.ListAuditEventsAfterParams) ([]sqlitedb.AuditEvent, error) {
+	rows, err := p.q.ListAuditEventsAfter(ctx, pgdb.ListAuditEventsAfterParams(arg))
+	if err != nil {
+		return nil, err
+	}
+	out := make([]sqlitedb.AuditEvent, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, sqlitedb.AuditEvent(row))
+	}
+	return out, nil
+}
+
+func (p pgQueries) ReplaceSettingValue(ctx context.Context, arg sqlitedb.ReplaceSettingValueParams) (int64, error) {
+	return p.q.ReplaceSettingValue(ctx, pgdb.ReplaceSettingValueParams(arg))
+}

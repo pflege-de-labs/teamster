@@ -10,12 +10,14 @@ import (
 )
 
 type AccessToken struct {
-	ID         string
-	Name       string
-	TokenHash  string
-	CreatedBy  string
-	CreatedAt  time.Time
-	LastUsedAt sql.NullTime
+	ID              string
+	Name            string
+	TokenHash       string
+	CreatedBy       string
+	CreatedAt       time.Time
+	LastUsedAt      sql.NullTime
+	Scope           string
+	ScopedTokenHash sql.NullString
 }
 
 type ActiveEvent struct {
@@ -40,6 +42,26 @@ type ActiveEventRecipient struct {
 	ClaimedAt   sql.NullTime
 	PostedAt    sql.NullTime
 	LastUpdate  time.Time
+}
+
+type AuditEvent struct {
+	ID           string
+	OccurredAt   time.Time
+	ActorSubject string
+	ActorName    string
+	ActorVia     string
+	ActorTokenID string
+	Action       string
+	ResourceType string
+	ResourceID   string
+	RequestID    string
+	Before       sql.NullString
+	After        sql.NullString
+}
+
+type AuthzGeneration struct {
+	ID         int64
+	Generation int64
 }
 
 type BotTeam struct {
@@ -141,6 +163,18 @@ type LoginFlow struct {
 	ExpiresAt time.Time
 }
 
+type Permission struct {
+	ID            string
+	PrincipalType string
+	PrincipalID   string
+	ResourceType  string
+	ResourceID    string
+	Actions       string
+	CreatedBy     string
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+}
+
 type Recipient struct {
 	ID             string
 	Subject        string
@@ -198,6 +232,36 @@ type Template struct {
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 	Sources     string
+}
+
+type User struct {
+	Subject    string
+	Source     string
+	Name       string
+	Email      string
+	Roles      string
+	IdpGroups  string
+	FirstSeen  time.Time
+	LastSeen   time.Time
+	DisabledAt sql.NullTime
+	DisabledBy string
+}
+
+type UserGroup struct {
+	ID          string
+	Name        string
+	Description string
+	CreatedBy   string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+type UserGroupMember struct {
+	GroupID    string
+	MemberType string
+	MemberID   string
+	AddedBy    string
+	AddedAt    time.Time
 }
 
 type WebhookEndpoint struct {

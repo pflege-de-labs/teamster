@@ -136,6 +136,11 @@ func (s *PostgresStore) DeleteSession(ctx context.Context, id string) error {
 	return deleteSessionCascade(ctx, s, id)
 }
 
+// DisableUser overrides queryAdapter's so the sessions end in the same commit.
+func (s *PostgresStore) DisableUser(ctx context.Context, subject, by string) error {
+	return disableUserInTx(ctx, s, subject, by)
+}
+
 // DeleteDestination and SetDefaultDestination override queryAdapter's to run
 // their statements in one transaction, which is what keeps exactly one default.
 func (s *PostgresStore) DeleteDestination(ctx context.Context, id string) error {
@@ -264,4 +269,40 @@ func retryable(err error) bool {
 	default:
 		return false
 	}
+}
+
+// Group writes run with their generation bump in one transaction (ADR 0074).
+
+func (s *PostgresStore) CreateGroup(ctx context.Context, g models.Group) (models.Group, error) {
+	return createGroupInTx(ctx, s, g)
+}
+
+func (s *PostgresStore) UpdateGroup(ctx context.Context, g models.Group) (models.Group, error) {
+	return updateGroupInTx(ctx, s, g)
+}
+
+func (s *PostgresStore) DeleteGroup(ctx context.Context, id string) error {
+	return deleteGroupInTx(ctx, s, id)
+}
+
+func (s *PostgresStore) AddGroupMember(ctx context.Context, m models.GroupMember) error {
+	return addGroupMemberInTx(ctx, s, m)
+}
+
+func (s *PostgresStore) RemoveGroupMember(ctx context.Context, m models.GroupMember) error {
+	return removeGroupMemberInTx(ctx, s, m)
+}
+
+// Permission writes run with their generation bump in one transaction (ADR 0075).
+
+func (s *PostgresStore) PutPermission(ctx context.Context, p models.Permission) (models.Permission, error) {
+	return putPermissionInTx(ctx, s, p)
+}
+
+func (s *PostgresStore) DeletePermission(ctx context.Context, id string) error {
+	return deletePermissionInTx(ctx, s, id)
+}
+
+func (s *PostgresStore) DeletePermissionsFor(ctx context.Context, resourceType, resourceID string) error {
+	return deletePermissionsForInTx(ctx, s, resourceType, resourceID)
 }

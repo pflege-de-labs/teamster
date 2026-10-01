@@ -17,6 +17,9 @@ import (
 // gets (ADR 0047).
 var errRecipientRefused = errors.New("a route may deliver only to your own chat")
 
+// errTemplateRefused is a route or endpoint naming a template the caller may not attach.
+var errTemplateRefused = errors.New("you may not use that template")
+
 // errAddressedRefused is what a write touching a route that delivers to the
 // people a message names gets without the right to (ADR 0062).
 var errAddressedRefused = errors.New("only an admin may deliver to the people a message names")
@@ -48,8 +51,7 @@ func parseRouteTarget(raw string) (destinationID, recipientID string, addressed 
 // mayAddress answers whether this session may point a route at the people a
 // message names.
 func (s *Server) mayAddress(r *http.Request) bool {
-	subject, roles := principalOf(r)
-	return s.authz.Allow(subject, roles, authz.ActionDeliverToAddressed, authz.AddressedResource)
+	return s.allow(r, authz.ActionDeliverToAddressed, authz.AddressedResource)
 }
 
 // mayTargetRecipient answers whether this session may point a route at a
@@ -70,8 +72,7 @@ func (s *Server) mayTargetRecipient(r *http.Request, recipientID string) (bool, 
 }
 
 func (s *Server) mayTargetRecipientOf(r *http.Request, recipient models.Recipient) bool {
-	subject, roles := principalOf(r)
-	return s.authz.Allow(subject, roles, authz.ActionDeliverToRecipient, authz.RecipientResource(recipient.Subject))
+	return s.allow(r, authz.ActionDeliverToRecipient, authz.RecipientResource(recipient.Subject))
 }
 
 // routeWriteRefusal checks every target a save touches: the channel and person
@@ -84,6 +85,9 @@ func (s *Server) routeWriteRefusal(r *http.Request, route models.Route) error {
 	}
 	if !allowed {
 		return errDeliveryRefused
+	}
+	if route.TemplateID != "" && !s.can(r, authz.ActionAttach, typeTemplate, route.TemplateID) {
+		return errTemplateRefused
 	}
 	if allowed, err = s.mayTargetRecipient(r, route.RecipientID); err != nil {
 		return err

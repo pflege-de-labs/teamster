@@ -8,6 +8,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Changed
+
+* The comment on `config.settings.auth.groups-claim` says what the claim is now used for: local
+  groups can name its values.
+
+### Added
+
+* `config.settings.audit` documents the audit trail's settings. `file: "-"` sends the JSON lines to
+  the pod's stdout, for the cluster's log pipeline. `audit.nats` publishes to NATS JetStream. A URL
+  with credentials goes in `credentials.extra.TEAMSTER_AUDIT_NATS_URL`. `audit.nats.backfill`
+  catches up from the database after NATS was unreachable.
+
 ## [0.9.0] — 2026-09-30
 
 App version 0.10.0: the admin UI names the zone of every time and can show them in the browser's

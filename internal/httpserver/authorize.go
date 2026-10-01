@@ -2,20 +2,26 @@ package httpserver
 
 import (
 	"context"
+	"errors"
 	"net/http"
+	"slices"
 	"strings"
+	"sync/atomic"
 
+	"github.com/pflege-de-labs/teamster/internal/audit"
 	"github.com/pflege-de-labs/teamster/internal/authz"
 	"github.com/pflege-de-labs/teamster/internal/httpserver/views"
 	"github.com/pflege-de-labs/teamster/internal/models"
+	"github.com/pflege-de-labs/teamster/internal/store"
 )
 
 type contextKey string
 
 const (
-	roleKey    contextKey = "role"
-	subjectKey contextKey = "subject"
-	nameKey    contextKey = "name"
+	roleKey     contextKey = "role"
+	subjectKey  contextKey = "subject"
+	nameKey     contextKey = "name"
+	idpGroupKey contextKey = "idp-groups"
 )
 
 // isPageRequest says whether a browser is asking for something to look at, as
@@ -25,10 +31,13 @@ func isPageRequest(r *http.Request) bool {
 }
 
 // withPrincipal carries who is asking into the handlers, so authorization reads
-// it from one place rather than each handler re-deriving it.
-func withPrincipal(ctx context.Context, subject, name string, roles []authz.Role) context.Context {
+// it from one place rather than each handler re-deriving it. via is how they
+// proved it, which the audit trail records.
+func withPrincipal(ctx context.Context, subject, name, via string, roles []authz.Role, idpGroups []string) context.Context {
 	ctx = context.WithValue(ctx, subjectKey, subject)
 	ctx = context.WithValue(ctx, nameKey, name)
+	ctx = context.WithValue(ctx, idpGroupKey, idpGroups)
+	ctx = audit.WithActor(ctx, models.Actor{Subject: subject, Name: name, Via: via})
 	return context.WithValue(ctx, roleKey, roles)
 }
 
@@ -49,8 +58,10 @@ func viewerOf(r *http.Request) views.Viewer {
 // the authorizer can answer.
 func (s *Server) viewerFor(r *http.Request) views.Viewer {
 	viewer := viewerOf(r)
-	subject, roles := principalOf(r)
-	viewer.CanManage = s.authz.Allow(subject, roles, authz.ActionAdminister, authz.Resource{Type: "Grant"})
+	viewer.CanManage = s.allow(r, authz.ActionAdminister, authz.Resource{Type: "Grant"})
+	// Without the database trail there is nothing to list.
+	viewer.CanAudit = s.cfg.Audit.Database && s.allow(r, authz.ActionAdminister, authz.Resource{Type: "Audit"})
+	viewer.CanTokens = s.manageTokens(r) || len(s.usableWebhooks(r)) > 0
 	viewer.CanComplete = s.cfg.Samples.Enabled && s.mayComplete(r)
 	viewer.NotificationsEnabled = botConfigured(s.cfg.Bot)
 	viewer.PeopleEnabled = viewer.NotificationsEnabled && s.cfg.Bot.GlobalInstall
@@ -62,6 +73,22 @@ func (s *Server) viewerFor(r *http.Request) views.Viewer {
 func principalSubject(r *http.Request) string {
 	subject, _ := r.Context().Value(subjectKey).(string)
 	return subject
+}
+
+// principalFor is who the request acts for, as authorization sees them.
+func principalFor(r *http.Request) authz.Principal {
+	subject, roles := principalOf(r)
+	groups, _ := r.Context().Value(idpGroupKey).([]string)
+	return authz.Principal{Subject: subject, Roles: roles, IdPGroups: groups}
+}
+
+// allow and allowScoped ask the request's snapshot about the request's principal.
+func (s *Server) allow(r *http.Request, action string, resource authz.Resource) bool {
+	return s.policies(r).AllowFor(principalFor(r), action, resource)
+}
+
+func (s *Server) allowScoped(r *http.Request, action string, resource authz.Resource, scope authz.Scope) bool {
+	return s.policies(r).AllowScopedFor(principalFor(r), action, resource, scope)
 }
 
 func principalOf(r *http.Request) (string, []authz.Role) {
@@ -80,17 +107,90 @@ func rolesOf(session models.Session) []authz.Role {
 	return authz.Decode(session.Roles)
 }
 
+type policiesKey struct{}
+
+// authzSource is the store as the authorization engine reads it (ADR 0073).
+type authzSource struct{ store store.Store }
+
+func (a authzSource) Generation(ctx context.Context) (int64, error) {
+	return a.store.AuthzGeneration(ctx)
+}
+
+func (a authzSource) Load(ctx context.Context) (authz.Model, error) {
+	members, err := a.store.ListAllGroupMembers(ctx)
+	if err != nil {
+		return authz.Model{}, err
+	}
+	permissions, err := a.store.ListPermissions(ctx)
+	if err != nil {
+		return authz.Model{}, err
+	}
+	model := authz.Model{
+		Members: make([]authz.Membership, 0, len(members)),
+		Grants:  make([]authz.Grant, 0, len(permissions)),
+	}
+	for _, m := range members {
+		model.Members = append(model.Members, authz.Membership{Group: m.GroupID, Kind: string(m.Type), ID: m.ID})
+	}
+	for _, p := range permissions {
+		model.Grants = append(model.Grants, grantOf(p))
+	}
+	tokens, err := a.store.ListAccessTokens(ctx)
+	if err != nil {
+		return authz.Model{}, err
+	}
+	for _, t := range tokens {
+		if t.Scoped() {
+			model.Tokens = append(model.Tokens, authz.TokenScope{ID: t.ID, Webhooks: t.Scope})
+		}
+	}
+	return model, nil
+}
+
+func grantOf(p models.Permission) authz.Grant {
+	return authz.Grant{
+		ID: p.ID, PrincipalType: string(p.PrincipalType), PrincipalID: p.PrincipalID,
+		ResourceType: p.ResourceType, ResourceID: p.ResourceID, Actions: p.Actions,
+	}
+}
+
+// policies is the snapshot authorize resolved for this request, so every check
+// in one request answers from the same generation. Outside authorize it is the
+// last one built.
+func (s *Server) policies(r *http.Request) *authz.Authorizer {
+	if snapshot, ok := r.Context().Value(policiesKey{}).(*authz.Authorizer); ok {
+		return snapshot
+	}
+	return s.engine.Base()
+}
+
 // authorize is the one place a permission is enforced. The UI hides what a role
 // may not do, but hiding is not enforcing: a viewer who posts the form anyway
 // gets a 403 that says what was refused.
 func (s *Server) authorize(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		subject, roles := principalOf(r)
+		// Fails closed: without the current generation nothing is decided.
+		snapshot, err := s.engine.Authorizer(r.Context())
+		if err != nil {
+			logError(r.Context(), "authorization snapshot", err)
+			http.Error(w, "authorization is unavailable, try again", http.StatusServiceUnavailable)
+			return
+		}
+		r = r.WithContext(context.WithValue(r.Context(), policiesKey{}, snapshot))
+
+		_, roles := principalOf(r)
 		action, resource := requestAuthorization(r)
 
 		// Samples complete both editors, so editing routes admits as well.
-		if s.authz.Allow(subject, roles, action, resource) || (r.URL.Path == "/api/samples" && s.mayComplete(r)) {
+		if s.allow(r, action, resource) || (r.URL.Path == "/api/samples" && s.mayComplete(r)) {
 			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Someone a record was shared with gets as far as its handler, which
+		// decides about that record (ADR 0075).
+		if recordPath(r) && snapshot.HasGrants(principalFor(r)) {
+			s.serveDeferred(next, w, r)
 			return
 		}
 
@@ -98,7 +198,7 @@ func (s *Server) authorize(next http.Handler) http.Handler {
 		// permissions problem they can read out of a 403 body, so they get a
 		// page that says what to ask for. Roles a deployment defined itself do
 		// not count here: if its own policies refuse, the refusal is the answer.
-		if !authz.HasBuiltin(roles) && isPageRequest(r) {
+		if !authz.HasBuiltin(roles) && isPageRequest(r) && !snapshot.HasGrants(principalFor(r)) {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			w.WriteHeader(http.StatusForbidden)
 			if err := views.NoAccess(viewerOf(r)).Render(r.Context(), w); err != nil {
@@ -114,6 +214,52 @@ func (s *Server) authorize(next http.Handler) http.Handler {
 		}
 		http.Error(w, refusal, http.StatusForbidden)
 	})
+}
+
+// recordPaths are the endpoints whose handlers check the record they touch, so
+// the middleware may leave the decision to them. Derived views -- the routing
+// graph, previews, samples, exports -- are not among them.
+var recordPaths = []string{
+	"/admin",
+	"/admin/templates", "/admin/templates/delete",
+	"/admin/destinations", "/admin/destinations/delete",
+	"/admin/routes", "/admin/routes/delete",
+	"/admin/webhooks", "/admin/webhooks/rotate", "/admin/webhooks/delete",
+	"/admin/groups", "/admin/groups/save", "/admin/groups/delete", "/admin/groups/members/add", "/admin/groups/members/remove",
+	"/admin/sharing/grant", "/admin/sharing/revoke",
+	"/admin/tokens", "/admin/tokens/new", "/admin/tokens/delete", "/api/tokens",
+	"/api/templates", "/api/destinations", "/api/routes", "/api/webhooks", "/api/groups", "/api/sharing",
+}
+
+var recordPrefixes = []string{"/api/templates/", "/api/destinations/", "/api/routes/", "/api/webhooks/", "/api/groups/", "/api/sharing/", "/api/tokens/"}
+
+func recordPath(r *http.Request) bool {
+	path := r.URL.Path
+	switch {
+	case path == "/api/templates/preview", path == "/api/templates/source-defaults", path == "/api/routes/global-default",
+		isDefaultDestinationPath(path):
+		return false
+	case slices.Contains(recordPaths, path):
+		return true
+	}
+	for _, prefix := range recordPrefixes {
+		if strings.HasPrefix(path, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+// serveDeferred runs a handler that must check its record itself, and reports
+// one that answered without asking: that is a hole, not a refusal.
+func (s *Server) serveDeferred(next http.Handler, w http.ResponseWriter, r *http.Request) {
+	checked := &atomic.Bool{}
+	rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
+	next.ServeHTTP(rec, r.WithContext(context.WithValue(r.Context(), checkedKey{}, checked)))
+	if rec.status < http.StatusBadRequest && !checked.Load() {
+		s.unchecked.Add(1)
+		logError(r.Context(), "record check", errors.New("a deferred request was answered without a record check: "+r.Method+" "+r.URL.Path))
+	}
 }
 
 // isDefaultDestinationPath is the form and the API endpoint that switch the
@@ -142,11 +288,24 @@ func requestAuthorization(r *http.Request) (string, authz.Resource) {
 	// it, including who may deliver where. Both are the admin's.
 	case strings.HasPrefix(path, "/api/config/"):
 		return authz.ActionAdminister, transferResource()
-	// A token admits a sender to every route, and listing them says which
-	// senders exist, so reading is the admin's too.
+	// Tokens are self-service (ADR 0077): the handlers decide whose a caller
+	// sees and which webhooks a new one may name.
 	case path == "/api/tokens", strings.HasPrefix(path, "/api/tokens/"),
 		path == "/admin/tokens", strings.HasPrefix(path, "/admin/tokens/"):
-		return authz.ActionAdminister, authz.Resource{Type: "AccessToken"}
+		resource.Type = "AccessToken"
+	// Who has signed in, and switching them off, is the admin's (ADR 0072).
+	case path == "/admin/users", strings.HasPrefix(path, "/admin/users/"),
+		path == "/api/users", strings.HasPrefix(path, "/api/users/"):
+		return authz.ActionAdminister, authz.Resource{Type: "User"}
+	// Who may send to the webhooks is the webhook admins' (ADR 0076); the
+	// overview of everyone's access is the admins'.
+	case path == "/admin/access/webhooks", path == "/api/access/webhooks":
+		return authz.ActionAdminister, authz.WebhookResource(authz.WebhooksAll)
+	case path == "/admin/access", strings.HasPrefix(path, "/admin/access/"), strings.HasPrefix(path, "/api/access/"):
+		return authz.ActionAdminister, authz.Resource{Type: "Access"}
+	// The trail names everyone who changed anything, and what it held before.
+	case path == "/admin/audit", path == "/api/audit":
+		return authz.ActionAdminister, authz.Resource{Type: "Audit"}
 	// Installing the app for the whole tenant, and the directory behind it,
 	// are the admin's, reads included: the page lists people (ADR 0059).
 	case path == "/admin/people", strings.HasPrefix(path, "/admin/people/"),
@@ -188,6 +347,11 @@ func requestAuthorization(r *http.Request) (string, authz.Resource) {
 	// admin/editor/viewer policies already cover: no new Cedar action.
 	case strings.HasPrefix(path, "/api/recipients"), strings.HasPrefix(path, "/admin/recipients"):
 		resource.Type = "Recipient"
+	case path == "/api/sharing", strings.HasPrefix(path, "/api/sharing/"), strings.HasPrefix(path, "/admin/sharing/"):
+		resource.Type = "Permission"
+	case path == "/api/groups", strings.HasPrefix(path, "/api/groups/"),
+		path == "/admin/groups", strings.HasPrefix(path, "/admin/groups/"):
+		resource.Type = "Group"
 	case strings.HasPrefix(path, "/api/templates"), strings.HasPrefix(path, "/admin/templates"):
 		resource.Type = "Template"
 	case strings.HasPrefix(path, "/api/destinations"), strings.HasPrefix(path, "/admin/destinations"):

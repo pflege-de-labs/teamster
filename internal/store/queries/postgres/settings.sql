@@ -27,3 +27,9 @@ DELETE FROM settings WHERE key = $1 AND value = $2;
 INSERT INTO settings (key, value, updated_at)
 VALUES ($1, $2, $3)
 ON CONFLICT(key) DO NOTHING;
+
+-- ReplaceSettingValue moves a key from one value to the next, and only from
+-- that one: two replicas advancing the same cursor cannot both win.
+-- name: ReplaceSettingValue :execrows
+UPDATE settings SET value = sqlc.arg(next), updated_at = sqlc.arg(updated_at)
+WHERE key = sqlc.arg(key) AND value = sqlc.arg(current);

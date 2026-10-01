@@ -22,6 +22,8 @@ var (
 	// simply try again with a new one instead of surfacing a constraint
 	// violation as a 500.
 	ErrConflict = errors.New("conflicts with an existing row")
+	// ErrGroupCycle refuses a membership that would make a group its own member.
+	ErrGroupCycle = errors.New("a group cannot contain itself, directly or through other groups")
 	// ErrTemplateSource refuses a source default whose template names other
 	// sources, since every message it caught would fall back anyway.
 	ErrTemplateSource = errors.New("template does not handle this source")
@@ -312,6 +314,62 @@ type Store interface {
 	// someone cannot strand a claimed or posted row that a close would then
 	// fail against forever.
 	DeleteActiveEventRecipientsFor(ctx context.Context, recipientID string) error
+
+	// AuthzGeneration moves whenever what authorization reads from the store
+	// changes; BumpAuthzGeneration moves it, inside the change's transaction.
+	AuthzGeneration(ctx context.Context) (int64, error)
+	BumpAuthzGeneration(ctx context.Context) error
+
+	// Groups (ADR 0074). Every write bumps the authz generation in its own
+	// transaction; adding a member refuses a cycle with ErrGroupCycle.
+	ListGroups(ctx context.Context) ([]models.Group, error)
+	GetGroup(ctx context.Context, id string) (models.Group, error)
+	CreateGroup(ctx context.Context, g models.Group) (models.Group, error)
+	UpdateGroup(ctx context.Context, g models.Group) (models.Group, error)
+	DeleteGroup(ctx context.Context, id string) error
+	ListGroupMembers(ctx context.Context, groupID string) ([]models.GroupMember, error)
+	ListAllGroupMembers(ctx context.Context) ([]models.GroupMember, error)
+	AddGroupMember(ctx context.Context, m models.GroupMember) error
+	RemoveGroupMember(ctx context.Context, m models.GroupMember) error
+
+	// Permissions (ADR 0075). Every write bumps the authz generation in its
+	// own transaction. PutPermission replaces the actions of the row for its
+	// principal and resource, and deletes it when there are none left.
+	ListPermissions(ctx context.Context) ([]models.Permission, error)
+	ListPermissionsFor(ctx context.Context, resourceType, resourceID string) ([]models.Permission, error)
+	GetPermission(ctx context.Context, id string) (models.Permission, error)
+	PutPermission(ctx context.Context, p models.Permission) (models.Permission, error)
+	DeletePermission(ctx context.Context, id string) error
+	// DeletePermissionsFor forgets who may do what with a resource being deleted.
+	DeletePermissionsFor(ctx context.Context, resourceType, resourceID string) error
+
+	// RecordSignIn creates or refreshes a user from a sign-in (ADR 0072).
+	RecordSignIn(ctx context.Context, u models.User) error
+	GetUser(ctx context.Context, subject string) (models.User, error)
+	// ListUsers matches search against subject, name and email, ignoring case.
+	ListUsers(ctx context.Context, search string, limit int) ([]models.User, error)
+	// DisableUser refuses the user's next sign-in and ends their sessions,
+	// together, so a disabled user keeps no way in.
+	DisableUser(ctx context.Context, subject, by string) error
+	EnableUser(ctx context.Context, subject string) error
+
+	// InsertAuditEvent appends one event to the audit trail (ADR 0070).
+	InsertAuditEvent(ctx context.Context, e models.AuditEvent) error
+	// ListAuditEvents returns events newest first, at most filter.Limit of them.
+	ListAuditEvents(ctx context.Context, filter models.AuditFilter) ([]models.AuditEvent, error)
+	// ListAuditEventsAfter returns events after cursor and before until,
+	// oldest first, at most limit of them (ADR 0078).
+	ListAuditEventsAfter(ctx context.Context, cursor models.AuditCursor, until time.Time, limit int) ([]models.AuditEvent, error)
+	// AuditCursor is where the named relay got to, and false when it has none.
+	AuditCursor(ctx context.Context, name string) (models.AuditCursor, bool, error)
+	// AdvanceAuditCursor moves the named relay's cursor from one value to the
+	// next, and reports false when another writer moved it first. A zero from
+	// creates the cursor, and only if there is none.
+	AdvanceAuditCursor(ctx context.Context, name string, from, to models.AuditCursor) (bool, error)
+	// PruneAuditEvents forgets events older than cutoff, unless cutoff is zero,
+	// and all but the newest keep events, unless keep is zero. Replicas sharing
+	// a database may all run it: a second run finds nothing to delete.
+	PruneAuditEvents(ctx context.Context, cutoff time.Time, keep int) (int64, error)
 
 	// RecordEventSamples adds each sample's SeenCount to what is stored for its
 	// kind, key and value, creating the row if there is none (ADR 0041).

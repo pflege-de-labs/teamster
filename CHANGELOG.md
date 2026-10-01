@@ -12,6 +12,9 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 ### Added
 
+* `audit.nats.backfill` publishes audit events to NATS from the database trail, so events missed
+  while NATS was unreachable are sent once it is back
+  ([ADR 0078](docs/adr/0078-the-trail-buffers-the-nats-export.md)).
 * [Configuring Keycloak](docs/keycloak.md#as-code) sets up the delegated Teams picker's broker
   token with Terraform or Crossplane. It uses a generic OpenID Connect link to Entra, covers
   *Full Scope Allowed* off and on, and grants `read-token` through an identity provider mapper or a
@@ -20,6 +23,33 @@ reasoning behind it in the [ADRs](docs/adr/).
   it is mentioned. `status` lists the destinations and routes for the channel, and `test` posts a
   test alert there. Upload the app package with a higher `version` to show the channel command
   menu ([ADR 0069](docs/adr/0069-the-bot-answers-commands-in-team-channels.md)).
+* An audit trail of configuration changes, off until configured (`audit.database: true` is
+  enough): who changed a template, destination, route, webhook endpoint, access token, grant or
+  default, when, and what the record held before and after. Admins read it at `/admin/audit` and
+  `GET /api/audit`. It can also be appended to a JSON lines file (`audit.file`). The database copy
+  is bounded by `audit.retention-age` (90 days) and `audit.retention-count` (100000 events)
+  ([ADR 0070](docs/adr/0070-audit-configuration-changes-at-the-store.md)).
+* Audit events can be published to NATS JetStream (`audit.nats.*`), one subject per resource type
+  and action, deduplicated by event id
+  ([ADR 0071](docs/adr/0071-publish-audit-events-to-nats-jetstream.md)).
+* Users mint their own webhook tokens at `/admin/tokens`, scoped to the webhooks they may use.
+  Every use checks the token's scope and its creator's current permission in Cedar, so disabling
+  the creator, or taking away their group or webhook level, revokes their tokens. Tokens from
+  earlier releases keep working unscoped
+  ([ADR 0077](docs/adr/0077-scoped-tokens-answer-to-their-creator.md)).
+* `/admin/access` gives admins an overview of every grant, the Cedar policies in force, and "Who
+  can?". `/admin/me` shows each user their own access. Who may use each webhook can be set per
+  user, group, provider group or role
+  ([ADR 0076](docs/adr/0076-webhook-permissions-and-access-overviews.md)).
+* Records have owners. Whoever creates a template, destination, route, webhook endpoint or group
+  owns it, and can share `read`, `update`, `delete`, `attach` or ownership with users, groups,
+  provider groups or roles. Someone with no role but a shared record sees what was shared with them
+  ([ADR 0075](docs/adr/0075-own-and-share-records-through-generated-policies.md)).
+* Local groups at `/admin/groups`. A group's members are users, other groups, or groups from the
+  identity provider's groups claim. Membership changes are audited in their own transaction
+  ([ADR 0074](docs/adr/0074-local-groups-and-provider-groups.md)).
+* `/admin/users` lists everyone who has signed in. An admin can disable a user, which ends their
+  sessions and refuses their next sign-in ([ADR 0072](docs/adr/0072-remember-who-signed-in.md)).
 
 ### Changed
 
@@ -27,6 +57,12 @@ reasoning behind it in the [ADRs](docs/adr/).
   its `/` menu with every app, so `/status` collided with other apps' commands. Typing `/status`
   still works. Upload the app package with a higher `version` to update the command menu
   ([ADR 0068](docs/adr/0068-commands-are-words-addressed-to-the-bot.md)).
+* `/webhook/*` answers `403` when a scoped token is used beyond its scope or its creator's
+  permissions. Unscoped tokens are not affected.
+* Issuing a webhook token is no longer limited to admins (see Added).
+* Authorization reads a versioned policy snapshot. Who may do what is unchanged, but if the database
+  cannot be read, admin and API requests are now refused with `503`
+  ([ADR 0073](docs/adr/0073-authorize-from-a-versioned-policy-snapshot.md)).
 * The binary in a CI image reports `git describe --tags --always` as its version, such as
   `v0.10.0-3-gabc1234`, instead of the bare commit sha. The image is still tagged with the short
   sha, and releases still report their tag.

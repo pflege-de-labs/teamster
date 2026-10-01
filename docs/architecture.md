@@ -17,6 +17,7 @@ that runs more than one instance. SQLite is the option with no other runtime dep
 | `internal/routing` | Selects a route for an event's labels. |
 | `internal/templates` | Renders an Adaptive Card from a Go template plus event data, and describes that data for the editor's completion (`EditorVocabulary`). |
 | `internal/logging` | Builds the `slog` logger from `log.*` and carries a request's logger in its context. See [Logging and errors](#logging-and-errors). |
+| `internal/audit` | Records configuration changes: a `store.Store` decorator that emits an event per write, a `Recorder` that fans events out to sinks (database, JSON lines file, NATS JetStream), and the retention pruner. See [Audit trail](#audit-trail). |
 | `internal/samples` | Remembers the label keys, label values and attribute keys incoming events carry, for editor completion. See [Editor completion](#editor-completion). |
 | `internal/graph` | Microsoft Graph client: OAuth2 client credentials, list Teams and channels. It posts nothing: Graph does not let an application post or edit channel messages (ADR 0045). It also reads directory users and the organization app catalog, and installs the Teams app in a user's personal scope; those calls take a context and retry while Graph throttles (429/503), waiting as long as `Retry-After` says, up to 30 seconds. `BrokerClient` is the delegated-Teams half (ADR 0037): the same Graph endpoints, called with a per-request Entra bearer token instead of the app-only credential. |
 | `internal/people` | Resolves an object id, UPN or mail address to a directory user, opens the bot's chat with them, installing the Teams app through Graph when allowed, and reconciles installs for the whole tenant. See [Installing the app for everyone](#installing-the-app-for-everyone). |
@@ -335,6 +336,16 @@ matches either `webhook.token` or an access token issued at `/admin/tokens`. The
 up by the token's SHA-256 digest in `access_tokens`, and `last_used_at` is written at most once an
 hour. An unset `webhook.token` never matches: `safeEquals("", "")` holds, so an empty credential is
 refused before any comparison. Each refusal is logged with its reason and counted as `refused`.
+
+A scoped token is checked once more, in Cedar ([ADR 0077](adr/0077-scoped-tokens-answer-to-their-creator.md)).
+Its scope is a generated policy, `permit (principal == Token::"<id>", action == Action::"use",
+resource == Webhook::"alertmanager")`. Its creator is rebuilt from the user registry, with the
+roles and groups of their last sign-in, and asked whether they may `use` the webhook. Both must
+hold, so revoking the creator revokes the token. A disabled or unknown creator is refused, and the
+configured local admin answers as admin. A refusal is a `403`, counted as `forbidden`; an unreadable
+snapshot or registry is a `503`. Scoped tokens keep their digest in `scoped_token_hash`. Their
+`token_hash` holds a placeholder no digest equals, so the previous release, which matches
+`token_hash` alone, refuses them instead of admitting them unscoped.
 See [ADR 0044](adr/0044-webhook-access-tokens.md).
 
 ### Teams V2 webhooks
@@ -385,7 +396,44 @@ ask an administrator when a browser asked for one.
 
 `internal/authz` holds the rules as Cedar policies embedded in the binary and
 evaluates them in-process with `cedar-policy/cedar-go`; roles nest through Cedar entity parents, so
-an admin is an editor and an editor is a viewer.
+an admin is an editor and an editor is a viewer. Actions nest the same way, through action
+entities. `read` is part of `view`. `create`, `update`, `delete` and `attach` are part of `edit`.
+`share` and `transfer` are part of `own` alone, which no role is given.
+
+Local groups are entities in that snapshot. `Group::"<id>"` and `IdpGroup::"<name>"` have as
+parents the groups that list them. A request's `User` principal has as parents its roles, the
+groups that list its subject, and an `IdpGroup` for every group its session's provider claim
+named. `in Group::"x"` therefore walks nesting and provider groups alike. Group writes bump the
+generation and write their audit row in the same transaction, and adding a member refuses a cycle
+in a serializable one. See [ADR 0074](adr/0074-local-groups-and-provider-groups.md).
+
+Records carry their own permissions. A `permissions` row holds one principal's actions on one
+template, destination, route, webhook endpoint or group, or on the collection, where `create` is
+granted. The snapshot renders each row to a Cedar `permit` with the cedar-go AST, so ids cannot
+inject Cedar syntax. An `own` row makes an owner. Creating a record writes the creator's `own` row
+in the same transaction, and deleting it deletes its rows.
+
+Handlers check the record they touch (`mayRecord`), and lists are filtered by `read`. For a list of
+record endpoints, `authorize` lets a principal through when the role policies refuse it but some
+grant names it. That request is watched, and one answered without a record check is logged and
+counted. A grant of `attach` on a destination is a grant holder's delivery scope for it; a role's
+`attach` is not. Sharing takes `share`, ownership takes `transfer`, and nobody grants more than
+they hold. See [ADR 0075](adr/0075-own-and-share-records-through-generated-policies.md).
+
+The webhooks are resources too: `Webhook::"alertmanager"` and `Webhook::"universal"`, both in
+`Webhook::"*"`. `use` is sending to one. Editors may use both. Anyone else needs a `use` grant on
+one or on `*`, and `administer` on `*` makes a webhook admin. `/admin/access` is the admins'
+overview: webhook levels, every grant, the policies in force, and "Who can?", which answers with
+Cedar's deciding policies. `/admin/me` shows anyone signed in their own roles, groups, webhooks and
+grants. See [ADR 0076](adr/0076-webhook-permissions-and-access-overviews.md).
+
+The policies and entities are an immutable snapshot that `authz.Engine` hands out, versioned by the
+single row in `authz_generation`. `authorize` reads the generation once per request. When it has
+moved, the engine rebuilds the snapshot from the store's model, once, and every check in the request
+then answers from that snapshot. A change that the model depends on bumps the generation in its own
+transaction, so every replica sees it on its next request. An unreadable generation fails closed
+with `503`. A request's own principal and resources sit in an overlay over the snapshot's entities,
+which are never copied. See [ADR 0073](adr/0073-authorize-from-a-versioned-policy-snapshot.md).
 
 One middleware, `httpserver.authorize`, wraps the admin mux and is the only place a permission is
 enforced. It maps the path to a resource type and the method to an action, counting
@@ -607,6 +655,51 @@ given a deadline of its own without changing any caller.
 commands are three doors onto the same code. See
 [ADR 0013](adr/0013-configuration-transfer.md).
 
+## Audit trail
+
+`audit.Wrap` decorates the store that `serve` hands to `httpserver.NewServer`, and the one
+`teamster import` writes through. Each configuration write it overrides reads the record first. It
+emits an event with `before` and `after` snapshots only when the write succeeded and changed
+something. Reads and delivery bookkeeping pass straight through.
+See [ADR 0070](adr/0070-audit-configuration-changes-at-the-store.md).
+
+```text
+handler ──► audit.Wrap ──► store ──► commit
+                │                      │
+                └─ buffer (in a tx) ───┴─► Recorder ─┬─► database sink (sync)
+                                                     ├─► file sink (queued)
+                                                     └─► NATS sink (queued)
+```
+
+* **Actor.** The actor comes from the context. `withPrincipal` sets it with `via` `session` or
+  `basic`, the logging middleware adds the request id, and `teamster import` sets the
+  operating-system user with `via` `cli`. Without one, the actor is `teamster`/`system`.
+* **Transactions.** Inside `WithTx` and `WithSerializableTx` events wait for the commit. A rollback
+  or a dry run records nothing, and a serializable retry starts its buffer again.
+* **Delivery.** The database sink is written before the request returns. Other sinks have a
+  bounded queue each and can only lag. A full queue drops the event (`teamster.audit.dropped`). A
+  failed write is logged and counted (`teamster.audit.failed`), and the request still succeeds.
+* **NATS JetStream.** The NATS sink publishes to `<prefix>.<type>.<action>` with `Nats-Msg-Id` set
+  to the event id. It waits for the stream's acknowledgement and retries twice. It connects without
+  waiting for the server, so an outage queues events instead of stopping the start. See
+  [ADR 0071](adr/0071-publish-audit-events-to-nats-jetstream.md).
+* **Backfill.** With `audit.nats.backfill`, NATS is fed by an `audit.Relay` instead of a queue.
+  The relay reads the trail after its cursor, oldest first. It holds back events younger than the
+  settle window, publishes in order, and advances the cursor in `settings` by compare-and-swap. A
+  failed publish leaves the cursor where it was, so the trail buffers an outage. Every replica
+  relays; the CAS and `Nats-Msg-Id` deduplication absorb the overlap. See
+  [ADR 0078](adr/0078-the-trail-buffers-the-nats-export.md).
+* **Shutdown.** `serve` closes the recorder after the HTTP drain, within
+  `server.shutdown-timeout`, so the queues empty before the store closes.
+* **Opt-in.** Without `audit.database` or a sink there is no recorder, and `audit.Wrap` returns the
+  store as it is.
+* **Retention.** Every replica runs `audit.Pruner` every `audit.prune-interval`. It deletes events
+  older than `audit.retention-age` (90 days) and all but the newest `audit.retention-count`
+  (100000). A limit is off at `0`.
+* **No backfill.** A sink gets the events recorded while it is configured, and nothing older.
+* **Reading.** `/admin/audit` and `GET /api/audit` are admin-only. They filter by actor, action,
+  type and id, and page newest first by `(occurred_at, id)`.
+
 ## Metrics
 
 `internal/metrics` owns one OpenTelemetry pipeline and as many readers as the configuration asks for:
@@ -643,6 +736,8 @@ Installing for everyone adds four instruments, none of which names a person:
 * `teamster.directory.lookups`, by `result`: `store`, `graph`, `negative-cache` or `unknown`.
 * `teamster.directory.runs`, by `kind` and `outcome`: `done`, `failed` or `lost`.
 * `teamster.directory.users`, a gauge by install `state`.
+
+The audit trail adds two, by `sink`: `teamster.audit.failed` and `teamster.audit.dropped`.
 
 ## Logging and errors
 
@@ -848,6 +943,34 @@ names, by `0021` in SQLite and `0018` in Postgres
 ([ADR 0062](adr/0062-a-route-may-deliver-to-the-people-a-message-names.md)). The previous release
 never reads it, so it sees an addressed route as one with no target and delivers nothing through it.
 
+`audit_events` came with the audit trail, by `0023` in SQLite and `0020` in Postgres
+([ADR 0070](adr/0070-audit-configuration-changes-at-the-store.md)). It is append-only, and pruning
+deletes by `occurred_at`. It is a new table and nothing else, so the previous release ignores it.
+
+`users` came with the user registry, by `0024` in SQLite and `0021` in Postgres, along with an
+index on `sessions(subject)` for ending a disabled user's sessions
+([ADR 0072](adr/0072-remember-who-signed-in.md)). The previous release ignores both.
+
+`authz_generation` came with the policy snapshot, by `0025` in SQLite and `0022` in Postgres: one
+row, seeded at `0`, that moves with every change to what authorization reads from the store
+([ADR 0073](adr/0073-authorize-from-a-versioned-policy-snapshot.md)). The previous release ignores
+it.
+
+`user_groups` and `user_group_members` came with local groups, by `0026` in SQLite and `0023` in
+Postgres ([ADR 0074](adr/0074-local-groups-and-provider-groups.md)). A member row names a `user`,
+a `group` or an `idp_group`, and is indexed by member for the snapshot's reverse lookup. The
+previous release ignores both.
+
+`permissions` came with per-record permissions, by `0027` in SQLite and `0024` in Postgres
+([ADR 0075](adr/0075-own-and-share-records-through-generated-policies.md)). It holds one row per
+principal and resource, unique on both, and is indexed by resource. The previous release ignores
+it: access that only a row gave is then refused, and roles are unchanged.
+
+`access_tokens.scope` and `access_tokens.scoped_token_hash` came with scoped tokens, by `0028` in
+SQLite and `0025` in Postgres ([ADR 0077](adr/0077-scoped-tokens-answer-to-their-creator.md)). An
+empty scope is a token from before. A scoped token's `token_hash` is `scoped:<id>`, so the previous
+release refuses it.
+
 `database.migrate` decides what opening the store does about a schema that is behind: `auto`
 applies what is missing, `verify` refuses and names `teamster migrate up`, `off` asks nothing.
 `teamster export` always verifies — reading a database must not migrate it. A migration must leave
@@ -934,6 +1057,12 @@ along with the token each was found in. Groups are looked up in the same order a
 userinfo is fetched once for both. No token is kept. `/admin/userinfo` shows the record to its
 holder: it requires a session but sits outside `authorize`, so a user with no role can read it too.
 See [ADR 0043](adr/0043-session-keeps-sign-in-identity.md).
+
+Every sign-in also writes a `users` row: subject, source, name, email, and the roles and IdP
+groups of that sign-in. An admin can disable a user at `/admin/users`. That deletes the user's
+sessions and broker tokens in the same transaction and refuses their next sign-in, so no
+per-request lookup is needed. The local login cannot be disabled. See
+[ADR 0072](adr/0072-remember-who-signed-in.md).
 
 `/api` keeps HTTP basic auth: automation cannot complete an authorization code flow. Expired
 sessions and abandoned flows are swept hourly, and neither is honoured once expired regardless.
@@ -1115,10 +1244,12 @@ unlink recipients — see [Managing recipients](#managing-recipients) — and
 `POST /api/recipients/link` is the exception that requires a session specifically — see
 [Linking a chat](#linking-a-chat). `GET /api/samples` answers the label keys and values and the
 attribute keys the editors complete, to a caller who may edit templates or routes — see
-[Editor completion](#editor-completion). `GET /api/tokens`, `POST /api/tokens` (`{"name": …}`) and
-`DELETE /api/tokens/{id}` list, issue and revoke webhook access tokens. The answer to the `POST` is
-the only place a token is ever readable. All three need `administer` on `AccessToken`, and so does
-the `/admin/tokens` page.
+[Editor completion](#editor-completion). `GET /api/tokens`, `POST /api/tokens`
+(`{"name": …, "scope": [...]}`) and `DELETE /api/tokens/{id}` list, issue and revoke webhook access
+tokens. The answer to the `POST` is the only place a token is ever readable. They are
+self-service: a caller sees and revokes their own tokens, a webhook admin everyone's, and a new
+token's scope must name only webhooks the caller may `use`
+([ADR 0077](adr/0077-scoped-tokens-answer-to-their-creator.md)).
 
 ## Configuration
 

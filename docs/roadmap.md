@@ -55,8 +55,10 @@ builder.
 
 ## Milestone 22 — Personal routes for others, by grant
 
-Grant a user or a group the right to route to someone else's chat. This extends the Cedar
-`deliverToRecipient` policy from ADR 0047 rather than adding Go checks.
+Grant a user or a group the right to route to someone else's chat. This is a permission row
+`deliverToRecipient` on `User::"<subject>"`
+([ADR 0075](adr/0075-own-and-share-records-through-generated-policies.md)). What is left is offering
+it on the notifications page, and letting `User` be a permissioned type.
 
 ## Milestone 23 — Messages to individual people
 
@@ -104,16 +106,19 @@ Smaller items left open when a milestone shipped. Each is picked up on its own.
 * **Retire `X-Teamster-Token`.** Remove the header in a breaking release, and decide whether
   `webhook.token` stays as the declarative bootstrap token
   ([ADR 0044](adr/0044-webhook-access-tokens.md)).
-* **Scoped webhook tokens.** Limit an access token to one webhook, or to a role's delivery grants.
-  Additive.
+* **Bearer tokens on `/api`.** Scoped tokens could admit scripts to the admin API, with the
+  same double check as the webhooks
+  ([ADR 0077](adr/0077-scoped-tokens-answer-to-their-creator.md)). Basic auth with the local
+  credentials is the only way in today.
 * **Install the Teams app into a team from Teamster.** Graph allows it; a separate ADR would decide
   whether Teamster should ([ADR 0045](adr/0045-channel-delivery-through-the-bot.md)). Installing
   for people is milestone 23.
 * **Verify bot delivery against a real tenant.** Whether an edit through the stored conversation id
   updates the channel post, whether an app upgrade re-sends install events, and whether the bot can
   post to private and shared channels.
-* **Where Cedar policies live.** Policies are embedded defaults derived from the three roles. An
-  operator file or policies edited in the admin UI are still open
+* **Where Cedar policies live.** Grants are generated policies
+  ([ADR 0075](adr/0075-own-and-share-records-through-generated-policies.md)); the role policies
+  are still embedded. An operator file of extra policies is still open
   ([ADR 0012](adr/0012-role-based-authorization.md)).
 * **Activity-feed notifications.** Route C from milestone 13: `sendActivityNotification` with
   `TeamsActivity.Send`, a notification rather than a chat message, if a lighter option than the bot

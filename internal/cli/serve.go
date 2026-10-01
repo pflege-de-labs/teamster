@@ -9,8 +9,10 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"sync"
 	"time"
 
+	"github.com/pflege-de-labs/teamster/internal/audit"
 	"github.com/pflege-de-labs/teamster/internal/bot"
 	"github.com/pflege-de-labs/teamster/internal/cards"
 	"github.com/pflege-de-labs/teamster/internal/config"
@@ -111,10 +113,6 @@ func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
 	if warning := webhookTokenWarning(ctx, cfg, sqlStore); warning != "" {
 		logger.Warn(warning)
 	}
-	if err := seedPresets(ctx, logger, sqlStore); err != nil {
-		return err
-	}
-
 	// After the store, so that the deferred shutdown below — and the last
 	// collection it triggers — runs while the database is still open.
 	telemetry, err := metrics.New(cfg.Metrics)
@@ -135,6 +133,32 @@ func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
 	// The collection's own context, not the process one: the last collection
 	// is the one shutdown forces, by which time the process context is already
 	// cancelled and reading the gauge through it would fail.
+	recorder, relays, err := newRecorder(ctx, logger, cfg.Audit, sqlStore, telemetry)
+	if err != nil {
+		return fmt.Errorf("audit: %w", err)
+	}
+	// Relays stop with the process; what they had not published waits in the
+	// trail for the next start. Waited for before the store closes.
+	var relaysDone sync.WaitGroup
+	for _, relay := range relays {
+		relaysDone.Go(func() { relay.Run(ctx) })
+	}
+	defer relaysDone.Wait()
+	defer func() {
+		// Runs after the HTTP drain, so every change it let through is recorded.
+		closeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), cfg.Server.ShutdownTimeout)
+		defer cancel()
+		if err := recorder.Close(closeCtx); err != nil {
+			logger.Error("audit shutdown", "err", err)
+		}
+	}()
+	// Configuration writes go through this; reads and delivery bookkeeping pass straight on.
+	auditedStore := audit.Wrap(sqlStore, recorder)
+
+	if err := seedPresets(ctx, logger, auditedStore); err != nil {
+		return err
+	}
+
 	if err := telemetry.ObserveActiveEvents(func(ctx context.Context) (int64, error) {
 		return sqlStore.CountActiveEvents(ctx)
 	}); err != nil {
@@ -224,7 +248,7 @@ func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
 		return fmt.Errorf("samples: %w", err)
 	}
 
-	srv, err := httpserver.NewServer(logger, *cfg, sqlStore, graphClient, botClient, channels, telemetry, sampler, serverOpts...)
+	srv, err := httpserver.NewServer(logger, *cfg, auditedStore, graphClient, botClient, channels, telemetry, sampler, serverOpts...)
 	if err != nil {
 		return fmt.Errorf("http server: %w", err)
 	}
@@ -243,6 +267,9 @@ func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
 	}
 
 	go sweepSessions(ctx, logger, sqlStore)
+	if cfg.Audit.Database {
+		go audit.NewPruner(logger, sqlStore, cfg.Audit.RetentionAge, cfg.Audit.RetentionCount, cfg.Audit.PruneInterval).Run(ctx)
+	}
 
 	// Stopped only once the drain below is over, so the alerts it delivers are
 	// sampled too, and waited for before the store closes: its last act is a write.

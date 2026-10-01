@@ -11,6 +11,8 @@ import (
 )
 
 type Querier interface {
+	AddGroupMember(ctx context.Context, arg AddGroupMemberParams) error
+	BumpAuthzGeneration(ctx context.Context) error
 	// ClaimActiveEvent takes the right to post the card for one channel. A row
 	// comes back only when the claim is ours; a claim somebody else is still
 	// working on, and a row that already carries a card, both leave this returning
@@ -63,6 +65,7 @@ type Querier interface {
 	// creates it, so there is no window in which one exists without a default.
 	CreateDestination(ctx context.Context, arg CreateDestinationParams) error
 	CreateGrant(ctx context.Context, arg CreateGrantParams) error
+	CreateGroup(ctx context.Context, arg CreateGroupParams) error
 	CreateLinkFlow(ctx context.Context, arg CreateLinkFlowParams) error
 	CreateLoginFlow(ctx context.Context, arg CreateLoginFlowParams) error
 	CreateRecipient(ctx context.Context, arg CreateRecipientParams) error
@@ -86,8 +89,14 @@ type Querier interface {
 	// resolve forever (see recipientMissing in webhooks.go for the mirror-image
 	// defence against a row that was stranded some other way).
 	DeleteActiveEventRecipientsFor(ctx context.Context, recipientID string) error
+	DeleteAuditEventsBefore(ctx context.Context, occurredAt time.Time) (int64, error)
+	// Keeps the newest keep rows. The offset finds the oldest row worth keeping;
+	// everything strictly older goes, and so does anything at the same instant
+	// with a smaller id, which is the order the list pages in.
+	DeleteAuditEventsBeyond(ctx context.Context, keep int64) (int64, error)
 	DeleteBotTeam(ctx context.Context, teamID string) error
 	DeleteBrokerToken(ctx context.Context, sessionID string) error
+	DeleteBrokerTokensForSubject(ctx context.Context, subject string) error
 	DeleteDestination(ctx context.Context, id string) error
 	DeleteEventSamplesSeenBefore(ctx context.Context, lastSeen time.Time) (int64, error)
 	// Keeps the most recently seen values of each label key and deletes the rest.
@@ -103,13 +112,20 @@ type Querier interface {
 	// here. A set delete takes the locks the isolation level needs and cannot
 	// interleave with another writer's replacement into the union of both.
 	DeleteGrantsForRole(ctx context.Context, role string) error
+	DeleteGroup(ctx context.Context, id string) (int64, error)
+	// Both directions: the group's own members, and the group as someone's member.
+	DeleteGroupMemberships(ctx context.Context, id string) error
 	// Minting a new code for a subject retires whatever it had outstanding, so a
 	// guess only ever has to beat one live code rather than every one ever handed
 	// out before the hourly sweep catches up.
 	DeleteLinkFlowsForSubject(ctx context.Context, subject string) error
+	DeletePermission(ctx context.Context, id string) (int64, error)
+	DeletePermissionsForPrincipal(ctx context.Context, arg DeletePermissionsForPrincipalParams) error
+	DeletePermissionsForResource(ctx context.Context, arg DeletePermissionsForResourceParams) error
 	DeleteRecipient(ctx context.Context, id string) error
 	DeleteRoute(ctx context.Context, id string) error
 	DeleteSession(ctx context.Context, id string) error
+	DeleteSessionsForSubject(ctx context.Context, subject string) error
 	DeleteSetting(ctx context.Context, key string) error
 	DeleteTemplate(ctx context.Context, id string) error
 	DeleteWebhookEndpoint(ctx context.Context, id string) error
@@ -125,6 +141,7 @@ type Querier interface {
 	GetAccessTokenByHash(ctx context.Context, tokenHash string) (AccessToken, error)
 	GetActiveEvent(ctx context.Context, arg GetActiveEventParams) (ActiveEvent, error)
 	GetActiveEventRecipient(ctx context.Context, arg GetActiveEventRecipientParams) (ActiveEventRecipient, error)
+	GetAuthzGeneration(ctx context.Context) (int64, error)
 	GetBotTeam(ctx context.Context, teamID string) (BotTeam, error)
 	GetBrokerToken(ctx context.Context, sessionID string) (BrokerToken, error)
 	GetDefaultDestination(ctx context.Context) (Destination, error)
@@ -132,6 +149,8 @@ type Querier interface {
 	GetDirectoryRun(ctx context.Context, id string) (DirectoryRun, error)
 	GetDirectoryUser(ctx context.Context, aadObjectID string) (DirectoryUser, error)
 	GetDirectoryUserByConversation(ctx context.Context, conversationID string) (DirectoryUser, error)
+	GetGroup(ctx context.Context, id string) (UserGroup, error)
+	GetPermission(ctx context.Context, id string) (Permission, error)
 	GetRecipient(ctx context.Context, id string) (Recipient, error)
 	// GetRecipientByConversation resolves the chat an inbound activity came from
 	// back to the person it belongs to. Ordered and limited rather than assuming
@@ -146,6 +165,7 @@ type Querier interface {
 	GetSession(ctx context.Context, id string) (Session, error)
 	GetSetting(ctx context.Context, key string) (string, error)
 	GetTemplate(ctx context.Context, id string) (Template, error)
+	GetUser(ctx context.Context, subject string) (User, error)
 	GetWebhookEndpoint(ctx context.Context, id string) (WebhookEndpoint, error)
 	// GetWebhookEndpointBySlug is the request path, turned into a row. It is the
 	// only lookup a sender can reach, so it matches on the pair alone and leaves
@@ -154,6 +174,7 @@ type Querier interface {
 	// HeartbeatDirectoryRun writes progress. No row changed means another replica
 	// took the run over, and this one has to stop.
 	HeartbeatDirectoryRun(ctx context.Context, arg HeartbeatDirectoryRunParams) (int64, error)
+	InsertAuditEvent(ctx context.Context, arg InsertAuditEventParams) error
 	// InsertDirectoryRun requests a run. It collides with the partial unique index
 	// while another run is requested or running.
 	InsertDirectoryRun(ctx context.Context, arg InsertDirectoryRunParams) error
@@ -169,6 +190,14 @@ type Querier interface {
 	// fanned out to, and any claim still in flight. The order is stable so that
 	// delivery, and its tests, see them the same way every time.
 	ListActiveEvents(ctx context.Context, eventKey string) ([]ActiveEvent, error)
+	ListAllGroupMembers(ctx context.Context) ([]UserGroupMember, error)
+	// Newest first, a page at a time. The cursor is the last row of the previous
+	// page; an empty cursor id starts from the newest. Each filter left empty
+	// matches everything, so one statement serves every combination of them.
+	ListAuditEvents(ctx context.Context, arg ListAuditEventsParams) ([]AuditEvent, error)
+	// Oldest first from just after the cursor, for a relay catching up. until
+	// holds back events young enough that an older one may still commit.
+	ListAuditEventsAfter(ctx context.Context, arg ListAuditEventsAfterParams) ([]AuditEvent, error)
 	ListBotTeams(ctx context.Context) ([]BotTeam, error)
 	ListDestinations(ctx context.Context) ([]Destination, error)
 	// ListDirectoryUserProblems is what the people page lists: installs that
@@ -184,9 +213,15 @@ type Querier interface {
 	// otherwise infer int32 for a LIMIT.
 	ListEventSamples(ctx context.Context, maxRows int64) ([]EventSample, error)
 	ListGrants(ctx context.Context) ([]Grant, error)
+	ListGroupMembers(ctx context.Context, groupID string) ([]UserGroupMember, error)
+	ListGroups(ctx context.Context) ([]UserGroup, error)
+	ListPermissions(ctx context.Context) ([]Permission, error)
+	ListPermissionsForResource(ctx context.Context, arg ListPermissionsForResourceParams) ([]Permission, error)
 	ListRecipients(ctx context.Context) ([]Recipient, error)
 	ListRoutes(ctx context.Context) ([]Route, error)
 	ListTemplates(ctx context.Context) ([]Template, error)
+	// pattern is a lower-cased LIKE pattern; its % and _ stay wildcards.
+	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
 	ListWebhookEndpoints(ctx context.Context) ([]WebhookEndpoint, error)
 	MarkDefaultDestination(ctx context.Context, id string) (int64, error)
 	// MarkDirectoryUserBlocked and ClearDirectoryUserBlocked are the directory's
@@ -228,10 +263,15 @@ type Querier interface {
 	// ReleaseActiveEventRecipientClaim hands a claim back when the send failed, so
 	// the next attempt does not have to wait out the staleness cutoff.
 	ReleaseActiveEventRecipientClaim(ctx context.Context, arg ReleaseActiveEventRecipientClaimParams) error
+	RemoveGroupMember(ctx context.Context, arg RemoveGroupMemberParams) (int64, error)
+	// ReplaceSettingValue moves a key from one value to the next, and only from
+	// that one: two replicas advancing the same cursor cannot both win.
+	ReplaceSettingValue(ctx context.Context, arg ReplaceSettingValueParams) (int64, error)
 	RotateWebhookEndpointToken(ctx context.Context, arg RotateWebhookEndpointTokenParams) error
 	// SetDirectoryUserInstalled records the chat the bot has with a person, which
 	// is proof the app is installed however it got there.
 	SetDirectoryUserInstalled(ctx context.Context, arg SetDirectoryUserInstalledParams) (int64, error)
+	SetUserDisabled(ctx context.Context, arg SetUserDisabledParams) (int64, error)
 	// TakeLinkFlow redeems a code once: the row is gone whether or not it had
 	// expired, so a code read over somebody's shoulder and typed twice binds
 	// nothing the second time.
@@ -253,6 +293,7 @@ type Querier interface {
 	TouchActiveEventRecipient(ctx context.Context, arg TouchActiveEventRecipientParams) error
 	UpdateBrokerToken(ctx context.Context, arg UpdateBrokerTokenParams) error
 	UpdateDestination(ctx context.Context, arg UpdateDestinationParams) error
+	UpdateGroup(ctx context.Context, arg UpdateGroupParams) (int64, error)
 	// The update deliberately leaves subject alone: it is who this binding belongs
 	// to, and moving it would point one person's link at another's alerts. What
 	// changes on a re-link is the conversation reference.
@@ -281,7 +322,12 @@ type Querier interface {
 	// database each contribute what they saw. last_seen only moves forward, so a
 	// replica with a slow clock cannot make a key look older than it is.
 	UpsertEventSample(ctx context.Context, arg UpsertEventSampleParams) error
+	// One row per principal and resource: granting again replaces the actions.
+	UpsertPermission(ctx context.Context, arg UpsertPermissionParams) (Permission, error)
 	UpsertSetting(ctx context.Context, arg UpsertSettingParams) error
+	// A sign-in refreshes what the provider says; first_seen and the disabled
+	// state are kept.
+	UpsertUser(ctx context.Context, arg UpsertUserParams) error
 }
 
 var _ Querier = (*Queries)(nil)

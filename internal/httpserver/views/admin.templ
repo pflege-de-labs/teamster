@@ -59,7 +59,7 @@ templ tabPanel(page Page, tab string) {
 
 templ templates(page Page) {
 	@panel(i18n.T(ctx, "templates.panel"), "templates") {
-		if page.CanEdit {
+		if page.mayCreate("Template") || (page.EditTemplate != nil && page.mayUpdate("Template", page.EditTemplate.ID)) {
 			// Preview beside the editor keeps a change and its effect in view together.
 			<form method="post" action="/admin/templates" id="template-form" class="grid gap-6 lg:col-span-2 lg:grid-cols-2">
 				<div class="min-w-0 space-y-3">
@@ -123,6 +123,9 @@ templ templates(page Page) {
 				</div>
 			</form>
 		}
+		if page.Sharing != nil && page.Sharing.ResourceType == "Template" {
+			@sharingPanel(*page.Sharing)
+		}
 		<div class="lg:col-span-2">
 			if len(page.Templates) == 0 {
 				@empty(i18n.T(ctx, "templates.empty"))
@@ -142,8 +145,10 @@ templ templates(page Page) {
 								</div>
 							</div>
 							<div class="flex shrink-0 items-center gap-2">
-								if page.CanEdit {
+								if page.mayUpdate("Template", t.ID) {
 									@editLink("templates", t.ID, t.Name)
+								}
+								if page.mayDelete("Template", t.ID) {
 									@deleteButton("/admin/templates/delete", t.ID, t.Name)
 								}
 							</div>
@@ -209,7 +214,7 @@ templ presetPicker(page Page) {
 
 templ destinations(page Page) {
 	@panel(i18n.T(ctx, "destinations.panel"), "destinations") {
-		if page.CanEdit {
+		if page.mayCreate("Destination") || (page.EditDestination != nil && page.mayUpdate("Destination", page.EditDestination.ID)) {
 			<form method="post" action="/admin/destinations" class="space-y-3">
 				if page.EditDestination != nil {
 					<input type="hidden" name="id" value={ page.EditDestination.ID }/>
@@ -239,6 +244,9 @@ templ destinations(page Page) {
 				</div>
 			</form>
 		}
+		if page.Sharing != nil && page.Sharing.ResourceType == "Destination" {
+			@sharingPanel(*page.Sharing)
+		}
 		<div>
 			if len(page.Destinations) == 0 {
 				@empty(i18n.T(ctx, "destinations.empty"))
@@ -262,8 +270,10 @@ templ destinations(page Page) {
 								if page.CanManage && !d.IsDefault {
 									@makeDefaultButton(d.ID, d.Name)
 								}
-								if page.CanEdit {
+								if page.mayUpdate("Destination", d.ID) {
 									@editLink("destinations", d.ID, d.Name)
+								}
+								if page.mayDelete("Destination", d.ID) {
 									@deleteButton("/admin/destinations/delete", d.ID, d.Name)
 								}
 							</div>
@@ -292,7 +302,7 @@ templ makeDefaultButton(id, name string) {
 
 templ webhooks(page Page) {
 	@panel(i18n.T(ctx, "webhooks.panel"), "webhooks") {
-		if page.CanEdit {
+		if page.mayCreate("WebhookEndpoint") || (page.EditWebhookEndpoint != nil && page.mayUpdate("WebhookEndpoint", page.EditWebhookEndpoint.ID)) {
 			<form method="post" action="/admin/webhooks" class="space-y-3">
 				if page.EditWebhookEndpoint != nil {
 					<input type="hidden" name="id" value={ page.EditWebhookEndpoint.ID }/>
@@ -309,6 +319,9 @@ templ webhooks(page Page) {
 					}
 				</div>
 			</form>
+		}
+		if page.Sharing != nil && page.Sharing.ResourceType == "WebhookEndpoint" {
+			@sharingPanel(*page.Sharing)
 		}
 		<div>
 			if page.NewWebhookURL != "" {
@@ -330,9 +343,11 @@ templ webhooks(page Page) {
 								</div>
 							</div>
 							<div class="flex shrink-0 items-center gap-2">
-								if page.CanEdit {
+								if page.mayUpdate("WebhookEndpoint", e.ID) {
 									@rotateButton(e.ID, e.TeamSlug+"/"+e.ChannelSlug)
 									@editLink("webhooks", e.ID, e.TeamSlug+"/"+e.ChannelSlug)
+								}
+								if page.mayDelete("WebhookEndpoint", e.ID) {
 									@deleteButton("/admin/webhooks/delete", e.ID, e.TeamSlug+"/"+e.ChannelSlug)
 								}
 							</div>
@@ -370,7 +385,7 @@ templ rotateButton(id, name string) {
 
 templ routes(page Page) {
 	@panel(i18n.T(ctx, "routes.panel"), "routes") {
-		if page.CanEdit {
+		if page.mayCreate("Route") || (page.EditRoute != nil && page.mayUpdate("Route", page.EditRoute.ID)) {
 			<form method="post" action="/admin/routes" class="space-y-3">
 				if page.EditRoute != nil {
 					<input type="hidden" name="id" value={ page.EditRoute.ID }/>
@@ -399,6 +414,9 @@ templ routes(page Page) {
 					}
 				</div>
 			</form>
+		}
+		if page.Sharing != nil && page.Sharing.ResourceType == "Route" {
+			@sharingPanel(*page.Sharing)
 		}
 		<div>
 			if len(page.Routes) == 0 {
@@ -437,8 +455,10 @@ templ routes(page Page) {
 								<div class="truncate font-mono text-xs text-slate-500">{ selectorText(ctx, r.Route.LabelSelector) }</div>
 							</div>
 							<div class="flex shrink-0 items-center gap-2">
-								if page.CanEdit {
+								if page.mayUpdate("Route", r.Route.ID) {
 									@editLink("routes", r.Route.ID, r.Route.Name)
+								}
+								if page.mayDelete("Route", r.Route.ID) {
 									@deleteButton("/admin/routes/delete", r.Route.ID, r.Route.Name)
 								}
 							</div>

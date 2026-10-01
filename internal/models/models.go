@@ -186,7 +186,14 @@ type AccessToken struct {
 	CreatedBy  string    `json:"created_by"`
 	CreatedAt  time.Time `json:"created_at"`
 	LastUsedAt time.Time `json:"last_used_at"`
+	// Scope is the webhooks the token may send to, checked against its
+	// creator's permissions on every use (ADR 0077). Empty is a token from
+	// before scopes, which reaches both webhooks whoever made it.
+	Scope []string `json:"scope,omitempty"`
 }
+
+// Scoped reports whether the token is bound to its scope and its creator.
+func (t AccessToken) Scoped() bool { return len(t.Scope) > 0 }
 
 // A Recipient is a person who asked for their alerts as a chat message, and the
 // Bot Framework conversation reference that makes it possible to send one
@@ -604,3 +611,141 @@ type EventSample struct {
 	FirstSeen time.Time
 	LastSeen  time.Time
 }
+
+// How an actor proved who they are, recorded on every audit event.
+const (
+	ViaSession = "session"
+	ViaBasic   = "basic"
+	ViaToken   = "token"
+	ViaCLI     = "cli"
+	ViaSystem  = "system"
+)
+
+// An Actor is who caused an audit event. TokenID names the access token a
+// request arrived with, when it arrived with one.
+type Actor struct {
+	Subject string `json:"subject"`
+	Name    string `json:"name,omitempty"`
+	Via     string `json:"via"`
+	TokenID string `json:"token_id,omitempty"`
+}
+
+// An AuditEvent is one change to the configuration (ADR 0070). Action is
+// "<resource>.<verb>", such as "template.update". Before and After are JSON
+// snapshots of the record; Before is empty for a create, After for a delete.
+type AuditEvent struct {
+	ID           string          `json:"id"`
+	OccurredAt   time.Time       `json:"occurred_at"`
+	Actor        Actor           `json:"actor"`
+	Action       string          `json:"action"`
+	ResourceType string          `json:"resource_type"`
+	ResourceID   string          `json:"resource_id,omitempty"`
+	RequestID    string          `json:"request_id,omitempty"`
+	Before       json.RawMessage `json:"before,omitempty"`
+	After        json.RawMessage `json:"after,omitempty"`
+}
+
+// An AuditFilter narrows ListAuditEvents. Empty fields match everything, and
+// a zero Since or Until leaves that end of the range open. The cursor is the
+// last event of the previous page.
+type AuditFilter struct {
+	Actor        string
+	ResourceType string
+	ResourceID   string
+	Action       string
+	Since        time.Time
+	Until        time.Time
+	CursorID     string
+	CursorAt     time.Time
+	Limit        int
+}
+
+// A User is someone who has signed in (ADR 0072). Roles and IdPGroups are what
+// the provider said at their last sign-in. A disabled user is refused sign-in.
+type User struct {
+	Subject    string    `json:"subject"`
+	Source     string    `json:"source"`
+	Name       string    `json:"name"`
+	Email      string    `json:"email,omitempty"`
+	Roles      []string  `json:"roles"`
+	IdPGroups  []string  `json:"idp_groups"`
+	FirstSeen  time.Time `json:"first_seen"`
+	LastSeen   time.Time `json:"last_seen"`
+	DisabledAt time.Time `json:"disabled_at,omitzero"`
+	DisabledBy string    `json:"disabled_by,omitempty"`
+}
+
+// Disabled says whether the user is refused sign-in.
+func (u User) Disabled() bool { return !u.DisabledAt.IsZero() }
+
+// A Group is a local set of principals (ADR 0074).
+type Group struct {
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description,omitempty"`
+	CreatedBy   string    `json:"created_by,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+// A MemberType says what a group member's id names.
+type MemberType string
+
+const (
+	MemberUser     MemberType = "user"
+	MemberGroup    MemberType = "group"
+	MemberIdPGroup MemberType = "idp_group"
+)
+
+// Valid reports whether t is one of the three member types.
+func (t MemberType) Valid() bool {
+	return t == MemberUser || t == MemberGroup || t == MemberIdPGroup
+}
+
+// A GroupMember puts a user, a group or an identity provider group in GroupID.
+type GroupMember struct {
+	GroupID string     `json:"group_id"`
+	Type    MemberType `json:"type"`
+	ID      string     `json:"id"`
+	AddedBy string     `json:"added_by,omitempty"`
+	AddedAt time.Time  `json:"added_at"`
+}
+
+// A PrincipalType says what a permission's principal id names (ADR 0075).
+type PrincipalType string
+
+const (
+	PrincipalUser     PrincipalType = "user"
+	PrincipalGroup    PrincipalType = "group"
+	PrincipalIdPGroup PrincipalType = "idp_group"
+	PrincipalRole     PrincipalType = "role"
+)
+
+// Valid reports whether t is one of the four principal types.
+func (t PrincipalType) Valid() bool {
+	return t == PrincipalUser || t == PrincipalGroup || t == PrincipalIdPGroup || t == PrincipalRole
+}
+
+// A Permission is the actions one principal holds on one resource. ResourceID
+// "*" is the collection, which is where create is granted.
+type Permission struct {
+	ID            string        `json:"id"`
+	PrincipalType PrincipalType `json:"principal_type"`
+	PrincipalID   string        `json:"principal_id"`
+	ResourceType  string        `json:"resource_type"`
+	ResourceID    string        `json:"resource_id"`
+	Actions       []string      `json:"actions"`
+	CreatedBy     string        `json:"created_by,omitempty"`
+	CreatedAt     time.Time     `json:"created_at"`
+	UpdatedAt     time.Time     `json:"updated_at"`
+}
+
+// An AuditCursor is the last event a relay delivered, in the trail's order
+// (ADR 0078). The zero cursor is before every event.
+type AuditCursor struct {
+	At time.Time
+	ID string
+}
+
+// IsZero reports whether the cursor names no event.
+func (c AuditCursor) IsZero() bool { return c.ID == "" && c.At.IsZero() }

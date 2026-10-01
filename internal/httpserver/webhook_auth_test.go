@@ -58,12 +58,12 @@ func TestWebhookAuth(t *testing.T) {
 			t.Parallel()
 
 			srv := &Server{cfg: config.Config{Webhook: config.WebhookConfig{Token: tt.configToken}}, store: tokenStore()}
-			name, err := srv.webhookAuth(webhookRequest(tt.headers))
+			token, err := srv.webhookAuth(webhookRequest(tt.headers))
 			if !errors.Is(err, tt.wantErr) {
 				t.Fatalf("webhookAuth() error = %v, want %v", err, tt.wantErr)
 			}
-			if name != tt.wantName {
-				t.Errorf("webhookAuth() = %q, want %q", name, tt.wantName)
+			if token.Name != tt.wantName {
+				t.Errorf("webhookAuth() = %q, want %q", token.Name, tt.wantName)
 			}
 		})
 	}

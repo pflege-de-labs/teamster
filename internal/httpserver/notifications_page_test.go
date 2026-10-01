@@ -150,15 +150,15 @@ func TestNotificationsBasicAuthCannotMintOrUnlink(t *testing.T) {
 func TestNotificationsHandlersResolveIdentityFromTheSessionNotThePrincipal(t *testing.T) {
 	t.Parallel()
 
-	authorizer, err := authz.New()
+	engine, err := authz.NewEngine(nil)
 	if err != nil {
-		t.Fatalf("authz.New: %v", err)
+		t.Fatalf("authz.NewEngine: %v", err)
 	}
 
 	st := sessionAs(newFakeStore(), authz.RoleViewer)
 	st.recipients["own"] = models.Recipient{ID: "own", Subject: "tester", Name: "Jens"}
 	st.recipients["attackers"] = models.Recipient{ID: "attackers", Subject: "attacker", Name: "Attacker"}
-	srv := &Server{store: st, authz: authorizer}
+	srv := &Server{store: st, engine: engine}
 
 	// A principal a stray middleware, or a future refactor that reused these
 	// handlers behind apiAuth, could set -- deliberately not "tester", the
@@ -167,7 +167,7 @@ func TestNotificationsHandlersResolveIdentityFromTheSessionNotThePrincipal(t *te
 	withStrayPrincipal := func(r *http.Request) *http.Request {
 		r.AddCookie(&http.Cookie{Name: sessionCookie, Value: testSessionID})
 		r.SetBasicAuth("admin", "pass")
-		return r.WithContext(withPrincipal(r.Context(), "attacker", "Attacker", []authz.Role{authz.RoleAdmin}))
+		return r.WithContext(withPrincipal(r.Context(), "attacker", "Attacker", models.ViaSession, []authz.Role{authz.RoleAdmin}, nil))
 	}
 
 	mintReq := withStrayPrincipal(httptest.NewRequest(http.MethodPost, "/admin/notifications/link", strings.NewReader("")))

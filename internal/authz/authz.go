@@ -5,7 +5,6 @@ package authz
 
 import (
 	_ "embed"
-	"fmt"
 	"slices"
 	"strings"
 
@@ -58,20 +57,26 @@ func (r Resource) uid() cedar.EntityUID {
 }
 
 // An Authorizer holds the parsed policies and the entities they are evaluated
-// against. It is immutable, so one is shared by every request.
+// against. It is immutable, so one is shared by every request; an Engine
+// replaces it when the model behind it changes.
 type Authorizer struct {
-	policies *cedar.PolicySet
-	entities cedar.EntityMap
+	policies   *cedar.PolicySet
+	entities   cedar.EntityMap
+	generation int64
+	// userGroups are the local groups each subject is a direct member of.
+	userGroups map[string][]string
+	generated  []GeneratedPolicy
+	// holders are the principals some grant names, by principalKey.
+	holders map[string]bool
 }
 
+// New is the embedded policies alone, as an Engine with no source has them.
 func New() (*Authorizer, error) {
-	policies, err := cedar.NewPolicySetFromBytes("policies.cedar", policyDocument)
-	if err != nil {
-		return nil, fmt.Errorf("parse policies: %w", err)
-	}
-
-	return &Authorizer{policies: policies, entities: roleEntities()}, nil
+	return build(0, Model{})
 }
+
+// Generation is the model generation this snapshot was built from.
+func (a *Authorizer) Generation() int64 { return a.generation }
 
 // roleEntities is the role hierarchy: a principal in Role::"admin" is in
 // Role::"editor" too, because Cedar's `in` walks the parents.
@@ -92,33 +97,15 @@ func roleEntities() cedar.EntityMap {
 // build has never heard of: a deployment that defines its own client role and
 // writes a policy for it gets that policy applied. A role no policy mentions
 // grants nothing, which is what makes passing them all through safe.
-//
-// The subject is an entity of its own rather than the role itself, because the
-// per-Team grants of the next milestone hang off the principal.
 func (a *Authorizer) Allow(subject string, roles []Role, action string, resource Resource) bool {
-	if subject == "" {
-		subject = "anonymous"
-	}
+	return a.AllowFor(Principal{Subject: subject, Roles: roles}, action, resource)
+}
 
-	entities := a.entities.Clone()
-	parents := make([]cedar.EntityUID, 0, len(roles))
-	for _, role := range roles {
-		uid := cedar.NewEntityUID("Role", types.String(role))
-		parents = append(parents, uid)
-		// A role the embedded policies do not define still needs an entity, or
-		// Cedar has nothing to resolve the parent to.
-		if _, known := entities[uid]; !known {
-			entities[uid] = cedar.Entity{UID: uid}
-		}
-	}
-
-	principal := cedar.NewEntityUID("User", types.String(subject))
-	entities[principal] = cedar.Entity{
-		UID:     principal,
-		Parents: cedar.NewEntityUIDSet(parents...),
-	}
-
-	decision, _ := cedar.Authorize(a.policies, entities, cedar.Request{
+// AllowFor is Allow for a principal whose groups count too.
+func (a *Authorizer) AllowFor(p Principal, action string, resource Resource) bool {
+	extra := cedar.EntityMap{}
+	principal := a.principalEntity(p, extra, cedar.Record{})
+	decision, _ := cedar.Authorize(a.policies, overlay{base: a.entities, extra: extra}, cedar.Request{
 		Principal: principal,
 		Action:    cedar.NewEntityUID("Action", types.String(action)),
 		Resource:  resource.uid(),
