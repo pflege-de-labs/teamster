@@ -243,16 +243,24 @@ where the login never produced one.
 The snippets below set up everything from this section on the Keycloak side:
 
 * the `teamster` client
-* the Entra identity provider link, with Store Tokens, Stored Tokens Readable and the Graph scopes
-* `broker` `read-token` for every user, through the realm's default roles
+* the Entra identity provider link, as a generic OpenID Connect provider with Store Tokens, Stored
+  Tokens Readable and the Graph scopes
+* `broker` `read-token` for everyone who signs in through that link
 * the `roles` default scope, which puts `resource_access.broker.roles` into the access token
 
-Replace `my-realm`, `teamster.example`, the tenant ID and the credentials with your own. The alias
-`microsoft` must match `auth-broker-idp-alias`.
+They use the generic OpenID Connect provider rather than Keycloak's Microsoft provider, which
+supports few identity provider mappers. Replace `my-realm`, `teamster.example`, the tenant ID and
+the credentials with your own. The alias `microsoft` must match `auth-broker-idp-alias`.
 
-The default roles and the client's default scopes are **authoritative**. Applying them removes every
-entry that is not in the list, so copy the realm's current entries in first. To leave the default
-roles alone, grant the role [through a group](#granting-read-token-through-a-group) instead.
+The realm's default roles stay as they are. A hardcoded role mapper on the link grants
+`read-token`. With `syncMode` `FORCE` it applies at every login through the link, so users who
+already exist get the role at their next login. Stored Tokens Readable alone would only reach users
+created afterwards. Users who sign in another way, such as a local Keycloak account, do not get the
+role. They have no stored Entra token to read anyway.
+
+The client's default scopes are **authoritative**. Applying them removes every scope that is not in
+the list, so copy the client's current scopes in first, or leave that resource out if `roles` is
+already one of them.
 
 How the role reaches the token depends on the `teamster` client's *Full Scope Allowed*. With it
 off, a scope mapping lets `read-token` through. With it on, every role the user holds reaches the
@@ -280,17 +288,26 @@ data "keycloak_role" "broker_read_token" {
   name      = "read-token"
 }
 
-resource "keycloak_oidc_microsoft_identity_provider" "microsoft" {
-  realm         = data.keycloak_realm.realm.id
-  alias         = "microsoft"
-  display_name  = "Microsoft"
-  tenant_id     = var.entra_tenant_id
-  client_id     = var.entra_client_id
-  client_secret = var.entra_client_secret
-  sync_mode     = "FORCE"
+locals {
+  entra = "https://login.microsoftonline.com/${var.entra_tenant_id}"
+}
+
+resource "keycloak_oidc_identity_provider" "microsoft" {
+  realm              = data.keycloak_realm.realm.id
+  alias              = "microsoft"
+  display_name       = "Microsoft"
+  authorization_url  = "${local.entra}/oauth2/v2.0/authorize"
+  token_url          = "${local.entra}/oauth2/v2.0/token"
+  issuer             = "${local.entra}/v2.0"
+  jwks_url           = "${local.entra}/discovery/v2.0/keys"
+  user_info_url      = "https://graph.microsoft.com/oidc/userinfo"
+  validate_signature = true
+  client_id          = var.entra_client_id
+  client_secret      = var.entra_client_secret
+  sync_mode          = "FORCE"
 
   store_token                   = true # Store Tokens
-  add_read_token_role_on_create = true # Stored Tokens Readable: new users only
+  add_read_token_role_on_create = true # Stored Tokens Readable
 
   default_scopes = join(" ", [
     "openid", "profile", "email", "offline_access",
@@ -299,14 +316,16 @@ resource "keycloak_oidc_microsoft_identity_provider" "microsoft" {
   ])
 }
 
-# Existing users hold default-roles-<realm> already, so a role added here reaches them too.
-resource "keycloak_default_roles" "default" {
-  realm_id = data.keycloak_realm.realm.id
-  default_roles = [
-    "offline_access",
-    "uma_authorization",
-    "broker/read-token",
-  ]
+# Grants read-token at every login through the link, existing users included
+resource "keycloak_hardcoded_role_identity_provider_mapper" "broker_read_token" {
+  realm                   = data.keycloak_realm.realm.id
+  name                    = "broker-read-token"
+  identity_provider_alias = keycloak_oidc_identity_provider.microsoft.alias
+  role                    = "broker.read-token"
+
+  extra_config = {
+    syncMode = "FORCE"
+  }
 }
 
 resource "keycloak_openid_client_default_scopes" "teamster" {
@@ -365,11 +384,11 @@ For [`provider-keycloak`](https://marketplace.upbound.io/providers/crossplane-co
 v3.1.0, using its namespaced `*.keycloak.m.crossplane.io` API groups. The built-in `broker` client
 and its `read-token` role are observed rather than managed. The provider finds them by realm and
 client ID or role name. If either never becomes Ready, set its `crossplane.io/external-name`
-annotation to the object's UUID.
+annotation to the object's UUID. Replace `<tenant-id>` in the URLs.
 
 ```yaml
-apiVersion: oidc.keycloak.m.crossplane.io/v1alpha1
-kind: MicrosoftIdentityProvider
+apiVersion: oidc.keycloak.m.crossplane.io/v1alpha2
+kind: IdentityProvider
 metadata:
   name: microsoft
   namespace: teamster
@@ -378,7 +397,12 @@ spec:
     realm: my-realm
     alias: microsoft
     displayName: Microsoft
-    tenantId: 00000000-0000-0000-0000-000000000000
+    authorizationUrl: https://login.microsoftonline.com/<tenant-id>/oauth2/v2.0/authorize
+    tokenUrl: https://login.microsoftonline.com/<tenant-id>/oauth2/v2.0/token
+    issuer: https://login.microsoftonline.com/<tenant-id>/v2.0
+    jwksUrl: https://login.microsoftonline.com/<tenant-id>/discovery/v2.0/keys
+    userInfoUrl: https://graph.microsoft.com/oidc/userinfo
+    validateSignature: true
     clientIdSecretRef:
       name: entra-idp
       key: client-id
@@ -387,8 +411,27 @@ spec:
       key: client-secret
     syncMode: FORCE
     storeToken: true                   # Store Tokens
-    addReadTokenRoleOnCreate: true     # Stored Tokens Readable: new users only
+    addReadTokenRoleOnCreate: true     # Stored Tokens Readable
     defaultScopes: "openid profile email offline_access https://graph.microsoft.com/Team.ReadBasic.All https://graph.microsoft.com/Channel.ReadBasic.All"
+  providerConfigRef:
+    kind: ClusterProviderConfig
+    name: default
+---
+# Hardcoded role mapper: grants read-token at every login through the link
+apiVersion: identityprovider.keycloak.m.crossplane.io/v1alpha1
+kind: RoleIdentityProviderMapper
+metadata:
+  name: broker-read-token
+  namespace: teamster
+spec:
+  forProvider:
+    realm: my-realm
+    name: broker-read-token
+    identityProviderAliasRef:
+      name: microsoft
+    role: broker.read-token
+    extraConfig:
+      syncMode: FORCE
   providerConfigRef:
     kind: ClusterProviderConfig
     name: default
@@ -419,23 +462,6 @@ spec:
     clientIdRef:
       name: broker
     name: read-token
-  providerConfigRef:
-    kind: ClusterProviderConfig
-    name: default
----
-# Existing users hold default-roles-<realm> already, so a role added here reaches them too.
-apiVersion: defaults.keycloak.m.crossplane.io/v1alpha1
-kind: Roles
-metadata:
-  name: default-roles
-  namespace: teamster
-spec:
-  forProvider:
-    realmId: my-realm
-    defaultRoles:
-      - offline_access
-      - uma_authorization
-      - broker/read-token
   providerConfigRef:
     kind: ClusterProviderConfig
     name: default
@@ -530,11 +556,11 @@ spec:
 
 #### Granting read-token through a group
 
-A group can hold `read-token` instead of the realm's default roles, which then stay as they are.
-Unlike the default roles, the group's role list is not authoritative (`exhaustive = false`). A
-hardcoded group mapper on the Entra link puts every user who signs in through it into the group.
-With `syncMode` `FORCE` that includes existing users, from their next login. Use these resources
-in place of the default roles above, not alongside them. Everything else stays.
+A group can hold `read-token` instead, which makes the users who have it visible under the group's
+members. The group's role list is not authoritative (`exhaustive = false`). A hardcoded group mapper
+on the link puts everyone who signs in through it into the group, again at every login with
+`syncMode` `FORCE`. Use these resources in place of the hardcoded role mapper above, not alongside
+it. Everything else stays.
 
 Terraform:
 
@@ -554,7 +580,7 @@ resource "keycloak_group_roles" "teamster_broker_token" {
 resource "keycloak_hardcoded_group_identity_provider_mapper" "teamster_broker_token" {
   realm                   = data.keycloak_realm.realm.id
   name                    = "teamster-broker-token"
-  identity_provider_alias = keycloak_oidc_microsoft_identity_provider.microsoft.alias
+  identity_provider_alias = keycloak_oidc_identity_provider.microsoft.alias
   group                   = keycloak_group.teamster_broker_token.name
 
   extra_config = {
@@ -605,7 +631,7 @@ spec:
   forProvider:
     realm: my-realm
     name: teamster-broker-token
-    microsoftIdentityProviderAliasRef:
+    identityProviderAliasRef:
       name: microsoft
     group: teamster-broker-token
     extraConfig:
@@ -615,10 +641,9 @@ spec:
     name: default
 ```
 
-If not every Entra login should get the token, fill the group another way. One option is an
-explicit member list: `keycloak_group_memberships` or `Memberships`, both authoritative and keyed by
-username. The other is a realm default group, `keycloak_default_groups` or `DefaultGroups`, which
-only reaches users created afterwards.
+To give the token to only some Entra users, leave out the mapper and fill the group with an explicit
+member list: `keycloak_group_memberships` or `Memberships`. Both are authoritative and keyed by
+username.
 
 After any of these apply, each admin signs out of Teamster and back in. The Keycloak token Teamster
 stored in `broker_tokens` was issued without the role. To check, open **Clients → teamster → Client
