@@ -29,6 +29,11 @@ reasoning behind it in the [ADRs](docs/adr/).
 * Audit events can be published to NATS JetStream (`audit.nats.*`), one subject per resource type
   and action, deduplicated by event id
   ([ADR 0071](docs/adr/0071-publish-audit-events-to-nats-jetstream.md)).
+* Users mint their own webhook tokens at `/admin/tokens`, scoped to the webhooks they may use.
+  Every use checks the token's scope and its creator's current permission in Cedar, so disabling
+  the creator, or taking away their group or webhook level, revokes their tokens. Tokens from
+  earlier releases keep working unscoped
+  ([ADR 0077](docs/adr/0077-scoped-tokens-answer-to-their-creator.md)).
 * `/admin/access` gives admins an overview of every grant, the Cedar policies in force, and "Who
   can?". `/admin/me` shows each user their own access. Who may use each webhook can be set per
   user, group, provider group or role
@@ -49,6 +54,9 @@ reasoning behind it in the [ADRs](docs/adr/).
   its `/` menu with every app, so `/status` collided with other apps' commands. Typing `/status`
   still works. Upload the app package with a higher `version` to update the command menu
   ([ADR 0068](docs/adr/0068-commands-are-words-addressed-to-the-bot.md)).
+* `/webhook/*` answers `403` when a scoped token is used beyond its scope or its creator's
+  permissions. Unscoped tokens are not affected.
+* Issuing a webhook token is no longer limited to admins (see Added).
 * Authorization reads a versioned policy snapshot. Who may do what is unchanged, but if the database
   cannot be read, admin and API requests are now refused with `503`
   ([ADR 0073](docs/adr/0073-authorize-from-a-versioned-policy-snapshot.md)).

@@ -745,21 +745,35 @@ func (s queryAdapter) CreateAccessToken(ctx context.Context, t models.AccessToke
 	t.CreatedAt = nowUTC()
 	t.LastUsedAt = time.Time{}
 
-	err := s.q.CreateAccessToken(ctx, sqlitedb.CreateAccessTokenParams{
+	params := sqlitedb.CreateAccessTokenParams{
 		ID:        t.ID,
 		Name:      t.Name,
 		TokenHash: t.TokenHash,
 		CreatedBy: t.CreatedBy,
 		CreatedAt: t.CreatedAt,
-	})
+	}
+	if t.Scoped() {
+		// The previous release matches token_hash alone, and must not admit this one.
+		params.TokenHash = scopedPlaceholder + t.ID
+		params.Scope = strings.Join(t.Scope, " ")
+		params.ScopedTokenHash = sql.NullString{String: t.TokenHash, Valid: true}
+	}
+	err := s.q.CreateAccessToken(ctx, params)
 	if err != nil {
 		if isPrimaryKeyConflict(err) {
 			return models.AccessToken{}, ErrConflict
 		}
 		return models.AccessToken{}, fmt.Errorf("create access token: %w", err)
 	}
+	if t.Scoped() {
+		return t, s.BumpAuthzGeneration(ctx)
+	}
 	return t, nil
 }
+
+// scopedPlaceholder fills token_hash for a scoped token: no SHA-256 digest
+// in hex starts with it.
+const scopedPlaceholder = "scoped:"
 
 func (s queryAdapter) GetAccessTokenByHash(ctx context.Context, tokenHash string) (models.AccessToken, error) {
 	row, err := s.q.GetAccessTokenByHash(ctx, tokenHash)
@@ -787,18 +801,24 @@ func (s queryAdapter) DeleteAccessToken(ctx context.Context, id string) error {
 	if err := s.q.DeleteAccessToken(ctx, id); err != nil {
 		return fmt.Errorf("delete access token: %w", err)
 	}
-	return nil
+	// A scoped token is a generated policy too.
+	return s.BumpAuthzGeneration(ctx)
 }
 
 func accessTokenOf(row sqlitedb.AccessToken) models.AccessToken {
-	return models.AccessToken{
+	t := models.AccessToken{
 		ID:         row.ID,
 		Name:       row.Name,
 		TokenHash:  row.TokenHash,
 		CreatedBy:  row.CreatedBy,
 		CreatedAt:  row.CreatedAt,
 		LastUsedAt: row.LastUsedAt.Time,
+		Scope:      strings.Fields(row.Scope),
 	}
+	if row.ScopedTokenHash.Valid {
+		t.TokenHash = row.ScopedTokenHash.String
+	}
+	return t
 }
 
 func (s queryAdapter) ListRoutes(ctx context.Context) ([]models.Route, error) {

@@ -61,6 +61,7 @@ func (s *Server) viewerFor(r *http.Request) views.Viewer {
 	viewer.CanManage = s.allow(r, authz.ActionAdminister, authz.Resource{Type: "Grant"})
 	// Without the database trail there is nothing to list.
 	viewer.CanAudit = s.cfg.Audit.Database && s.allow(r, authz.ActionAdminister, authz.Resource{Type: "Audit"})
+	viewer.CanTokens = s.manageTokens(r) || len(s.usableWebhooks(r)) > 0
 	viewer.CanComplete = s.cfg.Samples.Enabled && s.mayComplete(r)
 	viewer.NotificationsEnabled = botConfigured(s.cfg.Bot)
 	viewer.PeopleEnabled = viewer.NotificationsEnabled && s.cfg.Bot.GlobalInstall
@@ -133,6 +134,15 @@ func (a authzSource) Load(ctx context.Context) (authz.Model, error) {
 	}
 	for _, p := range permissions {
 		model.Grants = append(model.Grants, grantOf(p))
+	}
+	tokens, err := a.store.ListAccessTokens(ctx)
+	if err != nil {
+		return authz.Model{}, err
+	}
+	for _, t := range tokens {
+		if t.Scoped() {
+			model.Tokens = append(model.Tokens, authz.TokenScope{ID: t.ID, Webhooks: t.Scope})
+		}
 	}
 	return model, nil
 }
@@ -217,10 +227,11 @@ var recordPaths = []string{
 	"/admin/webhooks", "/admin/webhooks/rotate", "/admin/webhooks/delete",
 	"/admin/groups", "/admin/groups/save", "/admin/groups/delete", "/admin/groups/members/add", "/admin/groups/members/remove",
 	"/admin/sharing/grant", "/admin/sharing/revoke",
+	"/admin/tokens", "/admin/tokens/new", "/admin/tokens/delete", "/api/tokens",
 	"/api/templates", "/api/destinations", "/api/routes", "/api/webhooks", "/api/groups", "/api/sharing",
 }
 
-var recordPrefixes = []string{"/api/templates/", "/api/destinations/", "/api/routes/", "/api/webhooks/", "/api/groups/", "/api/sharing/"}
+var recordPrefixes = []string{"/api/templates/", "/api/destinations/", "/api/routes/", "/api/webhooks/", "/api/groups/", "/api/sharing/", "/api/tokens/"}
 
 func recordPath(r *http.Request) bool {
 	path := r.URL.Path
@@ -277,11 +288,11 @@ func requestAuthorization(r *http.Request) (string, authz.Resource) {
 	// it, including who may deliver where. Both are the admin's.
 	case strings.HasPrefix(path, "/api/config/"):
 		return authz.ActionAdminister, transferResource()
-	// A token admits a sender to every route, and listing them says which
-	// senders exist, so reading is the admin's too.
+	// Tokens are self-service (ADR 0077): the handlers decide whose a caller
+	// sees and which webhooks a new one may name.
 	case path == "/api/tokens", strings.HasPrefix(path, "/api/tokens/"),
 		path == "/admin/tokens", strings.HasPrefix(path, "/admin/tokens/"):
-		return authz.ActionAdminister, authz.Resource{Type: "AccessToken"}
+		resource.Type = "AccessToken"
 	// Who has signed in, and switching them off, is the admin's (ADR 0072).
 	case path == "/admin/users", strings.HasPrefix(path, "/admin/users/"),
 		path == "/api/users", strings.HasPrefix(path, "/api/users/"):

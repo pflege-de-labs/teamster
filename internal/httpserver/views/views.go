@@ -32,6 +32,8 @@ type Viewer struct {
 	CanManage bool
 	// CanAudit decides whether the nav offers the audit trail.
 	CanAudit bool
+	// CanTokens is whether the viewer may mint or manage webhook tokens.
+	CanTokens bool
 	// NotificationsEnabled decides whether the nav offers the notifications
 	// page. Unlike CanManage this is not a per-viewer permission -- the page
 	// itself is offered to every role -- but a deployment-wide switch: the

@@ -430,5 +430,10 @@
   "me.groups": "Groups",
   "me.webhooks": "Webhooks you may use",
   "me.policies": "Grants that name you",
-  "me.no_policies": "Nothing has been shared with you."
+  "me.no_policies": "Nothing has been shared with you.",
+  "tokens.no_webhooks": "You may not use either webhook, so you cannot mint a token. Ask an admin for a webhook level.",
+  "tokens.scope": "May send to",
+  "tokens.scope_hint": "A token sends only where you may send yourself, now and later: if you lose a webhook, your tokens lose it too.",
+  "tokens.scoped": "Sends to {0}, as its creator may",
+  "tokens.unscoped": "Unscoped: both webhooks, whoever made it. Mint a new one to bind it to its creator."
 }

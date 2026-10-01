@@ -186,7 +186,14 @@ type AccessToken struct {
 	CreatedBy  string    `json:"created_by"`
 	CreatedAt  time.Time `json:"created_at"`
 	LastUsedAt time.Time `json:"last_used_at"`
+	// Scope is the webhooks the token may send to, checked against its
+	// creator's permissions on every use (ADR 0077). Empty is a token from
+	// before scopes, which reaches both webhooks whoever made it.
+	Scope []string `json:"scope,omitempty"`
 }
+
+// Scoped reports whether the token is bound to its scope and its creator.
+func (t AccessToken) Scoped() bool { return len(t.Scope) > 0 }
 
 // A Recipient is a person who asked for their alerts as a chat message, and the
 // Bot Framework conversation reference that makes it possible to send one

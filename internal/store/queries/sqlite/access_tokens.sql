@@ -1,5 +1,5 @@
 -- name: ListAccessTokens :many
-SELECT id, name, token_hash, created_by, created_at, last_used_at
+SELECT id, name, token_hash, created_by, created_at, last_used_at, scope, scoped_token_hash
 FROM access_tokens
 ORDER BY name;
 
@@ -7,13 +7,13 @@ ORDER BY name;
 -- the digest in SQL leaks nothing a timing attack could use: the digest of a
 -- guess says nothing about the digest of the token.
 -- name: GetAccessTokenByHash :one
-SELECT id, name, token_hash, created_by, created_at, last_used_at
+SELECT id, name, token_hash, created_by, created_at, last_used_at, scope, scoped_token_hash
 FROM access_tokens
-WHERE token_hash = ?;
+WHERE token_hash = sqlc.arg(token_hash) OR scoped_token_hash = sqlc.arg(token_hash);
 
 -- name: CreateAccessToken :exec
-INSERT INTO access_tokens (id, name, token_hash, created_by, created_at)
-VALUES (?, ?, ?, ?, ?);
+INSERT INTO access_tokens (id, name, token_hash, created_by, created_at, scope, scoped_token_hash)
+VALUES (?, ?, ?, ?, ?, ?, ?);
 
 -- name: TouchAccessToken :exec
 UPDATE access_tokens

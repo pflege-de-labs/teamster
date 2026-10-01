@@ -5,9 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"unicode/utf8"
 
+	"github.com/pflege-de-labs/teamster/internal/authz"
 	"github.com/pflege-de-labs/teamster/internal/httpserver/views"
 	"github.com/pflege-de-labs/teamster/internal/models"
 	"github.com/pflege-de-labs/teamster/internal/store"
@@ -18,7 +20,66 @@ const maxTokenNameLength = 100
 var (
 	errTokenName      = fmt.Errorf("a token needs a name of at most %d characters", maxTokenNameLength)
 	errTokenNameTaken = errors.New("a token with that name already exists")
+	errTokenWebhooks  = errors.New("choose the webhooks the token may send to, from those you may use")
+	errTokenNotYours  = errors.New("only its creator, a webhook admin or an admin may revoke a token")
 )
+
+// tokenWebhooks are what a token's scope may name.
+var tokenWebhooks = []string{authz.WebhookAlertmanager, authz.WebhookUniversal}
+
+// usableWebhooks are the webhooks this request's principal may use, which is
+// what a token it mints may be scoped to.
+func (s *Server) usableWebhooks(r *http.Request) []string {
+	markChecked(r)
+	var out []string
+	for _, webhook := range tokenWebhooks {
+		if s.allow(r, authz.ActionUse, authz.WebhookResource(webhook)) {
+			out = append(out, webhook)
+		}
+	}
+	return out
+}
+
+// manageTokens is whether the request may see and revoke everyone's tokens.
+func (s *Server) manageTokens(r *http.Request) bool {
+	return s.allow(r, authz.ActionAdminister, authz.WebhookResource(authz.WebhooksAll))
+}
+
+// visibleTokens are everyone's for a webhook admin, and the caller's own otherwise.
+func (s *Server) visibleTokens(r *http.Request, tokens []models.AccessToken) []models.AccessToken {
+	markChecked(r)
+	if s.manageTokens(r) {
+		return tokens
+	}
+	subject := principalSubject(r)
+	out := []models.AccessToken{}
+	for _, t := range tokens {
+		if t.CreatedBy == subject {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
+// revokeToken deletes a token the caller made, or any for a webhook admin.
+func (s *Server) revokeToken(r *http.Request, id string) error {
+	ctx := r.Context()
+	tokens, err := s.store.ListAccessTokens(ctx)
+	if err != nil {
+		return err
+	}
+	markChecked(r)
+	for _, t := range tokens {
+		if t.ID != id {
+			continue
+		}
+		if t.CreatedBy != principalSubject(r) && !s.manageTokens(r) {
+			return userError{errTokenNotYours}
+		}
+		return s.store.DeleteAccessToken(ctx, id)
+	}
+	return store.ErrNotFound
+}
 
 // accessTokenResponse carries the token only in the answer that created it.
 type accessTokenResponse struct {
@@ -26,11 +87,23 @@ type accessTokenResponse struct {
 	Token string `json:"token,omitempty"`
 }
 
-// issueAccessToken mints a token, stores its digest and returns it in the clear.
-func (s *Server) issueAccessToken(r *http.Request, name string) (models.AccessToken, string, error) {
+// issueAccessToken mints a token scoped to webhooks the caller may use,
+// stores its digest and returns it in the clear (ADR 0077).
+func (s *Server) issueAccessToken(r *http.Request, name string, scope []string) (models.AccessToken, string, error) {
 	name = strings.TrimSpace(name)
 	if name == "" || utf8.RuneCountInString(name) > maxTokenNameLength {
 		return models.AccessToken{}, "", errTokenName
+	}
+	usable := s.usableWebhooks(r)
+	slices.Sort(scope)
+	scope = slices.Compact(scope)
+	if len(scope) == 0 {
+		return models.AccessToken{}, "", errTokenWebhooks
+	}
+	for _, webhook := range scope {
+		if !slices.Contains(usable, webhook) {
+			return models.AccessToken{}, "", errTokenWebhooks
+		}
 	}
 	token, err := newAccessToken()
 	if err != nil {
@@ -40,6 +113,7 @@ func (s *Server) issueAccessToken(r *http.Request, name string) (models.AccessTo
 		Name:      name,
 		TokenHash: hashToken(token),
 		CreatedBy: principalSubject(r),
+		Scope:     scope,
 	})
 	if errors.Is(err, store.ErrConflict) {
 		return models.AccessToken{}, "", errTokenNameTaken
@@ -58,20 +132,21 @@ func (s *Server) handleAccessTokens(w http.ResponseWriter, r *http.Request) {
 			writeError(w, r, http.StatusInternalServerError, err)
 			return
 		}
-		if items == nil {
-			items = []models.AccessToken{}
-		}
-		writeJSON(w, http.StatusOK, items)
+		writeJSON(w, http.StatusOK, s.visibleTokens(r, items))
 	case http.MethodPost:
 		var body struct {
-			Name string `json:"name"`
+			Name  string   `json:"name"`
+			Scope []string `json:"scope"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			markChecked(r)
 			writeJSONError(w, http.StatusBadRequest, "invalid JSON")
 			return
 		}
-		created, token, err := s.issueAccessToken(r, body.Name)
+		created, token, err := s.issueAccessToken(r, body.Name, body.Scope)
 		switch {
+		case errors.Is(err, errTokenWebhooks):
+			writeError(w, r, http.StatusForbidden, err)
 		case errors.Is(err, errTokenName):
 			writeError(w, r, http.StatusBadRequest, err)
 		case errors.Is(err, errTokenNameTaken):
@@ -97,8 +172,8 @@ func (s *Server) handleAccessTokenByID(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	if err := s.store.DeleteAccessToken(r.Context(), id); err != nil {
-		writeError(w, r, http.StatusInternalServerError, err)
+	if err := s.revokeToken(r, id); err != nil {
+		writeRecordOrTokenError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "revoked"})
@@ -119,7 +194,7 @@ func (s *Server) handleTokenForm(w http.ResponseWriter, r *http.Request) {
 	if !formGuard("/admin/tokens", w, r) {
 		return
 	}
-	created, token, err := s.issueAccessToken(r, r.PostFormValue("name"))
+	created, token, err := s.issueAccessToken(r, r.PostFormValue("name"), r.PostForm["scope"])
 	if err != nil {
 		redirectTo("/admin/tokens", w, r, "", visibleError(r.Context(), "issue access token", err))
 		return
@@ -128,7 +203,7 @@ func (s *Server) handleTokenForm(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) revokeAccessTokenForm(r *http.Request) (string, error) {
-	if err := s.store.DeleteAccessToken(r.Context(), r.PostFormValue("id")); err != nil {
+	if err := s.revokeToken(r, r.PostFormValue("id")); err != nil {
 		return "", err
 	}
 	return "Access token revoked. Senders using it are refused from now on.", nil
@@ -144,7 +219,10 @@ func (s *Server) renderTokens(w http.ResponseWriter, r *http.Request, page views
 	if err != nil && page.Error == "" {
 		page.Error = failureText(ctx, "list access tokens", err)
 	}
-	page.Tokens = tokens
+	page.Tokens = s.visibleTokens(r, tokens)
+	page.Usable = s.usableWebhooks(r)
+	page.Manage = s.manageTokens(r)
+	page.Self = principalSubject(r)
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := views.TokensPage(page).Render(ctx, w); err != nil {
@@ -160,4 +238,15 @@ func webhookBaseURL(r *http.Request) string {
 		scheme = "https"
 	}
 	return scheme + "://" + r.Host
+}
+
+func writeRecordOrTokenError(w http.ResponseWriter, r *http.Request, err error) {
+	switch {
+	case errors.Is(err, errTokenNotYours):
+		writeError(w, r, http.StatusForbidden, err)
+	case errors.Is(err, store.ErrNotFound):
+		writeError(w, r, http.StatusNotFound, err)
+	default:
+		writeError(w, r, http.StatusInternalServerError, err)
+	}
 }
