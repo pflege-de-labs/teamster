@@ -5,7 +5,6 @@ package authz
 
 import (
 	_ "embed"
-	"fmt"
 	"slices"
 	"strings"
 
@@ -58,20 +57,21 @@ func (r Resource) uid() cedar.EntityUID {
 }
 
 // An Authorizer holds the parsed policies and the entities they are evaluated
-// against. It is immutable, so one is shared by every request.
+// against. It is immutable, so one is shared by every request; an Engine
+// replaces it when the model behind it changes.
 type Authorizer struct {
-	policies *cedar.PolicySet
-	entities cedar.EntityMap
+	policies   *cedar.PolicySet
+	entities   cedar.EntityMap
+	generation int64
 }
 
+// New is the embedded policies alone, as an Engine with no source has them.
 func New() (*Authorizer, error) {
-	policies, err := cedar.NewPolicySetFromBytes("policies.cedar", policyDocument)
-	if err != nil {
-		return nil, fmt.Errorf("parse policies: %w", err)
-	}
-
-	return &Authorizer{policies: policies, entities: roleEntities()}, nil
+	return build(0, Model{})
 }
+
+// Generation is the model generation this snapshot was built from.
+func (a *Authorizer) Generation() int64 { return a.generation }
 
 // roleEntities is the role hierarchy: a principal in Role::"admin" is in
 // Role::"editor" too, because Cedar's `in` walks the parents.
@@ -100,25 +100,25 @@ func (a *Authorizer) Allow(subject string, roles []Role, action string, resource
 		subject = "anonymous"
 	}
 
-	entities := a.entities.Clone()
+	extra := cedar.EntityMap{}
 	parents := make([]cedar.EntityUID, 0, len(roles))
 	for _, role := range roles {
 		uid := cedar.NewEntityUID("Role", types.String(role))
 		parents = append(parents, uid)
 		// A role the embedded policies do not define still needs an entity, or
 		// Cedar has nothing to resolve the parent to.
-		if _, known := entities[uid]; !known {
-			entities[uid] = cedar.Entity{UID: uid}
+		if _, known := a.entities[uid]; !known {
+			extra[uid] = cedar.Entity{UID: uid}
 		}
 	}
 
 	principal := cedar.NewEntityUID("User", types.String(subject))
-	entities[principal] = cedar.Entity{
+	extra[principal] = cedar.Entity{
 		UID:     principal,
 		Parents: cedar.NewEntityUIDSet(parents...),
 	}
 
-	decision, _ := cedar.Authorize(a.policies, entities, cedar.Request{
+	decision, _ := cedar.Authorize(a.policies, overlay{base: a.entities, extra: extra}, cedar.Request{
 		Principal: principal,
 		Action:    cedar.NewEntityUID("Action", types.String(action)),
 		Resource:  resource.uid(),

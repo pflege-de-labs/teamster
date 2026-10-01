@@ -87,3 +87,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0070](0070-audit-configuration-changes-at-the-store.md) | Audit configuration changes at the store boundary | Accepted |
 | [0071](0071-publish-audit-events-to-nats-jetstream.md) | Publish audit events to NATS JetStream | Accepted |
 | [0072](0072-remember-who-signed-in.md) | Remember who signed in, and let an admin disable them | Accepted |
+| [0073](0073-authorize-from-a-versioned-policy-snapshot.md) | Authorize from a versioned policy snapshot | Accepted |

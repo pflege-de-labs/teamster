@@ -384,7 +384,17 @@ ask an administrator when a browser asked for one.
 
 `internal/authz` holds the rules as Cedar policies embedded in the binary and
 evaluates them in-process with `cedar-policy/cedar-go`; roles nest through Cedar entity parents, so
-an admin is an editor and an editor is a viewer.
+an admin is an editor and an editor is a viewer. Actions nest the same way, through action
+entities. `read` is part of `view`. `create`, `update`, `delete` and `attach` are part of `edit`.
+`share` and `transfer` are part of `own` alone, which no role is given.
+
+The policies and entities are an immutable snapshot that `authz.Engine` hands out, versioned by the
+single row in `authz_generation`. `authorize` reads the generation once per request. When it has
+moved, the engine rebuilds the snapshot from the store's model, once, and every check in the request
+then answers from that snapshot. A change that the model depends on bumps the generation in its own
+transaction, so every replica sees it on its next request. An unreadable generation fails closed
+with `503`. A request's own principal and resources sit in an overlay over the snapshot's entities,
+which are never copied. See [ADR 0073](adr/0073-authorize-from-a-versioned-policy-snapshot.md).
 
 One middleware, `httpserver.authorize`, wraps the admin mux and is the only place a permission is
 enforced. It maps the path to a resource type and the method to an action, counting
@@ -895,6 +905,11 @@ deletes by `occurred_at`. It is a new table and nothing else, so the previous re
 `users` came with the user registry, by `0024` in SQLite and `0021` in Postgres, along with an
 index on `sessions(subject)` for ending a disabled user's sessions
 ([ADR 0072](adr/0072-remember-who-signed-in.md)). The previous release ignores both.
+
+`authz_generation` came with the policy snapshot, by `0025` in SQLite and `0022` in Postgres: one
+row, seeded at `0`, that moves with every change to what authorization reads from the store
+([ADR 0073](adr/0073-authorize-from-a-versioned-policy-snapshot.md)). The previous release ignores
+it.
 
 `database.migrate` decides what opening the store does about a schema that is behind: `auto`
 applies what is missing, `verify` refuses and names `teamster migrate up`, `off` asks nothing.

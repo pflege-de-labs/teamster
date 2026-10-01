@@ -1,0 +1,50 @@
+package authz
+
+import (
+	cedar "github.com/cedar-policy/cedar-go"
+	"github.com/cedar-policy/cedar-go/types"
+)
+
+// Record actions (ADR 0073). Each is a child of the coarse actions the role
+// policies name, so editors keep what they had and owners get them through own.
+const (
+	ActionRead     = "read"
+	ActionCreate   = "create"
+	ActionUpdate   = "update"
+	ActionDelete   = "delete"
+	ActionAttach   = "attach"
+	ActionShare    = "share"
+	ActionTransfer = "transfer"
+	// ActionOwn is the group an owner holds; granting it makes an owner.
+	ActionOwn = "own"
+)
+
+// actionParents is the action hierarchy: `action in Action::"edit"` holds for update.
+var actionParents = map[string][]string{
+	ActionRead:     {ActionView, ActionOwn},
+	ActionCreate:   {ActionEdit},
+	ActionUpdate:   {ActionEdit, ActionOwn},
+	ActionDelete:   {ActionEdit, ActionOwn},
+	ActionAttach:   {ActionEdit, ActionOwn},
+	ActionShare:    {ActionOwn},
+	ActionTransfer: {ActionOwn},
+}
+
+func actionUID(action string) cedar.EntityUID {
+	return cedar.NewEntityUID("Action", types.String(action))
+}
+
+func addActionEntities(entities cedar.EntityMap) {
+	for action, parents := range actionParents {
+		uids := make([]cedar.EntityUID, 0, len(parents))
+		for _, parent := range parents {
+			uids = append(uids, actionUID(parent))
+		}
+		entities[actionUID(action)] = cedar.Entity{UID: actionUID(action), Parents: cedar.NewEntityUIDSet(uids...)}
+	}
+	for _, group := range []string{ActionView, ActionEdit, ActionOwn} {
+		if _, ok := entities[actionUID(group)]; !ok {
+			entities[actionUID(group)] = cedar.Entity{UID: actionUID(group)}
+		}
+	}
+}

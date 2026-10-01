@@ -9,6 +9,7 @@ import (
 	"github.com/pflege-de-labs/teamster/internal/authz"
 	"github.com/pflege-de-labs/teamster/internal/httpserver/views"
 	"github.com/pflege-de-labs/teamster/internal/models"
+	"github.com/pflege-de-labs/teamster/internal/store"
 )
 
 type contextKey string
@@ -53,9 +54,9 @@ func viewerOf(r *http.Request) views.Viewer {
 func (s *Server) viewerFor(r *http.Request) views.Viewer {
 	viewer := viewerOf(r)
 	subject, roles := principalOf(r)
-	viewer.CanManage = s.authz.Allow(subject, roles, authz.ActionAdminister, authz.Resource{Type: "Grant"})
+	viewer.CanManage = s.policies(r).Allow(subject, roles, authz.ActionAdminister, authz.Resource{Type: "Grant"})
 	// Without the database trail there is nothing to list.
-	viewer.CanAudit = s.cfg.Audit.Database && s.authz.Allow(subject, roles, authz.ActionAdminister, authz.Resource{Type: "Audit"})
+	viewer.CanAudit = s.cfg.Audit.Database && s.policies(r).Allow(subject, roles, authz.ActionAdminister, authz.Resource{Type: "Audit"})
 	viewer.CanComplete = s.cfg.Samples.Enabled && s.mayComplete(r)
 	viewer.NotificationsEnabled = botConfigured(s.cfg.Bot)
 	viewer.PeopleEnabled = viewer.NotificationsEnabled && s.cfg.Bot.GlobalInstall
@@ -85,16 +86,48 @@ func rolesOf(session models.Session) []authz.Role {
 	return authz.Decode(session.Roles)
 }
 
+type policiesKey struct{}
+
+// authzSource is the store as the authorization engine reads it (ADR 0073).
+type authzSource struct{ store store.Store }
+
+func (a authzSource) Generation(ctx context.Context) (int64, error) {
+	return a.store.AuthzGeneration(ctx)
+}
+
+func (a authzSource) Load(context.Context) (authz.Model, error) {
+	return authz.Model{}, nil
+}
+
+// policies is the snapshot authorize resolved for this request, so every check
+// in one request answers from the same generation. Outside authorize it is the
+// last one built.
+func (s *Server) policies(r *http.Request) *authz.Authorizer {
+	if snapshot, ok := r.Context().Value(policiesKey{}).(*authz.Authorizer); ok {
+		return snapshot
+	}
+	return s.engine.Base()
+}
+
 // authorize is the one place a permission is enforced. The UI hides what a role
 // may not do, but hiding is not enforcing: a viewer who posts the form anyway
 // gets a 403 that says what was refused.
 func (s *Server) authorize(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Fails closed: without the current generation nothing is decided.
+		snapshot, err := s.engine.Authorizer(r.Context())
+		if err != nil {
+			logError(r.Context(), "authorization snapshot", err)
+			http.Error(w, "authorization is unavailable, try again", http.StatusServiceUnavailable)
+			return
+		}
+		r = r.WithContext(context.WithValue(r.Context(), policiesKey{}, snapshot))
+
 		subject, roles := principalOf(r)
 		action, resource := requestAuthorization(r)
 
 		// Samples complete both editors, so editing routes admits as well.
-		if s.authz.Allow(subject, roles, action, resource) || (r.URL.Path == "/api/samples" && s.mayComplete(r)) {
+		if s.policies(r).Allow(subject, roles, action, resource) || (r.URL.Path == "/api/samples" && s.mayComplete(r)) {
 			next.ServeHTTP(w, r)
 			return
 		}

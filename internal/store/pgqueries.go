@@ -678,3 +678,13 @@ func (p pgQueries) DeleteBrokerTokensForSubject(ctx context.Context, subject str
 func (p pgQueries) DeleteSessionsForSubject(ctx context.Context, subject string) error {
 	return p.q.DeleteSessionsForSubject(ctx, subject)
 }
+
+// The authorization generation (ADR 0073).
+
+func (p pgQueries) GetAuthzGeneration(ctx context.Context) (int64, error) {
+	return p.q.GetAuthzGeneration(ctx)
+}
+
+func (p pgQueries) BumpAuthzGeneration(ctx context.Context) error {
+	return p.q.BumpAuthzGeneration(ctx)
+}

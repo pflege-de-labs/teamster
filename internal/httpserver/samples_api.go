@@ -64,6 +64,6 @@ func groupSamples(rows []models.EventSample, maxValues int) samplesResponse {
 // mayComplete is whether the viewer edits something the samples complete.
 func (s *Server) mayComplete(r *http.Request) bool {
 	subject, roles := principalOf(r)
-	return s.authz.Allow(subject, roles, authz.ActionEdit, authz.Resource{Type: "Template"}) ||
-		s.authz.Allow(subject, roles, authz.ActionEdit, authz.Resource{Type: "Route"})
+	return s.policies(r).Allow(subject, roles, authz.ActionEdit, authz.Resource{Type: "Template"}) ||
+		s.policies(r).Allow(subject, roles, authz.ActionEdit, authz.Resource{Type: "Route"})
 }

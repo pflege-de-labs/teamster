@@ -313,6 +313,11 @@ type Store interface {
 	// fail against forever.
 	DeleteActiveEventRecipientsFor(ctx context.Context, recipientID string) error
 
+	// AuthzGeneration moves whenever what authorization reads from the store
+	// changes; BumpAuthzGeneration moves it, inside the change's transaction.
+	AuthzGeneration(ctx context.Context) (int64, error)
+	BumpAuthzGeneration(ctx context.Context) error
+
 	// RecordSignIn creates or refreshes a user from a sign-in (ADR 0072).
 	RecordSignIn(ctx context.Context, u models.User) error
 	GetUser(ctx context.Context, subject string) (models.User, error)

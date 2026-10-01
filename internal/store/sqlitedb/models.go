@@ -57,6 +57,11 @@ type AuditEvent struct {
 	After        sql.NullString
 }
 
+type AuthzGeneration struct {
+	ID         int64
+	Generation int64
+}
+
 type BotTeam struct {
 	TeamID     string
 	TenantID   string
