@@ -27,7 +27,8 @@ Two settings are deliberately not placeholders and must not be changed:
   so nobody could type a linking code at it — see the ADR for why this bot needs to receive
   messages, not just send them.
 - `bots[0].scopes` must stay `["personal", "team"]`. `team` is what lets the bot post to a
-  channel, and the bot reads only install and removal events there, never commands. Adding
+  channel. There the bot reads install and removal events and the commands it is mentioned with
+  ([ADR 0069](../docs/adr/0069-the-bot-answers-commands-in-team-channels.md)), never a link code. Adding
   `groupChat` would let someone link the bot in a group chat, which would later broadcast that
   person's private alerts to everyone in it.
 - The command titles in `commandLists` carry no `/`. Teams shares the `/` menu of the compose box

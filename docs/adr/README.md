@@ -59,7 +59,7 @@ Architectural decisions are recorded here, one file per decision, in
 | [0042](0042-sidebar-navigation-and-user-menu.md) | Move page links to a sidebar and account controls to a user menu | Accepted, partly superseded by 0054 |
 | [0043](0043-session-keeps-sign-in-identity.md) | Keep what the identity provider said on the session row | Accepted |
 | [0044](0044-webhook-access-tokens.md) | Authenticate the alert webhooks with issued Bearer tokens | Accepted |
-| [0045](0045-channel-delivery-through-the-bot.md) | Deliver channel messages through the Bot Framework bot | Accepted, amended by [0049](0049-a-channel-post-is-one-teams-message.md), [0059](0059-install-the-teams-app-for-every-member.md) |
+| [0045](0045-channel-delivery-through-the-bot.md) | Deliver channel messages through the Bot Framework bot | Accepted, amended by [0049](0049-a-channel-post-is-one-teams-message.md), [0059](0059-install-the-teams-app-for-every-member.md); superseded in part by [0069](0069-the-bot-answers-commands-in-team-channels.md) |
 | [0046](0046-structured-logging-and-error-boundary.md) | Log through slog and answer errors at one boundary | Accepted |
 | [0047](0047-a-route-targets-a-channel-or-yourself.md) | A route targets a channel or a person, and a person only themselves | Accepted, amended by [0051](0051-root-routes-need-a-target-refinements-a-template.md), [0062](0062-a-route-may-deliver-to-the-people-a-message-names.md) |
 | [0048](0048-bot-answers-commands-in-the-personal-chat.md) | The bot answers commands in the personal chat | Accepted, amended by [0068](0068-commands-are-words-addressed-to-the-bot.md) |
@@ -83,3 +83,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0066](0066-keep-separate-graph-and-bot-registrations.md) | Keep the Graph and bot registrations separate | Accepted |
 | [0067](0067-times-in-the-admin-ui-follow-a-chosen-zone.md) | Show times in the admin UI in UTC or the browser's zone | Accepted |
 | [0068](0068-commands-are-words-addressed-to-the-bot.md) | Name the bot's commands without a slash | Accepted |
+| [0069](0069-the-bot-answers-commands-in-team-channels.md) | The bot answers commands in team channels | Accepted |

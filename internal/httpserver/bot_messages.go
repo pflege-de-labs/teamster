@@ -80,6 +80,10 @@ type botChannelData struct {
 	Team struct {
 		AADGroupID string `json:"aadGroupId"`
 	} `json:"team"`
+	// Channel is the channel a team activity happened in.
+	Channel struct {
+		ID string `json:"id"`
+	} `json:"channel"`
 	EventType string `json:"eventType,omitempty"`
 }
 
@@ -97,10 +101,10 @@ func activityShapeRefusal(activity botActivity, bot config.BotConfig) string {
 		if activity.Type != "message" && activity.Type != "conversationUpdate" && activity.Type != "installationUpdate" {
 			return "unsupported-type"
 		}
-	// A team is where the bot posts, never where it takes commands, so only
-	// its install and removal events are read (ADR 0045).
+	// A channel message is a command: Teams sends one only when it mentions
+	// the bot (ADR 0069).
 	case "channel":
-		if activity.Type != "conversationUpdate" && activity.Type != "installationUpdate" {
+		if activity.Type != "message" && activity.Type != "conversationUpdate" && activity.Type != "installationUpdate" {
 			return "unsupported-type"
 		}
 	default:
@@ -214,7 +218,11 @@ func (s *Server) handleBotMessages(w http.ResponseWriter, r *http.Request) {
 // personal-scope bot -- gets the service-url refresh below.
 func (s *Server) dispatchBotActivity(ctx context.Context, activity botActivity) {
 	if activity.Conversation.ConversationType == "channel" {
+		// Recorded first, so a test post uses the service URL it came from.
 		s.recordBotTeam(ctx, activity)
+		if activity.Type == "message" {
+			s.handleChannelMessage(ctx, activity)
+		}
 		return
 	}
 	switch activity.Type {

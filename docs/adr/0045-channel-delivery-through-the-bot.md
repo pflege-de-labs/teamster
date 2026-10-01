@@ -2,7 +2,8 @@
 
 * Status: Accepted, amended by [0049](0049-a-channel-post-is-one-teams-message.md): a post is
   one Teams message; amended by [0059](0059-install-the-teams-app-for-every-member.md): Graph also
-  installs the Teams app for users
+  installs the Teams app for users; superseded in part by
+  [0069](0069-the-bot-answers-commands-in-team-channels.md): a channel message is a command
 * Date: 2026-09-28
 
 ## Context

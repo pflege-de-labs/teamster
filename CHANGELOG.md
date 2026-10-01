@@ -10,6 +10,13 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 ## [Unreleased]
 
+### Added
+
+* The bot answers `help`, `status` and `test` in team channels where the app is installed, when
+  it is mentioned. `status` lists the destinations and routes for the channel, and `test` posts a
+  test alert there. Upload the app package with a higher `version` to show the channel command
+  menu ([ADR 0069](docs/adr/0069-the-bot-answers-commands-in-team-channels.md)).
+
 ### Changed
 
 * The bot's commands are named `help`, `status`, `test` and `unlink`, without a slash. Teams shares

@@ -1259,8 +1259,8 @@ http.MaxBytesReader (256 KiB)
         │
 decode JSON, then the cheap gates (no bearer token touched yet):
   channelId == "msteams",
-  personal: type in {message, conversationUpdate}
-  channel:  type in {conversationUpdate, installationUpdate}
+  personal: type in {message, conversationUpdate, installationUpdate}
+  channel:  type in {message, conversationUpdate, installationUpdate}
   any other conversationType refused,
   channelData.tenant.id (if present) matches bot-tenant-id (single-tenant only)
         │
@@ -1277,7 +1277,7 @@ fetch the raw JWKS once, cache kid → endorsements; refetch once on an unknown 
 activity.ChannelID must appear in the signing key's endorsements (absent member = none)
         │
         ▼
-dispatchBotActivity (conversationUpdate / message)
+dispatchBotActivity (conversationUpdate / installationUpdate / message)
 ```
 
 The gates run before the bearer token because a JWT's `kid` header is attacker-controlled and read
@@ -1394,6 +1394,28 @@ With `bot.global-install` on, the chat is managed
 * `status` in a chat with no linked recipient says that IT sends messages there, and `test`
   replies with the test text directly.
 * `unlinkNotifications` refuses with the `managed` key, and the page hides its button.
+
+### Commands in a team channel
+
+Teams sends a channel `message` to the bot only when it @mentions the bot
+([ADR 0069](adr/0069-the-bot-answers-commands-in-team-channels.md)). `dispatchBotActivity`
+records the team first, as for any team activity, and then hands the message to
+`handleChannelMessage` (`bot_channel_commands.go`).
+That parses it with the same `parseBotCommand`. A link code is never read in a channel.
+
+The channel is `channelData.channel.id`, or the conversation id without its `;messageid=` suffix
+when that field is missing. Together with `channelData.team.aadGroupId`, it picks out the
+destinations naming this channel.
+
+* `help`: the channel commands.
+* `status`: the destinations naming the channel, whether one is the global default, and the routes
+  that name one of them directly.
+* `test`: a fixed alert through `deliverToChannelOnce`, posted to the first destination by name. It
+  goes through the same untracked path and the same `bot /test` metric label as the personal
+  `test`.
+* `unlink`: says that unlinking is personal.
+
+Replies go into the thread of the mention, because the conversation id carries `;messageid=`.
 
 ### Personal installs
 
