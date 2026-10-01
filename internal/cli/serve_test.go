@@ -37,55 +37,43 @@ func validConfig(t *testing.T) *config.Config {
 	}
 }
 
-// freePort returns a port that was free a moment ago, so the test can reach the
-// server it starts. The server binds it again immediately afterwards.
-func freePort(t *testing.T) string {
+// serve runs the command on the ports cfg names, port 0 in these tests, and
+// returns the addresses it bound: picking a free port first races with
+// parallel tests that pick the same one.
+func serve(ctx context.Context, t *testing.T, cfg *config.Config) (server, metrics string, done <-chan error) {
 	t.Helper()
 
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("reserve port: %v", err)
-	}
-	addr := listener.Addr().String()
-	if err := listener.Close(); err != nil {
-		t.Fatalf("release port: %v", err)
-	}
-	return addr
-}
+	bound := make(chan [2]string, 1)
+	errs := make(chan error, 1)
+	cmd := &ServeCmd{ready: func(server, metrics string) { bound <- [2]string{server, metrics} }}
+	go func() { errs <- cmd.Run(ctx, cfg) }()
 
-func waitForServer(t *testing.T, addr string) {
-	t.Helper()
-
-	deadline := time.Now().Add(5 * time.Second)
-	for time.Now().Before(deadline) {
-		conn, err := net.DialTimeout("tcp", addr, 100*time.Millisecond)
-		if err == nil {
-			_ = conn.Close()
-			return
-		}
-		time.Sleep(10 * time.Millisecond)
+	select {
+	case addrs := <-bound:
+		return addrs[0], addrs[1], errs
+	case err := <-errs:
+		t.Fatalf("Run() returned before listening: %v", err)
+	case <-time.After(10 * time.Second):
+		t.Fatal("the server never listened")
 	}
-	t.Fatalf("server never accepted a connection on %s", addr)
+	return "", "", errs
 }
 
 func TestServeShutsDownWhenTheContextIsCancelled(t *testing.T) {
 	t.Parallel()
 
 	cfg := validConfig(t)
-	cfg.Server.Addr = freePort(t)
+	cfg.Server.Addr = "127.0.0.1:0"
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	done := make(chan error, 1)
-	go func() { done <- (&ServeCmd{}).Run(ctx, cfg) }()
-
-	waitForServer(t, cfg.Server.Addr)
+	addr, _, done := serve(ctx, t, cfg)
 
 	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error {
 		return http.ErrUseLastResponse
 	}}
-	resp, err := client.Get(fmt.Sprintf("http://%s/admin", cfg.Server.Addr))
+	resp, err := client.Get(fmt.Sprintf("http://%s/admin", addr))
 	if err != nil {
 		t.Fatalf("GET /admin: %v", err)
 	}
@@ -107,7 +95,7 @@ func TestServeShutsDownWhenTheContextIsCancelled(t *testing.T) {
 
 	// An HTTP answer, not a TCP connect: a parallel test may already have bound the freed port.
 	probe := &http.Client{Timeout: time.Second}
-	if resp, err := probe.Get(fmt.Sprintf("http://%s/healthz", cfg.Server.Addr)); err == nil {
+	if resp, err := probe.Get(fmt.Sprintf("http://%s/healthz", addr)); err == nil {
 		_ = resp.Body.Close()
 		t.Error("the server still answers after shutdown")
 	}
@@ -135,7 +123,7 @@ func TestServeConstructsABotClientWhenConfigured(t *testing.T) {
 			t.Parallel()
 
 			cfg := validConfig(t)
-			cfg.Server.Addr = freePort(t)
+			cfg.Server.Addr = "127.0.0.1:0"
 			cfg.Bot = config.BotConfig{
 				TenantID:     "tenant",
 				ClientID:     "bot-client",
@@ -153,12 +141,9 @@ func TestServeConstructsABotClientWhenConfigured(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			done := make(chan error, 1)
-			go func() { done <- (&ServeCmd{}).Run(ctx, cfg) }()
+			addr, _, done := serve(ctx, t, cfg)
 
-			waitForServer(t, cfg.Server.Addr)
-
-			resp, err := http.Get(fmt.Sprintf("http://%s/healthz", cfg.Server.Addr))
+			resp, err := http.Get(fmt.Sprintf("http://%s/healthz", addr))
 			if err != nil {
 				t.Fatalf("GET /healthz: %v", err)
 			}
@@ -185,7 +170,7 @@ func TestServeReturnsImmediatelyOnAnAlreadyCancelledContext(t *testing.T) {
 	t.Parallel()
 
 	cfg := validConfig(t)
-	cfg.Server.Addr = freePort(t)
+	cfg.Server.Addr = "127.0.0.1:0"
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -270,10 +255,10 @@ func TestServeExportsMetricsAndStopsThem(t *testing.T) {
 	defer collector.Close()
 
 	cfg := validConfig(t)
-	cfg.Server.Addr = freePort(t)
+	cfg.Server.Addr = "127.0.0.1:0"
 	cfg.Metrics = config.MetricsConfig{
 		Enabled:         true,
-		Addr:            freePort(t),
+		Addr:            "127.0.0.1:0",
 		Path:            "/metrics",
 		Prometheus:      true,
 		OTLPEndpoint:    strings.TrimPrefix(collector.URL, "http://"),
@@ -287,18 +272,14 @@ func TestServeExportsMetricsAndStopsThem(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	done := make(chan error, 1)
-	go func() { done <- (&ServeCmd{}).Run(ctx, cfg) }()
-
-	waitForServer(t, cfg.Server.Addr)
-	waitForServer(t, cfg.Metrics.Addr)
+	addr, metricsAddr, done := serve(ctx, t, cfg)
 
 	// Drive one request so there is something to export, then scrape it.
-	if resp, err := http.Get(fmt.Sprintf("http://%s/healthz", cfg.Server.Addr)); err == nil {
+	if resp, err := http.Get(fmt.Sprintf("http://%s/healthz", addr)); err == nil {
 		_ = resp.Body.Close()
 	}
 
-	resp, err := http.Get(fmt.Sprintf("http://%s/metrics", cfg.Metrics.Addr))
+	resp, err := http.Get(fmt.Sprintf("http://%s/metrics", metricsAddr))
 	if err != nil {
 		t.Fatalf("scrape: %v", err)
 	}
@@ -333,7 +314,7 @@ func TestServeExportsMetricsAndStopsThem(t *testing.T) {
 	}
 	// As in TestServeShutsDownWhenTheContextIsCancelled: ask for an answer, not a connect.
 	probe := &http.Client{Timeout: time.Second}
-	if resp, err := probe.Get("http://" + cfg.Metrics.Addr + cfg.Metrics.Path); err == nil {
+	if resp, err := probe.Get("http://" + metricsAddr + cfg.Metrics.Path); err == nil {
 		_ = resp.Body.Close()
 		t.Error("the metrics listener still answers after shutdown")
 	}
