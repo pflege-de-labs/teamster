@@ -200,8 +200,9 @@ func (s *Server) sendTestAlert(ctx context.Context, activity botActivity) {
 		return
 	}
 
+	// A source the store knows: an unknown one fails the default-template lookup.
 	alert := models.Event{
-		Source: "teamster", Labels: map[string]string{"alertname": "TeamsterTest"},
+		Source: models.SourceUniversal, Labels: map[string]string{"alertname": "TeamsterTest"},
 		Title: testTitle, Text: testText,
 	}
 	delivery := routing.Delivery{Kind: routing.DeliveryRecipient, RecipientID: recipient.ID, RouteName: "bot /test"}

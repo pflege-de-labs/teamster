@@ -54,6 +54,8 @@ func TestBotCommandsReply(t *testing.T) {
 		text    string
 		linked  bool
 		sendErr error
+		// universalDefault seeds a default template for the universal source.
+		universalDefault bool
 		// want is matched against every text the bot sent, in order.
 		want []string
 	}{
@@ -64,6 +66,7 @@ func TestBotCommandsReply(t *testing.T) {
 		{name: "status lists routes", text: "/status", linked: true, want: []string{"- Mine: `severity=critical,team=ops`"}},
 		{name: "test unlinked", text: "/test", want: []string{testNotLinkedReply}},
 		{name: "test linked", text: "/test", linked: true, want: []string{"alerts reach this chat"}},
+		{name: "test renders the universal default", text: "/test", linked: true, universalDefault: true, want: []string{"from the default template"}},
 		{
 			// The failed send and the reply both reach the fake; the reply carries a reference.
 			name: "test failing", text: "/test", linked: true, sendErr: errors.New("401"),
@@ -86,6 +89,10 @@ func TestBotCommandsReply(t *testing.T) {
 					LabelSelector: map[string]string{"team": "ops", "severity": "critical"},
 				}
 				f.store.routes["other"] = models.Route{ID: "other", Name: "Other", DestinationID: "dest"}
+			}
+			if tt.universalDefault {
+				f.store.templates["uni"] = models.Template{ID: "uni", Name: "Uni", Text: "Sent from the default template", Sources: []string{models.SourceUniversal}}
+				f.store.sourceDefaults[models.SourceUniversal] = "uni"
 			}
 
 			activity := botActivityFields()

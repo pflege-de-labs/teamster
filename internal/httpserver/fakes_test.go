@@ -175,6 +175,10 @@ func (f *fakeStore) GetSourceDefaultTemplate(ctx context.Context, source string)
 	if err := f.failing("GetSourceDefaultTemplate"); err != nil {
 		return "", err
 	}
+	// The real store refuses a source no webhook sets; so must the fake.
+	if _, err := models.NormalizeSources([]string{source}); err != nil {
+		return "", err
+	}
 	return f.sourceDefaults[source], nil
 }
 
