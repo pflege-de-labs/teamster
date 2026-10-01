@@ -12,6 +12,10 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 ### Added
 
+* [Configuring Keycloak](docs/keycloak.md#as-code) sets up the delegated Teams picker's broker
+  token with Terraform or Crossplane. It uses a generic OpenID Connect link to Entra, covers
+  *Full Scope Allowed* off and on, and grants `read-token` through an identity provider mapper or a
+  group, without changing the realm's default roles.
 * The bot answers `help`, `status` and `test` in team channels where the app is installed, when
   it is mentioned. `status` lists the destinations and routes for the channel, and `test` posts a
   test alert there. Upload the app package with a higher `version` to show the channel command
