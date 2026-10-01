@@ -96,21 +96,6 @@ A webhook that messages every directory user, or an Entra group, at once. Not a 
 
 Follows milestone 23, whose `directory_users` and run table it builds on.
 
-## Milestone 25 — Self-service scoped tokens
-
-Every record has owners who can share it, groups decide access, and users mint their own tokens.
-The audit trail it builds on shipped first
-([ADR 0070](adr/0070-audit-configuration-changes-at-the-store.md),
-[ADR 0071](adr/0071-publish-audit-events-to-nats-jetstream.md)), as did the user registry
-([ADR 0072](adr/0072-remember-who-signed-in.md)), the versioned policy snapshot
-([ADR 0073](adr/0073-authorize-from-a-versioned-policy-snapshot.md)), local groups
-([ADR 0074](adr/0074-local-groups-and-provider-groups.md)), owning and sharing records
-([ADR 0075](adr/0075-own-and-share-records-through-generated-policies.md)) and webhook permissions
-([ADR 0076](adr/0076-webhook-permissions-and-access-overviews.md)). Each step is one pull request:
-
-* **25.7 Self-service scoped tokens.** A token's scope is at most its creator's permissions, and is
-  checked against them again on every use.
-
 ## Follow-ups from shipped work
 
 Smaller items left open when a milestone shipped. Each is picked up on its own.
@@ -121,7 +106,10 @@ Smaller items left open when a milestone shipped. Each is picked up on its own.
 * **Retire `X-Teamster-Token`.** Remove the header in a breaking release, and decide whether
   `webhook.token` stays as the declarative bootstrap token
   ([ADR 0044](adr/0044-webhook-access-tokens.md)).
-* **Scoped webhook tokens.** Planned as milestone 25.7.
+* **Bearer tokens on `/api`.** Scoped tokens could admit scripts to the admin API, with the
+  same double check as the webhooks
+  ([ADR 0077](adr/0077-scoped-tokens-answer-to-their-creator.md)). Basic auth with the local
+  credentials is the only way in today.
 * **Install the Teams app into a team from Teamster.** Graph allows it; a separate ADR would decide
   whether Teamster should ([ADR 0045](adr/0045-channel-delivery-through-the-bot.md)). Installing
   for people is milestone 23.
@@ -149,7 +137,6 @@ Smaller items left open when a milestone shipped. Each is picked up on its own.
 | 5 | 20.4 More commands | 20.2 | — |
 | 6 | 23.4–23.6 Messages to individual people, the rest | 23 | a test tenant for 23.5 |
 | 7 | 24 Announcements | 23 | — |
-| 8 | 25.7 Self-service scoped tokens | — | — |
 
 Follow-ups are unordered and can be pulled in between milestones.
 

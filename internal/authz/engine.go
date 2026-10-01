@@ -16,6 +16,8 @@ type Model struct {
 	Members []Membership
 	// Grants are every permission row (ADR 0075).
 	Grants []Grant
+	// Tokens are the scoped access tokens (ADR 0077).
+	Tokens []TokenScope
 }
 
 // A Membership puts a user, a group or an identity provider group in Group.
@@ -98,6 +100,7 @@ func build(generation int64, model Model) (*Authorizer, error) {
 	addWebhookEntities(entities)
 	userGroups := addGroupEntities(entities, model.Members)
 	generated, holders := addGrants(policies, model.Grants)
+	generated = append(generated, addTokens(policies, model.Tokens)...)
 	return &Authorizer{
 		policies: policies, entities: entities, generation: generation,
 		userGroups: userGroups, generated: generated, holders: holders,

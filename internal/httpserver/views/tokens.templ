@@ -17,8 +17,13 @@ type Tokens struct {
 	WebhookURL string
 	// ConfigTokenSet says whether webhook.token also admits senders.
 	ConfigTokenSet bool
-	Notice         string
-	Error          string
+	// Usable are the webhooks a new token may name; Manage shows and revokes
+	// everyone's tokens; Self is the viewer's subject (ADR 0077).
+	Usable []string
+	Manage bool
+	Self   string
+	Notice string
+	Error  string
 }
 
 templ TokensPage(page Tokens) {
@@ -31,8 +36,22 @@ templ TokensPage(page Tokens) {
 			<div class="grid gap-8 px-6 py-6 lg:grid-cols-2">
 				<form method="post" action="/admin/tokens/new" class="space-y-3">
 					<p class="text-sm text-slate-600">{ i18n.T(ctx, "tokens.explainer") }</p>
-					@textField("name", i18n.T(ctx, "tokens.name"), i18n.T(ctx, "tokens.name_placeholder"), "")
-					@submit(i18n.T(ctx, "tokens.create"))
+					if len(page.Usable) == 0 {
+						<p class="text-sm text-amber-800">{ i18n.T(ctx, "tokens.no_webhooks") }</p>
+					} else {
+						@textField("name", i18n.T(ctx, "tokens.name"), i18n.T(ctx, "tokens.name_placeholder"), "")
+						<fieldset class="flex flex-wrap gap-4">
+							<legend class="text-sm font-medium">{ i18n.T(ctx, "tokens.scope") }</legend>
+							for _, webhook := range page.Usable {
+								<label class="flex items-center gap-2 text-sm">
+									<input type="checkbox" name="scope" value={ webhook } checked class="h-4 w-4 rounded border-slate-300"/>
+									{ "/webhook/" + webhook }
+								</label>
+							}
+						</fieldset>
+						<p class="text-xs text-slate-500">{ i18n.T(ctx, "tokens.scope_hint") }</p>
+						@submit(i18n.T(ctx, "tokens.create"))
+					}
 					if page.ConfigTokenSet {
 						<p class="text-xs text-slate-500">{ i18n.T(ctx, "tokens.config_token") }</p>
 					}
@@ -46,7 +65,7 @@ templ TokensPage(page Tokens) {
 					} else {
 						<ul class="divide-y divide-slate-200">
 							for _, t := range page.Tokens {
-								@tokenItem(t)
+								@tokenItem(t, page.Manage || t.CreatedBy == page.Self)
 							}
 						</ul>
 					}
@@ -56,12 +75,19 @@ templ TokensPage(page Tokens) {
 	}
 }
 
-templ tokenItem(t models.AccessToken) {
+templ tokenItem(t models.AccessToken, mayRevoke bool) {
 	<li class="flex items-center justify-between gap-4 py-3">
 		<div class="min-w-0">
 			<div class="truncate font-medium">{ t.Name }</div>
 			<div class="truncate text-xs text-slate-500">
 				{ i18n.T(ctx, "tokens.created", stamp(ctx, t.CreatedAt), t.CreatedBy) }
+			</div>
+			<div class="truncate text-xs text-slate-500">
+				if t.Scoped() {
+					{ i18n.T(ctx, "tokens.scoped", joinOrDash(t.Scope)) }
+				} else {
+					{ i18n.T(ctx, "tokens.unscoped") }
+				}
 			</div>
 			<div class="truncate text-xs text-slate-500">
 				if t.LastUsedAt.IsZero() {
@@ -71,16 +97,18 @@ templ tokenItem(t models.AccessToken) {
 				}
 			</div>
 		</div>
-		<form method="post" action="/admin/tokens/delete" class="shrink-0">
-			<input type="hidden" name="id" value={ t.ID }/>
-			<button
-				type="submit"
-				aria-label={ i18n.T(ctx, "tokens.revoke") + " " + t.Name }
-				class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:border-red-400 hover:bg-red-50 hover:text-red-700"
-			>
-				{ i18n.T(ctx, "tokens.revoke") }
-			</button>
-		</form>
+		if mayRevoke {
+			<form method="post" action="/admin/tokens/delete" class="shrink-0">
+				<input type="hidden" name="id" value={ t.ID }/>
+				<button
+					type="submit"
+					aria-label={ i18n.T(ctx, "tokens.revoke") + " " + t.Name }
+					class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:border-red-400 hover:bg-red-50 hover:text-red-700"
+				>
+					{ i18n.T(ctx, "tokens.revoke") }
+				</button>
+			</form>
+		}
 	</li>
 }
 

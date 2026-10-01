@@ -484,10 +484,14 @@ nothing identifies it as the same message. Use `state` `open` and a `key` when t
 
 Both webhooks take a token as `Authorization: Bearer <token>`. Two kinds of token are accepted:
 
-- **An access token issued at `/admin/tokens`** (admins only). Name it after the sender, copy it
-  — it is shown once and stored only as a digest — and revoke it when the sender goes away. The
-  page lists when each token was last used. Scripts can do the same through `POST /api/tokens`
-  with `{"name": "…"}`, `GET /api/tokens` and `DELETE /api/tokens/{id}`.
+- **An access token issued at `/admin/tokens`.** Anyone who may use a webhook can mint one (see
+  [Who may do what](#who-may-do-what)): editors and admins for both webhooks, anyone else for the
+  webhooks granted to them. Name it after the sender and choose the webhooks it may send to.
+  Copy it at once: it is shown once and stored only as a digest. Revoke it when the sender goes
+  away. You see and revoke your own tokens; webhook admins and admins see and revoke everyone's.
+  The page lists when each token was last used. Scripts can do the same through `POST /api/tokens`
+  with `{"name": "…", "scope": ["alertmanager"]}`, `GET /api/tokens` and
+  `DELETE /api/tokens/{id}`.
 - **`webhook.token`** (`TEAMSTER_WEBHOOK_TOKEN`), one deployment-wide token from configuration.
   It is optional. Use it when a sender has to be configured declaratively before anyone can sign
   in to issue a token.
@@ -497,8 +501,12 @@ Prefer one issued token per sender, so each can be revoked without breaking the 
 deprecated and will be removed in a breaking release
 ([ADR 0044](docs/adr/0044-webhook-access-tokens.md)).
 
-A token of either kind is accepted by both webhooks; it cannot be limited to one webhook or to a
-role's delivery grants.
+**A token sends only where its creator may send, now.** Every use checks two things in Cedar: the
+token's own scope must name the webhook, and its creator, with the roles and groups of their last
+sign-in, must still be allowed to use it. Disabling the creator, removing them from a group, or
+taking away their webhook level revokes their tokens at the next request. Tokens issued before this
+release, and `webhook.token`, are unscoped: both webhooks, whoever made them. Mint new ones to bind
+them. See [ADR 0077](docs/adr/0077-scoped-tokens-answer-to-their-creator.md).
 
 Alertmanager, with the token in a file mounted from a Secret:
 
@@ -553,7 +561,12 @@ curl -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
 - **`403 RBAC: access denied`**: this is not Teamster's answer. It is the wording of Envoy's RBAC
   filter, so a service mesh (an Istio `AuthorizationPolicy`) or a gateway in front of the pod
   refused the request before it arrived. Allow the sender's workload to reach the webhook path
-  there. Teamster never answers `403` on `/webhook/*`.
+  there. Teamster's own `403` on `/webhook/*` is JSON: `{"error": "the token's scope, or its
+  creator, does not allow this webhook"}`.
+- **`403` with that JSON body**: a scoped token was used for a webhook its scope does not name, or
+  its creator may no longer use it (disabled, removed from a group, or a level taken away). The
+  log line `webhook refused` names the token and its creator, and the refusal is counted in
+  `teamster.webhook.receipts` with state `forbidden`.
 - **`503`**: Teamster could not check the token because the database did not answer. The sender
   should retry, as it does for any 5xx.
 
@@ -583,8 +596,8 @@ message text is for — so the control is the token, not the allowlist:
 - **Do not expose the webhook endpoints to the internet** if only in-cluster senders need them.
   Alertmanager posting from inside the same cluster needs no ingress at all.
 - **Give each sender its own issued token**, so one can be revoked without breaking the others.
-  Every token reaches every route, so senders in different trust boundaries still need separate
-  deployments.
+  Scope it to the one webhook the sender uses. A token still reaches every route behind that
+  webhook, so senders in different trust boundaries still need separate deployments.
 - **Terminate TLS in front of Teamster.** The token travels in a header on every request.
 - A refused token is counted (`teamster.webhook.receipts`, state `refused`), so a token being
   guessed at is visible rather than silent. Alert on it.

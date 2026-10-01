@@ -430,5 +430,10 @@
   "me.groups": "Gruppen",
   "me.webhooks": "Webhooks, die Sie verwenden dürfen",
   "me.policies": "Berechtigungen, die Sie nennen",
-  "me.no_policies": "Mit Ihnen wurde nichts geteilt."
+  "me.no_policies": "Mit Ihnen wurde nichts geteilt.",
+  "tokens.no_webhooks": "Sie dürfen keinen der Webhooks verwenden und daher keinen Token erzeugen. Bitten Sie einen Admin um eine Webhook-Stufe.",
+  "tokens.scope": "Darf senden an",
+  "tokens.scope_hint": "Ein Token sendet nur dorthin, wohin Sie selbst senden dürfen, jetzt und später: Verlieren Sie einen Webhook, verlieren ihn auch Ihre Token.",
+  "tokens.scoped": "Sendet an {0}, soweit sein Ersteller darf",
+  "tokens.unscoped": "Ohne Bereich: beide Webhooks, gleich wer ihn erzeugt hat. Erzeugen Sie einen neuen, um ihn an seinen Ersteller zu binden."
 }

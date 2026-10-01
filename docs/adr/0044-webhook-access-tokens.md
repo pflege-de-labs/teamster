@@ -1,6 +1,6 @@
 # 0044. Authenticate the alert webhooks with issued Bearer tokens
 
-* Status: Accepted
+* Status: Accepted; issuing and scope superseded by [0077](0077-scoped-tokens-answer-to-their-creator.md)
 * Date: 2026-09-28
 
 ## Context

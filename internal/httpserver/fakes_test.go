@@ -595,6 +595,9 @@ func (f *fakeStore) CreateAccessToken(ctx context.Context, t models.AccessToken)
 	}
 	t.CreatedAt = time.Now().UTC()
 	f.accessTokens[t.ID] = t
+	if t.Scoped() {
+		f.authzGen++
+	}
 	return t, nil
 }
 
@@ -632,6 +635,7 @@ func (f *fakeStore) DeleteAccessToken(ctx context.Context, id string) error {
 		return err
 	}
 	delete(f.accessTokens, id)
+	f.authzGen++
 	return nil
 }
 

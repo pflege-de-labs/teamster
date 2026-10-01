@@ -12,16 +12,18 @@ import (
 )
 
 const createAccessToken = `-- name: CreateAccessToken :exec
-INSERT INTO access_tokens (id, name, token_hash, created_by, created_at)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO access_tokens (id, name, token_hash, created_by, created_at, scope, scoped_token_hash)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 `
 
 type CreateAccessTokenParams struct {
-	ID        string
-	Name      string
-	TokenHash string
-	CreatedBy string
-	CreatedAt time.Time
+	ID              string
+	Name            string
+	TokenHash       string
+	CreatedBy       string
+	CreatedAt       time.Time
+	Scope           string
+	ScopedTokenHash sql.NullString
 }
 
 func (q *Queries) CreateAccessToken(ctx context.Context, arg CreateAccessTokenParams) error {
@@ -31,6 +33,8 @@ func (q *Queries) CreateAccessToken(ctx context.Context, arg CreateAccessTokenPa
 		arg.TokenHash,
 		arg.CreatedBy,
 		arg.CreatedAt,
+		arg.Scope,
+		arg.ScopedTokenHash,
 	)
 	return err
 }
@@ -45,9 +49,9 @@ func (q *Queries) DeleteAccessToken(ctx context.Context, id string) error {
 }
 
 const getAccessTokenByHash = `-- name: GetAccessTokenByHash :one
-SELECT id, name, token_hash, created_by, created_at, last_used_at
+SELECT id, name, token_hash, created_by, created_at, last_used_at, scope, scoped_token_hash
 FROM access_tokens
-WHERE token_hash = $1
+WHERE token_hash = $1 OR scoped_token_hash = $1
 `
 
 // GetAccessTokenByHash is how a webhook request is authenticated. Matching on
@@ -63,13 +67,15 @@ func (q *Queries) GetAccessTokenByHash(ctx context.Context, tokenHash string) (A
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.LastUsedAt,
+		&i.Scope,
+		&i.ScopedTokenHash,
 	)
 	return i, err
 }
 
 const listAccessTokens = `-- name: ListAccessTokens :many
 
-SELECT id, name, token_hash, created_by, created_at, last_used_at
+SELECT id, name, token_hash, created_by, created_at, last_used_at, scope, scoped_token_hash
 FROM access_tokens
 ORDER BY name
 `
@@ -94,6 +100,8 @@ func (q *Queries) ListAccessTokens(ctx context.Context) ([]AccessToken, error) {
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.LastUsedAt,
+			&i.Scope,
+			&i.ScopedTokenHash,
 		); err != nil {
 			return nil, err
 		}

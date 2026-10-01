@@ -334,6 +334,16 @@ matches either `webhook.token` or an access token issued at `/admin/tokens`. The
 up by the token's SHA-256 digest in `access_tokens`, and `last_used_at` is written at most once an
 hour. An unset `webhook.token` never matches: `safeEquals("", "")` holds, so an empty credential is
 refused before any comparison. Each refusal is logged with its reason and counted as `refused`.
+
+A scoped token is checked once more, in Cedar ([ADR 0077](adr/0077-scoped-tokens-answer-to-their-creator.md)).
+Its scope is a generated policy, `permit (principal == Token::"<id>", action == Action::"use",
+resource == Webhook::"alertmanager")`. Its creator is rebuilt from the user registry, with the
+roles and groups of their last sign-in, and asked whether they may `use` the webhook. Both must
+hold, so revoking the creator revokes the token. A disabled or unknown creator is refused, and the
+configured local admin answers as admin. A refusal is a `403`, counted as `forbidden`; an unreadable
+snapshot or registry is a `503`. Scoped tokens keep their digest in `scoped_token_hash`. Their
+`token_hash` holds a placeholder no digest equals, so the previous release, which matches
+`token_hash` alone, refuses them instead of admitting them unscoped.
 See [ADR 0044](adr/0044-webhook-access-tokens.md).
 
 ### Teams V2 webhooks
@@ -948,6 +958,11 @@ previous release ignores both.
 principal and resource, unique on both, and is indexed by resource. The previous release ignores
 it: access that only a row gave is then refused, and roles are unchanged.
 
+`access_tokens.scope` and `access_tokens.scoped_token_hash` came with scoped tokens, by `0028` in
+SQLite and `0025` in Postgres ([ADR 0077](adr/0077-scoped-tokens-answer-to-their-creator.md)). An
+empty scope is a token from before. A scoped token's `token_hash` is `scoped:<id>`, so the previous
+release refuses it.
+
 `database.migrate` decides what opening the store does about a schema that is behind: `auto`
 applies what is missing, `verify` refuses and names `teamster migrate up`, `off` asks nothing.
 `teamster export` always verifies — reading a database must not migrate it. A migration must leave
@@ -1221,10 +1236,12 @@ unlink recipients — see [Managing recipients](#managing-recipients) — and
 `POST /api/recipients/link` is the exception that requires a session specifically — see
 [Linking a chat](#linking-a-chat). `GET /api/samples` answers the label keys and values and the
 attribute keys the editors complete, to a caller who may edit templates or routes — see
-[Editor completion](#editor-completion). `GET /api/tokens`, `POST /api/tokens` (`{"name": …}`) and
-`DELETE /api/tokens/{id}` list, issue and revoke webhook access tokens. The answer to the `POST` is
-the only place a token is ever readable. All three need `administer` on `AccessToken`, and so does
-the `/admin/tokens` page.
+[Editor completion](#editor-completion). `GET /api/tokens`, `POST /api/tokens`
+(`{"name": …, "scope": [...]}`) and `DELETE /api/tokens/{id}` list, issue and revoke webhook access
+tokens. The answer to the `POST` is the only place a token is ever readable. They are
+self-service: a caller sees and revokes their own tokens, a webhook admin everyone's, and a new
+token's scope must name only webhooks the caller may `use`
+([ADR 0077](adr/0077-scoped-tokens-answer-to-their-creator.md)).
 
 ## Configuration
 

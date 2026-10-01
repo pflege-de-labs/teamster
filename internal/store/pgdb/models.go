@@ -10,12 +10,14 @@ import (
 )
 
 type AccessToken struct {
-	ID         string
-	Name       string
-	TokenHash  string
-	CreatedBy  string
-	CreatedAt  time.Time
-	LastUsedAt sql.NullTime
+	ID              string
+	Name            string
+	TokenHash       string
+	CreatedBy       string
+	CreatedAt       time.Time
+	LastUsedAt      sql.NullTime
+	Scope           string
+	ScopedTokenHash sql.NullString
 }
 
 type ActiveEvent struct {
