@@ -652,3 +652,21 @@ type AuditFilter struct {
 	CursorAt     time.Time
 	Limit        int
 }
+
+// A User is someone who has signed in (ADR 0072). Roles and IdPGroups are what
+// the provider said at their last sign-in. A disabled user is refused sign-in.
+type User struct {
+	Subject    string    `json:"subject"`
+	Source     string    `json:"source"`
+	Name       string    `json:"name"`
+	Email      string    `json:"email,omitempty"`
+	Roles      []string  `json:"roles"`
+	IdPGroups  []string  `json:"idp_groups"`
+	FirstSeen  time.Time `json:"first_seen"`
+	LastSeen   time.Time `json:"last_seen"`
+	DisabledAt time.Time `json:"disabled_at,omitzero"`
+	DisabledBy string    `json:"disabled_by,omitempty"`
+}
+
+// Disabled says whether the user is refused sign-in.
+func (u User) Disabled() bool { return !u.DisabledAt.IsZero() }

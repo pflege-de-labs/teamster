@@ -152,6 +152,10 @@ func requestAuthorization(r *http.Request) (string, authz.Resource) {
 	case path == "/api/tokens", strings.HasPrefix(path, "/api/tokens/"),
 		path == "/admin/tokens", strings.HasPrefix(path, "/admin/tokens/"):
 		return authz.ActionAdminister, authz.Resource{Type: "AccessToken"}
+	// Who has signed in, and switching them off, is the admin's (ADR 0072).
+	case path == "/admin/users", strings.HasPrefix(path, "/admin/users/"),
+		path == "/api/users", strings.HasPrefix(path, "/api/users/"):
+		return authz.ActionAdminister, authz.Resource{Type: "User"}
 	// The trail names everyone who changed anything, and what it held before.
 	case path == "/admin/audit", path == "/api/audit":
 		return authz.ActionAdminister, authz.Resource{Type: "Audit"}

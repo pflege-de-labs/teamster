@@ -1020,6 +1020,15 @@ policies define, what the admin UI asks about when it decides whether to show a 
 `auth.default-role` may be set to. Removing or renaming them in the policy file breaks the UI;
 adding to them does not.
 
+### Users
+
+Everyone who signs in is listed at **/admin/users** (admins only), with the roles and groups their
+provider sent at their last sign-in. **Disable** ends that user's sessions at once and refuses
+their next sign-in until an admin enables them again. The local login cannot be disabled, because
+it is the way back in, and nobody can disable themselves. The API is `GET /api/users?q=…`, and
+`POST` or `DELETE /api/users/disabled` with `{"subject": "…"}`. Both changes are recorded in the
+[audit trail](#audit-trail). See [ADR 0072](docs/adr/0072-remember-who-signed-in.md).
+
 ### Limiting a role to Teams and channels
 
 An admin can narrow where a role may deliver on **Permissions** (`/admin/permissions`): pick a role,

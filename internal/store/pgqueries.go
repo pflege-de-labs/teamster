@@ -643,3 +643,38 @@ func (p pgQueries) DeleteAuditEventsBefore(ctx context.Context, occurredAt time.
 func (p pgQueries) DeleteAuditEventsBeyond(ctx context.Context, keep int64) (int64, error) {
 	return p.q.DeleteAuditEventsBeyond(ctx, keep)
 }
+
+// Users (ADR 0072).
+
+func (p pgQueries) UpsertUser(ctx context.Context, arg sqlitedb.UpsertUserParams) error {
+	return p.q.UpsertUser(ctx, pgdb.UpsertUserParams(arg))
+}
+
+func (p pgQueries) GetUser(ctx context.Context, subject string) (sqlitedb.User, error) {
+	row, err := p.q.GetUser(ctx, subject)
+	return sqlitedb.User(row), err
+}
+
+func (p pgQueries) ListUsers(ctx context.Context, arg sqlitedb.ListUsersParams) ([]sqlitedb.User, error) {
+	rows, err := p.q.ListUsers(ctx, pgdb.ListUsersParams(arg))
+	if err != nil {
+		return nil, err
+	}
+	out := make([]sqlitedb.User, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, sqlitedb.User(row))
+	}
+	return out, nil
+}
+
+func (p pgQueries) SetUserDisabled(ctx context.Context, arg sqlitedb.SetUserDisabledParams) (int64, error) {
+	return p.q.SetUserDisabled(ctx, pgdb.SetUserDisabledParams(arg))
+}
+
+func (p pgQueries) DeleteBrokerTokensForSubject(ctx context.Context, subject string) error {
+	return p.q.DeleteBrokerTokensForSubject(ctx, subject)
+}
+
+func (p pgQueries) DeleteSessionsForSubject(ctx context.Context, subject string) error {
+	return p.q.DeleteSessionsForSubject(ctx, subject)
+}

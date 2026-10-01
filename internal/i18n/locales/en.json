@@ -347,5 +347,18 @@
   "audit.field": "Field",
   "audit.before": "Before",
   "audit.after": "After",
-  "audit.disabled": "Nothing is recorded here: set audit.database to true to keep the audit trail in the database."
+  "audit.disabled": "Nothing is recorded here: set audit.database to true to keep the audit trail in the database.",
+  "nav.users": "Users",
+  "page.users": "Users — Teamster",
+  "users.heading": "People who have signed in",
+  "users.explainer": "Everyone who has signed in, with the roles and groups their identity provider sent last time. Disabling someone ends their sessions and refuses their next sign-in. The local login cannot be disabled.",
+  "users.search": "Search",
+  "users.search_placeholder": "Name, e-mail or subject",
+  "users.find": "Find",
+  "users.empty": "Nobody has signed in yet, or nobody matches.",
+  "users.disabled": "disabled",
+  "users.detail": "{0} · roles {1} · groups {2} · last seen {3}",
+  "users.disabled_by": "Disabled by {0}, {1}",
+  "users.disable": "Disable",
+  "users.enable": "Enable"
 }

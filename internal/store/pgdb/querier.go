@@ -109,6 +109,7 @@ type Querier interface {
 	DeleteAuditEventsBeyond(ctx context.Context, keep int64) (int64, error)
 	DeleteBotTeam(ctx context.Context, teamID string) error
 	DeleteBrokerToken(ctx context.Context, sessionID string) error
+	DeleteBrokerTokensForSubject(ctx context.Context, subject string) error
 	DeleteDestination(ctx context.Context, id string) error
 	DeleteEventSamplesSeenBefore(ctx context.Context, lastSeen time.Time) (int64, error)
 	// Keeps the most recently seen values of each label key and deletes the rest.
@@ -131,6 +132,7 @@ type Querier interface {
 	DeleteRecipient(ctx context.Context, id string) error
 	DeleteRoute(ctx context.Context, id string) error
 	DeleteSession(ctx context.Context, id string) error
+	DeleteSessionsForSubject(ctx context.Context, subject string) error
 	DeleteSetting(ctx context.Context, key string) error
 	DeleteTemplate(ctx context.Context, id string) error
 	DeleteWebhookEndpoint(ctx context.Context, id string) error
@@ -175,6 +177,7 @@ type Querier interface {
 	// file and run make generate.
 	GetSetting(ctx context.Context, key string) (string, error)
 	GetTemplate(ctx context.Context, id string) (Template, error)
+	GetUser(ctx context.Context, subject string) (User, error)
 	GetWebhookEndpoint(ctx context.Context, id string) (WebhookEndpoint, error)
 	// GetWebhookEndpointBySlug is the request path, turned into a row. It is the
 	// only lookup a sender can reach, so it matches on the pair alone and leaves
@@ -253,6 +256,8 @@ type Querier interface {
 	// The statements are the SQLite ones with ? replaced by $n. Edit the SQLite
 	// file and run make generate.
 	ListTemplates(ctx context.Context) ([]Template, error)
+	// pattern is a lower-cased LIKE pattern; its % and _ stay wildcards.
+	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
 	// Code generated from ../sqlite by internal/store/queries/gen. DO NOT EDIT.
 	//
 	// The statements are the SQLite ones with ? replaced by $n. Edit the SQLite
@@ -310,6 +315,7 @@ type Querier interface {
 	// SetDirectoryUserInstalled records the chat the bot has with a person, which
 	// is proof the app is installed however it got there.
 	SetDirectoryUserInstalled(ctx context.Context, arg SetDirectoryUserInstalledParams) (int64, error)
+	SetUserDisabled(ctx context.Context, arg SetUserDisabledParams) (int64, error)
 	// TakeLinkFlow redeems a code once: the row is gone whether or not it had
 	// expired, so a code read over somebody's shoulder and typed twice binds
 	// nothing the second time.
@@ -368,6 +374,13 @@ type Querier interface {
 	// replica with a slow clock cannot make a key look older than it is.
 	UpsertEventSample(ctx context.Context, arg UpsertEventSampleParams) error
 	UpsertSetting(ctx context.Context, arg UpsertSettingParams) error
+	// Code generated from ../sqlite by internal/store/queries/gen. DO NOT EDIT.
+	//
+	// The statements are the SQLite ones with ? replaced by $n. Edit the SQLite
+	// file and run make generate.
+	// A sign-in refreshes what the provider says; first_seen and the disabled
+	// state are kept.
+	UpsertUser(ctx context.Context, arg UpsertUserParams) error
 }
 
 var _ Querier = (*Queries)(nil)

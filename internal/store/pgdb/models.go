@@ -215,6 +215,19 @@ type Template struct {
 	Sources     string
 }
 
+type User struct {
+	Subject    string
+	Source     string
+	Name       string
+	Email      string
+	Roles      string
+	IdpGroups  string
+	FirstSeen  time.Time
+	LastSeen   time.Time
+	DisabledAt sql.NullTime
+	DisabledBy string
+}
+
 type WebhookEndpoint struct {
 	ID            string
 	TeamSlug      string

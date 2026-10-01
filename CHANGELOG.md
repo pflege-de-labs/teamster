@@ -29,6 +29,8 @@ reasoning behind it in the [ADRs](docs/adr/).
 * Audit events can be published to NATS JetStream (`audit.nats.*`), one subject per resource type
   and action, deduplicated by event id
   ([ADR 0071](docs/adr/0071-publish-audit-events-to-nats-jetstream.md)).
+* `/admin/users` lists everyone who has signed in. An admin can disable a user, which ends their
+  sessions and refuses their next sign-in ([ADR 0072](docs/adr/0072-remember-who-signed-in.md)).
 
 ### Changed
 

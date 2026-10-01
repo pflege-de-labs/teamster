@@ -86,3 +86,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0069](0069-the-bot-answers-commands-in-team-channels.md) | The bot answers commands in team channels | Accepted |
 | [0070](0070-audit-configuration-changes-at-the-store.md) | Audit configuration changes at the store boundary | Accepted |
 | [0071](0071-publish-audit-events-to-nats-jetstream.md) | Publish audit events to NATS JetStream | Accepted |
+| [0072](0072-remember-who-signed-in.md) | Remember who signed in, and let an admin disable them | Accepted |

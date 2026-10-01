@@ -22,6 +22,7 @@ const (
 	TypeSetting         = "Setting"
 	TypeDirectoryRun    = "DirectoryRun"
 	TypeConfig          = "Config"
+	TypeUser            = "User"
 )
 
 // Setting ids in the trail; stable names rather than the store's keys.
@@ -372,4 +373,24 @@ func (s *auditedStore) RequestDirectoryRun(ctx context.Context, r models.Directo
 		s.emit(ctx, event("directory_run.request", TypeDirectoryRun, requested.ID, nil, snapshot(requested)))
 	}
 	return requested, err
+}
+
+// Users: disabling and enabling; a sign-in is not a configuration change.
+
+func (s *auditedStore) DisableUser(ctx context.Context, subject, by string) error {
+	before := lookup(s.GetUser(ctx, subject))
+	err := s.Store.DisableUser(ctx, subject, by)
+	if err == nil {
+		s.emit(ctx, event("user.disable", TypeUser, subject, before.raw, found(s.GetUser(ctx, subject))))
+	}
+	return err
+}
+
+func (s *auditedStore) EnableUser(ctx context.Context, subject string) error {
+	before := lookup(s.GetUser(ctx, subject))
+	err := s.Store.EnableUser(ctx, subject)
+	if err == nil {
+		s.emit(ctx, event("user.enable", TypeUser, subject, before.raw, found(s.GetUser(ctx, subject))))
+	}
+	return err
 }

@@ -47,6 +47,7 @@ type fakeStore struct {
 	linkFlows    map[string]models.LinkFlow
 	samples      []models.EventSample
 	auditEvents  []models.AuditEvent
+	users        map[string]models.User
 	// globalDefaultTemplate is the catch-all's template; "" is the built-in one.
 	globalDefaultTemplate string
 	// sourceDefaults maps a source to its default template.
@@ -65,6 +66,7 @@ type fakeStore struct {
 
 func newFakeStore() *fakeStore {
 	return &fakeStore{
+		users:          map[string]models.User{},
 		templates:      map[string]models.Template{},
 		sourceDefaults: map[string]string{},
 		destinations:   map[string]models.Destination{},
@@ -1872,4 +1874,90 @@ func (f *fakeStore) PruneAuditEvents(context.Context, time.Time, int) (int64, er
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return 0, f.failing("PruneAuditEvents")
+}
+
+// Users, as far as the sign-in and the users page need them.
+
+func (f *fakeStore) RecordSignIn(_ context.Context, u models.User) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("RecordSignIn"); err != nil {
+		return err
+	}
+	if existing, ok := f.users[u.Subject]; ok {
+		u.FirstSeen, u.DisabledAt, u.DisabledBy = existing.FirstSeen, existing.DisabledAt, existing.DisabledBy
+	} else {
+		u.FirstSeen = u.LastSeen
+	}
+	f.users[u.Subject] = u
+	return nil
+}
+
+func (f *fakeStore) GetUser(_ context.Context, subject string) (models.User, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("GetUser"); err != nil {
+		return models.User{}, err
+	}
+	u, ok := f.users[subject]
+	if !ok {
+		return models.User{}, store.ErrNotFound
+	}
+	return u, nil
+}
+
+func (f *fakeStore) ListUsers(_ context.Context, search string, limit int) ([]models.User, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("ListUsers"); err != nil {
+		return nil, err
+	}
+	search = strings.ToLower(search)
+	var out []models.User
+	for _, u := range f.users {
+		if search == "" || strings.Contains(strings.ToLower(u.Subject+" "+u.Name+" "+u.Email), search) {
+			out = append(out, u)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Subject < out[j].Subject })
+	if limit > 0 && len(out) > limit {
+		out = out[:limit]
+	}
+	return out, nil
+}
+
+func (f *fakeStore) DisableUser(_ context.Context, subject, by string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("DisableUser"); err != nil {
+		return err
+	}
+	u, ok := f.users[subject]
+	if !ok {
+		return store.ErrNotFound
+	}
+	u.DisabledAt, u.DisabledBy = time.Now().UTC(), by
+	f.users[subject] = u
+	for id, s := range f.sessions {
+		if s.Subject == subject {
+			delete(f.sessions, id)
+			delete(f.brokerTokens, id)
+		}
+	}
+	return nil
+}
+
+func (f *fakeStore) EnableUser(_ context.Context, subject string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("EnableUser"); err != nil {
+		return err
+	}
+	u, ok := f.users[subject]
+	if !ok {
+		return store.ErrNotFound
+	}
+	u.DisabledAt, u.DisabledBy = time.Time{}, ""
+	f.users[subject] = u
+	return nil
 }
