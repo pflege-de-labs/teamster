@@ -1212,7 +1212,7 @@ curl -s -H 'Accept: application/vnd.google.protobuf;proto=io.prometheus.client.M
 ## Container
 
 ```bash
-make image                       # builds teamster:<version>
+make image                       # builds teamster:<short-sha>, the binary reporting git describe
 ```
 
 CI publishes images to `ghcr.io/pflege-de-labs/teamster`:
