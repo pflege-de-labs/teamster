@@ -1020,6 +1020,36 @@ policies define, what the admin UI asks about when it decides whether to show a 
 `auth.default-role` may be set to. Removing or renaming them in the policy file breaks the UI;
 adding to them does not.
 
+### Owning and sharing records
+
+Whoever creates a template, destination, route, webhook endpoint or group **owns** it. Records that
+existed before this release are owned by the admins. Editing a record shows **Who may do what**,
+where an owner, or anyone holding `share`, gives a user, a group, a provider group or a role these
+actions:
+
+| Action | Lets them |
+| --- | --- |
+| `read` | see the record |
+| `update` | change it |
+| `delete` | delete it |
+| `attach` | point routes and webhooks at it: a destination they may route into, a template they may render with |
+| `share` | give others what they hold themselves |
+| `own` | everything, including passing ownership on |
+
+Granting `own`, or taking it away, takes ownership yourself. Nobody can give more than they hold.
+Someone with no role but a shared record sees `/admin` with just what was shared. Pages built from
+the whole configuration stay closed to them: the routing graph, previews and the export. Editors
+keep editing everything. `create` on a whole collection is granted through the API:
+
+```bash
+curl -u admin:pw -X POST http://localhost:8080/api/sharing -d '{"principal_type": "group",
+  "principal_id": "<group id>", "resource_type": "Route", "resource_id": "*", "actions": ["create"]}'
+```
+
+`GET /api/sharing?type=Template&id=…` lists a record's permissions, and `DELETE /api/sharing/{id}`
+revokes one. Every change is audited in its own transaction. Each permission is a Cedar policy; see
+[ADR 0075](docs/adr/0075-own-and-share-records-through-generated-policies.md).
+
 ### Groups
 
 A group at **/admin/groups** collects users, other groups, and the groups your identity provider
@@ -1111,6 +1141,9 @@ The configuration — templates, destinations, routes and permission grants — 
 bundle. It carries **no credentials** (webhook access tokens included — issue new ones where the
 bundle lands) and no runtime state, so it can live in a repository beside
 the rest of a deployment's configuration.
+
+Groups and record permissions are **not** carried either: they name people of one tenant. Records
+a bundle creates are owned by the admins until someone shares them.
 
 Linked people are **not** carried: a link binds one person to one conversation in one tenant, so it
 would mean nothing where the bundle lands. A bundle whose route names a person is refused on import

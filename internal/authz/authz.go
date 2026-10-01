@@ -65,6 +65,9 @@ type Authorizer struct {
 	generation int64
 	// userGroups are the local groups each subject is a direct member of.
 	userGroups map[string][]string
+	generated  []GeneratedPolicy
+	// holders are the principals some grant names, by principalKey.
+	holders map[string]bool
 }
 
 // New is the embedded policies alone, as an Engine with no source has them.

@@ -77,6 +77,11 @@ func (s *Server) mayDeliverToDestination(r *http.Request, destinationID string) 
 		}
 		return false, err
 	}
+	// A grant of attach on the destination is the scope for whoever holds it
+	// (ADR 0075); a role's attach is not, or it would step past the role's grants.
+	if !s.allow(r, authz.ActionEdit, authz.Resource{Type: typeDestination}) && s.can(r, authz.ActionAttach, typeDestination, destinationID) {
+		return true, nil
+	}
 	return s.mayDeliverTo(r, destination.TeamID, destination.ChannelID)
 }
 

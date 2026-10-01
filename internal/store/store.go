@@ -332,6 +332,17 @@ type Store interface {
 	AddGroupMember(ctx context.Context, m models.GroupMember) error
 	RemoveGroupMember(ctx context.Context, m models.GroupMember) error
 
+	// Permissions (ADR 0075). Every write bumps the authz generation in its
+	// own transaction. PutPermission replaces the actions of the row for its
+	// principal and resource, and deletes it when there are none left.
+	ListPermissions(ctx context.Context) ([]models.Permission, error)
+	ListPermissionsFor(ctx context.Context, resourceType, resourceID string) ([]models.Permission, error)
+	GetPermission(ctx context.Context, id string) (models.Permission, error)
+	PutPermission(ctx context.Context, p models.Permission) (models.Permission, error)
+	DeletePermission(ctx context.Context, id string) error
+	// DeletePermissionsFor forgets who may do what with a resource being deleted.
+	DeletePermissionsFor(ctx context.Context, resourceType, resourceID string) error
+
 	// RecordSignIn creates or refreshes a user from a sign-in (ADR 0072).
 	RecordSignIn(ctx context.Context, u models.User) error
 	GetUser(ctx context.Context, subject string) (models.User, error)

@@ -1,6 +1,6 @@
 # 0012. Authorize with Cedar, evaluated in-process
 
-* Status: Accepted
+* Status: Accepted; extended by [0075](0075-own-and-share-records-through-generated-policies.md)
 * Date: 2026-09-11
 
 ## Context

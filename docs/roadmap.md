@@ -55,8 +55,10 @@ builder.
 
 ## Milestone 22 — Personal routes for others, by grant
 
-Grant a user or a group the right to route to someone else's chat. This extends the Cedar
-`deliverToRecipient` policy from ADR 0047 rather than adding Go checks.
+Grant a user or a group the right to route to someone else's chat. This is a permission row
+`deliverToRecipient` on `User::"<subject>"`
+([ADR 0075](adr/0075-own-and-share-records-through-generated-policies.md)). What is left is offering
+it on the notifications page, and letting `User` be a permissioned type.
 
 ## Milestone 23 — Messages to individual people
 
@@ -94,20 +96,17 @@ A webhook that messages every directory user, or an Entra group, at once. Not a 
 
 Follows milestone 23, whose `directory_users` and run table it builds on.
 
-## Milestone 25 — Ownership, permissions and scoped tokens
+## Milestone 25 — Webhook permissions and scoped tokens
 
 Every record has owners who can share it, groups decide access, and users mint their own tokens.
 The audit trail it builds on shipped first
 ([ADR 0070](adr/0070-audit-configuration-changes-at-the-store.md),
 [ADR 0071](adr/0071-publish-audit-events-to-nats-jetstream.md)), as did the user registry
 ([ADR 0072](adr/0072-remember-who-signed-in.md)), the versioned policy snapshot
-([ADR 0073](adr/0073-authorize-from-a-versioned-policy-snapshot.md)) and local groups
-([ADR 0074](adr/0074-local-groups-and-provider-groups.md)). Each step is one pull request:
+([ADR 0073](adr/0073-authorize-from-a-versioned-policy-snapshot.md)), local groups
+([ADR 0074](adr/0074-local-groups-and-provider-groups.md)) and owning and sharing records
+([ADR 0075](adr/0075-own-and-share-records-through-generated-policies.md)). Each step is one pull request:
 
-* **25.5 Ownership and per-record permissions.** Records are checked in the handlers, not only per
-  collection, and lists show what the caller may read. Permission rows are rendered to Cedar
-  `permit` policies. An `own` row makes a principal an owner. Owners share `read`, `update`,
-  `delete` and `attach`, and pass on ownership. Milestone 22 becomes a `deliverToRecipient` row.
 * **25.6 Webhook permissions and overviews.** `use` on `Webhook::"alertmanager"`, `"universal"` or
   `"*"`. Admins get a permissions overview with the loaded Cedar text, and each user gets their own.
 * **25.7 Self-service scoped tokens.** A token's scope is at most its creator's permissions, and is
@@ -150,7 +149,7 @@ Smaller items left open when a milestone shipped. Each is picked up on its own.
 | 5 | 20.4 More commands | 20.2 | — |
 | 6 | 23.4–23.6 Messages to individual people, the rest | 23 | a test tenant for 23.5 |
 | 7 | 24 Announcements | 23 | — |
-| 8 | 25.5–25.7 Ownership, permissions and scoped tokens | — | — |
+| 8 | 25.6–25.7 Webhook permissions and scoped tokens | — | — |
 
 Follow-ups are unordered and can be pulled in between milestones.
 

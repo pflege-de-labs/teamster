@@ -395,6 +395,19 @@ named. `in Group::"x"` therefore walks nesting and provider groups alike. Group 
 generation and write their audit row in the same transaction, and adding a member refuses a cycle
 in a serializable one. See [ADR 0074](adr/0074-local-groups-and-provider-groups.md).
 
+Records carry their own permissions. A `permissions` row holds one principal's actions on one
+template, destination, route, webhook endpoint or group, or on the collection, where `create` is
+granted. The snapshot renders each row to a Cedar `permit` with the cedar-go AST, so ids cannot
+inject Cedar syntax. An `own` row makes an owner. Creating a record writes the creator's `own` row
+in the same transaction, and deleting it deletes its rows.
+
+Handlers check the record they touch (`mayRecord`), and lists are filtered by `read`. For a list of
+record endpoints, `authorize` lets a principal through when the role policies refuse it but some
+grant names it. That request is watched, and one answered without a record check is logged and
+counted. A grant of `attach` on a destination is a grant holder's delivery scope for it; a role's
+`attach` is not. Sharing takes `share`, ownership takes `transfer`, and nobody grants more than
+they hold. See [ADR 0075](adr/0075-own-and-share-records-through-generated-policies.md).
+
 The policies and entities are an immutable snapshot that `authz.Engine` hands out, versioned by the
 single row in `authz_generation`. `authorize` reads the generation once per request. When it has
 moved, the engine rebuilds the snapshot from the store's model, once, and every check in the request
@@ -922,6 +935,11 @@ it.
 Postgres ([ADR 0074](adr/0074-local-groups-and-provider-groups.md)). A member row names a `user`,
 a `group` or an `idp_group`, and is indexed by member for the snapshot's reverse lookup. The
 previous release ignores both.
+
+`permissions` came with per-record permissions, by `0027` in SQLite and `0024` in Postgres
+([ADR 0075](adr/0075-own-and-share-records-through-generated-policies.md)). It holds one row per
+principal and resource, unique on both, and is indexed by resource. The previous release ignores
+it: access that only a row gave is then refused, and roles are unchanged.
 
 `database.migrate` decides what opening the store does about a schema that is behind: `auto`
 applies what is missing, `verify` refuses and names `teamster migrate up`, `off` asks nothing.

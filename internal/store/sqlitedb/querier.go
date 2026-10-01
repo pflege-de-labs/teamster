@@ -119,6 +119,9 @@ type Querier interface {
 	// guess only ever has to beat one live code rather than every one ever handed
 	// out before the hourly sweep catches up.
 	DeleteLinkFlowsForSubject(ctx context.Context, subject string) error
+	DeletePermission(ctx context.Context, id string) (int64, error)
+	DeletePermissionsForPrincipal(ctx context.Context, arg DeletePermissionsForPrincipalParams) error
+	DeletePermissionsForResource(ctx context.Context, arg DeletePermissionsForResourceParams) error
 	DeleteRecipient(ctx context.Context, id string) error
 	DeleteRoute(ctx context.Context, id string) error
 	DeleteSession(ctx context.Context, id string) error
@@ -147,6 +150,7 @@ type Querier interface {
 	GetDirectoryUser(ctx context.Context, aadObjectID string) (DirectoryUser, error)
 	GetDirectoryUserByConversation(ctx context.Context, conversationID string) (DirectoryUser, error)
 	GetGroup(ctx context.Context, id string) (UserGroup, error)
+	GetPermission(ctx context.Context, id string) (Permission, error)
 	GetRecipient(ctx context.Context, id string) (Recipient, error)
 	// GetRecipientByConversation resolves the chat an inbound activity came from
 	// back to the person it belongs to. Ordered and limited rather than assuming
@@ -208,6 +212,8 @@ type Querier interface {
 	ListGrants(ctx context.Context) ([]Grant, error)
 	ListGroupMembers(ctx context.Context, groupID string) ([]UserGroupMember, error)
 	ListGroups(ctx context.Context) ([]UserGroup, error)
+	ListPermissions(ctx context.Context) ([]Permission, error)
+	ListPermissionsForResource(ctx context.Context, arg ListPermissionsForResourceParams) ([]Permission, error)
 	ListRecipients(ctx context.Context) ([]Recipient, error)
 	ListRoutes(ctx context.Context) ([]Route, error)
 	ListTemplates(ctx context.Context) ([]Template, error)
@@ -310,6 +316,8 @@ type Querier interface {
 	// database each contribute what they saw. last_seen only moves forward, so a
 	// replica with a slow clock cannot make a key look older than it is.
 	UpsertEventSample(ctx context.Context, arg UpsertEventSampleParams) error
+	// One row per principal and resource: granting again replaces the actions.
+	UpsertPermission(ctx context.Context, arg UpsertPermissionParams) (Permission, error)
 	UpsertSetting(ctx context.Context, arg UpsertSettingParams) error
 	// A sign-in refreshes what the provider says; first_seen and the disabled
 	// state are kept.

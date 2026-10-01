@@ -749,3 +749,45 @@ func (p pgQueries) AddGroupMember(ctx context.Context, arg sqlitedb.AddGroupMemb
 func (p pgQueries) RemoveGroupMember(ctx context.Context, arg sqlitedb.RemoveGroupMemberParams) (int64, error) {
 	return p.q.RemoveGroupMember(ctx, pgdb.RemoveGroupMemberParams(arg))
 }
+
+// Permissions (ADR 0075).
+
+func (p pgQueries) ListPermissions(ctx context.Context) ([]sqlitedb.Permission, error) {
+	rows, err := p.q.ListPermissions(ctx)
+	return convertPermissions(rows), err
+}
+
+func (p pgQueries) ListPermissionsForResource(ctx context.Context, arg sqlitedb.ListPermissionsForResourceParams) ([]sqlitedb.Permission, error) {
+	rows, err := p.q.ListPermissionsForResource(ctx, pgdb.ListPermissionsForResourceParams(arg))
+	return convertPermissions(rows), err
+}
+
+func convertPermissions(rows []pgdb.Permission) []sqlitedb.Permission {
+	out := make([]sqlitedb.Permission, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, sqlitedb.Permission(row))
+	}
+	return out
+}
+
+func (p pgQueries) GetPermission(ctx context.Context, id string) (sqlitedb.Permission, error) {
+	row, err := p.q.GetPermission(ctx, id)
+	return sqlitedb.Permission(row), err
+}
+
+func (p pgQueries) UpsertPermission(ctx context.Context, arg sqlitedb.UpsertPermissionParams) (sqlitedb.Permission, error) {
+	row, err := p.q.UpsertPermission(ctx, pgdb.UpsertPermissionParams(arg))
+	return sqlitedb.Permission(row), err
+}
+
+func (p pgQueries) DeletePermission(ctx context.Context, id string) (int64, error) {
+	return p.q.DeletePermission(ctx, id)
+}
+
+func (p pgQueries) DeletePermissionsForResource(ctx context.Context, arg sqlitedb.DeletePermissionsForResourceParams) error {
+	return p.q.DeletePermissionsForResource(ctx, pgdb.DeletePermissionsForResourceParams(arg))
+}
+
+func (p pgQueries) DeletePermissionsForPrincipal(ctx context.Context, arg sqlitedb.DeletePermissionsForPrincipalParams) error {
+	return p.q.DeletePermissionsForPrincipal(ctx, pgdb.DeletePermissionsForPrincipalParams(arg))
+}

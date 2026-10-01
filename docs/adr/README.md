@@ -26,7 +26,7 @@ Architectural decisions are recorded here, one file per decision, in
 | [0009](0009-admin-authentication.md) | Admin authentication by Keycloak login or local credentials | Accepted |
 | [0010](0010-message-shape.md) | A template decides the title, text and card of a message | Superseded by 0028 |
 | [0011](0011-nested-routes.md) | Routes form a tree and an alert can fan out | Accepted |
-| [0012](0012-role-based-authorization.md) | Roles are authorized with Cedar, evaluated in-process | Accepted |
+| [0012](0012-role-based-authorization.md) | Roles are authorized with Cedar, evaluated in-process | Accepted, extended by [0075](0075-own-and-share-records-through-generated-policies.md) |
 | [0013](0013-configuration-transfer.md) | Configuration moves as a versioned JSON bundle | Accepted |
 | [0014](0014-card-editor.md) | Better JSON editing instead of a card designer | Accepted |
 | [0015](0015-localizable-ui.md) | The UI's text lives in per-language catalogs | Accepted |
@@ -89,3 +89,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0072](0072-remember-who-signed-in.md) | Remember who signed in, and let an admin disable them | Accepted |
 | [0073](0073-authorize-from-a-versioned-policy-snapshot.md) | Authorize from a versioned policy snapshot | Accepted |
 | [0074](0074-local-groups-and-provider-groups.md) | Local groups, with provider groups as members | Accepted |
+| [0075](0075-own-and-share-records-through-generated-policies.md) | Own and share records through generated Cedar policies | Accepted |

@@ -437,3 +437,44 @@ func TestGroupChangesAreRecordedInTheirTransaction(t *testing.T) {
 		}
 	})
 }
+
+func TestPermissionChangesAreRecorded(t *testing.T) {
+	t.Parallel()
+
+	st, inner := audited(t)
+	ctx := WithActor(t.Context(), models.Actor{Subject: "alice", Via: models.ViaSession})
+	grant := models.Permission{PrincipalType: models.PrincipalUser, PrincipalID: "bob", ResourceType: "Template", ResourceID: "t1", Actions: []string{"read"}}
+	p, err := st.PutPermission(ctx, grant)
+	must(t, err)
+	grant.Actions = []string{"read", "update"}
+	_, err = st.PutPermission(ctx, grant)
+	must(t, err)
+	must(t, st.DeletePermission(ctx, p.ID))
+	// Revoking what is not there records nothing.
+	grant.Actions = nil
+	_, err = st.PutPermission(ctx, grant)
+	must(t, err)
+	grant.Actions = []string{"own"}
+	_, err = st.PutPermission(ctx, grant)
+	must(t, err)
+	grant.Actions = nil
+	_, err = st.PutPermission(ctx, grant)
+	must(t, err)
+	_, err = st.PutPermission(ctx, models.Permission{PrincipalType: models.PrincipalGroup, PrincipalID: "g", ResourceType: "Template", ResourceID: "t1", Actions: []string{"read"}})
+	must(t, err)
+	must(t, st.DeletePermissionsFor(ctx, "Template", "t1"))
+	must(t, st.DeletePermissionsFor(ctx, "Template", "t1"))
+	if err := st.DeletePermission(ctx, "missing"); !errors.Is(err, store.ErrNotFound) {
+		t.Errorf("deleting a missing permission = %v", err)
+	}
+
+	checkTrail(t, trail(t, inner), "principal_id", []step{
+		{"permission.grant", "Template", nil, "bob"},
+		{"permission.grant", "Template", "bob", "bob"},
+		{"permission.revoke", "Template", "bob", nil},
+		{"permission.grant", "Template", nil, "bob"},
+		{"permission.revoke", "Template", "bob", nil},
+		{"permission.grant", "Template", nil, "g"},
+		{"permission.revoke", "Template", nil, nil},
+	})
+}

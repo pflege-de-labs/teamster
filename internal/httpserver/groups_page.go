@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -37,13 +38,21 @@ func groupError(err error) error {
 }
 
 func (s *Server) saveGroup(r *http.Request, g models.Group) (models.Group, error) {
+	if err := s.mayRecord(r, writeAction(g.ID), typeGroup, g.ID); err != nil {
+		return models.Group{}, err
+	}
 	g.Name = strings.TrimSpace(g.Name)
 	if g.Name == "" || utf8.RuneCountInString(g.Name) > maxGroupNameLength {
 		return models.Group{}, userError{errGroupName}
 	}
 	if g.ID == "" {
 		g.CreatedBy = principalSubject(r)
-		created, err := s.store.CreateGroup(r.Context(), g)
+		var created models.Group
+		err := s.createOwned(r.Context(), r, typeGroup, func(ctx context.Context, tx store.Store) (string, error) {
+			var err error
+			created, err = tx.CreateGroup(ctx, g)
+			return created.ID, err
+		})
 		return created, groupError(err)
 	}
 	updated, err := s.store.UpdateGroup(r.Context(), g)
@@ -68,7 +77,7 @@ func (s *Server) handleGroupsPage(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	page := views.Groups{
 		Viewer:  s.viewerFor(r),
-		CanEdit: s.allow(r, authz.ActionEdit, authz.Resource{Type: "Group"}),
+		CanEdit: s.allow(r, authz.ActionCreate, authz.Resource{Type: typeGroup}),
 		Notice:  query.Get("notice"),
 		Error:   query.Get("error"),
 	}
@@ -76,9 +85,9 @@ func (s *Server) handleGroupsPage(w http.ResponseWriter, r *http.Request) {
 	if err != nil && page.Error == "" {
 		page.Error = failureText(ctx, "list groups", err)
 	}
-	page.Groups = groups
+	page.Groups = readable(s, r, typeGroup, groups, groupID)
 
-	if id := query.Get("id"); id != "" {
+	if id := query.Get("id"); id != "" && s.can(r, authz.ActionRead, typeGroup, id) {
 		detail, err := s.groupDetail(r, id, groups)
 		switch {
 		case isNotFound(err):
@@ -87,6 +96,11 @@ func (s *Server) handleGroupsPage(w http.ResponseWriter, r *http.Request) {
 			page.Error = failureText(ctx, "load group", err)
 		case err == nil:
 			page.Selected = &detail
+			page.Selected.CanEdit = s.can(r, authz.ActionUpdate, typeGroup, id)
+			page.Selected.CanDelete = s.can(r, authz.ActionDelete, typeGroup, id)
+			if page.Selected.Sharing, err = s.sharingFor(r, typeGroup, id, "/admin/groups?id="+urlQueryEscape(id)); err != nil {
+				page.Error = failureText(ctx, "load sharing", err)
+			}
 		}
 	}
 
@@ -171,6 +185,9 @@ func (s *Server) handleGroupSave(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) deleteGroupForm(r *http.Request) (string, error) {
+	if err := s.mayRecord(r, authz.ActionDelete, typeGroup, r.PostFormValue("id")); err != nil {
+		return "", err
+	}
 	if err := s.store.DeleteGroup(r.Context(), r.PostFormValue("id")); err != nil {
 		return "", groupError(err)
 	}
@@ -183,7 +200,11 @@ func (s *Server) handleGroupMemberForm(add bool) http.HandlerFunc {
 		if !formGuard(target, w, r) {
 			return
 		}
-		m, err := memberFrom(r.PostFormValue("group_id"), r.PostFormValue("type"), r.PostFormValue("member"), principalSubject(r))
+		err := s.mayRecord(r, authz.ActionUpdate, typeGroup, r.PostFormValue("group_id"))
+		var m models.GroupMember
+		if err == nil {
+			m, err = memberFrom(r.PostFormValue("group_id"), r.PostFormValue("type"), r.PostFormValue("member"), principalSubject(r))
+		}
 		if err == nil {
 			if add {
 				err = s.store.AddGroupMember(r.Context(), m)
@@ -219,9 +240,7 @@ func (s *Server) handleGroupsAPI(w http.ResponseWriter, r *http.Request) {
 			writeError(w, r, http.StatusInternalServerError, err)
 			return
 		}
-		if groups == nil {
-			groups = []models.Group{}
-		}
+		groups = readable(s, r, typeGroup, groups, groupID)
 		writeJSON(w, http.StatusOK, groups)
 	case http.MethodPost:
 		var g models.Group
@@ -243,6 +262,14 @@ func (s *Server) handleGroupByID(w http.ResponseWriter, r *http.Request) {
 	id, sub, _ := strings.Cut(rest, "/")
 	if id == "" || (sub != "" && sub != "members") {
 		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	action := recordAction(r.Method)
+	if sub == "members" {
+		action = authz.ActionUpdate
+	}
+	if err := s.mayRecord(r, action, typeGroup, id); err != nil {
+		writeRecordError(w, r, err)
 		return
 	}
 	if sub == "members" {
@@ -322,6 +349,8 @@ func writeGroupResult(w http.ResponseWriter, r *http.Request, status int, g mode
 	switch {
 	case err == nil:
 		writeJSON(w, status, g)
+	case errors.Is(err, errNotAllowed):
+		writeError(w, r, http.StatusForbidden, err)
 	case errors.Is(err, errGroupNameTaken), errors.Is(err, store.ErrGroupCycle):
 		writeError(w, r, http.StatusConflict, err)
 	case errors.Is(err, errNoSuchGroup):

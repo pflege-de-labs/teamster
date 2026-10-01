@@ -78,6 +78,15 @@ func (s queryAdapter) DeleteGroup(ctx context.Context, id string) error {
 	if n == 0 {
 		return ErrNotFound
 	}
+	// What the group held and what was held on it go with it.
+	if err := s.q.DeletePermissionsForPrincipal(ctx, sqlitedb.DeletePermissionsForPrincipalParams{
+		PrincipalType: string(models.PrincipalGroup), PrincipalID: id,
+	}); err != nil {
+		return fmt.Errorf("delete the group's permissions: %w", err)
+	}
+	if err := s.q.DeletePermissionsForResource(ctx, sqlitedb.DeletePermissionsForResourceParams{ResourceType: "Group", ResourceID: id}); err != nil {
+		return fmt.Errorf("delete permissions on the group: %w", err)
+	}
 	return s.BumpAuthzGeneration(ctx)
 }
 

@@ -71,15 +71,17 @@ type sampler interface {
 }
 
 type Server struct {
-	log        *slog.Logger
-	cfg        config.Config
-	store      store.Store
-	graph      messenger
-	bot        botSender
-	channels   ChannelTransport
-	router     *routing.Router
-	draining   atomic.Bool
-	engine     *authz.Engine
+	log      *slog.Logger
+	cfg      config.Config
+	store    store.Store
+	graph    messenger
+	bot      botSender
+	channels ChannelTransport
+	router   *routing.Router
+	draining atomic.Bool
+	engine   *authz.Engine
+	// unchecked counts deferred requests answered without a record check.
+	unchecked  atomic.Int64
 	metrics    telemetry
 	text       *i18n.Bundle
 	directory  *directoryCache
@@ -281,6 +283,10 @@ func NewServer(logger *slog.Logger, cfg config.Config, store store.Store, graphC
 	adminMux.HandleFunc("/admin/webhooks", api.handleWebhookForm)
 	adminMux.HandleFunc("/admin/webhooks/rotate", api.handleWebhookRotate)
 	adminMux.HandleFunc("/admin/webhooks/delete", api.formPost("webhooks", api.deleteWebhookEndpoint))
+	adminMux.HandleFunc("/admin/sharing/grant", api.handleShareForm)
+	adminMux.HandleFunc("/admin/sharing/revoke", api.handleUnshareForm)
+	adminMux.HandleFunc("/api/sharing", api.handleSharingAPI)
+	adminMux.HandleFunc("/api/sharing/", api.handleSharingAPI)
 	adminMux.HandleFunc("/admin/groups", api.handleGroupsPage)
 	adminMux.HandleFunc("/admin/groups/save", api.handleGroupSave)
 	adminMux.HandleFunc("/admin/groups/delete", api.formPostTo("/admin/groups", api.deleteGroupForm))

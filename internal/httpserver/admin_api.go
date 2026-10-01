@@ -1,11 +1,13 @@
 package httpserver
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
 	"strings"
 
+	"github.com/pflege-de-labs/teamster/internal/authz"
 	"github.com/pflege-de-labs/teamster/internal/models"
 	"github.com/pflege-de-labs/teamster/internal/store"
 	"github.com/pflege-de-labs/teamster/internal/templates"
@@ -20,8 +22,12 @@ func (s *Server) handleTemplates(w http.ResponseWriter, r *http.Request) {
 			writeError(w, r, http.StatusInternalServerError, err)
 			return
 		}
-		writeJSON(w, http.StatusOK, items)
+		writeJSON(w, http.StatusOK, readable(s, r, typeTemplate, items, templateID))
 	case http.MethodPost:
+		if err := s.mayRecord(r, authz.ActionCreate, typeTemplate, ""); err != nil {
+			writeRecordError(w, r, err)
+			return
+		}
 		var t models.Template
 		if err := json.NewDecoder(r.Body).Decode(&t); err != nil {
 			writeJSONError(w, http.StatusBadRequest, "invalid JSON")
@@ -31,7 +37,7 @@ func (s *Server) handleTemplates(w http.ResponseWriter, r *http.Request) {
 			writeError(w, r, http.StatusBadRequest, err)
 			return
 		}
-		created, err := s.store.CreateTemplate(ctx, t)
+		created, err := s.createTemplate(r, t)
 		if err != nil {
 			writeError(w, r, http.StatusInternalServerError, err)
 			return
@@ -47,6 +53,10 @@ func (s *Server) handleTemplateByID(w http.ResponseWriter, r *http.Request) {
 	id := strings.TrimPrefix(r.URL.Path, "/api/templates/")
 	if id == "" {
 		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	if err := s.mayRecord(r, recordAction(r.Method), typeTemplate, id); err != nil {
+		writeRecordError(w, r, err)
 		return
 	}
 
@@ -80,7 +90,9 @@ func (s *Server) handleTemplateByID(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, http.StatusOK, updated)
 	case http.MethodDelete:
-		if err := s.store.DeleteTemplate(ctx, id); err != nil {
+		if err := s.deleteOwned(ctx, typeTemplate, id, func(ctx context.Context, tx store.Store) error {
+			return tx.DeleteTemplate(ctx, id)
+		}); err != nil {
 			writeError(w, r, http.StatusInternalServerError, err)
 			return
 		}
@@ -99,13 +111,17 @@ func (s *Server) handleDestinations(w http.ResponseWriter, r *http.Request) {
 			writeError(w, r, http.StatusInternalServerError, err)
 			return
 		}
-		visible, err := s.visibleDestinations(r, items)
+		visible, err := s.listDestinations(r, items)
 		if err != nil {
 			writeError(w, r, http.StatusInternalServerError, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, visible)
 	case http.MethodPost:
+		if err := s.mayRecord(r, authz.ActionCreate, typeDestination, ""); err != nil {
+			writeRecordError(w, r, err)
+			return
+		}
 		var d models.Destination
 		if err := json.NewDecoder(r.Body).Decode(&d); err != nil {
 			writeJSONError(w, http.StatusBadRequest, "invalid JSON")
@@ -118,7 +134,7 @@ func (s *Server) handleDestinations(w http.ResponseWriter, r *http.Request) {
 			writeError(w, r, http.StatusForbidden, errDeliveryRefused)
 			return
 		}
-		created, err := s.store.CreateDestination(ctx, d)
+		created, err := s.createDestination(r, d)
 		if err != nil {
 			writeError(w, r, http.StatusInternalServerError, err)
 			return
@@ -138,6 +154,10 @@ func (s *Server) handleDestinationByID(w http.ResponseWriter, r *http.Request) {
 	}
 	if base, ok := strings.CutSuffix(id, "/default"); ok {
 		s.handleDefaultDestination(w, r, base)
+		return
+	}
+	if err := s.mayRecord(r, recordAction(r.Method), typeDestination, id); err != nil {
+		writeRecordError(w, r, err)
 		return
 	}
 
@@ -160,7 +180,7 @@ func (s *Server) handleDestinationByID(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		d.ID = id
-		if allowed, err := s.mayDeliverTo(r, d.TeamID, d.ChannelID); err != nil {
+		if allowed, err := s.mayRepointDestination(r, d); err != nil {
 			writeError(w, r, http.StatusInternalServerError, err)
 			return
 		} else if !allowed {
@@ -174,7 +194,9 @@ func (s *Server) handleDestinationByID(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, http.StatusOK, updated)
 	case http.MethodDelete:
-		if err := s.store.DeleteDestination(ctx, id); err != nil {
+		if err := s.deleteOwned(ctx, typeDestination, id, func(ctx context.Context, tx store.Store) error {
+			return tx.DeleteDestination(ctx, id)
+		}); err != nil {
 			status := http.StatusInternalServerError
 			if errors.Is(err, store.ErrDefaultDestination) {
 				status = http.StatusConflict
@@ -220,7 +242,7 @@ func writeRouteError(w http.ResponseWriter, r *http.Request, err error) {
 // writeRouteRefusal answers a route write whose targets were refused with a
 // 403, and a failure to check them with a 500.
 func writeRouteRefusal(w http.ResponseWriter, r *http.Request, err error) {
-	if errors.Is(err, errDeliveryRefused) || errors.Is(err, errRecipientRefused) {
+	if errors.Is(err, errDeliveryRefused) || errors.Is(err, errRecipientRefused) || errors.Is(err, errTemplateRefused) {
 		writeError(w, r, http.StatusForbidden, err)
 		return
 	}
@@ -236,8 +258,12 @@ func (s *Server) handleRoutes(w http.ResponseWriter, r *http.Request) {
 			writeError(w, r, http.StatusInternalServerError, err)
 			return
 		}
-		writeJSON(w, http.StatusOK, items)
+		writeJSON(w, http.StatusOK, readable(s, r, typeRoute, items, routeID))
 	case http.MethodPost:
+		if err := s.mayRecord(r, authz.ActionCreate, typeRoute, ""); err != nil {
+			writeRecordError(w, r, err)
+			return
+		}
 		var rt models.Route
 		if err := json.NewDecoder(r.Body).Decode(&rt); err != nil {
 			writeJSONError(w, http.StatusBadRequest, "invalid JSON")
@@ -247,7 +273,7 @@ func (s *Server) handleRoutes(w http.ResponseWriter, r *http.Request) {
 			writeRouteRefusal(w, r, err)
 			return
 		}
-		created, err := s.saveRouteChecked(ctx, rt)
+		created, err := s.saveRouteChecked(r, rt)
 		if err != nil {
 			writeRouteError(w, r, err)
 			return
@@ -263,6 +289,10 @@ func (s *Server) handleRouteByID(w http.ResponseWriter, r *http.Request) {
 	id := strings.TrimPrefix(r.URL.Path, "/api/routes/")
 	if id == "" {
 		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	if err := s.mayRecord(r, recordAction(r.Method), typeRoute, id); err != nil {
+		writeRecordError(w, r, err)
 		return
 	}
 
@@ -289,7 +319,7 @@ func (s *Server) handleRouteByID(w http.ResponseWriter, r *http.Request) {
 			writeRouteRefusal(w, r, err)
 			return
 		}
-		updated, err := s.saveRouteChecked(ctx, rt)
+		updated, err := s.saveRouteChecked(r, rt)
 		if err != nil {
 			writeRouteError(w, r, err)
 			return
