@@ -88,7 +88,9 @@ the binary already searches — and the SQLite file lives in the `/data` volume.
 [ADR 0004](adr/0004-container-image.md).
 
 Images are published to `ghcr.io/<owner>/<repo>` for `linux/amd64` and `linux/arm64`. Every CI
-build is tagged with its short commit sha, and branches and pull requests get moving tags
+build is tagged with its short commit sha. The binary inside reports
+`git describe --tags --always --match 'v[0-9]*'` of that commit as its version, which names the
+last release and the distance from it. Branches and pull requests get moving tags
 ([ADR 0005](adr/0005-image-tagging-and-promotion.md)).
 
 Every image pushed from `main`, and every release image, is scanned with Trivy and the findings

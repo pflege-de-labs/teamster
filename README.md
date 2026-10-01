@@ -1369,7 +1369,7 @@ curl -s -H 'Accept: application/vnd.google.protobuf;proto=io.prometheus.client.M
 ## Container
 
 ```bash
-make image                       # builds teamster:<version>
+make image                       # builds teamster:<short-sha>, the binary reporting git describe
 ```
 
 CI publishes images to `ghcr.io/pflege-de-labs/teamster`:
@@ -1383,7 +1383,9 @@ CI publishes images to `ghcr.io/pflege-de-labs/teamster`:
 | `pr-<n>` | the newest build of that pull request |
 
 A release rebuilds from its tag, so the release tags share one digest of their own and the binary
-inside reports the version rather than a commit sha. Use a `<short-sha>` tag to deploy an exact
+inside reports the version. A CI image is still tagged with the short commit sha, but the binary
+inside reports `git describe --tags --always --match 'v[0-9]*'`, such as `v0.10.0-3-gabc1234`: the
+last release, how many commits past it, and the commit. Use a `<short-sha>` tag to deploy an exact
 CI build.
 
 Every `main` build and every release is scanned with Trivy and the findings are reported to

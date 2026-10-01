@@ -63,6 +63,9 @@ reasoning behind it in the [ADRs](docs/adr/).
 * Authorization reads a versioned policy snapshot. Who may do what is unchanged, but if the database
   cannot be read, admin and API requests are now refused with `503`
   ([ADR 0073](docs/adr/0073-authorize-from-a-versioned-policy-snapshot.md)).
+* The binary in a CI image reports `git describe --tags --always` as its version, such as
+  `v0.10.0-3-gabc1234`, instead of the bare commit sha. The image is still tagged with the short
+  sha, and releases still report their tag.
 
 ### Fixed
 
