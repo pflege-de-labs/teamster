@@ -27,6 +27,9 @@ reasoning behind it in the [ADRs](docs/adr/).
   its `/` menu with every app, so `/status` collided with other apps' commands. Typing `/status`
   still works. Upload the app package with a higher `version` to update the command menu
   ([ADR 0068](docs/adr/0068-commands-are-words-addressed-to-the-bot.md)).
+* The binary in a CI image reports `git describe --tags --always` as its version, such as
+  `v0.10.0-3-gabc1234`, instead of the bare commit sha. The image is still tagged with the short
+  sha, and releases still report their tag.
 
 ### Fixed
 

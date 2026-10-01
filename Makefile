@@ -11,7 +11,10 @@ BINARY       ?= bin/teamster
 IMAGE        ?= teamster
 CHART        ?= charts/teamster
 CONTAINER_TOOL ?= $(shell command -v docker >/dev/null 2>&1 && echo docker || echo podman)
-VERSION      ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+# --match skips the chart's teamster-X.Y.Z tags; the version is the application's.
+VERSION      ?= $(shell git describe --tags --always --dirty --match 'v[0-9]*' 2>/dev/null || echo dev)
+# Images are tagged by commit, as CI tags them; VERSION is what the binary reports.
+IMAGE_TAG    ?= $(shell git rev-parse --short=7 HEAD 2>/dev/null || echo dev)
 
 .PHONY: all build run test test-postgres db-up db-down coverage coverage-html fmt lint tidy hooks tools generate icons manifest preview-manifest vendor vendor-record image image-run chart-lint clean
 
@@ -163,14 +166,14 @@ chart-lint:
 	@scripts/check-chart-render.sh $(CHART)
 
 image:
-	$(CONTAINER_TOOL) build --build-arg VERSION=$(VERSION) -t $(IMAGE):$(VERSION) -t $(IMAGE):latest .
+	$(CONTAINER_TOOL) build --build-arg VERSION=$(VERSION) -t $(IMAGE):$(IMAGE_TAG) -t $(IMAGE):latest .
 
 # Mounts ./config.yaml as the system-wide XDG config the container looks for.
 image-run: image
 	$(CONTAINER_TOOL) run --rm -p 8080:8080 \
 		-v $(CURDIR)/config.yaml:/etc/xdg/teamster/config.yaml:ro \
 		-v teamster-data:/data \
-		$(IMAGE):$(VERSION)
+		$(IMAGE):$(IMAGE_TAG)
 
 clean:
 	rm -rf bin $(COVERAGE_OUT) $(COVERAGE_OUT).raw coverage.html

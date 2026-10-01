@@ -159,6 +159,9 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # The tags, so the version names its distance from the last release.
+          fetch-depth: 0
 
       # Pull requests from forks get no registry credentials, so they build only.
       - name: Decide whether the image can be pushed
@@ -177,7 +180,11 @@ jobs:
         id: commit
         env:
           SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: echo "short_sha=${SHA:0:7}" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "short_sha=${SHA:0:7}" >> "$GITHUB_OUTPUT"
+          # What the binary reports, e.g. v0.10.0-3-gabc1234: the last release and how far past it.
+          # --match skips the chart's teamster-X.Y.Z tags.
+          echo "describe=$(git describe --tags --always --match 'v[0-9]*' "$SHA")" >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
 
@@ -211,7 +218,7 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: ${{ steps.push.outputs.enabled == 'true' }}
           build-args: |
-            VERSION=${{ steps.commit.outputs.short_sha }}
+            VERSION=${{ steps.commit.outputs.describe }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           annotations: ${{ steps.meta.outputs.annotations }}
