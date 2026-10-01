@@ -13,7 +13,7 @@ CHART        ?= charts/teamster
 CONTAINER_TOOL ?= $(shell command -v docker >/dev/null 2>&1 && echo docker || echo podman)
 VERSION      ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 
-.PHONY: all build run test test-postgres db-up db-down coverage coverage-html fmt lint tidy hooks tools generate icons manifest vendor vendor-record image image-run chart-lint clean
+.PHONY: all build run test test-postgres db-up db-down coverage coverage-html fmt lint tidy hooks tools generate icons manifest preview-manifest vendor vendor-record image image-run chart-lint clean
 
 # The admin UI wears logo 1; logo 2 is the README header.
 ICON_SOURCE := images/favicons/logo-teamster-1
@@ -74,6 +74,14 @@ manifest:
 	case "$$version" in 0*) echo "manifest version $$version must not start with 0; Teams rejects it" >&2; exit 1 ;; esac; \
 	cd manifest && rm -f teamster-bot-$$version.zip && \
 	zip -j teamster-bot-$$version.zip manifest.json color.png outline.png
+
+preview-manifest:
+	@test -f manifest/preview/manifest.json || { echo "manifest/preview/manifest.json missing: copy manifest-template.json and fill it in" >&2; exit 1; }
+	@version=$$(grep -o '"version": *"[^"]*"' manifest/preview/manifest.json | head -1 | cut -d'"' -f4); \
+	test -n "$$version" || { echo "no version in manifest/preview/manifest.json" >&2; exit 1; }; \
+	case "$$version" in 0*) echo "manifest version $$version must not start with 0; Teams rejects it" >&2; exit 1 ;; esac; \
+	cd manifest/preview && rm -f teamster-bot-preview-$$version.zip && \
+	zip -j teamster-bot-preview-$$version.zip manifest.json color.png outline.png
 
 # The browser libraries under web/vendor are committed too, and nothing short
 # of a download and a hash proves the bytes are the version manifest.json
