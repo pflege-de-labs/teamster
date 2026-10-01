@@ -14,15 +14,8 @@ Every milestone works within the [constraints in the architecture](architecture.
 ## Milestone 20 — Talking to the bot
 
 Commands in the personal chat shipped in 0.8.0
-([ADR 0048](adr/0048-bot-answers-commands-in-the-personal-chat.md)).
-
-### 20.2 Commands in a team channel
-
-Accept `message` activities in team channels. Teams delivers these only when the bot is
-@mentioned. This supersedes the "never takes commands" part of
-[ADR 0045](adr/0045-channel-delivery-through-the-bot.md), so it needs its own ADR. `help` and
-`status` in a channel answer for that channel: its destinations, the routes into it, and whether
-the team is recorded in `bot_teams`.
+([ADR 0048](adr/0048-bot-answers-commands-in-the-personal-chat.md)). Commands in team channels
+followed ([ADR 0069](adr/0069-the-bot-answers-commands-in-team-channels.md)).
 
 ### 20.3 `route key=value,…`
 

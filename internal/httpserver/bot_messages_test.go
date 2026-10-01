@@ -87,6 +87,7 @@ type botFixture struct {
 	handler   http.Handler
 	store     *fakeStore
 	botClient *fakeBotClient
+	channels  *fakeMessenger
 	token     string
 }
 
@@ -105,6 +106,7 @@ func newBotFixtureWith(t *testing.T, configure func(*config.BotConfig)) *botFixt
 
 	st := newFakeStore()
 	botClient := &fakeBotClient{}
+	channels := &fakeMessenger{}
 
 	cfg := config.Config{
 		Server:  config.ServerConfig{Addr: ":0"},
@@ -115,7 +117,7 @@ func newBotFixtureWith(t *testing.T, configure func(*config.BotConfig)) *botFixt
 	if configure != nil {
 		configure(&cfg.Bot)
 	}
-	srv, err := NewServer(quietLog, cfg, st, &fakeMessenger{}, botClient, &fakeMessenger{}, newRecordingTelemetry(), nil)
+	srv, err := NewServer(quietLog, cfg, st, &fakeMessenger{}, botClient, channels, newRecordingTelemetry(), nil)
 	if err != nil {
 		t.Fatalf("NewServer: %v", err)
 	}
@@ -140,7 +142,7 @@ func newBotFixtureWith(t *testing.T, configure func(*config.BotConfig)) *botFixt
 	priming["membersAdded"] = []map[string]any{{"id": "29:priming-only", "name": "Priming"}}
 	postBotMessage(srv.Handler, marshalActivity(t, priming), "Bearer "+token)
 
-	return &botFixture{handler: srv.Handler, store: st, botClient: botClient, token: token}
+	return &botFixture{handler: srv.Handler, store: st, botClient: botClient, channels: channels, token: token}
 }
 
 func (f *botFixture) post(t *testing.T, fields map[string]any) *httptest.ResponseRecorder {

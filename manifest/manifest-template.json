@@ -40,6 +40,14 @@
             { "title": "test", "description": "Send a test alert to this chat" },
             { "title": "unlink", "description": "Stop alerts arriving in this chat" }
           ]
+        },
+        {
+          "scopes": ["team"],
+          "commands": [
+            { "title": "help", "description": "List what the bot can do in a channel" },
+            { "title": "status", "description": "Show which routes post to this channel" },
+            { "title": "test", "description": "Post a test alert to this channel" }
+          ]
         }
       ]
     }

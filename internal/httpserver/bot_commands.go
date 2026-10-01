@@ -202,14 +202,18 @@ func (s *Server) sendTestAlert(ctx context.Context, activity botActivity) {
 		return
 	}
 
-	// A source the store knows: an unknown one fails the default-template lookup.
-	alert := models.Event{
-		Source: models.SourceUniversal, Labels: map[string]string{"alertname": "TeamsterTest"},
-		Title: testTitle, Text: testText,
-	}
 	delivery := routing.Delivery{Kind: routing.DeliveryRecipient, RecipientID: recipient.ID, RouteName: "bot /test"}
-	if err := s.deliverToRecipientOnce(ctx, alert, delivery); err != nil {
+	if err := s.deliverToRecipientOnce(ctx, testEvent(), delivery); err != nil {
 		// If the send itself failed this reply likely fails too; the log has both.
 		s.replyText(ctx, activity, failureText(ctx, "bot test", err))
+	}
+}
+
+// testEvent is what test sends. Its source is one the store knows: an unknown
+// one fails the default-template lookup.
+func testEvent() models.Event {
+	return models.Event{
+		Source: models.SourceUniversal, Labels: map[string]string{"alertname": "TeamsterTest"},
+		Title: testTitle, Text: testText,
 	}
 }

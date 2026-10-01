@@ -254,6 +254,13 @@ is read as a link code. If `test` gets no answer at all, the bot cannot send: ch
 `bot reply` and `bot test` lines in the log, and that `bot.tenant-type` matches the bot
 registration.
 
+In a team channel where the app is installed, mention the bot: `@Teamster help`,
+`@Teamster status` or `@Teamster test`. There, `status` shows the destinations naming that
+channel and the routes posting to them, and `test` posts a test alert to the channel. Both
+need a destination for the channel under **Destinations**. The answer arrives in the thread of
+your message. Group chats are not supported
+([ADR 0069](docs/adr/0069-the-bot-answers-commands-in-team-channels.md)).
+
 #### Leaving
 
 Three ways out, and the two new ones need no admin UI at all:

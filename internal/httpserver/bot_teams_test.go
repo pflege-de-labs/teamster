@@ -46,8 +46,6 @@ func TestBotTeamEvents(t *testing.T) {
 		{name: "removed as a member", seeded: true, activity: teamActivity("conversationUpdate", map[string]any{"membersRemoved": []map[string]any{{"id": botID}}})},
 		{name: "team deleted", seeded: true, activity: teamActivity("conversationUpdate", map[string]any{"eventType": "teamDeleted"})},
 		{name: "another member leaving keeps the install", seeded: true, activity: teamActivity("conversationUpdate", map[string]any{"membersRemoved": []map[string]any{{"id": "29:bob"}}}), wantTeam: true},
-		// Commands stay personal: a mention in a channel is not read.
-		{name: "a message in a channel is ignored", activity: teamActivity("message", nil)},
 	}
 
 	for _, tt := range tests {
