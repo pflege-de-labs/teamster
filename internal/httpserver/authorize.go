@@ -2,8 +2,11 @@ package httpserver
 
 import (
 	"context"
+	"errors"
 	"net/http"
+	"slices"
 	"strings"
+	"sync/atomic"
 
 	"github.com/pflege-de-labs/teamster/internal/audit"
 	"github.com/pflege-de-labs/teamster/internal/authz"
@@ -117,11 +120,28 @@ func (a authzSource) Load(ctx context.Context) (authz.Model, error) {
 	if err != nil {
 		return authz.Model{}, err
 	}
-	model := authz.Model{Members: make([]authz.Membership, 0, len(members))}
+	permissions, err := a.store.ListPermissions(ctx)
+	if err != nil {
+		return authz.Model{}, err
+	}
+	model := authz.Model{
+		Members: make([]authz.Membership, 0, len(members)),
+		Grants:  make([]authz.Grant, 0, len(permissions)),
+	}
 	for _, m := range members {
 		model.Members = append(model.Members, authz.Membership{Group: m.GroupID, Kind: string(m.Type), ID: m.ID})
 	}
+	for _, p := range permissions {
+		model.Grants = append(model.Grants, grantOf(p))
+	}
 	return model, nil
+}
+
+func grantOf(p models.Permission) authz.Grant {
+	return authz.Grant{
+		ID: p.ID, PrincipalType: string(p.PrincipalType), PrincipalID: p.PrincipalID,
+		ResourceType: p.ResourceType, ResourceID: p.ResourceID, Actions: p.Actions,
+	}
 }
 
 // policies is the snapshot authorize resolved for this request, so every check
@@ -157,11 +177,18 @@ func (s *Server) authorize(next http.Handler) http.Handler {
 			return
 		}
 
+		// Someone a record was shared with gets as far as its handler, which
+		// decides about that record (ADR 0075).
+		if recordPath(r) && snapshot.HasGrants(principalFor(r)) {
+			s.serveDeferred(next, w, r)
+			return
+		}
+
 		// A user the provider named no Teamster role for is not looking at a
 		// permissions problem they can read out of a 403 body, so they get a
 		// page that says what to ask for. Roles a deployment defined itself do
 		// not count here: if its own policies refuse, the refusal is the answer.
-		if !authz.HasBuiltin(roles) && isPageRequest(r) {
+		if !authz.HasBuiltin(roles) && isPageRequest(r) && !snapshot.HasGrants(principalFor(r)) {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			w.WriteHeader(http.StatusForbidden)
 			if err := views.NoAccess(viewerOf(r)).Render(r.Context(), w); err != nil {
@@ -177,6 +204,51 @@ func (s *Server) authorize(next http.Handler) http.Handler {
 		}
 		http.Error(w, refusal, http.StatusForbidden)
 	})
+}
+
+// recordPaths are the endpoints whose handlers check the record they touch, so
+// the middleware may leave the decision to them. Derived views -- the routing
+// graph, previews, samples, exports -- are not among them.
+var recordPaths = []string{
+	"/admin",
+	"/admin/templates", "/admin/templates/delete",
+	"/admin/destinations", "/admin/destinations/delete",
+	"/admin/routes", "/admin/routes/delete",
+	"/admin/webhooks", "/admin/webhooks/rotate", "/admin/webhooks/delete",
+	"/admin/groups", "/admin/groups/save", "/admin/groups/delete", "/admin/groups/members/add", "/admin/groups/members/remove",
+	"/admin/sharing/grant", "/admin/sharing/revoke",
+	"/api/templates", "/api/destinations", "/api/routes", "/api/webhooks", "/api/groups", "/api/sharing",
+}
+
+var recordPrefixes = []string{"/api/templates/", "/api/destinations/", "/api/routes/", "/api/webhooks/", "/api/groups/", "/api/sharing/"}
+
+func recordPath(r *http.Request) bool {
+	path := r.URL.Path
+	switch {
+	case path == "/api/templates/preview", path == "/api/templates/source-defaults", path == "/api/routes/global-default",
+		isDefaultDestinationPath(path):
+		return false
+	case slices.Contains(recordPaths, path):
+		return true
+	}
+	for _, prefix := range recordPrefixes {
+		if strings.HasPrefix(path, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+// serveDeferred runs a handler that must check its record itself, and reports
+// one that answered without asking: that is a hole, not a refusal.
+func (s *Server) serveDeferred(next http.Handler, w http.ResponseWriter, r *http.Request) {
+	checked := &atomic.Bool{}
+	rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
+	next.ServeHTTP(rec, r.WithContext(context.WithValue(r.Context(), checkedKey{}, checked)))
+	if rec.status < http.StatusBadRequest && !checked.Load() {
+		s.unchecked.Add(1)
+		logError(r.Context(), "record check", errors.New("a deferred request was answered without a record check: "+r.Method+" "+r.URL.Path))
+	}
 }
 
 // isDefaultDestinationPath is the form and the API endpoint that switch the
@@ -258,6 +330,8 @@ func requestAuthorization(r *http.Request) (string, authz.Resource) {
 	// admin/editor/viewer policies already cover: no new Cedar action.
 	case strings.HasPrefix(path, "/api/recipients"), strings.HasPrefix(path, "/admin/recipients"):
 		resource.Type = "Recipient"
+	case path == "/api/sharing", strings.HasPrefix(path, "/api/sharing/"), strings.HasPrefix(path, "/admin/sharing/"):
+		resource.Type = "Permission"
 	case path == "/api/groups", strings.HasPrefix(path, "/api/groups/"),
 		path == "/admin/groups", strings.HasPrefix(path, "/admin/groups/"):
 		resource.Type = "Group"

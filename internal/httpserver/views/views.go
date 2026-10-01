@@ -119,6 +119,12 @@ type Page struct {
 	// the server refuses the post either way — but showing a viewer a Save
 	// button they cannot use is its own kind of broken.
 	CanEdit bool
+	// CanCreate, Access and Sharing are the per-record answers (ADR 0075):
+	// what may be created, what each listed record may have done to it, and
+	// who may do what with the record being edited.
+	CanCreate map[string]bool
+	Access    map[string]RecordAccess
+	Sharing   *Sharing
 
 	// Viewer is who the page is being rendered for, shown in the header.
 	Viewer Viewer
@@ -621,3 +627,18 @@ func roleNames(ctx context.Context, roles []string) []string {
 	}
 	return names
 }
+
+// RecordAccess is what the page may offer for one listed record.
+type RecordAccess struct {
+	Update bool
+	Delete bool
+}
+
+// AccessKey is how Page.Access is keyed.
+func AccessKey(typ, id string) string { return typ + "/" + id }
+
+func (p Page) mayCreate(typ string) bool { return p.CanCreate[typ] }
+
+func (p Page) mayUpdate(typ, id string) bool { return p.Access[AccessKey(typ, id)].Update }
+
+func (p Page) mayDelete(typ, id string) bool { return p.Access[AccessKey(typ, id)].Delete }

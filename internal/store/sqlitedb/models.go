@@ -161,6 +161,18 @@ type LoginFlow struct {
 	ExpiresAt time.Time
 }
 
+type Permission struct {
+	ID            string
+	PrincipalType string
+	PrincipalID   string
+	ResourceType  string
+	ResourceID    string
+	Actions       string
+	CreatedBy     string
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+}
+
 type Recipient struct {
 	ID             string
 	Subject        string

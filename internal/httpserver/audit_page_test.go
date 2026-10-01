@@ -77,10 +77,15 @@ func TestAuditRecordsWhoChangedWhat(t *testing.T) {
 
 			st.mu.Lock()
 			defer st.mu.Unlock()
-			if len(st.auditEvents) != 1 {
-				t.Fatalf("recorded %d events, want 1", len(st.auditEvents))
+			// The template, and its creator made its owner.
+			byAction := map[string]models.AuditEvent{}
+			for _, e := range st.auditEvents {
+				byAction[e.Action] = e
 			}
-			e := st.auditEvents[0]
+			if len(st.auditEvents) != 2 || byAction["permission.grant"].ResourceType != "Template" {
+				t.Fatalf("recorded %+v, want the create and the owner's grant", st.auditEvents)
+			}
+			e := byAction["template.create"]
 			if e.Before != nil {
 				t.Errorf("a create has a before snapshot: %s", e.Before)
 			}

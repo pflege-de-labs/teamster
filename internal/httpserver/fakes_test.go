@@ -51,6 +51,7 @@ type fakeStore struct {
 	authzGen     int64
 	groups       map[string]models.Group
 	members      []models.GroupMember
+	permissions  map[string]models.Permission
 	// globalDefaultTemplate is the catch-all's template; "" is the built-in one.
 	globalDefaultTemplate string
 	// sourceDefaults maps a source to its default template.
@@ -69,6 +70,7 @@ type fakeStore struct {
 
 func newFakeStore() *fakeStore {
 	return &fakeStore{
+		permissions:    map[string]models.Permission{},
 		groups:         map[string]models.Group{},
 		users:          map[string]models.User{},
 		templates:      map[string]models.Template{},
@@ -1016,24 +1018,7 @@ func (f *fakeStore) WithTx(ctx context.Context, fn func(context.Context, store.S
 		f.mu.Unlock()
 		return err
 	}
-	snapshot := &fakeStore{
-		templates:    maps.Clone(f.templates),
-		destinations: maps.Clone(f.destinations),
-		recipients:   maps.Clone(f.recipients),
-		routes:       maps.Clone(f.routes),
-		grants:       maps.Clone(f.grants),
-		activeEvents: maps.Clone(f.activeEvents),
-		activeChats:  maps.Clone(f.activeChats),
-		sessions:     maps.Clone(f.sessions),
-		loginFlows:   maps.Clone(f.loginFlows),
-		linkFlows:    maps.Clone(f.linkFlows),
-		failOn:       maps.Clone(f.failOn),
-
-		globalDefaultTemplate: f.globalDefaultTemplate,
-		sourceDefaults:        maps.Clone(f.sourceDefaults),
-		seeded:                f.seeded,
-		subjectLookupDelay:    f.subjectLookupDelay,
-	}
+	snapshot := f.snapshot()
 	f.mu.Unlock()
 
 	if err := fn(ctx, snapshot); err != nil {
@@ -1042,12 +1027,7 @@ func (f *fakeStore) WithTx(ctx context.Context, fn func(context.Context, store.S
 
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.templates, f.destinations, f.routes = snapshot.templates, snapshot.destinations, snapshot.routes
-	f.recipients, f.grants, f.activeEvents = snapshot.recipients, snapshot.grants, snapshot.activeEvents
-	f.activeChats = snapshot.activeChats
-	f.sessions, f.loginFlows, f.linkFlows = snapshot.sessions, snapshot.loginFlows, snapshot.linkFlows
-	f.globalDefaultTemplate = snapshot.globalDefaultTemplate
-	f.sourceDefaults, f.seeded = snapshot.sourceDefaults, snapshot.seeded
+	f.adopt(snapshot)
 	return nil
 }
 
@@ -1065,35 +1045,13 @@ func (f *fakeStore) WithSerializableTx(ctx context.Context, fn func(context.Cont
 		return err
 	}
 
-	snapshot := &fakeStore{
-		templates:    maps.Clone(f.templates),
-		destinations: maps.Clone(f.destinations),
-		recipients:   maps.Clone(f.recipients),
-		routes:       maps.Clone(f.routes),
-		grants:       maps.Clone(f.grants),
-		activeEvents: maps.Clone(f.activeEvents),
-		activeChats:  maps.Clone(f.activeChats),
-		sessions:     maps.Clone(f.sessions),
-		loginFlows:   maps.Clone(f.loginFlows),
-		linkFlows:    maps.Clone(f.linkFlows),
-		failOn:       maps.Clone(f.failOn),
-
-		globalDefaultTemplate: f.globalDefaultTemplate,
-		sourceDefaults:        maps.Clone(f.sourceDefaults),
-		seeded:                f.seeded,
-		subjectLookupDelay:    f.subjectLookupDelay,
-	}
+	snapshot := f.snapshot()
 
 	if err := fn(ctx, snapshot); err != nil {
 		return err
 	}
 
-	f.templates, f.destinations, f.routes = snapshot.templates, snapshot.destinations, snapshot.routes
-	f.recipients, f.grants, f.activeEvents = snapshot.recipients, snapshot.grants, snapshot.activeEvents
-	f.activeChats = snapshot.activeChats
-	f.sessions, f.loginFlows, f.linkFlows = snapshot.sessions, snapshot.loginFlows, snapshot.linkFlows
-	f.globalDefaultTemplate = snapshot.globalDefaultTemplate
-	f.sourceDefaults, f.seeded = snapshot.sourceDefaults, snapshot.seeded
+	f.adopt(snapshot)
 	return nil
 }
 
@@ -2064,6 +2022,11 @@ func (f *fakeStore) DeleteGroup(_ context.Context, id string) error {
 	f.members = slices.DeleteFunc(f.members, func(m models.GroupMember) bool {
 		return m.GroupID == id || (m.Type == models.MemberGroup && m.ID == id)
 	})
+	for key, p := range f.permissions {
+		if (p.PrincipalType == models.PrincipalGroup && p.PrincipalID == id) || (p.ResourceType == "Group" && p.ResourceID == id) {
+			delete(f.permissions, key)
+		}
+	}
 	f.authzGen++
 	return nil
 }
@@ -2146,6 +2109,153 @@ func (f *fakeStore) RemoveGroupMember(_ context.Context, m models.GroupMember) e
 	})
 	if len(f.members) == before {
 		return store.ErrNotFound
+	}
+	f.authzGen++
+	return nil
+}
+
+// snapshot is the store a transaction works on; adopt commits it. The caller holds f.mu.
+func (f *fakeStore) snapshot() *fakeStore {
+	return &fakeStore{
+		templates:    maps.Clone(f.templates),
+		destinations: maps.Clone(f.destinations),
+		recipients:   maps.Clone(f.recipients),
+		webhooks:     maps.Clone(f.webhooks),
+		accessTokens: maps.Clone(f.accessTokens),
+		routes:       maps.Clone(f.routes),
+		grants:       maps.Clone(f.grants),
+		activeEvents: maps.Clone(f.activeEvents),
+		activeChats:  maps.Clone(f.activeChats),
+		sessions:     maps.Clone(f.sessions),
+		brokerTokens: maps.Clone(f.brokerTokens),
+		loginFlows:   maps.Clone(f.loginFlows),
+		linkFlows:    maps.Clone(f.linkFlows),
+		failOn:       maps.Clone(f.failOn),
+		auditEvents:  slices.Clone(f.auditEvents),
+		users:        maps.Clone(f.users),
+		groups:       maps.Clone(f.groups),
+		members:      slices.Clone(f.members),
+		permissions:  maps.Clone(f.permissions),
+		authzGen:     f.authzGen,
+
+		globalDefaultTemplate: f.globalDefaultTemplate,
+		sourceDefaults:        maps.Clone(f.sourceDefaults),
+		seeded:                f.seeded,
+		subjectLookupDelay:    f.subjectLookupDelay,
+	}
+}
+
+func (f *fakeStore) adopt(snapshot *fakeStore) {
+	f.templates, f.destinations, f.routes = snapshot.templates, snapshot.destinations, snapshot.routes
+	f.recipients, f.grants, f.activeEvents = snapshot.recipients, snapshot.grants, snapshot.activeEvents
+	f.webhooks, f.accessTokens = snapshot.webhooks, snapshot.accessTokens
+	f.activeChats, f.brokerTokens = snapshot.activeChats, snapshot.brokerTokens
+	f.sessions, f.loginFlows, f.linkFlows = snapshot.sessions, snapshot.loginFlows, snapshot.linkFlows
+	f.globalDefaultTemplate = snapshot.globalDefaultTemplate
+	f.sourceDefaults, f.seeded = snapshot.sourceDefaults, snapshot.seeded
+	f.auditEvents, f.users, f.groups, f.members = snapshot.auditEvents, snapshot.users, snapshot.groups, snapshot.members
+	f.permissions, f.authzGen = snapshot.permissions, snapshot.authzGen
+}
+
+// Permissions, keyed by id.
+
+func (f *fakeStore) ListPermissions(context.Context) ([]models.Permission, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("ListPermissions"); err != nil {
+		return nil, err
+	}
+	return f.sortedPermissions(func(models.Permission) bool { return true }), nil
+}
+
+func (f *fakeStore) sortedPermissions(keep func(models.Permission) bool) []models.Permission {
+	var out []models.Permission
+	for _, p := range f.permissions {
+		if keep(p) {
+			out = append(out, p)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return out
+}
+
+func (f *fakeStore) ListPermissionsFor(_ context.Context, typ, id string) ([]models.Permission, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("ListPermissionsFor"); err != nil {
+		return nil, err
+	}
+	return f.sortedPermissions(func(p models.Permission) bool { return p.ResourceType == typ && p.ResourceID == id }), nil
+}
+
+func (f *fakeStore) GetPermission(_ context.Context, id string) (models.Permission, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	p, ok := f.permissions[id]
+	if !ok {
+		return models.Permission{}, store.ErrNotFound
+	}
+	return p, nil
+}
+
+func (f *fakeStore) PutPermission(_ context.Context, p models.Permission) (models.Permission, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("PutPermission"); err != nil {
+		return models.Permission{}, err
+	}
+	for id, existing := range f.permissions {
+		if existing.PrincipalType == p.PrincipalType && existing.PrincipalID == p.PrincipalID &&
+			existing.ResourceType == p.ResourceType && existing.ResourceID == p.ResourceID {
+			if len(p.Actions) == 0 {
+				delete(f.permissions, id)
+				f.authzGen++
+				return models.Permission{}, nil
+			}
+			existing.Actions = p.Actions
+			f.permissions[id] = existing
+			f.authzGen++
+			return existing, nil
+		}
+	}
+	if len(p.Actions) == 0 {
+		return models.Permission{}, nil
+	}
+	if p.ID == "" {
+		p.ID = fmt.Sprintf("perm-%d", len(f.permissions)+1)
+		for f.permissions[p.ID].ID != "" {
+			p.ID += "x"
+		}
+	}
+	f.permissions[p.ID] = p
+	f.authzGen++
+	return p, nil
+}
+
+func (f *fakeStore) DeletePermission(_ context.Context, id string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("DeletePermission"); err != nil {
+		return err
+	}
+	if _, ok := f.permissions[id]; !ok {
+		return store.ErrNotFound
+	}
+	delete(f.permissions, id)
+	f.authzGen++
+	return nil
+}
+
+func (f *fakeStore) DeletePermissionsFor(_ context.Context, typ, id string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("DeletePermissionsFor"); err != nil {
+		return err
+	}
+	for key, p := range f.permissions {
+		if p.ResourceType == typ && p.ResourceID == id {
+			delete(f.permissions, key)
+		}
 	}
 	f.authzGen++
 	return nil

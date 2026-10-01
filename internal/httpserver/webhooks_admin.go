@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/pflege-de-labs/teamster/internal/authz"
 	"github.com/pflege-de-labs/teamster/internal/models"
 	"github.com/pflege-de-labs/teamster/internal/store"
 )
@@ -24,6 +25,10 @@ func (s *Server) handleWebhookForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := s.mayRecord(r, writeAction(r.PostFormValue("id")), typeWebhookEndpoint, r.PostFormValue("id")); err != nil {
+		redirectTo(adminTabPath("webhooks"), w, r, "", visibleError(r.Context(), "save webhook", err))
+		return
+	}
 	endpoint, err := webhookEndpointFromForm(r)
 	if err != nil {
 		err = userError{err}
@@ -38,6 +43,10 @@ func (s *Server) handleWebhookForm(w http.ResponseWriter, r *http.Request) {
 	}
 	if !allowed {
 		redirectTo(adminTabPath("webhooks"), w, r, "", errDeliveryRefused.Error())
+		return
+	}
+	if !s.mayAttachTemplate(r, endpoint.TemplateID) {
+		redirectTo(adminTabPath("webhooks"), w, r, "", errTemplateRefused.Error())
 		return
 	}
 	if err := s.endpointTemplateExists(r.Context(), endpoint); err != nil {
@@ -62,7 +71,7 @@ func (s *Server) handleWebhookForm(w http.ResponseWriter, r *http.Request) {
 	}
 	endpoint.TokenHash = hashToken(token)
 
-	created, err := s.store.CreateWebhookEndpoint(r.Context(), endpoint)
+	created, err := s.createEndpoint(r, endpoint)
 	if err != nil {
 		redirectTo(adminTabPath("webhooks"), w, r, "", visibleError(r.Context(), "save webhook", err))
 		return
@@ -79,6 +88,10 @@ func (s *Server) handleWebhookRotate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := r.Context()
+	if err := s.mayRecord(r, authz.ActionUpdate, typeWebhookEndpoint, r.PostFormValue("id")); err != nil {
+		redirectTo(adminTabPath("webhooks"), w, r, "", visibleError(r.Context(), "save webhook", err))
+		return
+	}
 	endpoint, err := s.store.GetWebhookEndpoint(ctx, r.PostFormValue("id"))
 	if err != nil {
 		redirectTo(adminTabPath("webhooks"), w, r, "", visibleError(r.Context(), "save webhook", err))
@@ -110,6 +123,9 @@ func (s *Server) handleWebhookRotate(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) deleteWebhookEndpoint(r *http.Request) (string, error) {
 	ctx := r.Context()
+	if err := s.mayRecord(r, authz.ActionDelete, typeWebhookEndpoint, r.PostFormValue("id")); err != nil {
+		return "", err
+	}
 	endpoint, err := s.store.GetWebhookEndpoint(ctx, r.PostFormValue("id"))
 	if err != nil {
 		return "", err
@@ -121,7 +137,7 @@ func (s *Server) deleteWebhookEndpoint(r *http.Request) (string, error) {
 	if !allowed {
 		return "", errDeliveryRefused
 	}
-	if err := s.store.DeleteWebhookEndpoint(ctx, endpoint.ID); err != nil {
+	if err := s.deleteEndpoint(r, endpoint.ID); err != nil {
 		return "", err
 	}
 	return "Webhook deleted.", nil

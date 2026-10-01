@@ -24,6 +24,9 @@ type GroupDetail struct {
 	Users     []models.User
 	Others    []models.Group
 	IdPGroups []string
+	CanEdit   bool
+	CanDelete bool
+	Sharing   *Sharing
 }
 
 // GroupMemberView is a member and the name to show for it.
@@ -64,18 +67,18 @@ templ GroupsPage(page Groups) {
 				</div>
 			</section>
 			if page.Selected != nil {
-				@groupDetail(*page.Selected, page.CanEdit)
+				@groupDetail(*page.Selected)
 			}
 		</div>
 	}
 }
 
-templ groupDetail(detail GroupDetail, canEdit bool) {
+templ groupDetail(detail GroupDetail) {
 	<section class="rounded-lg border border-slate-200 bg-white shadow-sm lg:col-span-2">
 		<h2 class="border-b border-slate-200 px-6 py-4 text-lg font-semibold">{ detail.Group.Name }</h2>
 		<div class="space-y-6 px-6 py-6">
 			<p class="font-mono text-xs text-slate-500">{ i18n.T(ctx, "groups.cedar", detail.Group.ID) }</p>
-			if canEdit {
+			if detail.CanEdit {
 				<form method="post" action="/admin/groups/save" class="grid gap-3 sm:grid-cols-3 sm:items-end">
 					<input type="hidden" name="id" value={ detail.Group.ID }/>
 					@textField("name", i18n.T(ctx, "groups.name"), "", detail.Group.Name)
@@ -98,7 +101,7 @@ templ groupDetail(detail GroupDetail, canEdit bool) {
 										<span class="font-mono text-xs text-slate-500">{ m.Member.ID }</span>
 									}
 								</div>
-								if canEdit {
+								if detail.CanEdit {
 									<form method="post" action="/admin/groups/members/remove" class="shrink-0">
 										<input type="hidden" name="group_id" value={ detail.Group.ID }/>
 										<input type="hidden" name="type" value={ string(m.Member.Type) }/>
@@ -113,7 +116,7 @@ templ groupDetail(detail GroupDetail, canEdit bool) {
 					</ul>
 				}
 			</div>
-			if canEdit {
+			if detail.CanEdit {
 				<form method="post" action="/admin/groups/members/add" class="grid gap-3 sm:grid-cols-3 sm:items-end">
 					<input type="hidden" name="group_id" value={ detail.Group.ID }/>
 					<label class="block">
@@ -141,6 +144,11 @@ templ groupDetail(detail GroupDetail, canEdit bool) {
 					</datalist>
 					@submit(i18n.T(ctx, "groups.add"))
 				</form>
+			}
+			if detail.Sharing != nil {
+				@sharingPanel(*detail.Sharing)
+			}
+			if detail.CanDelete {
 				<form method="post" action="/admin/groups/delete" class="border-t border-slate-200 pt-4">
 					<input type="hidden" name="id" value={ detail.Group.ID }/>
 					<button type="submit" class="rounded-md border border-red-300 px-3 py-1.5 text-sm text-red-700 hover:bg-red-50">

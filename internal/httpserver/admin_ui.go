@@ -23,7 +23,6 @@ import (
 // handleAdminPage renders the admin UI. Notices arrive as query parameters
 // because a form post answers with a redirect, which carries no body.
 func (s *Server) handleAdminPage(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
 	if r.Method != http.MethodGet {
 		w.Header().Set("Allow", http.MethodGet)
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -34,7 +33,7 @@ func (s *Server) handleAdminPage(w http.ResponseWriter, r *http.Request) {
 	page.Tab = cmp.Or(r.URL.Query().Get("tab"), r.URL.Query().Get("edit"))
 
 	if selected := r.URL.Query().Get("edit"); selected != "" {
-		s.loadForEditing(ctx, &page, selected, r.URL.Query().Get("id"))
+		s.loadForEditing(r, &page, selected, r.URL.Query().Get("id"))
 	}
 
 	s.renderAdmin(w, r, page)
@@ -64,6 +63,7 @@ func (s *Server) adminPage(r *http.Request, notice, errText string) views.Page {
 	if page.Templates, err = s.store.ListTemplates(ctx); err != nil {
 		page.Error = failureText(ctx, "load admin page", err)
 	}
+	page.Templates = readable(s, r, typeTemplate, page.Templates, templateID)
 	if page.Destinations, err = s.store.ListDestinations(ctx); err != nil {
 		page.Error = failureText(ctx, "load admin page", err)
 	}
@@ -74,12 +74,13 @@ func (s *Server) adminPage(r *http.Request, notice, errText string) views.Page {
 	page.Recipients = s.targetableRecipients(r, page.Recipients)
 	// Only with the bot there is anyone to deliver to (ADR 0062).
 	page.CanAddress = botConfigured(s.cfg.Bot) && s.mayAddress(r)
-	if page.Destinations, err = s.visibleDestinations(r, page.Destinations); err != nil {
+	if page.Destinations, err = s.listDestinations(r, page.Destinations); err != nil {
 		page.Error = failureText(ctx, "load admin page", err)
 	}
 	if page.Routes, err = s.store.ListRoutes(ctx); err != nil {
 		page.Error = failureText(ctx, "load admin page", err)
 	}
+	page.Routes = readable(s, r, typeRoute, page.Routes, routeID)
 	if fallback, err := s.store.GetDefaultDestination(ctx); err == nil {
 		page.GlobalDefault = &fallback
 	} else if !errors.Is(err, store.ErrNotFound) {
@@ -94,9 +95,10 @@ func (s *Server) adminPage(r *http.Request, notice, errText string) views.Page {
 	if page.WebhookEndpoints, err = s.store.ListWebhookEndpoints(ctx); err != nil {
 		page.Error = failureText(ctx, "load admin page", err)
 	}
-	if page.WebhookEndpoints, err = s.visibleWebhookEndpoints(r, page.WebhookEndpoints); err != nil {
+	if page.WebhookEndpoints, err = s.listEndpoints(r, page.WebhookEndpoints); err != nil {
 		page.Error = failureText(ctx, "load admin page", err)
 	}
+	s.fillAccess(r, &page)
 	teams := make([]string, len(page.Destinations))
 	for i, d := range page.Destinations {
 		teams[i] = d.TeamID
@@ -104,6 +106,31 @@ func (s *Server) adminPage(r *http.Request, notice, errText string) views.Page {
 	page.InstallStates = s.installStates(ctx, teams)
 
 	return page
+}
+
+// fillAccess answers, per listed record, what the page may offer for it.
+func (s *Server) fillAccess(r *http.Request, page *views.Page) {
+	page.CanCreate = map[string]bool{}
+	for _, typ := range []string{typeTemplate, typeDestination, typeRoute, typeWebhookEndpoint} {
+		page.CanCreate[typ] = s.allow(r, authz.ActionCreate, authz.Resource{Type: typ})
+	}
+	page.Access = map[string]views.RecordAccess{}
+	add := func(typ, id string) {
+		flags := s.recordAccess(r, typ, id)
+		page.Access[views.AccessKey(typ, id)] = views.RecordAccess{Update: flags.Update, Delete: flags.Delete}
+	}
+	for _, t := range page.Templates {
+		add(typeTemplate, t.ID)
+	}
+	for _, d := range page.Destinations {
+		add(typeDestination, d.ID)
+	}
+	for _, rt := range page.Routes {
+		add(typeRoute, rt.ID)
+	}
+	for _, e := range page.WebhookEndpoints {
+		add(typeWebhookEndpoint, e.ID)
+	}
 }
 
 func (s *Server) renderAdmin(w http.ResponseWriter, r *http.Request, page views.Page) {
@@ -116,8 +143,19 @@ func (s *Server) renderAdmin(w http.ResponseWriter, r *http.Request, page views.
 // loadForEditing fills in the record a form should start from. A record that
 // has gone missing is reported on the page, which stays useful, rather than
 // turning the whole request into a 404.
-func (s *Server) loadForEditing(ctx context.Context, page *views.Page, section, id string) {
+func (s *Server) loadForEditing(r *http.Request, page *views.Page, section, id string) {
+	ctx := r.Context()
 	if id == "" {
+		return
+	}
+	typ, ok := map[string]string{
+		"templates": typeTemplate, "destinations": typeDestination, "routes": typeRoute, "webhooks": typeWebhookEndpoint,
+	}[section]
+	if !ok {
+		return
+	}
+	if err := s.mayRecord(r, authz.ActionRead, typ, id); err != nil {
+		page.Error = visibleError(ctx, "load record for editing", err)
 		return
 	}
 
@@ -150,6 +188,10 @@ func (s *Server) loadForEditing(ctx context.Context, page *views.Page, section, 
 
 	if err != nil {
 		page.Error = visibleError(ctx, "load record for editing", err)
+		return
+	}
+	if page.Sharing, err = s.sharingFor(r, typ, id, "/admin?edit="+section+"&id="+url.QueryEscape(id)); err != nil {
+		page.Error = failureText(ctx, "load sharing", err)
 	}
 }
 
@@ -244,8 +286,19 @@ func redirectTo(target string, w http.ResponseWriter, r *http.Request, notice, m
 	http.Redirect(w, r, dest.String(), http.StatusSeeOther)
 }
 
+// writeAction is create for a form without an id and update for one with.
+func writeAction(id string) string {
+	if id == "" {
+		return authz.ActionCreate
+	}
+	return authz.ActionUpdate
+}
+
 func (s *Server) saveTemplate(r *http.Request) (string, error) {
 	ctx := r.Context()
+	if err := s.mayRecord(r, writeAction(r.PostFormValue("id")), typeTemplate, r.PostFormValue("id")); err != nil {
+		return "", err
+	}
 	template := models.Template{
 		ID:    r.PostFormValue("id"),
 		Name:  r.PostFormValue("name"),
@@ -259,7 +312,7 @@ func (s *Server) saveTemplate(r *http.Request) (string, error) {
 		return "", userError{err}
 	}
 	if template.ID == "" {
-		if _, err := s.store.CreateTemplate(ctx, template); err != nil {
+		if _, err := s.createTemplate(r, template); err != nil {
 			return "", err
 		}
 		return "Template created.", nil
@@ -272,6 +325,9 @@ func (s *Server) saveTemplate(r *http.Request) (string, error) {
 
 func (s *Server) saveDestination(r *http.Request) (string, error) {
 	ctx := r.Context()
+	if err := s.mayRecord(r, writeAction(r.PostFormValue("id")), typeDestination, r.PostFormValue("id")); err != nil {
+		return "", err
+	}
 	destination := models.Destination{
 		ID:        r.PostFormValue("id"),
 		Name:      r.PostFormValue("name"),
@@ -281,6 +337,9 @@ func (s *Server) saveDestination(r *http.Request) (string, error) {
 	// Typing a channel id the picker would not have offered reaches here, which
 	// is why the check is on the write rather than on the list.
 	allowed, err := s.mayDeliverTo(r, destination.TeamID, destination.ChannelID)
+	if destination.ID != "" {
+		allowed, err = s.mayRepointDestination(r, destination)
+	}
 	if err != nil {
 		return "", err
 	}
@@ -289,7 +348,7 @@ func (s *Server) saveDestination(r *http.Request) (string, error) {
 	}
 
 	if destination.ID == "" {
-		if _, err := s.store.CreateDestination(ctx, destination); err != nil {
+		if _, err := s.createDestination(r, destination); err != nil {
 			return "", err
 		}
 		return "Destination created.", nil
@@ -301,7 +360,9 @@ func (s *Server) saveDestination(r *http.Request) (string, error) {
 }
 
 func (s *Server) saveRoute(r *http.Request) (string, error) {
-	ctx := r.Context()
+	if err := s.mayRecord(r, writeAction(r.PostFormValue("id")), typeRoute, r.PostFormValue("id")); err != nil {
+		return "", err
+	}
 	selector, err := parseSelector(r.PostFormValue("label_selector"))
 	if err != nil {
 		return "", userError{err}
@@ -341,7 +402,7 @@ func (s *Server) saveRoute(r *http.Request) (string, error) {
 		return "", err
 	}
 	created := route.ID == ""
-	if _, err := s.saveRouteChecked(ctx, route); err != nil {
+	if _, err := s.saveRouteChecked(r, route); err != nil {
 		return "", err
 	}
 	if created {
@@ -362,8 +423,13 @@ func parseSelector(raw string) (map[string]string, error) {
 }
 
 func (s *Server) deleteTemplate(r *http.Request) (string, error) {
-	ctx := r.Context()
-	if err := s.store.DeleteTemplate(ctx, r.PostFormValue("id")); err != nil {
+	id := r.PostFormValue("id")
+	if err := s.mayRecord(r, authz.ActionDelete, typeTemplate, id); err != nil {
+		return "", err
+	}
+	if err := s.deleteOwned(r.Context(), typeTemplate, id, func(ctx context.Context, tx store.Store) error {
+		return tx.DeleteTemplate(ctx, id)
+	}); err != nil {
 		return "", err
 	}
 	return "Template deleted.", nil
@@ -377,8 +443,13 @@ func (s *Server) setDefaultDestination(r *http.Request) (string, error) {
 }
 
 func (s *Server) deleteDestination(r *http.Request) (string, error) {
-	ctx := r.Context()
-	if err := s.store.DeleteDestination(ctx, r.PostFormValue("id")); err != nil {
+	id := r.PostFormValue("id")
+	if err := s.mayRecord(r, authz.ActionDelete, typeDestination, id); err != nil {
+		return "", err
+	}
+	if err := s.deleteOwned(r.Context(), typeDestination, id, func(ctx context.Context, tx store.Store) error {
+		return tx.DeleteDestination(ctx, id)
+	}); err != nil {
 		return "", err
 	}
 	return "Destination deleted.", nil
@@ -399,9 +470,9 @@ func (e invalidRoute) Unwrap() error { return e.err }
 // tree the other was about to change, and the losing edit could orphan a child
 // -- which the router treats as a root, so it starts matching alerts its parent
 // used to filter out.
-func (s *Server) saveRouteChecked(ctx context.Context, route models.Route) (models.Route, error) {
+func (s *Server) saveRouteChecked(r *http.Request, route models.Route) (models.Route, error) {
 	var saved models.Route
-	err := s.store.WithSerializableTx(ctx, func(ctx context.Context, tx store.Store) error {
+	err := s.store.WithSerializableTx(r.Context(), func(ctx context.Context, tx store.Store) error {
 		existing, err := tx.ListRoutes(ctx)
 		if err != nil {
 			return err
@@ -413,8 +484,10 @@ func (s *Server) saveRouteChecked(ctx context.Context, route models.Route) (mode
 			return err
 		}
 		if route.ID == "" {
-			saved, err = tx.CreateRoute(ctx, route)
-			return err
+			if saved, err = tx.CreateRoute(ctx, route); err != nil {
+				return err
+			}
+			return grantOwner(ctx, tx, r, typeRoute, saved.ID)
 		}
 		saved, err = tx.UpdateRoute(ctx, route)
 		return err
@@ -455,13 +528,18 @@ func (s *Server) deleteRouteChecked(ctx context.Context, id string) error {
 		if err := routing.ValidateDelete(id, existing); err != nil {
 			return invalidRoute{err}
 		}
-		return tx.DeleteRoute(ctx, id)
+		if err := tx.DeleteRoute(ctx, id); err != nil {
+			return err
+		}
+		return tx.DeletePermissionsFor(ctx, typeRoute, id)
 	})
 }
 
 func (s *Server) deleteRoute(r *http.Request) (string, error) {
 	ctx := r.Context()
-
+	if err := s.mayRecord(r, authz.ActionDelete, typeRoute, r.PostFormValue("id")); err != nil {
+		return "", err
+	}
 	if err := s.routeDeleteRefusal(r, r.PostFormValue("id")); err != nil {
 		return "", err
 	}

@@ -292,3 +292,17 @@ func (s *PostgresStore) AddGroupMember(ctx context.Context, m models.GroupMember
 func (s *PostgresStore) RemoveGroupMember(ctx context.Context, m models.GroupMember) error {
 	return removeGroupMemberInTx(ctx, s, m)
 }
+
+// Permission writes run with their generation bump in one transaction (ADR 0075).
+
+func (s *PostgresStore) PutPermission(ctx context.Context, p models.Permission) (models.Permission, error) {
+	return putPermissionInTx(ctx, s, p)
+}
+
+func (s *PostgresStore) DeletePermission(ctx context.Context, id string) error {
+	return deletePermissionInTx(ctx, s, id)
+}
+
+func (s *PostgresStore) DeletePermissionsFor(ctx context.Context, resourceType, resourceID string) error {
+	return deletePermissionsForInTx(ctx, s, resourceType, resourceID)
+}

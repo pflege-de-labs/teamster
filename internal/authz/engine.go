@@ -14,6 +14,8 @@ import (
 type Model struct {
 	// Members are every group membership (ADR 0074).
 	Members []Membership
+	// Grants are every permission row (ADR 0075).
+	Grants []Grant
 }
 
 // A Membership puts a user, a group or an identity provider group in Group.
@@ -94,7 +96,11 @@ func build(generation int64, model Model) (*Authorizer, error) {
 	entities := roleEntities()
 	addActionEntities(entities)
 	userGroups := addGroupEntities(entities, model.Members)
-	return &Authorizer{policies: policies, entities: entities, generation: generation, userGroups: userGroups}, nil
+	generated, holders := addGrants(policies, model.Grants)
+	return &Authorizer{
+		policies: policies, entities: entities, generation: generation,
+		userGroups: userGroups, generated: generated, holders: holders,
+	}, nil
 }
 
 // addGroupEntities makes each group and identity provider group an entity

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/pflege-de-labs/teamster/internal/authz"
 	"github.com/pflege-de-labs/teamster/internal/models"
 	"github.com/pflege-de-labs/teamster/internal/store"
 )
@@ -28,13 +29,17 @@ func (s *Server) handleWebhookEndpoints(w http.ResponseWriter, r *http.Request) 
 			writeError(w, r, http.StatusInternalServerError, err)
 			return
 		}
-		visible, err := s.visibleWebhookEndpoints(r, items)
+		visible, err := s.listEndpoints(r, items)
 		if err != nil {
 			writeError(w, r, http.StatusInternalServerError, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, visible)
 	case http.MethodPost:
+		if err := s.mayRecord(r, authz.ActionCreate, typeWebhookEndpoint, ""); err != nil {
+			writeRecordError(w, r, err)
+			return
+		}
 		endpoint, ok := s.decodeWebhookEndpoint(w, r, "")
 		if !ok {
 			return
@@ -47,7 +52,7 @@ func (s *Server) handleWebhookEndpoints(w http.ResponseWriter, r *http.Request) 
 		}
 		endpoint.TokenHash = hashToken(token)
 
-		created, err := s.store.CreateWebhookEndpoint(ctx, endpoint)
+		created, err := s.createEndpoint(r, endpoint)
 		if err != nil {
 			writeError(w, r, http.StatusInternalServerError, err)
 			return
@@ -74,6 +79,14 @@ func (s *Server) handleWebhookEndpointByID(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	action := recordAction(r.Method)
+	if rotate {
+		action = authz.ActionUpdate
+	}
+	if err := s.mayRecord(r, action, typeWebhookEndpoint, id); err != nil {
+		writeRecordError(w, r, err)
+		return
+	}
 	if rotate {
 		s.rotateWebhookEndpointToken(w, r, id)
 		return
@@ -102,7 +115,7 @@ func (s *Server) handleWebhookEndpointByID(w http.ResponseWriter, r *http.Reques
 		if _, ok := s.authorizedEndpoint(w, r, id); !ok {
 			return
 		}
-		if err := s.store.DeleteWebhookEndpoint(ctx, id); err != nil {
+		if err := s.deleteEndpoint(r, id); err != nil {
 			writeError(w, r, http.StatusInternalServerError, err)
 			return
 		}
@@ -167,6 +180,10 @@ func (s *Server) decodeWebhookEndpoint(w http.ResponseWriter, r *http.Request, i
 	}
 	if !allowed {
 		writeError(w, r, http.StatusForbidden, errDeliveryRefused)
+		return models.WebhookEndpoint{}, false
+	}
+	if !s.mayAttachTemplate(r, endpoint.TemplateID) {
+		writeError(w, r, http.StatusForbidden, errTemplateRefused)
 		return models.WebhookEndpoint{}, false
 	}
 	if err := s.endpointTemplateExists(r.Context(), endpoint); err != nil {

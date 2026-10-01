@@ -499,3 +499,56 @@ func (s *auditedStore) RemoveGroupMember(ctx context.Context, m models.GroupMemb
 		return event("group.member.remove", TypeGroup, m.GroupID, snapshot(m), nil), err == nil, err
 	})
 }
+
+// Permissions: recorded against the resource they are on, in the change's
+// transaction, so a resource's trail shows who could reach it and when.
+
+func (s *auditedStore) PutPermission(ctx context.Context, p models.Permission) (models.Permission, error) {
+	var saved models.Permission
+	err := s.critical(ctx, func(ctx context.Context, tx store.Store) (models.AuditEvent, bool, error) {
+		var before json.RawMessage
+		if rows, err := tx.ListPermissionsFor(ctx, p.ResourceType, p.ResourceID); err == nil {
+			for _, existing := range rows {
+				if existing.PrincipalType == p.PrincipalType && existing.PrincipalID == p.PrincipalID {
+					before = snapshot(existing)
+				}
+			}
+		}
+		var err error
+		saved, err = tx.PutPermission(ctx, p)
+		if err != nil {
+			return models.AuditEvent{}, false, err
+		}
+		if len(p.Actions) == 0 {
+			return event("permission.revoke", p.ResourceType, p.ResourceID, before, nil), before != nil, nil
+		}
+		return event("permission.grant", p.ResourceType, p.ResourceID, before, snapshot(saved)), true, nil
+	})
+	return saved, err
+}
+
+func (s *auditedStore) DeletePermission(ctx context.Context, id string) error {
+	return s.critical(ctx, func(ctx context.Context, tx store.Store) (models.AuditEvent, bool, error) {
+		existing, err := tx.GetPermission(ctx, id)
+		if err != nil {
+			return models.AuditEvent{}, false, err
+		}
+		if err := tx.DeletePermission(ctx, id); err != nil {
+			return models.AuditEvent{}, false, err
+		}
+		return event("permission.revoke", existing.ResourceType, existing.ResourceID, snapshot(existing), nil), true, nil
+	})
+}
+
+func (s *auditedStore) DeletePermissionsFor(ctx context.Context, resourceType, resourceID string) error {
+	return s.critical(ctx, func(ctx context.Context, tx store.Store) (models.AuditEvent, bool, error) {
+		existing, err := tx.ListPermissionsFor(ctx, resourceType, resourceID)
+		if err != nil {
+			return models.AuditEvent{}, false, err
+		}
+		if err := tx.DeletePermissionsFor(ctx, resourceType, resourceID); err != nil {
+			return models.AuditEvent{}, false, err
+		}
+		return event("permission.revoke", resourceType, resourceID, snapshot(map[string]any{"permissions": existing}), nil), len(existing) > 0, nil
+	})
+}

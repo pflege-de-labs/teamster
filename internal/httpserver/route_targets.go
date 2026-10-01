@@ -17,6 +17,9 @@ import (
 // gets (ADR 0047).
 var errRecipientRefused = errors.New("a route may deliver only to your own chat")
 
+// errTemplateRefused is a route or endpoint naming a template the caller may not attach.
+var errTemplateRefused = errors.New("you may not use that template")
+
 // errAddressedRefused is what a write touching a route that delivers to the
 // people a message names gets without the right to (ADR 0062).
 var errAddressedRefused = errors.New("only an admin may deliver to the people a message names")
@@ -82,6 +85,9 @@ func (s *Server) routeWriteRefusal(r *http.Request, route models.Route) error {
 	}
 	if !allowed {
 		return errDeliveryRefused
+	}
+	if route.TemplateID != "" && !s.can(r, authz.ActionAttach, typeTemplate, route.TemplateID) {
+		return errTemplateRefused
 	}
 	if allowed, err = s.mayTargetRecipient(r, route.RecipientID); err != nil {
 		return err

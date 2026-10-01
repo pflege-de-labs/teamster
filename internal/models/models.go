@@ -703,3 +703,32 @@ type GroupMember struct {
 	AddedBy string     `json:"added_by,omitempty"`
 	AddedAt time.Time  `json:"added_at"`
 }
+
+// A PrincipalType says what a permission's principal id names (ADR 0075).
+type PrincipalType string
+
+const (
+	PrincipalUser     PrincipalType = "user"
+	PrincipalGroup    PrincipalType = "group"
+	PrincipalIdPGroup PrincipalType = "idp_group"
+	PrincipalRole     PrincipalType = "role"
+)
+
+// Valid reports whether t is one of the four principal types.
+func (t PrincipalType) Valid() bool {
+	return t == PrincipalUser || t == PrincipalGroup || t == PrincipalIdPGroup || t == PrincipalRole
+}
+
+// A Permission is the actions one principal holds on one resource. ResourceID
+// "*" is the collection, which is where create is granted.
+type Permission struct {
+	ID            string        `json:"id"`
+	PrincipalType PrincipalType `json:"principal_type"`
+	PrincipalID   string        `json:"principal_id"`
+	ResourceType  string        `json:"resource_type"`
+	ResourceID    string        `json:"resource_id"`
+	Actions       []string      `json:"actions"`
+	CreatedBy     string        `json:"created_by,omitempty"`
+	CreatedAt     time.Time     `json:"created_at"`
+	UpdatedAt     time.Time     `json:"updated_at"`
+}
