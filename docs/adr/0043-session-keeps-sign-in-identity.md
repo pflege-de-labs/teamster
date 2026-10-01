@@ -1,6 +1,6 @@
 # 0043. Keep what the identity provider said on the session row
 
-* Status: Accepted
+* Status: Accepted; "groups decide nothing" superseded by [0074](0074-local-groups-and-provider-groups.md)
 * Date: 2026-09-28
 
 ## Context

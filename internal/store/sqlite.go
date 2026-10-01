@@ -192,3 +192,25 @@ func (s *SQLiteStore) WithTx(ctx context.Context, fn func(ctx context.Context, t
 func (s *SQLiteStore) WithSerializableTx(ctx context.Context, fn func(ctx context.Context, tx Store) error) error {
 	return s.WithTx(ctx, fn)
 }
+
+// Group writes run with their generation bump in one transaction (ADR 0074).
+
+func (s *SQLiteStore) CreateGroup(ctx context.Context, g models.Group) (models.Group, error) {
+	return createGroupInTx(ctx, s, g)
+}
+
+func (s *SQLiteStore) UpdateGroup(ctx context.Context, g models.Group) (models.Group, error) {
+	return updateGroupInTx(ctx, s, g)
+}
+
+func (s *SQLiteStore) DeleteGroup(ctx context.Context, id string) error {
+	return deleteGroupInTx(ctx, s, id)
+}
+
+func (s *SQLiteStore) AddGroupMember(ctx context.Context, m models.GroupMember) error {
+	return addGroupMemberInTx(ctx, s, m)
+}
+
+func (s *SQLiteStore) RemoveGroupMember(ctx context.Context, m models.GroupMember) error {
+	return removeGroupMemberInTx(ctx, s, m)
+}

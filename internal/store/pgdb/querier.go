@@ -11,6 +11,7 @@ import (
 )
 
 type Querier interface {
+	AddGroupMember(ctx context.Context, arg AddGroupMemberParams) error
 	BumpAuthzGeneration(ctx context.Context) error
 	// ClaimActiveEvent takes the right to post the card for one channel. A row
 	// comes back only when the claim is ours; a claim somebody else is still
@@ -68,6 +69,7 @@ type Querier interface {
 	// creates it, so there is no window in which one exists without a default.
 	CreateDestination(ctx context.Context, arg CreateDestinationParams) error
 	CreateGrant(ctx context.Context, arg CreateGrantParams) error
+	CreateGroup(ctx context.Context, arg CreateGroupParams) error
 	// Code generated from ../sqlite by internal/store/queries/gen. DO NOT EDIT.
 	//
 	// The statements are the SQLite ones with ? replaced by $n. Edit the SQLite
@@ -126,6 +128,9 @@ type Querier interface {
 	// here. A set delete takes the locks the isolation level needs and cannot
 	// interleave with another writer's replacement into the union of both.
 	DeleteGrantsForRole(ctx context.Context, role string) error
+	DeleteGroup(ctx context.Context, id string) (int64, error)
+	// Both directions: the group's own members, and the group as someone's member.
+	DeleteGroupMemberships(ctx context.Context, id string) error
 	// Minting a new code for a subject retires whatever it had outstanding, so a
 	// guess only ever has to beat one live code rather than every one ever handed
 	// out before the hourly sweep catches up.
@@ -165,6 +170,7 @@ type Querier interface {
 	GetDirectoryRun(ctx context.Context, id string) (DirectoryRun, error)
 	GetDirectoryUser(ctx context.Context, aadObjectID string) (DirectoryUser, error)
 	GetDirectoryUserByConversation(ctx context.Context, conversationID string) (DirectoryUser, error)
+	GetGroup(ctx context.Context, id string) (UserGroup, error)
 	GetRecipient(ctx context.Context, id string) (Recipient, error)
 	// GetRecipientByConversation resolves the chat an inbound activity came from
 	// back to the person it belongs to. Ordered and limited rather than assuming
@@ -220,6 +226,7 @@ type Querier interface {
 	// fanned out to, and any claim still in flight. The order is stable so that
 	// delivery, and its tests, see them the same way every time.
 	ListActiveEvents(ctx context.Context, eventKey string) ([]ActiveEvent, error)
+	ListAllGroupMembers(ctx context.Context) ([]UserGroupMember, error)
 	// Newest first, a page at a time. The cursor is the last row of the previous
 	// page; an empty cursor id starts from the newest. Each filter left empty
 	// matches everything, so one statement serves every combination of them.
@@ -247,6 +254,12 @@ type Querier interface {
 	// The statements are the SQLite ones with ? replaced by $n. Edit the SQLite
 	// file and run make generate.
 	ListGrants(ctx context.Context) ([]Grant, error)
+	ListGroupMembers(ctx context.Context, groupID string) ([]UserGroupMember, error)
+	// Code generated from ../sqlite by internal/store/queries/gen. DO NOT EDIT.
+	//
+	// The statements are the SQLite ones with ? replaced by $n. Edit the SQLite
+	// file and run make generate.
+	ListGroups(ctx context.Context) ([]UserGroup, error)
 	// Code generated from ../sqlite by internal/store/queries/gen. DO NOT EDIT.
 	//
 	// The statements are the SQLite ones with ? replaced by $n. Edit the SQLite
@@ -317,6 +330,7 @@ type Querier interface {
 	// ReleaseActiveEventRecipientClaim hands a claim back when the send failed, so
 	// the next attempt does not have to wait out the staleness cutoff.
 	ReleaseActiveEventRecipientClaim(ctx context.Context, arg ReleaseActiveEventRecipientClaimParams) error
+	RemoveGroupMember(ctx context.Context, arg RemoveGroupMemberParams) (int64, error)
 	RotateWebhookEndpointToken(ctx context.Context, arg RotateWebhookEndpointTokenParams) error
 	// SetDirectoryUserInstalled records the chat the bot has with a person, which
 	// is proof the app is installed however it got there.
@@ -343,6 +357,7 @@ type Querier interface {
 	TouchActiveEventRecipient(ctx context.Context, arg TouchActiveEventRecipientParams) error
 	UpdateBrokerToken(ctx context.Context, arg UpdateBrokerTokenParams) error
 	UpdateDestination(ctx context.Context, arg UpdateDestinationParams) error
+	UpdateGroup(ctx context.Context, arg UpdateGroupParams) (int64, error)
 	// The update deliberately leaves subject alone: it is who this binding belongs
 	// to, and moving it would point one person's link at another's alerts. What
 	// changes on a re-link is the conversation reference.

@@ -688,3 +688,64 @@ func (p pgQueries) GetAuthzGeneration(ctx context.Context) (int64, error) {
 func (p pgQueries) BumpAuthzGeneration(ctx context.Context) error {
 	return p.q.BumpAuthzGeneration(ctx)
 }
+
+// Groups (ADR 0074).
+
+func (p pgQueries) ListGroups(ctx context.Context) ([]sqlitedb.UserGroup, error) {
+	rows, err := p.q.ListGroups(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]sqlitedb.UserGroup, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, sqlitedb.UserGroup(row))
+	}
+	return out, nil
+}
+
+func (p pgQueries) GetGroup(ctx context.Context, id string) (sqlitedb.UserGroup, error) {
+	row, err := p.q.GetGroup(ctx, id)
+	return sqlitedb.UserGroup(row), err
+}
+
+func (p pgQueries) CreateGroup(ctx context.Context, arg sqlitedb.CreateGroupParams) error {
+	return p.q.CreateGroup(ctx, pgdb.CreateGroupParams(arg))
+}
+
+func (p pgQueries) UpdateGroup(ctx context.Context, arg sqlitedb.UpdateGroupParams) (int64, error) {
+	return p.q.UpdateGroup(ctx, pgdb.UpdateGroupParams(arg))
+}
+
+func (p pgQueries) DeleteGroup(ctx context.Context, id string) (int64, error) {
+	return p.q.DeleteGroup(ctx, id)
+}
+
+func (p pgQueries) DeleteGroupMemberships(ctx context.Context, id string) error {
+	return p.q.DeleteGroupMemberships(ctx, id)
+}
+
+func (p pgQueries) ListGroupMembers(ctx context.Context, groupID string) ([]sqlitedb.UserGroupMember, error) {
+	rows, err := p.q.ListGroupMembers(ctx, groupID)
+	return convertMembers(rows), err
+}
+
+func (p pgQueries) ListAllGroupMembers(ctx context.Context) ([]sqlitedb.UserGroupMember, error) {
+	rows, err := p.q.ListAllGroupMembers(ctx)
+	return convertMembers(rows), err
+}
+
+func convertMembers(rows []pgdb.UserGroupMember) []sqlitedb.UserGroupMember {
+	out := make([]sqlitedb.UserGroupMember, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, sqlitedb.UserGroupMember(row))
+	}
+	return out
+}
+
+func (p pgQueries) AddGroupMember(ctx context.Context, arg sqlitedb.AddGroupMemberParams) error {
+	return p.q.AddGroupMember(ctx, pgdb.AddGroupMemberParams(arg))
+}
+
+func (p pgQueries) RemoveGroupMember(ctx context.Context, arg sqlitedb.RemoveGroupMemberParams) (int64, error) {
+	return p.q.RemoveGroupMember(ctx, pgdb.RemoveGroupMemberParams(arg))
+}

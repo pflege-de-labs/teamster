@@ -46,7 +46,7 @@ func TestEveryRequestReadsTheCurrentGeneration(t *testing.T) {
 	}))
 	for range 2 {
 		req := httptest.NewRequest(http.MethodGet, "/admin", nil)
-		req = req.WithContext(withPrincipal(req.Context(), "tester", "tester", "session", []authz.Role{authz.RoleEditor}))
+		req = req.WithContext(withPrincipal(req.Context(), "tester", "tester", "session", []authz.Role{authz.RoleEditor}, nil))
 		handler.ServeHTTP(httptest.NewRecorder(), req)
 		if err := st.BumpAuthzGeneration(t.Context()); err != nil {
 			t.Fatal(err)

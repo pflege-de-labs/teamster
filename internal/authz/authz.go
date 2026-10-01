@@ -63,6 +63,8 @@ type Authorizer struct {
 	policies   *cedar.PolicySet
 	entities   cedar.EntityMap
 	generation int64
+	// userGroups are the local groups each subject is a direct member of.
+	userGroups map[string][]string
 }
 
 // New is the embedded policies alone, as an Engine with no source has them.
@@ -92,32 +94,14 @@ func roleEntities() cedar.EntityMap {
 // build has never heard of: a deployment that defines its own client role and
 // writes a policy for it gets that policy applied. A role no policy mentions
 // grants nothing, which is what makes passing them all through safe.
-//
-// The subject is an entity of its own rather than the role itself, because the
-// per-Team grants of the next milestone hang off the principal.
 func (a *Authorizer) Allow(subject string, roles []Role, action string, resource Resource) bool {
-	if subject == "" {
-		subject = "anonymous"
-	}
+	return a.AllowFor(Principal{Subject: subject, Roles: roles}, action, resource)
+}
 
+// AllowFor is Allow for a principal whose groups count too.
+func (a *Authorizer) AllowFor(p Principal, action string, resource Resource) bool {
 	extra := cedar.EntityMap{}
-	parents := make([]cedar.EntityUID, 0, len(roles))
-	for _, role := range roles {
-		uid := cedar.NewEntityUID("Role", types.String(role))
-		parents = append(parents, uid)
-		// A role the embedded policies do not define still needs an entity, or
-		// Cedar has nothing to resolve the parent to.
-		if _, known := a.entities[uid]; !known {
-			extra[uid] = cedar.Entity{UID: uid}
-		}
-	}
-
-	principal := cedar.NewEntityUID("User", types.String(subject))
-	extra[principal] = cedar.Entity{
-		UID:     principal,
-		Parents: cedar.NewEntityUIDSet(parents...),
-	}
-
+	principal := a.principalEntity(p, extra, cedar.Record{})
 	decision, _ := cedar.Authorize(a.policies, overlay{base: a.entities, extra: extra}, cedar.Request{
 		Principal: principal,
 		Action:    cedar.NewEntityUID("Action", types.String(action)),

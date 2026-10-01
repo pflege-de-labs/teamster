@@ -270,3 +270,25 @@ func retryable(err error) bool {
 		return false
 	}
 }
+
+// Group writes run with their generation bump in one transaction (ADR 0074).
+
+func (s *PostgresStore) CreateGroup(ctx context.Context, g models.Group) (models.Group, error) {
+	return createGroupInTx(ctx, s, g)
+}
+
+func (s *PostgresStore) UpdateGroup(ctx context.Context, g models.Group) (models.Group, error) {
+	return updateGroupInTx(ctx, s, g)
+}
+
+func (s *PostgresStore) DeleteGroup(ctx context.Context, id string) error {
+	return deleteGroupInTx(ctx, s, id)
+}
+
+func (s *PostgresStore) AddGroupMember(ctx context.Context, m models.GroupMember) error {
+	return addGroupMemberInTx(ctx, s, m)
+}
+
+func (s *PostgresStore) RemoveGroupMember(ctx context.Context, m models.GroupMember) error {
+	return removeGroupMemberInTx(ctx, s, m)
+}

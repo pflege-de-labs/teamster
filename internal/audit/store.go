@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"slices"
 
 	"github.com/pflege-de-labs/teamster/internal/models"
@@ -23,6 +24,7 @@ const (
 	TypeDirectoryRun    = "DirectoryRun"
 	TypeConfig          = "Config"
 	TypeUser            = "User"
+	TypeGroup           = "Group"
 )
 
 // Setting ids in the trail; stable names rather than the store's keys.
@@ -45,20 +47,26 @@ type auditedStore struct {
 	rec *Recorder
 	// pending is set inside a transaction: events wait for the commit, so a
 	// rolled-back change leaves no record of something that never happened.
-	pending *[]models.AuditEvent
+	pending *[]queued
+}
+
+// queued is an event waiting for its commit; written ones are already in the trail.
+type queued struct {
+	event   models.AuditEvent
+	written bool
 }
 
 func (s *auditedStore) emit(ctx context.Context, e models.AuditEvent) {
 	e = s.rec.Stamp(ctx, e)
 	if s.pending != nil {
-		*s.pending = append(*s.pending, e)
+		*s.pending = append(*s.pending, queued{event: e})
 		return
 	}
-	s.rec.deliver(ctx, e)
+	s.rec.deliver(ctx, e, true)
 }
 
 func (s *auditedStore) inTx(ctx context.Context, run func(context.Context, func(context.Context, store.Store) error) error, fn func(context.Context, store.Store) error) error {
-	var pending []models.AuditEvent
+	var pending []queued
 	err := run(ctx, func(ctx context.Context, tx store.Store) error {
 		// A serializable transaction may run fn again; only the last run counts.
 		pending = pending[:0]
@@ -67,8 +75,49 @@ func (s *auditedStore) inTx(ctx context.Context, run func(context.Context, func(
 	if err != nil {
 		return err
 	}
-	for _, e := range pending {
-		s.rec.deliver(ctx, e)
+	for _, q := range pending {
+		s.rec.deliver(ctx, q.event, !q.written)
+	}
+	return nil
+}
+
+// critical makes the change and writes its record in one transaction, so a
+// permission change without a record cannot happen (ADR 0074). change returns
+// the event, or false when nothing changed. Without a database trail it is an
+// ordinary emit.
+func (s *auditedStore) critical(ctx context.Context, change func(ctx context.Context, tx store.Store) (models.AuditEvent, bool, error)) error {
+	if !s.rec.trail() {
+		e, ok, err := change(ctx, s.Store)
+		if err == nil && ok {
+			s.emit(ctx, e)
+		}
+		return err
+	}
+	record := func(ctx context.Context, tx store.Store, pending *[]queued) error {
+		e, ok, err := change(ctx, tx)
+		if err != nil || !ok {
+			return err
+		}
+		e = s.rec.Stamp(ctx, e)
+		if err := tx.InsertAuditEvent(ctx, e); err != nil {
+			return fmt.Errorf("audit %s: %w", e.Action, err)
+		}
+		*pending = append(*pending, queued{event: e, written: true})
+		return nil
+	}
+	if s.pending != nil {
+		return record(ctx, s.Store, s.pending)
+	}
+	var pending []queued
+	err := s.Store.WithSerializableTx(ctx, func(ctx context.Context, tx store.Store) error {
+		pending = pending[:0]
+		return record(ctx, tx, &pending)
+	})
+	if err != nil {
+		return err
+	}
+	for _, q := range pending {
+		s.rec.deliver(ctx, q.event, false)
 	}
 	return nil
 }
@@ -393,4 +442,60 @@ func (s *auditedStore) EnableUser(ctx context.Context, subject string) error {
 		s.emit(ctx, event("user.enable", TypeUser, subject, before.raw, found(s.GetUser(ctx, subject))))
 	}
 	return err
+}
+
+// Groups: who is in what decides access, so each change and its record commit
+// together or not at all.
+
+func (s *auditedStore) CreateGroup(ctx context.Context, g models.Group) (models.Group, error) {
+	var created models.Group
+	err := s.critical(ctx, func(ctx context.Context, tx store.Store) (models.AuditEvent, bool, error) {
+		var err error
+		created, err = tx.CreateGroup(ctx, g)
+		return event("group.create", TypeGroup, created.ID, nil, snapshot(created)), err == nil, err
+	})
+	return created, err
+}
+
+func (s *auditedStore) UpdateGroup(ctx context.Context, g models.Group) (models.Group, error) {
+	var updated models.Group
+	err := s.critical(ctx, func(ctx context.Context, tx store.Store) (models.AuditEvent, bool, error) {
+		before := lookup(tx.GetGroup(ctx, g.ID))
+		var err error
+		updated, err = tx.UpdateGroup(ctx, g)
+		return event("group.update", TypeGroup, g.ID, before.raw, snapshot(updated)), err == nil, err
+	})
+	return updated, err
+}
+
+func (s *auditedStore) DeleteGroup(ctx context.Context, id string) error {
+	return s.critical(ctx, func(ctx context.Context, tx store.Store) (models.AuditEvent, bool, error) {
+		group, err := tx.GetGroup(ctx, id)
+		if err != nil {
+			return models.AuditEvent{}, false, err
+		}
+		members, err := tx.ListGroupMembers(ctx, id)
+		if err != nil {
+			return models.AuditEvent{}, false, err
+		}
+		if err := tx.DeleteGroup(ctx, id); err != nil {
+			return models.AuditEvent{}, false, err
+		}
+		before := snapshot(map[string]any{"group": group, "members": members})
+		return event("group.delete", TypeGroup, id, before, nil), true, nil
+	})
+}
+
+func (s *auditedStore) AddGroupMember(ctx context.Context, m models.GroupMember) error {
+	return s.critical(ctx, func(ctx context.Context, tx store.Store) (models.AuditEvent, bool, error) {
+		err := tx.AddGroupMember(ctx, m)
+		return event("group.member.add", TypeGroup, m.GroupID, nil, snapshot(m)), err == nil, err
+	})
+}
+
+func (s *auditedStore) RemoveGroupMember(ctx context.Context, m models.GroupMember) error {
+	return s.critical(ctx, func(ctx context.Context, tx store.Store) (models.AuditEvent, bool, error) {
+		err := tx.RemoveGroupMember(ctx, m)
+		return event("group.member.remove", TypeGroup, m.GroupID, snapshot(m), nil), err == nil, err
+	})
 }
