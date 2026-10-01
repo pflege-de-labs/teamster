@@ -35,10 +35,10 @@
         {
           "scopes": ["personal"],
           "commands": [
-            { "title": "/help", "description": "List what the bot can do" },
-            { "title": "/status", "description": "Show whether this chat is linked and which routes deliver to it" },
-            { "title": "/test", "description": "Send a test alert to this chat" },
-            { "title": "/unlink", "description": "Stop alerts arriving in this chat" }
+            { "title": "help", "description": "List what the bot can do" },
+            { "title": "status", "description": "Show whether this chat is linked and which routes deliver to it" },
+            { "title": "test", "description": "Send a test alert to this chat" },
+            { "title": "unlink", "description": "Stop alerts arriving in this chat" }
           ]
         }
       ]

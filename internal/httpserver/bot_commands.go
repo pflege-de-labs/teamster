@@ -13,9 +13,11 @@ import (
 	"github.com/pflege-de-labs/teamster/internal/store"
 )
 
-// Bot commands in the personal chat (ADR 0048). A slash command may carry
-// words after it; a bare word only counts as the whole message, because
-// "help" or "stop" inside a sentence is not a request (ADR 0032).
+// Bot commands in the personal chat (ADR 0048), named without a slash
+// because Teams shares the slash menu with every app (ADR 0068). A slash
+// command may carry words after it; a bare word only counts as the whole
+// message, because "help" or "stop" inside a sentence is not a request
+// (ADR 0032).
 const (
 	commandHelp    = "help"
 	commandStatus  = "status"
@@ -26,21 +28,21 @@ const (
 
 const (
 	helpReply = "**Teamster commands**\n\n" +
-		"- `/help` — this list\n" +
-		"- `/status` — whether this chat is linked, and which routes deliver to it\n" +
-		"- `/test` — send a test alert to this chat\n" +
-		"- `/unlink` — stop alerts arriving in this chat\n\n" +
+		"- `help` — this list\n" +
+		"- `status` — whether this chat is linked, and which routes deliver to it\n" +
+		"- `test` — send a test alert to this chat\n" +
+		"- `unlink` — stop alerts arriving in this chat\n\n" +
 		"To link this chat, send me the code from **Notifications** in the Teamster admin UI."
 	// managedHelpReply is the list while the app is installed for everyone:
 	// nobody links or unlinks a chat then (ADR 0061).
 	managedHelpReply = "**Teamster commands**\n\n" +
-		"- `/help` — this list\n" +
-		"- `/status` — what reaches this chat\n" +
-		"- `/test` — send a test message to this chat"
+		"- `help` — this list\n" +
+		"- `status` — what reaches this chat\n" +
+		"- `test` — send a test message to this chat"
 	managedUnlinkReply = "Your IT department sends messages to this chat, so it cannot be " +
 		"unlinked. Ask them if you think you should not receive these."
 	managedStatus       = "Your IT department sends messages to this chat through Teamster."
-	unknownCommandReply = "I don't know that command. Send /help for the ones I do."
+	unknownCommandReply = "I don't know that command. Send help for the ones I do."
 	notLinkedStatus     = "This chat is **not linked**. Get a link code from **Notifications** in the " +
 		"Teamster admin UI and send it to me here."
 	testNotLinkedReply = "This chat is not linked yet, so there is nowhere to send a test alert. " +
@@ -58,7 +60,7 @@ var bareCommands = map[string]string{
 
 // parseBotCommand finds the command a message asks for, if it asks for one.
 // An unknown slash command is still a command, answered with a pointer to
-// /help, so a typo is not read as a wrong link code.
+// help, so a typo is not read as a wrong link code.
 func parseBotCommand(text string, entities []botEntity) (string, bool) {
 	fields := strings.Fields(stripMentions(text, entities))
 	if len(fields) == 0 {

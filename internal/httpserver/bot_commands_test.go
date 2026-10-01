@@ -59,7 +59,8 @@ func TestBotCommandsReply(t *testing.T) {
 		// want is matched against every text the bot sent, in order.
 		want []string
 	}{
-		{name: "help", text: "/help", want: []string{helpReply}},
+		{name: "help", text: "help", want: []string{helpReply}},
+		{name: "help with a slash", text: "/help", want: []string{helpReply}},
 		{name: "unknown", text: "/nope", want: []string{unknownCommandReply}},
 		{name: "status unlinked", text: "/status", want: []string{notLinkedStatus}},
 		{name: "status linked", text: "/status", linked: true, want: []string{"**linked** to Alice"}},
