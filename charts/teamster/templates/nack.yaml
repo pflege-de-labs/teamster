@@ -1,0 +1,49 @@
+{{- /* JetStream resources for the audit export, reconciled by NACK (ADR 0079). */ -}}
+{{- $nack := .Values.nack | default dict -}}
+{{- $account := include "teamster.nackAccount" . -}}
+{{- $streamName := include "teamster.auditStream" . -}}
+{{- if dig "account" "create" false $nack }}
+---
+apiVersion: {{ $nack.apiVersion }}
+kind: Account
+metadata:
+  name: {{ $account }}
+  labels:
+    {{- include "teamster.componentLabels" (dict "root" . "labels" $nack.account.labels) | nindent 4 }}
+  {{- with $nack.account.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- toYaml (mergeOverwrite (dict "name" $account) (deepCopy ($nack.account.spec | default dict))) | nindent 2 }}
+{{- end }}
+{{- if include "teamster.nackStreamEnabled" . }}
+{{- $defaults := dict "name" $streamName "subjects" (list (printf "%s.>" (include "teamster.auditSubjectPrefix" .))) "storage" "file" "replicas" 1 "duplicateWindow" "2m" "preventDelete" true -}}
+{{- if $account }}{{- $_ := set $defaults "account" $account -}}{{- end }}
+---
+apiVersion: {{ $nack.apiVersion }}
+kind: Stream
+metadata:
+  name: {{ $nack.stream.resourceName | default (printf "%s-audit" (include "teamster.fullname" .)) }}
+  labels:
+    {{- include "teamster.componentLabels" (dict "root" . "labels" $nack.stream.labels) | nindent 4 }}
+  {{- with $nack.stream.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- toYaml (mergeOverwrite $defaults (deepCopy ($nack.stream.spec | default dict))) | nindent 2 }}
+{{- end }}
+{{- range $key, $spec := ($nack.consumers | default dict) }}
+{{- $defaults := dict "streamName" $streamName "durableName" $key -}}
+{{- if $account }}{{- $_ := set $defaults "account" $account -}}{{- end }}
+---
+apiVersion: {{ $nack.apiVersion }}
+kind: Consumer
+metadata:
+  name: {{ printf "%s-%s" (include "teamster.fullname" $) $key | trunc 63 | trimSuffix "-" }}
+  labels:
+    {{- include "teamster.labels" $ | nindent 4 }}
+spec:
+  {{- toYaml (mergeOverwrite $defaults (deepCopy ($spec | default dict))) | nindent 2 }}
+{{- end }}

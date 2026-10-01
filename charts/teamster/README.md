@@ -188,6 +188,60 @@ reachable `/admin/auth/callback` URL as registered with the provider. The chart 
 the hostname belongs to the Ingress or the HTTPRoute carrying the admin interface, and the scheme
 to whatever terminates TLS.
 
+## The audit stream with NACK
+
+The audit trail can be exported to NATS JetStream (`config.settings.audit.nats`, see the
+[service README](../../README.md#audit-trail)). The stream it publishes to, and durable consumers
+for whatever reads it, can be declared by the chart as [NACK](https://github.com/nats-io/nack)
+resources.
+
+> **NACK has to be installed and configured first.** The chart installs neither its CRDs nor its
+> JetStream controller, and the controller needs to reach your NATS servers, either through its
+> own `jetstream.nats.url` or through an `Account` resource. Without the CRDs the install fails;
+> without the controller the resources are never reconciled.
+>
+> ```bash
+> helm repo add nats https://nats-io.github.io/k8s/helm/charts/
+> helm install nack nats/nack --namespace nats \
+>   --set jetstream.enabled=true --set jetstream.nats.url=nats://nats.nats.svc:4222
+> ```
+
+```yaml
+config:
+  settings:
+    audit:
+      database: true
+      nats:
+        url: nats://nats.nats.svc:4222
+        backfill: true
+nack:
+  stream:
+    enabled: true
+    spec:
+      replicas: 3
+      maxAge: 8760h
+  consumers:
+    siem:
+      deliverPolicy: all
+      ackPolicy: explicit
+```
+
+* The `Stream` takes its name and subjects from `audit.nats.stream` and `subject-prefix`. What
+  `nack.stream.spec` sets is merged over the defaults: file storage, one replica, a two-minute
+  `duplicateWindow`, and `preventDelete: true`, which keeps the history when the release is
+  uninstalled.
+* Each key of `nack.consumers` is a durable `Consumer` of that stream. Teamster itself consumes
+  nothing.
+* `nack.account.create` renders an `Account` from `nack.account.spec` (servers, creds, TLS), and
+  `nack.account.name` references an existing one. The stream and consumers then connect through
+  it. NACK reconciles `Account` resources only in control-loop mode (`jetstream.controlLoop=true`).
+* The chart refuses `nack.stream.enabled` together with `audit.nats.create-stream`. NACK enforces
+  the stream's configuration and would undo what teamster sets.
+
+Credentials for teamster's own connection go in `credentials.extra.TEAMSTER_AUDIT_NATS_URL`, or as a
+creds file mounted with `volumes` and `volumeMounts` and named in `audit.nats.creds-file`. See
+[ADR 0079](../../docs/adr/0079-the-chart-declares-the-audit-stream-through-nack.md).
+
 ## extraObjects
 
 Deploys arbitrary resources alongside the release. Two forms:
@@ -418,6 +472,11 @@ The [values.yaml](values.yaml) comments are the reference. The ones most often c
 | `config.settings.metrics.enabled` | `false` | Opens the metrics listener and publishes its port. |
 | `config.settings.metrics.otlp-endpoint` | unset | Push metrics to a collector instead of, or beside, being scraped. |
 | `metrics.serviceMonitor.enabled` | `false` | Render a ServiceMonitor for the Prometheus operator. |
+| `config.settings.audit.database` | unset (`false`) | Keep the audit trail in the database. |
+| `config.settings.audit.nats.url` | unset | Publish audit events to NATS JetStream. |
+| `nack.stream.enabled` | `false` | Declare the audit stream as a NACK `Stream`. |
+| `nack.consumers` | `{}` | Durable NACK `Consumer`s of the audit stream. |
+| `nack.account.create` | `false` | A NACK `Account` the stream and consumers connect through. |
 | `sidecars` | `[]` | Extra containers in the pod, e.g. an OTLP collector. |
 | `extraObjects` | `{}` | Extra resources, as a map or a list. |
 | `commonLabels` | `{}` | Labels on every resource; see [Labels](#labels). |

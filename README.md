@@ -1265,6 +1265,8 @@ the event id is the `Nats-Msg-Id`, so the stream drops a retried duplicate. Subs
 server that is down does not stop Teamster: events wait in the queue and are counted when they
 are dropped. Put a URL that carries credentials in `TEAMSTER_AUDIT_NATS_URL` rather than in the
 file. See [ADR 0071](docs/adr/0071-publish-audit-events-to-nats-jetstream.md).
+On Kubernetes, the Helm chart can declare the stream and its consumers as NACK resources; see
+[the audit stream with NACK](charts/teamster/README.md#the-audit-stream-with-nack).
 
 With `audit.nats.backfill: true` the database trail is the buffer for NATS. This needs
 `audit.database`. Events are published from the trail in order, and the position is kept in the
