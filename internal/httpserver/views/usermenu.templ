@@ -62,6 +62,7 @@ templ sidebar(viewer Viewer) {
 			if viewer.CanManage {
 				@navLink("/admin/permissions", "nav.permissions")
 				@navLink("/admin/tokens", "nav.tokens")
+				@navLink("/admin/users", "nav.users")
 				if viewer.PeopleEnabled {
 					@navLink("/admin/people", "nav.people")
 				}

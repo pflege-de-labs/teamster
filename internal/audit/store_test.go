@@ -212,6 +212,19 @@ func TestWrapRecordsChanges(t *testing.T) {
 			},
 		},
 		{
+			name: "disabling and enabling a user, not signing in",
+			key:  "disabled_by",
+			run: func(ctx context.Context, t *testing.T, st store.Store) {
+				must(t, st.RecordSignIn(ctx, models.User{Subject: "bob", Source: "oidc"}))
+				must(t, st.DisableUser(ctx, "bob", "alice"))
+				must(t, st.EnableUser(ctx, "bob"))
+			},
+			want: []step{
+				{"user.disable", TypeUser, nil, "alice"},
+				{"user.enable", TypeUser, "alice", nil},
+			},
+		},
+		{
 			name: "writes that change nothing record nothing",
 			key:  "name",
 			run: func(ctx context.Context, t *testing.T, st store.Store) {

@@ -93,6 +93,11 @@ func (s *SQLiteStore) DeleteSession(ctx context.Context, id string) error {
 	return deleteSessionCascade(ctx, s, id)
 }
 
+// DisableUser overrides queryAdapter's so the sessions end in the same commit.
+func (s *SQLiteStore) DisableUser(ctx context.Context, subject, by string) error {
+	return disableUserInTx(ctx, s, subject, by)
+}
+
 // DeleteDestination and SetDefaultDestination override queryAdapter's to run
 // their statements in one transaction, which is what keeps exactly one default.
 func (s *SQLiteStore) DeleteDestination(ctx context.Context, id string) error {

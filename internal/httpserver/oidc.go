@@ -16,6 +16,7 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/pflege-de-labs/teamster/internal/authz"
+	"github.com/pflege-de-labs/teamster/internal/logging"
 	"github.com/pflege-de-labs/teamster/internal/models"
 )
 
@@ -215,6 +216,11 @@ func (s *Server) handleAuthCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sessionID, err := s.startSession(w, r, subject, name, "oidc", roles, identity)
+	if errors.Is(err, errUserDisabled) {
+		logging.FromContext(ctx).Warn("sign-in refused: user disabled", "subject", subject)
+		loginFailed(w, r, errUserDisabled.Error())
+		return
+	}
 	if err != nil {
 		logError(ctx, "start session", err)
 		loginFailed(w, r, "could not start a session")

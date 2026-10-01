@@ -347,5 +347,18 @@
   "audit.field": "Feld",
   "audit.before": "Vorher",
   "audit.after": "Nachher",
-  "audit.disabled": "Hier wird nichts aufgezeichnet: Setzen Sie audit.database auf true, um das Änderungsprotokoll in der Datenbank zu führen."
+  "audit.disabled": "Hier wird nichts aufgezeichnet: Setzen Sie audit.database auf true, um das Änderungsprotokoll in der Datenbank zu führen.",
+  "nav.users": "Benutzer",
+  "page.users": "Benutzer — Teamster",
+  "users.heading": "Angemeldete Personen",
+  "users.explainer": "Alle, die sich angemeldet haben, mit den Rollen und Gruppen, die ihr Identitätsanbieter zuletzt gesendet hat. Deaktivieren beendet ihre Sitzungen und verweigert die nächste Anmeldung. Die lokale Anmeldung kann nicht deaktiviert werden.",
+  "users.search": "Suche",
+  "users.search_placeholder": "Name, E-Mail oder Subject",
+  "users.find": "Suchen",
+  "users.empty": "Noch niemand hat sich angemeldet, oder niemand passt.",
+  "users.disabled": "deaktiviert",
+  "users.detail": "{0} · Rollen {1} · Gruppen {2} · zuletzt gesehen {3}",
+  "users.disabled_by": "Deaktiviert von {0}, {1}",
+  "users.disable": "Deaktivieren",
+  "users.enable": "Aktivieren"
 }

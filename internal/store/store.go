@@ -313,6 +313,16 @@ type Store interface {
 	// fail against forever.
 	DeleteActiveEventRecipientsFor(ctx context.Context, recipientID string) error
 
+	// RecordSignIn creates or refreshes a user from a sign-in (ADR 0072).
+	RecordSignIn(ctx context.Context, u models.User) error
+	GetUser(ctx context.Context, subject string) (models.User, error)
+	// ListUsers matches search against subject, name and email, ignoring case.
+	ListUsers(ctx context.Context, search string, limit int) ([]models.User, error)
+	// DisableUser refuses the user's next sign-in and ends their sessions,
+	// together, so a disabled user keeps no way in.
+	DisableUser(ctx context.Context, subject, by string) error
+	EnableUser(ctx context.Context, subject string) error
+
 	// InsertAuditEvent appends one event to the audit trail (ADR 0070).
 	InsertAuditEvent(ctx context.Context, e models.AuditEvent) error
 	// ListAuditEvents returns events newest first, at most filter.Limit of them.

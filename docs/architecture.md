@@ -892,6 +892,10 @@ never reads it, so it sees an addressed route as one with no target and delivers
 ([ADR 0070](adr/0070-audit-configuration-changes-at-the-store.md)). It is append-only, and pruning
 deletes by `occurred_at`. It is a new table and nothing else, so the previous release ignores it.
 
+`users` came with the user registry, by `0024` in SQLite and `0021` in Postgres, along with an
+index on `sessions(subject)` for ending a disabled user's sessions
+([ADR 0072](adr/0072-remember-who-signed-in.md)). The previous release ignores both.
+
 `database.migrate` decides what opening the store does about a schema that is behind: `auto`
 applies what is missing, `verify` refuses and names `teamster migrate up`, `off` asks nothing.
 `teamster export` always verifies — reading a database must not migrate it. A migration must leave
@@ -978,6 +982,12 @@ along with the token each was found in. Groups are looked up in the same order a
 userinfo is fetched once for both. No token is kept. `/admin/userinfo` shows the record to its
 holder: it requires a session but sits outside `authorize`, so a user with no role can read it too.
 See [ADR 0043](adr/0043-session-keeps-sign-in-identity.md).
+
+Every sign-in also writes a `users` row: subject, source, name, email, and the roles and IdP
+groups of that sign-in. An admin can disable a user at `/admin/users`. That deletes the user's
+sessions and broker tokens in the same transaction and refuses their next sign-in, so no
+per-request lookup is needed. The local login cannot be disabled. See
+[ADR 0072](adr/0072-remember-who-signed-in.md).
 
 `/api` keeps HTTP basic auth: automation cannot complete an authorization code flow. Expired
 sessions and abandoned flows are swept hourly, and neither is honoured once expired regardless.

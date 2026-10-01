@@ -441,6 +441,20 @@ func (s stubStore) PruneEventSamples(ctx context.Context, _ time.Time, _ int) (i
 	return 0, store.ErrNotFound
 }
 
+func (s stubStore) RecordSignIn(context.Context, models.User) error { return store.ErrNotFound }
+
+func (s stubStore) GetUser(context.Context, string) (models.User, error) {
+	return models.User{}, store.ErrNotFound
+}
+
+func (s stubStore) ListUsers(context.Context, string, int) ([]models.User, error) {
+	return nil, store.ErrNotFound
+}
+
+func (s stubStore) DisableUser(context.Context, string, string) error { return store.ErrNotFound }
+
+func (s stubStore) EnableUser(context.Context, string) error { return store.ErrNotFound }
+
 func (s stubStore) InsertAuditEvent(context.Context, models.AuditEvent) error {
 	return store.ErrNotFound
 }
