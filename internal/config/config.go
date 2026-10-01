@@ -22,6 +22,7 @@ type Config struct {
 	Graph    GraphConfig    `embed:"" prefix:"graph-"`
 	Bot      BotConfig      `embed:"" prefix:"bot-"`
 	Samples  SamplesConfig  `embed:"" prefix:"samples-"`
+	Audit    AuditConfig    `embed:"" prefix:"audit-"`
 	Log      LogConfig      `embed:"" prefix:"log-"`
 
 	// Version is the build stamp, set by cli.Run rather than by a flag or the file.
@@ -226,6 +227,31 @@ func (c BotConfig) Configured() bool {
 type LogConfig struct {
 	Level  string `help:"Lowest level written: debug, info, warn or error." enum:"debug,info,warn,error" default:"info"`
 	Format string `help:"Line format: text to read, json for a log pipeline." enum:"text,json" default:"text"`
+}
+
+// AuditConfig says where the record of configuration changes goes (ADR 0070).
+type AuditConfig struct {
+	File           string        `help:"Append audit events to this file as JSON lines; - is stdout, empty is off."`
+	Database       bool          `help:"Keep audit events in the database, which the admin UI lists. Audit is off unless this or a sink is configured."`
+	RetentionAge   time.Duration `help:"Forget database audit events older than this; 0 keeps them regardless of age." name:"retention-age" default:"2160h"`
+	RetentionCount int           `help:"Keep at most this many database audit events; 0 is no limit." name:"retention-count" default:"100000"`
+	PruneInterval  time.Duration `help:"How often database audit retention is applied." name:"prune-interval" default:"1h"`
+	QueueSize      int           `help:"Events held for each sink other than the database before new ones are dropped." name:"queue-size" default:"1024"`
+}
+
+// validateAudit checks only the bounds a configured sink uses.
+func validateAudit(cfg AuditConfig) error {
+	switch {
+	case cfg.RetentionAge < 0:
+		return fmt.Errorf("audit-retention-age must not be negative, not %s", cfg.RetentionAge)
+	case cfg.RetentionCount < 0:
+		return fmt.Errorf("audit-retention-count must not be negative, not %d", cfg.RetentionCount)
+	case cfg.Database && (cfg.RetentionAge > 0 || cfg.RetentionCount > 0) && cfg.PruneInterval <= 0:
+		return fmt.Errorf("audit-prune-interval must be positive, not %s", cfg.PruneInterval)
+	case cfg.File != "" && cfg.QueueSize <= 0:
+		return fmt.Errorf("audit-queue-size must be positive, not %d", cfg.QueueSize)
+	}
+	return nil
 }
 
 // SamplesConfig bounds what is remembered of incoming events so the admin UI
@@ -516,5 +542,8 @@ func Validate(cfg Config) error {
 	if err := validateAuthBroker(cfg.Auth); err != nil {
 		return err
 	}
-	return validateSamples(cfg.Samples)
+	if err := validateSamples(cfg.Samples); err != nil {
+		return err
+	}
+	return validateAudit(cfg.Audit)
 }

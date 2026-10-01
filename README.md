@@ -1121,6 +1121,45 @@ The bundle therefore carries the Team and channel names beside the ids, and the 
 the destinations this tenant cannot resolve — see
 [ADR 0013](docs/adr/0013-configuration-transfer.md).
 
+## Audit trail
+
+Auditing is off until you configure it. With it on, every change to the configuration is
+recorded: templates, destinations, routes, webhook endpoints, access tokens, grants, the default
+template and destination, linked chats, and install runs someone asked for. An event says who made
+the change, how they signed in (`session`, `basic` or `cli`), the request id, and the record before
+and after. Credentials are never included.
+
+Admins read the trail at **/admin/audit**, or with `GET /api/audit`. Both filter by `actor`,
+`action`, `type` and `id`, and `since`/`until` filter by time (RFC 3339). Results are newest first.
+To get the next page of API results, pass the `next` value back as `cursor` and `at`.
+
+The simplest setup keeps the trail in the database:
+
+```yaml
+audit:
+  database: true
+```
+
+Everything else is optional; the values shown are the defaults:
+
+```yaml
+audit:
+  database: true            # the trail /admin/audit lists
+  retention-age: "2160h"    # forget events older than 90 days; 0 keeps them regardless of age
+  retention-count: 100000   # keep at most this many events; 0 is no limit
+  prune-interval: "1h"
+  file: ""                  # also append JSON lines to a file; "-" is stdout
+  queue-size: 1024          # events waiting for the file before new ones are dropped
+```
+
+Both retention limits apply, whichever is reached first. A sink such as the file receives the
+events recorded while it is configured. Turning one on later does not send it older events from the
+database.
+
+A failed audit write never fails the change. It is logged and counted in `teamster.audit.failed`,
+and events dropped from a full queue are counted in `teamster.audit.dropped`. `teamster import`
+records its changes too. See [ADR 0070](docs/adr/0070-audit-configuration-changes-at-the-store.md).
+
 ## Logging
 
 Teamster logs to stderr. `log.level` picks the lowest level written: `debug`, `info` (the default),

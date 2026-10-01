@@ -531,6 +531,8 @@ func TestDirectoryInstruments(t *testing.T) {
 	m.AppInstall(ctx, "installed")
 	m.DirectoryLookup(ctx, "store")
 	m.ReconcileRun(ctx, "periodic", "done")
+	m.AuditFailed(ctx, "database")
+	m.AuditDropped(ctx, "file")
 	for _, counts := range []map[string]int64{{"unknown": 9}, {"installed": 4, "failed": 1}} {
 		// Registering again replaces the first callback rather than adding one.
 		if err := m.ObserveDirectoryUsers(func(context.Context) (map[string]int64, error) { return counts, nil }); err != nil {
@@ -544,7 +546,7 @@ func TestDirectoryInstruments(t *testing.T) {
 	if f := got["teamster_app_installs_total"]; f == nil || f.Metric[0].Counter.GetValue() != 2 {
 		t.Errorf("app installs = %v, want 2", f)
 	}
-	for _, name := range []string{"teamster_directory_lookups_total", "teamster_directory_runs_total"} {
+	for _, name := range []string{"teamster_directory_lookups_total", "teamster_directory_runs_total", "teamster_audit_failed_total", "teamster_audit_dropped_total"} {
 		if f := got[name]; f == nil || f.Metric[0].Counter.GetValue() != 1 {
 			t.Errorf("%s = %v, want 1", name, f)
 		}

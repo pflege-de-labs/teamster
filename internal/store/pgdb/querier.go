@@ -102,6 +102,11 @@ type Querier interface {
 	// resolve forever (see recipientMissing in webhooks.go for the mirror-image
 	// defence against a row that was stranded some other way).
 	DeleteActiveEventRecipientsFor(ctx context.Context, recipientID string) error
+	DeleteAuditEventsBefore(ctx context.Context, occurredAt time.Time) (int64, error)
+	// Keeps the newest keep rows. The offset finds the oldest row worth keeping;
+	// everything strictly older goes, and so does anything at the same instant
+	// with a smaller id, which is the order the list pages in.
+	DeleteAuditEventsBeyond(ctx context.Context, keep int64) (int64, error)
 	DeleteBotTeam(ctx context.Context, teamID string) error
 	DeleteBrokerToken(ctx context.Context, sessionID string) error
 	DeleteDestination(ctx context.Context, id string) error
@@ -182,6 +187,11 @@ type Querier interface {
 	//
 	// The statements are the SQLite ones with ? replaced by $n. Edit the SQLite
 	// file and run make generate.
+	InsertAuditEvent(ctx context.Context, arg InsertAuditEventParams) error
+	// Code generated from ../sqlite by internal/store/queries/gen. DO NOT EDIT.
+	//
+	// The statements are the SQLite ones with ? replaced by $n. Edit the SQLite
+	// file and run make generate.
 	// InsertDirectoryRun requests a run. It collides with the partial unique index
 	// while another run is requested or running.
 	InsertDirectoryRun(ctx context.Context, arg InsertDirectoryRunParams) error
@@ -201,6 +211,10 @@ type Querier interface {
 	// fanned out to, and any claim still in flight. The order is stable so that
 	// delivery, and its tests, see them the same way every time.
 	ListActiveEvents(ctx context.Context, eventKey string) ([]ActiveEvent, error)
+	// Newest first, a page at a time. The cursor is the last row of the previous
+	// page; an empty cursor id starts from the newest. Each filter left empty
+	// matches everything, so one statement serves every combination of them.
+	ListAuditEvents(ctx context.Context, arg ListAuditEventsParams) ([]AuditEvent, error)
 	ListBotTeams(ctx context.Context) ([]BotTeam, error)
 	// Code generated from ../sqlite by internal/store/queries/gen. DO NOT EDIT.
 	//

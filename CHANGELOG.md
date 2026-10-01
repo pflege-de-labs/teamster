@@ -20,6 +20,12 @@ reasoning behind it in the [ADRs](docs/adr/).
   it is mentioned. `status` lists the destinations and routes for the channel, and `test` posts a
   test alert there. Upload the app package with a higher `version` to show the channel command
   menu ([ADR 0069](docs/adr/0069-the-bot-answers-commands-in-team-channels.md)).
+* An audit trail of configuration changes, off until configured (`audit.database: true` is
+  enough): who changed a template, destination, route, webhook endpoint, access token, grant or
+  default, when, and what the record held before and after. Admins read it at `/admin/audit` and
+  `GET /api/audit`. It can also be appended to a JSON lines file (`audit.file`). The database copy
+  is bounded by `audit.retention-age` (90 days) and `audit.retention-count` (100000 events)
+  ([ADR 0070](docs/adr/0070-audit-configuration-changes-at-the-store.md)).
 
 ### Changed
 

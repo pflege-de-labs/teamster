@@ -1,0 +1,152 @@
+package views
+
+import (
+	"net/url"
+
+	"github.com/pflege-de-labs/teamster/internal/i18n"
+	"github.com/pflege-de-labs/teamster/internal/models"
+)
+
+// Audit is the page at /admin/audit: who changed the configuration (ADR 0070).
+type Audit struct {
+	Viewer Viewer
+	Filter AuditFilter
+	Events []AuditEntry
+	// Older links the next page, or is empty on the last one.
+	Older string
+	// Disabled is a deployment that keeps no audit trail in the database.
+	Disabled bool
+	Error string
+}
+
+// AuditFilter is what the form at the top of the page narrows by.
+type AuditFilter struct {
+	Actor        string
+	ResourceType string
+	ResourceID   string
+	Action       string
+}
+
+// AuditEntry is one event and the fields it changed.
+type AuditEntry struct {
+	Event   models.AuditEvent
+	Changes []AuditChange
+}
+
+// AuditChange is one top-level field, as JSON, before and after.
+type AuditChange struct {
+	Field  string
+	Before string
+	After  string
+}
+
+// AuditOlderLink keeps the filter and moves the cursor past the last event.
+func AuditOlderLink(filter AuditFilter, last models.AuditEvent) string {
+	query := url.Values{}
+	for key, value := range map[string]string{
+		"actor": filter.Actor, "type": filter.ResourceType, "id": filter.ResourceID, "action": filter.Action,
+	} {
+		if value != "" {
+			query.Set(key, value)
+		}
+	}
+	query.Set("cursor", last.ID)
+	query.Set("at", last.OccurredAt.Format("2006-01-02T15:04:05.999999999Z07:00"))
+	return "/admin/audit?" + query.Encode()
+}
+
+templ AuditPage(page Audit) {
+	@Layout(i18n.T(ctx, "page.audit"), &page.Viewer) {
+		@notice(page.Error, "")
+		<section class="rounded-lg border border-slate-200 bg-white shadow-sm">
+			<h2 class="border-b border-slate-200 px-6 py-4 text-lg font-semibold">
+				{ i18n.T(ctx, "audit.heading") }
+			</h2>
+			<div class="space-y-6 px-6 py-6">
+				<p class="text-sm text-slate-600">{ i18n.T(ctx, "audit.explainer") }</p>
+				if page.Disabled {
+					<p class="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">{ i18n.T(ctx, "audit.disabled") }</p>
+				}
+				<form method="get" action="/admin/audit" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5 lg:items-end">
+					@textField("actor", i18n.T(ctx, "audit.actor"), "", page.Filter.Actor)
+					@textField("action", i18n.T(ctx, "audit.action"), "template.update", page.Filter.Action)
+					@textField("type", i18n.T(ctx, "audit.type"), "Template", page.Filter.ResourceType)
+					@textField("id", i18n.T(ctx, "audit.id"), "", page.Filter.ResourceID)
+					<div class="flex gap-2">
+						@submit(i18n.T(ctx, "audit.filter"))
+						<a href="/admin/audit" class="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
+							{ i18n.T(ctx, "audit.clear") }
+						</a>
+					</div>
+				</form>
+				if len(page.Events) == 0 {
+					@empty(i18n.T(ctx, "audit.empty"))
+				} else {
+					<ul class="divide-y divide-slate-200">
+						for _, entry := range page.Events {
+							@auditItem(entry)
+						}
+					</ul>
+				}
+				if page.Older != "" {
+					<a href={ templ.SafeURL(page.Older) } class="inline-block text-sm text-sky-700 hover:underline">
+						{ i18n.T(ctx, "audit.older") }
+					</a>
+				}
+			</div>
+		</section>
+	}
+}
+
+templ auditItem(entry AuditEntry) {
+	<li class="py-3">
+		<details>
+			<summary class="flex cursor-pointer flex-wrap items-baseline gap-x-4 gap-y-1">
+				<span class="font-mono text-sm font-medium">{ entry.Event.Action }</span>
+				<span class="text-sm text-slate-700">
+					{ entry.Event.ResourceType }
+					if entry.Event.ResourceID != "" {
+						<span class="font-mono text-xs text-slate-500">{ entry.Event.ResourceID }</span>
+					}
+				</span>
+				<span class="text-xs text-slate-500">
+					{ i18n.T(ctx, "audit.by", actorLabel(entry.Event.Actor), entry.Event.Actor.Via, stamp(ctx, entry.Event.OccurredAt)) }
+				</span>
+			</summary>
+			<div class="mt-3 space-y-2 pl-4">
+				if entry.Event.RequestID != "" {
+					<p class="text-xs text-slate-500">{ i18n.T(ctx, "audit.request", entry.Event.RequestID) }</p>
+				}
+				if len(entry.Changes) == 0 {
+					<p class="text-xs text-slate-500">{ i18n.T(ctx, "audit.no_detail") }</p>
+				} else {
+					<table class="w-full table-fixed text-left text-xs">
+						<thead class="text-slate-500">
+							<tr>
+								<th class="w-40 py-1 font-medium">{ i18n.T(ctx, "audit.field") }</th>
+								<th class="py-1 font-medium">{ i18n.T(ctx, "audit.before") }</th>
+								<th class="py-1 font-medium">{ i18n.T(ctx, "audit.after") }</th>
+							</tr>
+						</thead>
+						<tbody class="font-mono">
+							for _, change := range entry.Changes {
+								<tr class="align-top">
+									<td class="py-1 pr-2">{ change.Field }</td>
+									<td class="break-all py-1 pr-2 text-red-700">{ change.Before }</td>
+									<td class="break-all py-1 text-emerald-700">{ change.After }</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				}
+			</div>
+		</details>
+	</li>
+}
+
+func actorLabel(actor models.Actor) string {
+	if actor.Name != "" && actor.Name != actor.Subject {
+		return actor.Name + " (" + actor.Subject + ")"
+	}
+	return actor.Subject
+}

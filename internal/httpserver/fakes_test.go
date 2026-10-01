@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -45,6 +46,7 @@ type fakeStore struct {
 	loginFlows   map[string]models.LoginFlow
 	linkFlows    map[string]models.LinkFlow
 	samples      []models.EventSample
+	auditEvents  []models.AuditEvent
 	// globalDefaultTemplate is the catch-all's template; "" is the built-in one.
 	globalDefaultTemplate string
 	// sourceDefaults maps a source to its default template.
@@ -1823,4 +1825,51 @@ func (f *fakeStore) UpdateRecipientChatsForObjectID(_ context.Context, aadObject
 		}
 	}
 	return n, nil
+}
+
+// The audit trail, newest first like the real one.
+
+func (f *fakeStore) InsertAuditEvent(_ context.Context, e models.AuditEvent) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("InsertAuditEvent"); err != nil {
+		return err
+	}
+	f.auditEvents = append(f.auditEvents, e)
+	return nil
+}
+
+func (f *fakeStore) ListAuditEvents(_ context.Context, filter models.AuditFilter) ([]models.AuditEvent, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("ListAuditEvents"); err != nil {
+		return nil, err
+	}
+	var out []models.AuditEvent
+	for i := len(f.auditEvents) - 1; i >= 0; i-- {
+		e := f.auditEvents[i]
+		switch {
+		case filter.Actor != "" && e.Actor.Subject != filter.Actor,
+			filter.ResourceType != "" && e.ResourceType != filter.ResourceType,
+			filter.ResourceID != "" && e.ResourceID != filter.ResourceID,
+			filter.Action != "" && e.Action != filter.Action:
+			continue
+		}
+		out = append(out, e)
+	}
+	if filter.CursorID != "" {
+		if i := slices.IndexFunc(out, func(e models.AuditEvent) bool { return e.ID == filter.CursorID }); i >= 0 {
+			out = out[i+1:]
+		}
+	}
+	if filter.Limit > 0 && len(out) > filter.Limit {
+		out = out[:filter.Limit]
+	}
+	return out, nil
+}
+
+func (f *fakeStore) PruneAuditEvents(context.Context, time.Time, int) (int64, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return 0, f.failing("PruneAuditEvents")
 }

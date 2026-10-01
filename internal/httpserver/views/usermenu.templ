@@ -66,6 +66,9 @@ templ sidebar(viewer Viewer) {
 					@navLink("/admin/people", "nav.people")
 				}
 			}
+			if viewer.CanAudit {
+				@navLink("/admin/audit", "nav.audit")
+			}
 		</nav>
 		if version := versionOf(ctx); version != "" {
 			<div class="px-7 py-4 text-xs text-slate-400">{ i18n.T(ctx, "app.version", version) }</div>

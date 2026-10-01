@@ -111,7 +111,31 @@ func (m *Metrics) instruments() error {
 	)
 	errs = append(errs, err)
 
+	m.auditFailed, err = meter.Int64Counter(
+		"teamster.audit.failed",
+		metric.WithDescription("Audit events a sink refused, by sink."),
+		metric.WithUnit("{event}"),
+	)
+	errs = append(errs, err)
+
+	m.auditDropped, err = meter.Int64Counter(
+		"teamster.audit.dropped",
+		metric.WithDescription("Audit events dropped because a sink's queue was full, by sink."),
+		metric.WithUnit("{event}"),
+	)
+	errs = append(errs, err)
+
 	return errors.Join(errs...)
+}
+
+// AuditFailed counts an audit event a sink could not take.
+func (m *Metrics) AuditFailed(ctx context.Context, sink string) {
+	m.auditFailed.Add(ctx, 1, metric.WithAttributes(attribute.String("sink", sink)))
+}
+
+// AuditDropped counts an audit event a full queue turned away.
+func (m *Metrics) AuditDropped(ctx context.Context, sink string) {
+	m.auditDropped.Add(ctx, 1, metric.WithAttributes(attribute.String("sink", sink)))
 }
 
 // AppInstall counts one person the installer handled, never who, so the
