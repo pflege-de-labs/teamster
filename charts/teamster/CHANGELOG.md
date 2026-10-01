@@ -8,6 +8,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.10.0] — 2026-10-01
+
+App version 0.11.0: an audit trail with NATS export, local groups, record ownership and sharing,
+webhook permissions and self-service scoped tokens; see the [service changelog](../../CHANGELOG.md).
+
 ### Changed
 
 * The comment on `config.settings.auth.groups-claim` says what the claim is now used for: local
@@ -130,7 +135,8 @@ an Ingress or HTTPRoute, configuration and credentials from values, `extraObject
 an optional startupProbe, and `helm test`
 ([ADR 0016](../../docs/adr/0016-helm-chart.md)).
 
-[Unreleased]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.9.0...HEAD
+[Unreleased]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.10.0...HEAD
+[0.10.0]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.9.0...teamster-0.10.0
 [0.9.0]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.8.1...teamster-0.9.0
 [0.8.1]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.8.0...teamster-0.8.1
 [0.8.0]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.7.1...teamster-0.8.0
