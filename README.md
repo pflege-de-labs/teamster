@@ -245,7 +245,7 @@ In the personal chat the bot answers:
 | --- | --- |
 | `/help` | Lists the commands. |
 | `/status` | Shows whether this chat is linked, to whom and since when, and which routes deliver to it. |
-| `/test` | Sends a test alert to this chat through the real delivery path. |
+| `/test` | Sends a test alert to this chat through the real delivery path, rendered with the universal webhook's default template. |
 | `/unlink` | Stops alerts arriving here (see below). |
 
 A bare `help` or `status` works too, as long as it is the whole message. Anything else is read as a

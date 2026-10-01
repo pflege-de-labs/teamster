@@ -10,6 +10,11 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 ## [Unreleased]
 
+### Fixed
+
+* `/test` in a linked chat sends the test alert again instead of answering "Something went wrong".
+  It renders with the default template for universal webhooks.
+
 ## [0.10.0] — 2026-09-30
 
 ### Added
