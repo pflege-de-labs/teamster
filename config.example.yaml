@@ -238,15 +238,17 @@ samples:
   lru-size: 4096
   flush-interval: "5m"
 
-# Who changed the configuration, and how (ADR 0070).
+# Who changed the configuration, and how (ADR 0070). Off unless database or a
+# sink is set; database alone is the simplest setup.
 audit:
   # JSON lines appended to a file; "-" is stdout. Empty writes no file.
   file: ""
   # The trail /admin/audit lists.
   database: true
-  # Database retention: either limit, or both; 0 switches one off.
+  # Database retention: both limits apply, whichever is reached first; 0
+  # switches one off. The defaults are 90 days and 100000 events.
   retention-age: "2160h"
-  retention-count: 0
+  retention-count: 100000
   prune-interval: "1h"
   # Events waiting for the file before new ones are dropped and counted.
   queue-size: 1024

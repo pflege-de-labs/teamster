@@ -346,5 +346,6 @@
   "audit.no_detail": "Für diese Änderung wurden keine Felder aufgezeichnet.",
   "audit.field": "Feld",
   "audit.before": "Vorher",
-  "audit.after": "Nachher"
+  "audit.after": "Nachher",
+  "audit.disabled": "Hier wird nichts aufgezeichnet: Setzen Sie audit.database auf true, um das Änderungsprotokoll in der Datenbank zu führen."
 }

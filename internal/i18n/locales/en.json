@@ -346,5 +346,6 @@
   "audit.no_detail": "No fields recorded for this change.",
   "audit.field": "Field",
   "audit.before": "Before",
-  "audit.after": "After"
+  "audit.after": "After",
+  "audit.disabled": "Nothing is recorded here: set audit.database to true to keep the audit trail in the database."
 }

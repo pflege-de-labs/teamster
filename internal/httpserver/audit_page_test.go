@@ -211,21 +211,33 @@ func TestAuditIsTheAdminsAlone(t *testing.T) {
 	tests := []struct {
 		name     string
 		role     authz.Role
+		stored   bool
 		path     string
 		wantCode int
 		wantNav  bool
 	}{
-		{"admin reads the page", authz.RoleAdmin, "/admin/audit", http.StatusOK, true},
-		{"admin reads the API", authz.RoleAdmin, "/api/audit", http.StatusOK, true},
-		{"editor is refused the page", authz.RoleEditor, "/admin/audit", http.StatusForbidden, false},
-		{"viewer is refused the API", authz.RoleViewer, "/api/audit", http.StatusForbidden, false},
+		{"admin reads the page", authz.RoleAdmin, true, "/admin/audit", http.StatusOK, true},
+		{"admin reads the API", authz.RoleAdmin, true, "/api/audit", http.StatusOK, true},
+		{"editor is refused the page", authz.RoleEditor, true, "/admin/audit", http.StatusForbidden, false},
+		{"viewer is refused the API", authz.RoleViewer, true, "/api/audit", http.StatusForbidden, false},
+		{"without the database trail the nav offers nothing", authz.RoleAdmin, false, "/admin/audit", http.StatusOK, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			handler := newTestServer(t, sessionAs(newFakeStore(), tt.role), &fakeMessenger{}).Handler
-			if rec := asRole(t, handler, http.MethodGet, tt.path, ""); rec.Code != tt.wantCode {
+			cfg := config.Config{
+				Server:  config.ServerConfig{Addr: ":0"},
+				Webhook: config.WebhookConfig{Token: "token"},
+				Admin:   config.AdminConfig{Username: "admin", Password: "pass"},
+				Audit:   config.AuditConfig{Database: tt.stored},
+			}
+			handler := mustServer(t, cfg, sessionAs(newFakeStore(), tt.role), &fakeMessenger{}).Handler
+			rec := asRole(t, handler, http.MethodGet, tt.path, "")
+			if rec.Code != tt.wantCode {
 				t.Errorf("GET %s as %s = %d, want %d", tt.path, tt.role, rec.Code, tt.wantCode)
+			}
+			if disabled := strings.Contains(rec.Body.String(), "Nothing is recorded here"); disabled != (!tt.stored && tt.wantCode == http.StatusOK) {
+				t.Errorf("the page says nothing is recorded = %v", disabled)
 			}
 			nav := asRole(t, handler, http.MethodGet, "/admin", "").Body.String()
 			if got := strings.Contains(nav, `href="/admin/audit"`); got != tt.wantNav {

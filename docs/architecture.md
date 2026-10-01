@@ -631,9 +631,12 @@ handler ──► audit.Wrap ──► store ──► commit
   failed write is logged and counted (`teamster.audit.failed`), and the request still succeeds.
 * **Shutdown.** `serve` closes the recorder after the HTTP drain, within
   `server.shutdown-timeout`, so the queues empty before the store closes.
+* **Opt-in.** Without `audit.database` or a sink there is no recorder, and `audit.Wrap` returns the
+  store as it is.
 * **Retention.** Every replica runs `audit.Pruner` every `audit.prune-interval`. It deletes events
-  older than `audit.retention-age` and all but the newest `audit.retention-count`. Either limit is
-  off at `0`.
+  older than `audit.retention-age` (90 days) and all but the newest `audit.retention-count`
+  (100000). A limit is off at `0`.
+* **No backfill.** A sink gets the events recorded while it is configured, and nothing older.
 * **Reading.** `/admin/audit` and `GET /api/audit` are admin-only. They filter by actor, action,
   type and id, and page newest first by `(occurred_at, id)`.
 

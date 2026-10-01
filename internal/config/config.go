@@ -232,9 +232,9 @@ type LogConfig struct {
 // AuditConfig says where the record of configuration changes goes (ADR 0070).
 type AuditConfig struct {
 	File           string        `help:"Append audit events to this file as JSON lines; - is stdout, empty is off."`
-	Database       bool          `help:"Keep audit events in the database, which the admin UI lists." default:"true"`
+	Database       bool          `help:"Keep audit events in the database, which the admin UI lists. Audit is off unless this or a sink is configured."`
 	RetentionAge   time.Duration `help:"Forget database audit events older than this; 0 keeps them regardless of age." name:"retention-age" default:"2160h"`
-	RetentionCount int           `help:"Keep at most this many database audit events; 0 is no limit." name:"retention-count" default:"0"`
+	RetentionCount int           `help:"Keep at most this many database audit events; 0 is no limit." name:"retention-count" default:"100000"`
 	PruneInterval  time.Duration `help:"How often database audit retention is applied." name:"prune-interval" default:"1h"`
 	QueueSize      int           `help:"Events held for each sink other than the database before new ones are dropped." name:"queue-size" default:"1024"`
 }

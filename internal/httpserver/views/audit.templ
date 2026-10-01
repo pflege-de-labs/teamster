@@ -14,6 +14,8 @@ type Audit struct {
 	Events []AuditEntry
 	// Older links the next page, or is empty on the last one.
 	Older string
+	// Disabled is a deployment that keeps no audit trail in the database.
+	Disabled bool
 	Error string
 }
 
@@ -62,6 +64,9 @@ templ AuditPage(page Audit) {
 			</h2>
 			<div class="space-y-6 px-6 py-6">
 				<p class="text-sm text-slate-600">{ i18n.T(ctx, "audit.explainer") }</p>
+				if page.Disabled {
+					<p class="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">{ i18n.T(ctx, "audit.disabled") }</p>
+				}
 				<form method="get" action="/admin/audit" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5 lg:items-end">
 					@textField("actor", i18n.T(ctx, "audit.actor"), "", page.Filter.Actor)
 					@textField("action", i18n.T(ctx, "audit.action"), "template.update", page.Filter.Action)

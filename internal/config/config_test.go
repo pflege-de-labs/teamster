@@ -124,10 +124,11 @@ func TestParseExampleConfig(t *testing.T) {
 			FlushInterval:   5 * time.Minute,
 		},
 		Audit: AuditConfig{
-			Database:      true,
-			RetentionAge:  2160 * time.Hour,
-			PruneInterval: time.Hour,
-			QueueSize:     1024,
+			Database:       true,
+			RetentionAge:   2160 * time.Hour,
+			RetentionCount: 100000,
+			PruneInterval:  time.Hour,
+			QueueSize:      1024,
 		},
 		Log: LogConfig{Level: "info", Format: "text"},
 	}

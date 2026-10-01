@@ -50,7 +50,7 @@ func (s *Server) handleAuditPage(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx := r.Context()
 	shown, filter := auditFilter(r, auditPageSize)
-	page := views.Audit{Viewer: s.viewerFor(r), Filter: shown}
+	page := views.Audit{Viewer: s.viewerFor(r), Filter: shown, Disabled: !s.cfg.Audit.Database}
 
 	events, err := s.store.ListAuditEvents(ctx, filter)
 	if err != nil {

@@ -44,6 +44,8 @@ manually requested directory runs.
 * **Transactions.** Inside `WithTx` and `WithSerializableTx` events are buffered and delivered only
   after the commit. A rolled-back change, including a dry-run import, leaves no record. A
   serializable retry discards the previous attempt's buffer.
+* **Opt-in.** Nothing is recorded until `audit.database` or a sink is configured. Without any,
+  the store is not wrapped at all. `audit.database: true` is the simplest setup.
 * **Sinks.** A `Recorder` delivers to sinks through an interface:
   * The database sink writes before `Record` returns, so `/admin/audit` shows a change at once.
   * Every other sink has a bounded queue (`audit.queue-size`). A full queue drops the event and
@@ -53,9 +55,12 @@ manually requested directory runs.
   * NATS JetStream follows as its own sink and ADR.
 * **When a sink fails.** Recording fails open: the change has already committed, so an audit
   failure never fails the request.
-* **Retention.** `audit.retention-age` and `audit.retention-count` each bound the database trail,
-  and `0` switches a limit off. Every replica runs the pruner every `audit.prune-interval`. Deleting
-  is idempotent, so the replicas need no lease.
+* **Retention.** `audit.retention-age` (default 90 days) and `audit.retention-count` (default
+  100000 events) each bound the database trail, and `0` switches a limit off. Both defaults are
+  set, so a trail nobody thought about does not grow without end. Every replica runs the pruner
+  every `audit.prune-interval`. Deleting is idempotent, so the replicas need no lease.
+* **No backfill.** A sink receives the events recorded while it is configured. Configuring one
+  later does not replay the database into it, so no sink keeps a cursor.
 * **Who may read it.** `/admin/audit` and `GET /api/audit` are the `administer` action on `Audit`,
   so only admins can read the trail. They filter by actor, action, resource type and id, and page
   with a keyset cursor `(occurred_at, id)`. Event ids are UUIDv7, so they sort by time.

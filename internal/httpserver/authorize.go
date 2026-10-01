@@ -54,7 +54,8 @@ func (s *Server) viewerFor(r *http.Request) views.Viewer {
 	viewer := viewerOf(r)
 	subject, roles := principalOf(r)
 	viewer.CanManage = s.authz.Allow(subject, roles, authz.ActionAdminister, authz.Resource{Type: "Grant"})
-	viewer.CanAudit = s.authz.Allow(subject, roles, authz.ActionAdminister, authz.Resource{Type: "Audit"})
+	// Without the database trail there is nothing to list.
+	viewer.CanAudit = s.cfg.Audit.Database && s.authz.Allow(subject, roles, authz.ActionAdminister, authz.Resource{Type: "Audit"})
 	viewer.CanComplete = s.cfg.Samples.Enabled && s.mayComplete(r)
 	viewer.NotificationsEnabled = botConfigured(s.cfg.Bot)
 	viewer.PeopleEnabled = viewer.NotificationsEnabled && s.cfg.Bot.GlobalInstall
