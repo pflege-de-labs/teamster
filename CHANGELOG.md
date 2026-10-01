@@ -29,6 +29,10 @@ reasoning behind it in the [ADRs](docs/adr/).
 * Audit events can be published to NATS JetStream (`audit.nats.*`), one subject per resource type
   and action, deduplicated by event id
   ([ADR 0071](docs/adr/0071-publish-audit-events-to-nats-jetstream.md)).
+* `/admin/access` gives admins an overview of every grant, the Cedar policies in force, and "Who
+  can?". `/admin/me` shows each user their own access. Who may use each webhook can be set per
+  user, group, provider group or role
+  ([ADR 0076](docs/adr/0076-webhook-permissions-and-access-overviews.md)).
 * Records have owners. Whoever creates a template, destination, route, webhook endpoint or group
   owns it, and can share `read`, `update`, `delete`, `attach` or ownership with users, groups,
   provider groups or roles. Someone with no role but a shared record sees what was shared with them

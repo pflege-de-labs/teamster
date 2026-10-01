@@ -1050,6 +1050,33 @@ curl -u admin:pw -X POST http://localhost:8080/api/sharing -d '{"principal_type"
 revokes one. Every change is audited in its own transaction. Each permission is a Cedar policy; see
 [ADR 0075](docs/adr/0075-own-and-share-records-through-generated-policies.md).
 
+### Who may do what
+
+**/admin/access** (admins) shows:
+
+- every grant;
+- who may send to the webhooks;
+- the Cedar policies in force, both the embedded ones and the ones generated from grants;
+- **Who can?**, which takes a subject, an action and a resource and names the policies that allow
+  or refuse it.
+
+**My access** in the user menu (`/admin/me`) shows anyone signed in their roles, groups, webhooks
+and the grants that name them.
+
+Webhook permission is set per user, group, provider group or role, at one of five levels:
+
+| Level | Webhooks |
+| --- | --- |
+| none | none |
+| Alertmanager | `/webhook/alertmanager` |
+| Universal | `/webhook/universal` |
+| both | both |
+| admin | both, and managing everyone's tokens |
+
+Editors and admins may use both webhooks without a level. The API is `PUT /api/access/webhooks`
+with `{"principal_type": "group", "principal_id": "…", "level": "alertmanager"}`. See
+[ADR 0076](docs/adr/0076-webhook-permissions-and-access-overviews.md).
+
 ### Groups
 
 A group at **/admin/groups** collects users, other groups, and the groups your identity provider

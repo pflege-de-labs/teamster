@@ -90,3 +90,11 @@ permit (
 //   action == Action::"deliverToAddressed",
 //   resource
 // );
+
+// Who may send to the webhooks with a token of their own (ADR 0076). Editors
+// may, admins through the policy at the top; anyone else needs a grant of use.
+permit (
+  principal in Role::"editor",
+  action == Action::"use",
+  resource in Webhook::"*"
+);

@@ -17,7 +17,29 @@ const (
 	ActionTransfer = "transfer"
 	// ActionOwn is the group an owner holds; granting it makes an owner.
 	ActionOwn = "own"
+	// ActionUse is sending to a webhook, as a token's creator must be allowed to (ADR 0076).
+	ActionUse = "use"
 )
+
+// The webhooks, as Cedar resources; WebhooksAll is both of them.
+const (
+	WebhookAlertmanager = "alertmanager"
+	WebhookUniversal    = "universal"
+	WebhooksAll         = "*"
+)
+
+// WebhookResource is one webhook, or "*" for both.
+func WebhookResource(name string) Resource { return Resource{Type: "Webhook", ID: name} }
+
+// addWebhookEntities makes each webhook a member of the "*" that stands for both.
+func addWebhookEntities(entities cedar.EntityMap) {
+	all := WebhookResource(WebhooksAll).uid()
+	entities[all] = cedar.Entity{UID: all}
+	for _, name := range []string{WebhookAlertmanager, WebhookUniversal} {
+		uid := WebhookResource(name).uid()
+		entities[uid] = cedar.Entity{UID: uid, Parents: cedar.NewEntityUIDSet(all)}
+	}
+}
 
 // actionParents is the action hierarchy: `action in Action::"edit"` holds for update.
 var actionParents = map[string][]string{

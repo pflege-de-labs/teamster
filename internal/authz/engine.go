@@ -95,6 +95,7 @@ func build(generation int64, model Model) (*Authorizer, error) {
 	}
 	entities := roleEntities()
 	addActionEntities(entities)
+	addWebhookEntities(entities)
 	userGroups := addGroupEntities(entities, model.Members)
 	generated, holders := addGrants(policies, model.Grants)
 	return &Authorizer{
