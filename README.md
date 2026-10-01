@@ -243,20 +243,22 @@ In the personal chat the bot answers:
 
 | Command | What it does |
 | --- | --- |
-| `/help` | Lists the commands. |
-| `/status` | Shows whether this chat is linked, to whom and since when, and which routes deliver to it. |
-| `/test` | Sends a test alert to this chat through the real delivery path, rendered with the universal webhook's default template. |
-| `/unlink` | Stops alerts arriving here (see below). |
+| `help` | Lists the commands. |
+| `status` | Shows whether this chat is linked, to whom and since when, and which routes deliver to it. |
+| `test` | Sends a test alert to this chat through the real delivery path, rendered with the universal webhook's default template. |
+| `unlink` | Stops alerts arriving here (see below). |
 
-A bare `help` or `status` works too, as long as it is the whole message. Anything else is read as a
-link code. If `/test` gets no answer at all, the bot cannot send: check the `bot reply` and
-`bot test` lines in the log, and that `bot.tenant-type` matches the bot registration.
+Pick them from the bot's command menu above the compose box, or type them. A command is the whole
+message; `/help` with a slash works too, but Teams' own `/` menu may get there first. Anything else
+is read as a link code. If `test` gets no answer at all, the bot cannot send: check the
+`bot reply` and `bot test` lines in the log, and that `bot.tenant-type` matches the bot
+registration.
 
 #### Leaving
 
 Three ways out, and the two new ones need no admin UI at all:
 
-- **Send `/unlink` to the bot** — or `unlink`, `stop`, or `unsubscribe`. The message has to *be*
+- **Send `unlink` to the bot** — or `stop`, or `unsubscribe`. The message has to *be*
   the word: "how do I unlink this chat?" is a question, not a command, and is treated as one. The bot
   confirms, and a new link code reconnects whenever you want it back.
 - **Uninstall the bot.** Teams reports the removal and the link retires itself, so alerts stop
@@ -267,7 +269,7 @@ Three ways out, and the two new ones need no admin UI at all:
 Whichever way, the recipient row and any alert cards still tracked for it go together.
 
 With [`bot.global-install`](#installing-the-bot-for-everyone) on, the first two are gone: the bot
-answers `/unlink` by saying IT manages the chat, **Notifications** has no Unlink button, and a
+answers `unlink` by saying IT manages the chat, **Notifications** has no Unlink button, and a
 removed app is reinstalled by the next run. An admin can still remove a recipient from
 **Recipients** ([ADR 0061](docs/adr/0061-no-opt-out-when-installed-for-everyone.md)).
 

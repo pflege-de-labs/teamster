@@ -1368,17 +1368,19 @@ and only for the conversation the activity arrived on.
 `dispatchBotActivity` hands a personal `message` to `handleBotMessage`. There,
 `parseBotCommand` (`bot_commands.go`) runs first, after the bot's mention is stripped:
 
-* A first word starting with `/` is a command.
-* A bare word is a command only as the whole message.
+* A bare word is a command only as the whole message. The manifest lists the commands this way,
+  because Teams shares its `/` menu with every app
+  ([ADR 0068](adr/0068-commands-are-words-addressed-to-the-bot.md)).
+* A first word starting with `/` is a command too, with or without words after it.
 * Anything else falls through to link-code detection, unchanged.
 
 The commands:
 
-* `/help`
-* `/status`: the recipient behind the conversation, its blocked flag, and the routes naming it.
-* `/test`: sends a fixed alert through `deliverToRecipientOnce`, the same path an untracked routed
+* `help`
+* `status`: the recipient behind the conversation, its blocked flag, and the routes naming it.
+* `test`: sends a fixed alert through `deliverToRecipientOnce`, the same path an untracked routed
   alert takes. Its source is `universal`, so it renders with that webhook's default template.
-* `/unlink`, with `stop` and `unsubscribe` as synonyms.
+* `unlink`, with `stop` and `unsubscribe` as synonyms.
 
 Replies are Markdown through `replyText`, best effort like every other reply. A store or delivery
 failure answers with the request reference rather than the error
@@ -1387,9 +1389,9 @@ failure answers with the request reference rather than the error
 With `bot.global-install` on, the chat is managed
 ([ADR 0061](adr/0061-no-opt-out-when-installed-for-everyone.md)):
 
-* `/unlink` and its synonyms answer `managedUnlinkReply` and delete nothing, and `/help` answers
+* `unlink` and its synonyms answer `managedUnlinkReply` and delete nothing, and `help` answers
   `managedHelpReply` without them.
-* `/status` in a chat with no linked recipient says that IT sends messages there, and `/test`
+* `status` in a chat with no linked recipient says that IT sends messages there, and `test`
   replies with the test text directly.
 * `unlinkNotifications` refuses with the `managed` key, and the page hides its button.
 

@@ -20,14 +20,17 @@ Commands in the personal chat shipped in 0.8.0
 
 Accept `message` activities in team channels. Teams delivers these only when the bot is
 @mentioned. This supersedes the "never takes commands" part of
-[ADR 0045](adr/0045-channel-delivery-through-the-bot.md), so it needs its own ADR. `/help` and
-`/status` in a channel answer for that channel: its destinations, the routes into it, and whether
+[ADR 0045](adr/0045-channel-delivery-through-the-bot.md), so it needs its own ADR. `help` and
+`status` in a channel answer for that channel: its destinations, the routes into it, and whether
 the team is recorded in `bot_teams`.
 
-### 20.3 `/route key=value,…`
+### 20.3 `route key=value,…`
 
 Creates a route from the chat to the chat it was sent in, a channel or the sender's own personal
-chat. The selector is parsed into the same `map[string]string` that `parseSelector` produces.
+chat. The selector is parsed into the same `map[string]string` that `parseSelector` produces. Commands
+are named without a slash ([ADR 0068](adr/0068-commands-are-words-addressed-to-the-bot.md)), so the
+parser has to accept `route` followed by arguments. Today a bare word counts only as the whole
+message.
 
 * **Team owners** create the route directly. Ownership is read from the Graph team members
   (`roles` contains `owner`). This needs `TeamMember.Read.All`, and a destination for the channel,
@@ -37,12 +40,12 @@ chat. The selector is parsed into the same `map[string]string` that `parseSelect
 
 ### 20.4 More commands
 
-* `/alerts`: the alerts currently active in this chat or channel. Needs a per-recipient query on
+* `alerts`: the alerts currently active in this chat or channel. Needs a per-recipient query on
   `active_alert_recipients`.
-* `/routes`: the routes that reach here, inherited ones included.
-* `/whoami`: the AAD object id, tenant and conversation id, for support.
-* `/mute <duration> [selector]`: needs a table of its own.
-* `/ack`: needs Alertmanager silences.
+* `routes`: the routes that reach here, inherited ones included.
+* `whoami`: the AAD object id, tenant and conversation id, for support.
+* `mute <duration> [selector]`: needs a table of its own.
+* `ack`: needs Alertmanager silences.
 
 ## Milestone 21 — The Teams app package from teamster
 
@@ -50,7 +53,7 @@ A `teamster manifest` subcommand and a download on `/admin/teams` build the app 
 builder.
 
 * Inputs: `bot.client-id`, `bot.app-id` (added for milestone 23), the developer fields, and a
-  version derived from the release. With `bot.global-install` on, `/unlink` is left out of the
+  version derived from the release. With `bot.global-install` on, `unlink` is left out of the
   command list.
 * The app ID and bot ID then cannot drift apart from the running configuration, and every release
   is newer than the installed app.

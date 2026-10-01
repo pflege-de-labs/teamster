@@ -364,9 +364,9 @@ func botWasRemoved(activity botActivity) bool {
 const (
 	installInstructions = "Thanks for adding me! Get a link code from Notifications in the " +
 		"Teamster admin UI, then send it to me here to connect your alerts to this chat. " +
-		"Send /help to see what else I can do."
+		"Send help to see what else I can do."
 	linkNeutralReply = "That does not match an active link code. Ask an admin for a new " +
-		"one, or check the one you have for typos. Send /help for what I can do."
+		"one, or check the one you have for typos. Send help for what I can do."
 	linkConfirmedReply   = "You're linked. Alerts will start arriving in this chat."
 	unlinkConfirmedReply = "Unlinked. Alerts will stop arriving in this chat. Send a new " +
 		"link code whenever you want them back."

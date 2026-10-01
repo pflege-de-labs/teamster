@@ -10,6 +10,13 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 ## [Unreleased]
 
+### Changed
+
+* The bot's commands are named `help`, `status`, `test` and `unlink`, without a slash. Teams shares
+  its `/` menu with every app, so `/status` collided with other apps' commands. Typing `/status`
+  still works. Upload the app package with a higher `version` to update the command menu
+  ([ADR 0068](docs/adr/0068-commands-are-words-addressed-to-the-bot.md)).
+
 ### Fixed
 
 * `/test` in a linked chat sends the test alert again instead of answering "Something went wrong".

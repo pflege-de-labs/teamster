@@ -1,6 +1,7 @@
 # 0048. The bot answers commands in the personal chat
 
-* Status: Accepted
+* Status: Accepted, amended by [0068](0068-commands-are-words-addressed-to-the-bot.md): the
+  commands are named without a slash
 * Date: 2026-09-29
 
 ## Context
