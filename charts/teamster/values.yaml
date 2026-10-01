@@ -296,9 +296,17 @@ config:
     #     url: nats://nats.nats.svc:4222
     #     subject-prefix: teamster.audit
     #     stream: TEAMSTER_AUDIT
+    #     # Leave off when the stream is managed elsewhere, and always with
+    #     # nack.stream.enabled below: the chart refuses both.
     #     create-stream: false
+    #     # A JWT and NKey seed, mounted with volumes/volumeMounts below.
+    #     creds-file: /etc/teamster/nats/user.creds
+    #     timeout: 5s
     #     # Catch up from the database after NATS was unreachable (ADR 0078).
+    #     # Needs database: true.
     #     backfill: true
+    #     backfill-interval: 2s
+    #     backfill-settle: 5s
     # The admin UI's text. locale-dir points at catalog files that override the
     # built-in wording; mount them if you use it.
     ui:
@@ -571,9 +579,85 @@ pdb:
   maxUnavailable: ""
   labels: {}
 
+# JetStream resources for the audit export (config.settings.audit.nats), as
+# NACK custom resources (ADR 0079).
+#
+# Requires NACK (https://github.com/nats-io/nack): its CRDs and its JetStream
+# controller must be installed and configured to reach your NATS servers, e.g.
+#   helm install nack nats/nack --set jetstream.enabled=true \
+#     --set jetstream.nats.url=nats://nats.nats.svc:4222
+# Without the CRDs the API server refuses these resources; without the
+# controller they are accepted and never reconciled. All off by default.
+nack:
+  apiVersion: jetstream.nats.io/v1beta2
+
+  # How the controller connects for the stream and consumers. Unset uses the
+  # controller's own connection. NACK reconciles Account resources only in its
+  # control-loop mode (its chart's jetstream.controlLoop=true).
+  account:
+    # Render an Account named `name`, or the release fullname when empty.
+    create: false
+    # With create=false, an existing Account to reference instead.
+    name: ""
+    labels: {}
+    annotations: {}
+    # Account.spec, see the NACK API reference.
+    spec: {}
+      # servers:
+      #   - nats://nats.nats.svc:4222
+      # creds:
+      #   secret:
+      #     name: teamster-nack-creds
+      #   file: nack.creds
+      # tls:
+      #   secret:
+      #     name: teamster-nack-tls
+      #   ca: ca.crt
+      #   cert: tls.crt
+      #   key: tls.key
+
+  # The stream teamster publishes to. Its name and subjects follow
+  # config.settings.audit.nats (stream, subject-prefix), so the two cannot
+  # drift apart. Refused together with audit.nats.create-stream: NACK enforces
+  # the stream's configuration and would undo teamster's.
+  stream:
+    enabled: false
+    # metadata.name; empty is <fullname>-audit.
+    resourceName: ""
+    labels: {}
+    annotations: {}
+    # Stream.spec, merged over the chart's defaults:
+    #   storage: file, replicas: 1, duplicateWindow: 2m, preventDelete: true
+    # preventDelete keeps the audit history when the release is uninstalled.
+    # duplicateWindow must outlast a retried publish, or Nats-Msg-Id cannot
+    # drop the duplicate.
+    spec: {}
+      # replicas: 3
+      # maxAge: 8760h
+      # maxBytes: 1073741824
+
+  # Durable consumers for whatever reads the stream: a SIEM, an archive.
+  # Teamster itself consumes nothing. Keyed by durable name; each value is a
+  # Consumer.spec merged over streamName (the stream above), durableName (the
+  # key) and the account. metadata.name is <fullname>-<key>.
+  consumers: {}
+    # siem:
+    #   deliverPolicy: all
+    #   ackPolicy: explicit
+    #   filterSubject: teamster.audit.>
+    #   maxDeliver: 20
+    #   preventDelete: true
+
 # Additional volumes and mounts on the pod.
 volumes: []
+  # The NATS credentials for config.settings.audit.nats.creds-file:
+  # - name: nats-creds
+  #   secret:
+  #     secretName: teamster-nats-creds
 volumeMounts: []
+  # - name: nats-creds
+  #   mountPath: /etc/teamster/nats
+  #   readOnly: true
 
 nodeSelector: {}
 tolerations: []

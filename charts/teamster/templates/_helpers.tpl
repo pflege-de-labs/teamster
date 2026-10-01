@@ -135,6 +135,12 @@ that cannot start or a database that silently corrupts.
 {{- fail "metrics.serviceMonitor.enabled needs a listener to scrape: set config.settings.metrics.enabled=true and leave config.settings.metrics.prometheus on." -}}
 {{- end -}}
 
+{{- /* NACK enforces the state of what it manages, so a second writer of the
+       same stream configuration would be undone on every reconcile. */ -}}
+{{- if and (include "teamster.nackStreamEnabled" .) (dig "audit" "nats" "create-stream" false $settings) -}}
+{{- fail "nack.stream.enabled and config.settings.audit.nats.create-stream both manage the audit stream, and NACK would undo whatever teamster sets. Turn create-stream off." -}}
+{{- end -}}
+
 {{- if eq $driver "sqlite" -}}
 {{- if gt (int .Values.replicaCount) 1 -}}
 {{- fail "replicaCount must be 1 with database.driver=sqlite: SQLite takes a single writer, and a second replica would serve a database of its own. Set database.driver=postgres to run more than one." -}}
@@ -469,4 +475,32 @@ spec:
   {{- with $.Values.priorityClassName }}
   priorityClassName: {{ . }}
   {{- end }}
+{{- end }}
+
+{{/*
+The audit stream as teamster publishes to it, with the application's defaults.
+*/}}
+{{- define "teamster.auditStream" -}}
+{{- dig "audit" "nats" "stream" "TEAMSTER_AUDIT" (.Values.config.settings | default dict) -}}
+{{- end }}
+
+{{- define "teamster.auditSubjectPrefix" -}}
+{{- dig "audit" "nats" "subject-prefix" "teamster.audit" (.Values.config.settings | default dict) -}}
+{{- end }}
+
+{{- define "teamster.nackStreamEnabled" -}}
+{{- if dig "stream" "enabled" false (.Values.nack | default dict) -}}true{{- end -}}
+{{- end }}
+
+{{/*
+The NACK Account the stream and consumers connect through; empty for the
+controller's own connection.
+*/}}
+{{- define "teamster.nackAccount" -}}
+{{- $account := dig "account" (dict) (.Values.nack | default dict) -}}
+{{- if dig "create" false $account -}}
+{{- dig "name" "" $account | default (include "teamster.fullname" .) -}}
+{{- else -}}
+{{- dig "name" "" $account -}}
+{{- end -}}
 {{- end }}

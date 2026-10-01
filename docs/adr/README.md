@@ -93,3 +93,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0076](0076-webhook-permissions-and-access-overviews.md) | Webhook permissions, and overviews of who may do what | Accepted |
 | [0077](0077-scoped-tokens-answer-to-their-creator.md) | Scoped tokens answer to their creator, on every use | Accepted |
 | [0078](0078-the-trail-buffers-the-nats-export.md) | The database trail can buffer the NATS export | Accepted |
+| [0079](0079-the-chart-declares-the-audit-stream-through-nack.md) | The chart declares the audit stream through NACK | Accepted |

@@ -249,6 +249,24 @@ counts "$workload" "one team label per metadata block" 3 "team:"
 absent "$labelled" "a chart label overridden by commonLabels" "hijacked"
 absent "$(grep -A4 -E 'matchLabels:|^  selector:$' <<<"$labelled")" "custom labels in a selector" "team:"
 
+# NACK resources are off by default and, once on, follow the audit settings:
+# a stream that missed teamster's subjects would accept nothing.
+echo "checking the NACK resources"
+absent "$noRoute" "NACK off by default" "jetstream.nats.io"
+nack=$(helm template teamster "$chart" --values "$chart/ci/statefulset-values.yaml" \
+	--set nack.stream.enabled=true --set nack.account.create=true \
+	--set config.settings.audit.nats.subject-prefix=ops.audit \
+	--set config.settings.audit.nats.stream=OPS_AUDIT \
+	--set nack.consumers.siem.ackPolicy=explicit)
+stream=$(awk '/^kind: Stream$/,/^---$/' <<<"$nack")
+consumer=$(awk '/^kind: Consumer$/,/^---$/' <<<"$nack")
+contains "$stream" "the audit stream" "name: OPS_AUDIT" "- ops.audit.>" "preventDelete: true" \
+	"duplicateWindow: 2m" "account: teamster"
+contains "$consumer" "a consumer" "streamName: OPS_AUDIT" "durableName: siem" "account: teamster"
+counts "$nack" "one Account" 1 "^kind: Account$"
+refuses "two managers of the audit stream" \
+	--set nack.stream.enabled=true --set config.settings.audit.nats.create-stream=true
+
 if [ "$failures" -gt 0 ]; then
 	echo "$failures assertion(s) failed" >&2
 	exit 1

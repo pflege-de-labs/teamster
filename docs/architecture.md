@@ -129,6 +129,13 @@ none of them reaches a selector. A secret written into `config.settings` is a re
 because a config file value beats the environment variable carrying it. See
 [ADR 0023](adr/0023-chart-deploys-either-shape.md).
 
+For the audit export, the chart can declare the JetStream stream, durable consumers and an
+`Account` as NACK resources (`nack.*`, off by default). The stream's name and subjects are taken
+from `config.settings.audit.nats`, so it always captures what teamster publishes. The chart
+refuses it together with `audit.nats.create-stream`, so only one of them manages the stream. NACK's
+CRDs and controller are a prerequisite the chart does not install. See
+[ADR 0079](adr/0079-the-chart-declares-the-audit-stream-through-nack.md).
+
 Gateway API mode renders up to two `HTTPRoute`s along the same trust boundary the server itself
 draws: `httpRoute.external` carries the self-authenticating paths (`/webhook/*`, `/teamsv2/*`,
 `/bot/messages`), `httpRoute.internal` carries the session- and basic-auth-gated admin UI and API.

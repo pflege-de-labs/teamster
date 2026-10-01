@@ -19,6 +19,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   the pod's stdout, for the cluster's log pipeline. `audit.nats` publishes to NATS JetStream. A URL
   with credentials goes in `credentials.extra.TEAMSTER_AUDIT_NATS_URL`. `audit.nats.backfill`
   catches up from the database after NATS was unreachable.
+* `nack` declares the audit stream, durable consumers and an `Account` as
+  [NACK](https://github.com/nats-io/nack) resources. The stream's name and subjects follow
+  `audit.nats`, and it keeps its history on uninstall. NACK's CRDs and controller have to be
+  installed and configured separately. The chart refuses `nack.stream.enabled` with
+  `audit.nats.create-stream` ([ADR 0079](../../docs/adr/0079-the-chart-declares-the-audit-stream-through-nack.md)).
+* `values.yaml` lists every audit setting commented out, with its default, and shows how to mount
+  a NATS creds file.
 
 ## [0.9.0] — 2026-09-30
 
