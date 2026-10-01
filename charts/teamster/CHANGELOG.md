@@ -11,7 +11,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 ### Added
 
 * `config.settings.audit` documents the audit trail's settings. `file: "-"` sends the JSON lines to
-  the pod's stdout, for the cluster's log pipeline.
+  the pod's stdout, for the cluster's log pipeline. `audit.nats` publishes to NATS JetStream. A URL
+  with credentials goes in `credentials.extra.TEAMSTER_AUDIT_NATS_URL`.
 
 ## [0.9.0] — 2026-09-30
 

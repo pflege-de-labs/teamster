@@ -26,6 +26,9 @@ reasoning behind it in the [ADRs](docs/adr/).
   `GET /api/audit`. It can also be appended to a JSON lines file (`audit.file`). The database copy
   is bounded by `audit.retention-age` (90 days) and `audit.retention-count` (100000 events)
   ([ADR 0070](docs/adr/0070-audit-configuration-changes-at-the-store.md)).
+* Audit events can be published to NATS JetStream (`audit.nats.*`), one subject per resource type
+  and action, deduplicated by event id
+  ([ADR 0071](docs/adr/0071-publish-audit-events-to-nats-jetstream.md)).
 
 ### Changed
 

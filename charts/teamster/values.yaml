@@ -290,6 +290,13 @@ config:
     #   retention-count: 100000
     #   prune-interval: 1h
     #   queue-size: 1024
+    #   # NATS JetStream (ADR 0071). A URL with credentials belongs in
+    #   # credentials.extra.TEAMSTER_AUDIT_NATS_URL, not here.
+    #   nats:
+    #     url: nats://nats.nats.svc:4222
+    #     subject-prefix: teamster.audit
+    #     stream: TEAMSTER_AUDIT
+    #     create-stream: false
     # The admin UI's text. locale-dir points at catalog files that override the
     # built-in wording; mount them if you use it.
     ui:

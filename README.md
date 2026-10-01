@@ -1149,12 +1149,26 @@ audit:
   retention-count: 100000   # keep at most this many events; 0 is no limit
   prune-interval: "1h"
   file: ""                  # also append JSON lines to a file; "-" is stdout
-  queue-size: 1024          # events waiting for the file before new ones are dropped
+  queue-size: 1024          # events waiting per sink (file, nats) before new ones are dropped
+  nats:
+    url: ""                         # publish to NATS JetStream, e.g. nats://nats:4222; empty is off
+    subject-prefix: "teamster.audit"
+    stream: "TEAMSTER_AUDIT"
+    create-stream: false            # create or update the stream at start
+    creds-file: ""                  # JWT and NKey seed, if the server wants them
 ```
 
-Both retention limits apply, whichever is reached first. A sink such as the file receives the
-events recorded while it is configured. Turning one on later does not send it older events from the
-database.
+Both retention limits apply, whichever is reached first. A sink such as the file or NATS receives
+the events recorded while it is configured. Turning one on later does not send it older events from
+the database.
+
+With `audit.nats.url` set, each event is also published to JetStream. The subject is
+`<subject-prefix>.<resource type>.<action>`, for example `teamster.audit.Route.route.delete`, and
+the event id is the `Nats-Msg-Id`, so the stream drops a retried duplicate. Subscribe to
+`teamster.audit.>` for everything, or to `teamster.audit.*.route.>` for route changes. A NATS
+server that is down does not stop Teamster: events wait in the queue and are counted when they
+are dropped. Put a URL that carries credentials in `TEAMSTER_AUDIT_NATS_URL` rather than in the
+file. See [ADR 0071](docs/adr/0071-publish-audit-events-to-nats-jetstream.md).
 
 A failed audit write never fails the change. It is logged and counted in `teamster.audit.failed`,
 and events dropped from a full queue are counted in `teamster.audit.dropped`. `teamster import`
@@ -1407,6 +1421,8 @@ make coverage       # coverage report, fails below 75%
 make coverage-html  # writes coverage.html
 make lint           # golangci-lint
 make build          # builds bin/teamster
+make db-up test-postgres  # the store suite against Postgres in a container
+make nats-up test-nats    # the audit sink against NATS JetStream in a container
 ```
 
 Contributions must meet the definition of done in [AGENTS.md](AGENTS.md): 75% coverage, clean

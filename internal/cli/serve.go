@@ -132,7 +132,7 @@ func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
 	// The collection's own context, not the process one: the last collection
 	// is the one shutdown forces, by which time the process context is already
 	// cancelled and reading the gauge through it would fail.
-	recorder, err := newRecorder(logger, cfg.Audit, sqlStore, telemetry)
+	recorder, err := newRecorder(ctx, logger, cfg.Audit, sqlStore, telemetry)
 	if err != nil {
 		return fmt.Errorf("audit: %w", err)
 	}

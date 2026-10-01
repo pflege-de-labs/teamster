@@ -152,6 +152,17 @@
   },
   "customManagers": [
     {
+      "description": "The NATS server the audit sink is tested against is started by a workflow step, which the docker manager does not read.",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^\\.github/workflows/[^/]+\\.ya?ml$/"
+      ],
+      "matchStrings": [
+        "NATS_IMAGE: (?<depName>nats):(?<currentValue>[^@\\s]+)@(?<currentDigest>sha256:[a-f0-9]+)"
+      ],
+      "datasourceTemplate": "docker"
+    },
+    {
       "description": "The Tailwind CLI is pinned by a Makefile variable, which no manager sees on its own.",
       "customType": "regex",
       "managerFilePatterns": [
