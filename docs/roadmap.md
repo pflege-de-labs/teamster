@@ -100,17 +100,16 @@ Every record has owners who can share it, groups decide access, and users mint t
 The audit trail it builds on shipped first
 ([ADR 0070](adr/0070-audit-configuration-changes-at-the-store.md),
 [ADR 0071](adr/0071-publish-audit-events-to-nats-jetstream.md)), as did the user registry
-([ADR 0072](adr/0072-remember-who-signed-in.md)). Each step is one pull request:
+([ADR 0072](adr/0072-remember-who-signed-in.md)) and the versioned policy snapshot
+([ADR 0073](adr/0073-authorize-from-a-versioned-policy-snapshot.md)). Each step is one pull request:
 
-* **25.3 A versioned policy snapshot.** The Cedar policy set and entities are built from the store,
-  and each request checks a generation number, so replicas pick up changes without lag. Records are
-  checked in the handlers, not only per collection. Behaviour does not change.
 * **25.4 Groups.** Local groups whose members are users, other groups or IdP groups from the groups
   claim. This supersedes "groups decide nothing" in
   [ADR 0043](adr/0043-session-keeps-sign-in-identity.md).
-* **25.5 Ownership and per-record permissions.** Permission rows are rendered to Cedar `permit`
-  policies. An `own` row makes a principal an owner. Owners share `read`, `update`, `delete` and
-  `attach`, and pass on ownership. Milestone 22 becomes a `deliverToRecipient` row.
+* **25.5 Ownership and per-record permissions.** Records are checked in the handlers, not only per
+  collection, and lists show what the caller may read. Permission rows are rendered to Cedar
+  `permit` policies. An `own` row makes a principal an owner. Owners share `read`, `update`,
+  `delete` and `attach`, and pass on ownership. Milestone 22 becomes a `deliverToRecipient` row.
 * **25.6 Webhook permissions and overviews.** `use` on `Webhook::"alertmanager"`, `"universal"` or
   `"*"`. Admins get a permissions overview with the loaded Cedar text, and each user gets their own.
 * **25.7 Self-service scoped tokens.** A token's scope is at most its creator's permissions, and is
@@ -153,7 +152,7 @@ Smaller items left open when a milestone shipped. Each is picked up on its own.
 | 5 | 20.4 More commands | 20.2 | — |
 | 6 | 23.4–23.6 Messages to individual people, the rest | 23 | a test tenant for 23.5 |
 | 7 | 24 Announcements | 23 | — |
-| 8 | 25.3–25.7 Ownership, groups and scoped tokens | — | — |
+| 8 | 25.4–25.7 Ownership, groups and scoped tokens | — | — |
 
 Follow-ups are unordered and can be pulled in between milestones.
 

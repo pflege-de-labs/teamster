@@ -48,6 +48,7 @@ type fakeStore struct {
 	samples      []models.EventSample
 	auditEvents  []models.AuditEvent
 	users        map[string]models.User
+	authzGen     int64
 	// globalDefaultTemplate is the catch-all's template; "" is the built-in one.
 	globalDefaultTemplate string
 	// sourceDefaults maps a source to its default template.
@@ -1959,5 +1960,21 @@ func (f *fakeStore) EnableUser(_ context.Context, subject string) error {
 	}
 	u.DisabledAt, u.DisabledBy = time.Time{}, ""
 	f.users[subject] = u
+	return nil
+}
+
+func (f *fakeStore) AuthzGeneration(context.Context) (int64, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.authzGen, f.failing("AuthzGeneration")
+}
+
+func (f *fakeStore) BumpAuthzGeneration(context.Context) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("BumpAuthzGeneration"); err != nil {
+		return err
+	}
+	f.authzGen++
 	return nil
 }

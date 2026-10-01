@@ -112,12 +112,12 @@ func (a *Authorizer) AllowScoped(subject string, roles []Role, action string, re
 		subject = "anonymous"
 	}
 
-	entities := a.entities.Clone()
+	entities := cedar.EntityMap{}
 	parents := make([]cedar.EntityUID, 0, len(roles))
 	for _, role := range roles {
 		uid := cedar.NewEntityUID("Role", types.String(role))
 		parents = append(parents, uid)
-		if _, known := entities[uid]; !known {
+		if _, known := a.entities[uid]; !known {
 			entities[uid] = cedar.Entity{UID: uid}
 		}
 	}
@@ -147,7 +147,7 @@ func (a *Authorizer) AllowScoped(subject string, roles []Role, action string, re
 		}),
 	}
 
-	decision, _ := cedar.Authorize(a.policies, entities, cedar.Request{
+	decision, _ := cedar.Authorize(a.policies, overlay{base: a.entities, extra: entities}, cedar.Request{
 		Principal: principal,
 		Action:    cedar.NewEntityUID("Action", types.String(action)),
 		Resource:  resource.uid(),

@@ -49,7 +49,7 @@ func parseRouteTarget(raw string) (destinationID, recipientID string, addressed 
 // message names.
 func (s *Server) mayAddress(r *http.Request) bool {
 	subject, roles := principalOf(r)
-	return s.authz.Allow(subject, roles, authz.ActionDeliverToAddressed, authz.AddressedResource)
+	return s.policies(r).Allow(subject, roles, authz.ActionDeliverToAddressed, authz.AddressedResource)
 }
 
 // mayTargetRecipient answers whether this session may point a route at a
@@ -71,7 +71,7 @@ func (s *Server) mayTargetRecipient(r *http.Request, recipientID string) (bool, 
 
 func (s *Server) mayTargetRecipientOf(r *http.Request, recipient models.Recipient) bool {
 	subject, roles := principalOf(r)
-	return s.authz.Allow(subject, roles, authz.ActionDeliverToRecipient, authz.RecipientResource(recipient.Subject))
+	return s.policies(r).Allow(subject, roles, authz.ActionDeliverToRecipient, authz.RecipientResource(recipient.Subject))
 }
 
 // routeWriteRefusal checks every target a save touches: the channel and person

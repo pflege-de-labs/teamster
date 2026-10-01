@@ -11,6 +11,7 @@ import (
 )
 
 type Querier interface {
+	BumpAuthzGeneration(ctx context.Context) error
 	// ClaimActiveEvent takes the right to post the card for one channel. A row
 	// comes back only when the claim is ours; a claim somebody else is still
 	// working on, and a row that already carries a card, both leave this returning
@@ -148,6 +149,11 @@ type Querier interface {
 	GetAccessTokenByHash(ctx context.Context, tokenHash string) (AccessToken, error)
 	GetActiveEvent(ctx context.Context, arg GetActiveEventParams) (ActiveEvent, error)
 	GetActiveEventRecipient(ctx context.Context, arg GetActiveEventRecipientParams) (ActiveEventRecipient, error)
+	// Code generated from ../sqlite by internal/store/queries/gen. DO NOT EDIT.
+	//
+	// The statements are the SQLite ones with ? replaced by $n. Edit the SQLite
+	// file and run make generate.
+	GetAuthzGeneration(ctx context.Context) (int64, error)
 	// Code generated from ../sqlite by internal/store/queries/gen. DO NOT EDIT.
 	//
 	// The statements are the SQLite ones with ? replaced by $n. Edit the SQLite

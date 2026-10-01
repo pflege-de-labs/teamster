@@ -11,6 +11,7 @@ import (
 )
 
 type Querier interface {
+	BumpAuthzGeneration(ctx context.Context) error
 	// ClaimActiveEvent takes the right to post the card for one channel. A row
 	// comes back only when the claim is ours; a claim somebody else is still
 	// working on, and a row that already carries a card, both leave this returning
@@ -132,6 +133,7 @@ type Querier interface {
 	GetAccessTokenByHash(ctx context.Context, tokenHash string) (AccessToken, error)
 	GetActiveEvent(ctx context.Context, arg GetActiveEventParams) (ActiveEvent, error)
 	GetActiveEventRecipient(ctx context.Context, arg GetActiveEventRecipientParams) (ActiveEventRecipient, error)
+	GetAuthzGeneration(ctx context.Context) (int64, error)
 	GetBotTeam(ctx context.Context, teamID string) (BotTeam, error)
 	GetBrokerToken(ctx context.Context, sessionID string) (BrokerToken, error)
 	GetDefaultDestination(ctx context.Context) (Destination, error)

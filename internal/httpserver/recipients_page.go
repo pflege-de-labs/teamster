@@ -27,7 +27,7 @@ func (s *Server) handleRecipientsPage(w http.ResponseWriter, r *http.Request) {
 		Notice:  r.URL.Query().Get("notice"),
 		Error:   r.URL.Query().Get("error"),
 		Viewer:  s.viewerFor(r),
-		CanEdit: s.authz.Allow(principalSubject(r), roles, authz.ActionEdit, authz.Resource{Type: "Recipient"}),
+		CanEdit: s.policies(r).Allow(principalSubject(r), roles, authz.ActionEdit, authz.Resource{Type: "Recipient"}),
 	}
 
 	recipients, err := s.store.ListRecipients(ctx)

@@ -441,6 +441,10 @@ func (s stubStore) PruneEventSamples(ctx context.Context, _ time.Time, _ int) (i
 	return 0, store.ErrNotFound
 }
 
+func (s stubStore) AuthzGeneration(context.Context) (int64, error) { return 0, store.ErrNotFound }
+
+func (s stubStore) BumpAuthzGeneration(context.Context) error { return store.ErrNotFound }
+
 func (s stubStore) RecordSignIn(context.Context, models.User) error { return store.ErrNotFound }
 
 func (s stubStore) GetUser(context.Context, string) (models.User, error) {

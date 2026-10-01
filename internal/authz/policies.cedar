@@ -10,7 +10,9 @@
 //
 // The three nest — an admin is an editor, an editor is a viewer — which is
 // expressed as the parents of the Role entities in authz.go rather than
-// repeated here.
+// repeated here. Actions nest too (actions.go): read is part of view, and
+// create, update, delete and attach are part of edit, so the roles below cover
+// them. share and transfer are part of own alone, which no role is given.
 
 // An admin may do anything, including whatever actions later milestones add.
 permit (
@@ -27,10 +29,11 @@ permit (
 );
 
 // A viewer may look and no more. Everything the UI offers beyond looking is
-// hidden from them, and refused if they post it anyway.
+// hidden from them, and refused if they post it anyway. `in` rather than `==`
+// so that read, which is part of view, is covered too.
 permit (
   principal in Role::"viewer",
-  action == Action::"view",
+  action in Action::"view",
   resource
 );
 

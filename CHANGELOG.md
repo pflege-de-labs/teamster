@@ -38,6 +38,9 @@ reasoning behind it in the [ADRs](docs/adr/).
   its `/` menu with every app, so `/status` collided with other apps' commands. Typing `/status`
   still works. Upload the app package with a higher `version` to update the command menu
   ([ADR 0068](docs/adr/0068-commands-are-words-addressed-to-the-bot.md)).
+* Authorization reads a versioned policy snapshot. Who may do what is unchanged, but if the database
+  cannot be read, admin and API requests are now refused with `503`
+  ([ADR 0073](docs/adr/0073-authorize-from-a-versioned-policy-snapshot.md)).
 
 ### Fixed
 

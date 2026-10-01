@@ -79,7 +79,7 @@ type Server struct {
 	channels   ChannelTransport
 	router     *routing.Router
 	draining   atomic.Bool
-	authz      *authz.Authorizer
+	engine     *authz.Engine
 	metrics    telemetry
 	text       *i18n.Bundle
 	directory  *directoryCache
@@ -123,7 +123,7 @@ func readHeaderTimeout(readTimeout time.Duration) time.Duration {
 func NewServer(logger *slog.Logger, cfg config.Config, store store.Store, graphClient messenger, botClient botSender, channels ChannelTransport, tel telemetry, samples sampler, opts ...Option) (*http.Server, error) {
 	registerMIMETypes()
 
-	authorizer, err := authz.New()
+	engine, err := authz.NewEngine(authzSource{store})
 	if err != nil {
 		return nil, err
 	}
@@ -163,7 +163,7 @@ func NewServer(logger *slog.Logger, cfg config.Config, store store.Store, graphC
 		bot:       botClient,
 		channels:  channels,
 		router:    routing.New(store),
-		authz:     authorizer,
+		engine:    engine,
 		metrics:   tel,
 		text:      text,
 		now:       func() time.Time { return time.Now().UTC() },
