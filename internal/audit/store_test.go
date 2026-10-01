@@ -350,3 +350,90 @@ func must(t *testing.T, err error) {
 		t.Fatal(err)
 	}
 }
+
+// failingTrail refuses every audit insert made inside a transaction.
+type failingTrail struct{ store.Store }
+
+func (f failingTrail) WithSerializableTx(ctx context.Context, fn func(context.Context, store.Store) error) error {
+	return f.Store.WithSerializableTx(ctx, func(ctx context.Context, tx store.Store) error {
+		return fn(ctx, failingInsert{tx})
+	})
+}
+
+type failingInsert struct{ store.Store }
+
+func (failingInsert) InsertAuditEvent(context.Context, models.AuditEvent) error {
+	return errors.New("disk full")
+}
+
+func TestGroupChangesAreRecordedInTheirTransaction(t *testing.T) {
+	t.Parallel()
+
+	alice := models.Actor{Subject: "alice", Via: models.ViaSession}
+
+	t.Run("every change has its record", func(t *testing.T) {
+		t.Parallel()
+		st, inner := audited(t)
+		ctx := WithActor(t.Context(), alice)
+		g, err := st.CreateGroup(ctx, models.Group{Name: "oncall"})
+		must(t, err)
+		other, err := st.CreateGroup(ctx, models.Group{Name: "sre"})
+		must(t, err)
+		g.Name = "on-call"
+		_, err = st.UpdateGroup(ctx, g)
+		must(t, err)
+		must(t, st.AddGroupMember(ctx, models.GroupMember{GroupID: g.ID, Type: models.MemberGroup, ID: other.ID}))
+		must(t, st.RemoveGroupMember(ctx, models.GroupMember{GroupID: g.ID, Type: models.MemberGroup, ID: other.ID}))
+		must(t, st.DeleteGroup(ctx, g.ID))
+		// A refused change records nothing.
+		if err := st.DeleteGroup(ctx, g.ID); !errors.Is(err, store.ErrNotFound) {
+			t.Errorf("deleting twice = %v", err)
+		}
+
+		checkTrail(t, trail(t, inner), "name", []step{
+			{"group.create", TypeGroup, nil, "oncall"},
+			{"group.create", TypeGroup, nil, "sre"},
+			{"group.update", TypeGroup, "oncall", "on-call"},
+			{"group.member.add", TypeGroup, nil, nil},
+			{"group.member.remove", TypeGroup, nil, nil},
+			{"group.delete", TypeGroup, nil, nil},
+		})
+	})
+
+	t.Run("no record, no change", func(t *testing.T) {
+		t.Parallel()
+		inner := openStore(t)
+		rec := NewRecorder(discard(), nil, 1, NewDBSink(inner))
+		st := Wrap(failingTrail{inner}, rec)
+		if _, err := st.CreateGroup(t.Context(), models.Group{Name: "oncall"}); err == nil {
+			t.Fatal("a group was created without its record")
+		}
+		if groups, _ := inner.ListGroups(t.Context()); len(groups) != 0 {
+			t.Errorf("groups = %+v, want the change rolled back", groups)
+		}
+	})
+
+	t.Run("inside an outer transaction the record is written once", func(t *testing.T) {
+		t.Parallel()
+		st, inner := audited(t)
+		err := st.WithTx(t.Context(), func(ctx context.Context, tx store.Store) error {
+			_, err := tx.CreateGroup(ctx, models.Group{Name: "oncall"})
+			return err
+		})
+		must(t, err)
+		if events := trail(t, inner); len(events) != 1 {
+			t.Errorf("trail has %d events, want 1", len(events))
+		}
+	})
+
+	t.Run("without a database trail it is recorded after the commit", func(t *testing.T) {
+		t.Parallel()
+		sink := &memorySink{name: "memory"}
+		st := Wrap(openStore(t), NewRecorder(discard(), nil, 1, sink))
+		_, err := st.CreateGroup(t.Context(), models.Group{Name: "oncall"})
+		must(t, err)
+		if got := sink.recorded(); len(got) != 1 || got[0].Action != "group.create" {
+			t.Errorf("recorded %+v", got)
+		}
+	})
+}

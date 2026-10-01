@@ -49,6 +49,8 @@ type fakeStore struct {
 	auditEvents  []models.AuditEvent
 	users        map[string]models.User
 	authzGen     int64
+	groups       map[string]models.Group
+	members      []models.GroupMember
 	// globalDefaultTemplate is the catch-all's template; "" is the built-in one.
 	globalDefaultTemplate string
 	// sourceDefaults maps a source to its default template.
@@ -67,6 +69,7 @@ type fakeStore struct {
 
 func newFakeStore() *fakeStore {
 	return &fakeStore{
+		groups:         map[string]models.Group{},
 		users:          map[string]models.User{},
 		templates:      map[string]models.Template{},
 		sourceDefaults: map[string]string{},
@@ -1974,6 +1977,175 @@ func (f *fakeStore) BumpAuthzGeneration(context.Context) error {
 	defer f.mu.Unlock()
 	if err := f.failing("BumpAuthzGeneration"); err != nil {
 		return err
+	}
+	f.authzGen++
+	return nil
+}
+
+// Groups, with the store's cycle rule and generation bumps.
+
+func (f *fakeStore) ListGroups(context.Context) ([]models.Group, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("ListGroups"); err != nil {
+		return nil, err
+	}
+	out := make([]models.Group, 0, len(f.groups))
+	for _, g := range f.groups {
+		out = append(out, g)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out, nil
+}
+
+func (f *fakeStore) GetGroup(_ context.Context, id string) (models.Group, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("GetGroup"); err != nil {
+		return models.Group{}, err
+	}
+	g, ok := f.groups[id]
+	if !ok {
+		return models.Group{}, store.ErrNotFound
+	}
+	return g, nil
+}
+
+func (f *fakeStore) CreateGroup(_ context.Context, g models.Group) (models.Group, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("CreateGroup"); err != nil {
+		return models.Group{}, err
+	}
+	for _, existing := range f.groups {
+		if existing.Name == g.Name {
+			return models.Group{}, store.ErrConflict
+		}
+	}
+	if g.ID == "" {
+		g.ID = fmt.Sprintf("group-%d", len(f.groups)+1)
+	}
+	f.groups[g.ID] = g
+	f.authzGen++
+	return g, nil
+}
+
+func (f *fakeStore) UpdateGroup(_ context.Context, g models.Group) (models.Group, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("UpdateGroup"); err != nil {
+		return models.Group{}, err
+	}
+	existing, ok := f.groups[g.ID]
+	if !ok {
+		return models.Group{}, store.ErrNotFound
+	}
+	for id, other := range f.groups {
+		if id != g.ID && other.Name == g.Name {
+			return models.Group{}, store.ErrConflict
+		}
+	}
+	existing.Name, existing.Description = g.Name, g.Description
+	f.groups[g.ID] = existing
+	f.authzGen++
+	return existing, nil
+}
+
+func (f *fakeStore) DeleteGroup(_ context.Context, id string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("DeleteGroup"); err != nil {
+		return err
+	}
+	if _, ok := f.groups[id]; !ok {
+		return store.ErrNotFound
+	}
+	delete(f.groups, id)
+	f.members = slices.DeleteFunc(f.members, func(m models.GroupMember) bool {
+		return m.GroupID == id || (m.Type == models.MemberGroup && m.ID == id)
+	})
+	f.authzGen++
+	return nil
+}
+
+func (f *fakeStore) ListGroupMembers(_ context.Context, groupID string) ([]models.GroupMember, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("ListGroupMembers"); err != nil {
+		return nil, err
+	}
+	var out []models.GroupMember
+	for _, m := range f.members {
+		if m.GroupID == groupID {
+			out = append(out, m)
+		}
+	}
+	return out, nil
+}
+
+func (f *fakeStore) ListAllGroupMembers(context.Context) ([]models.GroupMember, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("ListAllGroupMembers"); err != nil {
+		return nil, err
+	}
+	return slices.Clone(f.members), nil
+}
+
+func (f *fakeStore) AddGroupMember(_ context.Context, m models.GroupMember) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("AddGroupMember"); err != nil {
+		return err
+	}
+	if _, ok := f.groups[m.GroupID]; !ok {
+		return store.ErrNotFound
+	}
+	if m.Type == models.MemberGroup {
+		if _, ok := f.groups[m.ID]; !ok {
+			return store.ErrNotFound
+		}
+		// The member must not already contain the group, however deep.
+		stack, seen := []string{m.ID}, map[string]bool{}
+		for len(stack) > 0 {
+			current := stack[len(stack)-1]
+			stack = stack[:len(stack)-1]
+			if current == m.GroupID {
+				return store.ErrGroupCycle
+			}
+			if seen[current] {
+				continue
+			}
+			seen[current] = true
+			for _, existing := range f.members {
+				if existing.GroupID == current && existing.Type == models.MemberGroup {
+					stack = append(stack, existing.ID)
+				}
+			}
+		}
+	}
+	for _, existing := range f.members {
+		if existing.GroupID == m.GroupID && existing.Type == m.Type && existing.ID == m.ID {
+			return nil
+		}
+	}
+	f.members = append(f.members, m)
+	f.authzGen++
+	return nil
+}
+
+func (f *fakeStore) RemoveGroupMember(_ context.Context, m models.GroupMember) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("RemoveGroupMember"); err != nil {
+		return err
+	}
+	before := len(f.members)
+	f.members = slices.DeleteFunc(f.members, func(existing models.GroupMember) bool {
+		return existing.GroupID == m.GroupID && existing.Type == m.Type && existing.ID == m.ID
+	})
+	if len(f.members) == before {
+		return store.ErrNotFound
 	}
 	f.authzGen++
 	return nil

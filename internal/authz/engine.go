@@ -9,9 +9,20 @@ import (
 	cedar "github.com/cedar-policy/cedar-go"
 )
 
-// A Model is what the store adds to the embedded policies. It is empty until
-// groups and permissions exist; the generation says when it changed.
-type Model struct{}
+// A Model is what the store adds to the embedded policies; the generation says
+// when it changed.
+type Model struct {
+	// Members are every group membership (ADR 0074).
+	Members []Membership
+}
+
+// A Membership puts a user, a group or an identity provider group in Group.
+type Membership struct {
+	Group string
+	// Kind is "user", "group" or "idp_group", as the store names them.
+	Kind string
+	ID   string
+}
 
 // A Source tells the engine when the model changed and what it is (ADR 0073).
 type Source interface {
@@ -75,14 +86,43 @@ func (e *Engine) Authorizer(ctx context.Context) (*Authorizer, error) {
 	return next, nil
 }
 
-func build(generation int64, _ Model) (*Authorizer, error) {
+func build(generation int64, model Model) (*Authorizer, error) {
 	policies, err := cedar.NewPolicySetFromBytes("policies.cedar", policyDocument)
 	if err != nil {
 		return nil, fmt.Errorf("parse policies: %w", err)
 	}
 	entities := roleEntities()
 	addActionEntities(entities)
-	return &Authorizer{policies: policies, entities: entities, generation: generation}, nil
+	userGroups := addGroupEntities(entities, model.Members)
+	return &Authorizer{policies: policies, entities: entities, generation: generation, userGroups: userGroups}, nil
+}
+
+// addGroupEntities makes each group and identity provider group an entity
+// whose parents are the groups it is a member of, so `in Group::"x"` walks
+// nesting. Users get their groups per request; this returns them by subject.
+func addGroupEntities(entities cedar.EntityMap, members []Membership) map[string][]string {
+	parents := map[cedar.EntityUID][]cedar.EntityUID{}
+	userGroups := map[string][]string{}
+	for _, m := range members {
+		group := GroupResource(m.Group).uid()
+		if _, ok := parents[group]; !ok {
+			parents[group] = nil
+		}
+		switch m.Kind {
+		case "user":
+			userGroups[m.ID] = append(userGroups[m.ID], m.Group)
+		case "group":
+			child := GroupResource(m.ID).uid()
+			parents[child] = append(parents[child], group)
+		case "idp_group":
+			child := IdPGroupResource(m.ID).uid()
+			parents[child] = append(parents[child], group)
+		}
+	}
+	for uid, of := range parents {
+		entities[uid] = cedar.Entity{UID: uid, Parents: cedar.NewEntityUIDSet(of...)}
+	}
+	return userGroups
 }
 
 // overlay adds a request's own entities to a snapshot's without copying it.

@@ -670,3 +670,36 @@ type User struct {
 
 // Disabled says whether the user is refused sign-in.
 func (u User) Disabled() bool { return !u.DisabledAt.IsZero() }
+
+// A Group is a local set of principals (ADR 0074).
+type Group struct {
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description,omitempty"`
+	CreatedBy   string    `json:"created_by,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+// A MemberType says what a group member's id names.
+type MemberType string
+
+const (
+	MemberUser     MemberType = "user"
+	MemberGroup    MemberType = "group"
+	MemberIdPGroup MemberType = "idp_group"
+)
+
+// Valid reports whether t is one of the three member types.
+func (t MemberType) Valid() bool {
+	return t == MemberUser || t == MemberGroup || t == MemberIdPGroup
+}
+
+// A GroupMember puts a user, a group or an identity provider group in GroupID.
+type GroupMember struct {
+	GroupID string     `json:"group_id"`
+	Type    MemberType `json:"type"`
+	ID      string     `json:"id"`
+	AddedBy string     `json:"added_by,omitempty"`
+	AddedAt time.Time  `json:"added_at"`
+}

@@ -108,19 +108,12 @@ func SafeID(id string) bool {
 // to this channel, see it, or see this Team. The entity graph is built per
 // request because it is made of that request's roles and grants.
 func (a *Authorizer) AllowScoped(subject string, roles []Role, action string, resource Resource, scope Scope) bool {
-	if subject == "" {
-		subject = "anonymous"
-	}
+	return a.AllowScopedFor(Principal{Subject: subject, Roles: roles}, action, resource, scope)
+}
 
+// AllowScopedFor is AllowScoped for a principal whose groups count too.
+func (a *Authorizer) AllowScopedFor(p Principal, action string, resource Resource, scope Scope) bool {
 	entities := cedar.EntityMap{}
-	parents := make([]cedar.EntityUID, 0, len(roles))
-	for _, role := range roles {
-		uid := cedar.NewEntityUID("Role", types.String(role))
-		parents = append(parents, uid)
-		if _, known := a.entities[uid]; !known {
-			entities[uid] = cedar.Entity{UID: uid}
-		}
-	}
 
 	// The resource and everything in the scope have to exist as entities, or
 	// Cedar has nothing for `in` to walk.
@@ -136,16 +129,11 @@ func (a *Authorizer) AllowScoped(subject string, roles []Role, action string, re
 		teams = append(teams, granted.uid())
 	}
 
-	principal := cedar.NewEntityUID("User", types.String(subject))
-	entities[principal] = cedar.Entity{
-		UID:     principal,
-		Parents: cedar.NewEntityUIDSet(parents...),
-		Attributes: cedar.NewRecord(cedar.RecordMap{
-			"unrestricted": types.Boolean(scope.Unrestricted),
-			"scopes":       cedar.NewSet(scopes...),
-			"teams":        cedar.NewSet(teams...),
-		}),
-	}
+	principal := a.principalEntity(p, entities, cedar.NewRecord(cedar.RecordMap{
+		"unrestricted": types.Boolean(scope.Unrestricted),
+		"scopes":       cedar.NewSet(scopes...),
+		"teams":        cedar.NewSet(teams...),
+	}))
 
 	decision, _ := cedar.Authorize(a.policies, overlay{base: a.entities, extra: entities}, cedar.Request{
 		Principal: principal,

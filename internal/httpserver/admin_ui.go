@@ -45,7 +45,6 @@ func (s *Server) handleAdminPage(w http.ResponseWriter, r *http.Request) {
 // a webhook token -- has to render the same page itself.
 func (s *Server) adminPage(r *http.Request, notice, errText string) views.Page {
 	ctx := r.Context()
-	_, roles := principalOf(r)
 	_, brokerAvailable := s.brokerSession(r)
 	page := views.Page{
 		Notice:          notice,
@@ -56,8 +55,8 @@ func (s *Server) adminPage(r *http.Request, notice, errText string) views.Page {
 		Presets:         cards.Presets(),
 		Vocabulary:      templates.EditorVocabulary(),
 		Viewer:          s.viewerFor(r),
-		CanEdit:         s.policies(r).Allow(principalSubject(r), roles, authz.ActionEdit, authz.Resource{Type: "Template"}),
-		CanManage:       s.policies(r).Allow(principalSubject(r), roles, authz.ActionAdminister, authz.Resource{Type: "Grant"}),
+		CanEdit:         s.allow(r, authz.ActionEdit, authz.Resource{Type: "Template"}),
+		CanManage:       s.allow(r, authz.ActionAdminister, authz.Resource{Type: "Grant"}),
 		BrokerAvailable: brokerAvailable,
 	}
 

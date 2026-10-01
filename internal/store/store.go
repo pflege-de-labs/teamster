@@ -22,6 +22,8 @@ var (
 	// simply try again with a new one instead of surfacing a constraint
 	// violation as a 500.
 	ErrConflict = errors.New("conflicts with an existing row")
+	// ErrGroupCycle refuses a membership that would make a group its own member.
+	ErrGroupCycle = errors.New("a group cannot contain itself, directly or through other groups")
 	// ErrTemplateSource refuses a source default whose template names other
 	// sources, since every message it caught would fall back anyway.
 	ErrTemplateSource = errors.New("template does not handle this source")
@@ -317,6 +319,18 @@ type Store interface {
 	// changes; BumpAuthzGeneration moves it, inside the change's transaction.
 	AuthzGeneration(ctx context.Context) (int64, error)
 	BumpAuthzGeneration(ctx context.Context) error
+
+	// Groups (ADR 0074). Every write bumps the authz generation in its own
+	// transaction; adding a member refuses a cycle with ErrGroupCycle.
+	ListGroups(ctx context.Context) ([]models.Group, error)
+	GetGroup(ctx context.Context, id string) (models.Group, error)
+	CreateGroup(ctx context.Context, g models.Group) (models.Group, error)
+	UpdateGroup(ctx context.Context, g models.Group) (models.Group, error)
+	DeleteGroup(ctx context.Context, id string) error
+	ListGroupMembers(ctx context.Context, groupID string) ([]models.GroupMember, error)
+	ListAllGroupMembers(ctx context.Context) ([]models.GroupMember, error)
+	AddGroupMember(ctx context.Context, m models.GroupMember) error
+	RemoveGroupMember(ctx context.Context, m models.GroupMember) error
 
 	// RecordSignIn creates or refreshes a user from a sign-in (ADR 0072).
 	RecordSignIn(ctx context.Context, u models.User) error

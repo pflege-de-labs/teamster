@@ -38,8 +38,7 @@ func (s *Server) mayReach(r *http.Request, action string, resource authz.Resourc
 	if err != nil {
 		return false, err
 	}
-	subject, roles := principalOf(r)
-	return s.policies(r).AllowScoped(subject, roles, action, resource, scope), nil
+	return s.allowScoped(r, action, resource, scope), nil
 }
 
 // mayDeliverTo is the check every write that names a channel goes through, so
@@ -253,10 +252,9 @@ func (s *Server) visibleTeams(r *http.Request, teams []graph.Team) ([]graph.Team
 		return teams, nil
 	}
 
-	subject, roles := principalOf(r)
 	visible := make([]graph.Team, 0, len(teams))
 	for _, team := range teams {
-		if s.policies(r).AllowScoped(subject, roles, authz.ActionViewTeam, authz.TeamResource(team.ID), scope) {
+		if s.allowScoped(r, authz.ActionViewTeam, authz.TeamResource(team.ID), scope) {
 			visible = append(visible, team)
 		}
 	}
@@ -272,10 +270,9 @@ func (s *Server) visibleChannels(r *http.Request, teamID string, channels []grap
 		return channels, nil
 	}
 
-	subject, roles := principalOf(r)
 	visible := make([]graph.Channel, 0, len(channels))
 	for _, channel := range channels {
-		if s.policies(r).AllowScoped(subject, roles, authz.ActionViewChannel, authz.ChannelResource(teamID, channel.ID), scope) {
+		if s.allowScoped(r, authz.ActionViewChannel, authz.ChannelResource(teamID, channel.ID), scope) {
 			visible = append(visible, channel)
 		}
 	}
@@ -294,11 +291,10 @@ func (s *Server) visibleDestinations(r *http.Request, destinations []models.Dest
 		return destinations, nil
 	}
 
-	subject, roles := principalOf(r)
 	visible := make([]models.Destination, 0, len(destinations))
 	for _, destination := range destinations {
 		resource := authz.ChannelResource(destination.TeamID, destination.ChannelID)
-		if s.policies(r).AllowScoped(subject, roles, authz.ActionViewChannel, resource, scope) {
+		if s.allowScoped(r, authz.ActionViewChannel, resource, scope) {
 			visible = append(visible, destination)
 		}
 	}

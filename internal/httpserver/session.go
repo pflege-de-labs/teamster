@@ -146,7 +146,7 @@ func isNotFound(err error) bool {
 func (s *Server) requireSession(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if session, ok := s.currentSession(r); ok {
-			next.ServeHTTP(w, r.WithContext(withPrincipal(r.Context(), session.Subject, session.Name, models.ViaSession, rolesOf(session))))
+			next.ServeHTTP(w, r.WithContext(withPrincipal(r.Context(), session.Subject, session.Name, models.ViaSession, rolesOf(session), session.Identity.Groups)))
 			return
 		}
 		http.Redirect(w, r, "/admin/login", http.StatusFound)

@@ -57,7 +57,7 @@ Architectural decisions are recorded here, one file per decision, in
 | [0040](0040-teams-v2-endpoint-templates.md) | A Teams V2 endpoint may name a template | Accepted |
 | [0041](0041-editor-completion-from-sampled-labels.md) | Complete templates and routes from labels sampled off incoming alerts | Accepted |
 | [0042](0042-sidebar-navigation-and-user-menu.md) | Move page links to a sidebar and account controls to a user menu | Accepted, partly superseded by 0054 |
-| [0043](0043-session-keeps-sign-in-identity.md) | Keep what the identity provider said on the session row | Accepted |
+| [0043](0043-session-keeps-sign-in-identity.md) | Keep what the identity provider said on the session row | Accepted, partly superseded by [0074](0074-local-groups-and-provider-groups.md) |
 | [0044](0044-webhook-access-tokens.md) | Authenticate the alert webhooks with issued Bearer tokens | Accepted |
 | [0045](0045-channel-delivery-through-the-bot.md) | Deliver channel messages through the Bot Framework bot | Accepted, amended by [0049](0049-a-channel-post-is-one-teams-message.md), [0059](0059-install-the-teams-app-for-every-member.md); superseded in part by [0069](0069-the-bot-answers-commands-in-team-channels.md) |
 | [0046](0046-structured-logging-and-error-boundary.md) | Log through slog and answer errors at one boundary | Accepted |
@@ -88,3 +88,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0071](0071-publish-audit-events-to-nats-jetstream.md) | Publish audit events to NATS JetStream | Accepted |
 | [0072](0072-remember-who-signed-in.md) | Remember who signed in, and let an admin disable them | Accepted |
 | [0073](0073-authorize-from-a-versioned-policy-snapshot.md) | Authorize from a versioned policy snapshot | Accepted |
+| [0074](0074-local-groups-and-provider-groups.md) | Local groups, with provider groups as members | Accepted |

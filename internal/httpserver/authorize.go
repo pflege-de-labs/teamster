@@ -15,9 +15,10 @@ import (
 type contextKey string
 
 const (
-	roleKey    contextKey = "role"
-	subjectKey contextKey = "subject"
-	nameKey    contextKey = "name"
+	roleKey     contextKey = "role"
+	subjectKey  contextKey = "subject"
+	nameKey     contextKey = "name"
+	idpGroupKey contextKey = "idp-groups"
 )
 
 // isPageRequest says whether a browser is asking for something to look at, as
@@ -29,9 +30,10 @@ func isPageRequest(r *http.Request) bool {
 // withPrincipal carries who is asking into the handlers, so authorization reads
 // it from one place rather than each handler re-deriving it. via is how they
 // proved it, which the audit trail records.
-func withPrincipal(ctx context.Context, subject, name, via string, roles []authz.Role) context.Context {
+func withPrincipal(ctx context.Context, subject, name, via string, roles []authz.Role, idpGroups []string) context.Context {
 	ctx = context.WithValue(ctx, subjectKey, subject)
 	ctx = context.WithValue(ctx, nameKey, name)
+	ctx = context.WithValue(ctx, idpGroupKey, idpGroups)
 	ctx = audit.WithActor(ctx, models.Actor{Subject: subject, Name: name, Via: via})
 	return context.WithValue(ctx, roleKey, roles)
 }
@@ -53,10 +55,9 @@ func viewerOf(r *http.Request) views.Viewer {
 // the authorizer can answer.
 func (s *Server) viewerFor(r *http.Request) views.Viewer {
 	viewer := viewerOf(r)
-	subject, roles := principalOf(r)
-	viewer.CanManage = s.policies(r).Allow(subject, roles, authz.ActionAdminister, authz.Resource{Type: "Grant"})
+	viewer.CanManage = s.allow(r, authz.ActionAdminister, authz.Resource{Type: "Grant"})
 	// Without the database trail there is nothing to list.
-	viewer.CanAudit = s.cfg.Audit.Database && s.policies(r).Allow(subject, roles, authz.ActionAdminister, authz.Resource{Type: "Audit"})
+	viewer.CanAudit = s.cfg.Audit.Database && s.allow(r, authz.ActionAdminister, authz.Resource{Type: "Audit"})
 	viewer.CanComplete = s.cfg.Samples.Enabled && s.mayComplete(r)
 	viewer.NotificationsEnabled = botConfigured(s.cfg.Bot)
 	viewer.PeopleEnabled = viewer.NotificationsEnabled && s.cfg.Bot.GlobalInstall
@@ -68,6 +69,22 @@ func (s *Server) viewerFor(r *http.Request) views.Viewer {
 func principalSubject(r *http.Request) string {
 	subject, _ := r.Context().Value(subjectKey).(string)
 	return subject
+}
+
+// principalFor is who the request acts for, as authorization sees them.
+func principalFor(r *http.Request) authz.Principal {
+	subject, roles := principalOf(r)
+	groups, _ := r.Context().Value(idpGroupKey).([]string)
+	return authz.Principal{Subject: subject, Roles: roles, IdPGroups: groups}
+}
+
+// allow and allowScoped ask the request's snapshot about the request's principal.
+func (s *Server) allow(r *http.Request, action string, resource authz.Resource) bool {
+	return s.policies(r).AllowFor(principalFor(r), action, resource)
+}
+
+func (s *Server) allowScoped(r *http.Request, action string, resource authz.Resource, scope authz.Scope) bool {
+	return s.policies(r).AllowScopedFor(principalFor(r), action, resource, scope)
 }
 
 func principalOf(r *http.Request) (string, []authz.Role) {
@@ -95,8 +112,16 @@ func (a authzSource) Generation(ctx context.Context) (int64, error) {
 	return a.store.AuthzGeneration(ctx)
 }
 
-func (a authzSource) Load(context.Context) (authz.Model, error) {
-	return authz.Model{}, nil
+func (a authzSource) Load(ctx context.Context) (authz.Model, error) {
+	members, err := a.store.ListAllGroupMembers(ctx)
+	if err != nil {
+		return authz.Model{}, err
+	}
+	model := authz.Model{Members: make([]authz.Membership, 0, len(members))}
+	for _, m := range members {
+		model.Members = append(model.Members, authz.Membership{Group: m.GroupID, Kind: string(m.Type), ID: m.ID})
+	}
+	return model, nil
 }
 
 // policies is the snapshot authorize resolved for this request, so every check
@@ -123,11 +148,11 @@ func (s *Server) authorize(next http.Handler) http.Handler {
 		}
 		r = r.WithContext(context.WithValue(r.Context(), policiesKey{}, snapshot))
 
-		subject, roles := principalOf(r)
+		_, roles := principalOf(r)
 		action, resource := requestAuthorization(r)
 
 		// Samples complete both editors, so editing routes admits as well.
-		if s.policies(r).Allow(subject, roles, action, resource) || (r.URL.Path == "/api/samples" && s.mayComplete(r)) {
+		if s.allow(r, action, resource) || (r.URL.Path == "/api/samples" && s.mayComplete(r)) {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -233,6 +258,9 @@ func requestAuthorization(r *http.Request) (string, authz.Resource) {
 	// admin/editor/viewer policies already cover: no new Cedar action.
 	case strings.HasPrefix(path, "/api/recipients"), strings.HasPrefix(path, "/admin/recipients"):
 		resource.Type = "Recipient"
+	case path == "/api/groups", strings.HasPrefix(path, "/api/groups/"),
+		path == "/admin/groups", strings.HasPrefix(path, "/admin/groups/"):
+		resource.Type = "Group"
 	case strings.HasPrefix(path, "/api/templates"), strings.HasPrefix(path, "/admin/templates"):
 		resource.Type = "Template"
 	case strings.HasPrefix(path, "/api/destinations"), strings.HasPrefix(path, "/admin/destinations"):

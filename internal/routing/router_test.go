@@ -14,6 +14,8 @@ import (
 )
 
 type stubStore struct {
+	// The router reads routes and the global defaults; anything else is not called.
+	store.Store
 	routes []models.Route
 	err    error
 	// fallback is the global default destination; empty means there is none.
@@ -438,36 +440,6 @@ func (s stubStore) ListEventSamples(ctx context.Context, _ int) ([]models.EventS
 }
 
 func (s stubStore) PruneEventSamples(ctx context.Context, _ time.Time, _ int) (int64, error) {
-	return 0, store.ErrNotFound
-}
-
-func (s stubStore) AuthzGeneration(context.Context) (int64, error) { return 0, store.ErrNotFound }
-
-func (s stubStore) BumpAuthzGeneration(context.Context) error { return store.ErrNotFound }
-
-func (s stubStore) RecordSignIn(context.Context, models.User) error { return store.ErrNotFound }
-
-func (s stubStore) GetUser(context.Context, string) (models.User, error) {
-	return models.User{}, store.ErrNotFound
-}
-
-func (s stubStore) ListUsers(context.Context, string, int) ([]models.User, error) {
-	return nil, store.ErrNotFound
-}
-
-func (s stubStore) DisableUser(context.Context, string, string) error { return store.ErrNotFound }
-
-func (s stubStore) EnableUser(context.Context, string) error { return store.ErrNotFound }
-
-func (s stubStore) InsertAuditEvent(context.Context, models.AuditEvent) error {
-	return store.ErrNotFound
-}
-
-func (s stubStore) ListAuditEvents(context.Context, models.AuditFilter) ([]models.AuditEvent, error) {
-	return nil, store.ErrNotFound
-}
-
-func (s stubStore) PruneAuditEvents(context.Context, time.Time, int) (int64, error) {
 	return 0, store.ErrNotFound
 }
 

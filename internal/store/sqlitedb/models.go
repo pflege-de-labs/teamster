@@ -233,6 +233,23 @@ type User struct {
 	DisabledBy string
 }
 
+type UserGroup struct {
+	ID          string
+	Name        string
+	Description string
+	CreatedBy   string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+type UserGroupMember struct {
+	GroupID    string
+	MemberType string
+	MemberID   string
+	AddedBy    string
+	AddedAt    time.Time
+}
+
 type WebhookEndpoint struct {
 	ID            string
 	TeamSlug      string

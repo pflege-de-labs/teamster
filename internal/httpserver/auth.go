@@ -34,7 +34,7 @@ func (s *Server) apiAuth(next http.Handler) http.Handler {
 			return
 		}
 
-		next.ServeHTTP(w, r.WithContext(withPrincipal(r.Context(), session.Subject, session.Name, models.ViaSession, rolesOf(session))))
+		next.ServeHTTP(w, r.WithContext(withPrincipal(r.Context(), session.Subject, session.Name, models.ViaSession, rolesOf(session), session.Identity.Groups)))
 	})
 }
 
@@ -51,7 +51,7 @@ func (s *Server) basicAuth(next http.Handler) http.Handler {
 		}
 		// The API credentials are the local ones, which administer: scripts
 		// predate roles and there is nowhere to put a role for them.
-		next.ServeHTTP(w, r.WithContext(withPrincipal(r.Context(), user, user, models.ViaBasic, []authz.Role{authz.RoleAdmin})))
+		next.ServeHTTP(w, r.WithContext(withPrincipal(r.Context(), user, user, models.ViaBasic, []authz.Role{authz.RoleAdmin}, nil)))
 	})
 }
 

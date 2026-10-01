@@ -94,18 +94,16 @@ A webhook that messages every directory user, or an Entra group, at once. Not a 
 
 Follows milestone 23, whose `directory_users` and run table it builds on.
 
-## Milestone 25 — Ownership, groups and scoped tokens
+## Milestone 25 — Ownership, permissions and scoped tokens
 
 Every record has owners who can share it, groups decide access, and users mint their own tokens.
 The audit trail it builds on shipped first
 ([ADR 0070](adr/0070-audit-configuration-changes-at-the-store.md),
 [ADR 0071](adr/0071-publish-audit-events-to-nats-jetstream.md)), as did the user registry
-([ADR 0072](adr/0072-remember-who-signed-in.md)) and the versioned policy snapshot
-([ADR 0073](adr/0073-authorize-from-a-versioned-policy-snapshot.md)). Each step is one pull request:
+([ADR 0072](adr/0072-remember-who-signed-in.md)), the versioned policy snapshot
+([ADR 0073](adr/0073-authorize-from-a-versioned-policy-snapshot.md)) and local groups
+([ADR 0074](adr/0074-local-groups-and-provider-groups.md)). Each step is one pull request:
 
-* **25.4 Groups.** Local groups whose members are users, other groups or IdP groups from the groups
-  claim. This supersedes "groups decide nothing" in
-  [ADR 0043](adr/0043-session-keeps-sign-in-identity.md).
 * **25.5 Ownership and per-record permissions.** Records are checked in the handlers, not only per
   collection, and lists show what the caller may read. Permission rows are rendered to Cedar
   `permit` policies. An `own` row makes a principal an owner. Owners share `read`, `update`,
@@ -152,7 +150,7 @@ Smaller items left open when a milestone shipped. Each is picked up on its own.
 | 5 | 20.4 More commands | 20.2 | — |
 | 6 | 23.4–23.6 Messages to individual people, the rest | 23 | a test tenant for 23.5 |
 | 7 | 24 Announcements | 23 | — |
-| 8 | 25.4–25.7 Ownership, groups and scoped tokens | — | — |
+| 8 | 25.5–25.7 Ownership, permissions and scoped tokens | — | — |
 
 Follow-ups are unordered and can be pulled in between milestones.
 

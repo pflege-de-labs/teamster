@@ -8,6 +8,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Changed
+
+* The comment on `config.settings.auth.groups-claim` says what the claim is now used for: local
+  groups can name its values.
+
 ### Added
 
 * `config.settings.audit` documents the audit trail's settings. `file: "-"` sends the JSON lines to

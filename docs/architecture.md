@@ -388,6 +388,13 @@ an admin is an editor and an editor is a viewer. Actions nest the same way, thro
 entities. `read` is part of `view`. `create`, `update`, `delete` and `attach` are part of `edit`.
 `share` and `transfer` are part of `own` alone, which no role is given.
 
+Local groups are entities in that snapshot. `Group::"<id>"` and `IdpGroup::"<name>"` have as
+parents the groups that list them. A request's `User` principal has as parents its roles, the
+groups that list its subject, and an `IdpGroup` for every group its session's provider claim
+named. `in Group::"x"` therefore walks nesting and provider groups alike. Group writes bump the
+generation and write their audit row in the same transaction, and adding a member refuses a cycle
+in a serializable one. See [ADR 0074](adr/0074-local-groups-and-provider-groups.md).
+
 The policies and entities are an immutable snapshot that `authz.Engine` hands out, versioned by the
 single row in `authz_generation`. `authorize` reads the generation once per request. When it has
 moved, the engine rebuilds the snapshot from the store's model, once, and every check in the request
@@ -910,6 +917,11 @@ index on `sessions(subject)` for ending a disabled user's sessions
 row, seeded at `0`, that moves with every change to what authorization reads from the store
 ([ADR 0073](adr/0073-authorize-from-a-versioned-policy-snapshot.md)). The previous release ignores
 it.
+
+`user_groups` and `user_group_members` came with local groups, by `0026` in SQLite and `0023` in
+Postgres ([ADR 0074](adr/0074-local-groups-and-provider-groups.md)). A member row names a `user`,
+a `group` or an `idp_group`, and is indexed by member for the snapshot's reverse lookup. The
+previous release ignores both.
 
 `database.migrate` decides what opening the store does about a schema that is behind: `auto`
 applies what is missing, `verify` refuses and names `teamster migrate up`, `off` asks nothing.

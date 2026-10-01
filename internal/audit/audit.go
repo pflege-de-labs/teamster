@@ -122,11 +122,19 @@ func (r *Recorder) Record(ctx context.Context, e models.AuditEvent) {
 	if r == nil {
 		return
 	}
-	r.deliver(ctx, r.Stamp(ctx, e))
+	r.deliver(ctx, r.Stamp(ctx, e), true)
 }
 
-func (r *Recorder) deliver(ctx context.Context, e models.AuditEvent) {
-	if r.primary != nil {
+// trail reports whether the primary sink is the database, which a change can
+// also write its record to inside its own transaction.
+func (r *Recorder) trail() bool {
+	_, ok := r.primary.(*DBSink)
+	return ok
+}
+
+// deliver skips the primary sink for an event already written in its change's transaction.
+func (r *Recorder) deliver(ctx context.Context, e models.AuditEvent, primary bool) {
+	if primary && r.primary != nil {
 		// Detached, so a client hanging up does not take the record with it.
 		writeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), writeTimeout)
 		if err := r.primary.Write(writeCtx, e); err != nil {

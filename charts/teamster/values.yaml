@@ -249,7 +249,7 @@ config:
       # oidc-redirect-url: https://teamster.example/admin/auth/callback
       # oidc-scopes: [profile, email, roles]
       # claim: realm_access.roles
-      # Shown on the user info page only; decides nothing. Empty skips it.
+      # Its values can be members of local groups (ADR 0074). Empty skips it.
       # groups-claim: groups
       # Roles are read from that claim by name: a provider role called admin,
       # editor or viewer is that role here. default-role covers a user the
