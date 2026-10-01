@@ -739,3 +739,13 @@ type Permission struct {
 	CreatedAt     time.Time     `json:"created_at"`
 	UpdatedAt     time.Time     `json:"updated_at"`
 }
+
+// An AuditCursor is the last event a relay delivered, in the trail's order
+// (ADR 0078). The zero cursor is before every event.
+type AuditCursor struct {
+	At time.Time
+	ID string
+}
+
+// IsZero reports whether the cursor names no event.
+func (c AuditCursor) IsZero() bool { return c.ID == "" && c.At.IsZero() }

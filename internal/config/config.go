@@ -248,6 +248,10 @@ type AuditNATSConfig struct {
 	CreateStream  bool          `help:"Create or update the stream at start." name:"create-stream"`
 	CredsFile     string        `help:"NATS credentials file (JWT and NKey seed)." name:"creds-file"`
 	Timeout       time.Duration `help:"Connect timeout, and how long creating the stream may take." default:"5s"`
+	// Backfill makes the database trail the sink's buffer (ADR 0078).
+	Backfill         bool          `help:"Publish from the database trail instead of a queue, catching up after NATS was unreachable; needs audit-database." name:"backfill"`
+	BackfillInterval time.Duration `help:"How often the backfill looks for events to publish." name:"backfill-interval" default:"2s"`
+	BackfillSettle   time.Duration `help:"How old an event must be before the backfill publishes it, so one committed late is not skipped." name:"backfill-settle" default:"5s"`
 }
 
 // validateAudit checks only the bounds a configured sink uses.
@@ -263,6 +267,10 @@ func validateAudit(cfg AuditConfig) error {
 		return fmt.Errorf("audit-nats-subject-prefix must be a subject without wildcards, not %q", cfg.NATS.SubjectPrefix)
 	case cfg.NATS.URL != "" && cfg.NATS.CreateStream && cfg.NATS.Stream == "":
 		return fmt.Errorf("audit-nats-stream is required with audit-nats-create-stream")
+	case cfg.NATS.Backfill && !cfg.Database:
+		return fmt.Errorf("audit-nats-backfill needs audit-database: the trail is what it publishes from")
+	case cfg.NATS.Backfill && (cfg.NATS.BackfillInterval <= 0 || cfg.NATS.BackfillSettle < 0):
+		return fmt.Errorf("audit-nats-backfill-interval must be positive and audit-nats-backfill-settle not negative")
 	case cfg.NATS.URL != "" && cfg.NATS.Timeout <= 0:
 		return fmt.Errorf("audit-nats-timeout must be positive, not %s", cfg.NATS.Timeout)
 	case (cfg.File != "" || cfg.NATS.URL != "") && cfg.QueueSize <= 0:

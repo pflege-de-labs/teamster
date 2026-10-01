@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/pflege-de-labs/teamster/internal/audit"
@@ -132,10 +133,17 @@ func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
 	// The collection's own context, not the process one: the last collection
 	// is the one shutdown forces, by which time the process context is already
 	// cancelled and reading the gauge through it would fail.
-	recorder, err := newRecorder(ctx, logger, cfg.Audit, sqlStore, telemetry)
+	recorder, relays, err := newRecorder(ctx, logger, cfg.Audit, sqlStore, telemetry)
 	if err != nil {
 		return fmt.Errorf("audit: %w", err)
 	}
+	// Relays stop with the process; what they had not published waits in the
+	// trail for the next start. Waited for before the store closes.
+	var relaysDone sync.WaitGroup
+	for _, relay := range relays {
+		relaysDone.Go(func() { relay.Run(ctx) })
+	}
+	defer relaysDone.Wait()
 	defer func() {
 		// Runs after the HTTP drain, so every change it let through is recorded.
 		closeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), cfg.Server.ShutdownTimeout)

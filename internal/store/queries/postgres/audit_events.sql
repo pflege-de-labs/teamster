@@ -45,3 +45,15 @@ WHERE EXISTS (
 	WHERE audit_events.occurred_at < boundary.at
 		OR (audit_events.occurred_at = boundary.at AND audit_events.id < boundary.last_id)
 );
+
+-- name: ListAuditEventsAfter :many
+-- Oldest first from just after the cursor, for a relay catching up. until
+-- holds back events young enough that an older one may still commit.
+SELECT id, occurred_at, actor_subject, actor_name, actor_via, actor_token_id,
+	action, resource_type, resource_id, request_id, before, after
+FROM audit_events
+WHERE (occurred_at > sqlc.arg(cursor_at)
+		OR (occurred_at = sqlc.arg(cursor_at) AND id > CAST(sqlc.arg(cursor_id) AS TEXT)))
+	AND occurred_at < sqlc.arg(until)
+ORDER BY occurred_at, id
+LIMIT CAST(sqlc.arg(max_rows) AS BIGINT);

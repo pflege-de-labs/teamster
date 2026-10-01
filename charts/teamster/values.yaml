@@ -297,6 +297,8 @@ config:
     #     subject-prefix: teamster.audit
     #     stream: TEAMSTER_AUDIT
     #     create-stream: false
+    #     # Catch up from the database after NATS was unreachable (ADR 0078).
+    #     backfill: true
     # The admin UI's text. locale-dir points at catalog files that override the
     # built-in wording; mount them if you use it.
     ui:

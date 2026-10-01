@@ -164,3 +164,64 @@ func (q *Queries) ListAuditEvents(ctx context.Context, arg ListAuditEventsParams
 	}
 	return items, nil
 }
+
+const listAuditEventsAfter = `-- name: ListAuditEventsAfter :many
+SELECT id, occurred_at, actor_subject, actor_name, actor_via, actor_token_id,
+	action, resource_type, resource_id, request_id, before, after
+FROM audit_events
+WHERE (occurred_at > ?1
+		OR (occurred_at = ?1 AND id > CAST(?2 AS TEXT)))
+	AND occurred_at < ?3
+ORDER BY occurred_at, id
+LIMIT CAST(?4 AS BIGINT)
+`
+
+type ListAuditEventsAfterParams struct {
+	CursorAt time.Time
+	CursorID string
+	Until    time.Time
+	MaxRows  int64
+}
+
+// Oldest first from just after the cursor, for a relay catching up. until
+// holds back events young enough that an older one may still commit.
+func (q *Queries) ListAuditEventsAfter(ctx context.Context, arg ListAuditEventsAfterParams) ([]AuditEvent, error) {
+	rows, err := q.db.QueryContext(ctx, listAuditEventsAfter,
+		arg.CursorAt,
+		arg.CursorID,
+		arg.Until,
+		arg.MaxRows,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []AuditEvent
+	for rows.Next() {
+		var i AuditEvent
+		if err := rows.Scan(
+			&i.ID,
+			&i.OccurredAt,
+			&i.ActorSubject,
+			&i.ActorName,
+			&i.ActorVia,
+			&i.ActorTokenID,
+			&i.Action,
+			&i.ResourceType,
+			&i.ResourceID,
+			&i.RequestID,
+			&i.Before,
+			&i.After,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

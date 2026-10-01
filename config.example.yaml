@@ -262,3 +262,8 @@ audit:
     create-stream: false
     creds-file: ""
     timeout: "5s"
+    # Publish from the database trail rather than a queue, so events missed
+    # while NATS was down are sent once it is back (ADR 0078). Needs database.
+    backfill: false
+    backfill-interval: "2s"
+    backfill-settle: "5s"

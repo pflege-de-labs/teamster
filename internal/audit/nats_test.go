@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"strings"
 	"sync"
@@ -174,5 +175,72 @@ func TestNATSSinkAgainstJetStream(t *testing.T) {
 	var got models.AuditEvent
 	if err := json.Unmarshal(msg.Data, &got); err != nil || got.ID != e.ID {
 		t.Errorf("message %s, %v", msg.Data, err)
+	}
+}
+
+// Two replicas relay one trail into JetStream: every event arrives once.
+func TestRelayIntoJetStream(t *testing.T) {
+	t.Parallel()
+
+	url := os.Getenv("TEAMSTER_TEST_NATS_URL")
+	if url == "" {
+		if os.Getenv("CI") != "" {
+			t.Fatal("TEAMSTER_TEST_NATS_URL is unset in CI: the NATS relay would go untested")
+		}
+		t.Skip("TEAMSTER_TEST_NATS_URL is not set")
+	}
+	stream := "AUDIT_RELAY_" + strings.ToUpper(strings.ReplaceAll(t.Name(), "/", "_"))
+	prefix := "relay." + strings.ToLower(stream)
+	open := func() *NATSSink {
+		sink, err := OpenNATS(t.Context(), discard(), NATSOptions{URL: url, SubjectPrefix: prefix, Stream: stream, CreateStream: true, Timeout: 5 * time.Second})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return sink
+	}
+
+	st := openStore(t)
+	now := time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC)
+	relays := []*Relay{NewRelay(discard(), st, open(), nil, time.Second, 0), NewRelay(discard(), st, open(), nil, time.Second, 0)}
+	for _, r := range relays {
+		r.now = func() time.Time { return now.Add(time.Hour) }
+		defer func() { _ = r.Close() }()
+	}
+	relays[0].now = func() time.Time { return now }
+	if _, err := relays[0].Step(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	relays[0].now = func() time.Time { return now.Add(time.Hour) }
+	for i := range 5 {
+		insertAt(t, st, fmt.Sprintf("%s-%d", stream, i), now.Add(time.Duration(i+1)*time.Second))
+	}
+	for range 3 {
+		for _, r := range relays {
+			if _, err := r.Step(t.Context()); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+
+	conn, err := nats.Connect(url)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	js, err := jetstream.New(conn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = js.DeleteStream(context.Background(), stream) }()
+	s, err := js.Stream(t.Context(), stream)
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, err := s.Info(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.State.Msgs != 5 {
+		t.Errorf("the stream holds %d messages, want each of the 5 events once", info.State.Msgs)
 	}
 }
