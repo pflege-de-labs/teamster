@@ -177,6 +177,42 @@ jobs:
           so_origin_service: teamster
           so_origin_docker_image_name_tag: ${{ env.IMAGE }}:${{ github.ref_name }}
 
+  # A minor's documentation is frozen from the pages branch once its release is out (ADR 0080).
+  docs:
+    needs: [image, binaries]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      TAG: ${{ github.ref_name }}
+    steps:
+      - name: Create and deploy the docs branch for this minor
+        run: |
+          if [[ ! $TAG =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "$TAG is a pre-release; its docs stay on pages"
+            exit 0
+          fi
+          minor=${TAG%.*}
+          branch=pages-$minor
+          if gh api "repos/$REPO/branches/$branch" --silent 2>/dev/null; then
+            echo "$branch exists"
+            exit 0
+          fi
+          newest=$(git ls-remote --tags --refs "https://github.com/$REPO" 'v*' |
+            sed -n 's#.*refs/tags/\(v[0-9][0-9]*\.[0-9][0-9]*\)\.[0-9][0-9]*$#\1#p' | sort -uV | tail -1)
+          if [[ $minor != "$newest" ]]; then
+            echo "::warning::$branch is missing, but $newest is newer; create it by hand from the right commit"
+            exit 0
+          fi
+          sha=$(gh api "repos/$REPO/git/ref/heads/pages" --jq .object.sha)
+          gh api "repos/$REPO/git/refs" -f ref="refs/heads/$branch" -f sha="$sha" --silent
+          # A push by GITHUB_TOKEN starts no workflow, so the deploy is dispatched instead.
+          gh workflow run docs-deploy.yml --repo "$REPO" --ref "$branch"
+          echo "Created $branch from pages@${sha::7} and dispatched docs-deploy"
+
   binaries:
     needs: verify
     runs-on: ubuntu-latest

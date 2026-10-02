@@ -24,6 +24,9 @@ A change is done when all of these hold:
 * [Architecture documentation](docs/architecture.md) reflects the change
 * An [ADR](docs/adr/) exists for every architectural decision the change makes
 * `README.md` and the user-facing documentation match the behaviour that shipped
+* A user-visible change has a pull request against `pages` that updates the
+  [user documentation site](#user-documentation), written with the `docs-writer` agent and
+  linked from the change's pull request
 * A user-visible change has an entry under `Unreleased` in [CHANGELOG.md](CHANGELOG.md), and a
   chart change one in [charts/teamster/CHANGELOG.md](charts/teamster/CHANGELOG.md)
 * A schema change leaves the *previous* release able to run against the new schema
@@ -85,6 +88,13 @@ An accepted migration is never edited. It has already run somewhere.
   and signs everything with cosign. Before tagging, move the changelog's `Unreleased` entries
   under a heading for the new version; chart releases (`teamster-X.Y.Z`) do the same in the
   chart changelog.
+* Before tagging a release, check that every `Unreleased` changelog entry is covered by a merged
+  docs pull request on `pages`. The documentation of a minor is frozen from `pages` when the
+  release creates its branch, so a missing page is missing from that version.
+* Once the image and binaries are published, the release workflow creates `pages-vX.Y` from
+  `pages` and deploys it, which makes it the latest version on the site. It does nothing when the
+  branch exists, and skips a tag older than the newest minor, so a patch to an old release
+  cannot freeze the docs of `main` under its version.
 
 ## Go conventions
 
@@ -116,8 +126,19 @@ An accepted migration is never edited. It has already run somewhere.
 The user documentation site, `https://pflege-de-labs.github.io/teamster/`, is built with Hugo from
 its own branches ([ADR 0080](docs/adr/0080-publish-user-docs-as-a-versioned-site.md)): `pages`
 documents unreleased `main`, and `pages-vX.Y` documents each minor release. They carry their own
-AGENTS.md. A user-visible change on `main` needs a follow-up pull request against `pages`. When
-tagging `vX.Y.0`, create `pages-vX.Y` from `pages` as well.
+AGENTS.md.
+
+A user-visible change on `main` needs a pull request against `pages` as well:
+
+```bash
+git worktree add ../teamster-pages-<topic> -b docs/<topic> origin/pages
+```
+
+Write it with the `docs-writer` agent, defined in `.claude/agents/docs-writer.md` on `pages`. A
+session started in that worktree has it; from a session on `main`, spawn a general-purpose agent
+with that file as its instructions. The agent reads the code of the change, so open the docs pull
+request once the code is settled, and link the two pull requests both ways. A fix that also
+applies to the current release is cherry-picked onto its `pages-vX.Y`.
 
 ## Planned work
 
