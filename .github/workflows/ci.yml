@@ -157,7 +157,10 @@ jobs:
           reject $postgres --set config.settings.database.postgres.password=leaked
           reject $sqlite --set config.settings.webhook.token=leaked
 
+  # Branch protection requires image, so waiting on generated makes stale
+  # generated code block a merge, and keeps it out of the main image.
   image:
+    needs: generated
     runs-on: ubuntu-latest
     permissions:
       contents: read

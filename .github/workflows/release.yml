@@ -48,6 +48,11 @@ jobs:
       - name: Start NATS with JetStream
         run: docker run -d --name nats -p 4222:4222 "$NATS_IMAGE" -js
       - run: make coverage
+      # The build compiles the committed templ, sqlc and Tailwind output, so a
+      # tag must not ship output its sources no longer produce.
+      - run: make generate
+      - name: Fail when the committed output is not what the generators produce
+        run: git diff --exit-code
 
   image:
     needs: verify
