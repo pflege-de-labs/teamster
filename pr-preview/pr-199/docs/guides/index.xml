@@ -1525,6 +1525,80 @@ data-copied-label="Copied!"
 &lt;p&gt;A sender with no such field, such as &lt;a href="../alertmanager/"&gt;Alertmanager&lt;/a&gt;, sets the label
 &lt;code&gt;teamster_recipient&lt;/code&gt; instead, with several addresses separated by commas. When a message has both,
 the &lt;code&gt;recipients&lt;/code&gt; list wins. Addresses are trimmed, and duplicates are dropped ignoring case.&lt;/p&gt;
+&lt;p&gt;In an Alertmanager alerting rule, set the label from a label the alert already carries, or name
+a fixed person:&lt;/p&gt;
+&lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
+&lt;div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nt"&gt;groups&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;- &lt;span class="nt"&gt;name&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;certificates&lt;/span&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;rules&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;- &lt;span class="nt"&gt;alert&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;CertificateExpiring&lt;/span&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;expr&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;cert_expiry_seconds &amp;lt; 7 * 86400&lt;/span&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;labels&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;kind&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;certificate-expiry&lt;/span&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;teamster_recipient&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="s2"&gt;&amp;#34;{{ $labels.owner_email }}&amp;#34;&lt;/span&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;- &lt;span class="nt"&gt;alert&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;BackupFailed&lt;/span&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;expr&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;backup_last_success_age_seconds &amp;gt; 86400&lt;/span&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;labels&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;kind&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;backup&lt;/span&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;teamster_recipient&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="s2"&gt;&amp;#34;alice@example.com,bob@example.com&amp;#34;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class="hextra-code-copy-btn-container hx:opacity-0 hx:transition hx:group-hover/code:opacity-100 hx:flex hx:gap-1 hx:absolute hx:m-[11px] hx:right-0 hx:top-0"&gt;
+&lt;button
+class="hextra-code-copy-btn hx:group/copybtn hx:cursor-pointer hx:transition-all hx:active:opacity-50 hx:bg-primary-700/5 hx:border hx:border-black/5 hx:text-gray-600 hx:hover:text-gray-900 hx:rounded-md hx:p-1.5 hx:dark:bg-primary-300/10 hx:dark:border-white/10 hx:dark:text-gray-400 hx:dark:hover:text-gray-50"
+title="Copy code"
+aria-label="Copy code"
+data-copied-label="Copied!"
+&gt;
+&lt;div class="hextra-copy-icon hx:group-[.copied]/copybtn:hidden hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;div class="hextra-success-icon hx:hidden hx:group-[.copied]/copybtn:block hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;/button&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;p&gt;Each alert in a group is addressed by its own label, so one notification can reach different
+people for different alerts.&lt;/p&gt;
+&lt;h3 data-hextra-search-id="how-addresses-are-matched"&gt;How addresses are matched&lt;span class="hx:absolute hx:-mt-20" id="how-addresses-are-matched"&gt;&lt;/span&gt;
+&lt;a href="#how-addresses-are-matched" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Each address is one of three forms. Matching ignores case.&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Form&lt;/th&gt;
+&lt;th&gt;Example&lt;/th&gt;
+&lt;th&gt;Matches&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;Entra object id&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;0b1c2d3e-4f50-6172-8394-a5b6c7d8e9f0&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;The user with that id. Only a GUID counts as an id.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;User principal name&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;alice@example.com&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;The user whose UPN it is.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;Mail address&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;a.smith@example.com&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;The user whose primary mail address, or any SMTP alias, it is. Used when no UPN matches.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;Anything without an &lt;code&gt;@&lt;/code&gt; that is not a GUID is answered as &lt;code&gt;invalid-address&lt;/code&gt;.&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Where Teamster looks.&lt;/strong&gt; First in its own directory of people, which a previous lookup or the
+&lt;a href="../teams-bot/#install-the-bot-for-everyone"&gt;install run&lt;/a&gt; filled. An entry older than
+&lt;code&gt;bot.directory-ttl&lt;/code&gt; (default &lt;code&gt;24h&lt;/code&gt;) is looked up in Microsoft Graph again. Aliases are found only
+through Graph, so the first message to an alias costs a Graph call.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;A typo is remembered.&lt;/strong&gt; An address Graph does not know is answered &lt;code&gt;unknown-recipient&lt;/code&gt;
+without asking Graph again for 10 minutes. A person just added in Entra can take that long to
+become reachable under an address that failed before.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Who is reached.&lt;/strong&gt; Enabled members of the tenant only. Guests, disabled accounts and people
+who left are answered &lt;code&gt;ineligible&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;An address two people share.&lt;/strong&gt; A mail address or alias carried by more than one user names
+nobody for certain. It is answered &lt;code&gt;502&lt;/code&gt;, and retrying does not help: name the person by UPN or
+object id instead.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Only me.&lt;/strong&gt; A token limited to its creator may use any of the three forms, as long as the
+address resolves to the creator&amp;rsquo;s own object id.&lt;/li&gt;
+&lt;/ul&gt;
 &lt;h3 data-hextra-search-id="read-the-answer"&gt;Read the answer&lt;span class="hx:absolute hx:-mt-20" id="read-the-answer"&gt;&lt;/span&gt;
 &lt;a href="#read-the-answer" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;table&gt;
 &lt;thead&gt;
