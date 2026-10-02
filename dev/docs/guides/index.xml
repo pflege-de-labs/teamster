@@ -1112,8 +1112,8 @@ channel ids after the import
 (&lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0013-configuration-transfer.md" target="_blank" rel="noopener"&gt;ADR 0013&lt;/a&gt;).&lt;/p&gt;
 &lt;p&gt;To move between databases rather than tenants, see
 &lt;a href="../storage/#move-from-sqlite-to-postgres"&gt;Move from SQLite to Postgres&lt;/a&gt;.&lt;/p&gt;</description></item><item><title>Send alerts from Alertmanager</title><link>https://pflege-de-labs.github.io/teamster/dev/docs/guides/alertmanager/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/dev/docs/guides/alertmanager/</guid><description>
-&lt;p&gt;Point a Prometheus Alertmanager receiver at Teamster, and its alerts arrive in Teams as cards
-that are updated while they fire and closed when they resolve.&lt;/p&gt;
+&lt;p&gt;Point a Prometheus Alertmanager receiver at Teamster, and each group of alerts arrives in Teams as
+one card that is updated while its alerts fire and closed when they resolve.&lt;/p&gt;
 &lt;p&gt;You need a running Teamster and a token that may send to the Alertmanager webhook. See
 &lt;a href="../webhook-tokens/"&gt;Authenticate a webhook sender&lt;/a&gt; to issue one.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="configure-the-receiver"&gt;Configure the receiver&lt;span class="hx:absolute hx:-mt-20" id="configure-the-receiver"&gt;&lt;/span&gt;
@@ -1190,9 +1190,9 @@ data-copied-label="Copied!"
 &lt;/div&gt;&lt;/div&gt;&lt;/div&gt;
 &lt;p&gt;Do not use &lt;code&gt;basic_auth&lt;/code&gt;. Teamster accepts only a bearer token on the webhooks.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="route-alerts-to-the-receiver"&gt;Route alerts to the receiver&lt;span class="hx:absolute hx:-mt-20" id="route-alerts-to-the-receiver"&gt;&lt;/span&gt;
-&lt;a href="#route-alerts-to-the-receiver" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Add a route in Alertmanager that sends the alerts you want to the &lt;code&gt;teamster&lt;/code&gt; receiver. Which Teams
-channel each alert reaches is decided in Teamster, by its routes. See
-&lt;a href="../../concepts/routing/"&gt;How routing works&lt;/a&gt;.&lt;/p&gt;
+&lt;a href="#route-alerts-to-the-receiver" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Add a route in Alertmanager that sends the alerts you want to the &lt;code&gt;teamster&lt;/code&gt; receiver. Its
+&lt;code&gt;group_by&lt;/code&gt; decides which alerts share a card. Which Teams channel a group reaches is decided in
+Teamster, by its routes. See &lt;a href="../../concepts/routing/"&gt;How routing works&lt;/a&gt;.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="test-it"&gt;Test it&lt;span class="hx:absolute hx:-mt-20" id="test-it"&gt;&lt;/span&gt;
 &lt;a href="#test-it" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Post a sample alert by hand:&lt;/p&gt;
 &lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
@@ -1213,19 +1213,37 @@ data-copied-label="Copied!"
 &lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/samples/alertmanager-firing.json" target="_blank" rel="noopener"&gt;&lt;code&gt;alertmanager-firing.json&lt;/code&gt;&lt;/a&gt;
 and
 &lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/samples/alertmanager-resolved.json" target="_blank" rel="noopener"&gt;&lt;code&gt;alertmanager-resolved.json&lt;/code&gt;&lt;/a&gt;
-from the repository. A &lt;code&gt;200 {&amp;quot;status&amp;quot;:&amp;quot;ok&amp;quot;}&lt;/code&gt; means the alert was delivered.&lt;/p&gt;
+from the repository, or
+&lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/samples/alertmanager-group.json" target="_blank" rel="noopener"&gt;&lt;code&gt;alertmanager-group.json&lt;/code&gt;&lt;/a&gt;
+for a group of two alerts. A &lt;code&gt;200 {&amp;quot;status&amp;quot;:&amp;quot;ok&amp;quot;}&lt;/code&gt; means the notification was delivered.&lt;/p&gt;
 &lt;/div&gt;
-&lt;h2 data-hextra-search-id="what-teamster-does-with-an-alert"&gt;What Teamster does with an alert&lt;span class="hx:absolute hx:-mt-20" id="what-teamster-does-with-an-alert"&gt;&lt;/span&gt;
-&lt;a href="#what-teamster-does-with-an-alert" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;ul&gt;
-&lt;li&gt;Each alert in the group becomes one event. Its &lt;code&gt;fingerprint&lt;/code&gt; is the key, &lt;code&gt;firing&lt;/code&gt; becomes the
-state &lt;code&gt;open&lt;/code&gt; and &lt;code&gt;resolved&lt;/code&gt; becomes &lt;code&gt;closed&lt;/code&gt;. Any other status is delivered once and not tracked.&lt;/li&gt;
-&lt;li&gt;A repeated &lt;code&gt;firing&lt;/code&gt; alert edits the card it already posted. A &lt;code&gt;resolved&lt;/code&gt; alert closes it. See
+&lt;h2 data-hextra-search-id="what-teamster-does-with-a-notification"&gt;What Teamster does with a notification&lt;span class="hx:absolute hx:-mt-20" id="what-teamster-does-with-a-notification"&gt;&lt;/span&gt;
+&lt;a href="#what-teamster-does-with-a-notification" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;ul&gt;
+&lt;li&gt;A notification is one event, however many alerts Alertmanager grouped into it. Its &lt;code&gt;groupKey&lt;/code&gt;
+is the key, so every notification for the group edits the same card.&lt;/li&gt;
+&lt;li&gt;The notification&amp;rsquo;s &lt;code&gt;status&lt;/code&gt; is the state. It is &lt;code&gt;firing&lt;/code&gt; while any alert in the group fires,
+which opens the card, and &lt;code&gt;resolved&lt;/code&gt; once all have, which closes it. Any other status is
+delivered once and not tracked. See
 &lt;a href="../../concepts/alert-lifecycle/"&gt;Alert lifecycle&lt;/a&gt;.&lt;/li&gt;
+&lt;li&gt;Routes select on &lt;code&gt;commonLabels&lt;/code&gt;, the labels all alerts in the group share. For a group of one
+alert, those are the alert&amp;rsquo;s labels.&lt;/li&gt;
 &lt;li&gt;Every event carries the label &lt;code&gt;teamster_source: alertmanager&lt;/code&gt;. A route can select on it.&lt;/li&gt;
-&lt;li&gt;Annotations, &lt;code&gt;generatorURL&lt;/code&gt; and the group&amp;rsquo;s fields are available to templates under
-&lt;code&gt;.Event.Alertmanager&lt;/code&gt;. See &lt;a href="../../reference/template-data/"&gt;Template data&lt;/a&gt;.&lt;/li&gt;
-&lt;li&gt;To send an alert to people rather than a channel, set the label &lt;code&gt;teamster_recipient&lt;/code&gt;. See
+&lt;li&gt;Templates find the group&amp;rsquo;s alerts in &lt;code&gt;.Event.Alertmanager.Alerts&lt;/code&gt;. The flat &lt;code&gt;Annotations&lt;/code&gt;,
+&lt;code&gt;StartsAt&lt;/code&gt;, &lt;code&gt;EndsAt&lt;/code&gt; and &lt;code&gt;GeneratorURL&lt;/code&gt; are set only for a group of one alert. See
+&lt;a href="../templates/#list-the-alerts-of-a-group"&gt;List the alerts of a group&lt;/a&gt; and
+&lt;a href="../../reference/template-data/#alertmanager-extension"&gt;Template data&lt;/a&gt;.&lt;/li&gt;
+&lt;li&gt;To send an alert to people rather than a channel, set the label &lt;code&gt;teamster_recipient&lt;/code&gt;. The
+addresses of all alerts in the group are joined. See
 &lt;a href="../direct-messages/"&gt;Send messages to individual people&lt;/a&gt;.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 data-hextra-search-id="after-upgrading-from-a-release-with-one-card-per-alert"&gt;After upgrading from a release with one card per alert&lt;span class="hx:absolute hx:-mt-20" id="after-upgrading-from-a-release-with-one-card-per-alert"&gt;&lt;/span&gt;
+&lt;a href="#after-upgrading-from-a-release-with-one-card-per-alert" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Releases up to 0.11.0 posted one card per alert. After the upgrade:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;A group that is already firing gets a new group card beside its old per-alert cards. Each old
+card is closed when Alertmanager reports its alert as &lt;code&gt;resolved&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;The Alertmanager default template seeded by the earlier release does not list a group&amp;rsquo;s alerts.
+Apply the preset again, as described in
+&lt;a href="../templates/#list-the-alerts-of-a-group"&gt;List the alerts of a group&lt;/a&gt;.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;h2 data-hextra-search-id="if-alertmanager-reports-an-error"&gt;If Alertmanager reports an error&lt;span class="hx:absolute hx:-mt-20" id="if-alertmanager-reports-an-error"&gt;&lt;/span&gt;
 &lt;a href="#if-alertmanager-reports-an-error" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;table&gt;
@@ -1246,7 +1264,7 @@ state &lt;code&gt;open&lt;/code&gt; and &lt;code&gt;resolved&lt;/code&gt; become
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;unexpected status code 422&lt;/code&gt;&lt;/td&gt;
-&lt;td&gt;The alert addressed people and none of them could be reached. Alertmanager does not retry.&lt;/td&gt;
+&lt;td&gt;The notification addressed people and none of them could be reached. Alertmanager does not retry.&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;unexpected status code 502&lt;/code&gt;&lt;/td&gt;
@@ -1530,8 +1548,9 @@ data-copied-label="Copied!"
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;p&gt;A sender with no such field, such as &lt;a href="../alertmanager/"&gt;Alertmanager&lt;/a&gt;, sets the label
-&lt;code&gt;teamster_recipient&lt;/code&gt; instead, with several addresses separated by commas. When a message has both,
-the &lt;code&gt;recipients&lt;/code&gt; list wins. Addresses are trimmed, and duplicates are dropped ignoring case.&lt;/p&gt;
+&lt;code&gt;teamster_recipient&lt;/code&gt; instead, with several addresses separated by commas. For an Alertmanager group,
+the label&amp;rsquo;s values on all its alerts are joined. When a message has both, the &lt;code&gt;recipients&lt;/code&gt; list
+wins. Addresses are trimmed, and duplicates are dropped ignoring case.&lt;/p&gt;
 &lt;p&gt;In an Alertmanager alerting rule, set the label from a label the alert already carries, or name
 a fixed person:&lt;/p&gt;
 &lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
@@ -2311,9 +2330,10 @@ card and webhooks in one go, which is quicker than starting empty.&lt;/p&gt;
 &lt;/tbody&gt;
 &lt;/table&gt;
 &lt;p&gt;Write a title when the message is only a card. Otherwise the feed previews it as &lt;code&gt;Card&lt;/code&gt;; without a
-title Teamster falls back to the &lt;code&gt;summary&lt;/code&gt; annotation or attribute, then &lt;code&gt;alertname&lt;/code&gt;, then
-&lt;code&gt;Update&lt;/code&gt;. A channel post with a card also shows the title at the top of the card.&lt;/p&gt;
-&lt;p&gt;A minimal message text for Alertmanager:&lt;/p&gt;
+title Teamster falls back to the &lt;code&gt;summary&lt;/code&gt; annotation or attribute, for an Alertmanager group
+the common &lt;code&gt;summary&lt;/code&gt; annotation, then &lt;code&gt;alertname&lt;/code&gt;, then &lt;code&gt;Update&lt;/code&gt;. A channel post with a card also
+shows the title at the top of the card.&lt;/p&gt;
+&lt;p&gt;A minimal message text for an Alertmanager group of one alert:&lt;/p&gt;
 &lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
 &lt;div&gt;&lt;pre&gt;&lt;code&gt;**{{ .Event.Alertmanager.Annotations.summary }}** is {{ .Event.State }}
 {{ default .Event.Alertmanager.Annotations.description &amp;#34;No description.&amp;#34; }}&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class="hextra-code-copy-btn-container hx:opacity-0 hx:transition hx:group-hover/code:opacity-100 hx:flex hx:gap-1 hx:absolute hx:m-[11px] hx:right-0 hx:top-0"&gt;
@@ -2339,7 +2359,8 @@ instead, or the built-in message when there is none, and a warning is logged.&lt
 &lt;/ul&gt;
 &lt;h3 data-hextra-search-id="preview-it"&gt;Preview it&lt;span class="hx:absolute hx:-mt-20" id="preview-it"&gt;&lt;/span&gt;
 &lt;a href="#preview-it" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;The preview renders the template against a sample payload for each webhook, and can show the JSON
-the bot would send for a channel post and for a chat.&lt;/p&gt;
+the bot would send for a channel post and for a chat. For Alertmanager it has two samples: an
+&lt;strong&gt;Alertmanager alert&lt;/strong&gt;, a group of one, and an &lt;strong&gt;Alertmanager alert group&lt;/strong&gt; of two.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="attach-it"&gt;Attach it&lt;span class="hx:absolute hx:-mt-20" id="attach-it"&gt;&lt;/span&gt;
 &lt;a href="#attach-it" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Pick the template on a route, the global default route, or a Teams V2 endpoint. See
 &lt;a href="../../concepts/routing/"&gt;How routing works&lt;/a&gt;.&lt;/p&gt;
@@ -2391,6 +2412,44 @@ data-copied-label="Copied!"
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;p&gt;Use &lt;code&gt;default&lt;/code&gt; for a key an event may not set, and &lt;code&gt;toJSON&lt;/code&gt; to embed a structure in a card.&lt;/p&gt;
+&lt;h2 data-hextra-search-id="list-the-alerts-of-a-group"&gt;List the alerts of a group&lt;span class="hx:absolute hx:-mt-20" id="list-the-alerts-of-a-group"&gt;&lt;/span&gt;
+&lt;a href="#list-the-alerts-of-a-group" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Alertmanager sends a group of alerts as one notification, and Teamster posts one card for it. The
+alerts are in &lt;code&gt;.Event.Alertmanager.Alerts&lt;/code&gt;, each with &lt;code&gt;Status&lt;/code&gt;, &lt;code&gt;Labels&lt;/code&gt;, &lt;code&gt;Annotations&lt;/code&gt;,
+&lt;code&gt;StartsAt&lt;/code&gt;, &lt;code&gt;EndsAt&lt;/code&gt;, &lt;code&gt;GeneratorURL&lt;/code&gt; and &lt;code&gt;Fingerprint&lt;/code&gt;. &lt;code&gt;.Event.Labels&lt;/code&gt; and
+&lt;code&gt;.Event.Alertmanager.CommonAnnotations&lt;/code&gt; hold what all of them share.&lt;/p&gt;
+&lt;p&gt;The flat &lt;code&gt;.Event.Alertmanager.Annotations&lt;/code&gt;, &lt;code&gt;StartsAt&lt;/code&gt;, &lt;code&gt;EndsAt&lt;/code&gt; and &lt;code&gt;GeneratorURL&lt;/code&gt; are a shortcut
+for a group of one alert, and empty for a larger group. Count the alerts with &lt;code&gt;len&lt;/code&gt; to handle both:&lt;/p&gt;
+&lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
+&lt;div&gt;&lt;pre&gt;&lt;code&gt;{{ if eq (len .Event.Alertmanager.Alerts) 1 }}
+{{ .Event.Alertmanager.Annotations.summary }}
+{{ else }}
+{{ range .Event.Alertmanager.Alerts }}{{ .Labels.alertname }} ({{ .Status }}): {{ .Annotations.summary }}
+{{ end }}
+{{ end }}&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class="hextra-code-copy-btn-container hx:opacity-0 hx:transition hx:group-hover/code:opacity-100 hx:flex hx:gap-1 hx:absolute hx:m-[11px] hx:right-0 hx:top-0"&gt;
+&lt;button
+class="hextra-code-copy-btn hx:group/copybtn hx:cursor-pointer hx:transition-all hx:active:opacity-50 hx:bg-primary-700/5 hx:border hx:border-black/5 hx:text-gray-600 hx:hover:text-gray-900 hx:rounded-md hx:p-1.5 hx:dark:bg-primary-300/10 hx:dark:border-white/10 hx:dark:text-gray-400 hx:dark:hover:text-gray-50"
+title="Copy code"
+aria-label="Copy code"
+data-copied-label="Copied!"
+&gt;
+&lt;div class="hextra-copy-icon hx:group-[.copied]/copybtn:hidden hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;div class="hextra-success-icon hx:hidden hx:group-[.copied]/copybtn:block hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;/button&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;p&gt;In a card, the &lt;strong&gt;Alert list&lt;/strong&gt; snippet in the editor&amp;rsquo;s palette inserts a &lt;code&gt;FactSet&lt;/code&gt; with one fact
+per alert. The Alertmanager preset lists a larger group&amp;rsquo;s alerts the same way and counts them in
+the title.&lt;/p&gt;
+&lt;div class="hx:overflow-x-auto hx:mt-6 hx:flex hx:rounded-lg hx:border hx:py-2 hx:ltr:pr-4 hx:rtl:pl-4 hx:contrast-more:border-current hx:contrast-more:dark:border-current hx:border-amber-200 hx:bg-amber-100 hx:text-amber-900 hx:dark:border-amber-200/30 hx:dark:bg-amber-900/30 hx:dark:text-amber-200"&gt;
+&lt;div class="hx:ltr:pl-3 hx:ltr:pr-2 hx:rtl:pr-3 hx:rtl:pl-2"&gt;&lt;svg height=1.2em class="hx:inline-block hx:align-middle" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"&gt;&lt;path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/&gt;&lt;/svg&gt;&lt;/div&gt;
+&lt;div class="hx:w-full hx:min-w-0 hx:leading-7"&gt;
+&lt;div class="hx:mt-6 hx:leading-7 hx:first:mt-0"&gt;A preset only seeds a new installation. An installation seeded by 0.11.0 or earlier keeps its old
+&lt;strong&gt;Alertmanager (default)&lt;/strong&gt; template, which shows a group without its alerts and with the shared
+&lt;code&gt;alertname&lt;/code&gt; as its title. To update it, open the template, pick &lt;strong&gt;Alertmanager alert&lt;/strong&gt; under
+&lt;strong&gt;Start from a preset&lt;/strong&gt;, confirm, and save. This replaces the title, text and card, so copy any
+changes of your own first.&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
 &lt;h2 data-hextra-search-id="know-what-the-text-may-contain"&gt;Know what the text may contain&lt;span class="hx:absolute hx:-mt-20" id="know-what-the-text-may-contain"&gt;&lt;/span&gt;
 &lt;a href="#know-what-the-text-may-contain" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Message text is Markdown. Teamster renders it to HTML and sanitizes it:&lt;/p&gt;
 &lt;ul&gt;
@@ -2445,7 +2504,7 @@ that webhook already has one:&lt;/p&gt;
 &lt;tbody&gt;
 &lt;tr&gt;
 &lt;td&gt;Alertmanager (default)&lt;/td&gt;
-&lt;td&gt;A state-coloured card: summary, severity, description, labels, start and end, and links to the generator URL and a &lt;code&gt;runbook_url&lt;/code&gt; annotation&lt;/td&gt;
+&lt;td&gt;A state-coloured card: summary, severity, description, labels, start and end, or for a group of several alerts one line per alert, and links to the generator URL and a &lt;code&gt;runbook_url&lt;/code&gt; annotation&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;Universal webhook (default)&lt;/td&gt;
@@ -2530,6 +2589,10 @@ data-copied-label="Copied!"
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;alertmanager-firing.json&lt;/code&gt;, &lt;code&gt;alertmanager-resolved.json&lt;/code&gt;&lt;/td&gt;
 &lt;td&gt;An Alertmanager alert opening and resolving&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;alertmanager-group.json&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;An Alertmanager group of two alerts, one firing and one resolved&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;universal-open.json&lt;/code&gt;, &lt;code&gt;universal-closed.json&lt;/code&gt;&lt;/td&gt;

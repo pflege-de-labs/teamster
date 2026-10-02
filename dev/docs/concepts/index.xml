@@ -10,7 +10,8 @@ the same value. Extra labels on the event do not matter.&lt;/p&gt;
 &lt;li&gt;An empty selector matches nothing. A route that should catch everything is the default route,
 described below.&lt;/li&gt;
 &lt;/ul&gt;
-&lt;p&gt;For an Alertmanager alert the labels are the alert&amp;rsquo;s labels. For a universal event they are its
+&lt;p&gt;For an Alertmanager notification the labels are its &lt;code&gt;commonLabels&lt;/code&gt;, the labels every alert in the
+group shares; for a group of one alert, that alert&amp;rsquo;s labels. For a universal event they are its
 &lt;code&gt;labels&lt;/code&gt; object.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="the-teamster_source-label"&gt;The &lt;code&gt;teamster_source&lt;/code&gt; label&lt;span class="hx:absolute hx:-mt-20" id="the-teamster_source-label"&gt;&lt;/span&gt;
 &lt;a href="#the-teamster_source-label" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Before routing, Teamster sets the label &lt;code&gt;teamster_source&lt;/code&gt; to the webhook the event arrived at:
@@ -104,11 +105,12 @@ that delivers is named and explained, and its path is highlighted while the rest
 while an alert is firing and change it when the alert clears, instead of posting a new card each
 time.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="events-and-keys"&gt;Events and keys&lt;span class="hx:absolute hx:-mt-20" id="events-and-keys"&gt;&lt;/span&gt;
-&lt;a href="#events-and-keys" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Every webhook is turned into an &lt;em&gt;event&lt;/em&gt;. Each alert in an Alertmanager notification is an event of
-its own; a universal post is one event.&lt;/p&gt;
+&lt;a href="#events-and-keys" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Every webhook is turned into an &lt;em&gt;event&lt;/em&gt;. An Alertmanager notification is one event, however many
+alerts Alertmanager grouped into it, so the group shares one card; a universal post is one event.&lt;/p&gt;
 &lt;p&gt;An event&amp;rsquo;s &lt;strong&gt;key&lt;/strong&gt; says which earlier event it continues:&lt;/p&gt;
 &lt;ul&gt;
-&lt;li&gt;Alertmanager: the alert&amp;rsquo;s fingerprint.&lt;/li&gt;
+&lt;li&gt;Alertmanager: the notification&amp;rsquo;s &lt;code&gt;groupKey&lt;/code&gt;. Every notification for the group continues the
+same event while alerts join, change and resolve.&lt;/li&gt;
 &lt;li&gt;Universal webhook: the payload&amp;rsquo;s &lt;code&gt;key&lt;/code&gt;. Without one, Teamster derives a key from the source, the
 &lt;code&gt;url&lt;/code&gt;, the &lt;code&gt;time&lt;/code&gt;, the labels and the recipients. Send your own &lt;code&gt;key&lt;/code&gt; if any of those change
 between updates of the same alert.&lt;/li&gt;
@@ -127,13 +129,13 @@ between updates of the same alert.&lt;/li&gt;
 &lt;tbody&gt;
 &lt;tr&gt;
 &lt;td&gt;open&lt;/td&gt;
-&lt;td&gt;&lt;code&gt;firing&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;firing&lt;/code&gt;: any alert in the group fires&lt;/td&gt;
 &lt;td&gt;&lt;code&gt;&amp;quot;state&amp;quot;: &amp;quot;open&amp;quot;&lt;/code&gt;&lt;/td&gt;
 &lt;td&gt;posts a message, or updates the one it posted for this key&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;closed&lt;/td&gt;
-&lt;td&gt;&lt;code&gt;resolved&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;resolved&lt;/code&gt;: every alert has resolved&lt;/td&gt;
 &lt;td&gt;&lt;code&gt;&amp;quot;state&amp;quot;: &amp;quot;closed&amp;quot;&lt;/code&gt;&lt;/td&gt;
 &lt;td&gt;updates or follows up the message for this key, then forgets it&lt;/td&gt;
 &lt;/tr&gt;

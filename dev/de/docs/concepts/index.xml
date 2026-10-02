@@ -11,8 +11,9 @@ spielen keine Rolle.&lt;/p&gt;
 &lt;li&gt;Ein leerer Selektor trifft auf nichts zu. Eine Route, die alles auffangen soll, ist die
 Standardroute, die weiter unten beschrieben ist.&lt;/li&gt;
 &lt;/ul&gt;
-&lt;p&gt;Bei einem Alarm aus Alertmanager sind es die Labels des Alarms, bei einem universellen Ereignis
-die Einträge seines &lt;code&gt;labels&lt;/code&gt;-Objekts.&lt;/p&gt;
+&lt;p&gt;Bei einer Benachrichtigung aus Alertmanager sind es ihre &lt;code&gt;commonLabels&lt;/code&gt;, die Labels, die alle
+Alarme der Gruppe gemeinsam haben; bei einer Gruppe mit einem Alarm die Labels dieses Alarms. Bei
+einem universellen Ereignis sind es die Einträge seines &lt;code&gt;labels&lt;/code&gt;-Objekts.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="the-teamster_source-label"&gt;Das Label &lt;code&gt;teamster_source&lt;/code&gt;&lt;span class="hx:absolute hx:-mt-20" id="the-teamster_source-label"&gt;&lt;/span&gt;
 &lt;a href="#the-teamster_source-label" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Vor dem Routing setzt Teamster das Label &lt;code&gt;teamster_source&lt;/code&gt; auf den Webhook, an dem das Ereignis
 angekommen ist: &lt;code&gt;alertmanager&lt;/code&gt; oder &lt;code&gt;universal&lt;/code&gt;. Einen vom Absender gesetzten Wert überschreibt es.
@@ -116,11 +117,13 @@ hervorgehoben, während der Rest verblasst.&lt;/p&gt;
 Karte aktualisieren, solange ein Alarm aktiv ist, und sie ändern, wenn der Alarm aufgelöst wird,
 statt jedes Mal eine neue Karte zu posten.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="events-and-keys"&gt;Ereignisse und Keys&lt;span class="hx:absolute hx:-mt-20" id="events-and-keys"&gt;&lt;/span&gt;
-&lt;a href="#events-and-keys" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Jeder Webhook wird in ein &lt;em&gt;Ereignis&lt;/em&gt; umgewandelt. Jeder Alarm in einer Alertmanager-Benachrichtigung
-ist ein eigenes Ereignis; ein Aufruf des universellen Webhooks ist ein Ereignis.&lt;/p&gt;
+&lt;a href="#events-and-keys" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Jeder Webhook wird in ein &lt;em&gt;Ereignis&lt;/em&gt; umgewandelt. Eine Alertmanager-Benachrichtigung ist ein
+Ereignis, gleich wie viele Alarme Alertmanager darin gruppiert hat, sodass sich die Gruppe eine
+Karte teilt; ein Aufruf des universellen Webhooks ist ein Ereignis.&lt;/p&gt;
 &lt;p&gt;Der &lt;strong&gt;Key&lt;/strong&gt; eines Ereignisses gibt an, welches frühere Ereignis es fortsetzt:&lt;/p&gt;
 &lt;ul&gt;
-&lt;li&gt;Alertmanager: der Fingerprint des Alarms.&lt;/li&gt;
+&lt;li&gt;Alertmanager: der &lt;code&gt;groupKey&lt;/code&gt; der Benachrichtigung. Jede Benachrichtigung für die Gruppe setzt
+dasselbe Ereignis fort, während Alarme hinzukommen, sich ändern und aufgelöst werden.&lt;/li&gt;
 &lt;li&gt;Universeller Webhook: der &lt;code&gt;key&lt;/code&gt; der Nutzdaten. Fehlt er, leitet Teamster einen Key aus der
 Quelle, der &lt;code&gt;url&lt;/code&gt;, der &lt;code&gt;time&lt;/code&gt;, den Labels und den Empfängern ab. Senden Sie einen eigenen &lt;code&gt;key&lt;/code&gt;,
 wenn sich einer dieser Werte zwischen Aktualisierungen desselben Alarms ändert.&lt;/li&gt;
@@ -139,13 +142,13 @@ wenn sich einer dieser Werte zwischen Aktualisierungen desselben Alarms ändert.
 &lt;tbody&gt;
 &lt;tr&gt;
 &lt;td&gt;offen&lt;/td&gt;
-&lt;td&gt;&lt;code&gt;firing&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;firing&lt;/code&gt;: ein Alarm der Gruppe feuert&lt;/td&gt;
 &lt;td&gt;&lt;code&gt;&amp;quot;state&amp;quot;: &amp;quot;open&amp;quot;&lt;/code&gt;&lt;/td&gt;
 &lt;td&gt;postet eine Nachricht oder aktualisiert die, die es für diesen Key gepostet hat&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;geschlossen&lt;/td&gt;
-&lt;td&gt;&lt;code&gt;resolved&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;resolved&lt;/code&gt;: alle Alarme sind aufgelöst&lt;/td&gt;
 &lt;td&gt;&lt;code&gt;&amp;quot;state&amp;quot;: &amp;quot;closed&amp;quot;&lt;/code&gt;&lt;/td&gt;
 &lt;td&gt;aktualisiert die Nachricht für diesen Key oder sendet eine Folgenachricht und vergisst ihn dann&lt;/td&gt;
 &lt;/tr&gt;

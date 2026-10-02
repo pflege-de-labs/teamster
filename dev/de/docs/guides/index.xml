@@ -1155,9 +1155,9 @@ Import die Team- und Kanal-IDs dieser Ziele
 (&lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0013-configuration-transfer.md" target="_blank" rel="noopener"&gt;ADR 0013&lt;/a&gt;).&lt;/p&gt;
 &lt;p&gt;Um zwischen Datenbanken statt zwischen Tenants umzuziehen, siehe
 &lt;a href="../storage/#move-from-sqlite-to-postgres"&gt;Von SQLite zu Postgres wechseln&lt;/a&gt;.&lt;/p&gt;</description></item><item><title>Alarme aus Alertmanager senden</title><link>https://pflege-de-labs.github.io/teamster/dev/de/docs/guides/alertmanager/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/dev/de/docs/guides/alertmanager/</guid><description>
-&lt;p&gt;Richten Sie einen Receiver von Prometheus Alertmanager auf Teamster aus. Seine Alarme erscheinen
-dann in Teams als Karten, die aktualisiert werden, solange der Alarm feuert, und geschlossen
-werden, sobald er aufgelöst ist.&lt;/p&gt;
+&lt;p&gt;Richten Sie einen Receiver von Prometheus Alertmanager auf Teamster aus. Jede Gruppe von Alarmen
+erscheint dann in Teams als eine Karte, die aktualisiert wird, solange ihre Alarme feuern, und
+geschlossen wird, sobald sie aufgelöst sind.&lt;/p&gt;
 &lt;p&gt;Sie brauchen ein laufendes Teamster und ein Zugriffstoken, das an den Alertmanager-Webhook senden
 darf. Wie Sie eines ausstellen, beschreibt &lt;a href="../webhook-tokens/"&gt;Einen Webhook-Absender authentifizieren&lt;/a&gt;.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="configure-the-receiver"&gt;Den Receiver einrichten&lt;span class="hx:absolute hx:-mt-20" id="configure-the-receiver"&gt;&lt;/span&gt;
@@ -1236,8 +1236,9 @@ data-copied-label="Kopiert!"
 &lt;p&gt;Verwenden Sie nicht &lt;code&gt;basic_auth&lt;/code&gt;. Teamster akzeptiert an den Webhooks nur ein Bearer-Token.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="route-alerts-to-the-receiver"&gt;Alarme an den Receiver leiten&lt;span class="hx:absolute hx:-mt-20" id="route-alerts-to-the-receiver"&gt;&lt;/span&gt;
 &lt;a href="#route-alerts-to-the-receiver" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Legen Sie in Alertmanager eine Route an, die die gewünschten Alarme an den Receiver &lt;code&gt;teamster&lt;/code&gt;
-schickt. In welchem Teams-Kanal ein Alarm landet, entscheidet Teamster mit seinen eigenen Routen.
-Siehe &lt;a href="../../concepts/routing/"&gt;Wie das Routing funktioniert&lt;/a&gt;.&lt;/p&gt;
+schickt. Ihr &lt;code&gt;group_by&lt;/code&gt; bestimmt, welche Alarme sich eine Karte teilen. In welchem Teams-Kanal eine
+Gruppe landet, entscheidet Teamster mit seinen eigenen Routen. Siehe
+&lt;a href="../../concepts/routing/"&gt;Wie das Routing funktioniert&lt;/a&gt;.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="test-it"&gt;Ausprobieren&lt;span class="hx:absolute hx:-mt-20" id="test-it"&gt;&lt;/span&gt;
 &lt;a href="#test-it" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Senden Sie einen Beispielalarm von Hand:&lt;/p&gt;
 &lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
@@ -1258,21 +1259,38 @@ data-copied-label="Kopiert!"
 &lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/samples/alertmanager-firing.json" target="_blank" rel="noopener"&gt;&lt;code&gt;alertmanager-firing.json&lt;/code&gt;&lt;/a&gt;
 und
 &lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/samples/alertmanager-resolved.json" target="_blank" rel="noopener"&gt;&lt;code&gt;alertmanager-resolved.json&lt;/code&gt;&lt;/a&gt;
-finden Sie im Repository. Die Antwort &lt;code&gt;200 {&amp;quot;status&amp;quot;:&amp;quot;ok&amp;quot;}&lt;/code&gt; bedeutet, dass der Alarm zugestellt
-wurde.&lt;/p&gt;
+finden Sie im Repository, für eine Gruppe aus zwei Alarmen außerdem
+&lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/samples/alertmanager-group.json" target="_blank" rel="noopener"&gt;&lt;code&gt;alertmanager-group.json&lt;/code&gt;&lt;/a&gt;.
+Die Antwort &lt;code&gt;200 {&amp;quot;status&amp;quot;:&amp;quot;ok&amp;quot;}&lt;/code&gt; bedeutet, dass die Benachrichtigung zugestellt wurde.&lt;/p&gt;
 &lt;/div&gt;
-&lt;h2 data-hextra-search-id="what-teamster-does-with-an-alert"&gt;Was Teamster mit einem Alarm macht&lt;span class="hx:absolute hx:-mt-20" id="what-teamster-does-with-an-alert"&gt;&lt;/span&gt;
-&lt;a href="#what-teamster-does-with-an-alert" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;ul&gt;
-&lt;li&gt;Jeder Alarm der Gruppe wird zu einem Ereignis. Sein &lt;code&gt;fingerprint&lt;/code&gt; ist der Schlüssel, &lt;code&gt;firing&lt;/code&gt;
-wird zum Zustand &lt;code&gt;open&lt;/code&gt; und &lt;code&gt;resolved&lt;/code&gt; zu &lt;code&gt;closed&lt;/code&gt;. Jeder andere Status wird einmal zugestellt
-und nicht verfolgt.&lt;/li&gt;
-&lt;li&gt;Ein wiederholter &lt;code&gt;firing&lt;/code&gt;-Alarm bearbeitet die Karte, die er bereits gepostet hat. Ein
-&lt;code&gt;resolved&lt;/code&gt;-Alarm schließt sie. Siehe &lt;a href="../../concepts/alert-lifecycle/"&gt;Lebenszyklus eines Alarms&lt;/a&gt;.&lt;/li&gt;
+&lt;h2 data-hextra-search-id="what-teamster-does-with-a-notification"&gt;Was Teamster mit einer Benachrichtigung macht&lt;span class="hx:absolute hx:-mt-20" id="what-teamster-does-with-a-notification"&gt;&lt;/span&gt;
+&lt;a href="#what-teamster-does-with-a-notification" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;ul&gt;
+&lt;li&gt;Eine Benachrichtigung ist ein Ereignis, gleich wie viele Alarme Alertmanager darin gruppiert hat.
+Ihr &lt;code&gt;groupKey&lt;/code&gt; ist der Schlüssel, daher bearbeitet jede Benachrichtigung für die Gruppe dieselbe
+Karte.&lt;/li&gt;
+&lt;li&gt;Der &lt;code&gt;status&lt;/code&gt; der Benachrichtigung ist der Zustand. Er ist &lt;code&gt;firing&lt;/code&gt;, solange ein Alarm der Gruppe
+feuert, was die Karte öffnet, und &lt;code&gt;resolved&lt;/code&gt;, sobald alle aufgelöst sind, was sie schließt.
+Jeder andere Status wird einmal zugestellt und nicht verfolgt. Siehe
+&lt;a href="../../concepts/alert-lifecycle/"&gt;Lebenszyklus eines Alarms&lt;/a&gt;.&lt;/li&gt;
+&lt;li&gt;Routen wählen nach &lt;code&gt;commonLabels&lt;/code&gt; aus, den Labels, die alle Alarme der Gruppe gemeinsam haben.
+Bei einer Gruppe mit einem Alarm sind das die Labels dieses Alarms.&lt;/li&gt;
 &lt;li&gt;Jedes Ereignis trägt das Label &lt;code&gt;teamster_source: alertmanager&lt;/code&gt;. Eine Route kann danach auswählen.&lt;/li&gt;
-&lt;li&gt;Annotations, &lt;code&gt;generatorURL&lt;/code&gt; und die Felder der Gruppe stehen Vorlagen unter
-&lt;code&gt;.Event.Alertmanager&lt;/code&gt; zur Verfügung. Siehe &lt;a href="../../reference/template-data/"&gt;Vorlagendaten&lt;/a&gt;.&lt;/li&gt;
+&lt;li&gt;Vorlagen finden die Alarme der Gruppe in &lt;code&gt;.Event.Alertmanager.Alerts&lt;/code&gt;. Die flachen Felder
+&lt;code&gt;Annotations&lt;/code&gt;, &lt;code&gt;StartsAt&lt;/code&gt;, &lt;code&gt;EndsAt&lt;/code&gt; und &lt;code&gt;GeneratorURL&lt;/code&gt; sind nur bei einer Gruppe mit einem Alarm
+gesetzt. Siehe &lt;a href="../templates/#list-the-alerts-of-a-group"&gt;Die Alarme einer Gruppe auflisten&lt;/a&gt; und
+&lt;a href="../../reference/template-data/#alertmanager-extension"&gt;Vorlagendaten&lt;/a&gt;.&lt;/li&gt;
 &lt;li&gt;Um einen Alarm an Personen statt an einen Kanal zu senden, setzen Sie das Label
-&lt;code&gt;teamster_recipient&lt;/code&gt;. Siehe &lt;a href="../direct-messages/"&gt;Nachrichten an einzelne Personen senden&lt;/a&gt;.&lt;/li&gt;
+&lt;code&gt;teamster_recipient&lt;/code&gt;. Die Adressen aller Alarme der Gruppe werden zusammengeführt. Siehe
+&lt;a href="../direct-messages/"&gt;Nachrichten an einzelne Personen senden&lt;/a&gt;.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 data-hextra-search-id="after-upgrading-from-a-release-with-one-card-per-alert"&gt;Nach dem Upgrade von einem Release mit einer Karte je Alarm&lt;span class="hx:absolute hx:-mt-20" id="after-upgrading-from-a-release-with-one-card-per-alert"&gt;&lt;/span&gt;
+&lt;a href="#after-upgrading-from-a-release-with-one-card-per-alert" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Releases bis 0.11.0 haben je Alarm eine Karte gepostet. Nach dem Upgrade gilt:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Eine Gruppe, die bereits feuert, erhält eine neue Gruppenkarte neben ihren alten Karten je
+Alarm. Jede alte Karte wird geschlossen, sobald Alertmanager ihren Alarm als &lt;code&gt;resolved&lt;/code&gt; meldet.&lt;/li&gt;
+&lt;li&gt;Die Standardvorlage für Alertmanager, die das frühere Release angelegt hat, listet die Alarme
+einer Gruppe nicht auf. Wenden Sie die vorgefertigte Vorlage erneut an, wie unter
+&lt;a href="../templates/#list-the-alerts-of-a-group"&gt;Die Alarme einer Gruppe auflisten&lt;/a&gt; beschrieben.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;h2 data-hextra-search-id="if-alertmanager-reports-an-error"&gt;Wenn Alertmanager einen Fehler meldet&lt;span class="hx:absolute hx:-mt-20" id="if-alertmanager-reports-an-error"&gt;&lt;/span&gt;
 &lt;a href="#if-alertmanager-reports-an-error" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;table&gt;
@@ -1293,7 +1311,7 @@ und nicht verfolgt.&lt;/li&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;unexpected status code 422&lt;/code&gt;&lt;/td&gt;
-&lt;td&gt;Der Alarm war an Personen gerichtet, und keine von ihnen war erreichbar. Alertmanager wiederholt ihn nicht.&lt;/td&gt;
+&lt;td&gt;Die Benachrichtigung war an Personen gerichtet, und keine von ihnen war erreichbar. Alertmanager wiederholt sie nicht.&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;unexpected status code 502&lt;/code&gt;&lt;/td&gt;
@@ -1586,8 +1604,9 @@ data-copied-label="Kopiert!"
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;p&gt;Ein Absender ohne ein solches Feld, etwa &lt;a href="../alertmanager/"&gt;Alertmanager&lt;/a&gt;, setzt stattdessen das
-Label &lt;code&gt;teamster_recipient&lt;/code&gt;, mehrere Adressen durch Kommas getrennt. Hat eine Nachricht beides, gilt
-die Liste &lt;code&gt;recipients&lt;/code&gt;. Leerzeichen um Adressen werden entfernt, Duplikate ohne Rücksicht auf
+Label &lt;code&gt;teamster_recipient&lt;/code&gt;, mehrere Adressen durch Kommas getrennt. Bei einer Alertmanager-Gruppe
+werden die Werte des Labels aus allen ihren Alarmen zusammengeführt. Hat eine Nachricht beides,
+gilt die Liste &lt;code&gt;recipients&lt;/code&gt;. Leerzeichen um Adressen werden entfernt, Duplikate ohne Rücksicht auf
 Groß- und Kleinschreibung verworfen.&lt;/p&gt;
 &lt;p&gt;In einer Alerting-Regel von Alertmanager setzen Sie das Label aus einem Label, das der Alarm
 bereits trägt, oder nennen eine feste Person:&lt;/p&gt;
@@ -2402,9 +2421,9 @@ Name, Titel, Text, Karte und Webhooks in einem Schritt und geht schneller, als l
 &lt;/table&gt;
 &lt;p&gt;Schreiben Sie einen Titel, wenn die Nachricht nur aus einer Karte besteht. Sonst zeigt der Feed sie
 als &lt;code&gt;Card&lt;/code&gt; an. Ohne Titel greift Teamster auf die Annotation oder das Attribut &lt;code&gt;summary&lt;/code&gt; zurück,
-dann auf &lt;code&gt;alertname&lt;/code&gt;, dann auf &lt;code&gt;Update&lt;/code&gt;. Ein Kanalbeitrag mit Karte zeigt den Titel außerdem oben
-auf der Karte.&lt;/p&gt;
-&lt;p&gt;Ein minimaler Nachrichtentext für Alertmanager:&lt;/p&gt;
+bei einer Alertmanager-Gruppe auf die gemeinsame Annotation &lt;code&gt;summary&lt;/code&gt;, dann auf &lt;code&gt;alertname&lt;/code&gt;, dann
+auf &lt;code&gt;Update&lt;/code&gt;. Ein Kanalbeitrag mit Karte zeigt den Titel außerdem oben auf der Karte.&lt;/p&gt;
+&lt;p&gt;Ein minimaler Nachrichtentext für eine Alertmanager-Gruppe mit einem Alarm:&lt;/p&gt;
 &lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
 &lt;div&gt;&lt;pre&gt;&lt;code&gt;**{{ .Event.Alertmanager.Annotations.summary }}** is {{ .Event.State }}
 {{ default .Event.Alertmanager.Annotations.description &amp;#34;No description.&amp;#34; }}&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class="hextra-code-copy-btn-container hx:opacity-0 hx:transition hx:group-hover/code:opacity-100 hx:flex hx:gap-1 hx:absolute hx:m-[11px] hx:right-0 hx:top-0"&gt;
@@ -2432,7 +2451,9 @@ Nachricht. Dabei wird eine Warnung protokolliert.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;h3 data-hextra-search-id="preview-it"&gt;Die Vorschau ansehen&lt;span class="hx:absolute hx:-mt-20" id="preview-it"&gt;&lt;/span&gt;
 &lt;a href="#preview-it" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Die Vorschau rendert die Vorlage gegen Beispielnutzdaten für jeden Webhook und kann das JSON
-zeigen, das der Bot für einen Kanalbeitrag und für einen Chat senden würde.&lt;/p&gt;
+zeigen, das der Bot für einen Kanalbeitrag und für einen Chat senden würde. Für Alertmanager gibt
+es zwei Beispiele: &lt;strong&gt;Alertmanager-Alarm&lt;/strong&gt;, eine Gruppe mit einem Alarm, und
+&lt;strong&gt;Alertmanager-Alarmgruppe&lt;/strong&gt; mit zwei Alarmen.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="attach-it"&gt;Die Vorlage zuweisen&lt;span class="hx:absolute hx:-mt-20" id="attach-it"&gt;&lt;/span&gt;
 &lt;a href="#attach-it" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Wählen Sie die Vorlage an einer Route, an der globalen Standardroute oder an einem
 Teams-V2-Endpunkt. Siehe &lt;a href="../../concepts/routing/"&gt;Wie das Routing funktioniert&lt;/a&gt;.&lt;/p&gt;
@@ -2486,6 +2507,46 @@ data-copied-label="Kopiert!"
 &lt;/div&gt;
 &lt;p&gt;Verwenden Sie &lt;code&gt;default&lt;/code&gt; für einen Schlüssel, den ein Ereignis womöglich nicht setzt, und &lt;code&gt;toJSON&lt;/code&gt;,
 um eine Struktur in eine Karte einzubetten.&lt;/p&gt;
+&lt;h2 data-hextra-search-id="list-the-alerts-of-a-group"&gt;Die Alarme einer Gruppe auflisten&lt;span class="hx:absolute hx:-mt-20" id="list-the-alerts-of-a-group"&gt;&lt;/span&gt;
+&lt;a href="#list-the-alerts-of-a-group" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Alertmanager sendet eine Gruppe von Alarmen als eine Benachrichtigung, und Teamster postet dafür
+eine Karte. Die Alarme stehen in &lt;code&gt;.Event.Alertmanager.Alerts&lt;/code&gt;, jeder mit &lt;code&gt;Status&lt;/code&gt;, &lt;code&gt;Labels&lt;/code&gt;,
+&lt;code&gt;Annotations&lt;/code&gt;, &lt;code&gt;StartsAt&lt;/code&gt;, &lt;code&gt;EndsAt&lt;/code&gt;, &lt;code&gt;GeneratorURL&lt;/code&gt; und &lt;code&gt;Fingerprint&lt;/code&gt;. &lt;code&gt;.Event.Labels&lt;/code&gt; und
+&lt;code&gt;.Event.Alertmanager.CommonAnnotations&lt;/code&gt; enthalten, was alle gemeinsam haben.&lt;/p&gt;
+&lt;p&gt;Die flachen Felder &lt;code&gt;.Event.Alertmanager.Annotations&lt;/code&gt;, &lt;code&gt;StartsAt&lt;/code&gt;, &lt;code&gt;EndsAt&lt;/code&gt; und &lt;code&gt;GeneratorURL&lt;/code&gt; sind
+eine Abkürzung für eine Gruppe mit einem Alarm und bei einer größeren Gruppe leer. Zählen Sie die
+Alarme mit &lt;code&gt;len&lt;/code&gt;, um beide Fälle zu behandeln:&lt;/p&gt;
+&lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
+&lt;div&gt;&lt;pre&gt;&lt;code&gt;{{ if eq (len .Event.Alertmanager.Alerts) 1 }}
+{{ .Event.Alertmanager.Annotations.summary }}
+{{ else }}
+{{ range .Event.Alertmanager.Alerts }}{{ .Labels.alertname }} ({{ .Status }}): {{ .Annotations.summary }}
+{{ end }}
+{{ end }}&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class="hextra-code-copy-btn-container hx:opacity-0 hx:transition hx:group-hover/code:opacity-100 hx:flex hx:gap-1 hx:absolute hx:m-[11px] hx:right-0 hx:top-0"&gt;
+&lt;button
+class="hextra-code-copy-btn hx:group/copybtn hx:cursor-pointer hx:transition-all hx:active:opacity-50 hx:bg-primary-700/5 hx:border hx:border-black/5 hx:text-gray-600 hx:hover:text-gray-900 hx:rounded-md hx:p-1.5 hx:dark:bg-primary-300/10 hx:dark:border-white/10 hx:dark:text-gray-400 hx:dark:hover:text-gray-50"
+title="Code kopieren"
+aria-label="Code kopieren"
+data-copied-label="Kopiert!"
+&gt;
+&lt;div class="hextra-copy-icon hx:group-[.copied]/copybtn:hidden hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;div class="hextra-success-icon hx:hidden hx:group-[.copied]/copybtn:block hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;/button&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;p&gt;In einer Karte fügt der Baustein &lt;strong&gt;Alarmliste&lt;/strong&gt; aus der Palette des Editors ein &lt;code&gt;FactSet&lt;/code&gt; mit
+einem Eintrag je Alarm ein. Die vorgefertigte Vorlage für Alertmanager listet die Alarme einer
+größeren Gruppe genauso auf und nennt ihre Anzahl im Titel.&lt;/p&gt;
+&lt;div class="hx:overflow-x-auto hx:mt-6 hx:flex hx:rounded-lg hx:border hx:py-2 hx:ltr:pr-4 hx:rtl:pl-4 hx:contrast-more:border-current hx:contrast-more:dark:border-current hx:border-amber-200 hx:bg-amber-100 hx:text-amber-900 hx:dark:border-amber-200/30 hx:dark:bg-amber-900/30 hx:dark:text-amber-200"&gt;
+&lt;div class="hx:ltr:pl-3 hx:ltr:pr-2 hx:rtl:pr-3 hx:rtl:pl-2"&gt;&lt;svg height=1.2em class="hx:inline-block hx:align-middle" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"&gt;&lt;path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/&gt;&lt;/svg&gt;&lt;/div&gt;
+&lt;div class="hx:w-full hx:min-w-0 hx:leading-7"&gt;
+&lt;div class="hx:mt-6 hx:leading-7 hx:first:mt-0"&gt;Eine vorgefertigte Vorlage wird nur in einer neuen Installation angelegt. Eine Installation, die
+mit 0.11.0 oder früher eingerichtet wurde, behält ihre alte Vorlage &lt;strong&gt;Alertmanager (default)&lt;/strong&gt;.
+Sie zeigt eine Gruppe ohne ihre Alarme und mit dem gemeinsamen &lt;code&gt;alertname&lt;/code&gt; als Titel. Um sie zu
+aktualisieren, öffnen Sie die Vorlage, wählen unter &lt;strong&gt;Mit einer Vorlage beginnen&lt;/strong&gt; den Eintrag
+&lt;strong&gt;Alertmanager-Alarm&lt;/strong&gt;, bestätigen und speichern. Dabei werden Titel, Text und Karte ersetzt;
+sichern Sie eigene Änderungen also vorher.&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
 &lt;h2 data-hextra-search-id="know-what-the-text-may-contain"&gt;Wissen, was der Text enthalten darf&lt;span class="hx:absolute hx:-mt-20" id="know-what-the-text-may-contain"&gt;&lt;/span&gt;
 &lt;a href="#know-what-the-text-may-contain" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Der Nachrichtentext ist Markdown. Teamster rendert ihn zu HTML und bereinigt dieses:&lt;/p&gt;
 &lt;ul&gt;
@@ -2540,7 +2601,7 @@ dieser noch keinen hat:&lt;/p&gt;
 &lt;tbody&gt;
 &lt;tr&gt;
 &lt;td&gt;Alertmanager (default)&lt;/td&gt;
-&lt;td&gt;Eine nach Zustand eingefärbte Karte: Zusammenfassung, Schweregrad, Beschreibung, Labels, Beginn und Ende sowie Links zur Generator-URL und zu einer Annotation &lt;code&gt;runbook_url&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;Eine nach Zustand eingefärbte Karte: Zusammenfassung, Schweregrad, Beschreibung, Labels, Beginn und Ende oder bei einer Gruppe mehrerer Alarme eine Zeile je Alarm sowie Links zur Generator-URL und zu einer Annotation &lt;code&gt;runbook_url&lt;/code&gt;&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;Universal webhook (default)&lt;/td&gt;
@@ -2630,6 +2691,10 @@ data-copied-label="Kopiert!"
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;alertmanager-firing.json&lt;/code&gt;, &lt;code&gt;alertmanager-resolved.json&lt;/code&gt;&lt;/td&gt;
 &lt;td&gt;Einen Alertmanager-Alarm, der sich öffnet und aufgelöst wird&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;alertmanager-group.json&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;Eine Alertmanager-Gruppe mit zwei Alarmen, einer feuernd und einer aufgelöst&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;universal-open.json&lt;/code&gt;, &lt;code&gt;universal-closed.json&lt;/code&gt;&lt;/td&gt;
