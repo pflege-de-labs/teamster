@@ -1599,8 +1599,8 @@ become reachable under an address that failed before.&lt;/li&gt;
 &lt;li&gt;&lt;strong&gt;Who is reached.&lt;/strong&gt; Enabled members of the tenant only. Guests, disabled accounts and people
 who left are answered &lt;code&gt;ineligible&lt;/code&gt;.&lt;/li&gt;
 &lt;li&gt;&lt;strong&gt;An address two people share.&lt;/strong&gt; A mail address or alias carried by more than one user names
-nobody for certain. It is answered &lt;code&gt;502&lt;/code&gt;, and retrying does not help: name the person by UPN or
-object id instead.&lt;/li&gt;
+nobody for certain. It is answered &lt;code&gt;ambiguous-address&lt;/code&gt;: name the person by UPN or object id
+instead.&lt;/li&gt;
 &lt;li&gt;&lt;strong&gt;Only me.&lt;/strong&gt; A token limited to its creator may use any of the three forms, as long as the
 address resolves to the creator&amp;rsquo;s own object id.&lt;/li&gt;
 &lt;/ul&gt;
@@ -1655,6 +1655,10 @@ address resolves to the creator&amp;rsquo;s own object id.&lt;/li&gt;
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;unknown-recipient&lt;/code&gt;&lt;/td&gt;
 &lt;td&gt;No such person in the directory.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;ambiguous-address&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;More than one person carries this mail address. Use their UPN or object id.&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;ineligible&lt;/code&gt;&lt;/td&gt;
