@@ -19,7 +19,7 @@ A template has three parts. Each is rendered against the same data.
 A template needs at least one part. A template with a card and no title gets this title:
 
 ```gotemplate
-{{ $summary := "" }}{{ with .Event.Alertmanager }}{{ $summary = index .Annotations "summary" }}{{ end }}{{ with .Event.Universal }}{{ $summary = index .Attributes "summary" }}{{ end }}{{ default $summary (default .Event.Labels.alertname "Update") }}
+{{ $summary := "" }}{{ with .Event.Alertmanager }}{{ $summary = default (index .Annotations "summary") (index .CommonAnnotations "summary") }}{{ end }}{{ with .Event.Universal }}{{ $summary = index .Attributes "summary" }}{{ end }}{{ default $summary (default .Event.Labels.alertname "Update") }}
 ```
 
 ## Top-level fields
@@ -49,15 +49,16 @@ Every event has this core, whichever webhook it arrived at.
 
 ### Alertmanager extension
 
-Set for an event from `POST /webhook/alertmanager`. Each alert in a notification is one event; the
-group fields repeat on each.
+Set for an event from `POST /webhook/alertmanager`. One notification is one event, however many
+alerts it groups.
 
 | Field | Type | From the payload |
 | --- | --- | --- |
-| `.Event.Alertmanager.Annotations` | map of string | `alerts[].annotations` |
-| `.Event.Alertmanager.StartsAt` | time | `alerts[].startsAt` |
-| `.Event.Alertmanager.EndsAt` | time | `alerts[].endsAt` |
-| `.Event.Alertmanager.GeneratorURL` | string | `alerts[].generatorURL` |
+| `.Event.Alertmanager.Alerts` | list of alerts | `alerts`, in the order sent, see below |
+| `.Event.Alertmanager.Annotations` | map of string | `alerts[0].annotations`, for a group of one alert only |
+| `.Event.Alertmanager.StartsAt` | time | `alerts[0].startsAt`, for a group of one alert only |
+| `.Event.Alertmanager.EndsAt` | time | `alerts[0].endsAt`, for a group of one alert only |
+| `.Event.Alertmanager.GeneratorURL` | string | `alerts[0].generatorURL`, for a group of one alert only |
 | `.Event.Alertmanager.Receiver` | string | `receiver` |
 | `.Event.Alertmanager.GroupKey` | string | `groupKey` |
 | `.Event.Alertmanager.GroupLabels` | map of string | `groupLabels` |
@@ -65,9 +66,25 @@ group fields repeat on each.
 | `.Event.Alertmanager.CommonAnnotations` | map of string | `commonAnnotations` |
 | `.Event.Alertmanager.ExternalURL` | string | `externalURL` |
 
-The core fields come from the alert too: `.Event.Key` from `fingerprint`, `.Event.Labels` from
-`labels`, and `.Event.State` from `status` (`firing` is `open`, `resolved` is `closed`, anything
-else is empty).
+For a group of several alerts, `Annotations`, `StartsAt`, `EndsAt` and `GeneratorURL` are empty.
+`len .Event.Alertmanager.Alerts` tells the two cases apart.
+
+Each entry of `.Event.Alertmanager.Alerts`:
+
+| Field | Type | From the payload |
+| --- | --- | --- |
+| `.Status` | string | `alerts[].status`: `firing` or `resolved` |
+| `.Labels` | map of string | `alerts[].labels` |
+| `.Annotations` | map of string | `alerts[].annotations` |
+| `.StartsAt` | time | `alerts[].startsAt` |
+| `.EndsAt` | time | `alerts[].endsAt` |
+| `.GeneratorURL` | string | `alerts[].generatorURL` |
+| `.Fingerprint` | string | `alerts[].fingerprint` |
+
+The core fields come from the group: `.Event.Key` is a hash of `groupKey`, `.Event.Labels` comes from
+`commonLabels`, and `.Event.State` from `status` (`firing` is `open`, `resolved` is `closed`,
+anything else is empty). See [Alertmanager](../webhook-payloads/#alertmanager) for payloads that
+leave these out.
 
 ### Universal extension
 

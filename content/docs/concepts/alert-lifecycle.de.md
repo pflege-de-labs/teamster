@@ -9,12 +9,14 @@ statt jedes Mal eine neue Karte zu posten.
 
 ## Ereignisse und Keys {#events-and-keys}
 
-Jeder Webhook wird in ein *Ereignis* umgewandelt. Jeder Alarm in einer Alertmanager-Benachrichtigung
-ist ein eigenes Ereignis; ein Aufruf des universellen Webhooks ist ein Ereignis.
+Jeder Webhook wird in ein *Ereignis* umgewandelt. Eine Alertmanager-Benachrichtigung ist ein
+Ereignis, gleich wie viele Alarme Alertmanager darin gruppiert hat, sodass sich die Gruppe eine
+Karte teilt; ein Aufruf des universellen Webhooks ist ein Ereignis.
 
 Der **Key** eines Ereignisses gibt an, welches frühere Ereignis es fortsetzt:
 
-* Alertmanager: der Fingerprint des Alarms.
+* Alertmanager: der `groupKey` der Benachrichtigung. Jede Benachrichtigung für die Gruppe setzt
+  dasselbe Ereignis fort, während Alarme hinzukommen, sich ändern und aufgelöst werden.
 * Universeller Webhook: der `key` der Nutzdaten. Fehlt er, leitet Teamster einen Key aus der
   Quelle, der `url`, der `time`, den Labels und den Empfängern ab. Senden Sie einen eigenen `key`,
   wenn sich einer dieser Werte zwischen Aktualisierungen desselben Alarms ändert.
@@ -25,8 +27,8 @@ Der Zustand eines Ereignisses entscheidet, was mit ihm geschieht.
 
 | Zustand | Alertmanager | Universeller Webhook | Was Teamster tut |
 | --- | --- | --- | --- |
-| offen | `firing` | `"state": "open"` | postet eine Nachricht oder aktualisiert die, die es für diesen Key gepostet hat |
-| geschlossen | `resolved` | `"state": "closed"` | aktualisiert die Nachricht für diesen Key oder sendet eine Folgenachricht und vergisst ihn dann |
+| offen | `firing`: ein Alarm der Gruppe feuert | `"state": "open"` | postet eine Nachricht oder aktualisiert die, die es für diesen Key gepostet hat |
+| geschlossen | `resolved`: alle Alarme sind aufgelöst | `"state": "closed"` | aktualisiert die Nachricht für diesen Key oder sendet eine Folgenachricht und vergisst ihn dann |
 | keiner | jeder andere Status | kein `state` | stellt einmal zu und merkt sich nichts |
 
 Einen universellen `state` außer `open` oder `closed` lehnt Teamster mit `400` ab.

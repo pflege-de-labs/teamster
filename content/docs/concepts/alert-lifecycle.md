@@ -9,12 +9,13 @@ time.
 
 ## Events and keys
 
-Every webhook is turned into an *event*. Each alert in an Alertmanager notification is an event of
-its own; a universal post is one event.
+Every webhook is turned into an *event*. An Alertmanager notification is one event, however many
+alerts Alertmanager grouped into it, so the group shares one card; a universal post is one event.
 
 An event's **key** says which earlier event it continues:
 
-* Alertmanager: the alert's fingerprint.
+* Alertmanager: the notification's `groupKey`. Every notification for the group continues the
+  same event while alerts join, change and resolve.
 * Universal webhook: the payload's `key`. Without one, Teamster derives a key from the source, the
   `url`, the `time`, the labels and the recipients. Send your own `key` if any of those change
   between updates of the same alert.
@@ -25,8 +26,8 @@ An event's state decides what happens to it.
 
 | State | Alertmanager | Universal webhook | What Teamster does |
 | --- | --- | --- | --- |
-| open | `firing` | `"state": "open"` | posts a message, or updates the one it posted for this key |
-| closed | `resolved` | `"state": "closed"` | updates or follows up the message for this key, then forgets it |
+| open | `firing`: any alert in the group fires | `"state": "open"` | posts a message, or updates the one it posted for this key |
+| closed | `resolved`: every alert has resolved | `"state": "closed"` | updates or follows up the message for this key, then forgets it |
 | none | any other status | no `state` | delivers once and tracks nothing |
 
 A universal `state` other than `open` or `closed` is refused with `400`.

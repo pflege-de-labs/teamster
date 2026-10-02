@@ -61,8 +61,9 @@ UPNs, mail addresses or Entra object ids.
 ```
 
 A sender with no such field, such as [Alertmanager](../alertmanager/), sets the label
-`teamster_recipient` instead, with several addresses separated by commas. When a message has both,
-the `recipients` list wins. Addresses are trimmed, and duplicates are dropped ignoring case.
+`teamster_recipient` instead, with several addresses separated by commas. For an Alertmanager group,
+the label's values on all its alerts are joined. When a message has both, the `recipients` list
+wins. Addresses are trimmed, and duplicates are dropped ignoring case.
 
 In an Alertmanager alerting rule, set the label from a label the alert already carries, or name
 a fixed person:

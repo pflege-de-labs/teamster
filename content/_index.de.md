@@ -17,8 +17,8 @@ layout: hextra-home
 <div class="hx:mb-12">
 {{< hextra/hero-subtitle >}}
   Teamster empfängt Webhooks von Prometheus Alertmanager und anderen Absendern, wählt anhand der
-  Labels einen Teams-Kanal oder Chat und hält je Alarm eine Adaptive Card aktuell, bis er
-  aufgelöst ist.
+  Labels einen Teams-Kanal oder Chat und hält je Alarm oder Alarmgruppe eine Adaptive Card
+  aktuell, bis sie aufgelöst sind.
 {{< /hextra/hero-subtitle >}}
 </div>
 

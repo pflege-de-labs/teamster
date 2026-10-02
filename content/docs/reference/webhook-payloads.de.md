@@ -50,27 +50,37 @@ URL. Gespeichert wird davon nur ein Digest.
 ## Alertmanager {#alertmanager}
 
 Die [Webhook-Nutzdaten von Alertmanager](https://prometheus.io/docs/alerting/latest/configuration/#webhook_config),
-Version 4. Jeder Eintrag von `alerts` wird zu einem Ereignis und der Reihe nach verarbeitet.
+Version 4. Eine Benachrichtigung wird zu einem Ereignis, gleich wie viele Alarme sie gruppiert.
 Gelesen werden diese Felder; alle anderen werden ignoriert.
 
 | Feld | Wird zu |
 | --- | --- |
+| `groupKey` | `.Event.Key`, als SHA-256 über `alertmanager` und den Gruppenschlüssel, und `.Event.Alertmanager.GroupKey` |
+| `status` | `.Event.State`: `firing` wird `open`, `resolved` wird `closed`, alles andere bleibt leer |
+| `commonLabels` | `.Event.Labels`, worauf Routen selektieren, und `.Event.Alertmanager.CommonLabels` |
 | `receiver` | `.Event.Alertmanager.Receiver` |
-| `groupKey` | `.Event.Alertmanager.GroupKey` |
 | `groupLabels` | `.Event.Alertmanager.GroupLabels` |
-| `commonLabels` | `.Event.Alertmanager.CommonLabels` |
 | `commonAnnotations` | `.Event.Alertmanager.CommonAnnotations` |
 | `externalURL` | `.Event.Alertmanager.ExternalURL` |
-| `alerts[].status` | `.Event.State`: `firing` wird `open`, `resolved` wird `closed`, alles andere bleibt leer |
-| `alerts[].labels` | `.Event.Labels`, worauf Routen selektieren |
-| `alerts[].annotations` | `.Event.Alertmanager.Annotations` |
-| `alerts[].startsAt` | `.Event.Alertmanager.StartsAt` |
-| `alerts[].endsAt` | `.Event.Alertmanager.EndsAt` |
-| `alerts[].generatorURL` | `.Event.Alertmanager.GeneratorURL` |
-| `alerts[].fingerprint` | `.Event.Key` |
+| `alerts` | `.Event.Alertmanager.Alerts` |
+| `alerts[0].annotations`, `startsAt`, `endsAt`, `generatorURL` | `.Event.Alertmanager.Annotations`, `StartsAt`, `EndsAt`, `GeneratorURL`, nur wenn `alerts` genau einen Alarm enthält |
 
-Der erste Alarm, der fehlschlägt, beendet die Anfrage mit einem Fehler; die Alarme danach werden
-nicht verarbeitet.
+Wenn ein Feld fehlt:
+
+| Fehlt | Teamster verwendet |
+| --- | --- |
+| `groupKey` | Einen abgeleiteten Schlüssel, siehe [Schlüssel](#keys). |
+| `status` | `firing`, wenn ein Alarm feuert, sonst `resolved`, es sei denn, ein Alarm meldet einen anderen Status. |
+| `commonLabels` | Die Labels, die alle Alarme gemeinsam haben. |
+| `alerts` oder eine leere Liste | Nichts: Die Anfrage wird mit `200` beantwortet, zugestellt wird nichts. |
+
+Ein Label `teamster_recipient`, das nicht alle Alarme gemeinsam haben, fehlt in `commonLabels`.
+Teamster führt dann die Werte von `teamster_recipient` aus allen Alarmen im Label des Ereignisses
+zusammen, sodass eine adressierte Route alle erreicht, die die Gruppe nennt.
+
+Ist die Benachrichtigung zugestellt, schließt Teamster außerdem für jeden als `resolved` gemeldeten
+Alarm die Karte, die ein Release bis 0.11.0 für diesen Alarm allein gepostet hat. Scheitert das,
+wird es protokolliert, und die Anfrage schlägt nicht fehl.
 
 ## Universell {#universal}
 
@@ -133,7 +143,7 @@ Hat ein Ereignis keinen Schlüssel, leitet Teamster einen als SHA-256 ab über:
 
 | Quelle | Gehasht |
 | --- | --- |
-| Alertmanager | `alertmanager`, `generatorURL`, `startsAt`, die Labels des Alarms nach Schlüssel sortiert |
+| Alertmanager | `alertmanager`, `generatorURL` und `startsAt` einer Gruppe mit einem Alarm, die Labels des Ereignisses nach Schlüssel sortiert |
 | Universell | `universal`, `url`, `time`, die Labels nach Schlüssel sortiert und, falls vorhanden, die Empfänger |
 
 ## Antworten {#responses}

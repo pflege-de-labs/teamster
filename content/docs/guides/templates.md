@@ -29,10 +29,11 @@ A template has three optional parts and needs at least one:
 | Adaptive Card JSON | An Adaptive Card, as a Go template | Below the text |
 
 Write a title when the message is only a card. Otherwise the feed previews it as `Card`; without a
-title Teamster falls back to the `summary` annotation or attribute, then `alertname`, then
-`Update`. A channel post with a card also shows the title at the top of the card.
+title Teamster falls back to the `summary` annotation or attribute, for an Alertmanager group
+the common `summary` annotation, then `alertname`, then `Update`. A channel post with a card also
+shows the title at the top of the card.
 
-A minimal message text for Alertmanager:
+A minimal message text for an Alertmanager group of one alert:
 
 ```gotemplate
 **{{ .Event.Alertmanager.Annotations.summary }}** is {{ .Event.State }}
@@ -53,7 +54,8 @@ is written for, or leave all unticked for any.
 ### Preview it
 
 The preview renders the template against a sample payload for each webhook, and can show the JSON
-the bot would send for a channel post and for a chat.
+the bot would send for a channel post and for a chat. For Alertmanager it has two samples: an
+**Alertmanager alert**, a group of one, and an **Alertmanager alert group** of two.
 
 ### Attach it
 
@@ -87,6 +89,37 @@ A label key that cannot follow a dot needs `index`:
 ```
 
 Use `default` for a key an event may not set, and `toJSON` to embed a structure in a card.
+
+## List the alerts of a group
+
+Alertmanager sends a group of alerts as one notification, and Teamster posts one card for it. The
+alerts are in `.Event.Alertmanager.Alerts`, each with `Status`, `Labels`, `Annotations`,
+`StartsAt`, `EndsAt`, `GeneratorURL` and `Fingerprint`. `.Event.Labels` and
+`.Event.Alertmanager.CommonAnnotations` hold what all of them share.
+
+The flat `.Event.Alertmanager.Annotations`, `StartsAt`, `EndsAt` and `GeneratorURL` are a shortcut
+for a group of one alert, and empty for a larger group. Count the alerts with `len` to handle both:
+
+```gotemplate
+{{ if eq (len .Event.Alertmanager.Alerts) 1 }}
+  {{ .Event.Alertmanager.Annotations.summary }}
+{{ else }}
+  {{ range .Event.Alertmanager.Alerts }}{{ .Labels.alertname }} ({{ .Status }}): {{ .Annotations.summary }}
+  {{ end }}
+{{ end }}
+```
+
+In a card, the **Alert list** snippet in the editor's palette inserts a `FactSet` with one fact
+per alert. The Alertmanager preset lists a larger group's alerts the same way and counts them in
+the title.
+
+{{< callout type="warning" >}}
+A preset only seeds a new installation. An installation seeded by 0.11.0 or earlier keeps its old
+**Alertmanager (default)** template, which shows a group without its alerts and with the shared
+`alertname` as its title. To update it, open the template, pick **Alertmanager alert** under
+**Start from a preset**, confirm, and save. This replaces the title, text and card, so copy any
+changes of your own first.
+{{< /callout >}}
 
 ## Know what the text may contain
 
@@ -130,7 +163,7 @@ that webhook already has one:
 
 | Preset | Renders |
 | --- | --- |
-| Alertmanager (default) | A state-coloured card: summary, severity, description, labels, start and end, and links to the generator URL and a `runbook_url` annotation |
+| Alertmanager (default) | A state-coloured card: summary, severity, description, labels, start and end, or for a group of several alerts one line per alert, and links to the generator URL and a `runbook_url` annotation |
 | Universal webhook (default) | The sender's own card or text when it sent one, otherwise a state-coloured card: summary, state, description, labels and the URL |
 | Teams V2 webhook (default) | The payload's card, a MessageCard converted to one, or its text alone |
 
@@ -190,6 +223,7 @@ curl -H "Authorization: Bearer <token>" -H 'Content-Type: application/json' \
 | Sample | Shows |
 | --- | --- |
 | `alertmanager-firing.json`, `alertmanager-resolved.json` | An Alertmanager alert opening and resolving |
+| `alertmanager-group.json` | An Alertmanager group of two alerts, one firing and one resolved |
 | `universal-open.json`, `universal-closed.json` | A tracked universal event |
 | `universal-message.json` | A one-off universal message |
 | `universal-direct-message.json` | Direct content, for a route with no template |
