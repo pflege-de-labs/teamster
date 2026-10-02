@@ -89,9 +89,35 @@ groups:
 ```
 
 Jeder Alarm einer Gruppe wird über sein eigenes Label adressiert. Eine Benachrichtigung kann also
-für verschiedene Alarme verschiedene Personen erreichen.
+für verschiedene Alarme verschiedene Personen erreichen. Was eine Adresse sein darf, steht unter
+[Wie Adressen zugeordnet werden](#how-addresses-are-matched).
 
-### Wie Adressen zugeordnet werden {#how-addresses-are-matched}
+### Die Antwort lesen {#read-the-answer}
+
+| Antwort | Bedeutung |
+| --- | --- |
+| `200 {"status":"ok"}` | Alle wurden erreicht. |
+| `200 {"status":"partial", "delivered": n, "undelivered": [...]}` | Einige Personen sind nicht erreichbar, und ein erneuter Versuch ändert daran nichts. |
+| `422 {"status":"undelivered", ...}` | Niemand war erreichbar. Alertmanager wiederholt eine `4xx`-Antwort nicht. |
+| `400` | Die Nachricht nennt mehr als `webhook.max-recipients` Personen. Nichts wurde gesendet. |
+| `403` | Das Token darf diese Personen nicht nennen. Nichts wurde gesendet. Siehe [Wenn ein Absender abgewiesen wird](../webhook-tokens/#when-a-sender-is-refused). |
+| `502` | Etwas, das sich wieder erholen kann, ist ausgefallen. Wiederholen Sie die Anfrage. |
+
+Jeder Eintrag in `undelivered` enthält den `recipient` wie übergeben und einen `reason`:
+
+| Grund | Bedeutung |
+| --- | --- |
+| `invalid-address` | Weder Objekt-ID noch UPN noch E-Mail-Adresse. |
+| `unknown-recipient` | Keine solche Person im Verzeichnis. |
+| `ambiguous-address` | Mehr als eine Person trägt diese E-Mail-Adresse. Verwenden Sie ihren UPN oder ihre Objekt-ID. |
+| `ineligible` | Kein aktiviertes Mitglied des Mandanten: ein Gast, ein deaktiviertes Konto, jemand, der ausgeschieden ist. |
+| `not-installed` | Die Teams-App des Bots ist für diese Person nicht installiert. |
+| `no-recipient` | Die Route adressiert Personen, und die Nachricht hat keine genannt. |
+| `blocked` | Die Person hat den Bot blockiert oder entfernt. |
+
+{{% /steps %}}
+
+## Wie Adressen zugeordnet werden {#how-addresses-are-matched}
 
 Jede Adresse hat eine von drei Formen. Groß- und Kleinschreibung spielt bei der Zuordnung keine
 Rolle.
@@ -120,31 +146,6 @@ Alles ohne `@`, das keine GUID ist, wird mit `invalid-address` beantwortet.
   Sie die Person stattdessen über UPN oder Objekt-ID.
 * **nur mich.** Ein auf seinen Ersteller beschränktes Token darf jede der drei Formen verwenden,
   solange die Adresse auf die eigene Objekt-ID des Erstellers aufgelöst wird.
-
-### Die Antwort lesen {#read-the-answer}
-
-| Antwort | Bedeutung |
-| --- | --- |
-| `200 {"status":"ok"}` | Alle wurden erreicht. |
-| `200 {"status":"partial", "delivered": n, "undelivered": [...]}` | Einige Personen sind nicht erreichbar, und ein erneuter Versuch ändert daran nichts. |
-| `422 {"status":"undelivered", ...}` | Niemand war erreichbar. Alertmanager wiederholt eine `4xx`-Antwort nicht. |
-| `400` | Die Nachricht nennt mehr als `webhook.max-recipients` Personen. Nichts wurde gesendet. |
-| `403` | Das Token darf diese Personen nicht nennen. Nichts wurde gesendet. Siehe [Wenn ein Absender abgewiesen wird](../webhook-tokens/#when-a-sender-is-refused). |
-| `502` | Etwas, das sich wieder erholen kann, ist ausgefallen. Wiederholen Sie die Anfrage. |
-
-Jeder Eintrag in `undelivered` enthält den `recipient` wie übergeben und einen `reason`:
-
-| Grund | Bedeutung |
-| --- | --- |
-| `invalid-address` | Weder Objekt-ID noch UPN noch E-Mail-Adresse. |
-| `unknown-recipient` | Keine solche Person im Verzeichnis. |
-| `ambiguous-address` | Mehr als eine Person trägt diese E-Mail-Adresse. Verwenden Sie ihren UPN oder ihre Objekt-ID. |
-| `ineligible` | Kein aktiviertes Mitglied des Mandanten: ein Gast, ein deaktiviertes Konto, jemand, der ausgeschieden ist. |
-| `not-installed` | Die Teams-App des Bots ist für diese Person nicht installiert. |
-| `no-recipient` | Die Route adressiert Personen, und die Nachricht hat keine genannt. |
-| `blocked` | Die Person hat den Bot blockiert oder entfernt. |
-
-{{% /steps %}}
 
 ## Die Nachrichten aktualisieren oder schließen {#update-or-close-the-messages}
 

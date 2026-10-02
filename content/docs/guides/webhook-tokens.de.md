@@ -101,8 +101,9 @@ curl -u <admin-user>:<admin-password> -X POST http://localhost:8080/api/tokens \
   abgewiesen, von der API mit `403`.
 * Jede Verwendung prüft die Stufe des Erstellers, wie sie gerade ist. Ein **beliebige**-Token,
   dessen Ersteller diese Berechtigung verloren hat, nennt von da an nur noch seinen Ersteller.
-* Tokens von vor Release 0.11.0 und `webhook.token` haben keinen Ersteller und können daher
-  niemanden nennen. Stellen Sie für einen solchen Absender ein Token mit Nachrichtenstufe aus.
+* Tokens von vor Release 0.11.0 und `webhook.token` sind an keinen Ersteller gebunden, dessen
+  Stufe sich prüfen ließe, und können daher niemanden nennen. Stellen Sie für einen solchen Absender
+  ein Token mit Nachrichtenstufe aus.
 
 Das `403` kommt, bevor irgendetwas zugestellt wird. Ein abgewiesener Alertmanager-Stapel stellt
 keinen seiner Alarme zu, auch nicht die, die niemanden nennen. Eine Nachricht, die Personen nennt,

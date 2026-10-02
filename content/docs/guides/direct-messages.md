@@ -83,34 +83,8 @@ groups:
 ```
 
 Each alert in a group is addressed by its own label, so one notification can reach different
-people for different alerts.
-
-### How addresses are matched
-
-Each address is one of three forms. Matching ignores case.
-
-| Form | Example | Matches |
-| --- | --- | --- |
-| Entra object id | `0b1c2d3e-4f50-6172-8394-a5b6c7d8e9f0` | The user with that id. Only a GUID counts as an id. |
-| User principal name | `alice@example.com` | The user whose UPN it is. |
-| Mail address | `a.smith@example.com` | The user whose primary mail address, or any SMTP alias, it is. Used when no UPN matches. |
-
-Anything without an `@` that is not a GUID is answered as `invalid-address`.
-
-* **Where Teamster looks.** First in its own directory of people, which a previous lookup or the
-  [install run](../teams-bot/#install-the-bot-for-everyone) filled. An entry older than
-  `bot.directory-ttl` (default `24h`) is looked up in Microsoft Graph again. Aliases are found only
-  through Graph, so the first message to an alias costs a Graph call.
-* **A typo is remembered.** An address Graph does not know is answered `unknown-recipient`
-  without asking Graph again for 10 minutes. A person just added in Entra can take that long to
-  become reachable under an address that failed before.
-* **Who is reached.** Enabled members of the tenant only. Guests, disabled accounts and people
-  who left are answered `ineligible`.
-* **An address two people share.** A mail address or alias carried by more than one user names
-  nobody for certain. It is answered `ambiguous-address`: name the person by UPN or object id
-  instead.
-* **Only me.** A token limited to its creator may use any of the three forms, as long as the
-  address resolves to the creator's own object id.
+people for different alerts. See [How addresses are matched](#how-addresses-are-matched) for
+what each address may be.
 
 ### Read the answer
 
@@ -136,6 +110,33 @@ Each entry in `undelivered` has the `recipient` as given and a `reason`:
 | `blocked` | The person blocked or removed the bot. |
 
 {{% /steps %}}
+
+## How addresses are matched
+
+Each address is one of three forms. Matching ignores case.
+
+| Form | Example | Matches |
+| --- | --- | --- |
+| Entra object id | `0b1c2d3e-4f50-6172-8394-a5b6c7d8e9f0` | The user with that id. Only a GUID counts as an id. |
+| User principal name | `alice@example.com` | The user whose UPN it is. |
+| Mail address | `a.smith@example.com` | The user whose primary mail address, or any SMTP alias, it is. Used when no UPN matches. |
+
+Anything without an `@` that is not a GUID is answered as `invalid-address`.
+
+* **Where Teamster looks.** First in its own directory of people, which a previous lookup or the
+  [install run](../teams-bot/#install-the-bot-for-everyone) filled. An entry older than
+  `bot.directory-ttl` (default `24h`) is looked up in Microsoft Graph again. Aliases are found only
+  through Graph, so the first message to an alias costs a Graph call.
+* **A typo is remembered.** An address Graph does not know is answered `unknown-recipient`
+  without asking Graph again for 10 minutes. A person just added in Entra can take that long to
+  become reachable under an address that failed before.
+* **Who is reached.** Enabled members of the tenant only. Guests, disabled accounts and people
+  who left are answered `ineligible`.
+* **An address two people share.** A mail address or alias carried by more than one user names
+  nobody for certain. It is answered `ambiguous-address`: name the person by UPN or object id
+  instead.
+* **Only me.** A token limited to its creator may use any of the three forms, as long as the
+  address resolves to the creator's own object id.
 
 ## Update or close the messages
 

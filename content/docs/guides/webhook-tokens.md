@@ -94,8 +94,9 @@ curl -u <admin-user>:<admin-password> -X POST http://localhost:8080/api/tokens \
   the API.
 * Every use checks the creator's level as it is now. An **anyone** token whose creator lost that
   permission names only its creator from then on.
-* Tokens from before release 0.11.0 and `webhook.token` have no creator, so they cannot name
-  anyone. Issue a token with a message level for such a sender.
+* Tokens from before release 0.11.0 and `webhook.token` are not bound to a creator whose level
+  could be checked, so they cannot name anyone. Issue a token with a message level for such a
+  sender.
 
 The `403` comes before anything is delivered. A refused Alertmanager batch delivers none of its
 alerts, including the ones that name nobody. A message that names people is checked even when the
