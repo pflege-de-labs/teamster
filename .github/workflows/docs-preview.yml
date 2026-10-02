@@ -24,6 +24,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      pages: read # wait-for-pages-deployment polls the Pages builds
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -47,3 +48,5 @@ jobs:
           source-dir: public
           preview-branch: gh-pages
           umbrella-dir: pr-preview
+          # Without it the comment's link 404s until Pages has built the push.
+          wait-for-pages-deployment: true
