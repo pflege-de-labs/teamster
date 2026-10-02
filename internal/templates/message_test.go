@@ -255,6 +255,7 @@ func TestDefaultTitleReadsEveryExtension(t *testing.T) {
 		want string
 	}{
 		{"alertmanager summary", models.Event{Alertmanager: &models.AlertmanagerEvent{Annotations: map[string]string{"summary": "CPU hot"}}}, "CPU hot"},
+		{"alertmanager group summary", models.Event{Alertmanager: &models.AlertmanagerEvent{CommonAnnotations: map[string]string{"summary": "DB degraded"}}}, "DB degraded"},
 		{"universal summary", models.Event{Universal: &models.UniversalEvent{Attributes: map[string]string{"summary": "Deployed"}}}, "Deployed"},
 		{"alertname fallback", models.Event{Labels: map[string]string{"alertname": "DiskFull"}, Universal: &models.UniversalEvent{}}, "DiskFull"},
 		{"no extension", models.Event{}, "Update"},

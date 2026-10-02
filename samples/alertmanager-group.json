@@ -1,0 +1,50 @@
+{
+  "receiver": "teamster",
+  "status": "firing",
+  "alerts": [
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "HighCPU",
+        "severity": "critical",
+        "service": "api",
+        "pod": "api-1"
+      },
+      "annotations": {
+        "summary": "CPU usage on api-1 is above 90%"
+      },
+      "startsAt": "2026-02-09T08:15:00Z",
+      "endsAt": "0001-01-01T00:00:00Z",
+      "generatorURL": "http://prometheus.example/rule",
+      "fingerprint": "9f9f5f4a1f"
+    },
+    {
+      "status": "resolved",
+      "labels": {
+        "alertname": "HighCPU",
+        "severity": "critical",
+        "service": "api",
+        "pod": "api-2"
+      },
+      "annotations": {
+        "summary": "CPU usage on api-2 is above 90%"
+      },
+      "startsAt": "2026-02-09T08:10:00Z",
+      "endsAt": "2026-02-09T08:20:00Z",
+      "generatorURL": "http://prometheus.example/rule",
+      "fingerprint": "3c1e8b2d7a"
+    }
+  ],
+  "groupLabels": {
+    "alertname": "HighCPU"
+  },
+  "commonLabels": {
+    "alertname": "HighCPU",
+    "severity": "critical",
+    "service": "api"
+  },
+  "commonAnnotations": {},
+  "externalURL": "http://alertmanager.example",
+  "version": "4",
+  "groupKey": "{}:{alertname=\"HighCPU\"}"
+}

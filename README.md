@@ -432,6 +432,14 @@ changes an installation.
 `POST /webhook/alertmanager`, authenticated with `Authorization: Bearer <token>` — see
 [Authenticating a sender](#authenticating-a-sender).
 
+A notification is one message, however many alerts Alertmanager grouped into it: one card per
+`groupKey`, edited as alerts join, change and resolve. It routes on `commonLabels` (for a group of
+one alert, that alert's labels), opens while the group's `status` is `firing` and closes when it is
+`resolved`. A template finds the alerts in `.Event.Alertmanager.Alerts` — see
+[Groups of alerts](#groups-of-alerts). Cards an earlier release posted per alert are closed as
+their alerts resolve
+([ADR 0084](docs/adr/0084-an-alertmanager-notification-is-one-event.md)).
+
 ### Universal webhook
 
 `POST /webhook/universal`, authenticated the same way. Routes on `labels` and renders its
@@ -906,7 +914,7 @@ What only one webhook knows lives in that webhook's extension:
 
 | Extension | Fields |
 | --- | --- |
-| `.Event.Alertmanager` | `Annotations`, `StartsAt`, `EndsAt`, `GeneratorURL`, and the group's `Receiver`, `GroupKey`, `GroupLabels`, `CommonLabels`, `CommonAnnotations`, `ExternalURL` |
+| `.Event.Alertmanager` | The group's `Alerts`, `Receiver`, `GroupKey`, `GroupLabels`, `CommonLabels`, `CommonAnnotations`, `ExternalURL`, and for a group of one alert its `Annotations`, `StartsAt`, `EndsAt`, `GeneratorURL` |
 | `.Event.Universal` | `Attributes`, `Time`, `URL`, `Recipients` |
 
 An extension is nil for every other webhook, and a template that reaches into a nil one fails to
@@ -928,6 +936,28 @@ Helper functions:
 
 - `toJSON` to JSON-encode structures
 - `default` to provide fallbacks, including for a key an event did not set
+
+### Groups of alerts
+
+`.Event.Alertmanager.Alerts` holds every alert of the notification, each with `Status` (`firing` or
+`resolved`), `Labels`, `Annotations`, `StartsAt`, `EndsAt`, `GeneratorURL` and `Fingerprint`.
+`.Event.Labels` and `CommonAnnotations` are what they all share. The flat `Annotations`, `StartsAt`,
+`EndsAt` and `GeneratorURL` are a shortcut for a group of one alert and empty otherwise. `len`
+counts the alerts:
+
+```gotemplate
+{{ if eq (len .Event.Alertmanager.Alerts) 1 }}
+  {{ .Event.Alertmanager.Annotations.summary }}
+{{ else }}
+  {{ range .Event.Alertmanager.Alerts }}{{ .Labels.alertname }} ({{ .Status }}): {{ .Annotations.summary }}
+  {{ end }}
+{{ end }}
+```
+
+The Alertmanager preset lists the alerts of a larger group, and the editor's palette has an
+**Alert list** snippet. A preset only seeds a new installation, so an installation seeded before
+ADR 0084 shows a group with its old default template: no alert list, and the shared `alertname` as
+its title. Apply the preset again with **Start from a preset** to update it.
 
 ## Editor completion
 
@@ -1020,6 +1050,7 @@ See the JSON examples in [samples](samples):
 
 - [samples/alertmanager-firing.json](samples/alertmanager-firing.json)
 - [samples/alertmanager-resolved.json](samples/alertmanager-resolved.json)
+- [samples/alertmanager-group.json](samples/alertmanager-group.json)
 - [samples/universal-open.json](samples/universal-open.json)
 - [samples/universal-closed.json](samples/universal-closed.json)
 - [samples/universal-message.json](samples/universal-message.json)

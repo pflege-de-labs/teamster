@@ -70,7 +70,7 @@ Architectural decisions are recorded here, one file per decision, in
 | [0053](0053-templates-name-the-webhooks-they-handle.md) | Templates name the webhooks they handle | Accepted |
 | [0054](0054-apply-sidebar-state-before-first-paint.md) | Apply the sidebar state before first paint | Accepted |
 | [0055](0055-each-webhook-has-a-default-template.md) | Each webhook has a default template | Accepted |
-| [0056](0056-events-not-alerts.md) | Model what arrives as an event, not an alert | Accepted |
+| [0056](0056-events-not-alerts.md) | Model what arrives as an event, not an alert | Superseded in part by [0084](0084-an-alertmanager-notification-is-one-event.md) |
 | [0057](0057-channel-posts-carry-a-feed-summary.md) | Send the title as the activity summary | Accepted |
 | [0058](0058-preview-shows-the-wire-payload.md) | The preview shows the payload delivery sends | Accepted |
 | [0059](0059-install-the-teams-app-for-every-member.md) | Install the Teams app for every member of the tenant | Accepted |
@@ -98,3 +98,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0081](0081-user-docs-in-english-and-german.md) | Publish the user documentation in English and German | Accepted |
 | [0082](0082-naming-people-takes-permission.md) | Naming people in a message takes permission | Accepted |
 | [0083](0083-broadcasts-run-in-the-background.md) | A broadcast reaches everyone, in the background | Accepted |
+| [0084](0084-an-alertmanager-notification-is-one-event.md) | An Alertmanager notification is one event | Accepted |

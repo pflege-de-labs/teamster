@@ -34,6 +34,23 @@ func TestDefault(t *testing.T) {
 			wantNot:   []string{"ends_at"},
 		},
 		{
+			name: "an Alertmanager group",
+			ev: models.Event{
+				Source: "alertmanager", State: models.StateOpen,
+				Labels: map[string]string{"team": "db"},
+				Alertmanager: &models.AlertmanagerEvent{
+					CommonAnnotations: map[string]string{"summary": "DB degraded"},
+					Alerts: []models.AlertmanagerAlert{
+						{Status: "firing", Labels: map[string]string{"alertname": "DiskFull"}, Annotations: map[string]string{"summary": "disk"}},
+						{Status: "resolved", Labels: map[string]string{"alertname": "SlowQueries"}, StartsAt: time.Date(2026, 9, 23, 12, 0, 0, 0, time.UTC)},
+					},
+				},
+			},
+			wantTitle: "DB degraded",
+			want:      []string{"&#34;alerts&#34;", "DiskFull", "SlowQueries", "&#34;common_annotations&#34;", "2026-09-23T12:00:00Z"},
+			wantNot:   []string{"&#34;annotations&#34;: {}", "&#34;generator_url&#34;"},
+		},
+		{
 			name: "a universal event",
 			ev: models.Event{
 				Source: "universal", Key: "deploy-42",

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"sort"
 	"strings"
@@ -41,44 +42,156 @@ func (s *Server) handleAlertmanager(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	events := make([]models.Event, 0, len(payload.Alerts))
-	for _, alert := range payload.Alerts {
-		events = append(events, models.Event{
-			Source: models.SourceAlertmanager,
-			Key:    alert.Fingerprint,
-			State:  alertmanagerState(alert.Status),
-			Labels: alert.Labels,
-			Alertmanager: &models.AlertmanagerEvent{
-				Annotations:       alert.Annotations,
-				StartsAt:          alert.StartsAt,
-				EndsAt:            alert.EndsAt,
-				GeneratorURL:      alert.GeneratorURL,
-				Receiver:          payload.Receiver,
-				GroupKey:          payload.GroupKey,
-				GroupLabels:       payload.GroupLabels,
-				CommonLabels:      payload.CommonLabels,
-				CommonAnnotations: payload.CommonAnnotations,
-				ExternalURL:       payload.ExternalURL,
-			},
-		})
-	}
-	// The whole batch or none of it: Alertmanager retries a batch, not an alert.
-	if s.refuseAddresses(w, r, from, models.SourceAlertmanager, s.authorizeAddresses(ctx, from, events)) {
+	// An empty group has nothing to deliver.
+	if len(payload.Alerts) == 0 {
+		writeReport(w, r, report{}, nil)
 		return
 	}
-
-	var all report
-	for _, ev := range events {
-		s.metrics.WebhookReceived(ctx, ev.Source, string(ev.State))
-		one, err := s.processEvent(ctx, ev)
-		all.add(one)
-		if err != nil {
-			writeReport(w, r, all, err)
-			return
+	ev := alertmanagerEvent(payload)
+	if s.refuseAddresses(w, r, from, models.SourceAlertmanager, s.authorizeAddresses(ctx, from, []models.Event{ev})) {
+		return
+	}
+	if s.samples != nil && len(payload.Alerts) > 1 {
+		// Per alert, because a group's common labels miss what its alerts differ in.
+		for _, alert := range payload.Alerts {
+			s.samples.Observe(models.WithSourceLabel(alert.Labels, ev.Source), alert.Annotations)
 		}
 	}
+	s.metrics.WebhookReceived(ctx, ev.Source, string(ev.State))
+	rep, err := s.processEvent(ctx, ev)
+	if err == nil {
+		s.closeLegacyAlertCards(ctx, payload)
+	}
+	writeReport(w, r, rep, err)
+}
 
-	writeReport(w, r, all, nil)
+// alertmanagerEvent keeps a group notification whole: grouping is the
+// Alertmanager configuration's decision, not ours to undo (ADR 0084).
+func alertmanagerEvent(payload models.AlertmanagerPayload) models.Event {
+	am := &models.AlertmanagerEvent{
+		Alerts:            payload.Alerts,
+		Receiver:          payload.Receiver,
+		GroupKey:          payload.GroupKey,
+		GroupLabels:       payload.GroupLabels,
+		CommonLabels:      payload.CommonLabels,
+		CommonAnnotations: payload.CommonAnnotations,
+		ExternalURL:       payload.ExternalURL,
+	}
+	if len(payload.Alerts) == 1 {
+		alert := payload.Alerts[0]
+		am.Annotations = alert.Annotations
+		am.StartsAt = alert.StartsAt
+		am.EndsAt = alert.EndsAt
+		am.GeneratorURL = alert.GeneratorURL
+	}
+	labels := maps.Clone(payload.CommonLabels)
+	if labels == nil {
+		labels = commonLabels(payload.Alerts)
+	}
+	if recipients := groupRecipients(payload.Alerts); labels[models.RecipientLabel] == "" && recipients != "" {
+		if labels == nil {
+			labels = map[string]string{}
+		}
+		labels[models.RecipientLabel] = recipients
+	}
+	ev := models.Event{
+		Source:       models.SourceAlertmanager,
+		State:        alertmanagerState(groupStatus(payload)),
+		Labels:       labels,
+		Alertmanager: am,
+	}
+	// Empty leaves the key to deriveKey rather than giving every group without
+	// one the same card.
+	if payload.GroupKey != "" {
+		ev.Key = alertmanagerKey(payload.GroupKey)
+	}
+	return ev
+}
+
+// alertmanagerKey is the event key of the group Alertmanager calls groupKey.
+func alertmanagerKey(groupKey string) string {
+	sum := sha256.Sum256([]byte(models.SourceAlertmanager + groupKey))
+	return hex.EncodeToString(sum[:])
+}
+
+// groupStatus is what Alertmanager puts in status, for a sender that left it
+// out: firing while any alert is.
+func groupStatus(payload models.AlertmanagerPayload) string {
+	if payload.Status != "" || len(payload.Alerts) == 0 {
+		return payload.Status
+	}
+	status := "resolved"
+	for _, alert := range payload.Alerts {
+		if alert.Status == "firing" {
+			return alert.Status
+		}
+		if alert.Status != "resolved" {
+			status = alert.Status
+		}
+	}
+	return status
+}
+
+// commonLabels is what Alertmanager puts in commonLabels, for a sender that
+// left them out.
+func commonLabels(alerts []models.AlertmanagerAlert) map[string]string {
+	if len(alerts) == 0 {
+		return nil
+	}
+	out := maps.Clone(alerts[0].Labels)
+	for _, alert := range alerts[1:] {
+		maps.DeleteFunc(out, func(key, value string) bool {
+			other, ok := alert.Labels[key]
+			return !ok || other != value
+		})
+	}
+	return out
+}
+
+// groupRecipients joins the people the group's alerts name, since common
+// labels drop a recipient label the alerts do not all share.
+func groupRecipients(alerts []models.AlertmanagerAlert) string {
+	var names []string
+	for _, alert := range alerts {
+		if label := alert.Labels[models.RecipientLabel]; label != "" {
+			names = append(names, label)
+		}
+	}
+	return strings.Join(names, ",")
+}
+
+// closeLegacyAlertCards closes cards a release that posted one per alert left
+// keyed by fingerprint. Best effort: a route gone since must not make
+// Alertmanager retry forever. Remove once no such cards can remain.
+func (s *Server) closeLegacyAlertCards(ctx context.Context, payload models.AlertmanagerPayload) {
+	for _, alert := range payload.Alerts {
+		if alert.Status != "resolved" || alert.Fingerprint == "" {
+			continue
+		}
+		legacy := alertmanagerEvent(models.AlertmanagerPayload{
+			Receiver:          payload.Receiver,
+			Status:            alert.Status,
+			Alerts:            []models.AlertmanagerAlert{alert},
+			GroupLabels:       payload.GroupLabels,
+			CommonLabels:      alert.Labels,
+			CommonAnnotations: payload.CommonAnnotations,
+			ExternalURL:       payload.ExternalURL,
+		})
+		legacy.Key = alert.Fingerprint
+		legacy.Alertmanager.GroupKey = payload.GroupKey
+		if err := s.closeLegacyAlertCard(ctx, legacy); err != nil {
+			logError(ctx, "close per-alert card", fmt.Errorf("fingerprint %s: %w", alert.Fingerprint, err))
+		}
+	}
+}
+
+func (s *Server) closeLegacyAlertCard(ctx context.Context, ev models.Event) error {
+	ev.Labels = models.WithSourceLabel(ev.Labels, ev.Source)
+	result, err := s.router.Plan(ctx, ev.Labels)
+	if err != nil {
+		return fmt.Errorf("route: %w", err)
+	}
+	return s.closeEvent(ctx, ev, result.Deliveries)
 }
 
 func (s *Server) handleUniversal(w http.ResponseWriter, r *http.Request) {

@@ -12,8 +12,6 @@ import (
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
-
-	"github.com/pflege-de-labs/teamster/internal/cards"
 )
 
 // eventsVersion is the migration that renames alerts to events (ADR 0056).
@@ -28,8 +26,20 @@ type oldPreset struct {
 
 func readOldPresets(t *testing.T) []oldPreset {
 	t.Helper()
+	return readPresets(t, "testdata/presets_before_events.json")
+}
 
-	raw, err := os.ReadFile("testdata/presets_before_events.json")
+// readMigratedPresets is cards.Presets as this migration shipped: presets
+// change later, and only seed new installations (ADR 0055).
+func readMigratedPresets(t *testing.T) []oldPreset {
+	t.Helper()
+	return readPresets(t, "testdata/presets_after_events.json")
+}
+
+func readPresets(t *testing.T, path string) []oldPreset {
+	t.Helper()
+
+	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -179,12 +189,12 @@ func TestEventsMigrationRewritesStateAndTemplates(t *testing.T) {
 				}
 				return title, text, body
 			}
-			// The Go presets and the SQL rewrite have to agree, or a new
-			// installation and an upgraded one would differ.
-			for _, p := range cards.Presets() {
+			// The Go presets and the SQL rewrite had to agree, or a new
+			// installation and an upgraded one would have differed.
+			for _, p := range readMigratedPresets(t) {
 				title, text, body := readTemplate(p.Key)
 				if title != p.Title || text != p.Text || body != p.Body {
-					t.Errorf("preset %s after the migration differs from cards.Presets:\n title %q\n want  %q\n text  %q\n want  %q\n body  %q\n want  %q",
+					t.Errorf("preset %s after the migration differs from the presets it shipped with:\n title %q\n want  %q\n text  %q\n want  %q\n body  %q\n want  %q",
 						p.Key, title, p.Title, text, p.Text, body, p.Body)
 				}
 			}

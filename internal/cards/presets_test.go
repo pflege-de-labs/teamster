@@ -69,6 +69,17 @@ func TestPresetsRender(t *testing.T) {
 	resolvedAM.GeneratorURL = ""
 	resolved.Alertmanager = &resolvedAM
 	emptyAM := models.Event{Source: models.SourceAlertmanager, Alertmanager: &models.AlertmanagerEvent{}}
+	group := models.Event{
+		Source: models.SourceAlertmanager, State: models.StateOpen,
+		Labels: map[string]string{"team": "db", models.SourceLabel: "alertmanager"},
+		Alertmanager: &models.AlertmanagerEvent{
+			CommonAnnotations: map[string]string{"summary": "Database degraded"},
+			Alerts: []models.AlertmanagerAlert{
+				{Status: "firing", Labels: map[string]string{"alertname": "DiskFull"}, Annotations: map[string]string{"summary": "disk at 95%"}},
+				{Status: "resolved", Labels: map[string]string{"alertname": "SlowQueries"}, StartsAt: start},
+			},
+		},
+	}
 
 	universal := models.Event{
 		Source: models.SourceUniversal, State: models.StateOpen, Labels: map[string]string{"alertname": "HighMemory"},
@@ -93,6 +104,8 @@ func TestPresetsRender(t *testing.T) {
 			inCard: []string{`"attention"`, `"HighCPU"`, "Show source", "Runbook", "2026-02-09 08:15:00 UTC"}},
 		{name: "alertmanager resolved", source: models.SourceAlertmanager, alert: resolved, wantTitle: "Resolved: CPU above 90%", wantCard: true,
 			inCard: []string{`"good"`, "Ended", "Runbook"}},
+		{name: "alertmanager group", source: models.SourceAlertmanager, alert: group, wantTitle: "Firing: Database degraded (2 alerts)", wantCard: true,
+			inCard: []string{`"DiskFull"`, "firing · disk at 95%", `"SlowQueries"`, "resolved · 2026-02-09 08:15:00 UTC"}},
 		{name: "alertmanager empty", source: models.SourceAlertmanager, alert: emptyAM, wantTitle: "Firing: Alert", wantCard: true, inCard: []string{"unknown"}},
 		{name: "universal alert", source: models.SourceUniversal, alert: universal, wantTitle: "HighMemory", wantCard: true,
 			inCard: []string{"Generator", "custom"}},

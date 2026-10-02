@@ -63,10 +63,12 @@ func PresetFor(source string) (Preset, bool) {
 }
 
 const alertmanagerTitle = `{{ if eq .Event.State "closed" }}Resolved{{ else }}Firing{{ end }}: ` +
-	`{{ default .Event.Alertmanager.Annotations.summary (default .Event.Labels.alertname "Alert") }}`
+	`{{ default .Event.Alertmanager.Annotations.summary (default .Event.Alertmanager.CommonAnnotations.summary (default .Event.Labels.alertname "Alert")) }}` +
+	`{{ $n := len .Event.Alertmanager.Alerts }}{{ if gt $n 1 }} ({{ $n }} alerts){{ end }}`
 
 // The label loop tracks its first element because JSON wants commas between
-// facts and text/template gives a map range no index.
+// facts and text/template gives a map range no index. A group of several
+// alerts lists them instead of one alert's start and end (ADR 0084).
 const alertmanagerBody = `{
   "type": "AdaptiveCard",
   "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
@@ -82,7 +84,7 @@ const alertmanagerBody = `{
           "size": "Medium",
           "weight": "Bolder",
           "wrap": true,
-          "text": {{ toJSON (default .Event.Alertmanager.Annotations.summary (default .Event.Labels.alertname "Alert")) }}
+          "text": {{ toJSON (default .Event.Alertmanager.Annotations.summary (default .Event.Alertmanager.CommonAnnotations.summary (default .Event.Labels.alertname "Alert"))) }}
         },
         {
           "type": "TextBlock",
@@ -96,7 +98,7 @@ const alertmanagerBody = `{
     {
       "type": "TextBlock",
       "wrap": true,
-      "text": {{ toJSON (default .Event.Alertmanager.Annotations.description "") }}
+      "text": {{ toJSON (default .Event.Alertmanager.Annotations.description (default .Event.Alertmanager.CommonAnnotations.description "")) }}
     },
     {
       "type": "FactSet",
@@ -108,6 +110,17 @@ const alertmanagerBody = `{
         {{- end }}{{ end }}
       ]
     },
+    {{- if gt (len .Event.Alertmanager.Alerts) 1 }}
+    {
+      "type": "FactSet",
+      "separator": true,
+      "facts": [
+        {{- range $i, $alert := .Event.Alertmanager.Alerts }}{{ if $i }},{{ end }}
+        { "title": {{ toJSON (default $alert.Labels.alertname "Alert") }}, "value": {{ toJSON (printf "%s · %s" $alert.Status (default $alert.Annotations.summary ($alert.StartsAt.Format "2006-01-02 15:04:05 MST"))) }} }
+        {{- end }}
+      ]
+    }
+    {{- else }}
     {
       "type": "FactSet",
       "separator": true,
@@ -118,6 +131,7 @@ const alertmanagerBody = `{
         {{- end }}
       ]
     }
+    {{- end }}
   ]
   {{- $actions := false }}
   {{- if or .Event.Alertmanager.GeneratorURL .Event.Alertmanager.Annotations.runbook_url }},
