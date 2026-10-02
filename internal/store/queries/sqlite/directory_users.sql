@@ -138,3 +138,13 @@ WHERE aad_object_id = sqlc.arg(aad_object_id);
 UPDATE directory_users
 SET blocked_at = NULL, blocked_reason = ''
 WHERE aad_object_id = sqlc.arg(aad_object_id) AND blocked_at IS NOT NULL;
+
+-- ListReachableDirectoryUsers is everyone a broadcast reaches through the
+-- directory, in pages after an object id (ADR 0083). Blocked people are
+-- included: blocked is self-healing, never a delivery gate (ADR 0026).
+-- name: ListReachableDirectoryUsers :many
+SELECT * FROM directory_users
+WHERE eligible AND install_state = 'installed' AND conversation_id <> ''
+	AND aad_object_id > sqlc.arg(after)
+ORDER BY aad_object_id
+LIMIT CAST(sqlc.arg(max_rows) AS BIGINT);

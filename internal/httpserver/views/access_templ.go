@@ -59,7 +59,7 @@ type AccessCheck struct {
 var WebhookLevels = []string{"none", "alertmanager", "universal", "all", "admin"}
 
 // MessageLevels are the choices the message form offers, weakest first.
-var MessageLevels = []string{"none", "anyone"}
+var MessageLevels = []string{"none", "anyone", "everyone"}
 
 func AccessPage(page Access) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {

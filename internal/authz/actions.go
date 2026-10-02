@@ -50,8 +50,10 @@ var actionParents = map[string][]string{
 	ActionAttach:   {ActionEdit, ActionOwn},
 	ActionShare:    {ActionOwn},
 	ActionTransfer: {ActionOwn},
-	// A grant of message covers messages to oneself (ADR 0082).
+	// A grant of message covers messages to oneself (ADR 0082), and one of
+	// broadcast covers naming anyone (ADR 0083).
 	ActionMessageSelf: {ActionMessage},
+	ActionMessage:     {ActionBroadcast},
 }
 
 func actionUID(action string) cedar.EntityUID {

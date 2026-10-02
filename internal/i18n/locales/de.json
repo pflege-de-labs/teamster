@@ -448,5 +448,19 @@
   "tokens.messages.none": "niemanden",
   "tokens.messages.self": "nur mich",
   "tokens.messages.anyone": "beliebige",
-  "tokens.messages_hint": "Empfänger und das Label teamster_recipient werden abgelehnt, sofern das Token sie nicht nennen darf. Ein Token nennt nie mehr Personen, als Sie selbst anschreiben dürfen."
+  "tokens.messages_hint": "Empfänger und das Label teamster_recipient werden abgelehnt, sofern das Token sie nicht nennen darf. Ein Token nennt nie mehr Personen, als Sie selbst anschreiben dürfen.",
+  "access.message_level.everyone": "beliebige, und Rundsendung an alle",
+  "me.messages.everyone": "beliebige Personen, und alle auf einmal",
+  "tokens.messages.everyone": "beliebige, und Rundsendung",
+  "nav.broadcasts": "Rundsendungen",
+  "page.broadcasts": "Rundsendungen",
+  "broadcasts.heading": "Rundsendungen",
+  "broadcasts.explainer": "Nachrichten mit \"broadcast\": true erreichen im Hintergrund alle, die der Bot anschreiben kann. Admins sehen alle; Sie sehen Ihre eigenen.",
+  "broadcasts.empty": "Noch keine Rundsendungen.",
+  "broadcasts.requested": "{0} von {1}, Token {2}",
+  "broadcasts.counts": "{0} von {1} zugestellt, {2} nicht erreichbar, {3} fehlgeschlagen",
+  "broadcasts.state.requested": "wartet",
+  "broadcasts.state.running": "wird gesendet",
+  "broadcasts.state.done": "fertig",
+  "broadcasts.state.failed": "fehlgeschlagen"
 }

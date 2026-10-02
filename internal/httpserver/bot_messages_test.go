@@ -33,6 +33,8 @@ type fakeBotClient struct {
 	// not updatable" success instead of an activity id.
 	updateErr   error
 	emptySendID bool
+	// errFor fails sends to one conversation.
+	errFor map[string]error
 }
 
 func (f *fakeBotClient) SendMessage(_ context.Context, ref bot.ConversationReference, msg bot.Message) (string, error) {
@@ -42,6 +44,9 @@ func (f *fakeBotClient) SendMessage(_ context.Context, ref bot.ConversationRefer
 		ref bot.ConversationReference
 		msg bot.Message
 	}{ref, msg})
+	if err := f.errFor[ref.ConversationID]; err != nil {
+		return "", err
+	}
 	if f.emptySendID {
 		return "", f.err
 	}

@@ -187,6 +187,7 @@ func NewServer(logger *slog.Logger, cfg config.Config, store store.Store, graphC
 	mux.HandleFunc("/readyz", api.handleReady)
 	mux.HandleFunc("/webhook/alertmanager", api.handleAlertmanager)
 	mux.HandleFunc("/webhook/universal", api.handleUniversal)
+	mux.HandleFunc("/webhook/broadcasts/", api.handleBroadcastStatus)
 	// The one wildcard pattern in this server. Everything else registers a
 	// prefix and trims it, but this path has two meaningful segments and a
 	// secret, and naming them keeps r.Pattern -- and so the route label on
@@ -287,6 +288,8 @@ func NewServer(logger *slog.Logger, cfg config.Config, store store.Store, graphC
 	adminMux.HandleFunc("/admin/access/webhooks", api.formPostTo("/admin/access", api.webhookLevelForm))
 	adminMux.HandleFunc("/api/access/webhooks", api.handleWebhookLevelAPI)
 	adminMux.HandleFunc("/admin/access/messages", api.formPostTo("/admin/access", api.messageLevelForm))
+	adminMux.HandleFunc("/admin/broadcasts", api.handleBroadcastsPage)
+	adminMux.HandleFunc("/api/broadcasts", api.handleBroadcasts)
 	adminMux.HandleFunc("/api/access/messages", api.handleMessageLevelAPI)
 	adminMux.HandleFunc("/admin/sharing/grant", api.handleShareForm)
 	adminMux.HandleFunc("/admin/sharing/revoke", api.handleUnshareForm)

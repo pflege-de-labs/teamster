@@ -809,3 +809,57 @@ func (p pgQueries) ListAuditEventsAfter(ctx context.Context, arg sqlitedb.ListAu
 func (p pgQueries) ReplaceSettingValue(ctx context.Context, arg sqlitedb.ReplaceSettingValueParams) (int64, error) {
 	return p.q.ReplaceSettingValue(ctx, pgdb.ReplaceSettingValueParams(arg))
 }
+
+func (p pgQueries) InsertBroadcast(ctx context.Context, arg sqlitedb.InsertBroadcastParams) error {
+	return p.q.InsertBroadcast(ctx, pgdb.InsertBroadcastParams(arg))
+}
+
+func (p pgQueries) GetBroadcast(ctx context.Context, id string) (sqlitedb.Broadcast, error) {
+	row, err := p.q.GetBroadcast(ctx, id)
+	return sqlitedb.Broadcast(row), err
+}
+
+func (p pgQueries) ListBroadcasts(ctx context.Context, arg sqlitedb.ListBroadcastsParams) ([]sqlitedb.Broadcast, error) {
+	rows, err := p.q.ListBroadcasts(ctx, pgdb.ListBroadcastsParams(arg))
+	if err != nil {
+		return nil, err
+	}
+	out := make([]sqlitedb.Broadcast, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, sqlitedb.Broadcast(row))
+	}
+	return out, nil
+}
+
+func (p pgQueries) NextBroadcast(ctx context.Context, staleBefore sql.NullTime) (sqlitedb.Broadcast, error) {
+	row, err := p.q.NextBroadcast(ctx, staleBefore)
+	return sqlitedb.Broadcast(row), err
+}
+
+func (p pgQueries) ClaimBroadcast(ctx context.Context, arg sqlitedb.ClaimBroadcastParams) (int64, error) {
+	return p.q.ClaimBroadcast(ctx, pgdb.ClaimBroadcastParams(arg))
+}
+
+func (p pgQueries) HeartbeatBroadcast(ctx context.Context, arg sqlitedb.HeartbeatBroadcastParams) (int64, error) {
+	return p.q.HeartbeatBroadcast(ctx, pgdb.HeartbeatBroadcastParams(arg))
+}
+
+func (p pgQueries) FinishBroadcast(ctx context.Context, arg sqlitedb.FinishBroadcastParams) (int64, error) {
+	return p.q.FinishBroadcast(ctx, pgdb.FinishBroadcastParams(arg))
+}
+
+func (p pgQueries) PruneBroadcasts(ctx context.Context, before sql.NullTime) (int64, error) {
+	return p.q.PruneBroadcasts(ctx, before)
+}
+
+func (p pgQueries) ListReachableDirectoryUsers(ctx context.Context, arg sqlitedb.ListReachableDirectoryUsersParams) ([]sqlitedb.DirectoryUser, error) {
+	rows, err := p.q.ListReachableDirectoryUsers(ctx, pgdb.ListReachableDirectoryUsersParams(arg))
+	if err != nil {
+		return nil, err
+	}
+	out := make([]sqlitedb.DirectoryUser, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, sqlitedb.DirectoryUser(row))
+	}
+	return out, nil
+}

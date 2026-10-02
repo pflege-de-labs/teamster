@@ -248,6 +248,11 @@ func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
 		return fmt.Errorf("samples: %w", err)
 	}
 
+	// Set only with a bot: broadcasts go to chats (ADR 0083).
+	var runBroadcasts func(context.Context)
+	if cfg.Bot.Configured() {
+		serverOpts = append(serverOpts, httpserver.WithBroadcasts(&runBroadcasts))
+	}
 	srv, err := httpserver.NewServer(logger, *cfg, auditedStore, graphClient, botClient, channels, telemetry, sampler, serverOpts...)
 	if err != nil {
 		return fmt.Errorf("http server: %w", err)
@@ -283,6 +288,17 @@ func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
 		stopSampler()
 		<-samplerDone
 	}()
+
+	if runBroadcasts != nil {
+		// Stopped with the process context: an unfinished broadcast is taken
+		// over once its heartbeat goes stale, from where it stopped.
+		broadcastsDone := make(chan struct{})
+		go func() {
+			defer close(broadcastsDone)
+			runBroadcasts(ctx)
+		}()
+		defer func() { <-broadcastsDone }()
+	}
 
 	if reconciler != nil {
 		// Stopped with the process context: a run cut short is taken over or

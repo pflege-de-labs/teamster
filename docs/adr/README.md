@@ -97,3 +97,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0080](0080-publish-user-docs-as-a-versioned-site.md) | Publish the user documentation as a versioned site | Accepted |
 | [0081](0081-user-docs-in-english-and-german.md) | Publish the user documentation in English and German | Accepted |
 | [0082](0082-naming-people-takes-permission.md) | Naming people in a message takes permission | Accepted |
+| [0083](0083-broadcasts-run-in-the-background.md) | A broadcast reaches everyone, in the background | Accepted |

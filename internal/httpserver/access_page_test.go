@@ -242,6 +242,15 @@ func TestMessageLevels(t *testing.T) {
 	if body := call(t, h, http.MethodGet, "/admin/access", "").Body.String(); !strings.Contains(body, "Who may message people") || !strings.Contains(body, "office") {
 		t.Error("the overview does not list the message grant")
 	}
+	if rec := call(t, h, http.MethodPut, "/api/access/messages", `{"principal_type":"idp_group","principal_id":"office","level":"everyone"}`); rec.Code != http.StatusOK {
+		t.Errorf("PUT everyone = %d %s", rec.Code, rec.Body.String())
+	}
+	if got := peopleRows(); strings.Join(got, ",") != "office broadcast" {
+		t.Errorf("rows = %v, want office broadcast", got)
+	}
+	if body := call(t, h, http.MethodGet, "/admin/access", "").Body.String(); !strings.Contains(body, "broadcast to everyone") {
+		t.Error("the overview does not name the everyone level")
+	}
 	if rec := call(t, h, http.MethodPut, "/api/access/messages", `{"principal_type":"idp_group","principal_id":"office","level":"none"}`); rec.Code != http.StatusOK {
 		t.Errorf("PUT none = %d %s", rec.Code, rec.Body.String())
 	}

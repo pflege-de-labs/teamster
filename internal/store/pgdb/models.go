@@ -72,6 +72,26 @@ type BotTeam struct {
 	UpdatedAt  time.Time
 }
 
+type Broadcast struct {
+	ID          string
+	RequestedBy string
+	TokenName   string
+	RequestedAt time.Time
+	State       string
+	Event       string
+	Plan        string
+	Owner       string
+	HeartbeatAt sql.NullTime
+	StartedAt   sql.NullTime
+	FinishedAt  sql.NullTime
+	Cursor      string
+	Total       int64
+	Delivered   int64
+	Unreachable int64
+	Failed      int64
+	LastError   string
+}
+
 type BrokerToken struct {
 	SessionID    string
 	AccessToken  string

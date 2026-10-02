@@ -117,7 +117,14 @@ func (s *Server) handleUniversal(w http.ResponseWriter, r *http.Request) {
 			Time:       payload.Time,
 			URL:        payload.URL,
 			Recipients: payload.Recipients,
+			Broadcast:  payload.Broadcast,
 		},
+	}
+	if payload.Broadcast {
+		if err := checkBroadcast(ev); err != nil {
+			writeJSONError(w, http.StatusBadRequest, err.Error())
+			return
+		}
 	}
 
 	if s.refuseAddresses(w, r, from, models.SourceUniversal, s.authorizeAddresses(ctx, from, []models.Event{ev})) {
@@ -125,6 +132,10 @@ func (s *Server) handleUniversal(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.metrics.WebhookReceived(ctx, ev.Source, string(ev.State))
+	if payload.Broadcast {
+		s.handleBroadcast(w, r, from, ev)
+		return
+	}
 	rep, err := s.processEvent(ctx, ev)
 	writeReport(w, r, rep, err)
 }

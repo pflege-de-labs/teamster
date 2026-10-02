@@ -380,6 +380,26 @@ ask. Otherwise:
 
 A refusal is a `403` counted as `forbidden`, and nothing is delivered.
 
+A broadcast (`"broadcast": true`) asks for `broadcast`, above `message`, instead
+([ADR 0083](adr/0083-broadcasts-run-in-the-background.md)). `startBroadcast` plans the event and
+sends its channel and linked-chat deliveries at once. It stores the event and its addressed
+deliveries as JSON in `broadcasts`, then answers `202`. `runBroadcasts` runs on every replica
+that has a bot:
+
+```text
+every 5s ─► NextBroadcast (oldest requested, or running with a heartbeat > 2m old)
+          ─► ClaimBroadcast (CAS on state and heartbeat)
+          ─► audience: reachable directory users + linked recipients unknown to the directory,
+             sorted by key (aad:<oid> | rcp:<id>), from the cursor on
+          ─► per chunk of 25: deliverOnce per person and addressed delivery,
+             webhook.fanout-concurrency at a time
+          ─► HeartbeatBroadcast (cursor, counts; false = taken over, stop)
+          ─► FinishBroadcast (done | failed)
+```
+
+A store error while recording progress leaves the broadcast running, so it is taken over once
+stale. Finished broadcasts are pruned after 30 days.
+
 ### Teams V2 webhooks
 
 A second ingest path answers the URL a Microsoft Teams webhook used to have, so a sender pointed at
@@ -1007,6 +1027,10 @@ release refuses it.
 SQLite and `0026` in Postgres ([ADR 0082](adr/0082-naming-people-takes-permission.md)). A sign-in
 without the object id keeps the one an earlier sign-in recorded. The previous release reads
 neither, and names people as it did.
+
+`broadcasts` came with broadcasts, by `0030` in SQLite and `0027` in Postgres
+([ADR 0083](adr/0083-broadcasts-run-in-the-background.md)). It is indexed by state and request
+time, for the queue, and by requester, for the listing. The previous release ignores it.
 
 `database.migrate` decides what opening the store does about a schema that is behind: `auto`
 applies what is missing, `verify` refuses and names `teamster migrate up`, `off` asks nothing.

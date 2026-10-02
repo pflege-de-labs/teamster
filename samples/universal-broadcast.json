@@ -1,0 +1,10 @@
+{
+  "labels": {
+    "kind": "office-notice"
+  },
+  "attributes": {
+    "summary": "The office is closed on Friday, 9 October."
+  },
+  "text": "The office is closed on Friday, 9 October.",
+  "broadcast": true
+}

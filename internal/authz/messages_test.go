@@ -9,10 +9,12 @@ func TestMessageGrants(t *testing.T) {
 		Members: []Membership{{Group: "office", Kind: "idp_group", ID: "office-admins"}},
 		Grants: []Grant{
 			{ID: "m", PrincipalType: "group", PrincipalID: "office", ResourceType: PeopleResource.Type, ResourceID: PeopleResource.ID, Actions: []string{ActionMessage}},
+			{ID: "b", PrincipalType: "user", PrincipalID: "bea", ResourceType: PeopleResource.Type, ResourceID: PeopleResource.ID, Actions: []string{ActionBroadcast}},
 		},
 		Tokens: []TokenScope{
 			{ID: "self", Webhooks: []string{WebhookUniversal}, Messages: MessagesSelf},
 			{ID: "anyone", Webhooks: []string{WebhookUniversal}, Messages: MessagesAnyone},
+			{ID: "everyone", Webhooks: []string{WebhookUniversal}, Messages: MessagesEveryone},
 			{ID: "silent", Webhooks: []string{WebhookUniversal}},
 		},
 	})
@@ -22,6 +24,7 @@ func TestMessageGrants(t *testing.T) {
 	office := Principal{Subject: "olga", IdPGroups: []string{"office-admins"}}
 	editor := Principal{Subject: "ed", Roles: []Role{RoleEditor}}
 	admin := Principal{Subject: "ada", Roles: []Role{RoleAdmin}}
+	broadcaster := Principal{Subject: "bea"}
 
 	levels := []struct {
 		name string
@@ -31,7 +34,8 @@ func TestMessageGrants(t *testing.T) {
 		{"anyone signed in messages themselves", Principal{Subject: "nobody"}, MessagesSelf},
 		{"an editor is no exception", editor, MessagesSelf},
 		{"a grant through a provider group", office, MessagesAnyone},
-		{"an admin through the admin policy", admin, MessagesAnyone},
+		{"an admin through the admin policy", admin, MessagesEveryone},
+		{"a broadcast grant includes naming anyone", broadcaster, MessagesEveryone},
 	}
 	for _, tt := range levels {
 		if got := a.MessageLevel(tt.p); got != tt.want {
@@ -52,6 +56,10 @@ func TestMessageGrants(t *testing.T) {
 		{"an anyone token of a granted creator", "anyone", office, ActionMessage, true},
 		{"an anyone token outlives no grant", "anyone", editor, ActionMessage, false},
 		{"a token without a message scope", "silent", admin, ActionMessageSelf, false},
+		{"an everyone token broadcasts", "everyone", broadcaster, ActionBroadcast, true},
+		{"an everyone token names anyone", "everyone", broadcaster, ActionMessage, true},
+		{"an anyone token does not broadcast", "anyone", admin, ActionBroadcast, false},
+		{"an everyone token of a creator who may not", "everyone", office, ActionBroadcast, false},
 		{"an unknown token", "gone", admin, ActionMessageSelf, false},
 	}
 	for _, tt := range tokens {
@@ -85,6 +93,8 @@ func TestLevelCovers(t *testing.T) {
 		{MessagesSelf, MessagesSelf, true},
 		{MessagesSelf, MessagesAnyone, false},
 		{MessagesAnyone, MessagesSelf, true},
+		{MessagesAnyone, MessagesEveryone, false},
+		{MessagesEveryone, MessagesAnyone, true},
 		{MessagesAnyone, "everyone-ish", false},
 	}
 	for _, tt := range tests {

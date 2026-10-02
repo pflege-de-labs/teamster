@@ -52,6 +52,7 @@ type fakeStore struct {
 	groups       map[string]models.Group
 	members      []models.GroupMember
 	permissions  map[string]models.Permission
+	broadcasts   map[string]models.Broadcast
 	// globalDefaultTemplate is the catch-all's template; "" is the built-in one.
 	globalDefaultTemplate string
 	// sourceDefaults maps a source to its default template.
@@ -71,6 +72,7 @@ type fakeStore struct {
 func newFakeStore() *fakeStore {
 	return &fakeStore{
 		permissions:    map[string]models.Permission{},
+		broadcasts:     map[string]models.Broadcast{},
 		groups:         map[string]models.Group{},
 		users:          map[string]models.User{},
 		templates:      map[string]models.Template{},
@@ -2278,4 +2280,158 @@ func (f *fakeStore) AuditCursor(context.Context, string) (models.AuditCursor, bo
 
 func (f *fakeStore) AdvanceAuditCursor(context.Context, string, models.AuditCursor, models.AuditCursor) (bool, error) {
 	return true, nil
+}
+
+// Broadcasts (ADR 0083), outside transactions as in the real store.
+
+func (f *fakeStore) ListReachableDirectoryUsers(_ context.Context, after string, limit int) ([]models.DirectoryUser, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("ListReachableDirectoryUsers"); err != nil {
+		return nil, err
+	}
+	var out []models.DirectoryUser
+	for _, u := range f.directory {
+		if u.Eligible && u.InstallState == models.InstallInstalled && u.ConversationID != "" && u.AADObjectID > after {
+			out = append(out, u)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].AADObjectID < out[j].AADObjectID })
+	if len(out) > limit {
+		out = out[:limit]
+	}
+	return out, nil
+}
+
+func (f *fakeStore) CreateBroadcast(_ context.Context, b models.Broadcast) (models.Broadcast, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("CreateBroadcast"); err != nil {
+		return models.Broadcast{}, err
+	}
+	if b.ID == "" {
+		b.ID = uuid.NewString()
+	}
+	if b.RequestedAt.IsZero() {
+		b.RequestedAt = time.Now().UTC()
+	}
+	b.State = models.RunRequested
+	f.broadcasts[b.ID] = b
+	return b, nil
+}
+
+func (f *fakeStore) GetBroadcast(_ context.Context, id string) (models.Broadcast, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("GetBroadcast"); err != nil {
+		return models.Broadcast{}, err
+	}
+	b, ok := f.broadcasts[id]
+	if !ok {
+		return models.Broadcast{}, store.ErrNotFound
+	}
+	return b, nil
+}
+
+func (f *fakeStore) ListBroadcasts(_ context.Context, requestedBy string, limit int) ([]models.Broadcast, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("ListBroadcasts"); err != nil {
+		return nil, err
+	}
+	var out []models.Broadcast
+	for _, b := range f.broadcasts {
+		if requestedBy == "" || b.RequestedBy == requestedBy {
+			out = append(out, b)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].RequestedAt.After(out[j].RequestedAt) })
+	if len(out) > limit {
+		out = out[:limit]
+	}
+	return out, nil
+}
+
+// broadcastDue is a broadcast that waits, or runs with a stale heartbeat.
+func broadcastDue(b models.Broadcast, staleBefore time.Time) bool {
+	return b.State == models.RunRequested || (b.State == models.RunRunning && b.HeartbeatAt.Before(staleBefore))
+}
+
+func (f *fakeStore) NextBroadcast(_ context.Context, staleBefore time.Time) (models.Broadcast, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("NextBroadcast"); err != nil {
+		return models.Broadcast{}, err
+	}
+	var next *models.Broadcast
+	for _, b := range f.broadcasts {
+		if broadcastDue(b, staleBefore) && (next == nil || b.RequestedAt.Before(next.RequestedAt)) {
+			next = &b
+		}
+	}
+	if next == nil {
+		return models.Broadcast{}, store.ErrNotFound
+	}
+	return *next, nil
+}
+
+func (f *fakeStore) ClaimBroadcast(_ context.Context, id, owner string, now, staleBefore time.Time) (bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("ClaimBroadcast"); err != nil {
+		return false, err
+	}
+	b, ok := f.broadcasts[id]
+	if !ok || !broadcastDue(b, staleBefore) {
+		return false, nil
+	}
+	b.State, b.Owner, b.HeartbeatAt = models.RunRunning, owner, now
+	if b.StartedAt.IsZero() {
+		b.StartedAt = now
+	}
+	f.broadcasts[id] = b
+	return true, nil
+}
+
+func (f *fakeStore) HeartbeatBroadcast(_ context.Context, id, owner, cursor string, c models.BroadcastCounts, now time.Time) (bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("HeartbeatBroadcast"); err != nil {
+		return false, err
+	}
+	b, ok := f.broadcasts[id]
+	if !ok || b.Owner != owner || b.State != models.RunRunning {
+		return false, nil
+	}
+	b.Cursor, b.BroadcastCounts, b.HeartbeatAt = cursor, c, now
+	f.broadcasts[id] = b
+	return true, nil
+}
+
+func (f *fakeStore) FinishBroadcast(_ context.Context, id, owner string, state models.RunState, cursor string, c models.BroadcastCounts, lastError string, now time.Time) (bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("FinishBroadcast"); err != nil {
+		return false, err
+	}
+	b, ok := f.broadcasts[id]
+	if !ok || b.Owner != owner || b.State != models.RunRunning {
+		return false, nil
+	}
+	b.State, b.Cursor, b.BroadcastCounts, b.LastError, b.FinishedAt, b.HeartbeatAt = state, cursor, c, lastError, now, now
+	f.broadcasts[id] = b
+	return true, nil
+}
+
+func (f *fakeStore) PruneBroadcasts(_ context.Context, before time.Time) (int64, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	var n int64
+	for id, b := range f.broadcasts {
+		if (b.State == models.RunDone || b.State == models.RunFailed) && b.FinishedAt.Before(before) {
+			delete(f.broadcasts, id)
+			n++
+		}
+	}
+	return n, nil
 }
