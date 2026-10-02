@@ -1,6 +1,6 @@
 ---
 title: Verify a release
-weight: 21
+weight: 22
 ---
 
 Check that a Teamster image or binary was built by the project's release workflow and has not been

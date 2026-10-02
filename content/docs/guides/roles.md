@@ -1,6 +1,6 @@
 ---
 title: Manage roles and access
-weight: 18
+weight: 19
 ---
 
 Give people a role, collect them in groups, let them use the webhooks, share single records with
@@ -90,12 +90,15 @@ A message that names people needs a token that may name them; see
 [Let a token name people](../webhook-tokens/#let-a-token-name-people). Everyone signed in may name
 themselves. Naming anyone else takes the level **anyone**, set on **/admin/access** under
 **Who may message people** per user, group, provider group or role. Admins hold it already. Grant
-it to the people who send notices to colleagues, such as office admins.
+it to the people who send notices to colleagues, such as office admins. The level **everyone**
+adds sending one message to everyone the bot can reach; see
+[Send a message to everyone](../broadcasts/).
 
 | Level | API value | They and their tokens may name |
 | --- | --- | --- |
 | themselves only | `none` | Only themselves |
 | anyone | `anyone` | Anyone in the tenant |
+| anyone, and broadcast to everyone | `everyone` | Anyone, and [everyone at once](../broadcasts/) |
 
 ```bash
 curl -u <admin-user>:<admin-password> -X PUT http://localhost:8080/api/access/messages \
@@ -103,9 +106,12 @@ curl -u <admin-user>:<admin-password> -X PUT http://localhost:8080/api/access/me
 ```
 
 `principal_type` is `user`, `group`, `idp_group` or `role`. `none` takes the level back, and their
-**anyone** tokens name only their creator from the next request. In Cedar the level is the action
-`message` on `People::"*"`, which includes `messageSelf`, the action everyone holds. See
-[ADR 0082](https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0082-naming-people-takes-permission.md).
+**anyone** and **everyone** tokens name only their creator from the next request. In Cedar,
+**anyone** is the action `message` on `People::"*"` and **everyone** is `broadcast`. Each includes
+the levels below it, down to `messageSelf`, the action everyone holds. See
+[ADR 0082](https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0082-naming-people-takes-permission.md)
+and
+[ADR 0083](https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0083-broadcasts-run-in-the-background.md).
 
 ## Share a record
 

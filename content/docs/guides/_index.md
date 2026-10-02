@@ -15,6 +15,7 @@ Entra registrations and the bot: without the bot, nothing reaches Teams.
   {{< card link="alertmanager/" title="Send alerts from Alertmanager" >}}
   {{< card link="universal-webhook/" title="Send events with the universal webhook" >}}
   {{< card link="direct-messages/" title="Send messages to individual people" >}}
+  {{< card link="broadcasts/" title="Send a message to everyone" >}}
   {{< card link="webhook-tokens/" title="Authenticate a webhook sender" >}}
   {{< card link="teams-v2-webhook/" title="Move a sender off a Teams Workflows webhook" >}}
   {{< card link="templates/" title="Write templates" >}}

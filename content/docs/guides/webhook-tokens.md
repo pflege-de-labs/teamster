@@ -1,6 +1,6 @@
 ---
 title: Authenticate a webhook sender
-weight: 13
+weight: 14
 ---
 
 Give each sender its own token, scoped to the webhook it uses, and find out why a sender is
@@ -83,13 +83,15 @@ curl -u <admin-user>:<admin-password> -X POST http://localhost:8080/api/tokens \
 | nobody | absent | Nobody. |
 | only me | `self` | Only its creator. |
 | anyone | `anyone` | Anyone in the tenant. |
+| anyone, and broadcast | `everyone` | Anyone, and everyone at once with `"broadcast": true`. See [Send a message to everyone](../broadcasts/). |
 
 * **Only me** is open to everyone who may issue a token. Every address in the message must be the
   creator: their Entra object id from their last sign-in (`auth.object-id-claim`), or the one their
   linked chat recorded. If Teamster knows neither, the token names nobody: sign in once, or link
   your chat.
 * **Anyone** needs the permission to message anyone, which admins hold and grant; see
-  [Let someone message people](../roles/#let-someone-message-people).
+  [Let someone message people](../roles/#let-someone-message-people). **Anyone, and broadcast**
+  needs the level **everyone**.
 * A token's level is never higher than its creator's. Asking for more is refused, with `403` from
   the API.
 * Every use checks the creator's level as it is now. An **anyone** token whose creator lost that
@@ -115,8 +117,8 @@ webhook:
 ```
 
 Deliver it as `TEAMSTER_WEBHOOK_TOKEN` rather than in the file. It is unscoped: it reaches both
-webhooks. It cannot name people, so a sender that sets `recipients` or `teamster_recipient` needs
-an issued token. Rotate it by changing the value and restarting.
+webhooks. It cannot name people or broadcast, so a sender that sets `recipients`,
+`teamster_recipient` or `broadcast` needs an issued token. Rotate it by changing the value and restarting.
 
 {{< callout type="warning" >}}
 The `X-Teamster-Token: <token>` header from earlier releases still works for either kind of token,
@@ -149,7 +151,9 @@ counted with state `forbidden`.
 and its token may not: it has no message level, it is `webhook.token` or from before 0.11.0, or its
 creator may no longer message people. `{"error": "this token may only name its creator as a
 recipient"}` means an **only me** token named someone else, or Teamster does not know its
-creator's object id yet. Both are logged and counted like the scope refusal. See
+creator's object id yet. `{"error": "this token may not broadcast: it needs the message level
+everyone"}` means a broadcast from a token below **anyone, and broadcast**, or whose creator no
+longer holds the level **everyone**. All are logged and counted like the scope refusal. See
 [Let a token name people](#let-a-token-name-people).
 
 **`403 RBAC: access denied`** is not Teamster's answer. It is Envoy's wording: a service mesh, such

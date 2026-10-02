@@ -1,6 +1,6 @@
 ---
 title: Monitor Teamster
-weight: 20
+weight: 21
 ---
 
 Set up logging, export metrics to Prometheus or an OpenTelemetry collector, and wire up the

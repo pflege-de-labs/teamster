@@ -38,6 +38,7 @@ A message that names anyone is refused with `403` unless its token may name them
 | nobody | absent | Nobody. Every message that names people is refused. |
 | only me | `self` | Only you, the token's creator. |
 | anyone | `anyone` | Anyone in the tenant. |
+| anyone, and broadcast | `everyone` | Anyone, and [everyone at once](../broadcasts/). |
 
 **Anyone** is offered only if an admin let you message anyone; see
 [Let someone message people](../roles/#let-someone-message-people). A password-expiry sender

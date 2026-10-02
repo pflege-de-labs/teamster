@@ -1,6 +1,6 @@
 ---
 title: Write templates
-weight: 15
+weight: 16
 ---
 
 Write a template that turns an event into a Teams message, choose which webhook's events it
