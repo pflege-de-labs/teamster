@@ -40,7 +40,7 @@ bin/tailwindcss:
 		Linux-x86_64) asset=tailwindcss-linux-x64 ;; \
 		*) echo "no tailwindcss build for $$(uname -s)-$$(uname -m)" >&2; exit 1 ;; \
 	esac; \
-	curl -fsSL -o bin/tailwindcss \
+	curl -fsSL --retry 3 --retry-all-errors -o bin/tailwindcss \
 		"https://github.com/tailwindlabs/tailwindcss/releases/download/$(TAILWIND_VERSION)/$$asset"
 	@chmod +x bin/tailwindcss
 
@@ -57,7 +57,7 @@ bin/sqlc:
 		*) echo "no sqlc build for $$(uname -s)-$$(uname -m)" >&2; exit 1 ;; \
 	esac; \
 	version=$(SQLC_VERSION); \
-	curl -fsSL "https://github.com/sqlc-dev/sqlc/releases/download/$$version/sqlc_$${version#v}_$$asset.tar.gz" \
+	curl -fsSL --retry 3 --retry-all-errors "https://github.com/sqlc-dev/sqlc/releases/download/$$version/sqlc_$${version#v}_$$asset.tar.gz" \
 		| tar -xzC bin sqlc
 	@chmod +x bin/sqlc
 
