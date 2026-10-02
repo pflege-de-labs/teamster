@@ -504,21 +504,24 @@ may name them:
   **everyone** (see [Who may do what](#who-may-do-what)). Admins do.
 - It goes through the routes like any message. Those that deliver to **People named in the
   message** send it to everyone; channels and linked chats it matches get it at once. Without such a
-  route the answer is `422` with reason `no-addressed-route`.
+  route nothing is sent, not even to channels, and the answer is `422` with reason
+  `no-addressed-route`.
 - Everyone is every enabled member with the app installed, from the directory global install
-  keeps, plus everyone who linked a chat, each once.
+  keeps, plus everyone who linked a chat, each once. Without `bot.global-install` that is only the
+  people who linked a chat.
 - It is delivered once: `recipients`, the `teamster_recipient` label and `state` are refused with
   `400`.
 - The webhook answers `202` with the broadcast's `id` and a `status_url`. The run continues in the
   background, on whichever replica takes it. A replica that stops is taken over within two minutes
-  from where it got to, so a few people may get it twice.
+  from where it got to, so up to 25 people may get it twice.
 
 ```json
 {"status": "accepted", "broadcast": {"id": "…", "state": "requested", "total": 0, …},
  "status_url": "/webhook/broadcasts/…", "delivered": 0}
 ```
 
-`GET /webhook/broadcasts/{id}`, with a token of the same creator, answers with the state
+`GET /webhook/broadcasts/{id}`, with a token of the same creator whose scope includes the universal
+webhook, answers with the state
 (`requested`, `running`, `done` or `failed`) and the counts `total`, `delivered`, `unreachable`
 (blocked or removed the bot) and `failed`. **Broadcasts** in the navigation (`/admin/broadcasts`,
 `GET /api/broadcasts`) lists your own, and everyone's for admins. Finished broadcasts are kept for

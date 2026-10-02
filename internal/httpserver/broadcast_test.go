@@ -57,7 +57,7 @@ func TestBroadcastRequests(t *testing.T) {
 		{"with recipients", nil, "tst_all", `{"labels":{"kind":"password"},"broadcast":true,"recipients":["bob@corp.example"]}`, http.StatusBadRequest, "drop recipients"},
 		{"with the label", nil, "tst_all", `{"labels":{"kind":"password","teamster_recipient":"bob@corp.example"},"broadcast":true}`, http.StatusBadRequest, "drop recipients"},
 		{"with a state", nil, "tst_all", `{"state":"open","labels":{"kind":"password"},"broadcast":true}`, http.StatusBadRequest, "drop state"},
-		{"the deployment token", nil, "token", broadcastBody, http.StatusForbidden, "may not name recipients"},
+		{"the deployment token", nil, "token", broadcastBody, http.StatusForbidden, "may not broadcast"},
 		{"a token that may name anyone", nil, senderToken, broadcastBody, http.StatusForbidden, "may not broadcast"},
 		{
 			name: "an everyone token whose creator lost the grant",

@@ -53,6 +53,7 @@ Alternatives considered:
   crash mid-chunk repeats it. Delivering each person exactly once is roadmap item 24.1.
 * A person is counted once, by their worst outcome over the addressed routes: delivered,
   unreachable (blocked or removed the bot), or failed. A failed send is not retried.
-* People who joined after the run started are not reached by it.
+* The audience is read when a run starts or is taken over. Someone who joins in between is
+  reached only if a takeover reads them after the cursor.
 * Additive migration: a new table, `broadcasts`. The previous release ignores it, and leaves queued
   broadcasts waiting until a new pod runs them.

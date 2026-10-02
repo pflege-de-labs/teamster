@@ -35,6 +35,9 @@ func (s *Server) authorizeAddresses(ctx context.Context, from sender, events []m
 		return nil
 	}
 	if from.creator == nil {
+		if broadcast {
+			return errMayNotBroadcast
+		}
 		return errMayNotAddress
 	}
 	snapshot, err := s.engine.Authorizer(ctx)
