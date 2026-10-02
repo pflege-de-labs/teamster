@@ -408,5 +408,5 @@ webhooks to the internet and keep &lt;code&gt;/admin&lt;/code&gt; on a private n
 &lt;li&gt;&lt;a href="https://pflege-de-labs.github.io/teamster/v0.11/docs/concepts/routing/"&gt;Routing&lt;/a&gt; and
 &lt;a href="https://pflege-de-labs.github.io/teamster/v0.11/docs/concepts/alert-lifecycle/"&gt;Alert lifecycle&lt;/a&gt; explain the middle of the
 diagram.&lt;/li&gt;
-&lt;li&gt;&lt;a href="../../reference/configuration/"&gt;Configuration reference&lt;/a&gt; lists every key.&lt;/li&gt;
+&lt;li&gt;The &lt;a href="../../reference/configuration/"&gt;configuration reference&lt;/a&gt; lists every key.&lt;/li&gt;
 &lt;/ul&gt;</description></item></channel></rss>

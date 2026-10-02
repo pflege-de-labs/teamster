@@ -1119,9 +1119,10 @@ that are updated while they fire and closed when they resolve.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="configure-the-receiver"&gt;Configure the receiver&lt;span class="hx:absolute hx:-mt-20" id="configure-the-receiver"&gt;&lt;/span&gt;
 &lt;a href="#configure-the-receiver" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;div class="hextra-steps hx:ml-4 hx:mb-12 hx:ltr:border-l hx:rtl:border-r hx:border-gray-200 hx:ltr:pl-6 hx:rtl:pr-6 hx:dark:border-neutral-800 [counter-reset:step]"&gt;
 &lt;h3 data-hextra-search-id="issue-a-token"&gt;Issue a token&lt;span class="hx:absolute hx:-mt-20" id="issue-a-token"&gt;&lt;/span&gt;
-&lt;a href="#issue-a-token" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Sign in to the admin UI, open &lt;strong&gt;/admin/tokens&lt;/strong&gt;, name the token after the sender (for example
-&lt;code&gt;alertmanager-prod&lt;/code&gt;) and tick &lt;strong&gt;Alertmanager&lt;/strong&gt;. Copy the token at once: it is shown only this
-once.&lt;/p&gt;
+&lt;a href="#issue-a-token" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Sign in to the admin UI, open &lt;strong&gt;/admin/tokens&lt;/strong&gt; and name the token after the sender (for example
+&lt;code&gt;alertmanager-prod&lt;/code&gt;). Under &lt;strong&gt;May send to&lt;/strong&gt; both webhooks start ticked; untick
+&lt;code&gt;/webhook/universal&lt;/code&gt;, so the token reaches &lt;code&gt;/webhook/alertmanager&lt;/code&gt; only. Copy the token at once:
+it is shown only this once.&lt;/p&gt;
 &lt;p&gt;Store it where Alertmanager can read it, for example in a Kubernetes Secret:&lt;/p&gt;
 &lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
 &lt;div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;kubectl -n monitoring create secret generic teamster-webhook --from-literal&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="nv"&gt;token&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&amp;lt;token&amp;gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class="hextra-code-copy-btn-container hx:opacity-0 hx:transition hx:group-hover/code:opacity-100 hx:flex hx:gap-1 hx:absolute hx:m-[11px] hx:right-0 hx:top-0"&gt;
@@ -1261,7 +1262,8 @@ state &lt;code&gt;open&lt;/code&gt; and &lt;code&gt;resolved&lt;/code&gt; become
 monitoring tool with a generic webhook. The sender posts labels to route on and attributes to
 render, and Teamster does the rest.&lt;/p&gt;
 &lt;p&gt;The endpoint is &lt;code&gt;POST /webhook/universal&lt;/code&gt;, authenticated with &lt;code&gt;Authorization: Bearer &amp;lt;token&amp;gt;&lt;/code&gt;.
-Issue a token scoped to &lt;strong&gt;Universal webhook&lt;/strong&gt; at &lt;strong&gt;/admin/tokens&lt;/strong&gt;; see
+Issue a token at &lt;strong&gt;/admin/tokens&lt;/strong&gt; and, under &lt;strong&gt;May send to&lt;/strong&gt;, leave only &lt;code&gt;/webhook/universal&lt;/code&gt;
+ticked; see
 &lt;a href="../webhook-tokens/"&gt;Authenticate a webhook sender&lt;/a&gt;.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="send-a-one-off-message"&gt;Send a one-off message&lt;span class="hx:absolute hx:-mt-20" id="send-a-one-off-message"&gt;&lt;/span&gt;
 &lt;a href="#send-a-one-off-message" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;A message with no &lt;code&gt;state&lt;/code&gt; is delivered once and never tracked. It needs only &lt;code&gt;labels&lt;/code&gt; and

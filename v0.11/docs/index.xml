@@ -2056,8 +2056,8 @@ it accepts. zsh and fish offer the accepted values.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="see-also"&gt;See also&lt;span class="hx:absolute hx:-mt-20" id="see-also"&gt;&lt;/span&gt;
 &lt;a href="#see-also" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;ul&gt;
 &lt;li&gt;&lt;a href="../configuration/"&gt;Configuration&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href="../../guides/backup-and-migration/"&gt;Back up and migrate&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href="../../guides/storage/"&gt;Storage&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="../../guides/backup-and-migration/"&gt;Back up and move the configuration&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="../../guides/storage/"&gt;Choose and run storage&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;</description></item><item><title>Container</title><link>https://pflege-de-labs.github.io/teamster/v0.11/docs/getting-started/container/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/v0.11/docs/getting-started/container/</guid><description>
 &lt;p&gt;Run Teamster from the published container image, with its configuration mounted from a file and
 its database on a volume.&lt;/p&gt;
@@ -2163,7 +2163,7 @@ the process stops accepting it.&lt;/li&gt;
 &lt;h2 data-hextra-search-id="next-steps"&gt;Next steps&lt;span class="hx:absolute hx:-mt-20" id="next-steps"&gt;&lt;/span&gt;
 &lt;a href="#next-steps" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;ul&gt;
 &lt;li&gt;&lt;a href="../../guides/configuration/"&gt;Configure Teamster&lt;/a&gt; for production settings.&lt;/li&gt;
-&lt;li&gt;&lt;a href="../../guides/storage/"&gt;Choose a storage backend&lt;/a&gt; when you need more than one instance.&lt;/li&gt;
+&lt;li&gt;&lt;a href="../../guides/storage/"&gt;Choose and run storage&lt;/a&gt; when you need more than one instance.&lt;/li&gt;
 &lt;li&gt;&lt;a href="https://pflege-de-labs.github.io/teamster/v0.11/docs/getting-started/kubernetes/"&gt;Install on Kubernetes&lt;/a&gt; with the Helm chart.&lt;/li&gt;
 &lt;/ul&gt;</description></item><item><title>Grant Microsoft Graph permissions</title><link>https://pflege-de-labs.github.io/teamster/v0.11/docs/guides/graph-permissions/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/v0.11/docs/guides/graph-permissions/</guid><description>
 &lt;p&gt;Teamster talks to Microsoft through two separate Entra app registrations. This guide shows which
@@ -2454,7 +2454,7 @@ data-copied-label="Copied!"
 operator or cloud provider already created.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="next-steps"&gt;Next steps&lt;span class="hx:absolute hx:-mt-20" id="next-steps"&gt;&lt;/span&gt;
 &lt;a href="#next-steps" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;ul&gt;
-&lt;li&gt;&lt;a href="../../guides/storage/"&gt;Choose a storage backend&lt;/a&gt; and
+&lt;li&gt;&lt;a href="../../guides/storage/"&gt;Choose and run storage&lt;/a&gt; and
 &lt;a href="../../guides/backup-and-migration/"&gt;move from SQLite to Postgres&lt;/a&gt;.&lt;/li&gt;
 &lt;li&gt;&lt;a href="../../guides/alertmanager/"&gt;Send alerts from Alertmanager&lt;/a&gt; inside the cluster.&lt;/li&gt;
 &lt;li&gt;Every chart value: &lt;a href="../../reference/helm-values/"&gt;Helm values&lt;/a&gt;.&lt;/li&gt;
@@ -3214,7 +3214,7 @@ data-copied-label="Copied!"
 &lt;/div&gt;
 &lt;h2 data-hextra-search-id="see-also"&gt;See also&lt;span class="hx:absolute hx:-mt-20" id="see-also"&gt;&lt;/span&gt;
 &lt;a href="#see-also" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;ul&gt;
-&lt;li&gt;&lt;a href="../../guides/templates/"&gt;Write a template&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="../../guides/templates/"&gt;Write templates&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href="../webhook-payloads/"&gt;Webhook payloads&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;</description></item><item><title>Architecture</title><link>https://pflege-de-labs.github.io/teamster/v0.11/docs/concepts/architecture/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/v0.11/docs/concepts/architecture/</guid><description>
 &lt;p&gt;Teamster is a single Go binary with its admin UI embedded. It needs a database and two Entra app
@@ -3333,7 +3333,7 @@ webhooks to the internet and keep &lt;code&gt;/admin&lt;/code&gt; on a private n
 &lt;li&gt;&lt;a href="https://pflege-de-labs.github.io/teamster/v0.11/docs/concepts/routing/"&gt;Routing&lt;/a&gt; and
 &lt;a href="https://pflege-de-labs.github.io/teamster/v0.11/docs/concepts/alert-lifecycle/"&gt;Alert lifecycle&lt;/a&gt; explain the middle of the
 diagram.&lt;/li&gt;
-&lt;li&gt;&lt;a href="../../reference/configuration/"&gt;Configuration reference&lt;/a&gt; lists every key.&lt;/li&gt;
+&lt;li&gt;The &lt;a href="../../reference/configuration/"&gt;configuration reference&lt;/a&gt; lists every key.&lt;/li&gt;
 &lt;/ul&gt;</description></item><item><title>Choose and run storage</title><link>https://pflege-de-labs.github.io/teamster/v0.11/docs/guides/storage/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/v0.11/docs/guides/storage/</guid><description>
 &lt;p&gt;Teamster keeps its configuration and the state of open alerts in a database. This guide helps you
 pick SQLite or Postgres, configure it, run schema migrations, and move from one to the other.&lt;/p&gt;
@@ -4148,9 +4148,9 @@ data-copied-label="Copied!"
 &lt;h2 data-hextra-search-id="see-also"&gt;See also&lt;span class="hx:absolute hx:-mt-20" id="see-also"&gt;&lt;/span&gt;
 &lt;a href="#see-also" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;ul&gt;
 &lt;li&gt;&lt;a href="../../guides/alertmanager/"&gt;Send alerts from Alertmanager&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href="../../guides/universal-webhook/"&gt;Send events to the universal webhook&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href="../../guides/teams-v2-webhook/"&gt;Migrate a Teams V2 webhook&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href="../../guides/webhook-tokens/"&gt;Issue webhook tokens&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="../../guides/universal-webhook/"&gt;Send events with the universal webhook&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="../../guides/teams-v2-webhook/"&gt;Move a sender off a Teams Workflows webhook&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="../../guides/webhook-tokens/"&gt;Authenticate a webhook sender&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href="../template-data/"&gt;Template data&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;</description></item><item><title>Back up and move the configuration</title><link>https://pflege-de-labs.github.io/teamster/v0.11/docs/guides/backup-and-migration/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/v0.11/docs/guides/backup-and-migration/</guid><description>
 &lt;p&gt;Teamster&amp;rsquo;s configuration moves as one JSON bundle. Use it to back up an installation, keep the
@@ -5650,7 +5650,7 @@ resources. Require NACK&amp;rsquo;s CRDs and controller.&lt;/p&gt;
 &lt;/table&gt;
 &lt;h2 data-hextra-search-id="see-also"&gt;See also&lt;span class="hx:absolute hx:-mt-20" id="see-also"&gt;&lt;/span&gt;
 &lt;a href="#see-also" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;ul&gt;
-&lt;li&gt;&lt;a href="../../getting-started/kubernetes/"&gt;Deploy on Kubernetes&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="../../getting-started/kubernetes/"&gt;Kubernetes&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href="../configuration/"&gt;Configuration&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;</description></item><item><title>Send alerts from Alertmanager</title><link>https://pflege-de-labs.github.io/teamster/v0.11/docs/guides/alertmanager/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/v0.11/docs/guides/alertmanager/</guid><description>
 &lt;p&gt;Point a Prometheus Alertmanager receiver at Teamster, and its alerts arrive in Teams as cards
@@ -5660,9 +5660,10 @@ that are updated while they fire and closed when they resolve.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="configure-the-receiver"&gt;Configure the receiver&lt;span class="hx:absolute hx:-mt-20" id="configure-the-receiver"&gt;&lt;/span&gt;
 &lt;a href="#configure-the-receiver" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;div class="hextra-steps hx:ml-4 hx:mb-12 hx:ltr:border-l hx:rtl:border-r hx:border-gray-200 hx:ltr:pl-6 hx:rtl:pr-6 hx:dark:border-neutral-800 [counter-reset:step]"&gt;
 &lt;h3 data-hextra-search-id="issue-a-token"&gt;Issue a token&lt;span class="hx:absolute hx:-mt-20" id="issue-a-token"&gt;&lt;/span&gt;
-&lt;a href="#issue-a-token" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Sign in to the admin UI, open &lt;strong&gt;/admin/tokens&lt;/strong&gt;, name the token after the sender (for example
-&lt;code&gt;alertmanager-prod&lt;/code&gt;) and tick &lt;strong&gt;Alertmanager&lt;/strong&gt;. Copy the token at once: it is shown only this
-once.&lt;/p&gt;
+&lt;a href="#issue-a-token" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Sign in to the admin UI, open &lt;strong&gt;/admin/tokens&lt;/strong&gt; and name the token after the sender (for example
+&lt;code&gt;alertmanager-prod&lt;/code&gt;). Under &lt;strong&gt;May send to&lt;/strong&gt; both webhooks start ticked; untick
+&lt;code&gt;/webhook/universal&lt;/code&gt;, so the token reaches &lt;code&gt;/webhook/alertmanager&lt;/code&gt; only. Copy the token at once:
+it is shown only this once.&lt;/p&gt;
 &lt;p&gt;Store it where Alertmanager can read it, for example in a Kubernetes Secret:&lt;/p&gt;
 &lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
 &lt;div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;kubectl -n monitoring create secret generic teamster-webhook --from-literal&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="nv"&gt;token&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&amp;lt;token&amp;gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class="hextra-code-copy-btn-container hx:opacity-0 hx:transition hx:group-hover/code:opacity-100 hx:flex hx:gap-1 hx:absolute hx:m-[11px] hx:right-0 hx:top-0"&gt;
@@ -5802,7 +5803,8 @@ state &lt;code&gt;open&lt;/code&gt; and &lt;code&gt;resolved&lt;/code&gt; become
 monitoring tool with a generic webhook. The sender posts labels to route on and attributes to
 render, and Teamster does the rest.&lt;/p&gt;
 &lt;p&gt;The endpoint is &lt;code&gt;POST /webhook/universal&lt;/code&gt;, authenticated with &lt;code&gt;Authorization: Bearer &amp;lt;token&amp;gt;&lt;/code&gt;.
-Issue a token scoped to &lt;strong&gt;Universal webhook&lt;/strong&gt; at &lt;strong&gt;/admin/tokens&lt;/strong&gt;; see
+Issue a token at &lt;strong&gt;/admin/tokens&lt;/strong&gt; and, under &lt;strong&gt;May send to&lt;/strong&gt;, leave only &lt;code&gt;/webhook/universal&lt;/code&gt;
+ticked; see
 &lt;a href="../webhook-tokens/"&gt;Authenticate a webhook sender&lt;/a&gt;.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="send-a-one-off-message"&gt;Send a one-off message&lt;span class="hx:absolute hx:-mt-20" id="send-a-one-off-message"&gt;&lt;/span&gt;
 &lt;a href="#send-a-one-off-message" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;A message with no &lt;code&gt;state&lt;/code&gt; is delivered once and never tracked. It needs only &lt;code&gt;labels&lt;/code&gt; and
