@@ -140,5 +140,5 @@ comparisons `eq`, `ne`, `lt`, `le`, `gt`, `ge`.
 
 ## See also
 
-* [Write a template](../../guides/templates/)
+* [Write templates](../../guides/templates/)
 * [Webhook payloads](../webhook-payloads/)

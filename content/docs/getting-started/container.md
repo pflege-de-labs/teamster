@@ -72,5 +72,5 @@ On shutdown the server drains in-flight requests for up to `server.shutdown-time
 ## Next steps
 
 * [Configure Teamster](../../guides/configuration/) for production settings.
-* [Choose a storage backend](../../guides/storage/) when you need more than one instance.
+* [Choose and run storage](../../guides/storage/) when you need more than one instance.
 * [Install on Kubernetes]({{< ref "/docs/getting-started/kubernetes" >}}) with the Helm chart.

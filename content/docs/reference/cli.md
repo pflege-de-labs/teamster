@@ -166,5 +166,5 @@ it accepts. zsh and fish offer the accepted values.
 ## See also
 
 * [Configuration](../configuration/)
-* [Back up and migrate](../../guides/backup-and-migration/)
-* [Storage](../../guides/storage/)
+* [Back up and move the configuration](../../guides/backup-and-migration/)
+* [Choose and run storage](../../guides/storage/)

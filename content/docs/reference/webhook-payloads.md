@@ -206,7 +206,7 @@ Nothing is tracked. A Teams V2 message is never updated or closed.
 ## See also
 
 * [Send alerts from Alertmanager](../../guides/alertmanager/)
-* [Send events to the universal webhook](../../guides/universal-webhook/)
-* [Migrate a Teams V2 webhook](../../guides/teams-v2-webhook/)
-* [Issue webhook tokens](../../guides/webhook-tokens/)
+* [Send events with the universal webhook](../../guides/universal-webhook/)
+* [Move a sender off a Teams Workflows webhook](../../guides/teams-v2-webhook/)
+* [Authenticate a webhook sender](../../guides/webhook-tokens/)
 * [Template data](../template-data/)
