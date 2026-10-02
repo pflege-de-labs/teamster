@@ -105,7 +105,7 @@ curl -u <admin-user>:<admin-password> -X PUT http://localhost:8080/api/access/me
 `principal_type` is `user`, `group`, `idp_group` or `role`. `none` takes the level back, and their
 **anyone** tokens name only their creator from the next request. In Cedar the level is the action
 `message` on `People::"*"`, which includes `messageSelf`, the action everyone holds. See
-[ADR 0081](https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0081-naming-people-takes-permission.md).
+[ADR 0082](https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0082-naming-people-takes-permission.md).
 
 ## Share a record
 

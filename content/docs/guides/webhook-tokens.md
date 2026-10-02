@@ -100,7 +100,7 @@ curl -u <admin-user>:<admin-password> -X POST http://localhost:8080/api/tokens \
 The `403` comes before anything is delivered. A refused Alertmanager batch delivers none of its
 alerts, including the ones that name nobody. A message that names people is checked even when the
 route it matches delivers to a channel. See
-[ADR 0081](https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0081-naming-people-takes-permission.md)
+[ADR 0082](https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0082-naming-people-takes-permission.md)
 for the design.
 
 ## Use a deployment-wide token
