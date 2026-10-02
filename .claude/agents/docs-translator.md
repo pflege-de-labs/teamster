@@ -27,9 +27,12 @@ same thing — no more, no less.
   parameters except human-readable ones (`title=`, `subtitle=`).
 * Translate: `title` in front matter, prose, table text, comments in code blocks only when they
   are prose for the reader, `title`/`subtitle` of cards and tabs.
+* Every German heading keeps the anchor of its English heading, written as an explicit ID:
+  `## Von SQLite zu Postgres wechseln {#move-from-sqlite-to-postgres}`. Hugo's ID for the English
+  heading is the lower-cased text with spaces as hyphens and punctuation dropped; check it in the
+  built English page when unsure. Links with `#…` then stay as they are in every language.
 * Links between pages stay relative and point to the same path; Hugo serves the German page
-  under `/de/`. Anchors (`#…`) change with the German heading: fix every link to a heading you
-  translated, on this page and on the German pages that link to it.
+  under `/de/`.
 * Links to GitHub (ADRs, architecture, changelog) stay as they are; those files are English.
 * Wrap at 100 characters, as the English pages do.
 
