@@ -468,9 +468,16 @@ may name them:
 - `webhook.token` and tokens from before 0.11 have no creator, so they cannot name people. Mint a
   token with a message level for such a sender.
 
+- An address is an Entra object id (a GUID), a UPN, or a mail address, which matches the primary
+  mail or any SMTP alias when no UPN does. Case is ignored; anything else is `invalid-address`.
 - A person is looked up in the directory Teamster keeps, and in Graph when they are not there or
-  the entry is older than `bot.directory-ttl`. Guests, disabled accounts and people who left are not
-  reached.
+  the entry is older than `bot.directory-ttl`. Aliases are found through Graph only. An address
+  Graph does not know is not asked about again for 10 minutes. Guests, disabled accounts and
+  people who left are not reached (`ineligible`).
+- A mail address two people share names nobody for certain and is answered `502`; name the person
+  by UPN or object id instead.
+- Alertmanager sets the label in the alerting rule, from another label or as a fixed list:
+  `teamster_recipient: "{{ $labels.owner_email }}"`.
 - The bot needs a chat with them. With `bot.global-install` on, a message may install the app for
   up to `bot.inline-install-budget` people who lack it; the rest wait for the next run.
 - A message may name at most `webhook.max-recipients` people (default 100) and is refused with
