@@ -28,6 +28,22 @@ Hello {{ .Recipient.GivenName }}, your password expires on {{ .Event.Universal.A
 
 `.Recipient` is described in [Template data](../../reference/template-data/).
 
+### Issue a token that may name people
+
+A message that names anyone is refused with `403` unless its token may name them. At
+**/admin/tokens**, set **May name recipients** when you issue the sender's token:
+
+| Choice | API value | The token may name |
+| --- | --- | --- |
+| nobody | absent | Nobody. Every message that names people is refused. |
+| only me | `self` | Only you, the token's creator. |
+| anyone | `anyone` | Anyone in the tenant. |
+
+**Anyone** is offered only if an admin let you message anyone; see
+[Let someone message people](../roles/#let-someone-message-people). A password-expiry sender
+needs it. **Only me** suits a script that notifies its own author. See
+[Let a token name people](../webhook-tokens/#let-a-token-name-people) for the details.
+
 ### Name the people in the message
 
 On the [universal webhook](../universal-webhook/), list them in a top-level `recipients` field:
@@ -55,6 +71,7 @@ the `recipients` list wins. Addresses are trimmed, and duplicates are dropped ig
 | `200 {"status":"partial", "delivered": n, "undelivered": [...]}` | Some people cannot be reached, and a retry will not change that. |
 | `422 {"status":"undelivered", ...}` | Nobody could be reached. Alertmanager does not retry a `4xx`. |
 | `400` | The message names more than `webhook.max-recipients` people. Nothing was sent. |
+| `403` | The token may not name these people. Nothing was sent. See [When a sender is refused](../webhook-tokens/#when-a-sender-is-refused). |
 | `502` | Something that may recover failed. Retry. |
 
 Each entry in `undelivered` has the `recipient` as given and a `reason`:

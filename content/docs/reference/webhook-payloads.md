@@ -31,8 +31,8 @@ Every response carries an `X-Request-ID` header. The same id is logged as `reque
 
 | Token | Where it comes from | Scope |
 | --- | --- | --- |
-| Issued access token, `tst_` and 64 hex digits | `/admin/tokens` or `POST /api/tokens` | The webhooks it names, and only while its creator may still use them. Unscoped if issued before scopes existed. |
-| `webhook.token` | Configuration, `TEAMSTER_WEBHOOK_TOKEN` | Both webhooks. |
+| Issued access token, `tst_` and 64 hex digits | `/admin/tokens` or `POST /api/tokens` | The webhooks it names, and only while its creator may still use them. Names people as its message level and its creator allow. Unscoped if issued before scopes existed, and then names nobody. |
+| `webhook.token` | Configuration, `TEAMSTER_WEBHOOK_TOKEN` | Both webhooks. Names nobody. |
 
 | Header | Status |
 | --- | --- |
@@ -116,6 +116,10 @@ Payloads from before events replaced alerts used `status`, `fingerprint`, `annot
 Recipients are trimmed and deduplicated ignoring case. A message may name at most
 `webhook.max-recipients` people.
 
+A message that names people needs a token whose message level allows it, whatever route it
+matches. The whole request is checked before anything is delivered. See
+[Let a token name people](../../guides/webhook-tokens/#let-a-token-name-people).
+
 ## Keys
 
 When an event has no key, Teamster derives one as a SHA-256 over:
@@ -139,6 +143,8 @@ For `/webhook/alertmanager` and `/webhook/universal`. Error bodies are
 | `400` | `{"error": "the message names more recipients than webhook.max-recipients allows: …"}` | Too many recipients. |
 | `401` | empty, with `WWW-Authenticate: Bearer realm="webhook"` | No token, or a token Teamster does not know. |
 | `403` | `{"error": "the token's scope, or its creator, does not allow this webhook"}` | A scoped token used for a webhook it does not name, or whose creator may no longer use it. |
+| `403` | `{"error": "this token may not name recipients: …"}` | The message names people and the token may not: no message level, `webhook.token`, a token from before 0.11.0, or a creator who may no longer message people. Nothing was delivered. |
+| `403` | `{"error": "this token may only name its creator as a recipient"}` | An **only me** token named someone else, or its creator's object id is not known. Nothing was delivered. |
 | `405` | empty | Not a `POST`. |
 | `422` | `{"status": "undelivered", "delivered": 0, "undelivered": [...]}` | Nobody could be reached. |
 | `502` | `{"error": "bad gateway", "request_id": "<id>"}` | Something that may come right failed: no route, a template, the database, Teams. Retry. |

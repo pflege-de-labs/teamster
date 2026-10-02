@@ -75,6 +75,11 @@ A webhook token sends only where its creator may send, checked again on every re
 the creator or taking their level away revokes their tokens at once. See
 [Issue webhook tokens](../../guides/webhook-tokens/).
 
+Naming people in a message is a permission too. Everyone may name themselves; naming anyone else
+takes a grant, which admins hold. A token names people only as far as its own message level and its
+creator's permission both allow. See
+[Let someone message people](../../guides/roles/#let-someone-message-people).
+
 ## Every change is recorded
 
 Changes to permissions, group memberships and disabled users are written to the audit trail. A
