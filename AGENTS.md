@@ -15,8 +15,11 @@ architecture, ADRs and contribution rules live on `main`; the decision behind th
 
 * A user-visible change on `main` gets a pull request here, against `pages`.
 * A fix that also applies to a released version is cherry-picked onto its `pages-vX.Y`.
-* When `vX.Y.0` is tagged, create `pages-vX.Y` from `pages` and push it. The deploy publishes it
-  and makes it the latest version; nothing else needs to change.
+* Merge the docs for everything in a release before it is tagged. Once `vX.Y.0` is published, the
+  release workflow on `main` creates `pages-vX.Y` from `pages` and deploys it as the latest
+  version, so whatever `pages` holds at that moment becomes that version's documentation.
+* If the workflow skipped the branch (it warns when a newer minor already exists), create it by
+  hand from the right commit and run `docs-deploy` on it with `gh workflow run`.
 * A pull request is previewed at `/teamster/pr-preview/pr-N/` and the bot comments the link.
 
 ## Layout
@@ -32,7 +35,8 @@ architecture, ADRs and contribution rules live on `main`; the decision behind th
 ## Writing
 
 Use the `docs-writer` agent in `.claude/agents/` for new and reworked pages. Its rules apply to
-anyone writing here.
+anyone writing here. Each docs pull request links the pull request on `main` whose behaviour it
+documents, and that one links back; `main`'s definition of done requires it.
 
 ## Definition of done
 
