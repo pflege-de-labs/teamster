@@ -1307,7 +1307,7 @@ einer Gruppe nicht auf. Wenden Sie die vorgefertigte Vorlage erneut an, wie unte
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;unexpected status code 403&lt;/code&gt;&lt;/td&gt;
-&lt;td&gt;Ein Service Mesh oder Gateway hat die Anfrage abgewiesen, oder der Bereich des Tokens erlaubt diesen Webhook nicht.&lt;/td&gt;
+&lt;td&gt;Ein Service Mesh oder Gateway hat die Anfrage abgewiesen, der Bereich des Tokens erlaubt diesen Webhook nicht, oder ein Alarm setzt &lt;code&gt;teamster_recipient&lt;/code&gt; und das Token darf keine Personen nennen. Siehe &lt;a href="../webhook-tokens/#when-a-sender-is-refused"&gt;Wenn ein Absender abgewiesen wird&lt;/a&gt;.&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;unexpected status code 422&lt;/code&gt;&lt;/td&gt;
@@ -1541,6 +1541,46 @@ data-copied-label="Kopiert!"
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;p&gt;&lt;code&gt;.Recipient&lt;/code&gt; ist in &lt;a href="../../reference/template-data/"&gt;Vorlagendaten&lt;/a&gt; beschrieben.&lt;/p&gt;
+&lt;h3 data-hextra-search-id="issue-a-token-that-may-name-people"&gt;Ein Token ausstellen, das Personen nennen darf&lt;span class="hx:absolute hx:-mt-20" id="issue-a-token-that-may-name-people"&gt;&lt;/span&gt;
+&lt;a href="#issue-a-token-that-may-name-people" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Eine Nachricht, die jemanden nennt, wird mit &lt;code&gt;403&lt;/code&gt; abgewiesen, wenn ihr Token diese Personen nicht
+nennen darf. Setzen Sie unter &lt;strong&gt;/admin/tokens&lt;/strong&gt; beim Ausstellen des Tokens für den Absender
+&lt;strong&gt;Darf Empfänger nennen&lt;/strong&gt;:&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Auswahl&lt;/th&gt;
+&lt;th&gt;API-Wert&lt;/th&gt;
+&lt;th&gt;Das Token darf nennen&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;niemanden&lt;/td&gt;
+&lt;td&gt;fehlt&lt;/td&gt;
+&lt;td&gt;Niemanden. Jede Nachricht, die Personen nennt, wird abgewiesen.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;nur mich&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;self&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;Nur Sie, den Ersteller des Tokens.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;beliebige&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;anyone&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;Jede Person im Mandanten.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;beliebige, und Rundsendung&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;everyone&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;Jede Person, und &lt;a href="../broadcasts/"&gt;alle auf einmal&lt;/a&gt;.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;&lt;strong&gt;beliebige&lt;/strong&gt; wird nur angeboten, wenn ein Administrator Ihnen erlaubt hat, beliebige Personen
+anzuschreiben; siehe &lt;a href="../roles/#let-someone-message-people"&gt;Jemanden Personen anschreiben lassen&lt;/a&gt;.
+Ein Absender für ablaufende Passwörter braucht diese Stufe. &lt;strong&gt;nur mich&lt;/strong&gt; passt zu einem Skript,
+das seinen eigenen Autor benachrichtigt. Die Einzelheiten stehen unter
+&lt;a href="../webhook-tokens/#let-a-token-name-people"&gt;Ein Token Personen nennen lassen&lt;/a&gt;.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="name-the-people-in-the-message"&gt;Die Personen in der Nachricht nennen&lt;span class="hx:absolute hx:-mt-20" id="name-the-people-in-the-message"&gt;&lt;/span&gt;
 &lt;a href="#name-the-people-in-the-message" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Am &lt;a href="../universal-webhook/"&gt;universellen Webhook&lt;/a&gt; führen Sie sie im Feld &lt;code&gt;recipients&lt;/code&gt; auf oberster
 Ebene auf: UPNs, E-Mail-Adressen oder Entra-Objekt-IDs.&lt;/p&gt;
@@ -1568,6 +1608,36 @@ Label &lt;code&gt;teamster_recipient&lt;/code&gt;, mehrere Adressen durch Kommas
 werden die Werte des Labels aus allen ihren Alarmen zusammengeführt. Hat eine Nachricht beides,
 gilt die Liste &lt;code&gt;recipients&lt;/code&gt;. Leerzeichen um Adressen werden entfernt, Duplikate ohne Rücksicht auf
 Groß- und Kleinschreibung verworfen.&lt;/p&gt;
+&lt;p&gt;In einer Alerting-Regel von Alertmanager setzen Sie das Label aus einem Label, das der Alarm
+bereits trägt, oder nennen eine feste Person:&lt;/p&gt;
+&lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
+&lt;div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nt"&gt;groups&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;- &lt;span class="nt"&gt;name&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;certificates&lt;/span&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;rules&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;- &lt;span class="nt"&gt;alert&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;CertificateExpiring&lt;/span&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;expr&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;cert_expiry_seconds &amp;lt; 7 * 86400&lt;/span&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;labels&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;kind&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;certificate-expiry&lt;/span&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;teamster_recipient&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="s2"&gt;&amp;#34;{{ $labels.owner_email }}&amp;#34;&lt;/span&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;- &lt;span class="nt"&gt;alert&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;BackupFailed&lt;/span&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;expr&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;backup_last_success_age_seconds &amp;gt; 86400&lt;/span&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;labels&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;kind&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;backup&lt;/span&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;teamster_recipient&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="s2"&gt;&amp;#34;alice@example.com,bob@example.com&amp;#34;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class="hextra-code-copy-btn-container hx:opacity-0 hx:transition hx:group-hover/code:opacity-100 hx:flex hx:gap-1 hx:absolute hx:m-[11px] hx:right-0 hx:top-0"&gt;
+&lt;button
+class="hextra-code-copy-btn hx:group/copybtn hx:cursor-pointer hx:transition-all hx:active:opacity-50 hx:bg-primary-700/5 hx:border hx:border-black/5 hx:text-gray-600 hx:hover:text-gray-900 hx:rounded-md hx:p-1.5 hx:dark:bg-primary-300/10 hx:dark:border-white/10 hx:dark:text-gray-400 hx:dark:hover:text-gray-50"
+title="Code kopieren"
+aria-label="Code kopieren"
+data-copied-label="Kopiert!"
+&gt;
+&lt;div class="hextra-copy-icon hx:group-[.copied]/copybtn:hidden hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;div class="hextra-success-icon hx:hidden hx:group-[.copied]/copybtn:block hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;/button&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;p&gt;Jeder Alarm einer Gruppe wird über sein eigenes Label adressiert. Eine Benachrichtigung kann also
+für verschiedene Alarme verschiedene Personen erreichen. Was eine Adresse sein darf, steht unter
+&lt;a href="#how-addresses-are-matched"&gt;Wie Adressen zugeordnet werden&lt;/a&gt;.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="read-the-answer"&gt;Die Antwort lesen&lt;span class="hx:absolute hx:-mt-20" id="read-the-answer"&gt;&lt;/span&gt;
 &lt;a href="#read-the-answer" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;table&gt;
 &lt;thead&gt;
@@ -1594,6 +1664,10 @@ Groß- und Kleinschreibung verworfen.&lt;/p&gt;
 &lt;td&gt;Die Nachricht nennt mehr als &lt;code&gt;webhook.max-recipients&lt;/code&gt; Personen. Nichts wurde gesendet.&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
+&lt;td&gt;&lt;code&gt;403&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;Das Token darf diese Personen nicht nennen. Nichts wurde gesendet. Siehe &lt;a href="../webhook-tokens/#when-a-sender-is-refused"&gt;Wenn ein Absender abgewiesen wird&lt;/a&gt;.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
 &lt;td&gt;&lt;code&gt;502&lt;/code&gt;&lt;/td&gt;
 &lt;td&gt;Etwas, das sich wieder erholen kann, ist ausgefallen. Wiederholen Sie die Anfrage.&lt;/td&gt;
 &lt;/tr&gt;
@@ -1617,6 +1691,10 @@ Groß- und Kleinschreibung verworfen.&lt;/p&gt;
 &lt;td&gt;Keine solche Person im Verzeichnis.&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
+&lt;td&gt;&lt;code&gt;ambiguous-address&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;Mehr als eine Person trägt diese E-Mail-Adresse. Verwenden Sie ihren UPN oder ihre Objekt-ID.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
 &lt;td&gt;&lt;code&gt;ineligible&lt;/code&gt;&lt;/td&gt;
 &lt;td&gt;Kein aktiviertes Mitglied des Mandanten: ein Gast, ein deaktiviertes Konto, jemand, der ausgeschieden ist.&lt;/td&gt;
 &lt;/tr&gt;
@@ -1635,6 +1713,54 @@ Groß- und Kleinschreibung verworfen.&lt;/p&gt;
 &lt;/tbody&gt;
 &lt;/table&gt;
 &lt;/div&gt;
+&lt;h2 data-hextra-search-id="how-addresses-are-matched"&gt;Wie Adressen zugeordnet werden&lt;span class="hx:absolute hx:-mt-20" id="how-addresses-are-matched"&gt;&lt;/span&gt;
+&lt;a href="#how-addresses-are-matched" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Jede Adresse hat eine von drei Formen. Groß- und Kleinschreibung spielt bei der Zuordnung keine
+Rolle.&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Form&lt;/th&gt;
+&lt;th&gt;Beispiel&lt;/th&gt;
+&lt;th&gt;Trifft&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;Entra-Objekt-ID&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;0b1c2d3e-4f50-6172-8394-a5b6c7d8e9f0&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;Den Benutzer mit dieser ID. Nur eine GUID gilt als ID.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;User Principal Name&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;alice@example.com&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;Den Benutzer, dessen UPN sie ist.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;E-Mail-Adresse&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;a.smith@example.com&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;Den Benutzer, dessen primäre E-Mail-Adresse oder SMTP-Alias sie ist. Gilt, wenn kein UPN passt.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;Alles ohne &lt;code&gt;@&lt;/code&gt;, das keine GUID ist, wird mit &lt;code&gt;invalid-address&lt;/code&gt; beantwortet.&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Wo Teamster sucht.&lt;/strong&gt; Zuerst im eigenen Personenverzeichnis, das ein früheres Nachschlagen
+oder der &lt;a href="../teams-bot/#install-the-bot-for-everyone"&gt;Installationslauf&lt;/a&gt; gefüllt hat. Ein
+Eintrag, der älter als &lt;code&gt;bot.directory-ttl&lt;/code&gt; (Standard &lt;code&gt;24h&lt;/code&gt;) ist, wird erneut in Microsoft Graph
+nachgeschlagen. Aliase findet Teamster nur über Graph, die erste Nachricht an einen Alias kostet
+also einen Graph-Aufruf.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Ein Tippfehler wird gemerkt.&lt;/strong&gt; Eine Adresse, die Graph nicht kennt, wird 10 Minuten lang mit
+&lt;code&gt;unknown-recipient&lt;/code&gt; beantwortet, ohne Graph erneut zu fragen. Eine gerade in Entra angelegte
+Person kann so lange brauchen, bis sie unter einer Adresse erreichbar ist, die zuvor
+fehlgeschlagen ist.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Wer erreicht wird.&lt;/strong&gt; Nur aktivierte Mitglieder des Mandanten. Gäste, deaktivierte Konten und
+ausgeschiedene Personen werden mit &lt;code&gt;ineligible&lt;/code&gt; beantwortet.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Eine Adresse, die zwei Personen teilen.&lt;/strong&gt; Eine E-Mail-Adresse oder ein Alias, den mehr als ein
+Benutzer trägt, nennt niemanden eindeutig. Sie wird mit &lt;code&gt;ambiguous-address&lt;/code&gt; beantwortet: Nennen
+Sie die Person stattdessen über UPN oder Objekt-ID.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;nur mich.&lt;/strong&gt; Ein auf seinen Ersteller beschränktes Token darf jede der drei Formen verwenden,
+solange die Adresse auf die eigene Objekt-ID des Erstellers aufgelöst wird.&lt;/li&gt;
+&lt;/ul&gt;
 &lt;h2 data-hextra-search-id="update-or-close-the-messages"&gt;Die Nachrichten aktualisieren oder schließen&lt;span class="hx:absolute hx:-mt-20" id="update-or-close-the-messages"&gt;&lt;/span&gt;
 &lt;a href="#update-or-close-the-messages" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Mit &lt;code&gt;&amp;quot;state&amp;quot;: &amp;quot;open&amp;quot;&lt;/code&gt; und einem &lt;code&gt;key&lt;/code&gt; erhalten Sie den verfolgten Lebenszyklus:&lt;/p&gt;
 &lt;ul&gt;
@@ -1705,7 +1831,142 @@ data-copied-label="Kopiert!"
 &lt;p&gt;Die Verteilung einer Anfrage muss innerhalb von &lt;code&gt;server.write-timeout&lt;/code&gt; abgeschlossen sein. Erhöhen
 Sie diesen Wert, wenn Sie die Grenzen erhöhen.&lt;/p&gt;
 &lt;p&gt;Den Entwurf beschreibt
-&lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0063-a-message-names-its-recipients.md" target="_blank" rel="noopener"&gt;ADR 0063&lt;/a&gt;.&lt;/p&gt;</description></item><item><title>Einen Webhook-Absender authentifizieren</title><link>https://pflege-de-labs.github.io/teamster/pr-preview/pr-206/de/docs/guides/webhook-tokens/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/pr-preview/pr-206/de/docs/guides/webhook-tokens/</guid><description>
+&lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0063-a-message-names-its-recipients.md" target="_blank" rel="noopener"&gt;ADR 0063&lt;/a&gt;.&lt;/p&gt;</description></item><item><title>Eine Nachricht an alle senden</title><link>https://pflege-de-labs.github.io/teamster/pr-preview/pr-206/de/docs/guides/broadcasts/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/pr-preview/pr-206/de/docs/guides/broadcasts/</guid><description>
+&lt;p&gt;Senden Sie eine Nachricht an alle, die der Bot erreichen kann, jeweils in ihren eigenen Teams-Chat,
+ohne sie aufzuzählen. Typisch dafür sind eine Büroschließung oder eine Mitteilung an das ganze
+Unternehmen.&lt;/p&gt;
+&lt;p&gt;Sie brauchen einen eingerichteten Teams-Bot. Alle sind:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;jedes aktivierte Mitglied des Mandanten, für das die App installiert ist, aus dem Verzeichnis,
+das &lt;code&gt;bot.global-install&lt;/code&gt; pflegt, und&lt;/li&gt;
+&lt;li&gt;jede Person, die ihren Chat verknüpft hat und nicht in diesem Verzeichnis steht,&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;jeweils einmal. Ohne &lt;code&gt;bot.global-install&lt;/code&gt; sind das nur die Personen, die einen Chat verknüpft
+haben. Personen, die den Bot blockiert haben, werden trotzdem angeschrieben; schlägt das fehl,
+zählen sie als nicht erreichbar.&lt;/p&gt;
+&lt;h2 data-hextra-search-id="send-a-broadcast"&gt;Eine Rundsendung senden&lt;span class="hx:absolute hx:-mt-20" id="send-a-broadcast"&gt;&lt;/span&gt;
+&lt;a href="#send-a-broadcast" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;div class="hextra-steps hx:ml-4 hx:mb-12 hx:ltr:border-l hx:rtl:border-r hx:border-gray-200 hx:ltr:pl-6 hx:rtl:pr-6 hx:dark:border-neutral-800 [counter-reset:step]"&gt;
+&lt;h3 data-hextra-search-id="get-the-level-everyone"&gt;Die Stufe für Rundsendungen erhalten&lt;span class="hx:absolute hx:-mt-20" id="get-the-level-everyone"&gt;&lt;/span&gt;
+&lt;a href="#get-the-level-everyone" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Eine Rundsendung erfordert die Nachrichtenstufe &lt;strong&gt;beliebige, und Rundsendung an alle&lt;/strong&gt;
+(&lt;code&gt;everyone&lt;/code&gt;), die das Nennen beliebiger Personen einschließt. Administratoren haben sie. Ein
+Administrator erteilt sie anderen auf &lt;strong&gt;/admin/access&lt;/strong&gt; unter &lt;strong&gt;Wer Personen anschreiben darf&lt;/strong&gt;;
+siehe &lt;a href="../roles/#let-someone-message-people"&gt;Jemanden Personen anschreiben lassen&lt;/a&gt;.&lt;/p&gt;
+&lt;h3 data-hextra-search-id="issue-a-token-that-may-broadcast"&gt;Ein Token ausstellen, das Rundsendungen senden darf&lt;span class="hx:absolute hx:-mt-20" id="issue-a-token-that-may-broadcast"&gt;&lt;/span&gt;
+&lt;a href="#issue-a-token-that-may-broadcast" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Stellen Sie unter &lt;strong&gt;/admin/tokens&lt;/strong&gt; ein Token für den universellen Webhook aus und setzen Sie
+&lt;strong&gt;Darf Empfänger nennen&lt;/strong&gt; auf &lt;strong&gt;beliebige, und Rundsendung&lt;/strong&gt;. In der API ist das
+&lt;code&gt;&amp;quot;messages&amp;quot;: &amp;quot;everyone&amp;quot;&lt;/code&gt;:&lt;/p&gt;
+&lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
+&lt;div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;curl -u &amp;lt;admin-user&amp;gt;:&amp;lt;admin-password&amp;gt; -X POST http://localhost:8080/api/tokens &lt;span class="se"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; -d &lt;span class="s1"&gt;&amp;#39;{&amp;#34;name&amp;#34;: &amp;#34;office-notices&amp;#34;, &amp;#34;scope&amp;#34;: [&amp;#34;universal&amp;#34;], &amp;#34;messages&amp;#34;: &amp;#34;everyone&amp;#34;}&amp;#39;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class="hextra-code-copy-btn-container hx:opacity-0 hx:transition hx:group-hover/code:opacity-100 hx:flex hx:gap-1 hx:absolute hx:m-[11px] hx:right-0 hx:top-0"&gt;
+&lt;button
+class="hextra-code-copy-btn hx:group/copybtn hx:cursor-pointer hx:transition-all hx:active:opacity-50 hx:bg-primary-700/5 hx:border hx:border-black/5 hx:text-gray-600 hx:hover:text-gray-900 hx:rounded-md hx:p-1.5 hx:dark:bg-primary-300/10 hx:dark:border-white/10 hx:dark:text-gray-400 hx:dark:hover:text-gray-50"
+title="Code kopieren"
+aria-label="Code kopieren"
+data-copied-label="Kopiert!"
+&gt;
+&lt;div class="hextra-copy-icon hx:group-[.copied]/copybtn:hidden hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;div class="hextra-success-icon hx:hidden hx:group-[.copied]/copybtn:block hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;/button&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;p&gt;Wie jedes Token sendet es Rundsendungen nur, solange sein Ersteller die Stufe noch hat. Siehe
+&lt;a href="../webhook-tokens/#let-a-token-name-people"&gt;Ein Token Personen nennen lassen&lt;/a&gt;.&lt;/p&gt;
+&lt;h3 data-hextra-search-id="create-a-route-that-addresses-people"&gt;Eine Route anlegen, die Personen adressiert&lt;span class="hx:absolute hx:-mt-20" id="create-a-route-that-addresses-people"&gt;&lt;/span&gt;
+&lt;a href="#create-a-route-that-addresses-people" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Legen Sie eine Route an, die die Nachricht selektiert, etwa mit &lt;code&gt;{&amp;quot;kind&amp;quot;: &amp;quot;office-notice&amp;quot;}&lt;/code&gt;, oder
+bearbeiten Sie eine solche, und setzen Sie &lt;strong&gt;Liefert an&lt;/strong&gt; auf
+&lt;strong&gt;In der Nachricht genannte Personen&lt;/strong&gt;. Jede Person erhält ihre eigene, für sie gerenderte Kopie;
+die Vorlage kann also &lt;code&gt;.Recipient&lt;/code&gt; verwenden.&lt;/p&gt;
+&lt;p&gt;Eine Rundsendung wird geroutet wie jede Nachricht. Kanäle und verknüpfte Chats, die sie trifft,
+erhalten sie noch während der Anfrage. Nur die Routen, die an
+&lt;strong&gt;In der Nachricht genannte Personen&lt;/strong&gt; zustellen, senden sie an alle.&lt;/p&gt;
+&lt;h3 data-hextra-search-id="send-it"&gt;Senden&lt;span class="hx:absolute hx:-mt-20" id="send-it"&gt;&lt;/span&gt;
+&lt;a href="#send-it" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Posten Sie an den &lt;a href="../universal-webhook/"&gt;universellen Webhook&lt;/a&gt; mit &lt;code&gt;&amp;quot;broadcast&amp;quot;: true&lt;/code&gt;:&lt;/p&gt;
+&lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
+&lt;div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;curl -H &lt;span class="s2"&gt;&amp;#34;Authorization: Bearer &amp;lt;token&amp;gt;&amp;#34;&lt;/span&gt; -H &lt;span class="s1"&gt;&amp;#39;Content-Type: application/json&amp;#39;&lt;/span&gt; &lt;span class="se"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; -d &lt;span class="s1"&gt;&amp;#39;{&amp;#34;labels&amp;#34;: {&amp;#34;kind&amp;#34;: &amp;#34;office-notice&amp;#34;}, &amp;#34;text&amp;#34;: &amp;#34;The office is closed on Friday.&amp;#34;, &amp;#34;broadcast&amp;#34;: true}&amp;#39;&lt;/span&gt; &lt;span class="se"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; http://localhost:8080/webhook/universal&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class="hextra-code-copy-btn-container hx:opacity-0 hx:transition hx:group-hover/code:opacity-100 hx:flex hx:gap-1 hx:absolute hx:m-[11px] hx:right-0 hx:top-0"&gt;
+&lt;button
+class="hextra-code-copy-btn hx:group/copybtn hx:cursor-pointer hx:transition-all hx:active:opacity-50 hx:bg-primary-700/5 hx:border hx:border-black/5 hx:text-gray-600 hx:hover:text-gray-900 hx:rounded-md hx:p-1.5 hx:dark:bg-primary-300/10 hx:dark:border-white/10 hx:dark:text-gray-400 hx:dark:hover:text-gray-50"
+title="Code kopieren"
+aria-label="Code kopieren"
+data-copied-label="Kopiert!"
+&gt;
+&lt;div class="hextra-copy-icon hx:group-[.copied]/copybtn:hidden hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;div class="hextra-success-icon hx:hidden hx:group-[.copied]/copybtn:block hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;/button&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;p&gt;Dasselbe liegt im Repository als &lt;code&gt;samples/universal-broadcast.json&lt;/code&gt;. Eine Rundsendung darf weder
+&lt;code&gt;recipients&lt;/code&gt; noch das Label &lt;code&gt;teamster_recipient&lt;/code&gt; noch einen &lt;code&gt;state&lt;/code&gt; tragen: Sie wird einmal
+zugestellt und nie aktualisiert oder geschlossen.&lt;/p&gt;
+&lt;h3 data-hextra-search-id="read-the-answer"&gt;Die Antwort lesen&lt;span class="hx:absolute hx:-mt-20" id="read-the-answer"&gt;&lt;/span&gt;
+&lt;a href="#read-the-answer" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Antwort&lt;/th&gt;
+&lt;th&gt;Bedeutung&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;202 {&amp;quot;status&amp;quot;:&amp;quot;accepted&amp;quot;, &amp;quot;broadcast&amp;quot;: {...}, &amp;quot;status_url&amp;quot;: &amp;quot;/webhook/broadcasts/&amp;lt;id&amp;gt;&amp;quot;, &amp;quot;delivered&amp;quot;: n}&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;In der Warteschlange. &lt;code&gt;delivered&lt;/code&gt; zählt die Kanäle und verknüpften Chats, die während der Anfrage erreicht wurden.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;400&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;Die Nachricht nennt zusätzlich Personen oder setzt &lt;code&gt;state&lt;/code&gt;. Nichts wurde gesendet.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;403&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;Das Token darf keine Rundsendungen senden. &lt;code&gt;webhook.token&lt;/code&gt; und Tokens von vor 0.11.0 dürfen es nie. Siehe &lt;a href="../webhook-tokens/#when-a-sender-is-refused"&gt;Wenn ein Absender abgewiesen wird&lt;/a&gt;.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;422&lt;/code&gt; mit Grund &lt;code&gt;no-addressed-route&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;Keine Route, die an Personen zustellt, trifft zu. Nichts wurde gesendet.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;502&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;Etwas, das sich wieder einrenken kann, ist fehlgeschlagen. Erneut versuchen.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;/div&gt;
+&lt;h2 data-hextra-search-id="follow-its-progress"&gt;Den Fortschritt verfolgen&lt;span class="hx:absolute hx:-mt-20" id="follow-its-progress"&gt;&lt;/span&gt;
+&lt;a href="#follow-its-progress" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Fragen Sie die &lt;code&gt;status_url&lt;/code&gt; mit einem Token desselben Erstellers ab:&lt;/p&gt;
+&lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
+&lt;div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;curl -H &lt;span class="s2"&gt;&amp;#34;Authorization: Bearer &amp;lt;token&amp;gt;&amp;#34;&lt;/span&gt; http://localhost:8080/webhook/broadcasts/&amp;lt;id&amp;gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class="hextra-code-copy-btn-container hx:opacity-0 hx:transition hx:group-hover/code:opacity-100 hx:flex hx:gap-1 hx:absolute hx:m-[11px] hx:right-0 hx:top-0"&gt;
+&lt;button
+class="hextra-code-copy-btn hx:group/copybtn hx:cursor-pointer hx:transition-all hx:active:opacity-50 hx:bg-primary-700/5 hx:border hx:border-black/5 hx:text-gray-600 hx:hover:text-gray-900 hx:rounded-md hx:p-1.5 hx:dark:bg-primary-300/10 hx:dark:border-white/10 hx:dark:text-gray-400 hx:dark:hover:text-gray-50"
+title="Code kopieren"
+aria-label="Code kopieren"
+data-copied-label="Kopiert!"
+&gt;
+&lt;div class="hextra-copy-icon hx:group-[.copied]/copybtn:hidden hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;div class="hextra-success-icon hx:hidden hx:group-[.copied]/copybtn:block hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;/button&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;p&gt;&lt;code&gt;state&lt;/code&gt; ist &lt;code&gt;requested&lt;/code&gt;, solange sie wartet, &lt;code&gt;running&lt;/code&gt;, während sie gesendet wird, danach &lt;code&gt;done&lt;/code&gt;
+oder &lt;code&gt;failed&lt;/code&gt;. &lt;code&gt;total&lt;/code&gt;, &lt;code&gt;delivered&lt;/code&gt;, &lt;code&gt;unreachable&lt;/code&gt; (Bot blockiert oder entfernt) und &lt;code&gt;failed&lt;/code&gt;
+zählen Personen. Das Token einer anderen Person erhält &lt;code&gt;404&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Rundsendungen&lt;/strong&gt; in der Verwaltungsoberfläche (&lt;strong&gt;/admin/broadcasts&lt;/strong&gt;) listet Ihre eigenen
+Rundsendungen auf, für Administratoren die aller. Der Eintrag erscheint, wenn der Bot eingerichtet
+ist und Sie Rundsendungen senden dürfen. &lt;code&gt;GET /api/broadcasts&lt;/code&gt; liefert dieselbe Liste. Beendete
+Rundsendungen werden 30 Tage aufbewahrt.&lt;/p&gt;
+&lt;h2 data-hextra-search-id="know-what-to-expect"&gt;Was Sie erwarten können&lt;span class="hx:absolute hx:-mt-20" id="know-what-to-expect"&gt;&lt;/span&gt;
+&lt;a href="#know-what-to-expect" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;ul&gt;
+&lt;li&gt;Jedes Replikat mit Bot sucht nach wartenden Rundsendungen und sendet jeweils eine, 25 Personen
+pro Schritt, &lt;code&gt;webhook.fanout-concurrency&lt;/code&gt; gleichzeitig.&lt;/li&gt;
+&lt;li&gt;Fällt ein Replikat aus, übernimmt ein anderes die Rundsendung innerhalb von etwa zwei Minuten,
+ab dem letzten Schritt, den es festgehalten hat. Bis zu 25 Personen erhalten sie dann womöglich
+zweimal.&lt;/li&gt;
+&lt;li&gt;Ein fehlgeschlagener Versand wird gezählt, nicht wiederholt.&lt;/li&gt;
+&lt;li&gt;Die Empfänger werden beim Start der Rundsendung gelesen. Wer später hinzukommt, erhält sie nur,
+wenn ein Replikat die Rundsendung übernimmt und diese Person hinter der Stelle liest, bis zu der
+es gekommen war.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Den Entwurf beschreibt
+&lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0083-broadcasts-run-in-the-background.md" target="_blank" rel="noopener"&gt;ADR 0083&lt;/a&gt;.&lt;/p&gt;</description></item><item><title>Einen Webhook-Absender authentifizieren</title><link>https://pflege-de-labs.github.io/teamster/pr-preview/pr-206/de/docs/guides/webhook-tokens/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/pr-preview/pr-206/de/docs/guides/webhook-tokens/</guid><description>
 &lt;p&gt;Geben Sie jedem Absender ein eigenes Zugriffstoken, beschränkt auf den Webhook, den er verwendet,
 und finden Sie heraus, warum ein Absender abgewiesen wird.&lt;/p&gt;
 &lt;p&gt;&lt;code&gt;/webhook/alertmanager&lt;/code&gt; und &lt;code&gt;/webhook/universal&lt;/code&gt; nehmen beide ein Token als
@@ -1765,6 +2026,79 @@ Siehe &lt;a href="../../concepts/ownership/"&gt;Eigentum und Teilen&lt;/a&gt; un
 &lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0077-scoped-tokens-answer-to-their-creator.md" target="_blank" rel="noopener"&gt;ADR 0077&lt;/a&gt;.&lt;/p&gt;
 &lt;p&gt;Tokens, die vor Release 0.11.0 ausgestellt wurden, haben keinen Bereich: Sie erreichen beide
 Webhooks, gleich wer sie erstellt hat. Stellen Sie neue aus, um sie zu binden.&lt;/p&gt;
+&lt;h2 data-hextra-search-id="let-a-token-name-people"&gt;Ein Token Personen nennen lassen&lt;span class="hx:absolute hx:-mt-20" id="let-a-token-name-people"&gt;&lt;/span&gt;
+&lt;a href="#let-a-token-name-people" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Eine Nachricht, die Personen nennt, in &lt;code&gt;recipients&lt;/code&gt; am universellen Webhook oder im Label
+&lt;code&gt;teamster_recipient&lt;/code&gt; an einem der beiden Webhooks, braucht ein Token, das sie nennen darf. Siehe
+&lt;a href="../direct-messages/"&gt;Nachrichten an einzelne Personen senden&lt;/a&gt;. Wählen Sie die Nachrichtenstufe
+des Tokens beim Ausstellen unter &lt;strong&gt;Darf Empfänger nennen&lt;/strong&gt;, oder als &lt;code&gt;messages&lt;/code&gt; in der API:&lt;/p&gt;
+&lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
+&lt;div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;curl -u &amp;lt;admin-user&amp;gt;:&amp;lt;admin-password&amp;gt; -X POST http://localhost:8080/api/tokens &lt;span class="se"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; -d &lt;span class="s1"&gt;&amp;#39;{&amp;#34;name&amp;#34;: &amp;#34;password-expiry&amp;#34;, &amp;#34;scope&amp;#34;: [&amp;#34;universal&amp;#34;], &amp;#34;messages&amp;#34;: &amp;#34;anyone&amp;#34;}&amp;#39;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class="hextra-code-copy-btn-container hx:opacity-0 hx:transition hx:group-hover/code:opacity-100 hx:flex hx:gap-1 hx:absolute hx:m-[11px] hx:right-0 hx:top-0"&gt;
+&lt;button
+class="hextra-code-copy-btn hx:group/copybtn hx:cursor-pointer hx:transition-all hx:active:opacity-50 hx:bg-primary-700/5 hx:border hx:border-black/5 hx:text-gray-600 hx:hover:text-gray-900 hx:rounded-md hx:p-1.5 hx:dark:bg-primary-300/10 hx:dark:border-white/10 hx:dark:text-gray-400 hx:dark:hover:text-gray-50"
+title="Code kopieren"
+aria-label="Code kopieren"
+data-copied-label="Kopiert!"
+&gt;
+&lt;div class="hextra-copy-icon hx:group-[.copied]/copybtn:hidden hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;div class="hextra-success-icon hx:hidden hx:group-[.copied]/copybtn:block hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;/button&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Stufe&lt;/th&gt;
+&lt;th&gt;&lt;code&gt;messages&lt;/code&gt;&lt;/th&gt;
+&lt;th&gt;Das Token darf nennen&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;niemanden&lt;/td&gt;
+&lt;td&gt;fehlt&lt;/td&gt;
+&lt;td&gt;Niemanden.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;nur mich&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;self&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;Nur seinen Ersteller.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;beliebige&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;anyone&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;Jede Person im Mandanten.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;beliebige, und Rundsendung&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;everyone&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;Jede Person, und mit &lt;code&gt;&amp;quot;broadcast&amp;quot;: true&lt;/code&gt; alle auf einmal. Siehe &lt;a href="../broadcasts/"&gt;Eine Nachricht an alle senden&lt;/a&gt;.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;nur mich&lt;/strong&gt; steht jedem offen, der ein Token ausstellen darf. Jede Adresse in der Nachricht
+muss der Ersteller sein: seine Entra-Objekt-ID aus seiner letzten Anmeldung
+(&lt;code&gt;auth.object-id-claim&lt;/code&gt;) oder die, die sein verknüpfter Chat festgehalten hat. Kennt Teamster
+keine von beiden, nennt das Token niemanden: Melden Sie sich einmal an, oder verknüpfen Sie
+Ihren Chat.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;beliebige&lt;/strong&gt; erfordert die Berechtigung, beliebige Personen anzuschreiben, die Administratoren
+haben und erteilen; siehe
+&lt;a href="../roles/#let-someone-message-people"&gt;Jemanden Personen anschreiben lassen&lt;/a&gt;.
+&lt;strong&gt;beliebige, und Rundsendung&lt;/strong&gt; erfordert die Stufe &lt;strong&gt;beliebige, und Rundsendung an alle&lt;/strong&gt;.&lt;/li&gt;
+&lt;li&gt;Die Stufe eines Tokens ist nie höher als die seines Erstellers. Wer mehr verlangt, wird
+abgewiesen, von der API mit &lt;code&gt;403&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;Jede Verwendung prüft die Stufe des Erstellers, wie sie gerade ist. Ein &lt;strong&gt;beliebige&lt;/strong&gt;-Token,
+dessen Ersteller diese Berechtigung verloren hat, nennt von da an nur noch seinen Ersteller.&lt;/li&gt;
+&lt;li&gt;Tokens von vor Release 0.11.0 und &lt;code&gt;webhook.token&lt;/code&gt; sind an keinen Ersteller gebunden, dessen
+Stufe sich prüfen ließe, und können daher niemanden nennen. Stellen Sie für einen solchen Absender
+ein Token mit Nachrichtenstufe aus.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Das &lt;code&gt;403&lt;/code&gt; kommt, bevor irgendetwas zugestellt wird. Ein abgewiesener Alertmanager-Stapel stellt
+keinen seiner Alarme zu, auch nicht die, die niemanden nennen. Eine Nachricht, die Personen nennt,
+wird auch dann geprüft, wenn die Route, die sie trifft, an einen Kanal zustellt. Den Entwurf
+beschreibt
+&lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0082-naming-people-takes-permission.md" target="_blank" rel="noopener"&gt;ADR 0082&lt;/a&gt;.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="use-a-deployment-wide-token"&gt;Ein Token für die gesamte Installation verwenden&lt;span class="hx:absolute hx:-mt-20" id="use-a-deployment-wide-token"&gt;&lt;/span&gt;
 &lt;a href="#use-a-deployment-wide-token" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;&lt;code&gt;webhook.token&lt;/code&gt; ist ein einzelnes Token aus der Konfiguration, das zusätzlich zu den ausgestellten
 akzeptiert wird. Verwenden Sie es, wenn ein Absender deklarativ eingerichtet werden muss, bevor sich
@@ -1784,7 +2118,9 @@ data-copied-label="Kopiert!"
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;p&gt;Übergeben Sie es als &lt;code&gt;TEAMSTER_WEBHOOK_TOKEN&lt;/code&gt; statt in der Datei. Es hat keinen Bereich: Es
-erreicht beide Webhooks. Zum Rotieren ändern Sie den Wert und starten neu.&lt;/p&gt;
+erreicht beide Webhooks. Es kann keine Personen nennen und keine Rundsendungen senden, ein
+Absender, der &lt;code&gt;recipients&lt;/code&gt;, &lt;code&gt;teamster_recipient&lt;/code&gt; oder &lt;code&gt;broadcast&lt;/code&gt; setzt, braucht also ein
+ausgestelltes Token. Zum Rotieren ändern Sie den Wert und starten neu.&lt;/p&gt;
 &lt;div class="hx:overflow-x-auto hx:mt-6 hx:flex hx:rounded-lg hx:border hx:py-2 hx:ltr:pr-4 hx:rtl:pl-4 hx:contrast-more:border-current hx:contrast-more:dark:border-current hx:border-amber-200 hx:bg-amber-100 hx:text-amber-900 hx:dark:border-amber-200/30 hx:dark:bg-amber-900/30 hx:dark:text-amber-200"&gt;
 &lt;div class="hx:ltr:pl-3 hx:ltr:pr-2 hx:rtl:pr-3 hx:rtl:pl-2"&gt;&lt;svg height=1.2em class="hx:inline-block hx:align-middle" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"&gt;&lt;path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/&gt;&lt;/svg&gt;&lt;/div&gt;
 &lt;div class="hx:w-full hx:min-w-0 hx:leading-7"&gt;
@@ -1812,6 +2148,16 @@ jeder Absender abgewiesen, und Teamster protokolliert das beim Start.&lt;/li&gt;
 &lt;p&gt;&lt;strong&gt;&lt;code&gt;403&lt;/code&gt; mit einem JSON-Body&lt;/strong&gt; &lt;code&gt;{&amp;quot;error&amp;quot;: &amp;quot;the token's scope, or its creator, does not allow this webhook&amp;quot;}&lt;/code&gt; bedeutet, dass ein Token mit Bereich für einen Webhook verwendet wurde, den sein Bereich
 nicht nennt, oder dass sein Ersteller ihn nicht mehr verwenden darf. Die Logzeile &lt;code&gt;webhook refused&lt;/code&gt;
 nennt das Token und seinen Ersteller. Die Abweisung wird mit dem Zustand &lt;code&gt;forbidden&lt;/code&gt; gezählt.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;&lt;code&gt;403&lt;/code&gt;&lt;/strong&gt; mit &lt;code&gt;{&amp;quot;error&amp;quot;: &amp;quot;this token may not name recipients: …&amp;quot;}&lt;/code&gt; bedeutet, dass die Nachricht
+Personen nennt und ihr Token das nicht darf: Es hat keine Nachrichtenstufe, es ist &lt;code&gt;webhook.token&lt;/code&gt;
+oder stammt von vor 0.11.0, oder sein Ersteller darf keine Personen mehr anschreiben.
+&lt;code&gt;{&amp;quot;error&amp;quot;: &amp;quot;this token may only name its creator as a recipient&amp;quot;}&lt;/code&gt; bedeutet, dass ein
+&lt;strong&gt;nur mich&lt;/strong&gt;-Token jemand anderen genannt hat oder Teamster die Objekt-ID seines Erstellers noch
+nicht kennt. &lt;code&gt;{&amp;quot;error&amp;quot;: &amp;quot;this token may not broadcast: it needs the message level everyone&amp;quot;}&lt;/code&gt;
+bedeutet eine Rundsendung von einem Token unterhalb von &lt;strong&gt;beliebige, und Rundsendung&lt;/strong&gt; oder von
+einem, dessen Ersteller die Stufe &lt;strong&gt;beliebige, und Rundsendung an alle&lt;/strong&gt; nicht mehr hat. Alle
+werden wie die Abweisung wegen des Bereichs protokolliert und gezählt. Siehe
+&lt;a href="#let-a-token-name-people"&gt;Ein Token Personen nennen lassen&lt;/a&gt;.&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;&lt;code&gt;403 RBAC: access denied&lt;/code&gt;&lt;/strong&gt; ist nicht die Antwort von Teamster. Das ist der Wortlaut von Envoy:
 Ein Service Mesh, etwa eine Istio-&lt;code&gt;AuthorizationPolicy&lt;/code&gt;, oder ein Gateway hat die Anfrage
 abgewiesen, bevor sie den Pod erreicht hat. Erlauben Sie dort dem Workload des Absenders den
@@ -3118,11 +3464,12 @@ zu bauen. Richtlinien hinzuzufügen ist unbedenklich. Wer &lt;code&gt;admin&lt;/
 oder umbenennt, macht die Verwaltungsoberfläche unbrauchbar.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="check-who-may-do-what"&gt;Prüfen, wer was darf&lt;span class="hx:absolute hx:-mt-20" id="check-who-may-do-what"&gt;&lt;/span&gt;
 &lt;a href="#check-who-may-do-what" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;ul&gt;
-&lt;li&gt;&lt;strong&gt;/admin/access&lt;/strong&gt; (Administratoren) zeigt jede Berechtigung, wer an die Webhooks senden darf, und
-die geltenden Cedar-Richtlinien. &lt;strong&gt;Wer darf?&lt;/strong&gt; nimmt ein Subject, eine Aktion und eine Ressource
-entgegen und nennt die Richtlinien, die sie erlauben oder verweigern.&lt;/li&gt;
-&lt;li&gt;&lt;strong&gt;Mein Zugriff&lt;/strong&gt; im Kontomenü (&lt;strong&gt;/admin/me&lt;/strong&gt;) zeigt jedem die eigenen Rollen, Gruppen, Webhooks
-und die Berechtigungen, die ihn nennen.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;/admin/access&lt;/strong&gt; (Administratoren) zeigt jede Berechtigung, wer an die Webhooks senden darf,
+wer Personen anschreiben darf, und die geltenden Cedar-Richtlinien. &lt;strong&gt;Wer darf?&lt;/strong&gt; nimmt ein
+Subject, eine Aktion und eine Ressource entgegen und nennt die Richtlinien, die sie erlauben oder
+verweigern.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Mein Zugriff&lt;/strong&gt; im Kontomenü (&lt;strong&gt;/admin/me&lt;/strong&gt;) zeigt jedem die eigenen Rollen, Gruppen, Webhooks,
+&lt;strong&gt;Wen Sie anschreiben dürfen&lt;/strong&gt; und die Berechtigungen, die ihn nennen.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;p&gt;Eine verweigerte Anfrage ist ein &lt;code&gt;403&lt;/code&gt;, das die Rolle und die Ressource nennt.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="collect-people-in-groups"&gt;Personen in Gruppen zusammenfassen&lt;span class="hx:absolute hx:-mt-20" id="collect-people-in-groups"&gt;&lt;/span&gt;
@@ -3208,6 +3555,63 @@ data-copied-label="Kopiert!"
 &lt;p&gt;&lt;code&gt;principal_type&lt;/code&gt; ist &lt;code&gt;user&lt;/code&gt;, &lt;code&gt;group&lt;/code&gt;, &lt;code&gt;idp_group&lt;/code&gt; oder &lt;code&gt;role&lt;/code&gt;. Mit einer Stufe können sie eigene
 Token ausstellen; siehe &lt;a href="../webhook-tokens/"&gt;Webhook-Absender authentifizieren&lt;/a&gt;. Wird ihnen die
 Stufe entzogen, sind diese Token bei ihrer nächsten Verwendung widerrufen.&lt;/p&gt;
+&lt;h2 data-hextra-search-id="let-someone-message-people"&gt;Jemanden Personen anschreiben lassen&lt;span class="hx:absolute hx:-mt-20" id="let-someone-message-people"&gt;&lt;/span&gt;
+&lt;a href="#let-someone-message-people" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Eine Nachricht, die Personen nennt, braucht ein Token, das sie nennen darf; siehe
+&lt;a href="../webhook-tokens/#let-a-token-name-people"&gt;Ein Token Personen nennen lassen&lt;/a&gt;. Jede angemeldete
+Person darf sich selbst nennen. Andere zu nennen erfordert die Stufe &lt;strong&gt;beliebige&lt;/strong&gt;, gesetzt auf
+&lt;strong&gt;/admin/access&lt;/strong&gt; unter &lt;strong&gt;Wer Personen anschreiben darf&lt;/strong&gt;, je Benutzer, Gruppe, Anbietergruppe
+oder Rolle. Administratoren haben sie bereits. Erteilen Sie sie den Personen, die Hinweise an
+Kollegen versenden, etwa Office-Administratoren. Die Stufe &lt;strong&gt;beliebige, und Rundsendung an alle&lt;/strong&gt;
+erlaubt zusätzlich, eine Nachricht an alle zu senden, die der Bot erreichen kann; siehe
+&lt;a href="../broadcasts/"&gt;Eine Nachricht an alle senden&lt;/a&gt;.&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Stufe&lt;/th&gt;
+&lt;th&gt;API-Wert&lt;/th&gt;
+&lt;th&gt;Sie und ihre Token dürfen nennen&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;nur sich selbst&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;none&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;Nur sich selbst&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;beliebige&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;anyone&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;Jede Person im Mandanten&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;beliebige, und Rundsendung an alle&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;everyone&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;Jede Person, und &lt;a href="../broadcasts/"&gt;alle auf einmal&lt;/a&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
+&lt;div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;curl -u &amp;lt;admin-user&amp;gt;:&amp;lt;admin-password&amp;gt; -X PUT http://localhost:8080/api/access/messages &lt;span class="se"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; -d &lt;span class="s1"&gt;&amp;#39;{&amp;#34;principal_type&amp;#34;: &amp;#34;idp_group&amp;#34;, &amp;#34;principal_id&amp;#34;: &amp;#34;&amp;lt;provider group&amp;gt;&amp;#34;, &amp;#34;level&amp;#34;: &amp;#34;anyone&amp;#34;}&amp;#39;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class="hextra-code-copy-btn-container hx:opacity-0 hx:transition hx:group-hover/code:opacity-100 hx:flex hx:gap-1 hx:absolute hx:m-[11px] hx:right-0 hx:top-0"&gt;
+&lt;button
+class="hextra-code-copy-btn hx:group/copybtn hx:cursor-pointer hx:transition-all hx:active:opacity-50 hx:bg-primary-700/5 hx:border hx:border-black/5 hx:text-gray-600 hx:hover:text-gray-900 hx:rounded-md hx:p-1.5 hx:dark:bg-primary-300/10 hx:dark:border-white/10 hx:dark:text-gray-400 hx:dark:hover:text-gray-50"
+title="Code kopieren"
+aria-label="Code kopieren"
+data-copied-label="Kopiert!"
+&gt;
+&lt;div class="hextra-copy-icon hx:group-[.copied]/copybtn:hidden hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;div class="hextra-success-icon hx:hidden hx:group-[.copied]/copybtn:block hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;/button&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;p&gt;&lt;code&gt;principal_type&lt;/code&gt; ist &lt;code&gt;user&lt;/code&gt;, &lt;code&gt;group&lt;/code&gt;, &lt;code&gt;idp_group&lt;/code&gt; oder &lt;code&gt;role&lt;/code&gt;. &lt;code&gt;none&lt;/code&gt; nimmt die Stufe zurück, und
+ihre Token mit &lt;strong&gt;beliebige&lt;/strong&gt; oder &lt;strong&gt;beliebige, und Rundsendung&lt;/strong&gt; nennen ab der nächsten Anfrage nur
+noch ihren Ersteller. In Cedar ist &lt;strong&gt;beliebige&lt;/strong&gt; die Aktion &lt;code&gt;message&lt;/code&gt; auf &lt;code&gt;People::&amp;quot;*&amp;quot;&lt;/code&gt; und
+&lt;strong&gt;beliebige, und Rundsendung an alle&lt;/strong&gt; die Aktion &lt;code&gt;broadcast&lt;/code&gt;. Jede schließt die Stufen darunter
+ein, bis hinab zu &lt;code&gt;messageSelf&lt;/code&gt;, der Aktion, die jeder hat. Siehe
+&lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0082-naming-people-takes-permission.md" target="_blank" rel="noopener"&gt;ADR 0082&lt;/a&gt;
+und
+&lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0083-broadcasts-run-in-the-background.md" target="_blank" rel="noopener"&gt;ADR 0083&lt;/a&gt;.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="share-a-record"&gt;Einen Datensatz teilen&lt;span class="hx:absolute hx:-mt-20" id="share-a-record"&gt;&lt;/span&gt;
 &lt;a href="#share-a-record" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Wer eine Vorlage, ein Ziel, eine Route, einen Webhook-Endpunkt oder eine Gruppe anlegt, ist ihr
 Eigentümer. Um einen Datensatz zu teilen, bearbeiten Sie ihn und nutzen &lt;strong&gt;Wer was darf&lt;/strong&gt;: Geben Sie
