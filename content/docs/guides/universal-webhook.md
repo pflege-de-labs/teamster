@@ -8,7 +8,8 @@ monitoring tool with a generic webhook. The sender posts labels to route on and 
 render, and Teamster does the rest.
 
 The endpoint is `POST /webhook/universal`, authenticated with `Authorization: Bearer <token>`.
-Issue a token scoped to **Universal webhook** at **/admin/tokens**; see
+Issue a token at **/admin/tokens** and, under **May send to**, leave only `/webhook/universal`
+ticked; see
 [Authenticate a webhook sender](../webhook-tokens/).
 
 ## Send a one-off message

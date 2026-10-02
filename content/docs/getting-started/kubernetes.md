@@ -82,7 +82,7 @@ operator or cloud provider already created.
 
 ## Next steps
 
-* [Choose a storage backend](../../guides/storage/) and
+* [Choose and run storage](../../guides/storage/) and
   [move from SQLite to Postgres](../../guides/backup-and-migration/).
 * [Send alerts from Alertmanager](../../guides/alertmanager/) inside the cluster.
 * Every chart value: [Helm values](../../reference/helm-values/).

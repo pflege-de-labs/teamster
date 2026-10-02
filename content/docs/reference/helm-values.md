@@ -306,5 +306,5 @@ resources. Require NACK's CRDs and controller.
 
 ## See also
 
-* [Deploy on Kubernetes](../../getting-started/kubernetes/)
+* [Kubernetes](../../getting-started/kubernetes/)
 * [Configuration](../configuration/)

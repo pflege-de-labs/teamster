@@ -20,6 +20,8 @@ jobs:
             **/*.md
             #public
             #resources
+      - name: Every page exists in English and German
+        run: scripts/check-translations.sh
 
   build:
     runs-on: ubuntu-latest
