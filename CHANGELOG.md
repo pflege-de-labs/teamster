@@ -23,6 +23,11 @@ reasoning behind it in the [ADRs](docs/adr/).
   **only me** names only its creator, **anyone** names anyone in the tenant. Admins grant
   **anyone** to users, groups, provider groups or roles at `/admin/access` or with
   `PUT /api/access/messages`. `/admin/me` shows whom you may message.
+* `"broadcast": true` on the universal webhook sends a message to everyone the bot can reach,
+  without listing them. It needs the message level **everyone**, which includes **anyone**. The
+  webhook answers `202`, a background run shared across replicas delivers it, and
+  `GET /webhook/broadcasts/{id}` and `/admin/broadcasts` show its progress
+  ([ADR 0083](docs/adr/0083-broadcasts-run-in-the-background.md)).
 
 ### Fixed
 

@@ -457,9 +457,9 @@ rendered for them, so a template can greet them by `{{ .Recipient.GivenName }}`
 A message that names anyone, in `recipients` or in the label, is refused with `403` unless its token
 may name them:
 
-- The token needs a message level, chosen when it is minted: **only me** or **anyone**. It can
-  never be higher than its creator's own level, and every use checks the creator's level as it is
-  now.
+- The token needs a message level, chosen when it is minted: **only me**, **anyone**, or
+  **anyone, and broadcast** (see [Broadcasts](#broadcasts)). It can never be higher than its
+  creator's own level, and every use checks the creator's level as it is now.
 - **Only me** is open to everyone who may use the webhook. Every address must be the token's
   creator: their Entra object id from their last sign-in (`auth.object-id-claim`), or the chat they
   linked. Naming anyone else is refused.
@@ -485,6 +485,44 @@ may name them:
 - With `state` `open`, each person's message is updated in place on a repeat, and a `closed` post
   with the same `key` sends each person the close; it does not need to repeat the recipients. A
   message with no `key` gets one derived from its labels, time, url and recipients.
+
+### Broadcasts
+
+`"broadcast": true` sends a message to everyone the bot can reach, without listing them
+([ADR 0083](docs/adr/0083-broadcasts-run-in-the-background.md)). See
+[samples/universal-broadcast.json](samples/universal-broadcast.json):
+
+```json
+{
+  "labels": {"kind": "notice"},
+  "text": "The office is closed on Friday.",
+  "broadcast": true
+}
+```
+
+- It needs a token with the message level **anyone, and broadcast**, whose creator holds the level
+  **everyone** (see [Who may do what](#who-may-do-what)). Admins do.
+- It goes through the routes like any message. Those that deliver to **People named in the
+  message** send it to everyone; channels and linked chats it matches get it at once. Without such a
+  route the answer is `422` with reason `no-addressed-route`.
+- Everyone is every enabled member with the app installed, from the directory global install
+  keeps, plus everyone who linked a chat, each once.
+- It is delivered once: `recipients`, the `teamster_recipient` label and `state` are refused with
+  `400`.
+- The webhook answers `202` with the broadcast's `id` and a `status_url`. The run continues in the
+  background, on whichever replica takes it. A replica that stops is taken over within two minutes
+  from where it got to, so a few people may get it twice.
+
+```json
+{"status": "accepted", "broadcast": {"id": "…", "state": "requested", "total": 0, …},
+ "status_url": "/webhook/broadcasts/…", "delivered": 0}
+```
+
+`GET /webhook/broadcasts/{id}`, with a token of the same creator, answers with the state
+(`requested`, `running`, `done` or `failed`) and the counts `total`, `delivered`, `unreachable`
+(blocked or removed the bot) and `failed`. **Broadcasts** in the navigation (`/admin/broadcasts`,
+`GET /api/broadcasts`) lists your own, and everyone's for admins. Finished broadcasts are kept for
+30 days.
 
 The answer says who was not reached:
 
@@ -515,8 +553,8 @@ Both webhooks take a token as `Authorization: Bearer <token>`. Two kinds of toke
   The page lists when each token was last used. A token that should name recipients also needs a
   message level, see [Messages to individual people](#messages-to-individual-people). Scripts can
   do the same through `POST /api/tokens` with
-  `{"name": "…", "scope": ["universal"], "messages": "self"}` (`messages` is `self`, `anyone` or
-  absent), `GET /api/tokens` and `DELETE /api/tokens/{id}`.
+  `{"name": "…", "scope": ["universal"], "messages": "self"}` (`messages` is `self`, `anyone`,
+  `everyone` or absent), `GET /api/tokens` and `DELETE /api/tokens/{id}`.
 - **`webhook.token`** (`TEAMSTER_WEBHOOK_TOKEN`), one deployment-wide token from configuration.
   It is optional. Use it when a sender has to be configured declaratively before anyone can sign
   in to issue a token. It cannot name recipients.
@@ -596,7 +634,8 @@ curl -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
   name recipients` means the token has no message level, is `webhook.token` or predates 0.11, or
   its creator lost the level. `this token may only name its creator` means an **only me** token
   named someone else, or Teamster does not know the creator's object id: they sign in once, or
-  link their chat.
+  link their chat. `this token may not broadcast` means a broadcast from a token below
+  **anyone, and broadcast**, or whose creator lost the level **everyone**.
 - **`503`**: Teamster could not check the token because the database did not answer. The sender
   should retry, as it does for any 5xx.
 
@@ -1121,13 +1160,20 @@ Editors and admins may use both webhooks without a level. The API is `PUT /api/a
 with `{"principal_type": "group", "principal_id": "…", "level": "alertmanager"}`. See
 [ADR 0076](docs/adr/0076-webhook-permissions-and-access-overviews.md).
 
-Who may message people is set the same way. Everyone signed in may name themselves; the level
-**anyone** lets a principal, and the tokens they mint, name anyone in the tenant. Grant it to the
-office admins who send notices to colleagues. Admins hold it already. The API is
+Who may message people is set the same way. Everyone signed in may name themselves:
+
+| Level | May name | Cedar action on `People::"*"` |
+| --- | --- | --- |
+| none | themselves only | `messageSelf`, everyone's |
+| anyone | anyone in the tenant | `message` |
+| everyone | anyone, and [broadcast](#broadcasts) to everyone | `broadcast` |
+
+Each level includes the ones above it, so granting **everyone** is enough to broadcast. Grant it
+to the office admins who send notices to colleagues. Admins hold it already. The API is
 `PUT /api/access/messages` with `{"principal_type": "idp_group", "principal_id": "office",
-"level": "anyone"}`, and `none` takes it back. The grant is the Cedar action `message` on
-`People::"*"`, which includes `messageSelf`. See
-[ADR 0082](docs/adr/0082-naming-people-takes-permission.md).
+"level": "everyone"}`, and `none` takes it back. See
+[ADR 0082](docs/adr/0082-naming-people-takes-permission.md) and
+[ADR 0083](docs/adr/0083-broadcasts-run-in-the-background.md).
 
 ### Groups
 

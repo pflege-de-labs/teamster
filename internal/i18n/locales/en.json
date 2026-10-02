@@ -448,5 +448,19 @@
   "tokens.messages.none": "nobody",
   "tokens.messages.self": "only me",
   "tokens.messages.anyone": "anyone",
-  "tokens.messages_hint": "Recipients and the teamster_recipient label are refused unless the token may name them. A token never names more people than you may message yourself."
+  "tokens.messages_hint": "Recipients and the teamster_recipient label are refused unless the token may name them. A token never names more people than you may message yourself.",
+  "access.message_level.everyone": "anyone, and broadcast to everyone",
+  "me.messages.everyone": "anyone, and everyone at once",
+  "tokens.messages.everyone": "anyone, and broadcast",
+  "nav.broadcasts": "Broadcasts",
+  "page.broadcasts": "Broadcasts",
+  "broadcasts.heading": "Broadcasts",
+  "broadcasts.explainer": "Messages sent with \"broadcast\": true reach everyone the bot can message, in the background. Admins see everyone's; you see your own.",
+  "broadcasts.empty": "No broadcasts yet.",
+  "broadcasts.requested": "{0} by {1}, token {2}",
+  "broadcasts.counts": "{0} of {1} delivered, {2} unreachable, {3} failed",
+  "broadcasts.state.requested": "waiting",
+  "broadcasts.state.running": "sending",
+  "broadcasts.state.done": "done",
+  "broadcasts.state.failed": "failed"
 }

@@ -213,6 +213,23 @@ type Store interface {
 	FinishDirectoryRun(ctx context.Context, id, owner string, state models.RunState, counts models.RunCounts, lastError string, now time.Time) (bool, error)
 	PruneDirectoryRuns(ctx context.Context, before time.Time) (int64, error)
 
+	// ListReachableDirectoryUsers pages through everyone a broadcast reaches
+	// through the directory, by object id after `after` (ADR 0083).
+	ListReachableDirectoryUsers(ctx context.Context, after string, limit int) ([]models.DirectoryUser, error)
+
+	// Broadcasts (ADR 0083). ClaimBroadcast, HeartbeatBroadcast and
+	// FinishBroadcast report false when it is not, or no longer, this owner's.
+	CreateBroadcast(ctx context.Context, b models.Broadcast) (models.Broadcast, error)
+	GetBroadcast(ctx context.Context, id string) (models.Broadcast, error)
+	// ListBroadcasts is newest first; an empty requestedBy lists everyone's.
+	ListBroadcasts(ctx context.Context, requestedBy string, limit int) ([]models.Broadcast, error)
+	// NextBroadcast is the oldest waiting one, or a running one gone stale.
+	NextBroadcast(ctx context.Context, staleBefore time.Time) (models.Broadcast, error)
+	ClaimBroadcast(ctx context.Context, id, owner string, now, staleBefore time.Time) (bool, error)
+	HeartbeatBroadcast(ctx context.Context, id, owner, cursor string, counts models.BroadcastCounts, now time.Time) (bool, error)
+	FinishBroadcast(ctx context.Context, id, owner string, state models.RunState, cursor string, counts models.BroadcastCounts, lastError string, now time.Time) (bool, error)
+	PruneBroadcasts(ctx context.Context, before time.Time) (int64, error)
+
 	ListAccessTokens(ctx context.Context) ([]models.AccessToken, error)
 	// CreateAccessToken reports ErrConflict when the name is taken.
 	CreateAccessToken(ctx context.Context, t models.AccessToken) (models.AccessToken, error)

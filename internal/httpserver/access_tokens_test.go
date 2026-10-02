@@ -248,24 +248,26 @@ func TestTokenMessageLevels(t *testing.T) {
 	tests := []struct {
 		name     string
 		role     authz.Role
-		granted  bool
+		granted  string
 		messages string
 		want     int
 	}{
-		{"no level is anyone's", authz.RoleViewer, false, "", http.StatusCreated},
-		{"an editor mints a self token", authz.RoleEditor, false, authz.MessagesSelf, http.StatusCreated},
-		{"an editor may not mint an anyone token", authz.RoleEditor, false, authz.MessagesAnyone, http.StatusForbidden},
-		{"a granted editor may", authz.RoleEditor, true, authz.MessagesAnyone, http.StatusCreated},
-		{"an admin may", authz.RoleAdmin, false, authz.MessagesAnyone, http.StatusCreated},
-		{"an unknown level", authz.RoleAdmin, false, "everybody", http.StatusForbidden},
+		{"no level is anyone's", authz.RoleViewer, "", "", http.StatusCreated},
+		{"an editor mints a self token", authz.RoleEditor, "", authz.MessagesSelf, http.StatusCreated},
+		{"an editor may not mint an anyone token", authz.RoleEditor, "", authz.MessagesAnyone, http.StatusForbidden},
+		{"a granted editor may", authz.RoleEditor, authz.ActionMessage, authz.MessagesAnyone, http.StatusCreated},
+		{"naming anyone is not broadcasting", authz.RoleEditor, authz.ActionMessage, authz.MessagesEveryone, http.StatusForbidden},
+		{"a broadcaster mints an everyone token", authz.RoleEditor, authz.ActionBroadcast, authz.MessagesEveryone, http.StatusCreated},
+		{"an admin may", authz.RoleAdmin, "", authz.MessagesEveryone, http.StatusCreated},
+		{"an unknown level", authz.RoleAdmin, "", "everybody", http.StatusForbidden},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			st := sessionAs(tokenStore(), tt.role)
 			grantTo(st, models.PrincipalUser, "tester", "Webhook", "universal", "use")
-			if tt.granted {
-				grantTo(st, models.PrincipalUser, "tester", authz.PeopleResource.Type, authz.PeopleResource.ID, authz.ActionMessage)
+			if tt.granted != "" {
+				grantTo(st, models.PrincipalUser, "tester", authz.PeopleResource.Type, authz.PeopleResource.ID, tt.granted)
 			}
 			handler := newTestServer(t, st, &fakeMessenger{}).Handler
 			rec := call(t, handler, http.MethodPost, "/api/tokens", `{"name":"n","scope":["universal"],"messages":"`+tt.messages+`"}`)
@@ -290,7 +292,7 @@ func TestTokenMessageLevels(t *testing.T) {
 	st.accessTokens["mine"] = models.AccessToken{ID: "mine", Name: "mine", TokenHash: "h-mine", CreatedBy: "tester", Scope: []string{"universal"}, Messages: authz.MessagesSelf}
 	handler := newTestServer(t, st, &fakeMessenger{}).Handler
 	body := call(t, handler, http.MethodGet, "/admin/tokens", "").Body.String()
-	if !strings.Contains(body, `value="self"`) || strings.Contains(body, `value="anyone"`) {
+	if !strings.Contains(body, `value="self"`) || strings.Contains(body, `value="anyone"`) || strings.Contains(body, `href="/admin/broadcasts"`) {
 		t.Error("an editor should be offered self and not anyone")
 	}
 	if !strings.Contains(body, "only me") {

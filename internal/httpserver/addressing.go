@@ -30,7 +30,8 @@ func (s *Server) authorizeAddresses(ctx context.Context, from sender, events []m
 	for _, ev := range events {
 		addresses = append(addresses, models.AddressesOf(ev)...)
 	}
-	if len(addresses) == 0 {
+	broadcast := isBroadcast(events)
+	if len(addresses) == 0 && !broadcast {
 		return nil
 	}
 	if from.creator == nil {
@@ -39,6 +40,12 @@ func (s *Server) authorizeAddresses(ctx context.Context, from sender, events []m
 	snapshot, err := s.engine.Authorizer(ctx)
 	if err != nil {
 		return err
+	}
+	if broadcast {
+		if snapshot.AllowTokenMessage(from.token.ID, *from.creator, authz.ActionBroadcast) {
+			return nil
+		}
+		return errMayNotBroadcast
 	}
 	if snapshot.AllowTokenMessage(from.token.ID, *from.creator, authz.ActionMessage) {
 		return nil
@@ -112,7 +119,7 @@ func (s *Server) refuseAddresses(w http.ResponseWriter, r *http.Request, from se
 		return false
 	}
 	ctx := r.Context()
-	if errors.Is(err, errMayNotAddress) || errors.Is(err, errOnlySelf) {
+	if errors.Is(err, errMayNotAddress) || errors.Is(err, errOnlySelf) || errors.Is(err, errMayNotBroadcast) {
 		s.metrics.WebhookReceived(ctx, source, "forbidden")
 		logging.FromContext(ctx).Warn("webhook refused", "source", source, "token", from.token.Name, "creator", from.token.CreatedBy, "reason", err)
 		writeJSONError(w, http.StatusForbidden, err.Error())

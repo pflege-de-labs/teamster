@@ -9,12 +9,14 @@ import (
 )
 
 // Message actions: naming people in a message (ADR 0082). Each is part of the
-// next, so a grant of message covers messageSelf.
+// next, so a grant of message covers messageSelf and one of broadcast both.
 const (
 	// ActionMessageSelf is a message that names only its sender.
 	ActionMessageSelf = "messageSelf"
 	// ActionMessage is a message that names anyone in the tenant.
 	ActionMessage = "message"
+	// ActionBroadcast is a message to everyone the bot can reach (ADR 0083).
+	ActionBroadcast = "broadcast"
 )
 
 // PeopleResource is what the message actions are asked about.
@@ -25,15 +27,18 @@ const (
 	MessagesNone   = ""
 	MessagesSelf   = "self"
 	MessagesAnyone = "anyone"
+	// MessagesEveryone adds broadcasting to anyone (ADR 0083).
+	MessagesEveryone = "everyone"
 )
 
 // MessageLevels are the levels a token may be scoped to, weakest first.
-var MessageLevels = []string{MessagesSelf, MessagesAnyone}
+var MessageLevels = []string{MessagesSelf, MessagesAnyone, MessagesEveryone}
 
 // messageActions is the action each level stands for.
 var messageActions = map[string]string{
-	MessagesSelf:   ActionMessageSelf,
-	MessagesAnyone: ActionMessage,
+	MessagesSelf:     ActionMessageSelf,
+	MessagesAnyone:   ActionMessage,
+	MessagesEveryone: ActionBroadcast,
 }
 
 // MessageAction is the action a level stands for.

@@ -51,7 +51,7 @@ type AccessCheck struct {
 var WebhookLevels = []string{"none", "alertmanager", "universal", "all", "admin"}
 
 // MessageLevels are the choices the message form offers, weakest first.
-var MessageLevels = []string{"none", "anyone"}
+var MessageLevels = []string{"none", "anyone", "everyone"}
 
 templ AccessPage(page Access) {
 	@Layout(i18n.T(ctx, "page.access"), &page.Viewer) {

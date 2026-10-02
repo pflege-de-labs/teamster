@@ -1,0 +1,53 @@
+package views
+
+import (
+	"strconv"
+
+	"github.com/pflege-de-labs/teamster/internal/i18n"
+	"github.com/pflege-de-labs/teamster/internal/models"
+)
+
+// Broadcasts is the page at /admin/broadcasts: messages to everyone the bot
+// can reach, and how far each has come (ADR 0083).
+type Broadcasts struct {
+	Viewer Viewer
+	Items  []models.Broadcast
+	Error  string
+}
+
+templ BroadcastsPage(page Broadcasts) {
+	@Layout(i18n.T(ctx, "page.broadcasts"), &page.Viewer) {
+		@notice(page.Error, "")
+		<section class="rounded-lg border border-slate-200 bg-white shadow-sm">
+			<h2 class="border-b border-slate-200 px-6 py-4 text-lg font-semibold">
+				{ i18n.T(ctx, "broadcasts.heading") }
+			</h2>
+			<div class="space-y-4 px-6 py-6">
+				<p class="text-sm text-slate-600">{ i18n.T(ctx, "broadcasts.explainer") }</p>
+				if len(page.Items) == 0 {
+					@empty(i18n.T(ctx, "broadcasts.empty"))
+				} else {
+					<ul class="divide-y divide-slate-200">
+						for _, b := range page.Items {
+							<li class="py-3 text-sm">
+								<div class="flex justify-between gap-4">
+									<span class="font-mono text-xs">{ b.ID }</span>
+									<span class="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600">{ i18n.T(ctx, "broadcasts.state."+string(b.State)) }</span>
+								</div>
+								<div class="text-xs text-slate-500">
+									{ i18n.T(ctx, "broadcasts.requested", stamp(ctx, b.RequestedAt), b.RequestedBy, b.TokenName) }
+								</div>
+								<div class="text-xs text-slate-500">
+									{ i18n.T(ctx, "broadcasts.counts", strconv.FormatInt(b.Delivered, 10), strconv.FormatInt(b.Total, 10), strconv.FormatInt(b.Unreachable, 10), strconv.FormatInt(b.Failed, 10)) }
+								</div>
+								if b.LastError != "" {
+									<div class="text-xs text-red-700">{ b.LastError }</div>
+								}
+							</li>
+						}
+					</ul>
+				}
+			</div>
+		</section>
+	}
+}

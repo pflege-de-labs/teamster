@@ -74,6 +74,9 @@ templ sidebar(viewer Viewer) {
 			if viewer.CanTokens {
 				@navLink("/admin/tokens", "nav.tokens")
 			}
+			if viewer.CanBroadcast {
+				@navLink("/admin/broadcasts", "nav.broadcasts")
+			}
 			if viewer.CanAudit {
 				@navLink("/admin/audit", "nav.audit")
 			}

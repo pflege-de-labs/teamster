@@ -89,7 +89,7 @@ func (g Grant) validateWebhook() error {
 	return nil
 }
 
-// validatePeople allows message on everyone; messages to oneself need no grant.
+// validatePeople allows message and broadcast on everyone; messages to oneself need no grant.
 func (g Grant) validatePeople() error {
 	if g.PrincipalID == "" || !slices.Contains([]string{"user", "group", "idp_group", "role"}, g.PrincipalType) {
 		return fmt.Errorf("a grant needs a principal")
@@ -101,8 +101,8 @@ func (g Grant) validatePeople() error {
 		return fmt.Errorf("a grant needs at least one action")
 	}
 	for _, action := range g.Actions {
-		if action != ActionMessage {
-			return fmt.Errorf("a message grant holds message, not %q", action)
+		if action != ActionMessage && action != ActionBroadcast {
+			return fmt.Errorf("a message grant holds message or broadcast, not %q", action)
 		}
 	}
 	return nil

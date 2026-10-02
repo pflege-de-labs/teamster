@@ -123,16 +123,20 @@ func (s *Server) handleWebhookLevelAPI(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-var errMessageLevel = errors.New("a message level is none or anyone, for a user, group, idp_group or role")
+var errMessageLevel = errors.New("a message level is none, anyone or everyone, for a user, group, idp_group or role")
 
 // messageGrantLevels are the levels an admin grants; self is everyone's (ADR 0082).
 var messageGrantLevels = map[string][]string{
-	"none":               nil,
-	authz.MessagesAnyone: {authz.ActionMessage},
+	"none":                 nil,
+	authz.MessagesAnyone:   {authz.ActionMessage},
+	authz.MessagesEveryone: {authz.ActionBroadcast},
 }
 
 // messageLevelOf reads a principal's People row back as the level the form offers.
 func messageLevelOf(p models.Permission) string {
+	if slices.Contains(p.Actions, authz.ActionBroadcast) {
+		return authz.MessagesEveryone
+	}
 	if slices.Contains(p.Actions, authz.ActionMessage) {
 		return authz.MessagesAnyone
 	}

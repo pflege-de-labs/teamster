@@ -335,6 +335,68 @@ func (q *Queries) ListDirectoryUsersDue(ctx context.Context, arg ListDirectoryUs
 	return items, nil
 }
 
+const listReachableDirectoryUsers = `-- name: ListReachableDirectoryUsers :many
+SELECT aad_object_id, tenant_id, user_principal_name, mail, upn_key, mail_key, display_name, given_name, surname, eligible, conversation_id, service_url, install_state, installed_at, next_attempt_at, attempts, last_error, blocked_at, blocked_reason, directory_seen_at, created_at, updated_at FROM directory_users
+WHERE eligible AND install_state = 'installed' AND conversation_id <> ''
+	AND aad_object_id > ?1
+ORDER BY aad_object_id
+LIMIT CAST(?2 AS BIGINT)
+`
+
+type ListReachableDirectoryUsersParams struct {
+	After   string
+	MaxRows int64
+}
+
+// ListReachableDirectoryUsers is everyone a broadcast reaches through the
+// directory, in pages after an object id (ADR 0083). Blocked people are
+// included: blocked is self-healing, never a delivery gate (ADR 0026).
+func (q *Queries) ListReachableDirectoryUsers(ctx context.Context, arg ListReachableDirectoryUsersParams) ([]DirectoryUser, error) {
+	rows, err := q.db.QueryContext(ctx, listReachableDirectoryUsers, arg.After, arg.MaxRows)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DirectoryUser
+	for rows.Next() {
+		var i DirectoryUser
+		if err := rows.Scan(
+			&i.AadObjectID,
+			&i.TenantID,
+			&i.UserPrincipalName,
+			&i.Mail,
+			&i.UpnKey,
+			&i.MailKey,
+			&i.DisplayName,
+			&i.GivenName,
+			&i.Surname,
+			&i.Eligible,
+			&i.ConversationID,
+			&i.ServiceUrl,
+			&i.InstallState,
+			&i.InstalledAt,
+			&i.NextAttemptAt,
+			&i.Attempts,
+			&i.LastError,
+			&i.BlockedAt,
+			&i.BlockedReason,
+			&i.DirectorySeenAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const markDirectoryUserBlocked = `-- name: MarkDirectoryUserBlocked :exec
 UPDATE directory_users
 SET blocked_at = ?1, blocked_reason = ?2

@@ -65,6 +65,7 @@ func (s *Server) viewerFor(r *http.Request) views.Viewer {
 	viewer.CanComplete = s.cfg.Samples.Enabled && s.mayComplete(r)
 	viewer.NotificationsEnabled = botConfigured(s.cfg.Bot)
 	viewer.PeopleEnabled = viewer.NotificationsEnabled && s.cfg.Bot.GlobalInstall
+	viewer.CanBroadcast = viewer.NotificationsEnabled && s.messageLevel(r) == authz.MessagesEveryone
 	return viewer
 }
 
@@ -293,6 +294,10 @@ func requestAuthorization(r *http.Request) (string, authz.Resource) {
 	case path == "/api/tokens", strings.HasPrefix(path, "/api/tokens/"),
 		path == "/admin/tokens", strings.HasPrefix(path, "/admin/tokens/"):
 		resource.Type = "AccessToken"
+	// Broadcasts are listed to whoever sent them, and all of them to admins
+	// (ADR 0083): the handler decides whose a caller sees.
+	case path == "/admin/broadcasts", path == "/api/broadcasts":
+		resource.Type = "Broadcast"
 	// Who has signed in, and switching them off, is the admin's (ADR 0072).
 	case path == "/admin/users", strings.HasPrefix(path, "/admin/users/"),
 		path == "/api/users", strings.HasPrefix(path, "/api/users/"):

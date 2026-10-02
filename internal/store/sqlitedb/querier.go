@@ -23,6 +23,7 @@ type Querier interface {
 	// ClaimActiveEvent for what a caller does with the two ways this can come back
 	// empty.
 	ClaimActiveEventRecipient(ctx context.Context, arg ClaimActiveEventRecipientParams) (ActiveEventRecipient, error)
+	ClaimBroadcast(ctx context.Context, arg ClaimBroadcastParams) (int64, error)
 	// ClaimDirectoryRun takes a requested run, or a running one whose owner has
 	// stopped writing heartbeats.
 	ClaimDirectoryRun(ctx context.Context, arg ClaimDirectoryRunParams) (int64, error)
@@ -134,6 +135,7 @@ type Querier interface {
 	// address. The adapter asks for the UPN first, so a UPN that is also
 	// somebody's alias wins.
 	FindDirectoryUserByUPNKey(ctx context.Context, addressKey string) (DirectoryUser, error)
+	FinishBroadcast(ctx context.Context, arg FinishBroadcastParams) (int64, error)
 	FinishDirectoryRun(ctx context.Context, arg FinishDirectoryRunParams) (int64, error)
 	// GetAccessTokenByHash is how a webhook request is authenticated. Matching on
 	// the digest in SQL leaks nothing a timing attack could use: the digest of a
@@ -143,6 +145,7 @@ type Querier interface {
 	GetActiveEventRecipient(ctx context.Context, arg GetActiveEventRecipientParams) (ActiveEventRecipient, error)
 	GetAuthzGeneration(ctx context.Context) (int64, error)
 	GetBotTeam(ctx context.Context, teamID string) (BotTeam, error)
+	GetBroadcast(ctx context.Context, id string) (Broadcast, error)
 	GetBrokerToken(ctx context.Context, sessionID string) (BrokerToken, error)
 	GetDefaultDestination(ctx context.Context) (Destination, error)
 	GetDestination(ctx context.Context, id string) (Destination, error)
@@ -171,10 +174,14 @@ type Querier interface {
 	// only lookup a sender can reach, so it matches on the pair alone and leaves
 	// the token to a constant-time comparison outside SQL.
 	GetWebhookEndpointBySlug(ctx context.Context, arg GetWebhookEndpointBySlugParams) (WebhookEndpoint, error)
+	// HeartbeatBroadcast writes progress. No row changed means another replica
+	// took the broadcast over, and this one has to stop.
+	HeartbeatBroadcast(ctx context.Context, arg HeartbeatBroadcastParams) (int64, error)
 	// HeartbeatDirectoryRun writes progress. No row changed means another replica
 	// took the run over, and this one has to stop.
 	HeartbeatDirectoryRun(ctx context.Context, arg HeartbeatDirectoryRunParams) (int64, error)
 	InsertAuditEvent(ctx context.Context, arg InsertAuditEventParams) error
+	InsertBroadcast(ctx context.Context, arg InsertBroadcastParams) error
 	// InsertDirectoryRun requests a run. It collides with the partial unique index
 	// while another run is requested or running.
 	InsertDirectoryRun(ctx context.Context, arg InsertDirectoryRunParams) error
@@ -199,6 +206,8 @@ type Querier interface {
 	// holds back events young enough that an older one may still commit.
 	ListAuditEventsAfter(ctx context.Context, arg ListAuditEventsAfterParams) ([]AuditEvent, error)
 	ListBotTeams(ctx context.Context) ([]BotTeam, error)
+	// ListBroadcasts is newest first; an empty requested_by lists everyone's.
+	ListBroadcasts(ctx context.Context, arg ListBroadcastsParams) ([]Broadcast, error)
 	ListDestinations(ctx context.Context) ([]Destination, error)
 	// ListDirectoryUserProblems is what the people page lists: installs that
 	// failed or were refused, most recent first.
@@ -217,6 +226,10 @@ type Querier interface {
 	ListGroups(ctx context.Context) ([]UserGroup, error)
 	ListPermissions(ctx context.Context) ([]Permission, error)
 	ListPermissionsForResource(ctx context.Context, arg ListPermissionsForResourceParams) ([]Permission, error)
+	// ListReachableDirectoryUsers is everyone a broadcast reaches through the
+	// directory, in pages after an object id (ADR 0083). Blocked people are
+	// included: blocked is self-healing, never a delivery gate (ADR 0026).
+	ListReachableDirectoryUsers(ctx context.Context, arg ListReachableDirectoryUsersParams) ([]DirectoryUser, error)
 	ListRecipients(ctx context.Context) ([]Recipient, error)
 	ListRoutes(ctx context.Context) ([]Route, error)
 	ListTemplates(ctx context.Context) ([]Template, error)
@@ -239,6 +252,10 @@ type Querier interface {
 	// which only ever reads the conversation reference, never the rest of the row
 	// -- cannot clobber a field it never loaded.
 	MarkRecipientBlocked(ctx context.Context, arg MarkRecipientBlockedParams) error
+	// NextBroadcast is the oldest waiting broadcast, or a running one whose owner
+	// stopped writing heartbeats.
+	NextBroadcast(ctx context.Context, staleBefore sql.NullTime) (Broadcast, error)
+	PruneBroadcasts(ctx context.Context, before sql.NullTime) (int64, error)
 	PruneDirectoryRuns(ctx context.Context, before sql.NullTime) (int64, error)
 	PurgeDepartedDirectoryUsers(ctx context.Context, before time.Time) (int64, error)
 	// ReapStaleClaim drops a claim a process took and never completed. It is

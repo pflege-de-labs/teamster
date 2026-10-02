@@ -176,6 +176,36 @@ type DirectoryRun struct {
 	LastError string `json:"last_error"`
 }
 
+// A Broadcast is a message to everyone the bot can reach, delivered by a
+// background run any replica may take over (ADR 0083). Event and Plan are the
+// message and its addressed deliveries as JSON; Cursor is the last person
+// delivered to.
+type Broadcast struct {
+	ID          string          `json:"id"`
+	RequestedBy string          `json:"requested_by"`
+	TokenName   string          `json:"token_name"`
+	RequestedAt time.Time       `json:"requested_at"`
+	State       RunState        `json:"state"`
+	Event       json.RawMessage `json:"-"`
+	Plan        json.RawMessage `json:"-"`
+	Owner       string          `json:"-"`
+	HeartbeatAt time.Time       `json:"heartbeat_at,omitzero"`
+	StartedAt   time.Time       `json:"started_at,omitzero"`
+	FinishedAt  time.Time       `json:"finished_at,omitzero"`
+	Cursor      string          `json:"-"`
+	BroadcastCounts
+	LastError string `json:"last_error,omitempty"`
+}
+
+// BroadcastCounts is how far a broadcast has come. Total is everyone it
+// reaches; unreachable people blocked or removed the bot.
+type BroadcastCounts struct {
+	Total       int64 `json:"total"`
+	Delivered   int64 `json:"delivered"`
+	Unreachable int64 `json:"unreachable"`
+	Failed      int64 `json:"failed"`
+}
+
 // An AccessToken is a named credential for the alertmanager and universal
 // webhooks (ADR 0044). TokenHash is a SHA-256 digest; the token is shown once,
 // when it is issued. LastUsedAt is zero for a token never presented.
@@ -538,6 +568,8 @@ type UniversalEvent struct {
 	URL        string            `json:"url"`
 	// Recipients are the people the sender named (ADR 0063).
 	Recipients []string `json:"recipients"`
+	// Broadcast sends to everyone the bot can reach instead (ADR 0083).
+	Broadcast bool `json:"broadcast,omitempty"`
 }
 
 // AttributesOf returns the free-text map of whichever extension ev carries. It
@@ -592,6 +624,8 @@ type UniversalWebhookPayload struct {
 	// Recipients names the people an addressed route delivers to: UPNs, mail
 	// addresses or Entra object ids (ADR 0063).
 	Recipients []string `json:"recipients"`
+	// Broadcast sends to everyone the bot can reach, in the background (ADR 0083).
+	Broadcast bool `json:"broadcast"`
 }
 
 // SampleKind says which part of an event a sample came from.
