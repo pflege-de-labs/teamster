@@ -66,6 +66,44 @@ leave. See [Ownership and sharing](../../concepts/ownership/) and
 Tokens issued before release 0.11.0 are unscoped: they reach both webhooks, whoever made them.
 Issue new ones to bind them.
 
+## Let a token name people
+
+A message that names people, in `recipients` on the universal webhook or in the label
+`teamster_recipient` on either webhook, needs a token that may name them. See
+[Send messages to individual people](../direct-messages/). Choose the token's message level under
+**May name recipients** when you issue it, or as `messages` in the API:
+
+```bash
+curl -u <admin-user>:<admin-password> -X POST http://localhost:8080/api/tokens \
+  -d '{"name": "password-expiry", "scope": ["universal"], "messages": "anyone"}'
+```
+
+| Level | `messages` | The token may name |
+| --- | --- | --- |
+| nobody | absent | Nobody. |
+| only me | `self` | Only its creator. |
+| anyone | `anyone` | Anyone in the tenant. |
+
+* **Only me** is open to everyone who may issue a token. Every address in the message must be the
+  creator: their Entra object id from their last sign-in (`auth.object-id-claim`), or the one their
+  linked chat recorded. If Teamster knows neither, the token names nobody: sign in once, or link
+  your chat.
+* **Anyone** needs the permission to message anyone, which admins hold and grant; see
+  [Let someone message people](../roles/#let-someone-message-people).
+* A token's level is never higher than its creator's. Asking for more is refused, with `403` from
+  the API.
+* Every use checks the creator's level as it is now. An **anyone** token whose creator lost that
+  permission names only its creator from then on.
+* Tokens from before release 0.11.0 and `webhook.token` are not bound to a creator whose level
+  could be checked, so they cannot name anyone. Issue a token with a message level for such a
+  sender.
+
+The `403` comes before anything is delivered. A refused Alertmanager batch delivers none of its
+alerts, including the ones that name nobody. A message that names people is checked even when the
+route it matches delivers to a channel. See
+[ADR 0082](https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0082-naming-people-takes-permission.md)
+for the design.
+
 ## Use a deployment-wide token
 
 `webhook.token` is one token from configuration, accepted alongside the issued ones. Use it when a
@@ -77,7 +115,8 @@ webhook:
 ```
 
 Deliver it as `TEAMSTER_WEBHOOK_TOKEN` rather than in the file. It is unscoped: it reaches both
-webhooks. Rotate it by changing the value and restarting.
+webhooks. It cannot name people, so a sender that sets `recipients` or `teamster_recipient` needs
+an issued token. Rotate it by changing the value and restarting.
 
 {{< callout type="warning" >}}
 The `X-Teamster-Token: <token>` header from earlier releases still works for either kind of token,
@@ -105,6 +144,13 @@ the token. The server log says why, in a warning such as
 webhook"}` means a scoped token was used for a webhook its scope does not name, or its creator may
 no longer use it. The `webhook refused` log line names the token and its creator. The refusal is
 counted with state `forbidden`.
+
+**`403`** with `{"error": "this token may not name recipients: …"}` means the message names people
+and its token may not: it has no message level, it is `webhook.token` or from before 0.11.0, or its
+creator may no longer message people. `{"error": "this token may only name its creator as a
+recipient"}` means an **only me** token named someone else, or Teamster does not know its
+creator's object id yet. Both are logged and counted like the scope refusal. See
+[Let a token name people](#let-a-token-name-people).
 
 **`403 RBAC: access denied`** is not Teamster's answer. It is Envoy's wording: a service mesh, such
 as an Istio `AuthorizationPolicy`, or a gateway refused the request before it reached the pod. Allow

@@ -71,6 +71,46 @@ Siehe [Eigentum und Teilen](../../concepts/ownership/) und
 Tokens, die vor Release 0.11.0 ausgestellt wurden, haben keinen Bereich: Sie erreichen beide
 Webhooks, gleich wer sie erstellt hat. Stellen Sie neue aus, um sie zu binden.
 
+## Ein Token Personen nennen lassen {#let-a-token-name-people}
+
+Eine Nachricht, die Personen nennt, in `recipients` am universellen Webhook oder im Label
+`teamster_recipient` an einem der beiden Webhooks, braucht ein Token, das sie nennen darf. Siehe
+[Nachrichten an einzelne Personen senden](../direct-messages/). Wählen Sie die Nachrichtenstufe
+des Tokens beim Ausstellen unter **Darf Empfänger nennen**, oder als `messages` in der API:
+
+```bash
+curl -u <admin-user>:<admin-password> -X POST http://localhost:8080/api/tokens \
+  -d '{"name": "password-expiry", "scope": ["universal"], "messages": "anyone"}'
+```
+
+| Stufe | `messages` | Das Token darf nennen |
+| --- | --- | --- |
+| niemanden | fehlt | Niemanden. |
+| nur mich | `self` | Nur seinen Ersteller. |
+| beliebige | `anyone` | Jede Person im Mandanten. |
+
+* **nur mich** steht jedem offen, der ein Token ausstellen darf. Jede Adresse in der Nachricht
+  muss der Ersteller sein: seine Entra-Objekt-ID aus seiner letzten Anmeldung
+  (`auth.object-id-claim`) oder die, die sein verknüpfter Chat festgehalten hat. Kennt Teamster
+  keine von beiden, nennt das Token niemanden: Melden Sie sich einmal an, oder verknüpfen Sie
+  Ihren Chat.
+* **beliebige** erfordert die Berechtigung, beliebige Personen anzuschreiben, die Administratoren
+  haben und erteilen; siehe
+  [Jemanden Personen anschreiben lassen](../roles/#let-someone-message-people).
+* Die Stufe eines Tokens ist nie höher als die seines Erstellers. Wer mehr verlangt, wird
+  abgewiesen, von der API mit `403`.
+* Jede Verwendung prüft die Stufe des Erstellers, wie sie gerade ist. Ein **beliebige**-Token,
+  dessen Ersteller diese Berechtigung verloren hat, nennt von da an nur noch seinen Ersteller.
+* Tokens von vor Release 0.11.0 und `webhook.token` sind an keinen Ersteller gebunden, dessen
+  Stufe sich prüfen ließe, und können daher niemanden nennen. Stellen Sie für einen solchen Absender
+  ein Token mit Nachrichtenstufe aus.
+
+Das `403` kommt, bevor irgendetwas zugestellt wird. Ein abgewiesener Alertmanager-Stapel stellt
+keinen seiner Alarme zu, auch nicht die, die niemanden nennen. Eine Nachricht, die Personen nennt,
+wird auch dann geprüft, wenn die Route, die sie trifft, an einen Kanal zustellt. Den Entwurf
+beschreibt
+[ADR 0082](https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0082-naming-people-takes-permission.md).
+
 ## Ein Token für die gesamte Installation verwenden {#use-a-deployment-wide-token}
 
 `webhook.token` ist ein einzelnes Token aus der Konfiguration, das zusätzlich zu den ausgestellten
@@ -83,7 +123,9 @@ webhook:
 ```
 
 Übergeben Sie es als `TEAMSTER_WEBHOOK_TOKEN` statt in der Datei. Es hat keinen Bereich: Es
-erreicht beide Webhooks. Zum Rotieren ändern Sie den Wert und starten neu.
+erreicht beide Webhooks. Es kann keine Personen nennen, ein Absender, der `recipients` oder
+`teamster_recipient` setzt, braucht also ein ausgestelltes Token. Zum Rotieren ändern Sie den Wert
+und starten neu.
 
 {{< callout type="warning" >}}
 Der Header `X-Teamster-Token: <token>` aus früheren Releases funktioniert für beide Arten von
@@ -112,6 +154,14 @@ das Token nicht akzeptiert hat. Das Serverlog nennt den Grund in einer Warnung w
 webhook"}` bedeutet, dass ein Token mit Bereich für einen Webhook verwendet wurde, den sein Bereich
 nicht nennt, oder dass sein Ersteller ihn nicht mehr verwenden darf. Die Logzeile `webhook refused`
 nennt das Token und seinen Ersteller. Die Abweisung wird mit dem Zustand `forbidden` gezählt.
+
+**`403`** mit `{"error": "this token may not name recipients: …"}` bedeutet, dass die Nachricht
+Personen nennt und ihr Token das nicht darf: Es hat keine Nachrichtenstufe, es ist `webhook.token`
+oder stammt von vor 0.11.0, oder sein Ersteller darf keine Personen mehr anschreiben.
+`{"error": "this token may only name its creator as a recipient"}` bedeutet, dass ein
+**nur mich**-Token jemand anderen genannt hat oder Teamster die Objekt-ID seines Erstellers noch
+nicht kennt. Beide werden wie die Abweisung wegen des Bereichs protokolliert und gezählt. Siehe
+[Ein Token Personen nennen lassen](#let-a-token-name-people).
 
 **`403 RBAC: access denied`** ist nicht die Antwort von Teamster. Das ist der Wortlaut von Envoy:
 Ein Service Mesh, etwa eine Istio-`AuthorizationPolicy`, oder ein Gateway hat die Anfrage

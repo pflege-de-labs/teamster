@@ -133,7 +133,7 @@ Einen Schlüssel, den die Datei setzt, Teamster aber nicht kennt, ignoriert Team
 | `auth.oidc-scopes` | `TEAMSTER_AUTH_OIDC_SCOPES` | `profile,email,roles` | Zusätzlich zu openid angeforderte Scopes. |
 | `auth.claim` | `TEAMSTER_AUTH_CLAIM` | `realm_access.roles` | Pfad mit Punkten zum Claim, der die Zugehörigkeit trägt, z. B. `realm_access.roles`. |
 | `auth.groups-claim` | `TEAMSTER_AUTH_GROUPS_CLAIM` | `groups` | Pfad mit Punkten zum Claim, der die Gruppenzugehörigkeit trägt, die lokale Gruppen nennen können; leer, um ihn zu überspringen. |
-| `auth.object-id-claim` | `TEAMSTER_AUTH_OBJECT_ID_CLAIM` | `oid` | Pfad mit Punkten zum Claim, der die Entra-Objekt-ID des Benutzers trägt, über die sein eigener Teams-Chat gefunden wird. |
+| `auth.object-id-claim` | `TEAMSTER_AUTH_OBJECT_ID_CLAIM` | `oid` | Pfad mit Punkten zum Claim, der die Entra-Objekt-ID des Benutzers trägt, über die sein eigener Teams-Chat gefunden wird und die die eine Person ist, die ein **nur mich**-Token nennen darf. |
 | `auth.default-role` | `TEAMSTER_AUTH_DEFAULT_ROLE` | — | Rolle für einen Benutzer, dessen Claim keine nennt: admin, editor, viewer oder leer für keinen Zugriff. Einer von `admin`, `editor`, `viewer` oder leer. |
 | `auth.session-ttl` | `TEAMSTER_AUTH_SESSION_TTL` | `12h` | Wie lange eine Anmeldung gilt. |
 | `auth.broker.enabled` | `TEAMSTER_AUTH_BROKER_ENABLED` | `false` | Das eigene Entra-Token jedes Administrators bei Keycloak abholen, um seine eigenen Teams und Kanäle aufzulisten. |

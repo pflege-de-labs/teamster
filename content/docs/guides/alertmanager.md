@@ -112,7 +112,7 @@ from the repository. A `200 {"status":"ok"}` means the alert was delivered.
 | Alertmanager logs | Means |
 | --- | --- |
 | `unexpected status code 401` | Teamster did not accept the token. See [When a sender is refused](../webhook-tokens/#when-a-sender-is-refused). |
-| `unexpected status code 403` | A mesh or gateway refused it, or the token's scope does not allow this webhook. |
+| `unexpected status code 403` | A mesh or gateway refused it, the token's scope does not allow this webhook, or an alert sets `teamster_recipient` and the token may not name people. See [When a sender is refused](../webhook-tokens/#when-a-sender-is-refused). |
 | `unexpected status code 422` | The alert addressed people and none of them could be reached. Alertmanager does not retry. |
 | `unexpected status code 502` | Teams, Graph or the database failed. Alertmanager retries. |
 | `unexpected status code 503` | The token could not be checked because the database did not answer. Alertmanager retries. |

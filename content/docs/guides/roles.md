@@ -36,11 +36,11 @@ Adding policies is safe. Removing or renaming `admin`, `editor` or `viewer` brea
 
 ## Check who may do what
 
-* **/admin/access** (admins) shows every grant, who may send to the webhooks, and the Cedar
-  policies in force. **Who can?** takes a subject, an action and a resource and names the policies
-  that allow or refuse it.
-* **My access** in the user menu (**/admin/me**) shows anyone their own roles, groups, webhooks and
-  the grants that name them.
+* **/admin/access** (admins) shows every grant, who may send to the webhooks, who may message
+  people, and the Cedar policies in force. **Who can?** takes a subject, an action and a resource
+  and names the policies that allow or refuse it.
+* **My access** in the user menu (**/admin/me**) shows anyone their own roles, groups, webhooks,
+  **People you may message**, and the grants that name them.
 
 A refused request is a `403` naming the role and the resource.
 
@@ -83,6 +83,29 @@ curl -u <admin-user>:<admin-password> -X PUT http://localhost:8080/api/access/we
 `principal_type` is `user`, `group`, `idp_group` or `role`. With a level, they can issue their own
 tokens; see [Authenticate a webhook sender](../webhook-tokens/). Taking the level away revokes those
 tokens at their next use.
+
+## Let someone message people
+
+A message that names people needs a token that may name them; see
+[Let a token name people](../webhook-tokens/#let-a-token-name-people). Everyone signed in may name
+themselves. Naming anyone else takes the level **anyone**, set on **/admin/access** under
+**Who may message people** per user, group, provider group or role. Admins hold it already. Grant
+it to the people who send notices to colleagues, such as office admins.
+
+| Level | API value | They and their tokens may name |
+| --- | --- | --- |
+| themselves only | `none` | Only themselves |
+| anyone | `anyone` | Anyone in the tenant |
+
+```bash
+curl -u <admin-user>:<admin-password> -X PUT http://localhost:8080/api/access/messages \
+  -d '{"principal_type": "idp_group", "principal_id": "<provider group>", "level": "anyone"}'
+```
+
+`principal_type` is `user`, `group`, `idp_group` or `role`. `none` takes the level back, and their
+**anyone** tokens name only their creator from the next request. In Cedar the level is the action
+`message` on `People::"*"`, which includes `messageSelf`, the action everyone holds. See
+[ADR 0082](https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0082-naming-people-takes-permission.md).
 
 ## Share a record
 

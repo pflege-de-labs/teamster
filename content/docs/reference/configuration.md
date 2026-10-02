@@ -131,7 +131,7 @@ A key the file sets but Teamster does not know is ignored without a warning.
 | `auth.oidc-scopes` | `TEAMSTER_AUTH_OIDC_SCOPES` | `profile,email,roles` | Extra scopes to request beyond openid. |
 | `auth.claim` | `TEAMSTER_AUTH_CLAIM` | `realm_access.roles` | Dotted path of the claim carrying membership, e.g. `realm_access.roles`. |
 | `auth.groups-claim` | `TEAMSTER_AUTH_GROUPS_CLAIM` | `groups` | Dotted path of the claim carrying group membership, which local groups can name; empty to skip. |
-| `auth.object-id-claim` | `TEAMSTER_AUTH_OBJECT_ID_CLAIM` | `oid` | Dotted path of the claim carrying the user's Entra object id, which finds their own Teams chat. |
+| `auth.object-id-claim` | `TEAMSTER_AUTH_OBJECT_ID_CLAIM` | `oid` | Dotted path of the claim carrying the user's Entra object id, which finds their own Teams chat and is the one person an **only me** token may name. |
 | `auth.default-role` | `TEAMSTER_AUTH_DEFAULT_ROLE` | — | Role for a user whose claim names none: admin, editor, viewer, or empty for no access. One of `admin`, `editor`, `viewer` or empty. |
 | `auth.session-ttl` | `TEAMSTER_AUTH_SESSION_TTL` | `12h` | How long a login lasts. |
 | `auth.broker.enabled` | `TEAMSTER_AUTH_BROKER_ENABLED` | `false` | Fetch each admin's own Entra token from Keycloak to list their own Teams/Channels. |
