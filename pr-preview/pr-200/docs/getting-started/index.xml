@@ -321,7 +321,7 @@ the process stops accepting it.&lt;/li&gt;
 &lt;h2 data-hextra-search-id="next-steps"&gt;Next steps&lt;span class="hx:absolute hx:-mt-20" id="next-steps"&gt;&lt;/span&gt;
 &lt;a href="#next-steps" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;ul&gt;
 &lt;li&gt;&lt;a href="../../guides/configuration/"&gt;Configure Teamster&lt;/a&gt; for production settings.&lt;/li&gt;
-&lt;li&gt;&lt;a href="../../guides/storage/"&gt;Choose a storage backend&lt;/a&gt; when you need more than one instance.&lt;/li&gt;
+&lt;li&gt;&lt;a href="../../guides/storage/"&gt;Choose and run storage&lt;/a&gt; when you need more than one instance.&lt;/li&gt;
 &lt;li&gt;&lt;a href="https://pflege-de-labs.github.io/teamster/pr-preview/pr-200/docs/getting-started/kubernetes/"&gt;Install on Kubernetes&lt;/a&gt; with the Helm chart.&lt;/li&gt;
 &lt;/ul&gt;</description></item><item><title>Kubernetes</title><link>https://pflege-de-labs.github.io/teamster/pr-preview/pr-200/docs/getting-started/kubernetes/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/pr-preview/pr-200/docs/getting-started/kubernetes/</guid><description>
 &lt;p&gt;Install Teamster into a Kubernetes cluster with the Helm chart. The chart is published as an OCI
@@ -419,7 +419,7 @@ data-copied-label="Copied!"
 operator or cloud provider already created.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="next-steps"&gt;Next steps&lt;span class="hx:absolute hx:-mt-20" id="next-steps"&gt;&lt;/span&gt;
 &lt;a href="#next-steps" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;ul&gt;
-&lt;li&gt;&lt;a href="../../guides/storage/"&gt;Choose a storage backend&lt;/a&gt; and
+&lt;li&gt;&lt;a href="../../guides/storage/"&gt;Choose and run storage&lt;/a&gt; and
 &lt;a href="../../guides/backup-and-migration/"&gt;move from SQLite to Postgres&lt;/a&gt;.&lt;/li&gt;
 &lt;li&gt;&lt;a href="../../guides/alertmanager/"&gt;Send alerts from Alertmanager&lt;/a&gt; inside the cluster.&lt;/li&gt;
 &lt;li&gt;Every chart value: &lt;a href="../../reference/helm-values/"&gt;Helm values&lt;/a&gt;.&lt;/li&gt;
