@@ -1,4 +1,12 @@
 <meta name="docs-version" content="{{ site.Params.docVersion }}" />
 <meta name="docs-root" content="{{ site.Params.docsRoot }}" />
+{{- $i18n := dict
+  "versions" (T "versions")
+  "dev" (T "versionBannerDev")
+  "preview" (T "versionBannerPreview")
+  "old" (T "versionBannerOld")
+  "goTo" (T "versionBannerGoTo")
+}}
+<meta name="docs-i18n" content="{{ jsonify $i18n }}" />
 {{- $js := resources.Get "js/versions.js" | minify | fingerprint }}
 <script defer src="{{ $js.RelPermalink }}" integrity="{{ $js.Data.Integrity }}"></script>
