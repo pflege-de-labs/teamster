@@ -1,3 +1,4 @@
 [
-  {"version": "dev", "path": "dev/", "latest": true}
+  {"version": "dev", "path": "dev/", "latest": false},
+  {"version": "v0.11", "path": "v0.11/", "latest": true}
 ]
