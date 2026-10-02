@@ -91,6 +91,16 @@ permit (
 //   resource
 // );
 
+// Anyone signed in may name themselves in a message sent with their own token;
+// naming anyone else takes a grant of message on People (ADR 0082). A token
+// is a principal of its own and gets nothing from this: its scope says what it
+// may do.
+permit (
+  principal is User,
+  action == Action::"messageSelf",
+  resource == People::"*"
+);
+
 // Who may send to the webhooks with a token of their own (ADR 0076). Editors
 // may, admins through the policy at the top; anyone else needs a grant of use.
 permit (

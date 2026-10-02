@@ -10,6 +10,25 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 ## [Unreleased]
 
+### Changed
+
+* **Breaking:** a message naming people, in `recipients` or the `teamster_recipient` label, needs a
+  token whose message level allows it, and is refused with `403` otherwise. `webhook.token` and
+  tokens from before 0.11 cannot name people any more; mint a token with a message level for such a
+  sender ([ADR 0082](docs/adr/0082-naming-people-takes-permission.md)).
+
+### Added
+
+* A token's message level, chosen at `/admin/tokens` or as `messages` in `POST /api/tokens`:
+  **only me** names only its creator, **anyone** names anyone in the tenant. Admins grant
+  **anyone** to users, groups, provider groups or roles at `/admin/access` or with
+  `PUT /api/access/messages`. `/admin/me` shows whom you may message.
+
+### Fixed
+
+* A mail address more than one person carries is reported as `ambiguous-address` in `undelivered`
+  instead of failing the message with `502`, which made the sender retry what could never succeed.
+
 ## [0.11.0] — 2026-10-01
 
 ### Added

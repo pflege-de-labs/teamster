@@ -20,7 +20,9 @@ type Tokens struct {
 	// Usable are the webhooks a new token may name; Manage shows and revokes
 	// everyone's tokens; Self is the viewer's subject (ADR 0077).
 	Usable []string
-	Manage bool
+	// MessageLevels are the message levels a new token may have, beyond none (ADR 0082).
+	MessageLevels []string
+	Manage        bool
 	Self   string
 	Notice string
 	Error  string
@@ -50,6 +52,20 @@ templ TokensPage(page Tokens) {
 							}
 						</fieldset>
 						<p class="text-xs text-slate-500">{ i18n.T(ctx, "tokens.scope_hint") }</p>
+						<fieldset class="space-y-2">
+							<legend class="text-sm font-medium">{ i18n.T(ctx, "tokens.messages") }</legend>
+							<label class="flex items-center gap-2 text-sm">
+								<input type="radio" name="messages" value="" checked class="h-4 w-4 border-slate-300"/>
+								{ i18n.T(ctx, "tokens.messages.none") }
+							</label>
+							for _, level := range page.MessageLevels {
+								<label class="flex items-center gap-2 text-sm">
+									<input type="radio" name="messages" value={ level } class="h-4 w-4 border-slate-300"/>
+									{ i18n.T(ctx, "tokens.messages."+level) }
+								</label>
+							}
+						</fieldset>
+						<p class="text-xs text-slate-500">{ i18n.T(ctx, "tokens.messages_hint") }</p>
 						@submit(i18n.T(ctx, "tokens.create"))
 					}
 					if page.ConfigTokenSet {
@@ -85,6 +101,9 @@ templ tokenItem(t models.AccessToken, mayRevoke bool) {
 			<div class="truncate text-xs text-slate-500">
 				if t.Scoped() {
 					{ i18n.T(ctx, "tokens.scoped", joinOrDash(t.Scope)) }
+					if t.Messages != "" {
+						{ " · " + i18n.T(ctx, "tokens.messages."+t.Messages) }
+					}
 				} else {
 					{ i18n.T(ctx, "tokens.unscoped") }
 				}

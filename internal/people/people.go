@@ -21,6 +21,8 @@ var (
 	ErrUnknown        = errors.New("no such person in the directory")
 	ErrIneligible     = errors.New("not an enabled member of the tenant")
 	ErrNotInstalled   = errors.New("the Teams app is not installed for this person")
+	// ErrAmbiguous is a mail address more than one person carries.
+	ErrAmbiguous = errors.New("more than one person carries this address")
 )
 
 // Reason names err for a response body or a metric: one of the sentinels
@@ -35,6 +37,8 @@ func Reason(err error) string {
 		return "ineligible"
 	case errors.Is(err, ErrNotInstalled):
 		return "not-installed"
+	case errors.Is(err, ErrAmbiguous):
+		return "ambiguous-address"
 	default:
 		return ""
 	}

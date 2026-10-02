@@ -286,6 +286,8 @@ func NewServer(logger *slog.Logger, cfg config.Config, store store.Store, graphC
 	adminMux.HandleFunc("/admin/access", api.handleAccessPage)
 	adminMux.HandleFunc("/admin/access/webhooks", api.formPostTo("/admin/access", api.webhookLevelForm))
 	adminMux.HandleFunc("/api/access/webhooks", api.handleWebhookLevelAPI)
+	adminMux.HandleFunc("/admin/access/messages", api.formPostTo("/admin/access", api.messageLevelForm))
+	adminMux.HandleFunc("/api/access/messages", api.handleMessageLevelAPI)
 	adminMux.HandleFunc("/admin/sharing/grant", api.handleShareForm)
 	adminMux.HandleFunc("/admin/sharing/revoke", api.handleUnshareForm)
 	adminMux.HandleFunc("/api/sharing", api.handleSharingAPI)

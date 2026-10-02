@@ -18,6 +18,7 @@ type AccessToken struct {
 	LastUsedAt      sql.NullTime
 	Scope           string
 	ScopedTokenHash sql.NullString
+	MessageScope    string
 }
 
 type ActiveEvent struct {
@@ -245,6 +246,7 @@ type User struct {
 	LastSeen   time.Time
 	DisabledAt sql.NullTime
 	DisabledBy string
+	ObjectID   string
 }
 
 type UserGroup struct {

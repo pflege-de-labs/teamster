@@ -38,6 +38,9 @@ func (g Grant) Validate() error {
 	if g.ResourceType == "Webhook" {
 		return g.validateWebhook()
 	}
+	if g.ResourceType == PeopleResource.Type {
+		return g.validatePeople()
+	}
 	if g.PrincipalID == "" || g.ResourceID == "" {
 		return fmt.Errorf("a grant needs a principal and a resource")
 	}
@@ -81,6 +84,25 @@ func (g Grant) validateWebhook() error {
 		case action == ActionAdminister && g.ResourceID == WebhooksAll:
 		default:
 			return fmt.Errorf("a webhook grant holds use, and administer on both webhooks, not %q", action)
+		}
+	}
+	return nil
+}
+
+// validatePeople allows message on everyone; messages to oneself need no grant.
+func (g Grant) validatePeople() error {
+	if g.PrincipalID == "" || !slices.Contains([]string{"user", "group", "idp_group", "role"}, g.PrincipalType) {
+		return fmt.Errorf("a grant needs a principal")
+	}
+	if g.ResourceID != PeopleResource.ID {
+		return fmt.Errorf("a message grant is on People %q, not %q", PeopleResource.ID, g.ResourceID)
+	}
+	if len(g.Actions) == 0 {
+		return fmt.Errorf("a grant needs at least one action")
+	}
+	for _, action := range g.Actions {
+		if action != ActionMessage {
+			return fmt.Errorf("a message grant holds message, not %q", action)
 		}
 	}
 	return nil

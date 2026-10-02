@@ -239,3 +239,65 @@ func TestTokensPageReportsAStoreFailure(t *testing.T) {
 		t.Errorf("failed revoke redirects to %q, want an error", rec.Header().Get("Location"))
 	}
 }
+
+// TestTokenMessageLevels: a token names people no further than its creator
+// may message (ADR 0082).
+func TestTokenMessageLevels(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		role     authz.Role
+		granted  bool
+		messages string
+		want     int
+	}{
+		{"no level is anyone's", authz.RoleViewer, false, "", http.StatusCreated},
+		{"an editor mints a self token", authz.RoleEditor, false, authz.MessagesSelf, http.StatusCreated},
+		{"an editor may not mint an anyone token", authz.RoleEditor, false, authz.MessagesAnyone, http.StatusForbidden},
+		{"a granted editor may", authz.RoleEditor, true, authz.MessagesAnyone, http.StatusCreated},
+		{"an admin may", authz.RoleAdmin, false, authz.MessagesAnyone, http.StatusCreated},
+		{"an unknown level", authz.RoleAdmin, false, "everybody", http.StatusForbidden},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			st := sessionAs(tokenStore(), tt.role)
+			grantTo(st, models.PrincipalUser, "tester", "Webhook", "universal", "use")
+			if tt.granted {
+				grantTo(st, models.PrincipalUser, "tester", authz.PeopleResource.Type, authz.PeopleResource.ID, authz.ActionMessage)
+			}
+			handler := newTestServer(t, st, &fakeMessenger{}).Handler
+			rec := call(t, handler, http.MethodPost, "/api/tokens", `{"name":"n","scope":["universal"],"messages":"`+tt.messages+`"}`)
+			if rec.Code != tt.want {
+				t.Fatalf("mint = %d %s, want %d", rec.Code, rec.Body.String(), tt.want)
+			}
+			if tt.want != http.StatusCreated {
+				return
+			}
+			var created accessTokenResponse
+			if err := json.Unmarshal(rec.Body.Bytes(), &created); err != nil {
+				t.Fatal(err)
+			}
+			if got := st.accessTokens[created.ID].Messages; got != tt.messages {
+				t.Errorf("stored message level = %q, want %q", got, tt.messages)
+			}
+		})
+	}
+
+	// The form offers what the viewer may grant, and the list says what a token may.
+	st := sessionAs(tokenStore(), authz.RoleEditor)
+	st.accessTokens["mine"] = models.AccessToken{ID: "mine", Name: "mine", TokenHash: "h-mine", CreatedBy: "tester", Scope: []string{"universal"}, Messages: authz.MessagesSelf}
+	handler := newTestServer(t, st, &fakeMessenger{}).Handler
+	body := call(t, handler, http.MethodGet, "/admin/tokens", "").Body.String()
+	if !strings.Contains(body, `value="self"`) || strings.Contains(body, `value="anyone"`) {
+		t.Error("an editor should be offered self and not anyone")
+	}
+	if !strings.Contains(body, "only me") {
+		t.Error("the token list does not show the token's message level")
+	}
+	form := url.Values{"name": {"f"}, "scope": {"universal"}, "messages": {"self"}}
+	if rec := postFormAs(t, handler, "/admin/tokens/new", form); rec.Code != http.StatusOK {
+		t.Errorf("minting a self token from the form = %d", rec.Code)
+	}
+}

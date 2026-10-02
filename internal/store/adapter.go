@@ -757,6 +757,7 @@ func (s queryAdapter) CreateAccessToken(ctx context.Context, t models.AccessToke
 		params.TokenHash = scopedPlaceholder + t.ID
 		params.Scope = strings.Join(t.Scope, " ")
 		params.ScopedTokenHash = sql.NullString{String: t.TokenHash, Valid: true}
+		params.MessageScope = t.Messages
 	}
 	err := s.q.CreateAccessToken(ctx, params)
 	if err != nil {
@@ -814,6 +815,7 @@ func accessTokenOf(row sqlitedb.AccessToken) models.AccessToken {
 		CreatedAt:  row.CreatedAt,
 		LastUsedAt: row.LastUsedAt.Time,
 		Scope:      strings.Fields(row.Scope),
+		Messages:   row.MessageScope,
 	}
 	if row.ScopedTokenHash.Valid {
 		t.TokenHash = row.ScopedTokenHash.String

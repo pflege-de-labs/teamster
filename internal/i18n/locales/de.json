@@ -435,5 +435,18 @@
   "tokens.scope": "Darf senden an",
   "tokens.scope_hint": "Ein Token sendet nur dorthin, wohin Sie selbst senden dürfen, jetzt und später: Verlieren Sie einen Webhook, verlieren ihn auch Ihre Token.",
   "tokens.scoped": "Sendet an {0}, soweit sein Ersteller darf",
-  "tokens.unscoped": "Ohne Bereich: beide Webhooks, gleich wer ihn erzeugt hat. Erzeugen Sie einen neuen, um ihn an seinen Ersteller zu binden."
+  "tokens.unscoped": "Ohne Bereich: beide Webhooks, gleich wer ihn erzeugt hat. Erzeugen Sie einen neuen, um ihn an seinen Ersteller zu binden.",
+  "access.messages": "Wer Personen anschreiben darf",
+  "access.messages_explainer": "Eine Nachricht, die Personen in recipients oder im Label teamster_recipient nennt, braucht ein Token mit Nachrichtenstufe. Jede angemeldete Person darf sich selbst nennen; andere zu nennen erfordert hier die Stufe beliebige. Admins haben sie.",
+  "access.message_level.none": "nur sich selbst",
+  "access.message_level.anyone": "beliebige",
+  "me.messages": "Wen Sie anschreiben dürfen",
+  "me.messages.none": "niemanden",
+  "me.messages.self": "sich selbst",
+  "me.messages.anyone": "beliebige Personen",
+  "tokens.messages": "Darf Empfänger nennen",
+  "tokens.messages.none": "niemanden",
+  "tokens.messages.self": "nur mich",
+  "tokens.messages.anyone": "beliebige",
+  "tokens.messages_hint": "Empfänger und das Label teamster_recipient werden abgelehnt, sofern das Token sie nicht nennen darf. Ein Token nennt nie mehr Personen, als Sie selbst anschreiben dürfen."
 }

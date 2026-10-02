@@ -22,6 +22,7 @@ var (
 	errTokenNameTaken = errors.New("a token with that name already exists")
 	errTokenWebhooks  = errors.New("choose the webhooks the token may send to, from those you may use")
 	errTokenNotYours  = errors.New("only its creator, a webhook admin or an admin may revoke a token")
+	errTokenMessages  = errors.New("a token's message level is self or anyone, and no more than you may message yourself")
 )
 
 // tokenWebhooks are what a token's scope may name.
@@ -38,6 +39,13 @@ func (s *Server) usableWebhooks(r *http.Request) []string {
 		}
 	}
 	return out
+}
+
+// messageLevel is how far this request's principal may address people, which
+// is the most a token it mints may be scoped to (ADR 0082).
+func (s *Server) messageLevel(r *http.Request) string {
+	markChecked(r)
+	return s.policies(r).MessageLevel(principalFor(r))
 }
 
 // manageTokens is whether the request may see and revoke everyone's tokens.
@@ -89,10 +97,13 @@ type accessTokenResponse struct {
 
 // issueAccessToken mints a token scoped to webhooks the caller may use,
 // stores its digest and returns it in the clear (ADR 0077).
-func (s *Server) issueAccessToken(r *http.Request, name string, scope []string) (models.AccessToken, string, error) {
+func (s *Server) issueAccessToken(r *http.Request, name string, scope []string, messages string) (models.AccessToken, string, error) {
 	name = strings.TrimSpace(name)
 	if name == "" || utf8.RuneCountInString(name) > maxTokenNameLength {
 		return models.AccessToken{}, "", errTokenName
+	}
+	if !authz.LevelCovers(s.messageLevel(r), messages) {
+		return models.AccessToken{}, "", errTokenMessages
 	}
 	usable := s.usableWebhooks(r)
 	slices.Sort(scope)
@@ -114,6 +125,7 @@ func (s *Server) issueAccessToken(r *http.Request, name string, scope []string) 
 		TokenHash: hashToken(token),
 		CreatedBy: principalSubject(r),
 		Scope:     scope,
+		Messages:  messages,
 	})
 	if errors.Is(err, store.ErrConflict) {
 		return models.AccessToken{}, "", errTokenNameTaken
@@ -135,17 +147,18 @@ func (s *Server) handleAccessTokens(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, s.visibleTokens(r, items))
 	case http.MethodPost:
 		var body struct {
-			Name  string   `json:"name"`
-			Scope []string `json:"scope"`
+			Name     string   `json:"name"`
+			Scope    []string `json:"scope"`
+			Messages string   `json:"messages"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			markChecked(r)
 			writeJSONError(w, http.StatusBadRequest, "invalid JSON")
 			return
 		}
-		created, token, err := s.issueAccessToken(r, body.Name, body.Scope)
+		created, token, err := s.issueAccessToken(r, body.Name, body.Scope, body.Messages)
 		switch {
-		case errors.Is(err, errTokenWebhooks):
+		case errors.Is(err, errTokenWebhooks), errors.Is(err, errTokenMessages):
 			writeError(w, r, http.StatusForbidden, err)
 		case errors.Is(err, errTokenName):
 			writeError(w, r, http.StatusBadRequest, err)
@@ -194,7 +207,7 @@ func (s *Server) handleTokenForm(w http.ResponseWriter, r *http.Request) {
 	if !formGuard("/admin/tokens", w, r) {
 		return
 	}
-	created, token, err := s.issueAccessToken(r, r.PostFormValue("name"), r.PostForm["scope"])
+	created, token, err := s.issueAccessToken(r, r.PostFormValue("name"), r.PostForm["scope"], r.PostFormValue("messages"))
 	if err != nil {
 		redirectTo("/admin/tokens", w, r, "", visibleError(r.Context(), "issue access token", err))
 		return
@@ -222,12 +235,24 @@ func (s *Server) renderTokens(w http.ResponseWriter, r *http.Request, page views
 	page.Tokens = s.visibleTokens(r, tokens)
 	page.Usable = s.usableWebhooks(r)
 	page.Manage = s.manageTokens(r)
+	page.MessageLevels = levelsUpTo(s.messageLevel(r))
 	page.Self = principalSubject(r)
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := views.TokensPage(page).Render(ctx, w); err != nil {
 		logError(ctx, "render tokens page", err)
 	}
+}
+
+// levelsUpTo are the message levels a token may be given by someone holding limit.
+func levelsUpTo(limit string) []string {
+	var out []string
+	for _, level := range authz.MessageLevels {
+		if authz.LevelCovers(limit, level) {
+			out = append(out, level)
+		}
+	}
+	return out
 }
 
 // webhookBaseURL is built from the request, like webhookURL, because the host

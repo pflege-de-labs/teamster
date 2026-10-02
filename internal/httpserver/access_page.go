@@ -123,6 +123,72 @@ func (s *Server) handleWebhookLevelAPI(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+var errMessageLevel = errors.New("a message level is none or anyone, for a user, group, idp_group or role")
+
+// messageGrantLevels are the levels an admin grants; self is everyone's (ADR 0082).
+var messageGrantLevels = map[string][]string{
+	"none":               nil,
+	authz.MessagesAnyone: {authz.ActionMessage},
+}
+
+// messageLevelOf reads a principal's People row back as the level the form offers.
+func messageLevelOf(p models.Permission) string {
+	if slices.Contains(p.Actions, authz.ActionMessage) {
+		return authz.MessagesAnyone
+	}
+	return "none"
+}
+
+// setMessageLevel replaces a principal's People row with the level's actions.
+func (s *Server) setMessageLevel(r *http.Request, kind models.PrincipalType, principal, level string) error {
+	principal = strings.TrimSpace(principal)
+	actions, ok := messageGrantLevels[level]
+	if !ok || !kind.Valid() || principal == "" {
+		return userError{errMessageLevel}
+	}
+	_, err := s.store.PutPermission(r.Context(), models.Permission{
+		PrincipalType: kind, PrincipalID: principal,
+		ResourceType: authz.PeopleResource.Type, ResourceID: authz.PeopleResource.ID,
+		Actions: actions, CreatedBy: principalSubject(r),
+	})
+	return err
+}
+
+func (s *Server) messageLevelForm(r *http.Request) (string, error) {
+	err := s.setMessageLevel(r, models.PrincipalType(r.PostFormValue("principal_type")), r.PostFormValue("principal_id"), r.PostFormValue("level"))
+	if err != nil {
+		return "", err
+	}
+	return "Message permission saved.", nil
+}
+
+// handleMessageLevelAPI is PUT /api/access/messages.
+func (s *Server) handleMessageLevelAPI(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPut {
+		w.Header().Set("Allow", http.MethodPut)
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	var body struct {
+		PrincipalType string `json:"principal_type"`
+		PrincipalID   string `json:"principal_id"`
+		Level         string `json:"level"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeJSONError(w, http.StatusBadRequest, "invalid JSON")
+		return
+	}
+	err := s.setMessageLevel(r, models.PrincipalType(body.PrincipalType), body.PrincipalID, body.Level)
+	switch {
+	case errors.Is(err, errMessageLevel):
+		writeError(w, r, http.StatusBadRequest, err)
+	case err != nil:
+		writeError(w, r, http.StatusInternalServerError, err)
+	default:
+		writeJSON(w, http.StatusOK, body)
+	}
+}
+
 // principalLabels names users and groups for the overviews.
 func (s *Server) principalLabels(ctx context.Context) (map[string]string, error) {
 	labels := map[string]string{}
@@ -189,6 +255,11 @@ func (s *Server) handleAccessPage(w http.ResponseWriter, r *http.Request) {
 			}
 			byPrincipal[key] = append(byPrincipal[key], p)
 		}
+		if p.ResourceType == authz.PeopleResource.Type {
+			page.Messages = append(page.Messages, views.WebhookAccess{
+				PrincipalType: string(p.PrincipalType), PrincipalID: p.PrincipalID, Label: label, Level: messageLevelOf(p),
+			})
+		}
 		resource := p.ResourceType + " " + p.ResourceID
 		if page.Filter != "" && !strings.Contains(strings.ToLower(label+" "+resource), strings.ToLower(page.Filter)) {
 			continue
@@ -251,6 +322,7 @@ func (s *Server) handleMyAccess(w http.ResponseWriter, r *http.Request) {
 			page.Webhooks = append(page.Webhooks, webhook)
 		}
 	}
+	page.Messages = snapshot.MessageLevel(p)
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := views.MyAccessPage(page).Render(ctx, w); err != nil {

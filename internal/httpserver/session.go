@@ -55,7 +55,7 @@ func (s *Server) startSession(w http.ResponseWriter, r *http.Request, subject, n
 	}
 	// Best effort: the session is valid either way; the registry catches up next time.
 	if err := s.store.RecordSignIn(ctx, models.User{
-		Subject: subject, Source: source, Name: name, Email: identity.Email,
+		Subject: subject, Source: source, Name: name, Email: identity.Email, ObjectID: identity.ObjectID,
 		Roles: roleNames(roles), IdPGroups: identity.Groups, LastSeen: now,
 	}); err != nil {
 		logError(ctx, "record sign-in", err)

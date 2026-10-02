@@ -10,6 +10,8 @@ import (
 type Access struct {
 	Viewer     Viewer
 	Webhooks   []WebhookAccess
+	// Messages are the principals granted a message level (ADR 0082).
+	Messages   []WebhookAccess
 	Grants     []LabelledGrant
 	Filter     string
 	BaseText   string
@@ -48,6 +50,9 @@ type AccessCheck struct {
 // WebhookLevels are the choices the webhook form offers, weakest first.
 var WebhookLevels = []string{"none", "alertmanager", "universal", "all", "admin"}
 
+// MessageLevels are the choices the message form offers, weakest first.
+var MessageLevels = []string{"none", "anyone"}
+
 templ AccessPage(page Access) {
 	@Layout(i18n.T(ctx, "page.access"), &page.Viewer) {
 		@notice(page.Error, page.Notice)
@@ -82,6 +87,42 @@ templ AccessPage(page Access) {
 						<select name="level" class="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm">
 							for _, level := range WebhookLevels {
 								<option value={ level }>{ i18n.T(ctx, "access.level."+level) }</option>
+							}
+						</select>
+					</label>
+					@submit(i18n.T(ctx, "sharing.grant"))
+				</form>
+			}
+			@accessSection(i18n.T(ctx, "access.messages")) {
+				<p class="text-sm text-slate-600">{ i18n.T(ctx, "access.messages_explainer") }</p>
+				if len(page.Messages) > 0 {
+					<ul class="divide-y divide-slate-200">
+						for _, m := range page.Messages {
+							<li class="flex justify-between py-2 text-sm">
+								<span>
+									<span class="mr-2 rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600">{ i18n.T(ctx, "sharing.principal."+m.PrincipalType) }</span>
+									{ m.Label }
+								</span>
+								<span class="font-mono text-xs">{ i18n.T(ctx, "access.message_level."+m.Level) }</span>
+							</li>
+						}
+					</ul>
+				}
+				<form method="post" action="/admin/access/messages" class="grid gap-3 sm:grid-cols-4 sm:items-end">
+					<label class="block">
+						<span class="text-sm font-medium">{ i18n.T(ctx, "sharing.principal_type") }</span>
+						<select name="principal_type" class="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm">
+							for _, t := range []string{"user", "group", "idp_group", "role"} {
+								<option value={ t }>{ i18n.T(ctx, "sharing.principal."+t) }</option>
+							}
+						</select>
+					</label>
+					@textField("principal_id", i18n.T(ctx, "sharing.principal"), "", "")
+					<label class="block">
+						<span class="text-sm font-medium">{ i18n.T(ctx, "access.level") }</span>
+						<select name="level" class="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm">
+							for _, level := range MessageLevels {
+								<option value={ level }>{ i18n.T(ctx, "access.message_level."+level) }</option>
 							}
 						</select>
 					</label>
@@ -187,6 +228,8 @@ type MyAccess struct {
 	IdPGroups []string
 	Groups    []string
 	Webhooks  []string
+	// Messages is how far they may address people (ADR 0082).
+	Messages  string
 	Policies  []authz.GeneratedPolicy
 	Error     string
 }
@@ -206,6 +249,8 @@ templ MyAccessPage(page MyAccess) {
 				<dd class="sm:col-span-3">{ joinOrDash(page.Groups) }</dd>
 				<dt class="font-medium">{ i18n.T(ctx, "me.webhooks") }</dt>
 				<dd class="sm:col-span-3">{ joinOrDash(page.Webhooks) }</dd>
+				<dt class="font-medium">{ i18n.T(ctx, "me.messages") }</dt>
+				<dd class="sm:col-span-3">{ i18n.T(ctx, "me.messages."+messagesOrNone(page.Messages)) }</dd>
 			</dl>
 			<h3 class="text-sm font-semibold">{ i18n.T(ctx, "me.policies") }</h3>
 			if len(page.Policies) == 0 {
@@ -216,4 +261,12 @@ templ MyAccessPage(page MyAccess) {
 			}
 		}
 	}
+}
+
+// messagesOrNone names the empty message level.
+func messagesOrNone(level string) string {
+	if level == "" {
+		return "none"
+	}
+	return level
 }

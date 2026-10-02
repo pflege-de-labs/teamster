@@ -12,8 +12,8 @@ import (
 )
 
 const createAccessToken = `-- name: CreateAccessToken :exec
-INSERT INTO access_tokens (id, name, token_hash, created_by, created_at, scope, scoped_token_hash)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+INSERT INTO access_tokens (id, name, token_hash, created_by, created_at, scope, scoped_token_hash, message_scope)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 `
 
 type CreateAccessTokenParams struct {
@@ -24,6 +24,7 @@ type CreateAccessTokenParams struct {
 	CreatedAt       time.Time
 	Scope           string
 	ScopedTokenHash sql.NullString
+	MessageScope    string
 }
 
 func (q *Queries) CreateAccessToken(ctx context.Context, arg CreateAccessTokenParams) error {
@@ -35,6 +36,7 @@ func (q *Queries) CreateAccessToken(ctx context.Context, arg CreateAccessTokenPa
 		arg.CreatedAt,
 		arg.Scope,
 		arg.ScopedTokenHash,
+		arg.MessageScope,
 	)
 	return err
 }
@@ -49,7 +51,7 @@ func (q *Queries) DeleteAccessToken(ctx context.Context, id string) error {
 }
 
 const getAccessTokenByHash = `-- name: GetAccessTokenByHash :one
-SELECT id, name, token_hash, created_by, created_at, last_used_at, scope, scoped_token_hash
+SELECT id, name, token_hash, created_by, created_at, last_used_at, scope, scoped_token_hash, message_scope
 FROM access_tokens
 WHERE token_hash = $1 OR scoped_token_hash = $1
 `
@@ -69,13 +71,14 @@ func (q *Queries) GetAccessTokenByHash(ctx context.Context, tokenHash string) (A
 		&i.LastUsedAt,
 		&i.Scope,
 		&i.ScopedTokenHash,
+		&i.MessageScope,
 	)
 	return i, err
 }
 
 const listAccessTokens = `-- name: ListAccessTokens :many
 
-SELECT id, name, token_hash, created_by, created_at, last_used_at, scope, scoped_token_hash
+SELECT id, name, token_hash, created_by, created_at, last_used_at, scope, scoped_token_hash, message_scope
 FROM access_tokens
 ORDER BY name
 `
@@ -102,6 +105,7 @@ func (q *Queries) ListAccessTokens(ctx context.Context) ([]AccessToken, error) {
 			&i.LastUsedAt,
 			&i.Scope,
 			&i.ScopedTokenHash,
+			&i.MessageScope,
 		); err != nil {
 			return nil, err
 		}

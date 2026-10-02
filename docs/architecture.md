@@ -362,6 +362,24 @@ snapshot or registry is a `503`. Scoped tokens keep their digest in `scoped_toke
 `token_hash` alone, refuses them instead of admitting them unscoped.
 See [ADR 0044](adr/0044-webhook-access-tokens.md).
 
+Naming people is checked before anything is routed
+([ADR 0082](adr/0082-naming-people-takes-permission.md)). `authorizeWebhook` returns a `sender`:
+the token and, for a scoped one, its creator. `authorizeAddresses` collects `models.AddressesOf`
+over the request's events, a whole Alertmanager batch at once. Without addresses there is nothing to
+ask. Otherwise:
+
+* A sender without a creator (`webhook.token`, a token from before scopes) is refused.
+* `AllowTokenMessage` asks for `message` on `People::"*"`. The token's message level is a second
+  generated policy, `token:<id>:messages`, permitting `action in Action::"<level>"`, and the creator
+  must hold the action too.
+* Failing that, `messageSelf`. Every user holds it through a base policy, and only tokens with a
+  message level do. Every address must then resolve, through `people.Resolve`, to the creator's
+  object id: `users.object_id` from the last sign-in, else the linked recipient's `aad_object_id`.
+  An address that resolves to nobody is not the creator; a lookup that fails for a reason a retry
+  may fix answers `502`.
+
+A refusal is a `403` counted as `forbidden`, and nothing is delivered.
+
 ### Teams V2 webhooks
 
 A second ingest path answers the URL a Microsoft Teams webhook used to have, so a sender pointed at
@@ -985,6 +1003,11 @@ SQLite and `0025` in Postgres ([ADR 0077](adr/0077-scoped-tokens-answer-to-their
 empty scope is a token from before. A scoped token's `token_hash` is `scoped:<id>`, so the previous
 release refuses it.
 
+`users.object_id` and `access_tokens.message_scope` came with message permissions, by `0029` in
+SQLite and `0026` in Postgres ([ADR 0082](adr/0082-naming-people-takes-permission.md)). A sign-in
+without the object id keeps the one an earlier sign-in recorded. The previous release reads
+neither, and names people as it did.
+
 `database.migrate` decides what opening the store does about a schema that is behind: `auto`
 applies what is missing, `verify` refuses and names `teamster migrate up`, `off` asks nothing.
 `teamster export` always verifies — reading a database must not migrate it. A migration must leave
@@ -1386,6 +1409,8 @@ finishing it.
 * An address Graph does not know is remembered for ten minutes, in a map of at most 1024
   entries per process.
 * A disabled account, a guest or someone departed is `ineligible`.
+* A mail address Graph finds on more than one user is `ambiguous-address`, a permanent miss
+  rather than an error a retry could fix.
 
 ## Inbound bot messages
 

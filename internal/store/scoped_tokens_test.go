@@ -26,7 +26,7 @@ func TestScopedTokens(t *testing.T) {
 		t.Fatal(err)
 	}
 	before, _ := st.AuthzGeneration(ctx)
-	scoped, err := st.CreateAccessToken(ctx, models.AccessToken{Name: "scoped", TokenHash: "digest-scoped", CreatedBy: "alice", Scope: []string{"alertmanager"}})
+	scoped, err := st.CreateAccessToken(ctx, models.AccessToken{Name: "scoped", TokenHash: "digest-scoped", CreatedBy: "alice", Scope: []string{"alertmanager"}, Messages: "self"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,13 +38,14 @@ func TestScopedTokens(t *testing.T) {
 		digest    string
 		wantID    string
 		wantScope []string
+		wantMsgs  string
 	}{
-		{"digest-legacy", legacy.ID, nil},
-		{"digest-scoped", scoped.ID, []string{"alertmanager"}},
+		{"digest-legacy", legacy.ID, nil, ""},
+		{"digest-scoped", scoped.ID, []string{"alertmanager"}, "self"},
 	}
 	for _, tt := range tests {
 		got, err := st.GetAccessTokenByHash(ctx, tt.digest)
-		if err != nil || got.ID != tt.wantID || !slices.Equal(got.Scope, tt.wantScope) || got.TokenHash != tt.digest {
+		if err != nil || got.ID != tt.wantID || !slices.Equal(got.Scope, tt.wantScope) || got.TokenHash != tt.digest || got.Messages != tt.wantMsgs {
 			t.Errorf("GetAccessTokenByHash(%s) = %+v, %v", tt.digest, got, err)
 		}
 	}

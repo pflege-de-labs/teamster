@@ -77,11 +77,12 @@ func TestFindUserByMail(t *testing.T) {
 		body         string
 		wantID       string
 		wantNotFound bool
+		wantAmbig    bool
 		wantErr      bool
 	}{
 		{name: "one match", body: `{"value":[{"id":"u1"}]}`, wantID: "u1"},
 		{name: "no match", body: `{"value":[]}`, wantNotFound: true, wantErr: true},
-		{name: "ambiguous", body: `{"value":[{"id":"u1"},{"id":"u2"}]}`, wantErr: true},
+		{name: "ambiguous", body: `{"value":[{"id":"u1"},{"id":"u2"}]}`, wantAmbig: true, wantErr: true},
 	}
 
 	for _, tt := range tests {
@@ -96,7 +97,7 @@ func TestFindUserByMail(t *testing.T) {
 			})
 
 			u, err := client.FindUserByMail(context.Background(), "o'brien@corp.example")
-			if (err != nil) != tt.wantErr || errors.Is(err, ErrNotFound) != tt.wantNotFound {
+			if (err != nil) != tt.wantErr || errors.Is(err, ErrNotFound) != tt.wantNotFound || errors.Is(err, ErrAmbiguous) != tt.wantAmbig {
 				t.Fatalf("FindUserByMail() error = %v", err)
 			}
 			if u.ID != tt.wantID {

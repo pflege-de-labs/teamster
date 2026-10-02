@@ -93,32 +93,43 @@ func (s *Server) tokenCreator(r *http.Request, subject string) (authz.Principal,
 	return authz.Principal{}, errTokenScope
 }
 
+// A sender is who a webhook request speaks for: the token, and for a scoped
+// one its creator as they are now. The deployment token and tokens from
+// before scopes have no creator, so they may not name people (ADR 0082).
+type sender struct {
+	token   models.AccessToken
+	creator *authz.Principal
+}
+
 // authorizeScoped asks Cedar about a scoped token: its own scope and its creator's use.
-func (s *Server) authorizeScoped(r *http.Request, token models.AccessToken, source string) error {
+func (s *Server) authorizeScoped(r *http.Request, token models.AccessToken, source string) (authz.Principal, error) {
 	snapshot, err := s.engine.Authorizer(r.Context())
 	if err != nil {
-		return err
+		return authz.Principal{}, err
 	}
 	creator, err := s.tokenCreator(r, token.CreatedBy)
 	if err != nil {
-		return err
+		return authz.Principal{}, err
 	}
 	if !snapshot.AllowToken(token.ID, creator, source) {
-		return errTokenScope
+		return authz.Principal{}, errTokenScope
 	}
-	return nil
+	return creator, nil
 }
 
 // authorizeWebhook answers a refused request itself and reports whether the
-// handler may go on.
-func (s *Server) authorizeWebhook(w http.ResponseWriter, r *http.Request, source string) bool {
+// handler may go on, and for whom.
+func (s *Server) authorizeWebhook(w http.ResponseWriter, r *http.Request, source string) (sender, bool) {
 	token, err := s.webhookAuth(r)
+	from := sender{token: token}
 	if err == nil && token.Scoped() {
-		err = s.authorizeScoped(r, token, source)
+		var creator authz.Principal
+		creator, err = s.authorizeScoped(r, token, source)
+		from.creator = &creator
 	}
 	switch {
 	case err == nil:
-		return true
+		return from, true
 	case errors.Is(err, errNoCredential), errors.Is(err, errUnknownToken):
 		// Counted because a refused token is otherwise a 401 nobody is
 		// watching, and "the sender's secret is wrong" looks exactly like "the
@@ -135,7 +146,7 @@ func (s *Server) authorizeWebhook(w http.ResponseWriter, r *http.Request, source
 		logging.FromContext(r.Context()).Error("webhook: look up access token", "source", source, "err", err)
 		writeJSONError(w, http.StatusServiceUnavailable, "cannot check the token right now")
 	}
-	return false
+	return sender{}, false
 }
 
 // newAccessToken is 256 bits behind a recognisable prefix.

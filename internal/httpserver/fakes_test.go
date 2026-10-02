@@ -1852,6 +1852,9 @@ func (f *fakeStore) RecordSignIn(_ context.Context, u models.User) error {
 	}
 	if existing, ok := f.users[u.Subject]; ok {
 		u.FirstSeen, u.DisabledAt, u.DisabledBy = existing.FirstSeen, existing.DisabledAt, existing.DisabledBy
+		if u.ObjectID == "" {
+			u.ObjectID = existing.ObjectID
+		}
 	} else {
 		u.FirstSeen = u.LastSeen
 	}

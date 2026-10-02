@@ -8,6 +8,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Changed
+
+* The comment on `config.settings.auth.object-id-claim` says it also identifies the creator of a
+  token that may message only them.
+
 ## [0.10.0] — 2026-10-01
 
 App version 0.11.0: an audit trail with NATS export, local groups, record ownership and sharing,

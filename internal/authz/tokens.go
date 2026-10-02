@@ -12,6 +12,8 @@ import (
 type TokenScope struct {
 	ID       string
 	Webhooks []string
+	// Messages is the token's message level, or MessagesNone (ADR 0082).
+	Messages string
 }
 
 func tokenUID(id string) cedar.EntityUID { return cedar.NewEntityUID("Token", types.String(id)) }
@@ -50,6 +52,11 @@ func addTokens(policies *cedar.PolicySet, tokens []TokenScope) []GeneratedPolicy
 		id := "token:" + token.ID
 		policies.Add(cedar.PolicyID(id), policy)
 		out = append(out, GeneratedPolicy{ID: id, Text: string(policy.MarshalCedar())})
+		if messages, ok := token.renderMessages(); ok {
+			id := "token:" + token.ID + ":messages"
+			policies.Add(cedar.PolicyID(id), messages)
+			out = append(out, GeneratedPolicy{ID: id, Text: string(messages.MarshalCedar())})
+		}
 	}
 	return out
 }
