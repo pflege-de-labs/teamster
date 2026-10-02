@@ -472,7 +472,7 @@ gewinnen. Die Dateien oben werden weiterhin für jeden Schlüssel gelesen, den s
 &lt;td&gt;&lt;code&gt;auth.object-id-claim&lt;/code&gt;&lt;/td&gt;
 &lt;td&gt;&lt;code&gt;TEAMSTER_AUTH_OBJECT_ID_CLAIM&lt;/code&gt;&lt;/td&gt;
 &lt;td&gt;&lt;code&gt;oid&lt;/code&gt;&lt;/td&gt;
-&lt;td&gt;Pfad mit Punkten zum Claim, der die Entra-Objekt-ID des Benutzers trägt, über die sein eigener Teams-Chat gefunden wird.&lt;/td&gt;
+&lt;td&gt;Pfad mit Punkten zum Claim, der die Entra-Objekt-ID des Benutzers trägt, über die sein eigener Teams-Chat gefunden wird und die die eine Person ist, die ein &lt;strong&gt;nur mich&lt;/strong&gt;-Token nennen darf.&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;auth.default-role&lt;/code&gt;&lt;/td&gt;
@@ -1875,12 +1875,12 @@ mit &lt;code&gt;shutting down&lt;/code&gt; bzw. &lt;code&gt;database unreachable
 &lt;tr&gt;
 &lt;td&gt;Ausgestelltes Zugriffstoken, &lt;code&gt;tst_&lt;/code&gt; und 64 Hexadezimalziffern&lt;/td&gt;
 &lt;td&gt;&lt;code&gt;/admin/tokens&lt;/code&gt; oder &lt;code&gt;POST /api/tokens&lt;/code&gt;&lt;/td&gt;
-&lt;td&gt;Die Webhooks, die es nennt, und nur, solange sein Ersteller sie noch verwenden darf. Ohne Bereich, wenn es ausgestellt wurde, bevor es Bereiche gab.&lt;/td&gt;
+&lt;td&gt;Die Webhooks, die es nennt, und nur, solange sein Ersteller sie noch verwenden darf. Nennt Personen, soweit seine Nachrichtenstufe und sein Ersteller es erlauben. Ohne Bereich, wenn es ausgestellt wurde, bevor es Bereiche gab, und nennt dann niemanden.&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;webhook.token&lt;/code&gt;&lt;/td&gt;
 &lt;td&gt;Konfiguration, &lt;code&gt;TEAMSTER_WEBHOOK_TOKEN&lt;/code&gt;&lt;/td&gt;
-&lt;td&gt;Beide Webhooks.&lt;/td&gt;
+&lt;td&gt;Beide Webhooks. Nennt niemanden.&lt;/td&gt;
 &lt;/tr&gt;
 &lt;/tbody&gt;
 &lt;/table&gt;
@@ -2107,6 +2107,9 @@ mehr gelesen.&lt;/p&gt;
 &lt;/table&gt;
 &lt;p&gt;Empfänger werden von Leerraum befreit und ohne Rücksicht auf Groß- und Kleinschreibung
 dedupliziert. Eine Nachricht darf höchstens &lt;code&gt;webhook.max-recipients&lt;/code&gt; Personen nennen.&lt;/p&gt;
+&lt;p&gt;Eine Nachricht, die Personen nennt, braucht ein Token, dessen Nachrichtenstufe das erlaubt, gleich
+welche Route sie trifft. Die ganze Anfrage wird geprüft, bevor irgendetwas zugestellt wird. Siehe
+&lt;a href="../../guides/webhook-tokens/#let-a-token-name-people"&gt;Ein Token Personen nennen lassen&lt;/a&gt;.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="keys"&gt;Schlüssel&lt;span class="hx:absolute hx:-mt-20" id="keys"&gt;&lt;/span&gt;
 &lt;a href="#keys" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Hat ein Ereignis keinen Schlüssel, leitet Teamster einen als SHA-256 ab über:&lt;/p&gt;
 &lt;table&gt;
@@ -2175,6 +2178,16 @@ dedupliziert. Eine Nachricht darf höchstens &lt;code&gt;webhook.max-recipients&
 &lt;td&gt;Ein Token mit Bereich für einen Webhook, den es nicht nennt oder den sein Ersteller nicht mehr verwenden darf.&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
+&lt;td&gt;&lt;code&gt;403&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;{&amp;quot;error&amp;quot;: &amp;quot;this token may not name recipients: …&amp;quot;}&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;Die Nachricht nennt Personen, und das Token darf das nicht: keine Nachrichtenstufe, &lt;code&gt;webhook.token&lt;/code&gt;, ein Token von vor 0.11.0 oder ein Ersteller, der keine Personen mehr anschreiben darf. Nichts wurde zugestellt.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;403&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;{&amp;quot;error&amp;quot;: &amp;quot;this token may only name its creator as a recipient&amp;quot;}&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;Ein &lt;strong&gt;nur mich&lt;/strong&gt;-Token hat jemand anderen genannt, oder die Objekt-ID seines Erstellers ist nicht bekannt. Nichts wurde zugestellt.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
 &lt;td&gt;&lt;code&gt;405&lt;/code&gt;&lt;/td&gt;
 &lt;td&gt;leer&lt;/td&gt;
 &lt;td&gt;Kein &lt;code&gt;POST&lt;/code&gt;.&lt;/td&gt;
@@ -2231,6 +2244,10 @@ dedupliziert. Eine Nachricht darf höchstens &lt;code&gt;webhook.max-recipients&
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;unknown-recipient&lt;/code&gt;&lt;/td&gt;
 &lt;td&gt;Niemand im Verzeichnis hat diese Adresse.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;ambiguous-address&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;Mehr als ein Benutzer trägt diese E-Mail-Adresse oder diesen Alias.&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;ineligible&lt;/code&gt;&lt;/td&gt;

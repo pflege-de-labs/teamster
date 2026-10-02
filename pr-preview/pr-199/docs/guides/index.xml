@@ -1555,52 +1555,8 @@ data-copied-label="Copied!"
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;p&gt;Each alert in a group is addressed by its own label, so one notification can reach different
-people for different alerts.&lt;/p&gt;
-&lt;h3 data-hextra-search-id="how-addresses-are-matched"&gt;How addresses are matched&lt;span class="hx:absolute hx:-mt-20" id="how-addresses-are-matched"&gt;&lt;/span&gt;
-&lt;a href="#how-addresses-are-matched" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Each address is one of three forms. Matching ignores case.&lt;/p&gt;
-&lt;table&gt;
-&lt;thead&gt;
-&lt;tr&gt;
-&lt;th&gt;Form&lt;/th&gt;
-&lt;th&gt;Example&lt;/th&gt;
-&lt;th&gt;Matches&lt;/th&gt;
-&lt;/tr&gt;
-&lt;/thead&gt;
-&lt;tbody&gt;
-&lt;tr&gt;
-&lt;td&gt;Entra object id&lt;/td&gt;
-&lt;td&gt;&lt;code&gt;0b1c2d3e-4f50-6172-8394-a5b6c7d8e9f0&lt;/code&gt;&lt;/td&gt;
-&lt;td&gt;The user with that id. Only a GUID counts as an id.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;User principal name&lt;/td&gt;
-&lt;td&gt;&lt;code&gt;alice@example.com&lt;/code&gt;&lt;/td&gt;
-&lt;td&gt;The user whose UPN it is.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;Mail address&lt;/td&gt;
-&lt;td&gt;&lt;code&gt;a.smith@example.com&lt;/code&gt;&lt;/td&gt;
-&lt;td&gt;The user whose primary mail address, or any SMTP alias, it is. Used when no UPN matches.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;
-&lt;/table&gt;
-&lt;p&gt;Anything without an &lt;code&gt;@&lt;/code&gt; that is not a GUID is answered as &lt;code&gt;invalid-address&lt;/code&gt;.&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;strong&gt;Where Teamster looks.&lt;/strong&gt; First in its own directory of people, which a previous lookup or the
-&lt;a href="../teams-bot/#install-the-bot-for-everyone"&gt;install run&lt;/a&gt; filled. An entry older than
-&lt;code&gt;bot.directory-ttl&lt;/code&gt; (default &lt;code&gt;24h&lt;/code&gt;) is looked up in Microsoft Graph again. Aliases are found only
-through Graph, so the first message to an alias costs a Graph call.&lt;/li&gt;
-&lt;li&gt;&lt;strong&gt;A typo is remembered.&lt;/strong&gt; An address Graph does not know is answered &lt;code&gt;unknown-recipient&lt;/code&gt;
-without asking Graph again for 10 minutes. A person just added in Entra can take that long to
-become reachable under an address that failed before.&lt;/li&gt;
-&lt;li&gt;&lt;strong&gt;Who is reached.&lt;/strong&gt; Enabled members of the tenant only. Guests, disabled accounts and people
-who left are answered &lt;code&gt;ineligible&lt;/code&gt;.&lt;/li&gt;
-&lt;li&gt;&lt;strong&gt;An address two people share.&lt;/strong&gt; A mail address or alias carried by more than one user names
-nobody for certain. It is answered &lt;code&gt;ambiguous-address&lt;/code&gt;: name the person by UPN or object id
-instead.&lt;/li&gt;
-&lt;li&gt;&lt;strong&gt;Only me.&lt;/strong&gt; A token limited to its creator may use any of the three forms, as long as the
-address resolves to the creator&amp;rsquo;s own object id.&lt;/li&gt;
-&lt;/ul&gt;
+people for different alerts. See &lt;a href="#how-addresses-are-matched"&gt;How addresses are matched&lt;/a&gt; for
+what each address may be.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="read-the-answer"&gt;Read the answer&lt;span class="hx:absolute hx:-mt-20" id="read-the-answer"&gt;&lt;/span&gt;
 &lt;a href="#read-the-answer" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;table&gt;
 &lt;thead&gt;
@@ -1676,6 +1632,51 @@ address resolves to the creator&amp;rsquo;s own object id.&lt;/li&gt;
 &lt;/tbody&gt;
 &lt;/table&gt;
 &lt;/div&gt;
+&lt;h2 data-hextra-search-id="how-addresses-are-matched"&gt;How addresses are matched&lt;span class="hx:absolute hx:-mt-20" id="how-addresses-are-matched"&gt;&lt;/span&gt;
+&lt;a href="#how-addresses-are-matched" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Each address is one of three forms. Matching ignores case.&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Form&lt;/th&gt;
+&lt;th&gt;Example&lt;/th&gt;
+&lt;th&gt;Matches&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;Entra object id&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;0b1c2d3e-4f50-6172-8394-a5b6c7d8e9f0&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;The user with that id. Only a GUID counts as an id.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;User principal name&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;alice@example.com&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;The user whose UPN it is.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;Mail address&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;a.smith@example.com&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;The user whose primary mail address, or any SMTP alias, it is. Used when no UPN matches.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;Anything without an &lt;code&gt;@&lt;/code&gt; that is not a GUID is answered as &lt;code&gt;invalid-address&lt;/code&gt;.&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Where Teamster looks.&lt;/strong&gt; First in its own directory of people, which a previous lookup or the
+&lt;a href="../teams-bot/#install-the-bot-for-everyone"&gt;install run&lt;/a&gt; filled. An entry older than
+&lt;code&gt;bot.directory-ttl&lt;/code&gt; (default &lt;code&gt;24h&lt;/code&gt;) is looked up in Microsoft Graph again. Aliases are found only
+through Graph, so the first message to an alias costs a Graph call.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;A typo is remembered.&lt;/strong&gt; An address Graph does not know is answered &lt;code&gt;unknown-recipient&lt;/code&gt;
+without asking Graph again for 10 minutes. A person just added in Entra can take that long to
+become reachable under an address that failed before.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Who is reached.&lt;/strong&gt; Enabled members of the tenant only. Guests, disabled accounts and people
+who left are answered &lt;code&gt;ineligible&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;An address two people share.&lt;/strong&gt; A mail address or alias carried by more than one user names
+nobody for certain. It is answered &lt;code&gt;ambiguous-address&lt;/code&gt;: name the person by UPN or object id
+instead.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Only me.&lt;/strong&gt; A token limited to its creator may use any of the three forms, as long as the
+address resolves to the creator&amp;rsquo;s own object id.&lt;/li&gt;
+&lt;/ul&gt;
 &lt;h2 data-hextra-search-id="update-or-close-the-messages"&gt;Update or close the messages&lt;span class="hx:absolute hx:-mt-20" id="update-or-close-the-messages"&gt;&lt;/span&gt;
 &lt;a href="#update-or-close-the-messages" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Use &lt;code&gt;&amp;quot;state&amp;quot;: &amp;quot;open&amp;quot;&lt;/code&gt; and a &lt;code&gt;key&lt;/code&gt; to get the tracked lifecycle:&lt;/p&gt;
 &lt;ul&gt;
@@ -1855,13 +1856,14 @@ your chat.&lt;/li&gt;
 the API.&lt;/li&gt;
 &lt;li&gt;Every use checks the creator&amp;rsquo;s level as it is now. An &lt;strong&gt;anyone&lt;/strong&gt; token whose creator lost that
 permission names only its creator from then on.&lt;/li&gt;
-&lt;li&gt;Tokens from before release 0.11.0 and &lt;code&gt;webhook.token&lt;/code&gt; have no creator, so they cannot name
-anyone. Issue a token with a message level for such a sender.&lt;/li&gt;
+&lt;li&gt;Tokens from before release 0.11.0 and &lt;code&gt;webhook.token&lt;/code&gt; are not bound to a creator whose level
+could be checked, so they cannot name anyone. Issue a token with a message level for such a
+sender.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;p&gt;The &lt;code&gt;403&lt;/code&gt; comes before anything is delivered. A refused Alertmanager batch delivers none of its
 alerts, including the ones that name nobody. A message that names people is checked even when the
 route it matches delivers to a channel. See
-&lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0081-naming-people-takes-permission.md" target="_blank" rel="noopener"&gt;ADR 0081&lt;/a&gt;
+&lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0082-naming-people-takes-permission.md" target="_blank" rel="noopener"&gt;ADR 0082&lt;/a&gt;
 for the design.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="use-a-deployment-wide-token"&gt;Use a deployment-wide token&lt;span class="hx:absolute hx:-mt-20" id="use-a-deployment-wide-token"&gt;&lt;/span&gt;
 &lt;a href="#use-a-deployment-wide-token" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;&lt;code&gt;webhook.token&lt;/code&gt; is one token from configuration, accepted alongside the issued ones. Use it when a
@@ -3261,7 +3263,7 @@ data-copied-label="Copied!"
 &lt;p&gt;&lt;code&gt;principal_type&lt;/code&gt; is &lt;code&gt;user&lt;/code&gt;, &lt;code&gt;group&lt;/code&gt;, &lt;code&gt;idp_group&lt;/code&gt; or &lt;code&gt;role&lt;/code&gt;. &lt;code&gt;none&lt;/code&gt; takes the level back, and their
 &lt;strong&gt;anyone&lt;/strong&gt; tokens name only their creator from the next request. In Cedar the level is the action
 &lt;code&gt;message&lt;/code&gt; on &lt;code&gt;People::&amp;quot;*&amp;quot;&lt;/code&gt;, which includes &lt;code&gt;messageSelf&lt;/code&gt;, the action everyone holds. See
-&lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0081-naming-people-takes-permission.md" target="_blank" rel="noopener"&gt;ADR 0081&lt;/a&gt;.&lt;/p&gt;
+&lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0082-naming-people-takes-permission.md" target="_blank" rel="noopener"&gt;ADR 0082&lt;/a&gt;.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="share-a-record"&gt;Share a record&lt;span class="hx:absolute hx:-mt-20" id="share-a-record"&gt;&lt;/span&gt;
 &lt;a href="#share-a-record" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Whoever creates a template, destination, route, webhook endpoint or group owns it. To share one,
 edit it and use &lt;strong&gt;Who may do what&lt;/strong&gt;: give a user, a group, a provider group or a role some of these

@@ -314,6 +314,11 @@ ihrer Rolle gewährt wurde: &lt;strong&gt;keine&lt;/strong&gt;, &lt;strong&gt;Al
 Anfrage erneut geprüft. Wird der Ersteller deaktiviert oder verliert er seine Stufe, sind seine
 Token sofort widerrufen. Siehe
 &lt;a href="../../guides/webhook-tokens/"&gt;Einen Webhook-Absender authentifizieren&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Personen in einer Nachricht zu nennen ist ebenfalls eine Berechtigung. Jeder darf sich selbst
+nennen; andere zu nennen erfordert eine Freigabe, die Administratoren haben. Ein Token nennt
+Personen nur, soweit seine eigene Nachrichtenstufe und die Berechtigung seines Erstellers es beide
+erlauben. Siehe
+&lt;a href="../../guides/roles/#let-someone-message-people"&gt;Jemanden Personen anschreiben lassen&lt;/a&gt;.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="every-change-is-recorded"&gt;Jede Änderung wird aufgezeichnet&lt;span class="hx:absolute hx:-mt-20" id="every-change-is-recorded"&gt;&lt;/span&gt;
 &lt;a href="#every-change-is-recorded" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Änderungen an Berechtigungen, Gruppenmitgliedschaften und deaktivierten Benutzern werden in das
 Änderungsprotokoll geschrieben. Eine Änderung einer Gruppenmitgliedschaft wird in derselben
