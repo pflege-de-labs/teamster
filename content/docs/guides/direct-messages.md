@@ -107,8 +107,8 @@ Anything without an `@` that is not a GUID is answered as `invalid-address`.
 * **Who is reached.** Enabled members of the tenant only. Guests, disabled accounts and people
   who left are answered `ineligible`.
 * **An address two people share.** A mail address or alias carried by more than one user names
-  nobody for certain. It is answered `502`, and retrying does not help: name the person by UPN or
-  object id instead.
+  nobody for certain. It is answered `ambiguous-address`: name the person by UPN or object id
+  instead.
 * **Only me.** A token limited to its creator may use any of the three forms, as long as the
   address resolves to the creator's own object id.
 
@@ -129,6 +129,7 @@ Each entry in `undelivered` has the `recipient` as given and a `reason`:
 | --- | --- |
 | `invalid-address` | Not an object id, UPN or mail address. |
 | `unknown-recipient` | No such person in the directory. |
+| `ambiguous-address` | More than one person carries this mail address. Use their UPN or object id. |
 | `ineligible` | Not an enabled member of the tenant: a guest, a disabled account, someone who left. |
 | `not-installed` | The bot's Teams app is not installed for this person. |
 | `no-recipient` | The route addresses people and the message named none. |

@@ -163,6 +163,7 @@ Each entry of `undelivered`:
 | --- | --- |
 | `invalid-address` | The address is not a UPN, mail address or object id. |
 | `unknown-recipient` | Nobody in the directory has that address. |
+| `ambiguous-address` | More than one user carries that mail address or alias. |
 | `ineligible` | Not an enabled member of the tenant: a guest, a disabled account, or someone who left. |
 | `not-installed` | The Teams app is not installed for this person. |
 | `no-recipient` | The route delivers to people and the message named none. |
