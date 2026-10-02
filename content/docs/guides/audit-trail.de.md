@@ -1,6 +1,6 @@
 ---
 title: Änderungsprotokoll führen
-weight: 19
+weight: 20
 ---
 
 Halten Sie fest, wer was an der Konfiguration von Teamster geändert hat, lesen Sie es in der

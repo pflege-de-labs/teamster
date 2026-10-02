@@ -1,6 +1,6 @@
 ---
 title: Keycloak für die Anmeldung an der Verwaltung einrichten
-weight: 17
+weight: 18
 ---
 
 Richten Sie einen Keycloak-Client ein, damit sich Personen mit ihrem Realm-Konto an Teamster

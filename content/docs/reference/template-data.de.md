@@ -80,6 +80,7 @@ Gesetzt für ein Ereignis von `POST /webhook/universal`.
 | `.Event.Universal.Time` | Zeit | `time` |
 | `.Event.Universal.URL` | String | `url` |
 | `.Event.Universal.Recipients` | Liste von Strings | `recipients` |
+| `.Event.Universal.Broadcast` | bool | `broadcast` |
 
 ### Teams V2 {#teams-v2}
 

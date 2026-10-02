@@ -12,6 +12,7 @@ answer.
 | --- | --- | --- | --- |
 | `POST /webhook/alertmanager` | `Authorization: Bearer <token>` | [Alertmanager](#alertmanager) | yes |
 | `POST /webhook/universal` | `Authorization: Bearer <token>` | [Universal](#universal) | yes |
+| `GET /webhook/broadcasts/{id}` | `Authorization: Bearer <token>` | — | no, see [Broadcast status](#broadcast-status) |
 | `POST /teamsv2/{team}/{channel}/{token}` | The token in the path | [Teams V2](#teams-v2) | no, posts to the endpoint's destination |
 | `POST /bot/messages` | Bot Framework signed token | Bot Framework activity | — |
 | `GET /healthz` | none | — | — |
@@ -27,7 +28,8 @@ Every response carries an `X-Request-ID` header. The same id is logged as `reque
 
 ## Authentication
 
-`/webhook/alertmanager` and `/webhook/universal` accept either kind of token.
+`/webhook/alertmanager`, `/webhook/universal` and `/webhook/broadcasts/{id}` accept either kind of
+token.
 
 | Token | Where it comes from | Scope |
 | --- | --- | --- |
@@ -81,6 +83,7 @@ A JSON object. Every field is optional.
 | `time` | string, RFC 3339 | When the event started. |
 | `url` | string | Where the event came from. |
 | `recipients` | array of strings | People an addressed route delivers to: UPNs, mail addresses or Entra object ids. |
+| `broadcast` | boolean | `true` sends to everyone the bot can reach, in the background. Refused with `400` together with `recipients`, `teamster_recipient` or `state`. See [Send a message to everyone](../../guides/broadcasts/). |
 | `title` | string | Sent as-is when the route has no template. |
 | `text` | string, Markdown | Sent, sanitized, when the route has no template. |
 | `card` | object, Adaptive Card | Sent as-is when the route has no template. |
@@ -118,7 +121,8 @@ Recipients are trimmed and deduplicated ignoring case. A message may name at mos
 
 A message that names people needs a token whose message level allows it, whatever route it
 matches. The whole request is checked before anything is delivered. See
-[Let a token name people](../../guides/webhook-tokens/#let-a-token-name-people).
+[Let a token name people](../../guides/webhook-tokens/#let-a-token-name-people). A broadcast needs
+the message level `everyone`.
 
 ## Keys
 
@@ -138,15 +142,19 @@ For `/webhook/alertmanager` and `/webhook/universal`. Error bodies are
 | --- | --- | --- |
 | `200` | `{"status": "ok"}` | Every delivery succeeded. |
 | `200` | `{"status": "partial", "delivered": <n>, "undelivered": [...]}` | Some people cannot be reached, and a retry will not change that. |
+| `202` | `{"status": "accepted", "broadcast": {...}, "status_url": "/webhook/broadcasts/<id>", "delivered": <n>}` | Universal only: a broadcast was queued. `broadcast` is its [status](#broadcast-status); `delivered` counts the channels and linked chats reached during the request, and `undelivered` follows when some were not. |
 | `400` | `{"error": "invalid JSON"}` | The body is not the expected JSON, including a malformed time. |
 | `400` | `{"error": "unknown state …"}` | Universal only: `state` is not `open`, `closed` or absent. |
 | `400` | `{"error": "the message names more recipients than webhook.max-recipients allows: …"}` | Too many recipients. |
+| `400` | `{"error": "a broadcast goes to everyone: drop recipients and the teamster_recipient label"}` | A broadcast that also names people. |
+| `400` | `{"error": "a broadcast is delivered once: drop state"}` | A broadcast with a `state`. |
 | `401` | empty, with `WWW-Authenticate: Bearer realm="webhook"` | No token, or a token Teamster does not know. |
 | `403` | `{"error": "the token's scope, or its creator, does not allow this webhook"}` | A scoped token used for a webhook it does not name, or whose creator may no longer use it. |
 | `403` | `{"error": "this token may not name recipients: …"}` | The message names people and the token may not: no message level, `webhook.token`, a token from before 0.11.0, or a creator who may no longer message people. Nothing was delivered. |
 | `403` | `{"error": "this token may only name its creator as a recipient"}` | An **only me** token named someone else, or its creator's object id is not known. Nothing was delivered. |
+| `403` | `{"error": "this token may not broadcast: it needs the message level everyone"}` | A broadcast from a token below `everyone`, or whose creator no longer holds that level. Nothing was delivered. |
 | `405` | empty | Not a `POST`. |
-| `422` | `{"status": "undelivered", "delivered": 0, "undelivered": [...]}` | Nobody could be reached. |
+| `422` | `{"status": "undelivered", "delivered": 0, "undelivered": [...]}` | Nobody could be reached, or a broadcast matched no route that delivers to people. |
 | `502` | `{"error": "bad gateway", "request_id": "<id>"}` | Something that may come right failed: no route, a template, the database, Teams. Retry. |
 | `503` | `{"error": "cannot check the token right now"}` | The database did not answer the token lookup. Retry. |
 
@@ -168,6 +176,35 @@ Each entry of `undelivered`:
 | `not-installed` | The Teams app is not installed for this person. |
 | `no-recipient` | The route delivers to people and the message named none. |
 | `blocked` | The person blocked or removed the bot. |
+| `no-addressed-route` | A broadcast matched no route that delivers to people. Nothing was sent. |
+
+## Broadcast status
+
+`GET /webhook/broadcasts/{id}` answers a token of the broadcast's creator with the universal webhook
+in its scope. `GET /api/broadcasts` returns a list of the same objects to a signed-in user: their
+own, and everyone's for admins.
+
+| Field | Holds |
+| --- | --- |
+| `id` | The broadcast's id. |
+| `requested_by` | The token creator's subject. |
+| `token_name` | The token it was sent with. |
+| `requested_at` | When it was accepted. |
+| `state` | `requested`, `running`, `done` or `failed`. |
+| `started_at`, `heartbeat_at`, `finished_at` | When it started, last recorded progress and finished. Absent until set. |
+| `total` | Everyone it reaches, counted when the run starts. |
+| `delivered` | People it reached. |
+| `unreachable` | People who blocked or removed the bot. |
+| `failed` | People a send failed for. Not retried. |
+| `last_error` | Why a `failed` broadcast stopped. Absent otherwise. |
+
+| Status | Means |
+| --- | --- |
+| `200` | The broadcast. |
+| `401` | No token, or a token Teamster does not know. |
+| `403` | The token's scope, or its creator, does not allow the universal webhook. |
+| `404` | No such broadcast, or it belongs to another creator. Finished broadcasts are kept for 30 days. |
+| `405` | Not a `GET`. |
 
 ## Teams V2
 

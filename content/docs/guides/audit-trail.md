@@ -1,6 +1,6 @@
 ---
 title: Record an audit trail
-weight: 19
+weight: 20
 ---
 
 Record who changed what in Teamster's configuration, read it in the admin UI, and export it to a

@@ -1,6 +1,6 @@
 ---
 title: Configure Keycloak for the admin login
-weight: 17
+weight: 18
 ---
 
 Set up a Keycloak client so people sign in to Teamster with their realm account, get their role

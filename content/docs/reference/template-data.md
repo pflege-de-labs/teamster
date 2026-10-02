@@ -79,6 +79,7 @@ Set for an event from `POST /webhook/universal`.
 | `.Event.Universal.Time` | time | `time` |
 | `.Event.Universal.URL` | string | `url` |
 | `.Event.Universal.Recipients` | list of string | `recipients` |
+| `.Event.Universal.Broadcast` | bool | `broadcast` |
 
 ### Teams V2
 

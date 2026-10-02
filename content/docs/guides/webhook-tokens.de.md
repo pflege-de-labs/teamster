@@ -1,6 +1,6 @@
 ---
 title: Einen Webhook-Absender authentifizieren
-weight: 13
+weight: 14
 ---
 
 Geben Sie jedem Absender ein eigenes Zugriffstoken, beschränkt auf den Webhook, den er verwendet,
@@ -88,6 +88,7 @@ curl -u <admin-user>:<admin-password> -X POST http://localhost:8080/api/tokens \
 | niemanden | fehlt | Niemanden. |
 | nur mich | `self` | Nur seinen Ersteller. |
 | beliebige | `anyone` | Jede Person im Mandanten. |
+| beliebige, und Rundsendung | `everyone` | Jede Person, und mit `"broadcast": true` alle auf einmal. Siehe [Eine Nachricht an alle senden](../broadcasts/). |
 
 * **nur mich** steht jedem offen, der ein Token ausstellen darf. Jede Adresse in der Nachricht
   muss der Ersteller sein: seine Entra-Objekt-ID aus seiner letzten Anmeldung
@@ -97,6 +98,7 @@ curl -u <admin-user>:<admin-password> -X POST http://localhost:8080/api/tokens \
 * **beliebige** erfordert die Berechtigung, beliebige Personen anzuschreiben, die Administratoren
   haben und erteilen; siehe
   [Jemanden Personen anschreiben lassen](../roles/#let-someone-message-people).
+  **beliebige, und Rundsendung** erfordert die Stufe **beliebige, und Rundsendung an alle**.
 * Die Stufe eines Tokens ist nie höher als die seines Erstellers. Wer mehr verlangt, wird
   abgewiesen, von der API mit `403`.
 * Jede Verwendung prüft die Stufe des Erstellers, wie sie gerade ist. Ein **beliebige**-Token,
@@ -123,9 +125,9 @@ webhook:
 ```
 
 Übergeben Sie es als `TEAMSTER_WEBHOOK_TOKEN` statt in der Datei. Es hat keinen Bereich: Es
-erreicht beide Webhooks. Es kann keine Personen nennen, ein Absender, der `recipients` oder
-`teamster_recipient` setzt, braucht also ein ausgestelltes Token. Zum Rotieren ändern Sie den Wert
-und starten neu.
+erreicht beide Webhooks. Es kann keine Personen nennen und keine Rundsendungen senden, ein
+Absender, der `recipients`, `teamster_recipient` oder `broadcast` setzt, braucht also ein
+ausgestelltes Token. Zum Rotieren ändern Sie den Wert und starten neu.
 
 {{< callout type="warning" >}}
 Der Header `X-Teamster-Token: <token>` aus früheren Releases funktioniert für beide Arten von
@@ -160,7 +162,10 @@ Personen nennt und ihr Token das nicht darf: Es hat keine Nachrichtenstufe, es i
 oder stammt von vor 0.11.0, oder sein Ersteller darf keine Personen mehr anschreiben.
 `{"error": "this token may only name its creator as a recipient"}` bedeutet, dass ein
 **nur mich**-Token jemand anderen genannt hat oder Teamster die Objekt-ID seines Erstellers noch
-nicht kennt. Beide werden wie die Abweisung wegen des Bereichs protokolliert und gezählt. Siehe
+nicht kennt. `{"error": "this token may not broadcast: it needs the message level everyone"}`
+bedeutet eine Rundsendung von einem Token unterhalb von **beliebige, und Rundsendung** oder von
+einem, dessen Ersteller die Stufe **beliebige, und Rundsendung an alle** nicht mehr hat. Alle
+werden wie die Abweisung wegen des Bereichs protokolliert und gezählt. Siehe
 [Ein Token Personen nennen lassen](#let-a-token-name-people).
 
 **`403 RBAC: access denied`** ist nicht die Antwort von Teamster. Das ist der Wortlaut von Envoy:

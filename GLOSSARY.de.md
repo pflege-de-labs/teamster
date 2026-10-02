@@ -14,6 +14,7 @@ exactly, in bold, as the English pages do.
 | attestation | Attestierung | |
 | audit trail | Änderungsprotokoll | |
 | backfill | Nachholen | |
+| broadcast | Rundsendung | as in the UI; "an alle senden" for the verb |
 | bundle (export) | Bundle | |
 | card (Adaptive Card) | Karte (Adaptive Card) | product name stays English |
 | channel | Kanal | Teams channel: "Teams-Kanal" |

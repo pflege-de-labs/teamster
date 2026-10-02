@@ -1,6 +1,6 @@
 ---
 title: Configure sign-in to the admin UI
-weight: 16
+weight: 17
 ---
 
 Let people sign in to **/admin** through your OpenID Connect provider, keep the local login as the

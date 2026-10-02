@@ -1,6 +1,6 @@
 ---
 title: Ein Release verifizieren
-weight: 21
+weight: 22
 ---
 
 Prüfen Sie, ob ein Image oder Binary von Teamster vom Release-Workflow des Projekts gebaut und
