@@ -60,6 +60,13 @@ wins; mention the mismatch in your reply.
   landing pages, `filetree`. Don't decorate.
 * Images go in `static/images/` and are referenced as `/images/…` via `relURL`-safe paths.
 
+## Two languages
+
+You write the English page, `<name>.md`. Every page also exists in German, as `<name>.de.md`
+next to it, maintained by the `docs-translator` agent. When you add or change English pages,
+finish them first, then hand the same set of pages to `docs-translator` in the same pull request.
+Never leave a German page describing behaviour its English page no longer does.
+
 ## Before you finish
 
 Run `make lint` and `make build` and fix what they report.

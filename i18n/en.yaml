@@ -1,0 +1,7 @@
+documentation: Documentation
+versions: Versions
+versions-all: All versions
+versionBannerDev: This documents the unreleased development version.
+versionBannerPreview: This is a preview of a pull request.
+versionBannerOld: "This documents %s, which is not the latest release."
+versionBannerGoTo: "Go to %s"
