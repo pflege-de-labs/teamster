@@ -1,4 +1,4 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Teamster – Concepts</title><link>https://pflege-de-labs.github.io/docs/concepts/</link><description>Recent content in Concepts on Teamster</description><generator>Hugo -- gohugo.io</generator><language>en-US</language><atom:link href="https://pflege-de-labs.github.io/docs/concepts/index.xml" rel="self" type="application/rss+xml"/><item><title>Routing</title><link>https://pflege-de-labs.github.io/docs/concepts/routing/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/docs/concepts/routing/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Teamster – Concepts</title><link>https://pflege-de-labs.github.io/teamster/dev/docs/concepts/</link><description>Recent content in Concepts on Teamster</description><generator>Hugo -- gohugo.io</generator><language>en-US</language><atom:link href="https://pflege-de-labs.github.io/teamster/dev/docs/concepts/index.xml" rel="self" type="application/rss+xml"/><item><title>Routing</title><link>https://pflege-de-labs.github.io/teamster/dev/docs/concepts/routing/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/dev/docs/concepts/routing/</guid><description>
 &lt;p&gt;Routing decides, for each incoming event, where it is delivered and which template renders it.
 It looks only at the event&amp;rsquo;s labels.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="label-selectors"&gt;Label selectors&lt;span class="hx:absolute hx:-mt-20" id="label-selectors"&gt;&lt;/span&gt;
@@ -97,9 +97,9 @@ that delivers is named and explained, and its path is highlighted while the rest
 &lt;h2 data-hextra-search-id="related"&gt;Related&lt;span class="hx:absolute hx:-mt-20" id="related"&gt;&lt;/span&gt;
 &lt;a href="#related" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;ul&gt;
 &lt;li&gt;How a delivered card is updated and resolved:
-&lt;a href="https://pflege-de-labs.github.io/docs/concepts/alert-lifecycle/"&gt;Alert lifecycle&lt;/a&gt;.&lt;/li&gt;
+&lt;a href="https://pflege-de-labs.github.io/teamster/dev/docs/concepts/alert-lifecycle/"&gt;Alert lifecycle&lt;/a&gt;.&lt;/li&gt;
 &lt;li&gt;What a template sees: &lt;a href="../../reference/template-data/"&gt;Template data&lt;/a&gt;.&lt;/li&gt;
-&lt;/ul&gt;</description></item><item><title>Alert lifecycle</title><link>https://pflege-de-labs.github.io/docs/concepts/alert-lifecycle/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/docs/concepts/alert-lifecycle/</guid><description>
+&lt;/ul&gt;</description></item><item><title>Alert lifecycle</title><link>https://pflege-de-labs.github.io/teamster/dev/docs/concepts/alert-lifecycle/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/dev/docs/concepts/alert-lifecycle/</guid><description>
 &lt;p&gt;Teamster remembers which message it sent for which alert. That is what lets it update a card
 while an alert is firing and change it when the alert clears, instead of posting a new card each
 time.&lt;/p&gt;
@@ -188,10 +188,10 @@ event arrives twice at once, for example at two replicas, one wins and posts. Th
 delivery.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="related"&gt;Related&lt;span class="hx:absolute hx:-mt-20" id="related"&gt;&lt;/span&gt;
 &lt;a href="#related" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;ul&gt;
-&lt;li&gt;Which targets an event reaches: &lt;a href="https://pflege-de-labs.github.io/docs/concepts/routing/"&gt;Routing&lt;/a&gt;.&lt;/li&gt;
+&lt;li&gt;Which targets an event reaches: &lt;a href="https://pflege-de-labs.github.io/teamster/dev/docs/concepts/routing/"&gt;Routing&lt;/a&gt;.&lt;/li&gt;
 &lt;li&gt;The payload fields: &lt;a href="../../reference/webhook-payloads/"&gt;Webhook payloads&lt;/a&gt;.&lt;/li&gt;
 &lt;li&gt;Delivery outcomes as metrics: &lt;a href="../../reference/metrics/"&gt;Metrics&lt;/a&gt;.&lt;/li&gt;
-&lt;/ul&gt;</description></item><item><title>Roles and ownership</title><link>https://pflege-de-labs.github.io/docs/concepts/ownership/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/docs/concepts/ownership/</guid><description>
+&lt;/ul&gt;</description></item><item><title>Roles and ownership</title><link>https://pflege-de-labs.github.io/teamster/dev/docs/concepts/ownership/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/dev/docs/concepts/ownership/</guid><description>
 &lt;p&gt;Teamster decides who may do what in two layers: a &lt;strong&gt;role&lt;/strong&gt; that comes from your identity provider
 and covers the whole configuration, and &lt;strong&gt;permissions on single records&lt;/strong&gt; that owners hand out.
 Both are evaluated as &lt;a href="https://www.cedarpolicy.com/" target="_blank" rel="noopener"&gt;Cedar&lt;/a&gt; policies built into the binary. To
@@ -291,7 +291,7 @@ the creator or taking their level away revokes their tokens at once. See
 &lt;a href="#every-change-is-recorded" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Changes to permissions, group memberships and disabled users are written to the audit trail. A
 group membership change is recorded in the same transaction: if the record cannot be written, the
 change does not happen. See
-&lt;a href="../../guides/audit-trail/"&gt;Audit trail&lt;/a&gt;.&lt;/p&gt;</description></item><item><title>Architecture</title><link>https://pflege-de-labs.github.io/docs/concepts/architecture/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/docs/concepts/architecture/</guid><description>
+&lt;a href="../../guides/audit-trail/"&gt;Audit trail&lt;/a&gt;.&lt;/p&gt;</description></item><item><title>Architecture</title><link>https://pflege-de-labs.github.io/teamster/dev/docs/concepts/architecture/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/dev/docs/concepts/architecture/</guid><description>
 &lt;p&gt;Teamster is a single Go binary with its admin UI embedded. It needs a database and two Entra app
 registrations, and nothing else at runtime. This page names the parts an operator deals with. The
 developer view, with packages and design decisions, is in the
@@ -405,8 +405,8 @@ webhooks to the internet and keep &lt;code&gt;/admin&lt;/code&gt; on a private n
 &lt;a href="../../guides/observability/"&gt;Observability&lt;/a&gt; for the metrics listener.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="related"&gt;Related&lt;span class="hx:absolute hx:-mt-20" id="related"&gt;&lt;/span&gt;
 &lt;a href="#related" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;ul&gt;
-&lt;li&gt;&lt;a href="https://pflege-de-labs.github.io/docs/concepts/routing/"&gt;Routing&lt;/a&gt; and
-&lt;a href="https://pflege-de-labs.github.io/docs/concepts/alert-lifecycle/"&gt;Alert lifecycle&lt;/a&gt; explain the middle of the
+&lt;li&gt;&lt;a href="https://pflege-de-labs.github.io/teamster/dev/docs/concepts/routing/"&gt;Routing&lt;/a&gt; and
+&lt;a href="https://pflege-de-labs.github.io/teamster/dev/docs/concepts/alert-lifecycle/"&gt;Alert lifecycle&lt;/a&gt; explain the middle of the
 diagram.&lt;/li&gt;
 &lt;li&gt;&lt;a href="../../reference/configuration/"&gt;Configuration reference&lt;/a&gt; lists every key.&lt;/li&gt;
 &lt;/ul&gt;</description></item></channel></rss>

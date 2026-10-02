@@ -1,4 +1,4 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Teamster – Guides</title><link>https://pflege-de-labs.github.io/docs/guides/</link><description>Recent content in Guides on Teamster</description><generator>Hugo -- gohugo.io</generator><language>en-US</language><atom:link href="https://pflege-de-labs.github.io/docs/guides/index.xml" rel="self" type="application/rss+xml"/><item><title>Configure Teamster</title><link>https://pflege-de-labs.github.io/docs/guides/configuration/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/docs/guides/configuration/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Teamster – Guides</title><link>https://pflege-de-labs.github.io/teamster/dev/docs/guides/</link><description>Recent content in Guides on Teamster</description><generator>Hugo -- gohugo.io</generator><language>en-US</language><atom:link href="https://pflege-de-labs.github.io/teamster/dev/docs/guides/index.xml" rel="self" type="application/rss+xml"/><item><title>Configure Teamster</title><link>https://pflege-de-labs.github.io/teamster/dev/docs/guides/configuration/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/dev/docs/guides/configuration/</guid><description>
 &lt;p&gt;Teamster reads its settings from YAML files, environment variables and command line flags. This
 guide shows where each comes from and which one wins. Every key, its default and its environment
 variable are listed in the &lt;a href="../../reference/configuration/"&gt;configuration reference&lt;/a&gt;;
@@ -235,7 +235,7 @@ upgrade to pick up new flags.&lt;/p&gt;
 allowed values: nothing when the variable is unset. Commands and flags complete normally, and zsh
 and fish offer the real values.&lt;/div&gt;
 &lt;/div&gt;
-&lt;/div&gt;</description></item><item><title>Grant Microsoft Graph permissions</title><link>https://pflege-de-labs.github.io/docs/guides/graph-permissions/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/docs/guides/graph-permissions/</guid><description>
+&lt;/div&gt;</description></item><item><title>Grant Microsoft Graph permissions</title><link>https://pflege-de-labs.github.io/teamster/dev/docs/guides/graph-permissions/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/dev/docs/guides/graph-permissions/</guid><description>
 &lt;p&gt;Teamster talks to Microsoft through two separate Entra app registrations. This guide shows which
 permissions each one needs, what each permission reaches beyond Teamster&amp;rsquo;s own use, and how to run
 with fewer.&lt;/p&gt;
@@ -428,7 +428,7 @@ be requested from.&lt;/li&gt;
 &lt;td&gt;every permission in the table above&lt;/td&gt;
 &lt;/tr&gt;
 &lt;/tbody&gt;
-&lt;/table&gt;</description></item><item><title>Set up the Teams bot</title><link>https://pflege-de-labs.github.io/docs/guides/teams-bot/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/docs/guides/teams-bot/</guid><description>
+&lt;/table&gt;</description></item><item><title>Set up the Teams bot</title><link>https://pflege-de-labs.github.io/teamster/dev/docs/guides/teams-bot/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/dev/docs/guides/teams-bot/</guid><description>
 &lt;p&gt;The Teams bot posts and edits every channel card, and sends alerts to a person&amp;rsquo;s own chat. Without
 it, nothing reaches Teams: startup logs that, and every channel delivery fails with &lt;code&gt;502&lt;/code&gt;. This
 guide sets the bot up, links people&amp;rsquo;s chats, and installs the bot for everyone.&lt;/p&gt;
@@ -698,7 +698,7 @@ otherwise.&lt;/li&gt;
 installs with their reason. A run started by hand retries every failed install at once, so start one
 after granting a missing permission.&lt;/p&gt;
 &lt;p&gt;A route can now deliver to &lt;strong&gt;People named in the message&lt;/strong&gt;. Only an admin may create, edit or
-delete such a route. See &lt;a href="../direct-messages/"&gt;Send alerts to individual people&lt;/a&gt;.&lt;/p&gt;</description></item><item><title>Choose and run storage</title><link>https://pflege-de-labs.github.io/docs/guides/storage/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/docs/guides/storage/</guid><description>
+delete such a route. See &lt;a href="../direct-messages/"&gt;Send alerts to individual people&lt;/a&gt;.&lt;/p&gt;</description></item><item><title>Choose and run storage</title><link>https://pflege-de-labs.github.io/teamster/dev/docs/guides/storage/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/dev/docs/guides/storage/</guid><description>
 &lt;p&gt;Teamster keeps its configuration and the state of open alerts in a database. This guide helps you
 pick SQLite or Postgres, configure it, run schema migrations, and move from one to the other.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="pick-a-backend"&gt;Pick a backend&lt;span class="hx:absolute hx:-mt-20" id="pick-a-backend"&gt;&lt;/span&gt;
@@ -959,7 +959,7 @@ data-copied-label="Copied!"
 &lt;h3 data-hextra-search-id="start-teamster"&gt;Start Teamster&lt;span class="hx:absolute hx:-mt-20" id="start-teamster"&gt;&lt;/span&gt;
 &lt;a href="#start-teamster" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Start the server against Postgres, and scale it out if you want more replicas.&lt;/p&gt;
 &lt;/div&gt;
-&lt;p&gt;The bundle and its limits are covered in &lt;a href="../backup-and-migration/"&gt;Back up and move the configuration&lt;/a&gt;.&lt;/p&gt;</description></item><item><title>Back up and move the configuration</title><link>https://pflege-de-labs.github.io/docs/guides/backup-and-migration/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/docs/guides/backup-and-migration/</guid><description>
+&lt;p&gt;The bundle and its limits are covered in &lt;a href="../backup-and-migration/"&gt;Back up and move the configuration&lt;/a&gt;.&lt;/p&gt;</description></item><item><title>Back up and move the configuration</title><link>https://pflege-de-labs.github.io/teamster/dev/docs/guides/backup-and-migration/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/dev/docs/guides/backup-and-migration/</guid><description>
 &lt;p&gt;Teamster&amp;rsquo;s configuration moves as one JSON bundle. Use it to back up an installation, keep the
 configuration in a repository, or carry it to another installation or database.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="know-what-the-bundle-carries"&gt;Know what the bundle carries&lt;span class="hx:absolute hx:-mt-20" id="know-what-the-bundle-carries"&gt;&lt;/span&gt;
@@ -1111,7 +1111,7 @@ delivers nowhere.&lt;/p&gt;
 channel ids after the import
 (&lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0013-configuration-transfer.md" target="_blank" rel="noopener"&gt;ADR 0013&lt;/a&gt;).&lt;/p&gt;
 &lt;p&gt;To move between databases rather than tenants, see
-&lt;a href="../storage/#move-from-sqlite-to-postgres"&gt;Move from SQLite to Postgres&lt;/a&gt;.&lt;/p&gt;</description></item><item><title>Send alerts from Alertmanager</title><link>https://pflege-de-labs.github.io/docs/guides/alertmanager/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/docs/guides/alertmanager/</guid><description>
+&lt;a href="../storage/#move-from-sqlite-to-postgres"&gt;Move from SQLite to Postgres&lt;/a&gt;.&lt;/p&gt;</description></item><item><title>Send alerts from Alertmanager</title><link>https://pflege-de-labs.github.io/teamster/dev/docs/guides/alertmanager/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/dev/docs/guides/alertmanager/</guid><description>
 &lt;p&gt;Point a Prometheus Alertmanager receiver at Teamster, and its alerts arrive in Teams as cards
 that are updated while they fire and closed when they resolve.&lt;/p&gt;
 &lt;p&gt;You need a running Teamster and a token that may send to the Alertmanager webhook. See
@@ -1256,7 +1256,7 @@ state &lt;code&gt;open&lt;/code&gt; and &lt;code&gt;resolved&lt;/code&gt; become
 &lt;td&gt;The token could not be checked because the database did not answer. Alertmanager retries.&lt;/td&gt;
 &lt;/tr&gt;
 &lt;/tbody&gt;
-&lt;/table&gt;</description></item><item><title>Send events with the universal webhook</title><link>https://pflege-de-labs.github.io/docs/guides/universal-webhook/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/docs/guides/universal-webhook/</guid><description>
+&lt;/table&gt;</description></item><item><title>Send events with the universal webhook</title><link>https://pflege-de-labs.github.io/teamster/dev/docs/guides/universal-webhook/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/dev/docs/guides/universal-webhook/</guid><description>
 &lt;p&gt;Use the universal webhook for any sender that is not Alertmanager: a CI job, a cron script, a
 monitoring tool with a generic webhook. The sender posts labels to route on and attributes to
 render, and Teamster does the rest.&lt;/p&gt;
@@ -1440,7 +1440,7 @@ Every field is listed in &lt;a href="../../reference/webhook-payloads/"&gt;Webho
 &lt;/tr&gt;
 &lt;/tbody&gt;
 &lt;/table&gt;
-&lt;p&gt;See &lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0056-events-not-alerts.md" target="_blank" rel="noopener"&gt;ADR 0056&lt;/a&gt;.&lt;/p&gt;</description></item><item><title>Send messages to individual people</title><link>https://pflege-de-labs.github.io/docs/guides/direct-messages/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/docs/guides/direct-messages/</guid><description>
+&lt;p&gt;See &lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0056-events-not-alerts.md" target="_blank" rel="noopener"&gt;ADR 0056&lt;/a&gt;.&lt;/p&gt;</description></item><item><title>Send messages to individual people</title><link>https://pflege-de-labs.github.io/teamster/dev/docs/guides/direct-messages/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/dev/docs/guides/direct-messages/</guid><description>
 &lt;p&gt;Send a message to the people it names, each in their own Teams chat, instead of to a channel. A
 password-expiry notice or a ticket assigned to someone are typical uses.&lt;/p&gt;
 &lt;p&gt;You need the Teams bot configured, because only the bot can write to a person&amp;rsquo;s chat. See
@@ -1627,7 +1627,7 @@ data-copied-label="Copied!"
 &lt;p&gt;One request&amp;rsquo;s fan-out has to finish within &lt;code&gt;server.write-timeout&lt;/code&gt;. Raise it if you raise the
 limits.&lt;/p&gt;
 &lt;p&gt;See &lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0063-a-message-names-its-recipients.md" target="_blank" rel="noopener"&gt;ADR 0063&lt;/a&gt;
-for the design.&lt;/p&gt;</description></item><item><title>Authenticate a webhook sender</title><link>https://pflege-de-labs.github.io/docs/guides/webhook-tokens/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/docs/guides/webhook-tokens/</guid><description>
+for the design.&lt;/p&gt;</description></item><item><title>Authenticate a webhook sender</title><link>https://pflege-de-labs.github.io/teamster/dev/docs/guides/webhook-tokens/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/dev/docs/guides/webhook-tokens/</guid><description>
 &lt;p&gt;Give each sender its own token, scoped to the webhook it uses, and find out why a sender is
 refused.&lt;/p&gt;
 &lt;p&gt;Both &lt;code&gt;/webhook/alertmanager&lt;/code&gt; and &lt;code&gt;/webhook/universal&lt;/code&gt; take a token as
@@ -1777,7 +1777,7 @@ data-copied-label="Copied!"
 &lt;/ul&gt;
 &lt;p&gt;See &lt;a href="../observability/"&gt;Monitor Teamster&lt;/a&gt; to enable metrics, and
 &lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0044-webhook-access-tokens.md" target="_blank" rel="noopener"&gt;ADR 0044&lt;/a&gt;
-for the design.&lt;/p&gt;</description></item><item><title>Move a sender off a Teams Workflows webhook</title><link>https://pflege-de-labs.github.io/docs/guides/teams-v2-webhook/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/docs/guides/teams-v2-webhook/</guid><description>
+for the design.&lt;/p&gt;</description></item><item><title>Move a sender off a Teams Workflows webhook</title><link>https://pflege-de-labs.github.io/teamster/dev/docs/guides/teams-v2-webhook/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/dev/docs/guides/teams-v2-webhook/</guid><description>
 &lt;p&gt;Replace a Microsoft Teams &amp;ldquo;Workflows&amp;rdquo; (Power Automate) webhook URL with a Teamster one. Teamster
 accepts the payloads that webhook accepts, so moving a sender means changing one URL.&lt;/p&gt;
 &lt;p&gt;The endpoint is &lt;code&gt;POST /teamsv2/{team}/{channel}/{token}&lt;/code&gt;. There is no header: the URL is the
@@ -1942,7 +1942,7 @@ Use the &lt;a href="../universal-webhook/"&gt;universal webhook&lt;/a&gt; for th
 &lt;td&gt;Teams or the database failed, or the endpoint&amp;rsquo;s template did not render.&lt;/td&gt;
 &lt;/tr&gt;
 &lt;/tbody&gt;
-&lt;/table&gt;</description></item><item><title>Write templates</title><link>https://pflege-de-labs.github.io/docs/guides/templates/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/docs/guides/templates/</guid><description>
+&lt;/table&gt;</description></item><item><title>Write templates</title><link>https://pflege-de-labs.github.io/teamster/dev/docs/guides/templates/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/dev/docs/guides/templates/</guid><description>
 &lt;p&gt;Write a template that turns an event into a Teams message, choose which webhook&amp;rsquo;s events it
 handles, and set the default each webhook falls back to.&lt;/p&gt;
 &lt;p&gt;Templates live under &lt;strong&gt;Templates&lt;/strong&gt; on &lt;strong&gt;/admin&lt;/strong&gt;. Every field a template can read is listed in
@@ -2229,7 +2229,7 @@ events: &lt;code&gt;.Alert.Status&lt;/code&gt; became &lt;code&gt;.Event.State&l
 &lt;code&gt;.Alert.Annotations&lt;/code&gt; and its siblings moved into &lt;code&gt;.Event.Alertmanager&lt;/code&gt;, or &lt;code&gt;.Event.Universal&lt;/code&gt; for a
 template that handles only the universal webhook. Templates you keep outside Teamster need the same
 change. See
-&lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0056-events-not-alerts.md" target="_blank" rel="noopener"&gt;ADR 0056&lt;/a&gt;.&lt;/p&gt;</description></item><item><title>Configure sign-in to the admin UI</title><link>https://pflege-de-labs.github.io/docs/guides/signing-in/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/docs/guides/signing-in/</guid><description>
+&lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0056-events-not-alerts.md" target="_blank" rel="noopener"&gt;ADR 0056&lt;/a&gt;.&lt;/p&gt;</description></item><item><title>Configure sign-in to the admin UI</title><link>https://pflege-de-labs.github.io/teamster/dev/docs/guides/signing-in/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/dev/docs/guides/signing-in/</guid><description>
 &lt;p&gt;Let people sign in to &lt;strong&gt;/admin&lt;/strong&gt; through your OpenID Connect provider, keep the local login as the
 way back in, and optionally let each admin pick from their own Teams and channels.&lt;/p&gt;
 &lt;p&gt;The admin UI needs a session. Two ways to get one:&lt;/p&gt;
@@ -2419,7 +2419,7 @@ the picker falls back to the tenant-wide list; logins and deliveries are not aff
 &lt;p&gt;Keycloak needs Store Tokens, Stored Tokens Readable, the &lt;code&gt;broker&lt;/code&gt; client&amp;rsquo;s &lt;code&gt;read-token&lt;/code&gt; role and the
 delegated Graph scopes. See
 &lt;a href="../keycloak/#let-admins-pick-their-own-teams-and-channels"&gt;Configure Keycloak: delegated Teams and channels&lt;/a&gt;
-and &lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0037-delegated-teams-via-keycloak-broker-token.md" target="_blank" rel="noopener"&gt;ADR 0037&lt;/a&gt;.&lt;/p&gt;</description></item><item><title>Configure Keycloak for the admin login</title><link>https://pflege-de-labs.github.io/docs/guides/keycloak/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/docs/guides/keycloak/</guid><description>
+and &lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0037-delegated-teams-via-keycloak-broker-token.md" target="_blank" rel="noopener"&gt;ADR 0037&lt;/a&gt;.&lt;/p&gt;</description></item><item><title>Configure Keycloak for the admin login</title><link>https://pflege-de-labs.github.io/teamster/dev/docs/guides/keycloak/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/dev/docs/guides/keycloak/</guid><description>
 &lt;p&gt;Set up a Keycloak client so people sign in to Teamster with their realm account, get their role
 from a Keycloak role, and, optionally, pick from their own Teams and channels.&lt;/p&gt;
 &lt;p&gt;This is the login for &lt;strong&gt;people&lt;/strong&gt;. The Entra credentials under &lt;code&gt;graph.*&lt;/code&gt; are a machine credential
@@ -2902,7 +2902,7 @@ have both variants.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="troubleshoot-a-refused-login"&gt;Troubleshoot a refused login&lt;span class="hx:absolute hx:-mt-20" id="troubleshoot-a-refused-login"&gt;&lt;/span&gt;
 &lt;a href="#troubleshoot-a-refused-login" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;A refused login names the claim, where Teamster looked and the values it found. To see a token
 directly, inspect it in the realm&amp;rsquo;s account console, or enable Keycloak&amp;rsquo;s event logging and read
-the &lt;code&gt;CODE_TO_TOKEN&lt;/code&gt; events.&lt;/p&gt;</description></item><item><title>Manage roles and access</title><link>https://pflege-de-labs.github.io/docs/guides/roles/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/docs/guides/roles/</guid><description>
+the &lt;code&gt;CODE_TO_TOKEN&lt;/code&gt; events.&lt;/p&gt;</description></item><item><title>Manage roles and access</title><link>https://pflege-de-labs.github.io/teamster/dev/docs/guides/roles/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/dev/docs/guides/roles/</guid><description>
 &lt;p&gt;Give people a role, collect them in groups, let them use the webhooks, share single records with
 them, and limit a role to some Teams and channels.&lt;/p&gt;
 &lt;p&gt;How roles, owners and Cedar policies fit together is explained in
@@ -3144,7 +3144,7 @@ data-copied-label="Copied!"
 &lt;/button&gt;
 &lt;/div&gt;
 &lt;/div&gt;
-&lt;p&gt;An empty &lt;code&gt;channel_id&lt;/code&gt; means the whole Team. &lt;code&gt;/api/grants&lt;/code&gt; adds and lists single grants.&lt;/p&gt;</description></item><item><title>Record an audit trail</title><link>https://pflege-de-labs.github.io/docs/guides/audit-trail/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/docs/guides/audit-trail/</guid><description>
+&lt;p&gt;An empty &lt;code&gt;channel_id&lt;/code&gt; means the whole Team. &lt;code&gt;/api/grants&lt;/code&gt; adds and lists single grants.&lt;/p&gt;</description></item><item><title>Record an audit trail</title><link>https://pflege-de-labs.github.io/teamster/dev/docs/guides/audit-trail/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/dev/docs/guides/audit-trail/</guid><description>
 &lt;p&gt;Record who changed what in Teamster&amp;rsquo;s configuration, read it in the admin UI, and export it to a
 file or NATS JetStream for your SIEM.&lt;/p&gt;
 &lt;p&gt;Auditing is off until you configure it. With it on, every change is recorded: templates,
@@ -3387,7 +3387,7 @@ are in &lt;a href="../../reference/helm-values/"&gt;Helm values&lt;/a&gt;.&lt;/p
 &lt;h2 data-hextra-search-id="watch-for-lost-events"&gt;Watch for lost events&lt;span class="hx:absolute hx:-mt-20" id="watch-for-lost-events"&gt;&lt;/span&gt;
 &lt;a href="#watch-for-lost-events" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;A failed audit write never fails the change. It is logged and counted in &lt;code&gt;teamster.audit.failed&lt;/code&gt;,
 and events dropped from a full queue are counted in &lt;code&gt;teamster.audit.dropped&lt;/code&gt;, both by &lt;code&gt;sink&lt;/code&gt;.
-Alert on either; see &lt;a href="../observability/"&gt;Monitor Teamster&lt;/a&gt;.&lt;/p&gt;</description></item><item><title>Monitor Teamster</title><link>https://pflege-de-labs.github.io/docs/guides/observability/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/docs/guides/observability/</guid><description>
+Alert on either; see &lt;a href="../observability/"&gt;Monitor Teamster&lt;/a&gt;.&lt;/p&gt;</description></item><item><title>Monitor Teamster</title><link>https://pflege-de-labs.github.io/teamster/dev/docs/guides/observability/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/dev/docs/guides/observability/</guid><description>
 &lt;p&gt;Set up logging, export metrics to Prometheus or an OpenTelemetry collector, and wire up the
 liveness and readiness probes.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="configure-logging"&gt;Configure logging&lt;span class="hx:absolute hx:-mt-20" id="configure-logging"&gt;&lt;/span&gt;
@@ -3660,7 +3660,7 @@ the process stops accepting it.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;p&gt;There is no startup probe by default. If the first start after an upgrade runs a long migration,
 it can outlast the liveness probe and restart in a loop. The chart&amp;rsquo;s &lt;code&gt;values.yaml&lt;/code&gt; carries a
-&lt;code&gt;startupProbe&lt;/code&gt; commented out for that case.&lt;/p&gt;</description></item><item><title>Verify a release</title><link>https://pflege-de-labs.github.io/docs/guides/verifying-a-release/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/docs/guides/verifying-a-release/</guid><description>
+&lt;code&gt;startupProbe&lt;/code&gt; commented out for that case.&lt;/p&gt;</description></item><item><title>Verify a release</title><link>https://pflege-de-labs.github.io/teamster/dev/docs/guides/verifying-a-release/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/dev/docs/guides/verifying-a-release/</guid><description>
 &lt;p&gt;Check that a Teamster image or binary was built by the project&amp;rsquo;s release workflow and has not been
 changed since.&lt;/p&gt;
 &lt;p&gt;Releases are signed with &lt;a href="https://docs.sigstore.dev/cosign/" target="_blank" rel="noopener"&gt;cosign&lt;/a&gt; keyless signing, using the

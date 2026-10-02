@@ -1,4 +1,4 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Teamster – Reference</title><link>https://pflege-de-labs.github.io/docs/reference/</link><description>Recent content in Reference on Teamster</description><generator>Hugo -- gohugo.io</generator><language>en-US</language><atom:link href="https://pflege-de-labs.github.io/docs/reference/index.xml" rel="self" type="application/rss+xml"/><item><title>Configuration</title><link>https://pflege-de-labs.github.io/docs/reference/configuration/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/docs/reference/configuration/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Teamster – Reference</title><link>https://pflege-de-labs.github.io/teamster/dev/docs/reference/</link><description>Recent content in Reference on Teamster</description><generator>Hugo -- gohugo.io</generator><language>en-US</language><atom:link href="https://pflege-de-labs.github.io/teamster/dev/docs/reference/index.xml" rel="self" type="application/rss+xml"/><item><title>Configuration</title><link>https://pflege-de-labs.github.io/teamster/dev/docs/reference/configuration/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/dev/docs/reference/configuration/</guid><description>
 &lt;p&gt;Every setting Teamster reads, grouped by the section of the config file it lives in. The same list,
 with the defaults of the running build, is printed by &lt;code&gt;teamster --help&lt;/code&gt;.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="sources-and-precedence"&gt;Sources and precedence&lt;span class="hx:absolute hx:-mt-20" id="sources-and-precedence"&gt;&lt;/span&gt;
@@ -995,7 +995,7 @@ commands do not run them.&lt;/p&gt;
 &lt;li&gt;&lt;a href="../../guides/configuration/"&gt;Configure Teamster&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href="../cli/"&gt;CLI&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href="../helm-values/"&gt;Helm values&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;</description></item><item><title>CLI</title><link>https://pflege-de-labs.github.io/docs/reference/cli/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/docs/reference/cli/</guid><description>
+&lt;/ul&gt;</description></item><item><title>CLI</title><link>https://pflege-de-labs.github.io/teamster/dev/docs/reference/cli/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/dev/docs/reference/cli/</guid><description>
 &lt;p&gt;Every command and flag of the &lt;code&gt;teamster&lt;/code&gt; binary. &lt;code&gt;teamster &amp;lt;command&amp;gt; --help&lt;/code&gt; prints the same, with
 the values the current configuration resolves to.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="synopsis"&gt;Synopsis&lt;span class="hx:absolute hx:-mt-20" id="synopsis"&gt;&lt;/span&gt;
@@ -1410,7 +1410,7 @@ it accepts. zsh and fish offer the accepted values.&lt;/p&gt;
 &lt;li&gt;&lt;a href="../configuration/"&gt;Configuration&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href="../../guides/backup-and-migration/"&gt;Back up and migrate&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href="../../guides/storage/"&gt;Storage&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;</description></item><item><title>Template data</title><link>https://pflege-de-labs.github.io/docs/reference/template-data/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/docs/reference/template-data/</guid><description>
+&lt;/ul&gt;</description></item><item><title>Template data</title><link>https://pflege-de-labs.github.io/teamster/dev/docs/reference/template-data/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/dev/docs/reference/template-data/</guid><description>
 &lt;p&gt;What a template can read and call. Templates use Go&amp;rsquo;s
 &lt;a href="https://pkg.go.dev/text/template" target="_blank" rel="noopener"&gt;&lt;code&gt;text/template&lt;/code&gt;&lt;/a&gt; syntax.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="template-parts"&gt;Template parts&lt;span class="hx:absolute hx:-mt-20" id="template-parts"&gt;&lt;/span&gt;
@@ -1798,7 +1798,7 @@ data-copied-label="Copied!"
 &lt;a href="#see-also" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;ul&gt;
 &lt;li&gt;&lt;a href="../../guides/templates/"&gt;Write a template&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href="../webhook-payloads/"&gt;Webhook payloads&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;</description></item><item><title>Webhook payloads</title><link>https://pflege-de-labs.github.io/docs/reference/webhook-payloads/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/docs/reference/webhook-payloads/</guid><description>
+&lt;/ul&gt;</description></item><item><title>Webhook payloads</title><link>https://pflege-de-labs.github.io/teamster/dev/docs/reference/webhook-payloads/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/dev/docs/reference/webhook-payloads/</guid><description>
 &lt;p&gt;The endpoints that receive messages, how they authenticate, the bodies they accept and what they
 answer.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="endpoints"&gt;Endpoints&lt;span class="hx:absolute hx:-mt-20" id="endpoints"&gt;&lt;/span&gt;
@@ -2355,7 +2355,7 @@ data-copied-label="Copied!"
 &lt;li&gt;&lt;a href="../../guides/teams-v2-webhook/"&gt;Migrate a Teams V2 webhook&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href="../../guides/webhook-tokens/"&gt;Issue webhook tokens&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href="../template-data/"&gt;Template data&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;</description></item><item><title>Metrics</title><link>https://pflege-de-labs.github.io/docs/reference/metrics/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/docs/reference/metrics/</guid><description>
+&lt;/ul&gt;</description></item><item><title>Metrics</title><link>https://pflege-de-labs.github.io/teamster/dev/docs/reference/metrics/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/dev/docs/reference/metrics/</guid><description>
 &lt;p&gt;Every metric Teamster exports, its type and its attributes. Metrics are off unless
 &lt;code&gt;metrics.enabled&lt;/code&gt; is set; see &lt;a href="../configuration/#metrics"&gt;Configuration&lt;/a&gt;.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="names"&gt;Names&lt;span class="hx:absolute hx:-mt-20" id="names"&gt;&lt;/span&gt;
@@ -2628,7 +2628,7 @@ not installed in that team. Like &lt;code&gt;blocked&lt;/code&gt;, it lasts unti
 &lt;li&gt;&lt;a href="../../guides/observability/"&gt;Monitor Teamster&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href="../configuration/#metrics"&gt;Configuration: metrics&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href="../helm-values/#metrics"&gt;Helm values: metrics&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;</description></item><item><title>Helm values</title><link>https://pflege-de-labs.github.io/docs/reference/helm-values/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/docs/reference/helm-values/</guid><description>
+&lt;/ul&gt;</description></item><item><title>Helm values</title><link>https://pflege-de-labs.github.io/teamster/dev/docs/reference/helm-values/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/dev/docs/reference/helm-values/</guid><description>
 &lt;p&gt;Every value of the &lt;code&gt;teamster&lt;/code&gt; Helm chart, chart version 0.10.0 (application 0.11.0), grouped by
 top-level key in the order of &lt;code&gt;values.yaml&lt;/code&gt;.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="replicas"&gt;Replicas&lt;span class="hx:absolute hx:-mt-20" id="replicas"&gt;&lt;/span&gt;

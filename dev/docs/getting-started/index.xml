@@ -1,4 +1,4 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Teamster – Getting started</title><link>https://pflege-de-labs.github.io/docs/getting-started/</link><description>Recent content in Getting started on Teamster</description><generator>Hugo -- gohugo.io</generator><language>en-US</language><atom:link href="https://pflege-de-labs.github.io/docs/getting-started/index.xml" rel="self" type="application/rss+xml"/><item><title>Quick start</title><link>https://pflege-de-labs.github.io/docs/getting-started/quick-start/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/docs/getting-started/quick-start/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Teamster – Getting started</title><link>https://pflege-de-labs.github.io/teamster/dev/docs/getting-started/</link><description>Recent content in Getting started on Teamster</description><generator>Hugo -- gohugo.io</generator><language>en-US</language><atom:link href="https://pflege-de-labs.github.io/teamster/dev/docs/getting-started/index.xml" rel="self" type="application/rss+xml"/><item><title>Quick start</title><link>https://pflege-de-labs.github.io/teamster/dev/docs/getting-started/quick-start/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/dev/docs/getting-started/quick-start/</guid><description>
 &lt;p&gt;In this tutorial you run Teamster on your machine, point a route at a Teams channel and send it an
 alert. Then you resolve the alert and watch the card change.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="before-you-start"&gt;Before you start&lt;span class="hx:absolute hx:-mt-20" id="before-you-start"&gt;&lt;/span&gt;
@@ -213,10 +213,10 @@ remembers which card belongs to the key.&lt;/p&gt;
 &lt;a href="#next-steps" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;ul&gt;
 &lt;li&gt;Connect Prometheus: &lt;a href="../../guides/alertmanager/"&gt;Send alerts from Alertmanager&lt;/a&gt;.&lt;/li&gt;
 &lt;li&gt;Design your own cards: &lt;a href="../../guides/templates/"&gt;Write templates&lt;/a&gt;.&lt;/li&gt;
-&lt;li&gt;Understand which route an alert takes: &lt;a href="https://pflege-de-labs.github.io/docs/concepts/routing/"&gt;Routing&lt;/a&gt;.&lt;/li&gt;
-&lt;li&gt;Run it for real: &lt;a href="https://pflege-de-labs.github.io/docs/getting-started/container/"&gt;Container&lt;/a&gt; or
-&lt;a href="https://pflege-de-labs.github.io/docs/getting-started/kubernetes/"&gt;Kubernetes&lt;/a&gt;.&lt;/li&gt;
-&lt;/ul&gt;</description></item><item><title>Container</title><link>https://pflege-de-labs.github.io/docs/getting-started/container/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/docs/getting-started/container/</guid><description>
+&lt;li&gt;Understand which route an alert takes: &lt;a href="https://pflege-de-labs.github.io/teamster/dev/docs/concepts/routing/"&gt;Routing&lt;/a&gt;.&lt;/li&gt;
+&lt;li&gt;Run it for real: &lt;a href="https://pflege-de-labs.github.io/teamster/dev/docs/getting-started/container/"&gt;Container&lt;/a&gt; or
+&lt;a href="https://pflege-de-labs.github.io/teamster/dev/docs/getting-started/kubernetes/"&gt;Kubernetes&lt;/a&gt;.&lt;/li&gt;
+&lt;/ul&gt;</description></item><item><title>Container</title><link>https://pflege-de-labs.github.io/teamster/dev/docs/getting-started/container/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/dev/docs/getting-started/container/</guid><description>
 &lt;p&gt;Run Teamster from the published container image, with its configuration mounted from a file and
 its database on a volume.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="the-image"&gt;The image&lt;span class="hx:absolute hx:-mt-20" id="the-image"&gt;&lt;/span&gt;
@@ -258,7 +258,7 @@ version. A &lt;code&gt;main&lt;/code&gt; or pull request image reports &lt;code&
 &lt;p&gt;To check a signature, an SBOM or the provenance before you deploy, see
 &lt;a href="../../guides/verifying-a-release/"&gt;Verify a release&lt;/a&gt;.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="run-it"&gt;Run it&lt;span class="hx:absolute hx:-mt-20" id="run-it"&gt;&lt;/span&gt;
-&lt;a href="#run-it" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Write a &lt;code&gt;config.yaml&lt;/code&gt; as in the &lt;a href="https://pflege-de-labs.github.io/docs/getting-started/quick-start/"&gt;quick start&lt;/a&gt;,
+&lt;a href="#run-it" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Write a &lt;code&gt;config.yaml&lt;/code&gt; as in the &lt;a href="https://pflege-de-labs.github.io/teamster/dev/docs/getting-started/quick-start/"&gt;quick start&lt;/a&gt;,
 then mount it at &lt;code&gt;/etc/xdg/teamster/config.yaml&lt;/code&gt;, the system-wide location the binary searches:&lt;/p&gt;
 &lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
 &lt;div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;docker run --rm -p 8080:8080 --read-only &lt;span class="se"&gt;\
@@ -322,14 +322,14 @@ the process stops accepting it.&lt;/li&gt;
 &lt;a href="#next-steps" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;ul&gt;
 &lt;li&gt;&lt;a href="../../guides/configuration/"&gt;Configure Teamster&lt;/a&gt; for production settings.&lt;/li&gt;
 &lt;li&gt;&lt;a href="../../guides/storage/"&gt;Choose a storage backend&lt;/a&gt; when you need more than one instance.&lt;/li&gt;
-&lt;li&gt;&lt;a href="https://pflege-de-labs.github.io/docs/getting-started/kubernetes/"&gt;Install on Kubernetes&lt;/a&gt; with the Helm chart.&lt;/li&gt;
-&lt;/ul&gt;</description></item><item><title>Kubernetes</title><link>https://pflege-de-labs.github.io/docs/getting-started/kubernetes/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/docs/getting-started/kubernetes/</guid><description>
+&lt;li&gt;&lt;a href="https://pflege-de-labs.github.io/teamster/dev/docs/getting-started/kubernetes/"&gt;Install on Kubernetes&lt;/a&gt; with the Helm chart.&lt;/li&gt;
+&lt;/ul&gt;</description></item><item><title>Kubernetes</title><link>https://pflege-de-labs.github.io/teamster/dev/docs/getting-started/kubernetes/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/dev/docs/getting-started/kubernetes/</guid><description>
 &lt;p&gt;Install Teamster into a Kubernetes cluster with the Helm chart. The chart is published as an OCI
 artifact at &lt;code&gt;oci://ghcr.io/pflege-de-labs/charts/teamster&lt;/code&gt; and versioned independently of the
 application; its &lt;code&gt;appVersion&lt;/code&gt; names the Teamster release its image defaults to.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="before-you-start"&gt;Before you start&lt;span class="hx:absolute hx:-mt-20" id="before-you-start"&gt;&lt;/span&gt;
 &lt;a href="#before-you-start" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;You need the Graph and bot registrations described in the
-&lt;a href="https://pflege-de-labs.github.io/docs/getting-started/quick-start/"&gt;quick start&lt;/a&gt;, Helm 3, and a namespace to install
+&lt;a href="https://pflege-de-labs.github.io/teamster/dev/docs/getting-started/quick-start/"&gt;quick start&lt;/a&gt;, Helm 3, and a namespace to install
 into.&lt;/p&gt;
 &lt;div class="hextra-steps hx:ml-4 hx:mb-12 hx:ltr:border-l hx:rtl:border-r hx:border-gray-200 hx:ltr:pl-6 hx:rtl:pr-6 hx:dark:border-neutral-800 [counter-reset:step]"&gt;
 &lt;h3 data-hextra-search-id="install-the-chart"&gt;Install the chart&lt;span class="hx:absolute hx:-mt-20" id="install-the-chart"&gt;&lt;/span&gt;
@@ -379,7 +379,7 @@ data-copied-label="Copied!"
 &lt;/div&gt;
 &lt;p&gt;Open &lt;a href="http://localhost:8080/admin" target="_blank" rel="noopener"&gt;http://localhost:8080/admin&lt;/a&gt; and sign in as &lt;code&gt;admin&lt;/code&gt; with the password you set. From here,
 continue with the destination, route and token steps of the
-&lt;a href="https://pflege-de-labs.github.io/docs/getting-started/quick-start/" target="_blank" rel="noopener"&gt;quick start&lt;/a&gt;.&lt;/p&gt;
+&lt;a href="https://pflege-de-labs.github.io/teamster/dev/docs/getting-started/quick-start/" target="_blank" rel="noopener"&gt;quick start&lt;/a&gt;.&lt;/p&gt;
 &lt;/div&gt;
 &lt;h2 data-hextra-search-id="what-the-chart-deploys"&gt;What the chart deploys&lt;span class="hx:absolute hx:-mt-20" id="what-the-chart-deploys"&gt;&lt;/span&gt;
 &lt;a href="#what-the-chart-deploys" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;ul&gt;
