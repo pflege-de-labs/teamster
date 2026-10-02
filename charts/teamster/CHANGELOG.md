@@ -8,6 +8,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.11.0] — 2026-10-02
+
+App version 0.12.0: naming people in a message takes permission (**breaking** for senders whose
+token has no message level), broadcasts to everyone the bot can reach, and an Alertmanager
+notification is one card per alert group again; see the [service changelog](../../CHANGELOG.md).
+
+### Added
+
+* `values.yaml` lists the remaining settings commented out with their defaults:
+  `config.settings.database.migrate` and `.connect-timeout`, the sovereign-cloud endpoints
+  `graph.token-url` and `.scope` and `bot.token-url`, `.scope` and `.metadata-url`, and
+  `ui.locale-dir`.
+
 ### Changed
 
 * The comment on `config.settings.auth.object-id-claim` says it also identifies the creator of a
@@ -140,7 +153,8 @@ an Ingress or HTTPRoute, configuration and credentials from values, `extraObject
 an optional startupProbe, and `helm test`
 ([ADR 0016](../../docs/adr/0016-helm-chart.md)).
 
-[Unreleased]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.10.0...HEAD
+[Unreleased]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.11.0...HEAD
+[0.11.0]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.10.0...teamster-0.11.0
 [0.10.0]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.9.0...teamster-0.10.0
 [0.9.0]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.8.1...teamster-0.9.0
 [0.8.1]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.8.0...teamster-0.8.1

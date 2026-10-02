@@ -461,6 +461,7 @@ The [values.yaml](values.yaml) comments are the reference. The ones most often c
 | `config.settings` | see values | The config file, in teamster's own key names. |
 | `config.settings.bot.client-id`, `.tenant-id` | unset | The bot registration; nothing reaches Teams without it. |
 | `config.settings.bot.global-install` | unset (`false`) | Install the Teams app for everyone and allow messages to named people. |
+| `config.settings.database.migrate` | unset (`auto`) | `verify` makes migrations a step of their own; see [Migrations](#migrations). |
 | `config.settings.webhook.max-recipients` | unset (`100`) | Most people one message may name. |
 | `credentials.existingSecret` | `""` | Use a secret you manage. |
 | `credentials.botClientSecret` | `""` | The bot registration's secret. |

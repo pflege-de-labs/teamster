@@ -204,11 +204,25 @@ config:
       # message sent without a template links here so that someone can
       # create one.
       external-url: ""
+    # The chart owns database.driver, .path and .postgres (see `database`
+    # above); the rest of the section is yours. The values shown are the
+    # defaults.
+    # database:
+    #   # auto applies pending migrations on start; verify refuses to start on
+    #   # a schema that is behind, naming `teamster migrate up`; off does
+    #   # neither. See the chart README, "Migrations".
+    #   migrate: auto
+    #   # How long to wait for the first connection before giving up.
+    #   connect-timeout: 10s
     graph:
       tenant-id: ""
       client-id: ""
       base-url: https://graph.microsoft.com/v1.0
       timeout-sec: 10
+      # A sovereign cloud changes base-url, token-url and scope together.
+      # Empty token-url derives the public Entra endpoint for tenant-id.
+      # token-url: ""
+      # scope: https://graph.microsoft.com/.default
     # Bounds for a message that names the people it is for (ADR 0063): at most
     # max-recipients people, sent to fanout-concurrency at a time. The fan-out
     # has to finish within server.write-timeout.
@@ -241,6 +255,11 @@ config:
       # inline-install-budget: 5
       # welcome-message: ""
       # directory-ttl: 24h
+      # A sovereign cloud changes these together. Empty token-url derives one
+      # from tenant-id and tenant-type.
+      # token-url: ""
+      # scope: https://api.botframework.com/.default
+      # metadata-url: https://login.botframework.com/v1/.well-known/openidconfiguration
     # Who may administer the service. Leave oidc-discovery-url empty to use the
     # local login only.
     auth: {}
@@ -312,6 +331,7 @@ config:
     # built-in wording; mount them if you use it.
     ui:
       language: en
+      # locale-dir: /etc/teamster/locales
 
     # What teamster says about itself. Off by default, here as in the
     # application: the attributes name routes, templates and channels.
