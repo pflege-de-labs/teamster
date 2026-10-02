@@ -15,9 +15,10 @@ You need a running Teamster and a token that may send to the Alertmanager webhoo
 
 ### Issue a token
 
-Sign in to the admin UI, open **/admin/tokens**, name the token after the sender (for example
-`alertmanager-prod`) and tick **Alertmanager**. Copy the token at once: it is shown only this
-once.
+Sign in to the admin UI, open **/admin/tokens** and name the token after the sender (for example
+`alertmanager-prod`). Under **May send to** both webhooks start ticked; untick
+`/webhook/universal`, so the token reaches `/webhook/alertmanager` only. Copy the token at once:
+it is shown only this once.
 
 Store it where Alertmanager can read it, for example in a Kubernetes Secret:
 

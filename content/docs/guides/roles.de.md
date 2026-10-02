@@ -1,0 +1,179 @@
+---
+title: Rollen und Zugriff verwalten
+weight: 18
+---
+
+Geben Sie Personen eine Rolle, fassen Sie sie in Gruppen zusammen, lassen Sie sie die Webhooks
+verwenden, teilen Sie einzelne Datensätze mit ihnen, und beschränken Sie eine Rolle auf bestimmte
+Teams und Kanäle.
+
+Wie Rollen, Eigentümer und Cedar-Richtlinien zusammenspielen, erklärt
+[Eigentum und Freigabe](../../concepts/ownership/). Diese Seite enthält die Aufgaben.
+
+## Jemandem eine Rolle geben {#give-someone-a-role}
+
+Rollen kommen aus Ihrem Identitätsanbieter, eins zu eins nach Namen. Weisen Sie eine Anbieterrolle
+namens `admin`, `editor` oder `viewer` zu, und der Benutzer hat diese Rolle bei seiner nächsten
+Anmeldung.
+
+| Rolle | Darf |
+| --- | --- |
+| `admin` (**Administrator**) | Alles, auch alles, was spätere Releases hinzufügen |
+| `editor` (**Bearbeiter**) | Die Konfiguration lesen und ändern |
+| `viewer` (**Betrachter**) | Sie lesen und den eigenen Chat verknüpfen oder die Verknüpfung aufheben |
+
+Ein Benutzer mit mehreren Rollen hat alle davon. Ein Benutzer ohne eine der drei bekommt
+`auth.default-role`; das kann `admin`, `editor`, `viewer` oder leer für keinen Zugriff sein. Siehe
+[Anmeldung einrichten](../signing-in/#decide-what-a-user-without-a-role-gets).
+
+Die Rolle wird bei der Anmeldung festgelegt. Eine Änderung beim Anbieter gilt, sobald sich die
+Person das nächste Mal anmeldet.
+
+### Eigene Rolle definieren {#define-a-role-of-your-own}
+
+Eine Rolle mit einem anderen Namen, zum Beispiel `auditor`, erreicht Teamster unter ihrem eigenen
+Namen und gewährt nichts, bis eine Cedar-Richtlinie sie nennt. Die Richtlinien sind in das Binary
+eingebettet, in
+[`internal/authz/policies.cedar`](https://github.com/pflege-de-labs/teamster/blob/main/internal/authz/policies.cedar).
+Eine eigene Rolle heißt also, dort eine Richtlinie für `Role::"auditor"` hinzuzufügen und Teamster
+zu bauen. Richtlinien hinzuzufügen ist unbedenklich. Wer `admin`, `editor` oder `viewer` entfernt
+oder umbenennt, macht die Verwaltungsoberfläche unbrauchbar.
+
+## Prüfen, wer was darf {#check-who-may-do-what}
+
+* **/admin/access** (Administratoren) zeigt jede Berechtigung, wer an die Webhooks senden darf, und
+  die geltenden Cedar-Richtlinien. **Wer darf?** nimmt ein Subject, eine Aktion und eine Ressource
+  entgegen und nennt die Richtlinien, die sie erlauben oder verweigern.
+* **Mein Zugriff** im Kontomenü (**/admin/me**) zeigt jedem die eigenen Rollen, Gruppen, Webhooks
+  und die Berechtigungen, die ihn nennen.
+
+Eine verweigerte Anfrage ist ein `403`, das die Rolle und die Ressource nennt.
+
+## Personen in Gruppen zusammenfassen {#collect-people-in-groups}
+
+Gruppen unter **/admin/groups** fassen Benutzer, andere Gruppen und die Gruppen zusammen, die Ihr
+Identitätsanbieter in `auth.groups-claim` (Standard `groups`) nennt. Bearbeiter legen Gruppen an
+und ändern sie, sehen können sie alle. Gruppen lassen sich verschachteln, aber keine Gruppe kann
+sich selbst enthalten.
+
+Berechtigungen auf Datensätze und Webhook-Stufen lassen sich einer Gruppe genauso erteilen wie
+einem Benutzer. Jede Änderung einer Mitgliedschaft wird in derselben Transaktion im
+[Änderungsprotokoll](../audit-trail/) festgehalten.
+
+```bash
+# Gruppe anlegen, dann eine Anbietergruppe hinzufügen
+curl -u <admin-user>:<admin-password> -X POST http://localhost:8080/api/groups -d '{"name": "payments"}'
+curl -u <admin-user>:<admin-password> -X POST http://localhost:8080/api/groups/<group id>/members \
+  -d '{"type": "idp_group", "id": "/payments-oncall"}'
+```
+
+Der `type` eines Mitglieds ist `user`, `group` oder `idp_group`. Gruppen gehören nicht zu einem
+Konfigurationsbündel.
+
+## Jemanden die Webhooks verwenden lassen {#let-someone-use-the-webhooks}
+
+Bearbeiter und Administratoren dürfen beide Webhooks verwenden. Alle anderen brauchen eine
+Webhook-Stufe, die auf **/admin/access** je Benutzer, Gruppe, Anbietergruppe oder Rolle gesetzt
+wird:
+
+| Stufe | API-Wert | Webhooks |
+| --- | --- | --- |
+| keine | `none` | Keine |
+| Alertmanager | `alertmanager` | `/webhook/alertmanager` |
+| Universal | `universal` | `/webhook/universal` |
+| beide Webhooks | `all` | Beide |
+| beide, und Token verwalten | `admin` | Beide, dazu die Verwaltung der Token aller |
+
+```bash
+curl -u <admin-user>:<admin-password> -X PUT http://localhost:8080/api/access/webhooks \
+  -d '{"principal_type": "group", "principal_id": "<group id>", "level": "alertmanager"}'
+```
+
+`principal_type` ist `user`, `group`, `idp_group` oder `role`. Mit einer Stufe können sie eigene
+Token ausstellen; siehe [Webhook-Absender authentifizieren](../webhook-tokens/). Wird ihnen die
+Stufe entzogen, sind diese Token bei ihrer nächsten Verwendung widerrufen.
+
+## Einen Datensatz teilen {#share-a-record}
+
+Wer eine Vorlage, ein Ziel, eine Route, einen Webhook-Endpunkt oder eine Gruppe anlegt, ist ihr
+Eigentümer. Um einen Datensatz zu teilen, bearbeiten Sie ihn und nutzen **Wer was darf**: Geben Sie
+einem Benutzer, einer Gruppe, einer Anbietergruppe oder einer Rolle einige dieser Aktionen.
+
+| Aktion | Erlaubt |
+| --- | --- |
+| `read` (**lesen**) | Den Datensatz sehen |
+| `update` (**ändern**) | Ihn ändern |
+| `delete` (**löschen**) | Ihn löschen |
+| `attach` (**in Routen und Webhooks verwenden**) | Routen und Webhooks auf ihn zeigen lassen |
+| `share` (**teilen**) | Anderen geben, was man selbst hat |
+| `own` (**besitzen**) | Alles, auch das Eigentum weitergeben |
+
+Niemand kann mehr vergeben, als er selbst hat. Wer keine Rolle, aber einen geteilten Datensatz hat,
+sieht **/admin** nur mit dem, was geteilt wurde.
+
+`create` auf eine ganze Sammlung wird über die API erteilt:
+
+```bash
+curl -u <admin-user>:<admin-password> -X POST http://localhost:8080/api/sharing \
+  -d '{"principal_type": "group", "principal_id": "<group id>",
+       "resource_type": "Route", "resource_id": "*", "actions": ["create"]}'
+```
+
+`GET /api/sharing?type=Template&id=<id>` listet die Berechtigungen eines Datensatzes,
+`DELETE /api/sharing/<id>` widerruft eine.
+
+## Einen Benutzer deaktivieren {#disable-a-user}
+
+**/admin/users** (Administratoren) listet alle, die sich angemeldet haben, mit den Rollen und
+Gruppen ihrer letzten Anmeldung. **Deaktivieren** beendet die Sitzungen des Benutzers sofort,
+verweigert seine nächste Anmeldung und legt seine Webhook-Token still. **Aktivieren** macht das
+rückgängig. Niemand kann sich selbst deaktivieren, und die lokale Anmeldung lässt sich nicht
+deaktivieren.
+
+```bash
+curl -u <admin-user>:<admin-password> -X POST http://localhost:8080/api/users/disabled \
+  -d '{"subject": "<subject>"}'
+```
+
+`DELETE` auf denselben Pfad aktiviert den Benutzer wieder. `GET /api/users?q=<text>` durchsucht die
+Liste.
+
+## Eine Rolle auf bestimmte Teams und Kanäle beschränken {#limit-a-role-to-some-teams-and-channels}
+
+{{% steps %}}
+
+### Berechtigungen öffnen {#open-permissions}
+
+Öffnen Sie als Administrator **Berechtigungen** (**/admin/permissions**) und wählen Sie eine Rolle.
+
+### Ankreuzen, was sie erreichen darf {#tick-what-it-may-reach}
+
+Kreuzen Sie im Baum Teams und Kanäle an. Ein angekreuztes Team berechtigt alle seine Kanäle, auch
+später hinzugefügte. Einzeln angekreuzte Kanäle berechtigen nur diese.
+
+### Speichern {#save}
+
+Speichern ersetzt in einer Transaktion, was die Rolle bisher hatte.
+
+{{% /steps %}}
+
+{{< callout type="info" >}}
+Eine Rolle ohne Berechtigung erreicht alles. Die Einschränkung beginnt mit ihrer ersten
+Berechtigung. Administratoren werden nie eingeschränkt.
+{{< /callout >}}
+
+Berechtigungen bestimmen, was eine Sitzung **sehen** darf, und ebenso, wohin sie zustellen darf.
+Die Auswahllisten für Team und Kanal bieten nur Berechtigtes an, ein Ziel außerhalb der
+Berechtigungen fehlt in den Listen und in der API, und ein Schreibzugriff oder eine Route, die
+darüber hinaus zeigt, wird mit `403` abgelehnt.
+
+Skripte verwenden `PUT /api/grants/role`, das die Berechtigungen einer Rolle wie die Seite ersetzt:
+
+```bash
+curl -u <admin-user>:<admin-password> -X PUT http://localhost:8080/api/grants/role \
+  -d '{"role": "editor", "scopes": [{"team_id": "<team id>"},
+       {"team_id": "<team id>", "channel_id": "<channel id>"}]}'
+```
+
+Eine leere `channel_id` steht für das ganze Team. `/api/grants` fügt einzelne Berechtigungen hinzu
+und listet sie.

@@ -74,4 +74,4 @@ webhooks to the internet and keep `/admin` on a private network. See
 * [Routing]({{< ref "/docs/concepts/routing" >}}) and
   [Alert lifecycle]({{< ref "/docs/concepts/alert-lifecycle" >}}) explain the middle of the
   diagram.
-* [Configuration reference](../../reference/configuration/) lists every key.
+* The [configuration reference](../../reference/configuration/) lists every key.

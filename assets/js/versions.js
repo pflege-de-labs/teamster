@@ -4,6 +4,9 @@
   const meta = (name) => document.querySelector(`meta[name="${name}"]`)?.content ?? "";
   const current = meta("docs-version");
   const root = meta("docs-root");
+  // Labels in the page's language, from i18n/<lang>.yaml; %s takes a version.
+  const t = JSON.parse(meta("docs-i18n") || "{}");
+  const fill = (text, value) => (text ?? "").replace("%s", value);
 
   const pathInVersion = () => {
     const prefix = `${root}${current}/`;
@@ -12,7 +15,9 @@
   };
 
   const renderMenu = (versions) => {
-    const toggle = document.querySelector('.hextra-nav-menu-toggle[aria-label="Versions"]');
+    const toggle = document.querySelector(
+      `.hextra-nav-menu-toggle[aria-label="${CSS.escape(t.versions ?? "Versions")}"]`,
+    );
     const list = toggle?.parentElement.querySelector(".hextra-nav-menu-items");
     const template = list?.querySelector("li");
     if (!template) return;
@@ -38,18 +43,18 @@
 
     let message;
     if (current === "dev") {
-      message = "This documents the unreleased development version.";
+      message = t.dev;
     } else if (current.startsWith("pr-")) {
-      message = "This is a preview of a pull request.";
+      message = t.preview;
     } else {
-      message = `This documents ${current}, which is not the latest release.`;
+      message = fill(t.old, current);
     }
     const banner = document.createElement("div");
     banner.className = "docs-version-banner";
     banner.append(`${message} `);
     const link = document.createElement("a");
     link.href = `${root}${latest.path}`;
-    link.textContent = `Go to ${latest.version}`;
+    link.textContent = fill(t.goTo, latest.version);
     banner.append(link);
     document.body.prepend(banner);
   };

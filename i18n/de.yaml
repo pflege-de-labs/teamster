@@ -1,0 +1,7 @@
+documentation: Dokumentation
+versions: Versionen
+versions-all: Alle Versionen
+versionBannerDev: Diese Seite beschreibt die noch nicht veröffentlichte Entwicklungsversion.
+versionBannerPreview: Dies ist die Vorschau eines Pull Requests.
+versionBannerOld: "Diese Seite beschreibt %s, nicht die neueste Version."
+versionBannerGoTo: "Zu %s wechseln"
