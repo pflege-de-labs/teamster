@@ -13,7 +13,7 @@ You need the Teams bot configured. Everyone is:
 * everyone who linked their chat and is not in that directory,
 
 each once. Without `bot.global-install`, that is only the people who linked a chat. People who
-blocked the bot are included and counted as unreachable.
+blocked the bot are still sent to; if the send fails, they are counted as unreachable.
 
 ## Send a broadcast
 
@@ -21,7 +21,8 @@ blocked the bot are included and counted as unreachable.
 
 ### Get the level everyone
 
-Broadcasting takes the message level **everyone**, which includes naming anyone. Admins hold it.
+Broadcasting takes the message level **anyone, and broadcast to everyone** (`everyone` in the
+API), which includes naming anyone. Admins hold it.
 An admin grants it to others under **Who may message people** on **/admin/access**; see
 [Let someone message people](../roles/#let-someone-message-people).
 

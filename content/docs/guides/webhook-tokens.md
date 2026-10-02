@@ -91,7 +91,7 @@ curl -u <admin-user>:<admin-password> -X POST http://localhost:8080/api/tokens \
   your chat.
 * **Anyone** needs the permission to message anyone, which admins hold and grant; see
   [Let someone message people](../roles/#let-someone-message-people). **Anyone, and broadcast**
-  needs the level **everyone**.
+  needs the level **anyone, and broadcast to everyone**.
 * A token's level is never higher than its creator's. Asking for more is refused, with `403` from
   the API.
 * Every use checks the creator's level as it is now. An **anyone** token whose creator lost that
@@ -118,7 +118,8 @@ webhook:
 
 Deliver it as `TEAMSTER_WEBHOOK_TOKEN` rather than in the file. It is unscoped: it reaches both
 webhooks. It cannot name people or broadcast, so a sender that sets `recipients`,
-`teamster_recipient` or `broadcast` needs an issued token. Rotate it by changing the value and restarting.
+`teamster_recipient` or `broadcast` needs an issued token. Rotate it by changing the value and
+restarting.
 
 {{< callout type="warning" >}}
 The `X-Teamster-Token: <token>` header from earlier releases still works for either kind of token,
@@ -153,7 +154,8 @@ creator may no longer message people. `{"error": "this token may only name its c
 recipient"}` means an **only me** token named someone else, or Teamster does not know its
 creator's object id yet. `{"error": "this token may not broadcast: it needs the message level
 everyone"}` means a broadcast from a token below **anyone, and broadcast**, or whose creator no
-longer holds the level **everyone**. All are logged and counted like the scope refusal. See
+longer holds the level **anyone, and broadcast to everyone**. All are logged and counted like the
+scope refusal. See
 [Let a token name people](#let-a-token-name-people).
 
 **`403 RBAC: access denied`** is not Teamster's answer. It is Envoy's wording: a service mesh, such

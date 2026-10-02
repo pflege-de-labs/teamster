@@ -14,7 +14,8 @@ Sie brauchen einen eingerichteten Teams-Bot. Alle sind:
 * jede Person, die ihren Chat verknüpft hat und nicht in diesem Verzeichnis steht,
 
 jeweils einmal. Ohne `bot.global-install` sind das nur die Personen, die einen Chat verknüpft
-haben. Personen, die den Bot blockiert haben, zählen mit und werden als nicht erreichbar gezählt.
+haben. Personen, die den Bot blockiert haben, werden trotzdem angeschrieben; schlägt das fehl,
+zählen sie als nicht erreichbar.
 
 ## Eine Rundsendung senden {#send-a-broadcast}
 
