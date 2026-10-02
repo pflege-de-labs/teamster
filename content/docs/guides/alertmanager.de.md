@@ -116,7 +116,7 @@ wurde.
 | Alertmanager protokolliert | Bedeutung |
 | --- | --- |
 | `unexpected status code 401` | Teamster hat das Token nicht akzeptiert. Siehe [Wenn ein Absender abgewiesen wird](../webhook-tokens/#when-a-sender-is-refused). |
-| `unexpected status code 403` | Ein Service Mesh oder Gateway hat die Anfrage abgewiesen, oder der Bereich des Tokens erlaubt diesen Webhook nicht. |
+| `unexpected status code 403` | Ein Service Mesh oder Gateway hat die Anfrage abgewiesen, der Bereich des Tokens erlaubt diesen Webhook nicht, oder ein Alarm setzt `teamster_recipient` und das Token darf keine Personen nennen. Siehe [Wenn ein Absender abgewiesen wird](../webhook-tokens/#when-a-sender-is-refused). |
 | `unexpected status code 422` | Der Alarm war an Personen gerichtet, und keine von ihnen war erreichbar. Alertmanager wiederholt ihn nicht. |
 | `unexpected status code 502` | Teams, Graph oder die Datenbank sind ausgefallen. Alertmanager wiederholt den Versuch. |
 | `unexpected status code 503` | Das Token ließ sich nicht prüfen, weil die Datenbank nicht geantwortet hat. Alertmanager wiederholt den Versuch. |

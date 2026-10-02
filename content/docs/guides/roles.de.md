@@ -41,11 +41,12 @@ oder umbenennt, macht die Verwaltungsoberfläche unbrauchbar.
 
 ## Prüfen, wer was darf {#check-who-may-do-what}
 
-* **/admin/access** (Administratoren) zeigt jede Berechtigung, wer an die Webhooks senden darf, und
-  die geltenden Cedar-Richtlinien. **Wer darf?** nimmt ein Subject, eine Aktion und eine Ressource
-  entgegen und nennt die Richtlinien, die sie erlauben oder verweigern.
-* **Mein Zugriff** im Kontomenü (**/admin/me**) zeigt jedem die eigenen Rollen, Gruppen, Webhooks
-  und die Berechtigungen, die ihn nennen.
+* **/admin/access** (Administratoren) zeigt jede Berechtigung, wer an die Webhooks senden darf,
+  wer Personen anschreiben darf, und die geltenden Cedar-Richtlinien. **Wer darf?** nimmt ein
+  Subject, eine Aktion und eine Ressource entgegen und nennt die Richtlinien, die sie erlauben oder
+  verweigern.
+* **Mein Zugriff** im Kontomenü (**/admin/me**) zeigt jedem die eigenen Rollen, Gruppen, Webhooks,
+  **Wen Sie anschreiben dürfen** und die Berechtigungen, die ihn nennen.
 
 Eine verweigerte Anfrage ist ein `403`, das die Rolle und die Ressource nennt.
 
@@ -92,6 +93,31 @@ curl -u <admin-user>:<admin-password> -X PUT http://localhost:8080/api/access/we
 `principal_type` ist `user`, `group`, `idp_group` oder `role`. Mit einer Stufe können sie eigene
 Token ausstellen; siehe [Webhook-Absender authentifizieren](../webhook-tokens/). Wird ihnen die
 Stufe entzogen, sind diese Token bei ihrer nächsten Verwendung widerrufen.
+
+## Jemanden Personen anschreiben lassen {#let-someone-message-people}
+
+Eine Nachricht, die Personen nennt, braucht ein Token, das sie nennen darf; siehe
+[Ein Token Personen nennen lassen](../webhook-tokens/#let-a-token-name-people). Jede angemeldete
+Person darf sich selbst nennen. Andere zu nennen erfordert die Stufe **beliebige**, gesetzt auf
+**/admin/access** unter **Wer Personen anschreiben darf**, je Benutzer, Gruppe, Anbietergruppe
+oder Rolle. Administratoren haben sie bereits. Erteilen Sie sie den Personen, die Hinweise an
+Kollegen versenden, etwa Office-Administratoren.
+
+| Stufe | API-Wert | Sie und ihre Token dürfen nennen |
+| --- | --- | --- |
+| nur sich selbst | `none` | Nur sich selbst |
+| beliebige | `anyone` | Jede Person im Mandanten |
+
+```bash
+curl -u <admin-user>:<admin-password> -X PUT http://localhost:8080/api/access/messages \
+  -d '{"principal_type": "idp_group", "principal_id": "<provider group>", "level": "anyone"}'
+```
+
+`principal_type` ist `user`, `group`, `idp_group` oder `role`. `none` nimmt die Stufe zurück, und
+ihre **beliebige**-Token nennen ab der nächsten Anfrage nur noch ihren Ersteller. In Cedar ist die
+Stufe die Aktion `message` auf `People::"*"`, die `messageSelf` einschließt, die Aktion, die jeder
+hat. Siehe
+[ADR 0082](https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0082-naming-people-takes-permission.md).
 
 ## Einen Datensatz teilen {#share-a-record}
 

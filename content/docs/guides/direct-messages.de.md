@@ -31,6 +31,24 @@ Hello {{ .Recipient.GivenName }}, your password expires on {{ .Event.Universal.A
 
 `.Recipient` ist in [Vorlagendaten](../../reference/template-data/) beschrieben.
 
+### Ein Token ausstellen, das Personen nennen darf {#issue-a-token-that-may-name-people}
+
+Eine Nachricht, die jemanden nennt, wird mit `403` abgewiesen, wenn ihr Token diese Personen nicht
+nennen darf. Setzen Sie unter **/admin/tokens** beim Ausstellen des Tokens für den Absender
+**Darf Empfänger nennen**:
+
+| Auswahl | API-Wert | Das Token darf nennen |
+| --- | --- | --- |
+| niemanden | fehlt | Niemanden. Jede Nachricht, die Personen nennt, wird abgewiesen. |
+| nur mich | `self` | Nur Sie, den Ersteller des Tokens. |
+| beliebige | `anyone` | Jede Person im Mandanten. |
+
+**beliebige** wird nur angeboten, wenn ein Administrator Ihnen erlaubt hat, beliebige Personen
+anzuschreiben; siehe [Jemanden Personen anschreiben lassen](../roles/#let-someone-message-people).
+Ein Absender für ablaufende Passwörter braucht diese Stufe. **nur mich** passt zu einem Skript,
+das seinen eigenen Autor benachrichtigt. Die Einzelheiten stehen unter
+[Ein Token Personen nennen lassen](../webhook-tokens/#let-a-token-name-people).
+
 ### Die Personen in der Nachricht nennen {#name-the-people-in-the-message}
 
 Am [universellen Webhook](../universal-webhook/) führen Sie sie im Feld `recipients` auf oberster
@@ -51,6 +69,58 @@ Label `teamster_recipient`, mehrere Adressen durch Kommas getrennt. Hat eine Nac
 die Liste `recipients`. Leerzeichen um Adressen werden entfernt, Duplikate ohne Rücksicht auf
 Groß- und Kleinschreibung verworfen.
 
+In einer Alerting-Regel von Alertmanager setzen Sie das Label aus einem Label, das der Alarm
+bereits trägt, oder nennen eine feste Person:
+
+```yaml
+groups:
+  - name: certificates
+    rules:
+      - alert: CertificateExpiring
+        expr: cert_expiry_seconds < 7 * 86400
+        labels:
+          kind: certificate-expiry
+          teamster_recipient: "{{ $labels.owner_email }}"
+      - alert: BackupFailed
+        expr: backup_last_success_age_seconds > 86400
+        labels:
+          kind: backup
+          teamster_recipient: "alice@example.com,bob@example.com"
+```
+
+Jeder Alarm einer Gruppe wird über sein eigenes Label adressiert. Eine Benachrichtigung kann also
+für verschiedene Alarme verschiedene Personen erreichen.
+
+### Wie Adressen zugeordnet werden {#how-addresses-are-matched}
+
+Jede Adresse hat eine von drei Formen. Groß- und Kleinschreibung spielt bei der Zuordnung keine
+Rolle.
+
+| Form | Beispiel | Trifft |
+| --- | --- | --- |
+| Entra-Objekt-ID | `0b1c2d3e-4f50-6172-8394-a5b6c7d8e9f0` | Den Benutzer mit dieser ID. Nur eine GUID gilt als ID. |
+| User Principal Name | `alice@example.com` | Den Benutzer, dessen UPN sie ist. |
+| E-Mail-Adresse | `a.smith@example.com` | Den Benutzer, dessen primäre E-Mail-Adresse oder SMTP-Alias sie ist. Gilt, wenn kein UPN passt. |
+
+Alles ohne `@`, das keine GUID ist, wird mit `invalid-address` beantwortet.
+
+* **Wo Teamster sucht.** Zuerst im eigenen Personenverzeichnis, das ein früheres Nachschlagen
+  oder der [Installationslauf](../teams-bot/#install-the-bot-for-everyone) gefüllt hat. Ein
+  Eintrag, der älter als `bot.directory-ttl` (Standard `24h`) ist, wird erneut in Microsoft Graph
+  nachgeschlagen. Aliase findet Teamster nur über Graph, die erste Nachricht an einen Alias kostet
+  also einen Graph-Aufruf.
+* **Ein Tippfehler wird gemerkt.** Eine Adresse, die Graph nicht kennt, wird 10 Minuten lang mit
+  `unknown-recipient` beantwortet, ohne Graph erneut zu fragen. Eine gerade in Entra angelegte
+  Person kann so lange brauchen, bis sie unter einer Adresse erreichbar ist, die zuvor
+  fehlgeschlagen ist.
+* **Wer erreicht wird.** Nur aktivierte Mitglieder des Mandanten. Gäste, deaktivierte Konten und
+  ausgeschiedene Personen werden mit `ineligible` beantwortet.
+* **Eine Adresse, die zwei Personen teilen.** Eine E-Mail-Adresse oder ein Alias, den mehr als ein
+  Benutzer trägt, nennt niemanden eindeutig. Sie wird mit `ambiguous-address` beantwortet: Nennen
+  Sie die Person stattdessen über UPN oder Objekt-ID.
+* **nur mich.** Ein auf seinen Ersteller beschränktes Token darf jede der drei Formen verwenden,
+  solange die Adresse auf die eigene Objekt-ID des Erstellers aufgelöst wird.
+
 ### Die Antwort lesen {#read-the-answer}
 
 | Antwort | Bedeutung |
@@ -59,6 +129,7 @@ Groß- und Kleinschreibung verworfen.
 | `200 {"status":"partial", "delivered": n, "undelivered": [...]}` | Einige Personen sind nicht erreichbar, und ein erneuter Versuch ändert daran nichts. |
 | `422 {"status":"undelivered", ...}` | Niemand war erreichbar. Alertmanager wiederholt eine `4xx`-Antwort nicht. |
 | `400` | Die Nachricht nennt mehr als `webhook.max-recipients` Personen. Nichts wurde gesendet. |
+| `403` | Das Token darf diese Personen nicht nennen. Nichts wurde gesendet. Siehe [Wenn ein Absender abgewiesen wird](../webhook-tokens/#when-a-sender-is-refused). |
 | `502` | Etwas, das sich wieder erholen kann, ist ausgefallen. Wiederholen Sie die Anfrage. |
 
 Jeder Eintrag in `undelivered` enthält den `recipient` wie übergeben und einen `reason`:
@@ -67,6 +138,7 @@ Jeder Eintrag in `undelivered` enthält den `recipient` wie übergeben und einen
 | --- | --- |
 | `invalid-address` | Weder Objekt-ID noch UPN noch E-Mail-Adresse. |
 | `unknown-recipient` | Keine solche Person im Verzeichnis. |
+| `ambiguous-address` | Mehr als eine Person trägt diese E-Mail-Adresse. Verwenden Sie ihren UPN oder ihre Objekt-ID. |
 | `ineligible` | Kein aktiviertes Mitglied des Mandanten: ein Gast, ein deaktiviertes Konto, jemand, der ausgeschieden ist. |
 | `not-installed` | Die Teams-App des Bots ist für diese Person nicht installiert. |
 | `no-recipient` | Die Route adressiert Personen, und die Nachricht hat keine genannt. |

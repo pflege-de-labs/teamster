@@ -83,6 +83,12 @@ Anfrage erneut geprüft. Wird der Ersteller deaktiviert oder verliert er seine S
 Token sofort widerrufen. Siehe
 [Einen Webhook-Absender authentifizieren](../../guides/webhook-tokens/).
 
+Personen in einer Nachricht zu nennen ist ebenfalls eine Berechtigung. Jeder darf sich selbst
+nennen; andere zu nennen erfordert eine Freigabe, die Administratoren haben. Ein Token nennt
+Personen nur, soweit seine eigene Nachrichtenstufe und die Berechtigung seines Erstellers es beide
+erlauben. Siehe
+[Jemanden Personen anschreiben lassen](../../guides/roles/#let-someone-message-people).
+
 ## Jede Änderung wird aufgezeichnet {#every-change-is-recorded}
 
 Änderungen an Berechtigungen, Gruppenmitgliedschaften und deaktivierten Benutzern werden in das

@@ -31,8 +31,8 @@ Jede Antwort trägt einen Header `X-Request-ID`. Dieselbe ID wird als `request_i
 
 | Token | Herkunft | Bereich |
 | --- | --- | --- |
-| Ausgestelltes Zugriffstoken, `tst_` und 64 Hexadezimalziffern | `/admin/tokens` oder `POST /api/tokens` | Die Webhooks, die es nennt, und nur, solange sein Ersteller sie noch verwenden darf. Ohne Bereich, wenn es ausgestellt wurde, bevor es Bereiche gab. |
-| `webhook.token` | Konfiguration, `TEAMSTER_WEBHOOK_TOKEN` | Beide Webhooks. |
+| Ausgestelltes Zugriffstoken, `tst_` und 64 Hexadezimalziffern | `/admin/tokens` oder `POST /api/tokens` | Die Webhooks, die es nennt, und nur, solange sein Ersteller sie noch verwenden darf. Nennt Personen, soweit seine Nachrichtenstufe und sein Ersteller es erlauben. Ohne Bereich, wenn es ausgestellt wurde, bevor es Bereiche gab, und nennt dann niemanden. |
+| `webhook.token` | Konfiguration, `TEAMSTER_WEBHOOK_TOKEN` | Beide Webhooks. Nennt niemanden. |
 
 | Header | Status |
 | --- | --- |
@@ -119,6 +119,10 @@ mehr gelesen.
 Empfänger werden von Leerraum befreit und ohne Rücksicht auf Groß- und Kleinschreibung
 dedupliziert. Eine Nachricht darf höchstens `webhook.max-recipients` Personen nennen.
 
+Eine Nachricht, die Personen nennt, braucht ein Token, dessen Nachrichtenstufe das erlaubt, gleich
+welche Route sie trifft. Die ganze Anfrage wird geprüft, bevor irgendetwas zugestellt wird. Siehe
+[Ein Token Personen nennen lassen](../../guides/webhook-tokens/#let-a-token-name-people).
+
 ## Schlüssel {#keys}
 
 Hat ein Ereignis keinen Schlüssel, leitet Teamster einen als SHA-256 ab über:
@@ -142,6 +146,8 @@ Für `/webhook/alertmanager` und `/webhook/universal`. Fehlerkörper haben die F
 | `400` | `{"error": "the message names more recipients than webhook.max-recipients allows: …"}` | Zu viele Empfänger. |
 | `401` | leer, mit `WWW-Authenticate: Bearer realm="webhook"` | Kein Token oder ein Token, das Teamster nicht kennt. |
 | `403` | `{"error": "the token's scope, or its creator, does not allow this webhook"}` | Ein Token mit Bereich für einen Webhook, den es nicht nennt oder den sein Ersteller nicht mehr verwenden darf. |
+| `403` | `{"error": "this token may not name recipients: …"}` | Die Nachricht nennt Personen, und das Token darf das nicht: keine Nachrichtenstufe, `webhook.token`, ein Token von vor 0.11.0 oder ein Ersteller, der keine Personen mehr anschreiben darf. Nichts wurde zugestellt. |
+| `403` | `{"error": "this token may only name its creator as a recipient"}` | Ein **nur mich**-Token hat jemand anderen genannt, oder die Objekt-ID seines Erstellers ist nicht bekannt. Nichts wurde zugestellt. |
 | `405` | leer | Kein `POST`. |
 | `422` | `{"status": "undelivered", "delivered": 0, "undelivered": [...]}` | Niemand war erreichbar. |
 | `502` | `{"error": "bad gateway", "request_id": "<id>"}` | Etwas, das sich wieder einrenken kann, ist fehlgeschlagen: keine Route, eine Vorlage, die Datenbank, Teams. Erneut versuchen. |
@@ -160,6 +166,7 @@ Jeder Eintrag von `undelivered`:
 | --- | --- |
 | `invalid-address` | Die Adresse ist weder UPN noch E-Mail-Adresse noch Objekt-ID. |
 | `unknown-recipient` | Niemand im Verzeichnis hat diese Adresse. |
+| `ambiguous-address` | Mehr als ein Benutzer trägt diese E-Mail-Adresse oder diesen Alias. |
 | `ineligible` | Kein aktiviertes Mitglied des Mandanten: ein Gast, ein deaktiviertes Konto oder jemand, der ausgeschieden ist. |
 | `not-installed` | Die Teams-App ist für diese Person nicht installiert. |
 | `no-recipient` | Die Route stellt an Personen zu, und die Nachricht hat keine genannt. |
