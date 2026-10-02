@@ -14,6 +14,6 @@
 - [ ] Architecture documentation (`docs/architecture.md`) is up to date
 - [ ] An ADR is added under `docs/adr/` for any architectural decision
 - [ ] `README.md` and user documentation are up to date
-- [ ] User-visible change: docs PR against `pages`, written by the `docs-writer` agent: <!-- link -->
+- [ ] User-visible change: docs PR against `pages`, in English and German: <!-- link -->
 - [ ] `CHANGELOG.md` (and `charts/teamster/CHANGELOG.md` for chart changes) has an `Unreleased` entry
 - [ ] A shipped milestone is removed from `docs/roadmap.md`

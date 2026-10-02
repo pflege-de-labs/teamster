@@ -25,8 +25,8 @@ A change is done when all of these hold:
 * An [ADR](docs/adr/) exists for every architectural decision the change makes
 * `README.md` and the user-facing documentation match the behaviour that shipped
 * A user-visible change has a pull request against `pages` that updates the
-  [user documentation site](#user-documentation), written with the `docs-writer` agent and
-  linked from the change's pull request
+  [user documentation site](#user-documentation) in English and German — written with the
+  `docs-writer` and `docs-translator` agents — and is linked from the change's pull request
 * A user-visible change has an entry under `Unreleased` in [CHANGELOG.md](CHANGELOG.md), and a
   chart change one in [charts/teamster/CHANGELOG.md](charts/teamster/CHANGELOG.md)
 * A schema change leaves the *previous* release able to run against the new schema
@@ -134,11 +134,15 @@ A user-visible change on `main` needs a pull request against `pages` as well:
 git worktree add ../teamster-pages-<topic> -b docs/<topic> origin/pages
 ```
 
-Write it with the `docs-writer` agent, defined in `.claude/agents/docs-writer.md` on `pages`. A
-session started in that worktree has it; from a session on `main`, spawn a general-purpose agent
-with that file as its instructions. The agent reads the code of the change, so open the docs pull
-request once the code is settled, and link the two pull requests both ways. A fix that also
-applies to the current release is cherry-picked onto its `pages-vX.Y`.
+The site is English and German, and every page exists in both: `name.md` and `name.de.md`. Write
+the English pages with the `docs-writer` agent, then have `docs-translator` bring the German pages
+in line, in the same pull request. Both are defined in `.claude/agents/` on `pages`. A session
+started in that worktree has them; from a session on `main`, spawn a general-purpose agent with the
+file as its instructions. The German pages use the admin UI's labels from
+`internal/i18n/locales/de.json`, so a change to those labels changes the German pages too. The
+agents read the code of the change, so open the docs pull request once the code is settled, and
+link the two pull requests both ways. A fix that also applies to the current release is
+cherry-picked onto its `pages-vX.Y`.
 
 ## Planned work
 

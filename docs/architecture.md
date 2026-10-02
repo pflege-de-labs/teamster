@@ -107,8 +107,10 @@ newest stable release. See [ADR 0006](adr/0006-release-rebuild-sbom-signing.md).
 
 The user documentation is a Hugo site built from the `pages` and `pages-vX.Y` branches and
 served by GitHub Pages from `gh-pages`, one directory per minor release plus `dev/` for `main`. The
-release workflow creates a minor's branch from `pages` after its first release is published. See
-[ADR 0080](adr/0080-publish-user-docs-as-a-versioned-site.md).
+release workflow creates a minor's branch from `pages` after its first release is published. Each
+version is English at its root and German under `de/`. See
+[ADR 0080](adr/0080-publish-user-docs-as-a-versioned-site.md) and
+[ADR 0081](adr/0081-user-docs-in-english-and-german.md).
 
 ### Kubernetes
 
