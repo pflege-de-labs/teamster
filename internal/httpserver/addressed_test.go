@@ -11,6 +11,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/pflege-de-labs/teamster/internal/authz"
 	"github.com/pflege-de-labs/teamster/internal/bot"
 	"github.com/pflege-de-labs/teamster/internal/config"
 	"github.com/pflege-de-labs/teamster/internal/metrics"
@@ -107,8 +108,24 @@ func newAddressedFixture(t *testing.T, configure func(*config.Config)) addressed
 	if err != nil {
 		t.Fatalf("NewServer: %v", err)
 	}
+	addSenderToken(t, st)
 	return addressedFixture{server: server, handler: srv.Handler, store: st, bot: botClient, people: pp}
 }
+
+// addSenderToken issues senderToken to the local admin: naming people takes
+// a token whose scope allows it (ADR 0082).
+func addSenderToken(t *testing.T, st *fakeStore) {
+	t.Helper()
+	if _, err := st.CreateAccessToken(t.Context(), models.AccessToken{
+		Name: "messaging", TokenHash: hashToken(senderToken), CreatedBy: "admin",
+		Scope: []string{"alertmanager", "universal"}, Messages: authz.MessagesAnyone,
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// senderToken is the fixture's token that may name anyone.
+const senderToken = "tst_sender"
 
 // sentTo lists the conversations messages went to, with their text, sorted.
 func (f addressedFixture) sentTo() []string {
@@ -201,7 +218,7 @@ func TestAddressedMessages(t *testing.T) {
 			t.Parallel()
 
 			f := newAddressedFixture(t, nil)
-			rec := postWebhook(t, f.handler, "/webhook/universal", "token", tt.body)
+			rec := postWebhook(t, f.handler, "/webhook/universal", senderToken, tt.body)
 			if rec.Code != tt.wantStatus {
 				t.Fatalf("status = %d (%s), want %d", rec.Code, rec.Body.String(), tt.wantStatus)
 			}
@@ -228,7 +245,7 @@ func TestAddressedMessagesAreTrackedPerPerson(t *testing.T) {
 	f := newAddressedFixture(t, nil)
 	open := `{"state":"open","key":"pw-1","labels":{"kind":"password"},"recipients":["alice@corp.example","bob@corp.example"]}`
 	for range 2 {
-		if rec := postWebhook(t, f.handler, "/webhook/universal", "token", open); rec.Code != http.StatusOK {
+		if rec := postWebhook(t, f.handler, "/webhook/universal", senderToken, open); rec.Code != http.StatusOK {
 			t.Fatalf("open = %d %s", rec.Code, rec.Body.String())
 		}
 	}
@@ -246,7 +263,7 @@ func TestAddressedMessagesAreTrackedPerPerson(t *testing.T) {
 	}
 
 	// A close needs no recipients: it walks the rows the open left.
-	rec := postWebhook(t, f.handler, "/webhook/universal", "token", `{"state":"closed","key":"pw-1","labels":{"kind":"password"}}`)
+	rec := postWebhook(t, f.handler, "/webhook/universal", senderToken, `{"state":"closed","key":"pw-1","labels":{"kind":"password"}}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("close = %d %s", rec.Code, rec.Body.String())
 	}
@@ -301,7 +318,7 @@ func TestAddressedMessageRefusals(t *testing.T) {
 			if tt.resolveErr != nil {
 				f.people.errs["alice@corp.example"] = tt.resolveErr
 			}
-			rec := postWebhook(t, f.handler, "/webhook/universal", "token", tt.body)
+			rec := postWebhook(t, f.handler, "/webhook/universal", senderToken, tt.body)
 			if rec.Code != tt.wantStatus {
 				t.Fatalf("status = %d (%s), want %d", rec.Code, rec.Body.String(), tt.wantStatus)
 			}
@@ -323,7 +340,7 @@ func TestAddressedInstallsStayWithinTheBudget(t *testing.T) {
 	f := newAddressedFixture(t, func(c *config.Config) { c.Bot.InlineInstallBudget = 1 })
 	f.people.byAddr["dave@corp.example"] = models.DirectoryUser{AADObjectID: "oid-dave", UserPrincipalName: "dave@corp.example", TenantID: "t"}
 
-	postWebhook(t, f.handler, "/webhook/universal", "token", `{"labels":{"kind":"password"},"recipients":["carol@corp.example","dave@corp.example","alice@corp.example"]}`)
+	postWebhook(t, f.handler, "/webhook/universal", senderToken, `{"labels":{"kind":"password"},"recipients":["carol@corp.example","dave@corp.example","alice@corp.example"]}`)
 	if f.people.installs != 1 {
 		t.Errorf("installs asked for = %d, want the budget of 1", f.people.installs)
 	}
@@ -337,7 +354,7 @@ func TestAlertmanagerAddressesByLabel(t *testing.T) {
 		{"status":"firing","labels":{"kind":"password","teamster_recipient":"alice@corp.example"},"fingerprint":"a"},
 		{"status":"firing","labels":{"kind":"password","teamster_recipient":"nobody@corp.example"},"fingerprint":"b"}
 	]}`
-	rec := postWebhook(t, f.handler, "/webhook/alertmanager", "token", body)
+	rec := postWebhook(t, f.handler, "/webhook/alertmanager", senderToken, body)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d %s", rec.Code, rec.Body.String())
 	}
@@ -351,9 +368,10 @@ func TestAddressedWithoutTheBot(t *testing.T) {
 
 	st := newFakeStore()
 	st.routes["pw"] = models.Route{ID: "pw", Name: "Passwords", Addressed: true, LabelSelector: map[string]string{"kind": "password"}}
+	addSenderToken(t, st)
 	handler := newTestServer(t, st, &fakeMessenger{}).Handler
 
-	rec := postWebhook(t, handler, "/webhook/universal", "token", `{"labels":{"kind":"password"},"recipients":["alice@corp.example"]}`)
+	rec := postWebhook(t, handler, "/webhook/universal", senderToken, `{"labels":{"kind":"password"},"recipients":["alice@corp.example"]}`)
 	if rec.Code != http.StatusBadGateway || !strings.Contains(rec.Body.String(), "no bot is configured") {
 		t.Errorf("status = %d %s, want 502 naming the missing bot", rec.Code, rec.Body.String())
 	}

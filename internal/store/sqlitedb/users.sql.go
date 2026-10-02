@@ -31,7 +31,7 @@ func (q *Queries) DeleteSessionsForSubject(ctx context.Context, subject string) 
 }
 
 const getUser = `-- name: GetUser :one
-SELECT subject, source, name, email, roles, idp_groups, first_seen, last_seen, disabled_at, disabled_by
+SELECT subject, source, name, email, roles, idp_groups, first_seen, last_seen, disabled_at, disabled_by, object_id
 FROM users
 WHERE subject = ?1
 `
@@ -50,12 +50,13 @@ func (q *Queries) GetUser(ctx context.Context, subject string) (User, error) {
 		&i.LastSeen,
 		&i.DisabledAt,
 		&i.DisabledBy,
+		&i.ObjectID,
 	)
 	return i, err
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT subject, source, name, email, roles, idp_groups, first_seen, last_seen, disabled_at, disabled_by
+SELECT subject, source, name, email, roles, idp_groups, first_seen, last_seen, disabled_at, disabled_by, object_id
 FROM users
 WHERE CAST(?1 AS TEXT) = ''
 	OR lower(subject) LIKE ?1
@@ -91,6 +92,7 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]User, e
 			&i.LastSeen,
 			&i.DisabledAt,
 			&i.DisabledBy,
+			&i.ObjectID,
 		); err != nil {
 			return nil, err
 		}
@@ -126,16 +128,18 @@ func (q *Queries) SetUserDisabled(ctx context.Context, arg SetUserDisabledParams
 }
 
 const upsertUser = `-- name: UpsertUser :exec
-INSERT INTO users (subject, source, name, email, roles, idp_groups, first_seen, last_seen)
+INSERT INTO users (subject, source, name, email, roles, idp_groups, first_seen, last_seen, object_id)
 VALUES (?1, ?2, ?3, ?4, ?5,
-	?6, ?7, ?7)
+	?6, ?7, ?7, ?8)
 ON CONFLICT (subject) DO UPDATE SET
 	source     = excluded.source,
 	name       = excluded.name,
 	email      = excluded.email,
 	roles      = excluded.roles,
 	idp_groups = excluded.idp_groups,
-	last_seen  = excluded.last_seen
+	last_seen  = excluded.last_seen,
+	-- A sign-in without the claim keeps the id an earlier one recorded.
+	object_id  = CASE WHEN excluded.object_id = '' THEN users.object_id ELSE excluded.object_id END
 `
 
 type UpsertUserParams struct {
@@ -146,6 +150,7 @@ type UpsertUserParams struct {
 	Roles     string
 	IdpGroups string
 	SeenAt    time.Time
+	ObjectID  string
 }
 
 // A sign-in refreshes what the provider says; first_seen and the disabled
@@ -159,6 +164,7 @@ func (q *Queries) UpsertUser(ctx context.Context, arg UpsertUserParams) error {
 		arg.Roles,
 		arg.IdpGroups,
 		arg.SeenAt,
+		arg.ObjectID,
 	)
 	return err
 }

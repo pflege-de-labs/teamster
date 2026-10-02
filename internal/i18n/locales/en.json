@@ -435,5 +435,18 @@
   "tokens.scope": "May send to",
   "tokens.scope_hint": "A token sends only where you may send yourself, now and later: if you lose a webhook, your tokens lose it too.",
   "tokens.scoped": "Sends to {0}, as its creator may",
-  "tokens.unscoped": "Unscoped: both webhooks, whoever made it. Mint a new one to bind it to its creator."
+  "tokens.unscoped": "Unscoped: both webhooks, whoever made it. Mint a new one to bind it to its creator.",
+  "access.messages": "Who may message people",
+  "access.messages_explainer": "A message naming people in recipients or the teamster_recipient label needs a token with a message level. Everyone signed in may name themselves; naming anyone else takes the level anyone here. Admins have it.",
+  "access.message_level.none": "themselves only",
+  "access.message_level.anyone": "anyone",
+  "me.messages": "People you may message",
+  "me.messages.none": "nobody",
+  "me.messages.self": "yourself",
+  "me.messages.anyone": "anyone",
+  "tokens.messages": "May name recipients",
+  "tokens.messages.none": "nobody",
+  "tokens.messages.self": "only me",
+  "tokens.messages.anyone": "anyone",
+  "tokens.messages_hint": "Recipients and the teamster_recipient label are refused unless the token may name them. A token never names more people than you may message yourself."
 }

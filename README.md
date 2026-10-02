@@ -453,6 +453,21 @@ rendered for them, so a template can greet them by `{{ .Recipient.GivenName }}`
 ([ADR 0063](docs/adr/0063-a-message-names-its-recipients.md)). See
 [samples/universal-password-expiry.json](samples/universal-password-expiry.json).
 
+**Naming people takes permission** ([ADR 0082](docs/adr/0082-naming-people-takes-permission.md)).
+A message that names anyone, in `recipients` or in the label, is refused with `403` unless its token
+may name them:
+
+- The token needs a message level, chosen when it is minted: **only me** or **anyone**. It can
+  never be higher than its creator's own level, and every use checks the creator's level as it is
+  now.
+- **Only me** is open to everyone who may use the webhook. Every address must be the token's
+  creator: their Entra object id from their last sign-in (`auth.object-id-claim`), or the chat they
+  linked. Naming anyone else is refused.
+- **Anyone** needs the level *anyone* under [Who may do what](#who-may-do-what), granted to a
+  user, a group, a provider group or a role. Admins have it.
+- `webhook.token` and tokens from before 0.11 have no creator, so they cannot name people. Mint a
+  token with a message level for such a sender.
+
 - A person is looked up in the directory Teamster keeps, and in Graph when they are not there or
   the entry is older than `bot.directory-ttl`. Guests, disabled accounts and people who left are not
   reached.
@@ -489,12 +504,14 @@ Both webhooks take a token as `Authorization: Bearer <token>`. Two kinds of toke
   webhooks granted to them. Name it after the sender and choose the webhooks it may send to.
   Copy it at once: it is shown once and stored only as a digest. Revoke it when the sender goes
   away. You see and revoke your own tokens; webhook admins and admins see and revoke everyone's.
-  The page lists when each token was last used. Scripts can do the same through `POST /api/tokens`
-  with `{"name": "…", "scope": ["alertmanager"]}`, `GET /api/tokens` and
-  `DELETE /api/tokens/{id}`.
+  The page lists when each token was last used. A token that should name recipients also needs a
+  message level, see [Messages to individual people](#messages-to-individual-people). Scripts can
+  do the same through `POST /api/tokens` with
+  `{"name": "…", "scope": ["universal"], "messages": "self"}` (`messages` is `self`, `anyone` or
+  absent), `GET /api/tokens` and `DELETE /api/tokens/{id}`.
 - **`webhook.token`** (`TEAMSTER_WEBHOOK_TOKEN`), one deployment-wide token from configuration.
   It is optional. Use it when a sender has to be configured declaratively before anyone can sign
-  in to issue a token.
+  in to issue a token. It cannot name recipients.
 
 Prefer one issued token per sender, so each can be revoked without breaking the others. The
 `X-Teamster-Token: <token>` header from earlier releases still works for either kind, but is
@@ -567,6 +584,11 @@ curl -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
   its creator may no longer use it (disabled, removed from a group, or a level taken away). The
   log line `webhook refused` names the token and its creator, and the refusal is counted in
   `teamster.webhook.receipts` with state `forbidden`.
+- **`403` naming recipients**: the message names people its token may not. `this token may not
+  name recipients` means the token has no message level, is `webhook.token` or predates 0.11, or
+  its creator lost the level. `this token may only name its creator` means an **only me** token
+  named someone else, or Teamster does not know the creator's object id: they sign in once, or
+  link their chat.
 - **`503`**: Teamster could not check the token because the database did not answer. The sender
   should retry, as it does for any 5xx.
 
@@ -1069,12 +1091,13 @@ revokes one. Every change is audited in its own transaction. Each permission is 
 
 - every grant;
 - who may send to the webhooks;
+- who may message people;
 - the Cedar policies in force, both the embedded ones and the ones generated from grants;
 - **Who can?**, which takes a subject, an action and a resource and names the policies that allow
   or refuse it.
 
-**My access** in the user menu (`/admin/me`) shows anyone signed in their roles, groups, webhooks
-and the grants that name them.
+**My access** in the user menu (`/admin/me`) shows anyone signed in their roles, groups, webhooks,
+whom they may message, and the grants that name them.
 
 Webhook permission is set per user, group, provider group or role, at one of five levels:
 
@@ -1089,6 +1112,14 @@ Webhook permission is set per user, group, provider group or role, at one of fiv
 Editors and admins may use both webhooks without a level. The API is `PUT /api/access/webhooks`
 with `{"principal_type": "group", "principal_id": "…", "level": "alertmanager"}`. See
 [ADR 0076](docs/adr/0076-webhook-permissions-and-access-overviews.md).
+
+Who may message people is set the same way. Everyone signed in may name themselves; the level
+**anyone** lets a principal, and the tokens they mint, name anyone in the tenant. Grant it to the
+office admins who send notices to colleagues. Admins hold it already. The API is
+`PUT /api/access/messages` with `{"principal_type": "idp_group", "principal_id": "office",
+"level": "anyone"}`, and `none` takes it back. The grant is the Cedar action `message` on
+`People::"*"`, which includes `messageSelf`. See
+[ADR 0082](docs/adr/0082-naming-people-takes-permission.md).
 
 ### Groups
 

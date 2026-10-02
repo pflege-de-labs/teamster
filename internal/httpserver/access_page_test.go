@@ -197,7 +197,7 @@ func TestMyAccess(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("GET /admin/me = %d", rec.Code)
 	}
-	for _, want := range []string{"tester", "platform", "Ops (g-ops)", "alertmanager", `Template::&#34;t1&#34;`} {
+	for _, want := range []string{"tester", "platform", "Ops (g-ops)", "alertmanager", `Template::&#34;t1&#34;`, "People you may message", "yourself"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("page lacks %q", want)
 		}
@@ -213,5 +213,56 @@ func TestMyAccess(t *testing.T) {
 	failing := newTestServer(t, sessionAs(newFakeStore()).fail("AuthzGeneration"), &fakeMessenger{}).Handler
 	if rec := call(t, failing, http.MethodGet, "/admin/me", ""); rec.Code != http.StatusServiceUnavailable {
 		t.Errorf("an unreadable generation = %d, want 503", rec.Code)
+	}
+}
+
+// TestMessageLevels: admins grant naming anyone; self needs no grant (ADR 0082).
+func TestMessageLevels(t *testing.T) {
+	t.Parallel()
+
+	st := sessionAs(newFakeStore(), authz.RoleAdmin)
+	h := newTestServer(t, st, &fakeMessenger{}).Handler
+	peopleRows := func() []string {
+		var got []string
+		for _, p := range st.permissions {
+			if p.ResourceType == authz.PeopleResource.Type {
+				got = append(got, p.PrincipalID+" "+strings.Join(p.Actions, " "))
+			}
+		}
+		return got
+	}
+
+	form := url.Values{"principal_type": {"idp_group"}, "principal_id": {"office"}, "level": {"anyone"}}
+	if loc := postFormAs(t, h, "/admin/access/messages", form).Header().Get("Location"); strings.Contains(loc, "error=") {
+		t.Fatalf("granting anyone redirected to %s", loc)
+	}
+	if got := peopleRows(); strings.Join(got, ",") != "office message" {
+		t.Errorf("rows = %v, want office message", got)
+	}
+	if body := call(t, h, http.MethodGet, "/admin/access", "").Body.String(); !strings.Contains(body, "Who may message people") || !strings.Contains(body, "office") {
+		t.Error("the overview does not list the message grant")
+	}
+	if rec := call(t, h, http.MethodPut, "/api/access/messages", `{"principal_type":"idp_group","principal_id":"office","level":"none"}`); rec.Code != http.StatusOK {
+		t.Errorf("PUT none = %d %s", rec.Code, rec.Body.String())
+	}
+	if got := peopleRows(); len(got) != 0 {
+		t.Errorf("none left %v", got)
+	}
+
+	for _, body := range []string{
+		`{"principal_type":"role","principal_id":"viewer","level":"self"}`,
+		`{"principal_type":"robot","principal_id":"r","level":"anyone"}`,
+		`{`,
+	} {
+		if rec := call(t, h, http.MethodPut, "/api/access/messages", body); rec.Code != http.StatusBadRequest {
+			t.Errorf("PUT %s = %d, want 400", body, rec.Code)
+		}
+	}
+	if rec := call(t, h, http.MethodGet, "/api/access/messages", ""); rec.Code != http.StatusMethodNotAllowed {
+		t.Errorf("GET = %d", rec.Code)
+	}
+	editor := newTestServer(t, sessionAs(newFakeStore(), authz.RoleEditor), &fakeMessenger{}).Handler
+	if rec := postFormAs(t, editor, "/admin/access/messages", form); rec.Code != http.StatusForbidden {
+		t.Errorf("an editor granting message levels = %d, want 403", rec.Code)
 	}
 }

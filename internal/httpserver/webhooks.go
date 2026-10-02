@@ -30,7 +30,8 @@ func (s *Server) handleAlertmanager(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	if !s.authorizeWebhook(w, r, models.SourceAlertmanager) {
+	from, ok := s.authorizeWebhook(w, r, models.SourceAlertmanager)
+	if !ok {
 		return
 	}
 
@@ -40,9 +41,9 @@ func (s *Server) handleAlertmanager(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var all report
+	events := make([]models.Event, 0, len(payload.Alerts))
 	for _, alert := range payload.Alerts {
-		ev := models.Event{
+		events = append(events, models.Event{
 			Source: models.SourceAlertmanager,
 			Key:    alert.Fingerprint,
 			State:  alertmanagerState(alert.Status),
@@ -59,7 +60,15 @@ func (s *Server) handleAlertmanager(w http.ResponseWriter, r *http.Request) {
 				CommonAnnotations: payload.CommonAnnotations,
 				ExternalURL:       payload.ExternalURL,
 			},
-		}
+		})
+	}
+	// The whole batch or none of it: Alertmanager retries a batch, not an alert.
+	if s.refuseAddresses(w, r, from, models.SourceAlertmanager, s.authorizeAddresses(ctx, from, events)) {
+		return
+	}
+
+	var all report
+	for _, ev := range events {
 		s.metrics.WebhookReceived(ctx, ev.Source, string(ev.State))
 		one, err := s.processEvent(ctx, ev)
 		all.add(one)
@@ -78,7 +87,8 @@ func (s *Server) handleUniversal(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	if !s.authorizeWebhook(w, r, models.SourceUniversal) {
+	from, ok := s.authorizeWebhook(w, r, models.SourceUniversal)
+	if !ok {
 		return
 	}
 
@@ -108,6 +118,10 @@ func (s *Server) handleUniversal(w http.ResponseWriter, r *http.Request) {
 			URL:        payload.URL,
 			Recipients: payload.Recipients,
 		},
+	}
+
+	if s.refuseAddresses(w, r, from, models.SourceUniversal, s.authorizeAddresses(ctx, from, []models.Event{ev})) {
+		return
 	}
 
 	s.metrics.WebhookReceived(ctx, ev.Source, string(ev.State))

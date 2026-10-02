@@ -190,6 +190,9 @@ type AccessToken struct {
 	// creator's permissions on every use (ADR 0077). Empty is a token from
 	// before scopes, which reaches both webhooks whoever made it.
 	Scope []string `json:"scope,omitempty"`
+	// Messages is how far the token may address people: "" not at all, or an
+	// authz message level, never beyond its creator's (ADR 0082).
+	Messages string `json:"messages,omitempty"`
 }
 
 // Scoped reports whether the token is bound to its scope and its creator.
@@ -673,6 +676,9 @@ type User struct {
 	LastSeen   time.Time `json:"last_seen"`
 	DisabledAt time.Time `json:"disabled_at,omitzero"`
 	DisabledBy string    `json:"disabled_by,omitempty"`
+	// ObjectID is the Entra object id from the last sign-in that carried one,
+	// which tells a message to oneself from one to someone else (ADR 0082).
+	ObjectID string `json:"object_id,omitempty"`
 }
 
 // Disabled says whether the user is refused sign-in.

@@ -50,6 +50,8 @@ var actionParents = map[string][]string{
 	ActionAttach:   {ActionEdit, ActionOwn},
 	ActionShare:    {ActionOwn},
 	ActionTransfer: {ActionOwn},
+	// A grant of message covers messages to oneself (ADR 0082).
+	ActionMessageSelf: {ActionMessage},
 }
 
 func actionUID(action string) cedar.EntityUID {
@@ -64,9 +66,11 @@ func addActionEntities(entities cedar.EntityMap) {
 		}
 		entities[actionUID(action)] = cedar.Entity{UID: actionUID(action), Parents: cedar.NewEntityUIDSet(uids...)}
 	}
-	for _, group := range []string{ActionView, ActionEdit, ActionOwn} {
-		if _, ok := entities[actionUID(group)]; !ok {
-			entities[actionUID(group)] = cedar.Entity{UID: actionUID(group)}
+	for _, parents := range actionParents {
+		for _, group := range parents {
+			if _, ok := entities[actionUID(group)]; !ok {
+				entities[actionUID(group)] = cedar.Entity{UID: actionUID(group)}
+			}
 		}
 	}
 }

@@ -18,12 +18,14 @@ func TestConformanceUsersSignIn(t *testing.T) {
 		ctx := t.Context()
 		t0 := time.Date(2026, 10, 1, 8, 0, 0, 0, time.UTC)
 
-		first := models.User{Subject: "s-1", Source: "oidc", Name: "Alice", Email: "alice@example.com", Roles: []string{"editor"}, IdPGroups: []string{"sre"}, LastSeen: t0}
+		first := models.User{Subject: "s-1", Source: "oidc", Name: "Alice", Email: "alice@example.com", Roles: []string{"editor"}, IdPGroups: []string{"sre"}, LastSeen: t0, ObjectID: "oid-1"}
 		if err := st.RecordSignIn(ctx, first); err != nil {
 			t.Fatalf("RecordSignIn: %v", err)
 		}
 		again := first
 		again.Name, again.Roles, again.IdPGroups, again.LastSeen = "Alice A.", []string{"admin", "viewer"}, nil, t0.Add(time.Hour)
+		// A sign-in without the claim must not forget the object id.
+		again.ObjectID = ""
 		if err := st.RecordSignIn(ctx, again); err != nil {
 			t.Fatalf("RecordSignIn again: %v", err)
 		}
@@ -42,6 +44,7 @@ func TestConformanceUsersSignIn(t *testing.T) {
 			{"first_seen kept", got.FirstSeen.Equal(t0), true},
 			{"last_seen moved", got.LastSeen.Equal(t0.Add(time.Hour)), true},
 			{"not disabled", got.Disabled(), false},
+			{"object id kept", got.ObjectID, "oid-1"},
 		}
 		for _, tt := range tests {
 			if tt.got != tt.want {

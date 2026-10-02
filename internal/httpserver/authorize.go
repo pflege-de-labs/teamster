@@ -141,7 +141,7 @@ func (a authzSource) Load(ctx context.Context) (authz.Model, error) {
 	}
 	for _, t := range tokens {
 		if t.Scoped() {
-			model.Tokens = append(model.Tokens, authz.TokenScope{ID: t.ID, Webhooks: t.Scope})
+			model.Tokens = append(model.Tokens, authz.TokenScope{ID: t.ID, Webhooks: t.Scope, Messages: t.Messages})
 		}
 	}
 	return model, nil

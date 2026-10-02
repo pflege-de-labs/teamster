@@ -31,6 +31,7 @@ func (s queryAdapter) RecordSignIn(ctx context.Context, u models.User) error {
 		Roles:     strings.Join(u.Roles, " "),
 		IdpGroups: string(groups),
 		SeenAt:    seen.UTC(),
+		ObjectID:  u.ObjectID,
 	})
 	if err != nil {
 		return fmt.Errorf("record sign-in: %w", err)
@@ -114,6 +115,7 @@ func userFromRow(row sqlitedb.User) models.User {
 		FirstSeen:  row.FirstSeen.UTC(),
 		LastSeen:   row.LastSeen.UTC(),
 		DisabledBy: row.DisabledBy,
+		ObjectID:   row.ObjectID,
 	}
 	if row.DisabledAt.Valid {
 		u.DisabledAt = row.DisabledAt.Time.UTC()
