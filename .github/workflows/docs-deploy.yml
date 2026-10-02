@@ -50,7 +50,11 @@ jobs:
           HUGO_PARAMS_DOCVERSION: ${{ steps.version.outputs.dir }}
           HUGO_PARAMS_DOCSROOT: ${{ env.DOCS_ROOT }}
           HUGO_PARAMS_EDITURL_BASE: https://github.com/${{ github.repository }}/edit/${{ github.ref_name }}/content
-        run: hugo --gc --minify --panicOnWarning --baseURL "$SITE$DOCS_ROOT${{ steps.version.outputs.dir }}/"
+          DIR: ${{ steps.version.outputs.dir }}
+        run: |
+          hugo --gc --minify --panicOnWarning --baseURL "${SITE}${DOCS_ROOT}${DIR}/"
+          # A wrong base path still builds, then 404s every asset once published.
+          grep -q "${DOCS_ROOT}${DIR}/css/" public/index.html
       - uses: JamesIves/github-pages-deploy-action@fa24774553152dd7873cd16ebd8d959b010c5445 # v4.9.0
         with:
           branch: gh-pages
