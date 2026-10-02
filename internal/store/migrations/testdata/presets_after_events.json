@@ -1,0 +1,29 @@
+[
+  {
+    "Key": "alertmanager",
+    "Title": "{{ if eq .Event.State \"closed\" }}Resolved{{ else }}Firing{{ end }}: {{ default .Event.Alertmanager.Annotations.summary (default .Event.Labels.alertname \"Alert\") }}",
+    "Text": "",
+    "Body": "{\n  \"type\": \"AdaptiveCard\",\n  \"$schema\": \"http://adaptivecards.io/schemas/adaptive-card.json\",\n  \"version\": \"1.4\",\n  \"body\": [\n    {\n      \"type\": \"Container\",\n      \"style\": {{ if eq .Event.State \"closed\" }}\"good\"{{ else }}\"attention\"{{ end }},\n      \"bleed\": true,\n      \"items\": [\n        {\n          \"type\": \"TextBlock\",\n          \"size\": \"Medium\",\n          \"weight\": \"Bolder\",\n          \"wrap\": true,\n          \"text\": {{ toJSON (default .Event.Alertmanager.Annotations.summary (default .Event.Labels.alertname \"Alert\")) }}\n        },\n        {\n          \"type\": \"TextBlock\",\n          \"spacing\": \"None\",\n          \"isSubtle\": true,\n          \"wrap\": true,\n          \"text\": {{ if eq .Event.State \"closed\" }}\"Resolved\"{{ else }}{{ toJSON (printf \"Firing · %s\" (default .Event.Labels.severity \"no severity\")) }}{{ end }}\n        }\n      ]\n    },\n    {\n      \"type\": \"TextBlock\",\n      \"wrap\": true,\n      \"text\": {{ toJSON (default .Event.Alertmanager.Annotations.description \"\") }}\n    },\n    {\n      \"type\": \"FactSet\",\n      \"facts\": [\n        {{- $first := true }}\n        {{- range $key, $value := .Event.Labels }}{{ if ne $key \"teamster_source\" }}\n        {{- if not $first }},{{ end }}{{ $first = false }}\n        { \"title\": {{ toJSON $key }}, \"value\": {{ toJSON $value }} }\n        {{- end }}{{ end }}\n      ]\n    },\n    {\n      \"type\": \"FactSet\",\n      \"separator\": true,\n      \"facts\": [\n        { \"title\": \"Started\", \"value\": {{ if .Event.Alertmanager.StartsAt.IsZero }}\"unknown\"{{ else }}{{ toJSON (.Event.Alertmanager.StartsAt.Format \"2006-01-02 15:04:05 MST\") }}{{ end }} }\n        {{- if and (eq .Event.State \"closed\") (not .Event.Alertmanager.EndsAt.IsZero) }},\n        { \"title\": \"Ended\", \"value\": {{ toJSON (.Event.Alertmanager.EndsAt.Format \"2006-01-02 15:04:05 MST\") }} }\n        {{- end }}\n      ]\n    }\n  ]\n  {{- $actions := false }}\n  {{- if or .Event.Alertmanager.GeneratorURL .Event.Alertmanager.Annotations.runbook_url }},\n  \"actions\": [\n    {{- if .Event.Alertmanager.GeneratorURL }}{{ $actions = true }}\n    { \"type\": \"Action.OpenUrl\", \"title\": \"Show source\", \"url\": {{ toJSON .Event.Alertmanager.GeneratorURL }} }\n    {{- end }}\n    {{- if .Event.Alertmanager.Annotations.runbook_url }}{{ if $actions }},{{ end }}\n    { \"type\": \"Action.OpenUrl\", \"title\": \"Runbook\", \"url\": {{ toJSON .Event.Alertmanager.Annotations.runbook_url }} }\n    {{- end }}\n  ]\n  {{- end }}\n}",
+    "Sources": [
+      "alertmanager"
+    ]
+  },
+  {
+    "Key": "universal",
+    "Title": "{{ default .Event.Title (default .Event.Universal.Attributes.summary (default .Event.Labels.alertname \"Message\")) }}",
+    "Text": "{{ .Event.Text }}",
+    "Body": "{{ if .Event.Card }}{{ toJSON .Event.Card }}{{ else if not .Event.Text }}{\n  \"type\": \"AdaptiveCard\",\n  \"$schema\": \"http://adaptivecards.io/schemas/adaptive-card.json\",\n  \"version\": \"1.4\",\n  \"body\": [\n    {\n      \"type\": \"Container\",\n      \"style\": {{ if eq .Event.State \"closed\" }}\"good\"{{ else if eq .Event.State \"open\" }}\"attention\"{{ else }}\"default\"{{ end }},\n      \"bleed\": true,\n      \"items\": [\n        {\n          \"type\": \"TextBlock\",\n          \"size\": \"Medium\",\n          \"weight\": \"Bolder\",\n          \"wrap\": true,\n          \"text\": {{ toJSON (default .Event.Universal.Attributes.summary (default .Event.Labels.alertname \"Message\")) }}\n        }\n        {{- if .Event.State }},\n        {\n          \"type\": \"TextBlock\",\n          \"spacing\": \"None\",\n          \"isSubtle\": true,\n          \"text\": {{ toJSON .Event.State }}\n        }\n        {{- end }}\n      ]\n    },\n    {\n      \"type\": \"TextBlock\",\n      \"wrap\": true,\n      \"text\": {{ toJSON (default .Event.Universal.Attributes.description \"\") }}\n    },\n    {\n      \"type\": \"FactSet\",\n      \"facts\": [\n        {{- $first := true }}\n        {{- range $key, $value := .Event.Labels }}{{ if ne $key \"teamster_source\" }}\n        {{- if not $first }},{{ end }}{{ $first = false }}\n        { \"title\": {{ toJSON $key }}, \"value\": {{ toJSON $value }} }\n        {{- end }}{{ end }}\n        {{- if .Event.Universal.URL }}{{ if not $first }},{{ end }}\n        { \"title\": \"Generator\", \"value\": {{ toJSON .Event.Universal.URL }} }\n        {{- end }}\n      ]\n    }\n  ]\n}{{ end }}",
+    "Sources": [
+      "universal"
+    ]
+  },
+  {
+    "Key": "teamsv2",
+    "Title": "{{ default .Event.Title \"Teams message\" }}",
+    "Text": "{{ .Event.Text }}",
+    "Body": "{{ if .Event.Card }}{{ toJSON .Event.Card }}{{ end }}",
+    "Sources": [
+      "teamsv2"
+    ]
+  }
+]

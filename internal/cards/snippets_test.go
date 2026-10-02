@@ -19,6 +19,10 @@ func sampleData() templates.RenderData {
 			Alertmanager: &models.AlertmanagerEvent{
 				Annotations: map[string]string{"summary": "CPU spiking", "description": "api is hot"},
 				StartsAt:    time.Date(2026, 2, 9, 9, 0, 0, 0, time.UTC),
+				Alerts: []models.AlertmanagerAlert{
+					{Status: "firing", Labels: map[string]string{"alertname": "HighCPU"}},
+					{Status: "firing", Labels: map[string]string{"alertname": "HighLoad"}},
+				},
 			},
 		},
 		Now: "2026-02-09T10:00:00Z",

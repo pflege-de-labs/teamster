@@ -65,6 +65,22 @@ func defaultPayload(ev models.Event) map[string]any {
 		addTime("starts_at", am.StartsAt)
 		addTime("ends_at", am.EndsAt)
 		add("generator_url", am.GeneratorURL, am.GeneratorURL != "")
+		// One alert is already shown by the flat fields above.
+		if len(am.Alerts) > 1 {
+			add("common_annotations", am.CommonAnnotations, len(am.CommonAnnotations) > 0)
+			alerts := make([]map[string]any, 0, len(am.Alerts))
+			for _, alert := range am.Alerts {
+				one := map[string]any{"status": alert.Status, "labels": alert.Labels}
+				if len(alert.Annotations) > 0 {
+					one["annotations"] = alert.Annotations
+				}
+				if !alert.StartsAt.IsZero() {
+					one["starts_at"] = alert.StartsAt.Format(time.RFC3339)
+				}
+				alerts = append(alerts, one)
+			}
+			out["alerts"] = alerts
+		}
 	}
 	if u := ev.Universal; u != nil {
 		add("attributes", u.Attributes, len(u.Attributes) > 0)

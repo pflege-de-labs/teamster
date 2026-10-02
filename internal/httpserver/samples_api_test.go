@@ -195,3 +195,32 @@ func TestEveryIncomingEventIsSampled(t *testing.T) {
 		})
 	}
 }
+
+// A group's alerts are sampled one by one, because its common labels miss
+// what they differ in; the group itself is sampled too.
+func TestAlertmanagerGroupSamplesEachAlert(t *testing.T) {
+	t.Parallel()
+
+	rec := &recordingSampler{}
+	srv, err := NewServer(quietLog, samplesConfig(true), newFakeStore(), &fakeMessenger{}, nil, &fakeMessenger{}, metrics.Disabled(), rec)
+	if err != nil {
+		t.Fatalf("NewServer: %v", err)
+	}
+	postWebhook(t, srv.Handler, "/webhook/alertmanager", "token", `{"status":"firing","commonLabels":{"team":"db"},"alerts":[
+		{"status":"firing","labels":{"team":"db","pod":"a"},"annotations":{"summary":"a"}},
+		{"status":"firing","labels":{"team":"db","pod":"b"}}]}`)
+
+	rec.mu.Lock()
+	defer rec.mu.Unlock()
+	want := []map[string]string{
+		{"team": "db", "pod": "a", models.SourceLabel: models.SourceAlertmanager},
+		{"team": "db", "pod": "b", models.SourceLabel: models.SourceAlertmanager},
+		{"team": "db", models.SourceLabel: models.SourceAlertmanager},
+	}
+	if !reflect.DeepEqual(rec.observed, want) {
+		t.Errorf("observed %v, want %v", rec.observed, want)
+	}
+	if len(rec.attributes) != 3 || rec.attributes[0]["summary"] != "a" {
+		t.Errorf("attributes %v, want the first alert's annotations first", rec.attributes)
+	}
+}

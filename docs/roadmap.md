@@ -144,6 +144,9 @@ Smaller items left open when a milestone shipped. Each is picked up on its own.
 * **Activity-feed notifications.** Route C from milestone 13: `sendActivityNotification` with
   `TeamsActivity.Send`, a notification rather than a chat message, if a lighter option than the bot
   is wanted ([ADR 0026](adr/0026-alerts-in-a-persons-chat.md)).
+* **Stop closing per-alert Alertmanager cards.** Remove `closeLegacyAlertCards` once no
+  installation can still hold a card posted per alert before
+  [ADR 0084](adr/0084-an-alertmanager-notification-is-one-event.md).
 * **Visual card designer.** Not planned. [ADR 0014](adr/0014-card-editor.md) records why, and is
   where the case to supersede it would be written.
 

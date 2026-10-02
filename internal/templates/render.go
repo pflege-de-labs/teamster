@@ -12,10 +12,11 @@ import (
 )
 
 // DefaultTitle is the summary line for a card-only template: the extension's
-// summary when there is one, else the alertname label. Each extension is read
+// summary when there is one -- for a group, its common one -- else the
+// alertname label. Each extension is read
 // under with, because a template for any source meets nil ones.
 const DefaultTitle = `{{ $summary := "" }}` +
-	`{{ with .Event.Alertmanager }}{{ $summary = index .Annotations "summary" }}{{ end }}` +
+	`{{ with .Event.Alertmanager }}{{ $summary = default (index .Annotations "summary") (index .CommonAnnotations "summary") }}{{ end }}` +
 	`{{ with .Event.Universal }}{{ $summary = index .Attributes "summary" }}{{ end }}` +
 	`{{ default $summary (default .Event.Labels.alertname "Update") }}`
 

@@ -54,7 +54,7 @@ const Starter = `{
       "type": "TextBlock",
       "wrap": true,
       "isSubtle": true,
-      "text": {{ toJSON (default .Annotations.description "") }}
+      "text": {{ toJSON (default .Annotations.description (default .CommonAnnotations.description "")) }}
     }
     {{- end }}
     {{- with .Event.Universal }},
@@ -143,6 +143,19 @@ func Snippets() []Snippet {
   "wrap": true,
   "fontType": "Monospace",
   "text": {{ toJSON (toJSON .Event.Labels) }}
+}`,
+		},
+		{
+			Name:     "alerts",
+			LabelKey: "palette.alerts",
+			HelpKey:  "palette.alerts_help",
+			Body: `{
+  "type": "FactSet",
+  "facts": [
+    {{- with .Event.Alertmanager }}{{ range $i, $alert := .Alerts }}{{ if $i }},{{ end }}
+    { "title": {{ toJSON (default $alert.Labels.alertname "Alert") }}, "value": {{ toJSON (default $alert.Annotations.summary $alert.Status) }} }
+    {{- end }}{{ end }}
+  ]
 }`,
 		},
 		{

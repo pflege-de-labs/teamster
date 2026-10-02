@@ -3,12 +3,16 @@ package httpserver
 import (
 	"encoding/json"
 	"errors"
+	"maps"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/pflege-de-labs/teamster/internal/cards"
 	"github.com/pflege-de-labs/teamster/internal/config"
 	"github.com/pflege-de-labs/teamster/internal/models"
 	"github.com/pflege-de-labs/teamster/internal/templates"
@@ -477,22 +481,181 @@ func TestClosedEventWithoutAnActiveCardIsANoOp(t *testing.T) {
 	}
 }
 
-func TestAlertmanagerWebhookProcessesEveryAlert(t *testing.T) {
+// A group notification is one card that lists its alerts (ADR 0084).
+func TestAlertmanagerGroupIsOneCard(t *testing.T) {
 	t.Parallel()
 
 	msg := &fakeMessenger{}
-	_, handler := seededServer(t, msg)
-
-	body := `{"status":"firing","alerts":[
-		{"status":"firing","labels":{"alertname":"A"},"fingerprint":"fp-a"},
-		{"status":"firing","labels":{"alertname":"B"},"fingerprint":"fp-b"}
-	]}`
-	rec := postWebhook(t, handler, "/webhook/alertmanager", "token", body)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("POST = %d, want 200 (body %s)", rec.Code, rec.Body.String())
+	st, handler := seededServer(t, msg)
+	st.templates["tmpl"] = models.Template{
+		ID: "tmpl",
+		Title: "{{ .Event.State }} {{ len .Event.Alertmanager.Alerts }}:" +
+			"{{ range .Event.Alertmanager.Alerts }} {{ .Labels.alertname }}={{ .Status }}{{ end }}" +
+			"|{{ default .Event.Alertmanager.Annotations.summary \"-\" }}|{{ .Event.Labels.team }}",
 	}
-	if len(msg.posts) != 2 {
-		t.Errorf("posted %d messages, want 2", len(msg.posts))
+	group := func(status, second string) string {
+		return `{"status":"` + status + `","groupKey":"{}:{team=\"db\"}","commonLabels":{"team":"db"},"alerts":[
+			{"status":"` + status + `","labels":{"alertname":"A","team":"db"},"annotations":{"summary":"a"},"fingerprint":"fp-a"},
+			{"status":"` + second + `","labels":{"alertname":"B","team":"db"},"annotations":{"summary":"b"},"fingerprint":"fp-b"}]}`
+	}
+	key := activeEventKey(alertmanagerKey(`{}:{team="db"}`), "team", "channel")
+
+	steps := []struct {
+		name      string
+		body      string
+		wantTitle string
+		wantPosts int
+		wantKept  bool
+	}{
+		{"first notification posts", group("firing", "firing"), "open 2: A=firing B=firing|-|db", 1, true},
+		{"a change updates the same card", group("firing", "resolved"), "open 2: A=firing B=resolved|-|db", 1, true},
+		{"resolving closes it", group("resolved", "resolved"), "closed 2: A=resolved B=resolved|-|db", 1, false},
+	}
+	for _, step := range steps {
+		rec := postWebhook(t, handler, "/webhook/alertmanager", "token", step.body)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s: POST = %d, want 200 (body %s)", step.name, rec.Code, rec.Body.String())
+		}
+		if len(msg.posts) != step.wantPosts {
+			t.Errorf("%s: posted %d messages, want %d", step.name, len(msg.posts), step.wantPosts)
+		}
+		last := msg.posts[len(msg.posts)-1].msg.Title
+		if n := len(msg.updates); n > 0 {
+			last = msg.updates[n-1].msg.Title
+		}
+		if last != step.wantTitle {
+			t.Errorf("%s: title = %q, want %q", step.name, last, step.wantTitle)
+		}
+		if _, ok := st.activeEvents[key]; ok != step.wantKept {
+			t.Errorf("%s: active event kept = %v, want %v", step.name, ok, step.wantKept)
+		}
+	}
+}
+
+func TestAlertmanagerEvent(t *testing.T) {
+	t.Parallel()
+
+	start := time.Date(2026, 10, 1, 8, 0, 0, 0, time.UTC)
+	alert := func(name, status string, extra map[string]string) models.AlertmanagerAlert {
+		labels := map[string]string{"alertname": name, "team": "db"}
+		maps.Copy(labels, extra)
+		return models.AlertmanagerAlert{
+			Status: status, Labels: labels, Annotations: map[string]string{"summary": name},
+			StartsAt: start, GeneratorURL: "http://prom/" + name, Fingerprint: "fp-" + name,
+		}
+	}
+
+	tests := []struct {
+		name        string
+		payload     models.AlertmanagerPayload
+		wantKey     string
+		wantState   models.EventState
+		wantLabels  map[string]string
+		wantSummary string
+	}{
+		{
+			name: "one alert fills the flat fields",
+			payload: models.AlertmanagerPayload{Status: "firing", GroupKey: "g",
+				CommonLabels: map[string]string{"alertname": "A", "team": "db"},
+				Alerts:       []models.AlertmanagerAlert{alert("A", "firing", nil)}},
+			wantKey: alertmanagerKey("g"), wantState: models.StateOpen,
+			wantLabels: map[string]string{"alertname": "A", "team": "db"}, wantSummary: "A",
+		},
+		{
+			name: "several alerts leave them empty",
+			payload: models.AlertmanagerPayload{Status: "resolved", GroupKey: "g",
+				CommonLabels: map[string]string{"team": "db"},
+				Alerts:       []models.AlertmanagerAlert{alert("A", "resolved", nil), alert("B", "resolved", nil)}},
+			wantKey: alertmanagerKey("g"), wantState: models.StateClosed,
+			wantLabels: map[string]string{"team": "db"},
+		},
+		{
+			name:    "missing common labels and status are derived",
+			payload: models.AlertmanagerPayload{Alerts: []models.AlertmanagerAlert{alert("A", "resolved", nil), alert("B", "firing", nil)}},
+			wantKey: "", wantState: models.StateOpen,
+			wantLabels: map[string]string{"team": "db"},
+		},
+		{
+			name: "recipients the alerts do not share are joined",
+			payload: models.AlertmanagerPayload{Status: "firing", GroupKey: "g",
+				CommonLabels: map[string]string{"team": "db"},
+				Alerts: []models.AlertmanagerAlert{
+					alert("A", "firing", map[string]string{models.RecipientLabel: "a@example.com"}),
+					alert("B", "firing", map[string]string{models.RecipientLabel: "b@example.com"}),
+				}},
+			wantKey: alertmanagerKey("g"), wantState: models.StateOpen,
+			wantLabels: map[string]string{"team": "db", models.RecipientLabel: "a@example.com,b@example.com"},
+		},
+		{
+			name: "an unknown status is delivered once",
+			payload: models.AlertmanagerPayload{GroupKey: "g",
+				Alerts: []models.AlertmanagerAlert{alert("A", "resolved", nil), alert("B", "pending", nil)}},
+			wantKey: alertmanagerKey("g"), wantState: models.StateNone,
+			wantLabels: map[string]string{"team": "db"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			ev := alertmanagerEvent(tt.payload)
+			if ev.Key != tt.wantKey || ev.State != tt.wantState {
+				t.Errorf("key, state = %q, %q, want %q, %q", ev.Key, ev.State, tt.wantKey, tt.wantState)
+			}
+			if !maps.Equal(ev.Labels, tt.wantLabels) {
+				t.Errorf("labels = %v, want %v", ev.Labels, tt.wantLabels)
+			}
+			if got := ev.Alertmanager.Annotations["summary"]; got != tt.wantSummary {
+				t.Errorf("summary = %q, want %q", got, tt.wantSummary)
+			}
+			if len(ev.Alertmanager.Alerts) != len(tt.payload.Alerts) {
+				t.Errorf("alerts = %d, want %d", len(ev.Alertmanager.Alerts), len(tt.payload.Alerts))
+			}
+		})
+	}
+}
+
+// A card the per-alert release posted under a fingerprint is closed when its
+// alert resolves, and failing to is not the sender's problem.
+func TestAlertmanagerClosesPerAlertCards(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		updateErr error
+		wantKept  bool
+	}{
+		{"closed and forgotten", nil, false},
+		{"a failed close is only logged", errors.New("graph down"), true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			msg := &fakeMessenger{updateErr: tt.updateErr}
+			st, handler := seededServer(t, msg)
+			legacy := activeEventKey("fp-a", "team", "channel")
+			st.activeEvents[legacy] = models.ActiveEvent{
+				Key: "fp-a", State: models.StateOpen, TeamID: "team", ChannelID: "channel",
+				MessageID: "graph-1", ConversationID: "conversation-graph-1", PostedAt: testPostedAt,
+			}
+
+			rec := postWebhook(t, handler, "/webhook/alertmanager", "token", `{"status":"firing","groupKey":"g","alerts":[
+				{"status":"resolved","labels":{"alertname":"A"},"fingerprint":"fp-a"},
+				{"status":"firing","labels":{"alertname":"B"},"fingerprint":"fp-b"}]}`)
+			if rec.Code != http.StatusOK {
+				t.Fatalf("POST = %d, want 200 (body %s)", rec.Code, rec.Body.String())
+			}
+			if len(msg.posts) != 1 {
+				t.Errorf("posted %d messages, want the group's one", len(msg.posts))
+			}
+			if len(msg.updates) != 1 || msg.updates[0].messageID != "graph-1" {
+				t.Errorf("updates = %+v, want the per-alert card closed", msg.updates)
+			}
+			if _, ok := st.activeEvents[legacy]; ok != tt.wantKept {
+				t.Errorf("per-alert card kept = %v, want %v", ok, tt.wantKept)
+			}
+		})
 	}
 }
 
@@ -540,8 +703,8 @@ func TestAlertmanagerGroupFieldsReachTheTemplate(t *testing.T) {
 	if got := msg.posts[0].msg.Title; got != want {
 		t.Errorf("title = %q, want %q", got, want)
 	}
-	if _, ok := st.activeEvents[activeEventKey("fp", "team", "channel")]; !ok {
-		t.Error("no active event under the Alertmanager fingerprint, want it used as the key")
+	if _, ok := st.activeEvents[activeEventKey(alertmanagerKey(`{}:{alertname="Disk"}`), "team", "channel")]; !ok {
+		t.Error("no active event under the group key, want it used as the key")
 	}
 }
 
@@ -943,6 +1106,43 @@ func TestTheNoticeRidesAlong(t *testing.T) {
 			}
 			if chat.Summary != tt.wantSummary {
 				t.Errorf("chat summary = %q, want %q", chat.Summary, tt.wantSummary)
+			}
+		})
+	}
+}
+
+// The samples the README points at deliver through the Alertmanager preset.
+func TestAlertmanagerSamplesDeliver(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		file      string
+		wantTitle string
+	}{
+		{"alertmanager-firing.json", "Firing: CPU usage is above 90%"},
+		{"alertmanager-group.json", "Firing: HighCPU (2 alerts)"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.file, func(t *testing.T) {
+			t.Parallel()
+
+			body, err := os.ReadFile(filepath.Join("..", "..", "samples", tt.file))
+			if err != nil {
+				t.Fatal(err)
+			}
+			msg := &fakeMessenger{}
+			st, handler := seededServer(t, msg)
+			preset, _ := cards.PresetFor(models.SourceAlertmanager)
+			tmpl := preset.Template()
+			tmpl.ID = "tmpl"
+			st.templates["tmpl"] = tmpl
+
+			rec := postWebhook(t, handler, "/webhook/alertmanager", "token", string(body))
+			if rec.Code != http.StatusOK {
+				t.Fatalf("POST = %d, want 200 (body %s)", rec.Code, rec.Body.String())
+			}
+			if len(msg.posts) != 1 || msg.posts[0].msg.Title != tt.wantTitle {
+				t.Errorf("posts = %+v, want one titled %q", msg.posts, tt.wantTitle)
 			}
 		})
 	}

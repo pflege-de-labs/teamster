@@ -544,13 +544,15 @@ type Event struct {
 	Universal    *UniversalEvent    `json:"universal,omitempty"`
 }
 
-// AlertmanagerEvent is what one Alertmanager alert carries beyond the core,
-// together with the fields of the group notification it arrived in.
+// AlertmanagerEvent is one Alertmanager group notification beyond the core
+// (ADR 0084). Alerts is the group as sent; the flat per-alert fields are set
+// only when it holds exactly one alert.
 type AlertmanagerEvent struct {
-	Annotations  map[string]string `json:"annotations"`
-	StartsAt     time.Time         `json:"starts_at"`
-	EndsAt       time.Time         `json:"ends_at"`
-	GeneratorURL string            `json:"generator_url"`
+	Alerts       []AlertmanagerAlert `json:"alerts"`
+	Annotations  map[string]string   `json:"annotations"`
+	StartsAt     time.Time           `json:"starts_at"`
+	EndsAt       time.Time           `json:"ends_at"`
+	GeneratorURL string              `json:"generator_url"`
 
 	Receiver          string            `json:"receiver"`
 	GroupKey          string            `json:"group_key"`
@@ -578,7 +580,10 @@ type UniversalEvent struct {
 func AttributesOf(ev Event) map[string]string {
 	switch {
 	case ev.Alertmanager != nil:
-		return ev.Alertmanager.Annotations
+		if ev.Alertmanager.Annotations != nil {
+			return ev.Alertmanager.Annotations
+		}
+		return ev.Alertmanager.CommonAnnotations
 	case ev.Universal != nil:
 		return ev.Universal.Attributes
 	}

@@ -271,16 +271,19 @@ empty, so every other derived key is unchanged.
 `State`, `Labels`, and the direct content `Title`, `Text` and `Card`. Whatever only one source
 knows sits in a typed extension that is nil for every other source:
 
-* `Alertmanager *AlertmanagerEvent`: the alert's `Annotations`, `StartsAt`, `EndsAt` and
-  `GeneratorURL`, plus the notification's `Receiver`, `GroupKey`, `GroupLabels`, `CommonLabels`,
-  `CommonAnnotations` and `ExternalURL`.
+* `Alertmanager *AlertmanagerEvent`: the notification's `Alerts`, `Receiver`, `GroupKey`,
+  `GroupLabels`, `CommonLabels`, `CommonAnnotations` and `ExternalURL`. `Annotations`, `StartsAt`,
+  `EndsAt` and `GeneratorURL` are filled only for a group of one alert.
 * `Universal *UniversalEvent`: `Attributes`, `Time` and `URL`.
 * Teams V2 has no extension; its raw body is `.Payload`.
 
-`State` is `open`, `closed` or empty. The Alertmanager handler maps `firing` to open and `resolved`
-to closed, and any other status to empty. The universal handler takes `state` as sent and refuses
-any other value with `400`. `Key` is the payload's own, else `deriveKey`: the hash the fingerprint
-used, over source, URL, time and sorted labels.
+`State` is `open`, `closed` or empty. The Alertmanager handler turns one notification into one
+event: the key is the SHA-256 of the source and `groupKey`, the labels are `commonLabels`, and the
+notification's `firing` maps to open, `resolved` to closed and any other status to empty. A
+resolved alert also closes a card an earlier release left under its fingerprint
+([ADR 0084](adr/0084-an-alertmanager-notification-is-one-event.md)). The universal handler takes
+`state` as sent and refuses any other value with `400`. `Key` is the payload's own, else
+`deriveKey`: the hash the fingerprint used, over source, URL, time and sorted labels.
 
 Templates see the event as `.Event`. A template whose `sources` pin one webhook reads its extension
 directly; a template for any source guards each extension with `{{ with .Event.Alertmanager }}…{{

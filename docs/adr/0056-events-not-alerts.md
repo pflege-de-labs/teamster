@@ -1,6 +1,7 @@
 # 0056. Model what arrives as an event, not an alert
 
-* Status: Accepted
+* Status: Accepted; superseded in part by [0084](0084-an-alertmanager-notification-is-one-event.md):
+  an Alertmanager notification is one event, not one per alert
 * Date: 2026-09-30
 
 ## Context

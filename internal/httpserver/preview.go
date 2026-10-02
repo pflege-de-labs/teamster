@@ -87,7 +87,7 @@ func (s *Server) previewPayloads(msg templates.Message) previewPayloads {
 }
 
 func previewSamples() []string {
-	return []string{models.SourceAlertmanager, "open", "closed", "message", teamsV2Source}
+	return []string{models.SourceAlertmanager, previewAlertmanagerGroup, "open", "closed", "message", teamsV2Source}
 }
 
 // previewTeamsV2Body is what a Teams V2 sender posts, for previewing a
@@ -123,9 +123,45 @@ func previewRecipient() templates.Person {
 	}
 }
 
+// previewAlertmanagerGroup is the sample of a notification grouping several
+// alerts (ADR 0084).
+const previewAlertmanagerGroup = "alertmanager-group"
+
 func previewEvent(name string) models.Event {
+	if name == previewAlertmanagerGroup {
+		return alertmanagerEvent(models.AlertmanagerPayload{
+			Receiver: "teamster", Status: "firing", GroupKey: `{}:{service="api"}`,
+			GroupLabels:       map[string]string{"service": "api"},
+			CommonLabels:      map[string]string{"service": "api", "severity": "critical", models.SourceLabel: models.SourceAlertmanager},
+			CommonAnnotations: map[string]string{"summary": "api is degraded"},
+			ExternalURL:       "http://alertmanager.example",
+			Alerts: []models.AlertmanagerAlert{
+				{
+					Status: "firing", Labels: map[string]string{"alertname": "HighCPU", "service": "api", "severity": "critical"},
+					Annotations: map[string]string{"summary": "CPU usage is above 90%"},
+					StartsAt:    time.Date(2026, 2, 9, 9, 0, 0, 0, time.UTC), GeneratorURL: "http://prometheus.example/rule", Fingerprint: "9f9f5f4a1f",
+				},
+				{
+					Status: "firing", Labels: map[string]string{"alertname": "HighLatency", "service": "api", "severity": "critical"},
+					Annotations: map[string]string{"summary": "p99 latency is above 2s"},
+					StartsAt:    time.Date(2026, 2, 9, 9, 5, 0, 0, time.UTC), GeneratorURL: "http://prometheus.example/rule", Fingerprint: "3c1e8b2d7a",
+				},
+			},
+		})
+	}
 	if name == models.SourceAlertmanager {
-		// What processEvent makes of one entry of an Alertmanager group.
+		// What processEvent makes of a group holding one alert.
+		alert := models.AlertmanagerAlert{
+			Status: "firing",
+			Labels: map[string]string{"alertname": "HighCPU", "severity": "critical", "service": "api"},
+			Annotations: map[string]string{
+				"summary":     "CPU usage is above 90%",
+				"description": "api service is spiking CPU",
+			},
+			StartsAt:     time.Date(2026, 2, 9, 9, 0, 0, 0, time.UTC),
+			GeneratorURL: "http://prometheus.example/rule",
+			Fingerprint:  "9f9f5f4a1f",
+		}
 		return models.Event{
 			Source: models.SourceAlertmanager,
 			Key:    "9f9f5f4a1f",
@@ -137,12 +173,10 @@ func previewEvent(name string) models.Event {
 				models.SourceLabel: models.SourceAlertmanager,
 			},
 			Alertmanager: &models.AlertmanagerEvent{
-				Annotations: map[string]string{
-					"summary":     "CPU usage is above 90%",
-					"description": "api service is spiking CPU",
-				},
-				StartsAt:     time.Date(2026, 2, 9, 9, 0, 0, 0, time.UTC),
-				GeneratorURL: "http://prometheus.example/rule",
+				Alerts:       []models.AlertmanagerAlert{alert},
+				Annotations:  alert.Annotations,
+				StartsAt:     alert.StartsAt,
+				GeneratorURL: alert.GeneratorURL,
 				Receiver:     "teamster",
 				GroupKey:     `{}:{alertname="HighCPU"}`,
 				GroupLabels:  map[string]string{"alertname": "HighCPU"},

@@ -33,6 +33,14 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 * A mail address more than one person carries is reported as `ambiguous-address` in `undelivered`
   instead of failing the message with `502`, which made the sender retry what could never succeed.
+* An Alertmanager notification is one message again, not one per alert: one card per `groupKey`,
+  routed on `commonLabels`, and edited as alerts join, change and resolve. Templates find the
+  alerts in `.Event.Alertmanager.Alerts`. `Annotations`, `StartsAt`, `EndsAt` and `GeneratorURL`
+  are only filled for a group of one alert, and `len .Event.Alertmanager.Alerts` tells the two
+  apart. The Alertmanager preset lists a group's alerts, and the palette has an **Alert list**
+  snippet. Cards posted per alert by an earlier release are closed as their alerts resolve. A
+  default template seeded by an earlier release does not list alerts until the preset is applied
+  again ([ADR 0084](docs/adr/0084-an-alertmanager-notification-is-one-event.md)).
 
 ## [0.11.0] — 2026-10-01
 
