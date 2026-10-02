@@ -17,8 +17,9 @@ spielen keine Rolle.
 * Ein leerer Selektor trifft auf nichts zu. Eine Route, die alles auffangen soll, ist die
   Standardroute, die weiter unten beschrieben ist.
 
-Bei einem Alarm aus Alertmanager sind es die Labels des Alarms, bei einem universellen Ereignis
-die Einträge seines `labels`-Objekts.
+Bei einer Benachrichtigung aus Alertmanager sind es ihre `commonLabels`, die Labels, die alle
+Alarme der Gruppe gemeinsam haben; bei einer Gruppe mit einem Alarm die Labels dieses Alarms. Bei
+einem universellen Ereignis sind es die Einträge seines `labels`-Objekts.
 
 ### Das Label `teamster_source` {#the-teamster_source-label}
 

@@ -16,7 +16,8 @@ the same value. Extra labels on the event do not matter.
 * An empty selector matches nothing. A route that should catch everything is the default route,
   described below.
 
-For an Alertmanager alert the labels are the alert's labels. For a universal event they are its
+For an Alertmanager notification the labels are its `commonLabels`, the labels every alert in the
+group shares; for a group of one alert, that alert's labels. For a universal event they are its
 `labels` object.
 
 ### The `teamster_source` label

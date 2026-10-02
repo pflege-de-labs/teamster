@@ -66,8 +66,9 @@ Ebene auf: UPNs, E-Mail-Adressen oder Entra-Objekt-IDs.
 ```
 
 Ein Absender ohne ein solches Feld, etwa [Alertmanager](../alertmanager/), setzt stattdessen das
-Label `teamster_recipient`, mehrere Adressen durch Kommas getrennt. Hat eine Nachricht beides, gilt
-die Liste `recipients`. Leerzeichen um Adressen werden entfernt, Duplikate ohne Rücksicht auf
+Label `teamster_recipient`, mehrere Adressen durch Kommas getrennt. Bei einer Alertmanager-Gruppe
+werden die Werte des Labels aus allen ihren Alarmen zusammengeführt. Hat eine Nachricht beides,
+gilt die Liste `recipients`. Leerzeichen um Adressen werden entfernt, Duplikate ohne Rücksicht auf
 Groß- und Kleinschreibung verworfen.
 
 In einer Alerting-Regel von Alertmanager setzen Sie das Label aus einem Label, das der Alarm

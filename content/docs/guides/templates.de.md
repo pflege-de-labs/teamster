@@ -31,10 +31,10 @@ Eine Vorlage hat drei optionale Teile und braucht mindestens einen davon:
 
 Schreiben Sie einen Titel, wenn die Nachricht nur aus einer Karte besteht. Sonst zeigt der Feed sie
 als `Card` an. Ohne Titel greift Teamster auf die Annotation oder das Attribut `summary` zurück,
-dann auf `alertname`, dann auf `Update`. Ein Kanalbeitrag mit Karte zeigt den Titel außerdem oben
-auf der Karte.
+bei einer Alertmanager-Gruppe auf die gemeinsame Annotation `summary`, dann auf `alertname`, dann
+auf `Update`. Ein Kanalbeitrag mit Karte zeigt den Titel außerdem oben auf der Karte.
 
-Ein minimaler Nachrichtentext für Alertmanager:
+Ein minimaler Nachrichtentext für eine Alertmanager-Gruppe mit einem Alarm:
 
 ```gotemplate
 **{{ .Event.Alertmanager.Annotations.summary }}** is {{ .Event.State }}
@@ -57,7 +57,9 @@ an, für die die Vorlage geschrieben ist, oder lassen Sie alles frei für jeden 
 ### Die Vorschau ansehen {#preview-it}
 
 Die Vorschau rendert die Vorlage gegen Beispielnutzdaten für jeden Webhook und kann das JSON
-zeigen, das der Bot für einen Kanalbeitrag und für einen Chat senden würde.
+zeigen, das der Bot für einen Kanalbeitrag und für einen Chat senden würde. Für Alertmanager gibt
+es zwei Beispiele: **Alertmanager-Alarm**, eine Gruppe mit einem Alarm, und
+**Alertmanager-Alarmgruppe** mit zwei Alarmen.
 
 ### Die Vorlage zuweisen {#attach-it}
 
@@ -93,6 +95,39 @@ Ein Label-Schlüssel, der nicht auf einen Punkt folgen kann, braucht `index`:
 
 Verwenden Sie `default` für einen Schlüssel, den ein Ereignis womöglich nicht setzt, und `toJSON`,
 um eine Struktur in eine Karte einzubetten.
+
+## Die Alarme einer Gruppe auflisten {#list-the-alerts-of-a-group}
+
+Alertmanager sendet eine Gruppe von Alarmen als eine Benachrichtigung, und Teamster postet dafür
+eine Karte. Die Alarme stehen in `.Event.Alertmanager.Alerts`, jeder mit `Status`, `Labels`,
+`Annotations`, `StartsAt`, `EndsAt`, `GeneratorURL` und `Fingerprint`. `.Event.Labels` und
+`.Event.Alertmanager.CommonAnnotations` enthalten, was alle gemeinsam haben.
+
+Die flachen Felder `.Event.Alertmanager.Annotations`, `StartsAt`, `EndsAt` und `GeneratorURL` sind
+eine Abkürzung für eine Gruppe mit einem Alarm und bei einer größeren Gruppe leer. Zählen Sie die
+Alarme mit `len`, um beide Fälle zu behandeln:
+
+```gotemplate
+{{ if eq (len .Event.Alertmanager.Alerts) 1 }}
+  {{ .Event.Alertmanager.Annotations.summary }}
+{{ else }}
+  {{ range .Event.Alertmanager.Alerts }}{{ .Labels.alertname }} ({{ .Status }}): {{ .Annotations.summary }}
+  {{ end }}
+{{ end }}
+```
+
+In einer Karte fügt der Baustein **Alarmliste** aus der Palette des Editors ein `FactSet` mit
+einem Eintrag je Alarm ein. Die vorgefertigte Vorlage für Alertmanager listet die Alarme einer
+größeren Gruppe genauso auf und nennt ihre Anzahl im Titel.
+
+{{< callout type="warning" >}}
+Eine vorgefertigte Vorlage wird nur in einer neuen Installation angelegt. Eine Installation, die
+mit 0.11.0 oder früher eingerichtet wurde, behält ihre alte Vorlage **Alertmanager (default)**.
+Sie zeigt eine Gruppe ohne ihre Alarme und mit dem gemeinsamen `alertname` als Titel. Um sie zu
+aktualisieren, öffnen Sie die Vorlage, wählen unter **Mit einer Vorlage beginnen** den Eintrag
+**Alertmanager-Alarm**, bestätigen und speichern. Dabei werden Titel, Text und Karte ersetzt;
+sichern Sie eigene Änderungen also vorher.
+{{< /callout >}}
 
 ## Wissen, was der Text enthalten darf {#know-what-the-text-may-contain}
 
@@ -136,7 +171,7 @@ dieser noch keinen hat:
 
 | Vorlage | Rendert |
 | --- | --- |
-| Alertmanager (default) | Eine nach Zustand eingefärbte Karte: Zusammenfassung, Schweregrad, Beschreibung, Labels, Beginn und Ende sowie Links zur Generator-URL und zu einer Annotation `runbook_url` |
+| Alertmanager (default) | Eine nach Zustand eingefärbte Karte: Zusammenfassung, Schweregrad, Beschreibung, Labels, Beginn und Ende oder bei einer Gruppe mehrerer Alarme eine Zeile je Alarm sowie Links zur Generator-URL und zu einer Annotation `runbook_url` |
 | Universal webhook (default) | Die eigene Karte oder den eigenen Text des Absenders, falls er eines davon gesendet hat, sonst eine nach Zustand eingefärbte Karte: Zusammenfassung, Zustand, Beschreibung, Labels und die URL |
 | Teams V2 webhook (default) | Die Karte der Nutzdaten, eine daraus umgewandelte MessageCard oder nur deren Text |
 
@@ -201,6 +236,7 @@ curl -H "Authorization: Bearer <token>" -H 'Content-Type: application/json' \
 | Beispiel | Zeigt |
 | --- | --- |
 | `alertmanager-firing.json`, `alertmanager-resolved.json` | Einen Alertmanager-Alarm, der sich öffnet und aufgelöst wird |
+| `alertmanager-group.json` | Eine Alertmanager-Gruppe mit zwei Alarmen, einer feuernd und einer aufgelöst |
 | `universal-open.json`, `universal-closed.json` | Ein verfolgtes universelles Ereignis |
 | `universal-message.json` | Eine einmalige universelle Nachricht |
 | `universal-direct-message.json` | Direkten Inhalt, für eine Route ohne Vorlage |

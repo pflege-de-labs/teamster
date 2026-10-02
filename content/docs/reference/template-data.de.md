@@ -20,7 +20,7 @@ Eine Vorlage braucht mindestens einen Bestandteil. Eine Vorlage mit Karte und oh
 diesen Titel:
 
 ```gotemplate
-{{ $summary := "" }}{{ with .Event.Alertmanager }}{{ $summary = index .Annotations "summary" }}{{ end }}{{ with .Event.Universal }}{{ $summary = index .Attributes "summary" }}{{ end }}{{ default $summary (default .Event.Labels.alertname "Update") }}
+{{ $summary := "" }}{{ with .Event.Alertmanager }}{{ $summary = default (index .Annotations "summary") (index .CommonAnnotations "summary") }}{{ end }}{{ with .Event.Universal }}{{ $summary = index .Attributes "summary" }}{{ end }}{{ default $summary (default .Event.Labels.alertname "Update") }}
 ```
 
 ## Felder der obersten Ebene {#top-level-fields}
@@ -50,15 +50,16 @@ Jedes Ereignis hat diesen Kern, gleich an welchem Webhook es ankam.
 
 ### Alertmanager-Erweiterung {#alertmanager-extension}
 
-Gesetzt für ein Ereignis von `POST /webhook/alertmanager`. Jeder Alarm einer Benachrichtigung ist
-ein eigenes Ereignis; die Gruppenfelder wiederholen sich in jedem.
+Gesetzt für ein Ereignis von `POST /webhook/alertmanager`. Eine Benachrichtigung ist ein
+Ereignis, gleich wie viele Alarme sie gruppiert.
 
 | Feld | Typ | Aus den Nutzdaten |
 | --- | --- | --- |
-| `.Event.Alertmanager.Annotations` | Map von Strings | `alerts[].annotations` |
-| `.Event.Alertmanager.StartsAt` | Zeit | `alerts[].startsAt` |
-| `.Event.Alertmanager.EndsAt` | Zeit | `alerts[].endsAt` |
-| `.Event.Alertmanager.GeneratorURL` | String | `alerts[].generatorURL` |
+| `.Event.Alertmanager.Alerts` | Liste von Alarmen | `alerts`, in der gesendeten Reihenfolge, siehe unten |
+| `.Event.Alertmanager.Annotations` | Map von Strings | `alerts[0].annotations`, nur bei einer Gruppe mit einem Alarm |
+| `.Event.Alertmanager.StartsAt` | Zeit | `alerts[0].startsAt`, nur bei einer Gruppe mit einem Alarm |
+| `.Event.Alertmanager.EndsAt` | Zeit | `alerts[0].endsAt`, nur bei einer Gruppe mit einem Alarm |
+| `.Event.Alertmanager.GeneratorURL` | String | `alerts[0].generatorURL`, nur bei einer Gruppe mit einem Alarm |
 | `.Event.Alertmanager.Receiver` | String | `receiver` |
 | `.Event.Alertmanager.GroupKey` | String | `groupKey` |
 | `.Event.Alertmanager.GroupLabels` | Map von Strings | `groupLabels` |
@@ -66,9 +67,25 @@ ein eigenes Ereignis; die Gruppenfelder wiederholen sich in jedem.
 | `.Event.Alertmanager.CommonAnnotations` | Map von Strings | `commonAnnotations` |
 | `.Event.Alertmanager.ExternalURL` | String | `externalURL` |
 
-Auch die Kernfelder stammen aus dem Alarm: `.Event.Key` aus `fingerprint`, `.Event.Labels` aus
-`labels` und `.Event.State` aus `status` (`firing` wird `open`, `resolved` wird `closed`, alles
-andere bleibt leer).
+Bei einer Gruppe mehrerer Alarme sind `Annotations`, `StartsAt`, `EndsAt` und `GeneratorURL` leer.
+`len .Event.Alertmanager.Alerts` unterscheidet die beiden Fälle.
+
+Jeder Eintrag von `.Event.Alertmanager.Alerts`:
+
+| Feld | Typ | Aus den Nutzdaten |
+| --- | --- | --- |
+| `.Status` | String | `alerts[].status`: `firing` oder `resolved` |
+| `.Labels` | Map von Strings | `alerts[].labels` |
+| `.Annotations` | Map von Strings | `alerts[].annotations` |
+| `.StartsAt` | Zeit | `alerts[].startsAt` |
+| `.EndsAt` | Zeit | `alerts[].endsAt` |
+| `.GeneratorURL` | String | `alerts[].generatorURL` |
+| `.Fingerprint` | String | `alerts[].fingerprint` |
+
+Die Kernfelder stammen aus der Gruppe: `.Event.Key` ist ein Hash von `groupKey`, `.Event.Labels`
+stammt aus `commonLabels` und `.Event.State` aus `status` (`firing` wird `open`, `resolved` wird
+`closed`, alles andere bleibt leer). Für Nutzdaten, denen diese Felder fehlen, siehe
+[Alertmanager](../webhook-payloads/#alertmanager).
 
 ### Universelle Erweiterung {#universal-extension}
 

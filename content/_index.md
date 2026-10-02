@@ -17,7 +17,8 @@ layout: hextra-home
 <div class="hx:mb-12">
 {{< hextra/hero-subtitle >}}
   Teamster receives webhooks from Prometheus Alertmanager and other senders, picks a Teams channel
-  or chat by label, and keeps one Adaptive Card per alert up to date until it resolves.
+  or chat by label, and keeps one Adaptive Card per alert or alert group up to date until it
+  resolves.
 {{< /hextra/hero-subtitle >}}
 </div>
 

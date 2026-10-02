@@ -49,26 +49,37 @@ it is stored.
 ## Alertmanager
 
 The [Alertmanager webhook payload](https://prometheus.io/docs/alerting/latest/configuration/#webhook_config),
-version 4. Each entry of `alerts` becomes one event, processed in order. These fields are read;
-others are ignored.
+version 4. One notification becomes one event, however many alerts it groups. These fields are
+read; others are ignored.
 
 | Field | Becomes |
 | --- | --- |
+| `groupKey` | `.Event.Key`, as a SHA-256 of `alertmanager` and the group key, and `.Event.Alertmanager.GroupKey` |
+| `status` | `.Event.State`: `firing` is `open`, `resolved` is `closed`, anything else is empty |
+| `commonLabels` | `.Event.Labels`, which routes select on, and `.Event.Alertmanager.CommonLabels` |
 | `receiver` | `.Event.Alertmanager.Receiver` |
-| `groupKey` | `.Event.Alertmanager.GroupKey` |
 | `groupLabels` | `.Event.Alertmanager.GroupLabels` |
-| `commonLabels` | `.Event.Alertmanager.CommonLabels` |
 | `commonAnnotations` | `.Event.Alertmanager.CommonAnnotations` |
 | `externalURL` | `.Event.Alertmanager.ExternalURL` |
-| `alerts[].status` | `.Event.State`: `firing` is `open`, `resolved` is `closed`, anything else is empty |
-| `alerts[].labels` | `.Event.Labels`, which routes select on |
-| `alerts[].annotations` | `.Event.Alertmanager.Annotations` |
-| `alerts[].startsAt` | `.Event.Alertmanager.StartsAt` |
-| `alerts[].endsAt` | `.Event.Alertmanager.EndsAt` |
-| `alerts[].generatorURL` | `.Event.Alertmanager.GeneratorURL` |
-| `alerts[].fingerprint` | `.Event.Key` |
+| `alerts` | `.Event.Alertmanager.Alerts` |
+| `alerts[0].annotations`, `startsAt`, `endsAt`, `generatorURL` | `.Event.Alertmanager.Annotations`, `StartsAt`, `EndsAt`, `GeneratorURL`, only when `alerts` holds one alert |
 
-The first alert that fails ends the request with an error; the alerts after it are not processed.
+When a field is missing:
+
+| Missing | Teamster uses |
+| --- | --- |
+| `groupKey` | A derived key, see [Keys](#keys). |
+| `status` | `firing` if any alert fires, otherwise `resolved` unless an alert reports another status. |
+| `commonLabels` | The labels all alerts share. |
+| `alerts`, or an empty list | Nothing: the request is answered `200` and nothing is delivered. |
+
+A `teamster_recipient` label that the alerts do not all share is not in `commonLabels`. Teamster
+then joins the `teamster_recipient` values of all alerts into the event's label, so an addressed
+route reaches everyone the group names.
+
+Once the notification is delivered, Teamster also closes, for each alert reported as `resolved`,
+the card a release up to 0.11.0 posted for that alert alone. A failure to close one is logged and
+does not fail the request.
 
 ## Universal
 
@@ -130,7 +141,7 @@ When an event has no key, Teamster derives one as a SHA-256 over:
 
 | Source | Hashed |
 | --- | --- |
-| Alertmanager | `alertmanager`, `generatorURL`, `startsAt`, the alert's labels sorted by key |
+| Alertmanager | `alertmanager`, `generatorURL` and `startsAt` of a group of one alert, the event's labels sorted by key |
 | Universal | `universal`, `url`, `time`, the labels sorted by key, and the recipients when there are any |
 
 ## Responses
