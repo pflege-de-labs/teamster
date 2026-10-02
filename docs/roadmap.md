@@ -87,14 +87,35 @@ a stuck one.
 
 ## Milestone 24 — Announcements
 
-A webhook that messages every directory user, or an Entra group, at once. Not a bigger
-`recipients` list: it needs its own shape.
+Broadcasts to everyone the bot can reach are built: `"broadcast": true`, accepted with 202,
+delivered by a leased background run with progress, and their own Cedar action
+([ADR 0083](adr/0083-broadcasts-run-in-the-background.md)); see the [changelog](../CHANGELOG.md).
+What is left:
 
-* Accepted with 202 and delivered from a durable job, paced against the Bot Connector's limits.
-* Cancellable, with progress, and an audit of who sent what to whom.
-* Its own Cedar action.
+### 24.1 Each person exactly once
 
-Follows milestone 23, whose `directory_users` and run table it builds on.
+A takeover repeats the chunk the previous owner was sending, so up to 25 people get a broadcast
+twice. Two ways to close it, to be decided in an ADR:
+
+* **Completion tracked in the database.** A row per person and broadcast, claimed before the send
+  and completed after it, as `active_event_recipients` does for a tracked event
+  ([ADR 0064](adr/0064-chat-claims-for-people-share-the-recipient-table.md)). A takeover skips
+  completed rows and waits out claims in flight. It costs two writes per person.
+* **NATS JetStream as the queue.** One message per person, published with a `Nats-Msg-Id` of
+  broadcast and person, and consumed by a durable work-queue consumer with explicit acks shared by
+  every replica. Redelivery replaces the lease and the cursor. It makes NATS a delivery dependency
+  rather than an export ([ADR 0071](adr/0071-publish-audit-events-to-nats-jetstream.md)), and the
+  chart can declare the stream and consumer
+  ([ADR 0079](adr/0079-the-chart-declares-the-audit-stream-through-nack.md)).
+
+Either one should also retry a failed send instead of only counting it.
+
+### 24.2 The rest
+
+* Cancelling a broadcast that is waiting or running.
+* An Entra group as the audience instead of everyone.
+* Pacing against the Bot Connector's limits, beyond `webhook.fanout-concurrency`.
+* An audit event of who broadcast what, and to how many.
 
 ## Follow-ups from shipped work
 
@@ -136,7 +157,8 @@ Smaller items left open when a milestone shipped. Each is picked up on its own.
 | 4 | 22 Personal routes by grant | — | — |
 | 5 | 20.4 More commands | 20.2 | — |
 | 6 | 23.4–23.6 Messages to individual people, the rest | 23 | a test tenant for 23.5 |
-| 7 | 24 Announcements | 23 | — |
+| 7 | 24.1 Broadcasts exactly once | 24 | — |
+| 8 | 24.2 Announcements, the rest | 24 | — |
 
 Follow-ups are unordered and can be pulled in between milestones.
 

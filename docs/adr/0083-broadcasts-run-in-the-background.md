@@ -50,7 +50,7 @@ Alternatives considered:
 ## Consequences
 
 * After a takeover, at most one chunk is sent twice. The heartbeat is written after the chunk, so a
-  crash mid-chunk repeats it.
+  crash mid-chunk repeats it. Delivering each person exactly once is roadmap item 24.1.
 * A person is counted once, by their worst outcome over the addressed routes: delivered,
   unreachable (blocked or removed the bot), or failed. A failed send is not retried.
 * People who joined after the run started are not reached by it.
