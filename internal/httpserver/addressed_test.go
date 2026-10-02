@@ -400,3 +400,19 @@ func TestDeriveKeyIncludesRecipientsOnlyWhenNamed(t *testing.T) {
 		t.Error("case or spacing of an address changed the key")
 	}
 }
+
+// A mail address two people carry is a permanent miss, not a retry.
+func TestAddressedAmbiguousAddress(t *testing.T) {
+	t.Parallel()
+
+	f := newAddressedFixture(t, nil)
+	f.people.errs["team@corp.example"] = fmt.Errorf("%q: %w", "team@corp.example", people.ErrAmbiguous)
+	rec := postWebhook(t, f.handler, "/webhook/universal", senderToken, `{"labels":{"kind":"password"},"recipients":["team@corp.example","alice@corp.example"]}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d %s, want 200 partial", rec.Code, rec.Body.String())
+	}
+	answer := answerOf(t, rec.Body.Bytes())
+	if answer.Status != "partial" || fmt.Sprint(answer.Undelivered) != fmt.Sprint([]undelivered{{Recipient: "team@corp.example", Reason: "ambiguous-address"}}) {
+		t.Errorf("answer = %+v", answer)
+	}
+}

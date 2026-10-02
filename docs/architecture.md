@@ -1409,6 +1409,8 @@ finishing it.
 * An address Graph does not know is remembered for ten minutes, in a map of at most 1024
   entries per process.
 * A disabled account, a guest or someone departed is `ineligible`.
+* A mail address Graph finds on more than one user is `ambiguous-address`, a permanent miss
+  rather than an error a retry could fix.
 
 ## Inbound bot messages
 

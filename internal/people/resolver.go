@@ -81,6 +81,11 @@ func (r *Resolver) Resolve(ctx context.Context, address string) (models.Director
 	}
 
 	u, err := r.fromGraph(ctx, address, isID)
+	if errors.Is(err, graph.ErrAmbiguous) {
+		// Permanent until the directory changes: a retry names nobody either.
+		r.rec.DirectoryLookup(ctx, LookupGraph)
+		return models.DirectoryUser{}, fmt.Errorf("%q: %w", address, ErrAmbiguous)
+	}
 	if errors.Is(err, graph.ErrNotFound) {
 		r.rememberUnknown(key)
 		r.rec.DirectoryLookup(ctx, LookupUnknown)

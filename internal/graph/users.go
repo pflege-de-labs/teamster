@@ -18,6 +18,10 @@ import (
 // *APIError with status 404 matches it through errors.Is.
 var ErrNotFound = errors.New("graph: not found")
 
+// ErrAmbiguous is a mail address more than one user carries, which names
+// nobody for certain.
+var ErrAmbiguous = errors.New("graph: more than one user carries this address")
+
 // APIError is a response Graph refused. Code is Graph's error code, such as
 // Authorization_RequestDenied, when the body carried one.
 type APIError struct {
@@ -102,7 +106,7 @@ func (c *Client) FindUserByMail(ctx context.Context, mail string) (User, error) 
 	case 1:
 		return res.Value[0], nil
 	default:
-		return User{}, fmt.Errorf("user %q: %d users carry this address", mail, len(res.Value))
+		return User{}, fmt.Errorf("user %q: %d users: %w", mail, len(res.Value), ErrAmbiguous)
 	}
 }
 

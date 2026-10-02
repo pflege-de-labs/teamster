@@ -474,8 +474,8 @@ may name them:
   the entry is older than `bot.directory-ttl`. Aliases are found through Graph only. An address
   Graph does not know is not asked about again for 10 minutes. Guests, disabled accounts and
   people who left are not reached (`ineligible`).
-- A mail address two people share names nobody for certain and is answered `502`; name the person
-  by UPN or object id instead.
+- A mail address two people share names nobody for certain and is reported as
+  `ambiguous-address`; name the person by UPN or object id instead.
 - Alertmanager sets the label in the alerting rule, from another label or as a fixed list:
   `teamster_recipient: "{{ $labels.owner_email }}"`.
 - The bot needs a chat with them. With `bot.global-install` on, a message may install the app for
@@ -496,8 +496,9 @@ The answer says who was not reached:
 | `502` | Something that may come right failed. Retry. |
 
 Each entry in `undelivered` has the `recipient` as given and a `reason`: `invalid-address`,
-`unknown-recipient`, `ineligible`, `not-installed`, `no-recipient` (the route addresses people and
-the message named none) or `blocked` (the person blocked or removed the bot).
+`unknown-recipient`, `ambiguous-address` (a mail address more than one person carries),
+`ineligible`, `not-installed`, `no-recipient` (the route addresses people and the message named
+none) or `blocked` (the person blocked or removed the bot).
 
 A message without a `state` that is retried after a `502` is delivered again to everybody, because
 nothing identifies it as the same message. Use `state` `open` and a `key` when that matters.

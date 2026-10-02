@@ -15,6 +15,8 @@ func TestResolve(t *testing.T) {
 	t.Parallel()
 
 	guest := graph.User{ID: "11111111-2222-3333-4444-555555555555", UserPrincipalName: "guest#EXT#@corp.example", AccountEnabled: true, UserType: "Guest"}
+	shared1 := member("22222222-2222-3333-4444-555555555555", "carol@corp.example", "team@corp.example")
+	shared2 := member("33333333-2222-3333-4444-555555555555", "dave@corp.example", "team@corp.example")
 
 	tests := []struct {
 		name       string
@@ -29,6 +31,7 @@ func TestResolve(t *testing.T) {
 		{name: "a guest", address: guest.UserPrincipalName, wantErr: ErrIneligible, wantLookup: LookupGraph},
 		{name: "nobody", address: "bob@corp.example", wantErr: ErrUnknown, wantLookup: LookupUnknown},
 		{name: "not an address", address: "alice", wantErr: ErrInvalidAddress},
+		{name: "a mail two people carry", address: "team@corp.example", wantErr: ErrAmbiguous, wantLookup: LookupGraph},
 	}
 
 	for _, tt := range tests {
@@ -36,7 +39,7 @@ func TestResolve(t *testing.T) {
 			t.Parallel()
 
 			rec := newFakeRecorder()
-			r := NewResolver(openStore(t), newFakeGraph(member(aliceID, "alice@corp.example", "a.smith@corp.example"), guest), rec, "tenant", time.Hour)
+			r := NewResolver(openStore(t), newFakeGraph(member(aliceID, "alice@corp.example", "a.smith@corp.example"), guest, shared1, shared2), rec, "tenant", time.Hour)
 
 			u, err := r.Resolve(t.Context(), tt.address)
 			if !errors.Is(err, tt.wantErr) || (tt.wantErr == nil && err != nil) {

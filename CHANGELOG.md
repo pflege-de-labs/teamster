@@ -24,6 +24,11 @@ reasoning behind it in the [ADRs](docs/adr/).
   **anyone** to users, groups, provider groups or roles at `/admin/access` or with
   `PUT /api/access/messages`. `/admin/me` shows whom you may message.
 
+### Fixed
+
+* A mail address more than one person carries is reported as `ambiguous-address` in `undelivered`
+  instead of failing the message with `502`, which made the sender retry what could never succeed.
+
 ## [0.11.0] — 2026-10-01
 
 ### Added

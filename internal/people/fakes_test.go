@@ -66,12 +66,19 @@ func (g *fakeGraph) FindUserByMail(_ context.Context, mail string) (graph.User, 
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	g.mailFinds++
+	var found []graph.User
 	for _, u := range g.users {
 		if strings.EqualFold(u.Mail, mail) {
-			return u, nil
+			found = append(found, u)
 		}
 	}
-	return graph.User{}, graph.ErrNotFound
+	switch len(found) {
+	case 0:
+		return graph.User{}, graph.ErrNotFound
+	case 1:
+		return found[0], nil
+	}
+	return graph.User{}, graph.ErrAmbiguous
 }
 
 func (g *fakeGraph) ListMemberUsers(_ context.Context, fn func([]graph.User) error) error {
