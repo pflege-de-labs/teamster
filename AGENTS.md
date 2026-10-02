@@ -111,6 +111,14 @@ An accepted migration is never edited. It has already run somewhere.
 * No package-level mutable state. Dependencies are injected through constructors, as in
   `httpserver.NewServer(cfg, store, graphClient)`.
 
+## User documentation
+
+The user documentation site, `https://pflege-de-labs.github.io/teamster/`, is built with Hugo from
+its own branches ([ADR 0080](docs/adr/0080-publish-user-docs-as-a-versioned-site.md)): `pages`
+documents unreleased `main`, and `pages-vX.Y` documents each minor release. They carry their own
+AGENTS.md. A user-visible change on `main` needs a follow-up pull request against `pages`. When
+tagging `vX.Y.0`, create `pages-vX.Y` from `pages` as well.
+
 ## Planned work
 
 Upcoming features and their intended order live in [docs/roadmap.md](docs/roadmap.md). A feature is

@@ -6,6 +6,11 @@
     ":semanticCommits",
     "helpers:pinGitHubActionDigests"
   ],
+  "baseBranchPatterns": [
+    "main",
+    "pages",
+    "/^pages-v/"
+  ],
   "pre-commit": {
     "enabled": true
   },
@@ -151,6 +156,19 @@
     "automerge": true
   },
   "customManagers": [
+    {
+      "description": "The docs branches install Hugo by a workflow variable, which the github-actions manager does not read.",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^\\.github/workflows/[^/]+\\.ya?ml$/"
+      ],
+      "matchStrings": [
+        "HUGO_VERSION: \"?(?<currentValue>[\\d.]+)\"?"
+      ],
+      "depNameTemplate": "gohugoio/hugo",
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v(?<version>.*)$"
+    },
     {
       "description": "The NATS server the audit sink is tested against is started by a workflow step, which the docker manager does not read.",
       "customType": "regex",
