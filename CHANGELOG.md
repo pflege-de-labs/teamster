@@ -10,6 +10,8 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 ## [Unreleased]
 
+## [0.12.0] — 2026-10-02
+
 ### Changed
 
 * **Breaking:** a message naming people, in `recipients` or the `teamster_recipient` label, needs a
@@ -370,7 +372,8 @@ Adaptive Cards posted to Teams channels, alert state in SQLite so a resolve upda
 an admin UI for templates, destinations and routes. Released as a signed container image and
 binaries with SBOMs ([ADR 0006](docs/adr/0006-release-rebuild-sbom-signing.md)).
 
-[Unreleased]: https://github.com/pflege-de-labs/teamster/compare/v0.11.0...HEAD
+[Unreleased]: https://github.com/pflege-de-labs/teamster/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/pflege-de-labs/teamster/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/pflege-de-labs/teamster/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/pflege-de-labs/teamster/compare/v0.9.1...v0.10.0
 [0.9.1]: https://github.com/pflege-de-labs/teamster/compare/v0.9.0...v0.9.1
