@@ -42,6 +42,7 @@ nennen darf. Setzen Sie unter **/admin/tokens** beim Ausstellen des Tokens für 
 | niemanden | fehlt | Niemanden. Jede Nachricht, die Personen nennt, wird abgewiesen. |
 | nur mich | `self` | Nur Sie, den Ersteller des Tokens. |
 | beliebige | `anyone` | Jede Person im Mandanten. |
+| beliebige, und Rundsendung | `everyone` | Jede Person, und [alle auf einmal](../broadcasts/). |
 
 **beliebige** wird nur angeboten, wenn ein Administrator Ihnen erlaubt hat, beliebige Personen
 anzuschreiben; siehe [Jemanden Personen anschreiben lassen](../roles/#let-someone-message-people).

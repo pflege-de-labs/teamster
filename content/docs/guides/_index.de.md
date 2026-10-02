@@ -15,6 +15,7 @@ der Konfiguration, den Entra-Registrierungen und dem Bot: Ohne den Bot erreicht 
   {{< card link="alertmanager/" title="Alarme aus Alertmanager senden" >}}
   {{< card link="universal-webhook/" title="Ereignisse über den universellen Webhook senden" >}}
   {{< card link="direct-messages/" title="Nachrichten an einzelne Personen senden" >}}
+  {{< card link="broadcasts/" title="Eine Nachricht an alle senden" >}}
   {{< card link="webhook-tokens/" title="Einen Webhook-Absender authentifizieren" >}}
   {{< card
     link="teams-v2-webhook/"

@@ -1,6 +1,6 @@
 ---
 title: Vorlagen schreiben
-weight: 15
+weight: 16
 ---
 
 Schreiben Sie eine Vorlage, die aus einem Ereignis eine Teams-Nachricht macht, legen Sie fest,

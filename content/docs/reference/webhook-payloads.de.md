@@ -12,6 +12,7 @@ was sie antworten.
 | --- | --- | --- | --- |
 | `POST /webhook/alertmanager` | `Authorization: Bearer <token>` | [Alertmanager](#alertmanager) | ja |
 | `POST /webhook/universal` | `Authorization: Bearer <token>` | [Universell](#universal) | ja |
+| `GET /webhook/broadcasts/{id}` | `Authorization: Bearer <token>` | — | nein, siehe [Status einer Rundsendung](#broadcast-status) |
 | `POST /teamsv2/{team}/{channel}/{token}` | Das Token im Pfad | [Teams V2](#teams-v2) | nein, postet an das Ziel des Endpunkts |
 | `POST /bot/messages` | Signiertes Bot-Framework-Token | Bot-Framework-Activity | — |
 | `GET /healthz` | keine | — | — |
@@ -27,7 +28,8 @@ Jede Antwort trägt einen Header `X-Request-ID`. Dieselbe ID wird als `request_i
 
 ## Authentifizierung {#authentication}
 
-`/webhook/alertmanager` und `/webhook/universal` akzeptieren beide Arten von Token.
+`/webhook/alertmanager`, `/webhook/universal` und `/webhook/broadcasts/{id}` akzeptieren beide
+Arten von Token.
 
 | Token | Herkunft | Bereich |
 | --- | --- | --- |
@@ -83,6 +85,7 @@ Ein JSON-Objekt. Jedes Feld ist optional.
 | `time` | String, RFC 3339 | Wann das Ereignis begann. |
 | `url` | String | Woher das Ereignis stammt. |
 | `recipients` | Array aus Strings | Personen, an die eine adressierte Route zustellt: UPNs, E-Mail-Adressen oder Entra-Objekt-IDs. |
+| `broadcast` | Boolean | `true` sendet im Hintergrund an alle, die der Bot erreichen kann. Zusammen mit `recipients`, `teamster_recipient` oder `state` mit `400` abgewiesen. Siehe [Eine Nachricht an alle senden](../../guides/broadcasts/). |
 | `title` | String | Wird unverändert gesendet, wenn die Route keine Vorlage hat. |
 | `text` | String, Markdown | Wird bereinigt gesendet, wenn die Route keine Vorlage hat. |
 | `card` | Objekt, Adaptive Card | Wird unverändert gesendet, wenn die Route keine Vorlage hat. |
@@ -121,7 +124,8 @@ dedupliziert. Eine Nachricht darf höchstens `webhook.max-recipients` Personen n
 
 Eine Nachricht, die Personen nennt, braucht ein Token, dessen Nachrichtenstufe das erlaubt, gleich
 welche Route sie trifft. Die ganze Anfrage wird geprüft, bevor irgendetwas zugestellt wird. Siehe
-[Ein Token Personen nennen lassen](../../guides/webhook-tokens/#let-a-token-name-people).
+[Ein Token Personen nennen lassen](../../guides/webhook-tokens/#let-a-token-name-people). Eine
+Rundsendung braucht die Nachrichtenstufe `everyone`.
 
 ## Schlüssel {#keys}
 
@@ -141,15 +145,19 @@ Für `/webhook/alertmanager` und `/webhook/universal`. Fehlerkörper haben die F
 | --- | --- | --- |
 | `200` | `{"status": "ok"}` | Jede Zustellung war erfolgreich. |
 | `200` | `{"status": "partial", "delivered": <n>, "undelivered": [...]}` | Einige Personen sind nicht erreichbar, und ein erneuter Versuch ändert daran nichts. |
+| `202` | `{"status": "accepted", "broadcast": {...}, "status_url": "/webhook/broadcasts/<id>", "delivered": <n>}` | Nur universell: Eine Rundsendung wurde in die Warteschlange gestellt. `broadcast` ist ihr [Status](#broadcast-status); `delivered` zählt die Kanäle und verknüpften Chats, die während der Anfrage erreicht wurden, und `undelivered` folgt, wenn einige nicht erreicht wurden. |
 | `400` | `{"error": "invalid JSON"}` | Der Körper ist nicht das erwartete JSON, auch bei einer fehlerhaften Zeitangabe. |
 | `400` | `{"error": "unknown state …"}` | Nur universell: `state` ist weder `open` noch `closed` noch fehlt es. |
 | `400` | `{"error": "the message names more recipients than webhook.max-recipients allows: …"}` | Zu viele Empfänger. |
+| `400` | `{"error": "a broadcast goes to everyone: drop recipients and the teamster_recipient label"}` | Eine Rundsendung, die zusätzlich Personen nennt. |
+| `400` | `{"error": "a broadcast is delivered once: drop state"}` | Eine Rundsendung mit `state`. |
 | `401` | leer, mit `WWW-Authenticate: Bearer realm="webhook"` | Kein Token oder ein Token, das Teamster nicht kennt. |
 | `403` | `{"error": "the token's scope, or its creator, does not allow this webhook"}` | Ein Token mit Bereich für einen Webhook, den es nicht nennt oder den sein Ersteller nicht mehr verwenden darf. |
 | `403` | `{"error": "this token may not name recipients: …"}` | Die Nachricht nennt Personen, und das Token darf das nicht: keine Nachrichtenstufe, `webhook.token`, ein Token von vor 0.11.0 oder ein Ersteller, der keine Personen mehr anschreiben darf. Nichts wurde zugestellt. |
 | `403` | `{"error": "this token may only name its creator as a recipient"}` | Ein **nur mich**-Token hat jemand anderen genannt, oder die Objekt-ID seines Erstellers ist nicht bekannt. Nichts wurde zugestellt. |
+| `403` | `{"error": "this token may not broadcast: it needs the message level everyone"}` | Eine Rundsendung von einem Token unterhalb von `everyone` oder von einem, dessen Ersteller diese Stufe nicht mehr hat. Nichts wurde zugestellt. |
 | `405` | leer | Kein `POST`. |
-| `422` | `{"status": "undelivered", "delivered": 0, "undelivered": [...]}` | Niemand war erreichbar. |
+| `422` | `{"status": "undelivered", "delivered": 0, "undelivered": [...]}` | Niemand war erreichbar, oder eine Rundsendung traf keine Route, die an Personen zustellt. |
 | `502` | `{"error": "bad gateway", "request_id": "<id>"}` | Etwas, das sich wieder einrenken kann, ist fehlgeschlagen: keine Route, eine Vorlage, die Datenbank, Teams. Erneut versuchen. |
 | `503` | `{"error": "cannot check the token right now"}` | Die Datenbank hat auf die Token-Abfrage nicht geantwortet. Erneut versuchen. |
 
@@ -171,6 +179,35 @@ Jeder Eintrag von `undelivered`:
 | `not-installed` | Die Teams-App ist für diese Person nicht installiert. |
 | `no-recipient` | Die Route stellt an Personen zu, und die Nachricht hat keine genannt. |
 | `blocked` | Die Person hat den Bot blockiert oder entfernt. |
+| `no-addressed-route` | Eine Rundsendung traf keine Route, die an Personen zustellt. Nichts wurde gesendet. |
+
+## Status einer Rundsendung {#broadcast-status}
+
+`GET /webhook/broadcasts/{id}` antwortet einem Token des Erstellers der Rundsendung, das den
+universellen Webhook in seinem Bereich hat. `GET /api/broadcasts` liefert einer angemeldeten Person
+eine Liste derselben Objekte: ihre eigenen, für Administratoren die aller.
+
+| Feld | Enthält |
+| --- | --- |
+| `id` | Die ID der Rundsendung. |
+| `requested_by` | Das Subject des Token-Erstellers. |
+| `token_name` | Das Token, mit dem sie gesendet wurde. |
+| `requested_at` | Wann sie angenommen wurde. |
+| `state` | `requested`, `running`, `done` oder `failed`. |
+| `started_at`, `heartbeat_at`, `finished_at` | Wann sie begann, zuletzt Fortschritt festhielt und endete. Fehlen, solange nicht gesetzt. |
+| `total` | Alle, die sie erreicht, gezählt beim Start des Laufs. |
+| `delivered` | Personen, die sie erreicht hat. |
+| `unreachable` | Personen, die den Bot blockiert oder entfernt haben. |
+| `failed` | Personen, bei denen der Versand fehlschlug. Wird nicht wiederholt. |
+| `last_error` | Warum eine Rundsendung mit `failed` abgebrochen ist. Fehlt sonst. |
+
+| Status | Bedeutung |
+| --- | --- |
+| `200` | Die Rundsendung. |
+| `401` | Kein Token oder ein Token, das Teamster nicht kennt. |
+| `403` | Der Bereich des Tokens oder sein Ersteller erlaubt den universellen Webhook nicht. |
+| `404` | Keine solche Rundsendung, oder sie gehört einem anderen Ersteller. Beendete Rundsendungen werden 30 Tage aufbewahrt. |
+| `405` | Kein `GET`. |
 
 ## Teams V2 {#teams-v2}
 

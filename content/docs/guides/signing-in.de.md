@@ -1,6 +1,6 @@
 ---
 title: Anmeldung an der Verwaltungsoberfläche einrichten
-weight: 16
+weight: 17
 ---
 
 Lassen Sie Personen sich über Ihren OpenID-Connect-Anbieter an **/admin** anmelden, behalten Sie

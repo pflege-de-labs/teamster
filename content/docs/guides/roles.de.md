@@ -1,6 +1,6 @@
 ---
 title: Rollen und Zugriff verwalten
-weight: 18
+weight: 19
 ---
 
 Geben Sie Personen eine Rolle, fassen Sie sie in Gruppen zusammen, lassen Sie sie die Webhooks
@@ -101,12 +101,15 @@ Eine Nachricht, die Personen nennt, braucht ein Token, das sie nennen darf; sieh
 Person darf sich selbst nennen. Andere zu nennen erfordert die Stufe **beliebige**, gesetzt auf
 **/admin/access** unter **Wer Personen anschreiben darf**, je Benutzer, Gruppe, Anbietergruppe
 oder Rolle. Administratoren haben sie bereits. Erteilen Sie sie den Personen, die Hinweise an
-Kollegen versenden, etwa Office-Administratoren.
+Kollegen versenden, etwa Office-Administratoren. Die Stufe **beliebige, und Rundsendung an alle**
+erlaubt zusätzlich, eine Nachricht an alle zu senden, die der Bot erreichen kann; siehe
+[Eine Nachricht an alle senden](../broadcasts/).
 
 | Stufe | API-Wert | Sie und ihre Token dürfen nennen |
 | --- | --- | --- |
 | nur sich selbst | `none` | Nur sich selbst |
 | beliebige | `anyone` | Jede Person im Mandanten |
+| beliebige, und Rundsendung an alle | `everyone` | Jede Person, und [alle auf einmal](../broadcasts/) |
 
 ```bash
 curl -u <admin-user>:<admin-password> -X PUT http://localhost:8080/api/access/messages \
@@ -114,10 +117,13 @@ curl -u <admin-user>:<admin-password> -X PUT http://localhost:8080/api/access/me
 ```
 
 `principal_type` ist `user`, `group`, `idp_group` oder `role`. `none` nimmt die Stufe zurück, und
-ihre **beliebige**-Token nennen ab der nächsten Anfrage nur noch ihren Ersteller. In Cedar ist die
-Stufe die Aktion `message` auf `People::"*"`, die `messageSelf` einschließt, die Aktion, die jeder
-hat. Siehe
-[ADR 0082](https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0082-naming-people-takes-permission.md).
+ihre Token mit **beliebige** oder **beliebige, und Rundsendung** nennen ab der nächsten Anfrage nur
+noch ihren Ersteller. In Cedar ist **beliebige** die Aktion `message` auf `People::"*"` und
+**beliebige, und Rundsendung an alle** die Aktion `broadcast`. Jede schließt die Stufen darunter
+ein, bis hinab zu `messageSelf`, der Aktion, die jeder hat. Siehe
+[ADR 0082](https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0082-naming-people-takes-permission.md)
+und
+[ADR 0083](https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0083-broadcasts-run-in-the-background.md).
 
 ## Einen Datensatz teilen {#share-a-record}
 
