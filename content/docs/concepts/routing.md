@@ -63,13 +63,23 @@ A route delivers to exactly one kind of target:
 | --- | --- |
 | A destination | a Teams channel |
 | A person | that person's chat with the bot, once they linked it |
-| People named in the message | everyone the event names in `recipients` or the `teamster_recipient` label |
+| Any person named in the message | everyone the event names in `recipients` or the `teamster_recipient` label |
 
 A root route must name a target. A child that keeps its parent's target must use a different
 template, or it would add nothing. A route may name only your own chat as its person, unless you
-are an admin. Only admins may create a route to the people named in a message, because it can
-reach anyone in the tenant. See
+are an admin.
+
+Anyone who may edit routes may create a route to **Any person named in the message**. Whom it
+reaches is decided by the sender, not by the route: a token that may name only its creator reaches
+only them through it, however broad the selector. See
 [Send messages to individual people](../../guides/direct-messages/).
+
+Routes are global, though. Such a route matches every message its selector matches, whoever sent
+it, and renders them with its author's template. A route with a broad selector, such as
+`{"teamster_source": "universal"}`, therefore sends an extra message, in its author's words, to the
+people other senders name. It reaches no one those senders could not message already. Look for
+such routes in the [routing picture](#seeing-the-routes) and the
+[audit trail](../../guides/audit-trail/).
 
 ## Fallbacks
 

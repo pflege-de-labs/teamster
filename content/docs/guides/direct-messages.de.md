@@ -18,9 +18,13 @@ den Bot für Personen installieren, die ihn noch nicht haben.
 ### Eine Route anlegen, die Personen adressiert {#create-a-route-that-addresses-people}
 
 Legen Sie in der Verwaltungsoberfläche eine Route an oder bearbeiten Sie eine, und setzen Sie
-**Liefert an** auf **In der Nachricht genannte Personen**. Geben Sie ihr einen Label-Selektor für
+**Liefert an** auf **Jede in der Nachricht genannte Person**. Geben Sie ihr einen Label-Selektor für
 die Nachrichten, die sie übernehmen soll, zum Beispiel `{"kind": "password-expiry"}`, und eine
-Vorlage.
+Vorlage. Wer Routen bearbeiten darf, darf eine solche Route anlegen.
+
+Fassen Sie den Selektor eng. Die Route übernimmt jede Nachricht, die er erfasst, gleich von welchem
+Absender, und rendert sie mit Ihrer Vorlage. Wen sie erreicht, begrenzt das Token des jeweiligen
+Absenders, das Sie im nächsten Schritt festlegen.
 
 Jede Person erhält ihre eigene, für sie gerenderte Nachricht. Die Vorlage kann sie also persönlich
 ansprechen:

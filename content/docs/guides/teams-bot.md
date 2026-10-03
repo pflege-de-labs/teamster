@@ -262,8 +262,8 @@ After that:
 installs with their reason. A run started by hand retries every failed install at once, so start one
 after granting a missing permission.
 
-A route can now deliver to **People named in the message**. Only an admin may create, edit or
-delete such a route. See [Send alerts to individual people](../direct-messages/).
+A route can now deliver to **Any person named in the message**. Anyone who may edit routes may
+create one. See [Send messages to individual people](../direct-messages/).
 
 ## Pace the calls to Teams
 

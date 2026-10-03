@@ -46,12 +46,12 @@ Wie jedes Token sendet es Rundsendungen nur, solange sein Ersteller die Stufe no
 
 Legen Sie eine Route an, die die Nachricht selektiert, etwa mit `{"kind": "office-notice"}`, oder
 bearbeiten Sie eine solche, und setzen Sie **Liefert an** auf
-**In der Nachricht genannte Personen**. Jede Person erhält ihre eigene, für sie gerenderte Kopie;
+**Jede in der Nachricht genannte Person**. Jede Person erhält ihre eigene, für sie gerenderte Kopie;
 die Vorlage kann also `.Recipient` verwenden.
 
 Eine Rundsendung wird geroutet wie jede Nachricht. Kanäle und verknüpfte Chats, die sie trifft,
 erhalten sie noch während der Anfrage. Nur die Routen, die an
-**In der Nachricht genannte Personen** zustellen, senden sie an alle.
+**Jede in der Nachricht genannte Person** zustellen, senden sie an alle.
 
 ### Senden {#send-it}
 
