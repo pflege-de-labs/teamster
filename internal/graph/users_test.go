@@ -356,3 +356,58 @@ func TestAPIErrorCarriesGraphCode(t *testing.T) {
 		})
 	}
 }
+
+// throttleCounter counts what the client reports as throttled.
+type throttleCounter struct {
+	uninstrumented
+	calls atomic.Int32
+}
+
+func (c *throttleCounter) Throttled(_ context.Context, api string) {
+	if api == "graph" {
+		c.calls.Add(1)
+	}
+}
+
+func TestEveryCallBacksOffAndIsCounted(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		call func(*Client) error
+	}{
+		{name: "teams", call: func(c *Client) error { _, err := c.ListTeams(); return err }},
+		{name: "channels", call: func(c *Client) error { _, err := c.ListChannels("t1"); return err }},
+		{name: "installed apps", call: func(c *Client) error { _, err := c.HasInstalledApp("t1", "bot"); return err }},
+		{name: "user", call: func(c *Client) error { _, err := c.GetUser(context.Background(), "u1"); return err }},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var calls atomic.Int32
+			client := newTestClient(t, func(w http.ResponseWriter, _ *http.Request) {
+				if calls.Add(1) == 1 {
+					w.WriteHeader(http.StatusTooManyRequests)
+					return
+				}
+				_, _ = w.Write([]byte(`{"id":"u1","value":[]}`))
+			})
+			var waits []time.Duration
+			client.sleep = noSleep(&waits)
+			tel := &throttleCounter{}
+			client.tel = tel
+
+			if err := tt.call(client); err != nil {
+				t.Fatalf("call = %v, want it retried into success", err)
+			}
+			if calls.Load() != 2 {
+				t.Errorf("requests = %d, want 2", calls.Load())
+			}
+			if tel.calls.Load() != 1 {
+				t.Errorf("throttled calls counted = %d, want 1", tel.calls.Load())
+			}
+		})
+	}
+}

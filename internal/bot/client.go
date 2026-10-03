@@ -14,6 +14,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -29,6 +30,14 @@ import (
 // regional service URL Bot Framework assigned each one.
 type Client struct {
 	httpClient *http.Client
+	// pacer holds each call back to the bot's budget; nil sends at once.
+	pacer Pacer
+	// retries is how often a throttled call is sent again; zero never.
+	retries      int
+	maxRetryWait time.Duration
+	tel          instrumentation
+	// sleep replaces the wait between throttled attempts; nil sleeps for real.
+	sleep func(context.Context, time.Duration) error
 }
 
 // ConversationReference is what Bot Framework calls the coordinates of one
@@ -159,7 +168,7 @@ type APIError struct {
 	// wrapper one level deeper, carrying the actionable code (e.g.
 	// "ConversationBlockedByUser") that Code alone does not.
 	InnerCode string
-	// RetryAfter is the Retry-After header, set only on a 429.
+	// RetryAfter is the Retry-After header, set on a 429 and sometimes a 503.
 	RetryAfter string
 	// Body is the raw response body, kept for logging when nothing above
 	// parsed out of it.
@@ -256,6 +265,10 @@ func scopeOf(cfg config.BotConfig) string {
 // but an interface -- and so a test can pass one that does nothing.
 type instrumentation interface {
 	ClientTransport(base http.RoundTripper) http.RoundTripper
+	// Throttled counts a call the API answered with 429 or 503.
+	Throttled(ctx context.Context, api string)
+	// PacingWaited records how long a call waited for the pacer.
+	PacingWaited(ctx context.Context, d time.Duration)
 }
 
 func NewClient(cfg config.BotConfig, tel instrumentation) (*Client, error) {
@@ -286,7 +299,13 @@ func NewClient(cfg config.BotConfig, tel instrumentation) (*Client, error) {
 	// timeout is set again here rather than inherited from base.
 	httpClient.Timeout = timeout
 
-	return &Client{httpClient: httpClient}, nil
+	return &Client{
+		httpClient:   httpClient,
+		pacer:        NewPacer(cfg.Pacing),
+		retries:      cfg.Pacing.Retries,
+		maxRetryWait: cfg.Pacing.MaxRetryWait,
+		tel:          tel,
+	}, nil
 }
 
 // SendMessage posts a new activity to a conversation and returns its activity
@@ -297,7 +316,7 @@ func (c *Client) SendMessage(ctx context.Context, ref ConversationReference, msg
 	if err != nil {
 		return "", err
 	}
-	resBody, err := c.doRequest(ctx, http.MethodPost, endpoint+"/activities", msg.activity())
+	resBody, err := c.doRequest(ctx, ref.ConversationID, http.MethodPost, endpoint+"/activities", msg.activity())
 	if err != nil {
 		return "", err
 	}
@@ -373,7 +392,7 @@ func (c *Client) PostToChannel(ctx context.Context, serviceURL, tenantID, channe
 	if err != nil {
 		return ChannelPost{}, err
 	}
-	resBody, err := c.doRequest(ctx, http.MethodPost, base+"/v3/conversations", channelPostRequest(tenantID, channelID, msg))
+	resBody, err := c.doRequest(ctx, channelID, http.MethodPost, base+"/v3/conversations", channelPostRequest(tenantID, channelID, msg))
 	if err != nil {
 		return ChannelPost{}, err
 	}
@@ -413,7 +432,7 @@ func (c *Client) CreatePersonalConversation(ctx context.Context, serviceURL, ten
 	if err != nil {
 		return "", err
 	}
-	resBody, err := c.doRequest(ctx, http.MethodPost, base+"/v3/conversations", personalConversationRequest{
+	resBody, err := c.doRequest(ctx, userObjectID, http.MethodPost, base+"/v3/conversations", personalConversationRequest{
 		Bot: idRef{ID: "28:" + botID},
 		// Teams accepts the Entra object id where it would take a "29:" id.
 		Members:     []memberRef{{ID: userObjectID, AADObjectID: userObjectID}},
@@ -440,7 +459,7 @@ func (c *Client) UpdateMessage(ctx context.Context, ref ConversationReference, a
 	if err != nil {
 		return err
 	}
-	_, err = c.doRequest(ctx, http.MethodPut, endpoint+"/activities/"+url.PathEscape(activityID), msg.activity())
+	_, err = c.doRequest(ctx, ref.ConversationID, http.MethodPut, endpoint+"/activities/"+url.PathEscape(activityID), msg.activity())
 	return err
 }
 
@@ -484,12 +503,40 @@ func serviceBase(serviceURL string) (string, error) {
 // memory with an arbitrarily large body.
 const maxResponseBody = 1 << 20 // 1 MiB
 
-func (c *Client) doRequest(ctx context.Context, method, endpoint string, body any) ([]byte, error) {
+// doRequest sends one call, paced, and sends it again while the Connector
+// throttles (429) or is unavailable (503): both refuse a call without acting
+// on it, so a retry cannot post a second copy. Other failures are not retried
+// for that reason. key names the conversation the call is paced on.
+func (c *Client) doRequest(ctx context.Context, key, method, endpoint string, body any) ([]byte, error) {
 	data, err := json.Marshal(body)
 	if err != nil {
 		return nil, fmt.Errorf("encode request: %w", err)
 	}
 
+	for attempt := 1; ; attempt++ {
+		if err := c.pace(ctx, key); err != nil {
+			return nil, fmt.Errorf("wait for the bot's budget: %w", err)
+		}
+		resBody, err := c.send(ctx, method, endpoint, data)
+		var apiErr *APIError
+		if !errors.As(err, &apiErr) || !apiErr.throttled() {
+			return resBody, err
+		}
+		c.throttled(ctx)
+		if attempt > c.retries {
+			return nil, err
+		}
+		d := c.retryAfter(apiErr, attempt)
+		if c.pacer != nil && apiErr.StatusCode == http.StatusTooManyRequests {
+			c.pacer.Throttled(d)
+		}
+		if err := c.wait(ctx, d); err != nil {
+			return nil, err
+		}
+	}
+}
+
+func (c *Client) send(ctx context.Context, method, endpoint string, data []byte) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, method, endpoint, bytes.NewReader(data))
 	if err != nil {
 		return nil, fmt.Errorf("new request: %w", err)
@@ -511,4 +558,48 @@ func (c *Client) doRequest(ctx context.Context, method, endpoint string, body an
 	}
 
 	return resBody, nil
+}
+
+func (c *Client) pace(ctx context.Context, key string) error {
+	if c.pacer == nil {
+		return nil
+	}
+	start := time.Now()
+	err := c.pacer.Wait(ctx, key)
+	if c.tel != nil {
+		c.tel.PacingWaited(ctx, time.Since(start))
+	}
+	return err
+}
+
+func (c *Client) throttled(ctx context.Context) {
+	if c.tel != nil {
+		c.tel.Throttled(ctx, "bot")
+	}
+}
+
+// wait sleeps for d or until ctx ends.
+func (c *Client) wait(ctx context.Context, d time.Duration) error {
+	if c.sleep != nil {
+		return c.sleep(ctx, d)
+	}
+	return sleep(ctx, d)
+}
+
+// retryAfter is the Connector's Retry-After in seconds, else 1s doubling,
+// capped so one answer cannot park a sender for long.
+func (c *Client) retryAfter(apiErr *APIError, attempt int) time.Duration {
+	d := time.Duration(1<<(attempt-1)) * time.Second
+	if secs, err := strconv.Atoi(apiErr.RetryAfter); err == nil && secs >= 0 {
+		d = time.Duration(secs) * time.Second
+	}
+	if c.maxRetryWait > 0 {
+		d = min(d, c.maxRetryWait)
+	}
+	return d
+}
+
+// throttled reports a refusal the Connector did not act on.
+func (e *APIError) throttled() bool {
+	return e.StatusCode == http.StatusTooManyRequests || e.StatusCode == http.StatusServiceUnavailable
 }

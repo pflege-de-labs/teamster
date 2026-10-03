@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"sort"
@@ -26,6 +25,8 @@ type Client struct {
 	httpClient *http.Client
 	// sleep replaces the wait between throttled attempts; nil sleeps for real.
 	sleep func(context.Context, time.Duration) error
+	// tel counts throttled calls; nil counts nothing.
+	tel instrumentation
 }
 
 // Message is a rendered template on its way to a channel, which the bot posts
@@ -64,6 +65,13 @@ func scopeOf(cfg config.GraphConfig) string {
 // here rather than in the metrics package so that graph depends on nothing but
 // an interface — and so a test can pass one that does nothing.
 type instrumentation interface {
+	transportInstrumentation
+	// Throttled counts a call the API answered with 429 or 503.
+	Throttled(ctx context.Context, api string)
+}
+
+// transportInstrumentation is all BrokerClient needs: it does not retry.
+type transportInstrumentation interface {
 	ClientTransport(base http.RoundTripper) http.RoundTripper
 }
 
@@ -96,6 +104,7 @@ func NewClient(cfg config.GraphConfig, tel instrumentation) (*Client, error) {
 	return &Client{
 		baseURL:    cfg.BaseURL,
 		httpClient: httpClient,
+		tel:        tel,
 	}, nil
 }
 
@@ -219,25 +228,9 @@ func sortByName[T any](items []T, name func(T) string) {
 	})
 }
 
+// get reads url through do, so these calls back off on throttling too. No
+// caller hands it a context yet.
 func (c *Client) get(url string) ([]byte, error) {
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("new request: %w", err)
-	}
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("graph request: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	resBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("read response: %w", err)
-	}
-	if resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("graph GET %s failed: %s", url, string(resBody))
-	}
-
-	return resBody, nil
+	resBody, _, err := c.do(context.Background(), http.MethodGet, url, nil, nil)
+	return resBody, err
 }

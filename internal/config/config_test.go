@@ -102,6 +102,7 @@ func TestParseExampleConfig(t *testing.T) {
 			TimeoutSec:   10,
 		},
 		Bot: BotConfig{
+			Pacing:      defaultPacing(),
 			TenantType:  "single",
 			Scope:       "https://api.botframework.com/.default",
 			MetadataURL: "https://login.botframework.com/v1/.well-known/openidconfiguration",
@@ -177,6 +178,7 @@ func TestParseBotConfigFieldsMap(t *testing.T) {
 
 	got := parse(t, nil, writeConfig(t, body)).Bot
 	want := BotConfig{
+		Pacing:       defaultPacing(),
 		TenantID:     "bot-tenant",
 		ClientID:     "bot-client",
 		ClientSecret: "bot-secret",
@@ -450,6 +452,7 @@ func TestValidateBot(t *testing.T) {
 			name: "all three credentials set",
 			mutate: func(c *Config) {
 				c.Bot = BotConfig{
+					Pacing:   defaultPacing(),
 					TenantID: "tenant", ClientID: "client", ClientSecret: "secret", TimeoutSec: 10,
 					MetadataURL: "https://bot.example/.well-known/openidconfiguration", DirectoryTTL: time.Hour,
 				}
@@ -457,18 +460,18 @@ func TestValidateBot(t *testing.T) {
 		},
 		{
 			name:    "tenant id alone",
-			mutate:  func(c *Config) { c.Bot = BotConfig{TenantID: "tenant"} },
+			mutate:  func(c *Config) { c.Bot = BotConfig{Pacing: defaultPacing(), TenantID: "tenant"} },
 			wantErr: "bot-client-id is required",
 		},
 		{
 			name:    "client id alone",
-			mutate:  func(c *Config) { c.Bot = BotConfig{ClientID: "client"} },
+			mutate:  func(c *Config) { c.Bot = BotConfig{Pacing: defaultPacing(), ClientID: "client"} },
 			wantErr: "bot-client-secret is required",
 		},
 		{
 			name: "single tenant without a tenant id",
 			mutate: func(c *Config) {
-				c.Bot = BotConfig{ClientID: "client", ClientSecret: "secret", TimeoutSec: 10}
+				c.Bot = BotConfig{Pacing: defaultPacing(), ClientID: "client", ClientSecret: "secret", TimeoutSec: 10}
 			},
 			wantErr: "bot-tenant-id is required",
 		},
@@ -479,6 +482,7 @@ func TestValidateBot(t *testing.T) {
 			name: "multi tenant needs no tenant id",
 			mutate: func(c *Config) {
 				c.Bot = BotConfig{
+					Pacing:   defaultPacing(),
 					ClientID: "client", ClientSecret: "secret", TenantType: "multi", TimeoutSec: 10,
 					MetadataURL: "https://bot.example/.well-known/openidconfiguration", DirectoryTTL: time.Hour,
 				}
@@ -487,7 +491,7 @@ func TestValidateBot(t *testing.T) {
 		{
 			name: "an unknown tenant type",
 			mutate: func(c *Config) {
-				c.Bot = BotConfig{TenantID: "tenant", ClientID: "client", ClientSecret: "secret", TenantType: "contoso", TimeoutSec: 10}
+				c.Bot = BotConfig{Pacing: defaultPacing(), TenantID: "tenant", ClientID: "client", ClientSecret: "secret", TenantType: "contoso", TimeoutSec: 10}
 			},
 			wantErr: "bot-tenant-type must be single or multi",
 		},
@@ -495,6 +499,7 @@ func TestValidateBot(t *testing.T) {
 			name: "multi tenant is accepted",
 			mutate: func(c *Config) {
 				c.Bot = BotConfig{
+					Pacing:   defaultPacing(),
 					TenantID: "tenant", ClientID: "client", ClientSecret: "secret", TenantType: "multi", TimeoutSec: 10,
 					MetadataURL: "https://bot.example/.well-known/openidconfiguration", DirectoryTTL: time.Hour,
 				}
@@ -505,21 +510,21 @@ func TestValidateBot(t *testing.T) {
 		{
 			name: "timeout not configured",
 			mutate: func(c *Config) {
-				c.Bot = BotConfig{TenantID: "tenant", ClientID: "client", ClientSecret: "secret"}
+				c.Bot = BotConfig{Pacing: defaultPacing(), TenantID: "tenant", ClientID: "client", ClientSecret: "secret"}
 			},
 			wantErr: "bot-timeout-sec must be positive",
 		},
 		{
 			name: "a negative timeout",
 			mutate: func(c *Config) {
-				c.Bot = BotConfig{TenantID: "tenant", ClientID: "client", ClientSecret: "secret", TimeoutSec: -1}
+				c.Bot = BotConfig{Pacing: defaultPacing(), TenantID: "tenant", ClientID: "client", ClientSecret: "secret", TimeoutSec: -1}
 			},
 			wantErr: "bot-timeout-sec must be positive",
 		},
 		{
 			name: "metadata url not configured",
 			mutate: func(c *Config) {
-				c.Bot = BotConfig{TenantID: "tenant", ClientID: "client", ClientSecret: "secret", TimeoutSec: 10}
+				c.Bot = BotConfig{Pacing: defaultPacing(), TenantID: "tenant", ClientID: "client", ClientSecret: "secret", TimeoutSec: 10}
 			},
 			wantErr: "bot-metadata-url is required",
 		},
@@ -527,6 +532,7 @@ func TestValidateBot(t *testing.T) {
 			name: "metadata url not https",
 			mutate: func(c *Config) {
 				c.Bot = BotConfig{
+					Pacing:   defaultPacing(),
 					TenantID: "tenant", ClientID: "client", ClientSecret: "secret", TimeoutSec: 10,
 					MetadataURL: "http://bot.example/.well-known/openidconfiguration",
 				}
@@ -537,6 +543,7 @@ func TestValidateBot(t *testing.T) {
 			name: "service url not https",
 			mutate: func(c *Config) {
 				c.Bot = BotConfig{
+					Pacing:   defaultPacing(),
 					TenantID: "tenant", ClientID: "client", ClientSecret: "secret", TimeoutSec: 10,
 					MetadataURL: "https://bot.example/.well-known/openidconfiguration", DirectoryTTL: time.Hour,
 					ServiceURL: "http://smba.example/",
@@ -651,6 +658,7 @@ func TestBotConfigConfigured(t *testing.T) {
 		{
 			name: "fully configured, single tenant",
 			cfg: BotConfig{
+				Pacing:   defaultPacing(),
 				TenantID: "tenant", ClientID: "client", ClientSecret: "secret",
 				MetadataURL: "https://bot.example/.well-known/openidconfiguration",
 			},
@@ -659,6 +667,7 @@ func TestBotConfigConfigured(t *testing.T) {
 		{
 			name: "multi tenant needs no tenant id",
 			cfg: BotConfig{
+				Pacing:   defaultPacing(),
 				ClientID: "client", ClientSecret: "secret", TenantType: "multi",
 				MetadataURL: "https://bot.example/.well-known/openidconfiguration",
 			},
@@ -667,6 +676,7 @@ func TestBotConfigConfigured(t *testing.T) {
 		{
 			name: "single tenant without a tenant id is not configured",
 			cfg: BotConfig{
+				Pacing:   defaultPacing(),
 				ClientID: "client", ClientSecret: "secret",
 				MetadataURL: "https://bot.example/.well-known/openidconfiguration",
 			},
@@ -675,6 +685,7 @@ func TestBotConfigConfigured(t *testing.T) {
 		{
 			name: "missing client id",
 			cfg: BotConfig{
+				Pacing:   defaultPacing(),
 				TenantID: "tenant", ClientSecret: "secret",
 				MetadataURL: "https://bot.example/.well-known/openidconfiguration",
 			},
@@ -683,6 +694,7 @@ func TestBotConfigConfigured(t *testing.T) {
 		{
 			name: "missing client secret",
 			cfg: BotConfig{
+				Pacing:   defaultPacing(),
 				TenantID: "tenant", ClientID: "client",
 				MetadataURL: "https://bot.example/.well-known/openidconfiguration",
 			},
@@ -690,7 +702,7 @@ func TestBotConfigConfigured(t *testing.T) {
 		},
 		{
 			name: "missing metadata url",
-			cfg:  BotConfig{TenantID: "tenant", ClientID: "client", ClientSecret: "secret"},
+			cfg:  BotConfig{Pacing: defaultPacing(), TenantID: "tenant", ClientID: "client", ClientSecret: "secret"},
 			want: false,
 		},
 	}
@@ -896,6 +908,7 @@ func TestValidateGlobalInstall(t *testing.T) {
 	bot := func(mutate func(*BotConfig)) func(*Config) {
 		return func(c *Config) {
 			c.Bot = BotConfig{
+				Pacing:   defaultPacing(),
 				TenantID: "tenant", ClientID: "client", ClientSecret: "secret", TimeoutSec: 10,
 				MetadataURL:   "https://bot.example/.well-known/openidconfiguration",
 				GlobalInstall: true, AppID: "app-1",
@@ -919,7 +932,7 @@ func TestValidateGlobalInstall(t *testing.T) {
 		{name: "off ignores the install settings", mutate: bot(func(b *BotConfig) { b.GlobalInstall, b.AppID, b.InstallConcurrency = false, "", 0 })},
 		{
 			name:    "without a bot",
-			mutate:  func(c *Config) { c.Bot = BotConfig{GlobalInstall: true, AppID: "app-1"} },
+			mutate:  func(c *Config) { c.Bot = BotConfig{Pacing: defaultPacing(), GlobalInstall: true, AppID: "app-1"} },
 			wantErr: "bot-global-install needs the bot configured",
 		},
 		{name: "no way to find the app", mutate: bot(func(b *BotConfig) { b.AppID = "" }), wantErr: "bot-app-id or bot-catalog-app-id"},
@@ -979,6 +992,49 @@ func TestValidateWebhookFanout(t *testing.T) {
 				t.Errorf("Validate() = %v, want it accepted", err)
 			case tt.wantErr != "" && (err == nil || !strings.Contains(err.Error(), tt.wantErr)):
 				t.Errorf("Validate() = %v, want an error containing %q", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+// defaultPacing is the pacing the tag defaults give, which a valid bot needs.
+func defaultPacing() PacingConfig {
+	return PacingConfig{
+		Strategy: "process", Rate: 20, Burst: 20, ConversationRate: 0.5, ConversationBurst: 7,
+		Retries: 3, MaxRetryWait: 30 * time.Second,
+	}
+}
+
+func TestValidatePacing(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		mutate  func(*PacingConfig)
+		wantErr string
+	}{
+		{name: "the defaults", mutate: func(*PacingConfig) {}},
+		{name: "never retried", mutate: func(p *PacingConfig) { p.Retries = 0 }},
+		{name: "no rate", mutate: func(p *PacingConfig) { p.Rate = 0 }, wantErr: "bot-pacing-rate"},
+		{name: "no burst", mutate: func(p *PacingConfig) { p.Burst = 0 }, wantErr: "bot-pacing-burst"},
+		{name: "no conversation rate", mutate: func(p *PacingConfig) { p.ConversationRate = -1 }, wantErr: "bot-pacing-conversation-rate"},
+		{name: "no conversation burst", mutate: func(p *PacingConfig) { p.ConversationBurst = 0 }, wantErr: "bot-pacing-conversation-burst"},
+		{name: "negative retries", mutate: func(p *PacingConfig) { p.Retries = -1 }, wantErr: "bot-pacing-retries"},
+		{name: "no retry wait", mutate: func(p *PacingConfig) { p.MaxRetryWait = 0 }, wantErr: "bot-pacing-max-retry-wait"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := defaultPacing()
+			tt.mutate(&cfg)
+			err := validatePacing(cfg)
+			switch {
+			case tt.wantErr == "" && err != nil:
+				t.Errorf("validatePacing() = %v, want nil", err)
+			case tt.wantErr != "" && (err == nil || !strings.Contains(err.Error(), tt.wantErr)):
+				t.Errorf("validatePacing() = %v, want an error naming %s", err, tt.wantErr)
 			}
 		})
 	}

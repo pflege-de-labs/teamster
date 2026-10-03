@@ -132,6 +132,10 @@ func TestServeConstructsABotClientWhenConfigured(t *testing.T) {
 				TimeoutSec:   10,
 				MetadataURL:  "https://bot.invalid/.well-known/openid-configuration",
 				DirectoryTTL: 24 * time.Hour,
+				Pacing: config.PacingConfig{
+					Strategy: "process", Rate: 20, Burst: 20, ConversationRate: 0.5, ConversationBurst: 7,
+					Retries: 3, MaxRetryWait: 30 * time.Second,
+				},
 			}
 			if tt.global {
 				cfg.Bot.GlobalInstall, cfg.Bot.AppID = true, "app"

@@ -21,6 +21,8 @@ import (
 type uninstrumented struct{}
 
 func (uninstrumented) ClientTransport(base http.RoundTripper) http.RoundTripper { return base }
+func (uninstrumented) Throttled(context.Context, string)                        {}
+func (uninstrumented) PacingWaited(context.Context, time.Duration)              {}
 
 // newTestClient starts a stub Bot Connector over TLS and returns a client
 // pointed at it, plus a ConversationReference whose ServiceURL reaches the
@@ -83,7 +85,10 @@ func TestNewClient(t *testing.T) {
 // being silently discarded.
 type instrumentedTransport struct{ http.RoundTripper }
 
-type spyInstrumentation struct{ called *bool }
+type spyInstrumentation struct {
+	uninstrumented
+	called *bool
+}
 
 func (s spyInstrumentation) ClientTransport(base http.RoundTripper) http.RoundTripper {
 	*s.called = true
@@ -98,7 +103,7 @@ func TestNewClientInstallsInstrumentedTransport(t *testing.T) {
 	t.Parallel()
 
 	var called bool
-	client, err := NewClient(config.BotConfig{TenantID: "tenant", ClientID: "client", ClientSecret: "secret"}, spyInstrumentation{&called})
+	client, err := NewClient(config.BotConfig{TenantID: "tenant", ClientID: "client", ClientSecret: "secret"}, spyInstrumentation{called: &called})
 	if err != nil {
 		t.Fatalf("NewClient: %v", err)
 	}

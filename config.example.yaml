@@ -204,6 +204,20 @@ bot:
   welcome-message: ""
   # How long a person looked up in Graph is trusted.
   directory-ttl: "24h"
+  # How fast this replica calls the Bot Connector (ADR 0085). Every message,
+  # broadcast and install shares the budget; with several replicas, divide
+  # the tenant's budget by their number. A 429 holds back every call until its
+  # Retry-After has passed, and a call refused with 429 or 503 is retried.
+  pacing:
+    # process: each replica paces itself.
+    strategy: "process"
+    rate: 20
+    burst: 20
+    # Teams allows one conversation 7 calls a second and 1800 an hour.
+    conversation-rate: 0.5
+    conversation-burst: 7
+    retries: 3
+    max-retry-wait: "30s"
 
 # Bounds for a message addressed to people rather than routed to a channel
 # (ADR 0063). The fan-out has to finish within server.write-timeout.
