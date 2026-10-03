@@ -262,5 +262,43 @@ After that:
 installs with their reason. A run started by hand retries every failed install at once, so start one
 after granting a missing permission.
 
-A route can now deliver to **People named in the message**. Only an admin may create, edit or
-delete such a route. See [Send alerts to individual people](../direct-messages/).
+A route can now deliver to **Any person named in the message**. Anyone who may edit routes may
+create one. See [Send messages to individual people](../direct-messages/).
+
+## Pace the calls to Teams
+
+Teams throttles the bot as a whole, across every channel post, chat message, broadcast and install.
+Teamster paces each call to the Bot Connector so that it stays under that limit instead of running
+into it:
+
+```yaml
+bot:
+  pacing:
+    strategy: "process"       # each replica paces itself
+    rate: 20                  # calls per second for this replica
+    burst: 20
+    conversation-rate: 0.5    # Teams allows one conversation 7 a second and 1800 an hour
+    conversation-burst: 7
+    retries: 3                # a 429 or 503 is sent again, after its Retry-After
+    max-retry-wait: "30s"
+```
+
+These are the defaults; a configuration without `bot.pacing` gets them. Each key has a
+`TEAMSTER_BOT_PACING_*` variable, listed in [Configuration](../../reference/configuration/#teams-bot).
+With the Helm chart, set them under `config.settings.bot.pacing`.
+
+* **Divide the budget by the replica count.** Each replica has a budget of its own. With three
+  replicas and a tenant budget of 30 calls a second, set `rate` and `burst` to `10`.
+* **A `429` holds back every call** until its `Retry-After` has passed, not only the one that got
+  it.
+* **Only `429` and `503` are retried**, up to `retries` times. The wait follows `Retry-After`,
+  falls back to 1, 2 and 4 seconds, and never exceeds `max-retry-wait`. `0` retries fails a
+  throttled call at once. Nothing else is retried: after a `502` or `504` the message may already
+  have arrived.
+* **A message that names people still has to finish within `server.write-timeout`.** A send that
+  would wait longer fails as transient, and the sender gets a `502` and retries.
+
+`teamster.throttled` counts how often Microsoft pushed back, and `teamster.pacing.wait` how long
+calls waited for their turn; see [Monitor Teamster](../observability/#tell-throttling-from-a-stuck-run).
+See [ADR 0085](https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0085-pace-bot-connector-calls.md)
+for the design.

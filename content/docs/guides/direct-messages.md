@@ -16,9 +16,12 @@ for people who do not have it yet.
 
 ### Create a route that addresses people
 
-In the admin UI, create or edit a route and set **Delivers to** to **People named in the
-message**. Give it a label selector for the messages it should take, for example
-`{"kind": "password-expiry"}`, and a template.
+In the admin UI, create or edit a route and set **Delivers to** to **Any person named in
+the message**. Give it a label selector for the messages it should take, for example
+`{"kind": "password-expiry"}`, and a template. Anyone who may edit routes may create one.
+
+Keep the selector narrow. The route takes every message it matches, from any sender, and renders
+it with your template. Whom it reaches is bounded by each sender's token, set in the next step.
 
 Each person gets their own message, rendered for them. `.Recipient` holds their Entra profile, so
 the template can greet them, write in their language and name their office:
@@ -187,7 +190,9 @@ bot:
 ```
 
 One request's fan-out has to finish within `server.write-timeout`. Raise it if you raise the
-limits.
+limits. Every send also waits its turn in the bot's pacing, and a throttled one waits for its
+`Retry-After`. A send that would wait past the deadline fails, and the sender gets a `502` and
+retries. See [Pace the calls to Teams](../teams-bot/#pace-the-calls-to-teams).
 
 See [ADR 0063](https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0063-a-message-names-its-recipients.md)
 for the design.

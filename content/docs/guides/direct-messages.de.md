@@ -18,9 +18,13 @@ den Bot für Personen installieren, die ihn noch nicht haben.
 ### Eine Route anlegen, die Personen adressiert {#create-a-route-that-addresses-people}
 
 Legen Sie in der Verwaltungsoberfläche eine Route an oder bearbeiten Sie eine, und setzen Sie
-**Liefert an** auf **In der Nachricht genannte Personen**. Geben Sie ihr einen Label-Selektor für
+**Liefert an** auf **Jede in der Nachricht genannte Person**. Geben Sie ihr einen Label-Selektor für
 die Nachrichten, die sie übernehmen soll, zum Beispiel `{"kind": "password-expiry"}`, und eine
-Vorlage.
+Vorlage. Wer Routen bearbeiten darf, darf eine solche Route anlegen.
+
+Fassen Sie den Selektor eng. Die Route übernimmt jede Nachricht, die er erfasst, gleich von welchem
+Absender, und rendert sie mit Ihrer Vorlage. Wen sie erreicht, begrenzt das Token des jeweiligen
+Absenders, das Sie im nächsten Schritt festlegen.
 
 Jede Person erhält ihre eigene, für sie gerenderte Nachricht. `.Recipient` enthält ihr
 Entra-Profil. Die Vorlage kann sie also persönlich ansprechen, in ihrer Sprache schreiben und ihr
@@ -199,7 +203,10 @@ bot:
 ```
 
 Die Verteilung einer Anfrage muss innerhalb von `server.write-timeout` abgeschlossen sein. Erhöhen
-Sie diesen Wert, wenn Sie die Grenzen erhöhen.
+Sie diesen Wert, wenn Sie die Grenzen erhöhen. Jeder Versand wartet außerdem, bis die Taktung des
+Bots ihn an die Reihe lässt, und ein gedrosselter wartet sein `Retry-After` ab. Ein Versand, der
+über die Frist hinaus warten müsste, schlägt fehl; der Absender erhält ein `502` und wiederholt.
+Siehe [Aufrufe an Teams takten](../teams-bot/#pace-the-calls-to-teams).
 
 Den Entwurf beschreibt
 [ADR 0063](https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0063-a-message-names-its-recipients.md).

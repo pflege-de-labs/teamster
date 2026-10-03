@@ -42,13 +42,13 @@ Like every token, it broadcasts only while its creator still holds the level. Se
 ### Create a route that addresses people
 
 Create or edit a route that selects the message, for example `{"kind": "office-notice"}`, and set
-**Delivers to** to **People named in the message**. Everyone gets their own copy, rendered for
+**Delivers to** to **Any person named in the message**. Everyone gets their own copy, rendered for
 them, so the template can use `.Recipient`. A person in the directory has their whole Entra
 profile there; someone who only linked a chat has just `ID` and `DisplayName`. See
 [Template data](../../reference/template-data/#recipient).
 
 A broadcast is routed like any message. Channels and linked chats it matches get it during the
-request. Only the routes that deliver to **People named in the message** send it to everyone.
+request. Only the routes that deliver to **Any person named in the message** send it to everyone.
 
 ### Send it
 
@@ -98,7 +98,11 @@ returns the same list. Finished broadcasts are kept for 30 days.
   step, `webhook.fanout-concurrency` at once.
 * If a replica stops, another takes the broadcast over within about two minutes, from the last
   step it recorded. Up to 25 people may get it twice.
-* A failed send is counted, not retried.
+* Every send is paced with the rest of the bot's calls, so a large broadcast takes its time; see
+  [Pace the calls to Teams](../teams-bot/#pace-the-calls-to-teams).
+* A send Teams throttles (`429`) or finds unavailable (`503`) is retried after its `Retry-After`.
+  Any other failed send is counted, not retried. So is a send still waiting a minute into its
+  step of 25.
 * The audience is read when the broadcast starts. People who join later get it only if a replica
   takes the broadcast over and reads them after the point it got to.
 

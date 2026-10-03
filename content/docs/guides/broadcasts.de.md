@@ -46,14 +46,14 @@ Wie jedes Token sendet es Rundsendungen nur, solange sein Ersteller die Stufe no
 
 Legen Sie eine Route an, die die Nachricht selektiert, etwa mit `{"kind": "office-notice"}`, oder
 bearbeiten Sie eine solche, und setzen Sie **Liefert an** auf
-**In der Nachricht genannte Personen**. Jede Person erhält ihre eigene, für sie gerenderte Kopie;
+**Jede in der Nachricht genannte Person**. Jede Person erhält ihre eigene, für sie gerenderte Kopie;
 die Vorlage kann also `.Recipient` verwenden. Für eine Person im Verzeichnis enthält es ihr ganzes
 Entra-Profil, für jemanden, der nur einen Chat verknüpft hat, nur `ID` und `DisplayName`. Siehe
 [Vorlagendaten](../../reference/template-data/#recipient).
 
 Eine Rundsendung wird geroutet wie jede Nachricht. Kanäle und verknüpfte Chats, die sie trifft,
 erhalten sie noch während der Anfrage. Nur die Routen, die an
-**In der Nachricht genannte Personen** zustellen, senden sie an alle.
+**Jede in der Nachricht genannte Person** zustellen, senden sie an alle.
 
 ### Senden {#send-it}
 
@@ -105,7 +105,11 @@ Rundsendungen werden 30 Tage aufbewahrt.
 * Fällt ein Replikat aus, übernimmt ein anderes die Rundsendung innerhalb von etwa zwei Minuten,
   ab dem letzten Schritt, den es festgehalten hat. Bis zu 25 Personen erhalten sie dann womöglich
   zweimal.
-* Ein fehlgeschlagener Versand wird gezählt, nicht wiederholt.
+* Jeder Versand wird zusammen mit den übrigen Aufrufen des Bots getaktet, eine große Rundsendung
+  braucht also ihre Zeit; siehe [Aufrufe an Teams takten](../teams-bot/#pace-the-calls-to-teams).
+* Einen Versand, den Teams drosselt (`429`) oder für den es nicht verfügbar ist (`503`), wiederholt
+  Teamster nach seinem `Retry-After`. Jeder andere fehlgeschlagene Versand wird gezählt, nicht
+  wiederholt. Ebenso einer, der eine Minute nach Beginn seines Schritts von 25 noch wartet.
 * Die Empfänger werden beim Start der Rundsendung gelesen. Wer später hinzukommt, erhält sie nur,
   wenn ein Replikat die Rundsendung übernimmt und diese Person hinter der Stelle liest, bis zu der
   es gekommen war.

@@ -71,14 +71,23 @@ Eine Route stellt an genau eine Art von Zustellziel zu:
 | --- | --- |
 | Ein Ziel | einen Teams-Kanal |
 | Eine Person | den Chat dieser Person mit dem Bot, sobald sie ihn verknüpft hat |
-| In der Nachricht genannte Personen | alle, die das Ereignis in `recipients` oder im Label `teamster_recipient` nennt |
+| Jede in der Nachricht genannte Person | alle, die das Ereignis in `recipients` oder im Label `teamster_recipient` nennt |
 
 Eine Wurzelroute muss ein Zustellziel nennen. Eine untergeordnete Route, die das Zustellziel ihrer
 übergeordneten übernimmt, muss eine andere Vorlage verwenden, sonst brächte sie nichts hinzu. Als
-Person kann eine Route nur Ihren eigenen Chat nennen, es sei denn, Sie sind Administrator. Nur
-Administratoren dürfen eine Route an die in einer Nachricht genannten Personen anlegen, weil sie
-jeden im Tenant erreichen kann. Siehe
+Person kann eine Route nur Ihren eigenen Chat nennen, es sei denn, Sie sind Administrator.
+
+Wer Routen bearbeiten darf, darf auch eine Route an **Jede in der Nachricht genannte Person**
+anlegen. Wen sie erreicht, entscheidet der Absender, nicht die Route: Ein Token, das nur seinen
+Ersteller nennen darf, erreicht über sie nur diesen, wie weit der Selektor auch gefasst ist. Siehe
 [Nachrichten an einzelne Personen senden](../../guides/direct-messages/).
+
+Routen gelten allerdings global. Eine solche Route trifft auf jede Nachricht zu, die ihr Selektor
+erfasst, gleich von welchem Absender, und rendert sie mit der Vorlage ihres Autors. Eine Route mit
+weit gefasstem Selektor, etwa `{"teamster_source": "universal"}`, sendet daher den Personen, die
+andere Absender nennen, eine zusätzliche Nachricht mit den Worten ihres Autors. Sie erreicht
+niemanden, den diese Absender nicht ohnehin anschreiben dürften. Solche Routen finden Sie im
+[Routing-Bild](#seeing-the-routes) und im [Änderungsprotokoll](../../guides/audit-trail/).
 
 ## Rückfallebenen {#fallbacks}
 
