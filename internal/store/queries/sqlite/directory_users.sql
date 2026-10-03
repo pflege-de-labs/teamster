@@ -4,11 +4,11 @@
 -- name: UpsertDirectoryUser :exec
 INSERT INTO directory_users (
 	aad_object_id, tenant_id, user_principal_name, mail, upn_key, mail_key,
-	display_name, given_name, surname, eligible, directory_seen_at, created_at, updated_at
+	display_name, given_name, surname, profile, eligible, directory_seen_at, created_at, updated_at
 ) VALUES (
 	sqlc.arg(aad_object_id), sqlc.arg(tenant_id), sqlc.arg(user_principal_name), sqlc.arg(mail),
 	sqlc.arg(upn_key), sqlc.arg(mail_key), sqlc.arg(display_name), sqlc.arg(given_name),
-	sqlc.arg(surname), sqlc.arg(eligible), sqlc.arg(seen_at), sqlc.arg(seen_at), sqlc.arg(seen_at)
+	sqlc.arg(surname), sqlc.arg(profile), sqlc.arg(eligible), sqlc.arg(seen_at), sqlc.arg(seen_at), sqlc.arg(seen_at)
 )
 ON CONFLICT(aad_object_id) DO UPDATE SET
 	tenant_id           = excluded.tenant_id,
@@ -19,6 +19,7 @@ ON CONFLICT(aad_object_id) DO UPDATE SET
 	display_name        = excluded.display_name,
 	given_name          = excluded.given_name,
 	surname             = excluded.surname,
+	profile             = excluded.profile,
 	eligible            = excluded.eligible,
 	directory_seen_at   = excluded.directory_seen_at,
 	updated_at          = excluded.updated_at,

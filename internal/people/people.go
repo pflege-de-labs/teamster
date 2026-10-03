@@ -125,8 +125,17 @@ func directoryUserOf(u graph.User, tenantID string, seen time.Time) models.Direc
 		DisplayName:       u.DisplayName,
 		GivenName:         u.GivenName,
 		Surname:           u.Surname,
-		Eligible:          eligible(u),
-		DirectorySeenAt:   seen,
+		Profile: models.Profile{
+			JobTitle: u.JobTitle, Department: u.Department, CompanyName: u.CompanyName,
+			OfficeLocation: u.OfficeLocation, EmployeeID: u.EmployeeID,
+			Address: models.Address{
+				Street: u.StreetAddress, PostalCode: u.PostalCode, City: u.City, State: u.State, Country: u.Country,
+			},
+			BusinessPhones: u.BusinessPhones, MobilePhone: u.MobilePhone,
+			PreferredLanguage: u.PreferredLanguage, UsageLocation: u.UsageLocation,
+		},
+		Eligible:        eligible(u),
+		DirectorySeenAt: seen,
 	}
 }
 

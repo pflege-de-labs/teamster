@@ -10,6 +10,20 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 ## [Unreleased]
 
+### Added
+
+* `.Recipient` carries the person's Entra profile: `JobTitle`, `Department`, `CompanyName`,
+  `OfficeLocation`, `EmployeeID`, `Address` (`Street`, `PostalCode`, `City`, `State`, `Country`),
+  `BusinessPhones`, `MobilePhone`, `PreferredLanguage` and `UsageLocation`. A linked chat has them
+  too when its person is in the directory. People already known get them at the next install run
+  ([ADR 0086](docs/adr/0086-a-personal-message-names-only-its-recipient.md)).
+
+### Changed
+
+* A message to the people it names shows each person only themselves: their address in
+  `.Event.Universal.Recipients` and the `teamster_recipient` label, and of an Alertmanager group only
+  the alerts that name them or nobody. A template could previously print every recipient.
+
 ## [0.12.0] — 2026-10-02
 
 ### Changed

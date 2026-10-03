@@ -32,14 +32,38 @@ type RenderData struct {
 	Recipient Person
 }
 
-// Person is who a message is rendered for.
+// Person is who a message is rendered for. The fields after Mail are their
+// Entra profile, empty for a person the directory does not know (ADR 0086).
 type Person struct {
-	ID          string
-	DisplayName string
-	GivenName   string
-	Surname     string
-	UPN         string
-	Mail        string
+	ID                string
+	DisplayName       string
+	GivenName         string
+	Surname           string
+	UPN               string
+	Mail              string
+	JobTitle          string
+	Department        string
+	CompanyName       string
+	OfficeLocation    string
+	EmployeeID        string
+	Address           models.Address
+	BusinessPhones    []string
+	MobilePhone       string
+	PreferredLanguage string
+	UsageLocation     string
+}
+
+// PersonOf is the person a directory user is rendered as.
+func PersonOf(u models.DirectoryUser) Person {
+	p := u.Profile
+	return Person{
+		ID: u.AADObjectID, DisplayName: u.DisplayName, GivenName: u.GivenName, Surname: u.Surname,
+		UPN: u.UserPrincipalName, Mail: u.Mail,
+		JobTitle: p.JobTitle, Department: p.Department, CompanyName: p.CompanyName,
+		OfficeLocation: p.OfficeLocation, EmployeeID: p.EmployeeID, Address: p.Address,
+		BusinessPhones: p.BusinessPhones, MobilePhone: p.MobilePhone,
+		PreferredLanguage: p.PreferredLanguage, UsageLocation: p.UsageLocation,
+	}
 }
 
 // Message is a template rendered against an event. Title is the line the Teams
