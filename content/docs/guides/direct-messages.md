@@ -16,9 +16,12 @@ for people who do not have it yet.
 
 ### Create a route that addresses people
 
-In the admin UI, create or edit a route and set **Delivers to** to **People named in the
-message**. Give it a label selector for the messages it should take, for example
-`{"kind": "password-expiry"}`, and a template.
+In the admin UI, create or edit a route and set **Delivers to** to **Any person named in
+the message**. Give it a label selector for the messages it should take, for example
+`{"kind": "password-expiry"}`, and a template. Anyone who may edit routes may create one.
+
+Keep the selector narrow. The route takes every message it matches, from any sender, and renders
+it with your template. Whom it reaches is bounded by each sender's token, set in the next step.
 
 Each person gets their own message, rendered for them, so the template can greet them:
 

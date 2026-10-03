@@ -42,11 +42,11 @@ Like every token, it broadcasts only while its creator still holds the level. Se
 ### Create a route that addresses people
 
 Create or edit a route that selects the message, for example `{"kind": "office-notice"}`, and set
-**Delivers to** to **People named in the message**. Everyone gets their own copy, rendered for
+**Delivers to** to **Any person named in the message**. Everyone gets their own copy, rendered for
 them, so the template can use `.Recipient`.
 
 A broadcast is routed like any message. Channels and linked chats it matches get it during the
-request. Only the routes that deliver to **People named in the message** send it to everyone.
+request. Only the routes that deliver to **Any person named in the message** send it to everyone.
 
 ### Send it
 

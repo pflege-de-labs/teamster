@@ -281,6 +281,6 @@ fehlgeschlagene Installationen mit ihrem Grund. Ein von Hand gestarteter Lauf wi
 fehlgeschlagene Installation; starten Sie also einen, nachdem Sie eine fehlende Berechtigung
 erteilt haben.
 
-Eine Route kann jetzt an **In der Nachricht genannte Personen** zustellen. Nur ein Administrator
-darf eine solche Route anlegen, bearbeiten oder löschen. Siehe
-[Alarme an einzelne Personen senden](../direct-messages/).
+Eine Route kann jetzt an **Jede in der Nachricht genannte Person** zustellen. Wer Routen bearbeiten
+darf, darf eine solche Route anlegen. Siehe
+[Nachrichten an einzelne Personen senden](../direct-messages/).
