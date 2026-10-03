@@ -8,6 +8,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.12.0] — 2026-10-03
+
+App version 0.13.0: Bot Connector calls are paced and throttled ones retried, personal messages
+carry the recipient's Entra profile and name only them, and anyone who may edit routes may route
+to any person a message names; see the [service changelog](../../CHANGELOG.md).
+
 ### Added
 
 * `values.yaml` lists `config.settings.bot.pacing` commented out with its defaults, and says to
@@ -162,7 +168,8 @@ an Ingress or HTTPRoute, configuration and credentials from values, `extraObject
 an optional startupProbe, and `helm test`
 ([ADR 0016](../../docs/adr/0016-helm-chart.md)).
 
-[Unreleased]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.11.0...HEAD
+[Unreleased]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.12.0...HEAD
+[0.12.0]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.11.0...teamster-0.12.0
 [0.11.0]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.10.0...teamster-0.11.0
 [0.10.0]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.9.0...teamster-0.10.0
 [0.9.0]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.8.1...teamster-0.9.0
