@@ -574,3 +574,40 @@ func TestObserveDirectoryUsersIsANoOpWhenDisabled(t *testing.T) {
 		t.Errorf("ObserveDirectoryUsers() = %v", err)
 	}
 }
+
+func TestThrottlingInstruments(t *testing.T) {
+	t.Parallel()
+
+	m := newTestMetrics(t, enabled())
+	ctx := t.Context()
+	m.Throttled(ctx, "bot")
+	m.Throttled(ctx, "graph")
+	m.Throttled(ctx, "graph")
+	m.PacingWaited(ctx, 250*time.Millisecond)
+
+	format := expfmt.NewFormat(expfmt.TypeProtoDelim)
+	got := families(t, scrape(t, m, string(format)).Body, format)
+
+	byAPI := map[string]float64{}
+	for _, metric := range got["teamster_throttled_total"].GetMetric() {
+		for _, label := range metric.Label {
+			if label.GetName() == "api" {
+				byAPI[label.GetValue()] = metric.Counter.GetValue()
+			}
+		}
+	}
+	if len(byAPI) != 2 || byAPI["bot"] != 1 || byAPI["graph"] != 2 {
+		t.Errorf("throttled = %v, want bot 1 and graph 2", byAPI)
+	}
+	if f := got["teamster_pacing_wait_seconds"]; f == nil || f.Metric[0].Histogram.GetSampleCount() != 1 {
+		t.Errorf("pacing waits = %v, want one sample", f)
+	}
+}
+
+func TestThrottlingInstrumentsAreNoOpsWhenDisabled(t *testing.T) {
+	t.Parallel()
+
+	m := Disabled()
+	m.Throttled(t.Context(), "bot")
+	m.PacingWaited(t.Context(), time.Second)
+}

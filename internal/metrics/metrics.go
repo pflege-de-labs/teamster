@@ -55,6 +55,9 @@ type Metrics struct {
 
 	auditFailed  metric.Int64Counter
 	auditDropped metric.Int64Counter
+
+	throttled   metric.Int64Counter
+	pacingWaits metric.Float64Histogram
 }
 
 // New builds the pipeline the configuration asks for. It never returns a nil

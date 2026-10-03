@@ -38,6 +38,9 @@ const (
 	// broadcastChunk is how many people are sent to between heartbeats, and
 	// so at most how many get the message twice after a takeover.
 	broadcastChunk = 25
+	// broadcastChunkBudget bounds one chunk's sends, so throttling backoff
+	// cannot outlast the heartbeat and hand the broadcast to a second replica (ADR 0085).
+	broadcastChunkBudget = broadcastStale / 2
 	// broadcastRetention is how long a finished broadcast is listed.
 	broadcastRetention = 30 * 24 * time.Hour
 	// directoryPage is how many directory users are read at once.
@@ -254,7 +257,9 @@ func (s *Server) deliverBroadcast(ctx context.Context, b models.Broadcast, owner
 			return ctx.Err()
 		}
 		part := audience[i:min(i+broadcastChunk, len(audience))]
-		s.deliverToAudience(ctx, ev, plan, part, counts)
+		chunkCtx, cancel := context.WithTimeout(ctx, broadcastChunkBudget)
+		s.deliverToAudience(chunkCtx, ev, plan, part, counts)
+		cancel()
 		*cursor = part[len(part)-1].key
 		ok, err := s.store.HeartbeatBroadcast(ctx, b.ID, owner, *cursor, *counts, s.now())
 		if err != nil {

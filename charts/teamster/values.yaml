@@ -255,6 +255,17 @@ config:
       # inline-install-budget: 5
       # welcome-message: ""
       # directory-ttl: 24h
+      # How fast each replica calls the Bot Connector (ADR 0085): divide the
+      # tenant's budget by replicaCount. A 429 holds every call back until its
+      # Retry-After has passed.
+      # pacing:
+      #   strategy: process
+      #   rate: 20
+      #   burst: 20
+      #   conversation-rate: 0.5
+      #   conversation-burst: 7
+      #   retries: 3
+      #   max-retry-wait: 30s
       # A sovereign cloud changes these together. Empty token-url derives one
       # from tenant-id and tenant-type.
       # token-url: ""

@@ -242,6 +242,9 @@ func (c *Client) do(ctx context.Context, method, endpoint string, payload []byte
 		}
 
 		throttled := resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusServiceUnavailable
+		if throttled && c.tel != nil {
+			c.tel.Throttled(ctx, "graph")
+		}
 		if throttled && attempt < maxAttempts {
 			if err := c.wait(ctx, retryAfter(resp.Header, attempt)); err != nil {
 				return nil, resp.StatusCode, err
