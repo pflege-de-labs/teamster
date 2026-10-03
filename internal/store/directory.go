@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -21,7 +22,11 @@ func (s queryAdapter) UpsertDirectoryUser(ctx context.Context, u models.Director
 	if u.DirectorySeenAt.IsZero() {
 		u.DirectorySeenAt = nowUTC()
 	}
-	err := s.q.UpsertDirectoryUser(ctx, sqlitedb.UpsertDirectoryUserParams{
+	profile, err := json.Marshal(u.Profile)
+	if err != nil {
+		return fmt.Errorf("encode directory profile: %w", err)
+	}
+	err = s.q.UpsertDirectoryUser(ctx, sqlitedb.UpsertDirectoryUserParams{
 		AadObjectID:       u.AADObjectID,
 		TenantID:          u.TenantID,
 		UserPrincipalName: u.UserPrincipalName,
@@ -31,6 +36,7 @@ func (s queryAdapter) UpsertDirectoryUser(ctx context.Context, u models.Director
 		DisplayName:       u.DisplayName,
 		GivenName:         u.GivenName,
 		Surname:           u.Surname,
+		Profile:           string(profile),
 		Eligible:          u.Eligible,
 		SeenAt:            u.DirectorySeenAt.UTC(),
 	})
@@ -290,7 +296,12 @@ func directoryUserResult(row sqlitedb.DirectoryUser, err error, op string) (mode
 }
 
 func directoryUserOf(row sqlitedb.DirectoryUser) models.DirectoryUser {
+	// Only this package writes the column, so a profile that does not decode
+	// is left empty rather than failing the lookup a message depends on.
+	var profile models.Profile
+	_ = json.Unmarshal([]byte(row.Profile), &profile)
 	return models.DirectoryUser{
+		Profile:           profile,
 		AADObjectID:       row.AadObjectID,
 		TenantID:          row.TenantID,
 		UserPrincipalName: row.UserPrincipalName,

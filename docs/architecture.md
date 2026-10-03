@@ -246,20 +246,26 @@ event, `processEvent` hands the plan to `expandAddressed`
 * A permanent failure (`people.Reason`) becomes an `undelivered` entry and a `teamster.deliveries`
   outcome named after the reason. A transient one fails the request.
 * Every person reached becomes a copy of the delivery with `PersonID` set; two addresses for one
-  person are one delivery. Without a finder the delivery stays unexpanded and fails with
-  `errNoBotConfigured`.
+  person are one delivery, which keeps both in `Addresses`. Without a finder the delivery stays
+  unexpanded and fails with `errNoBotConfigured`.
 
 `deliverEvent` delivers channels and linked chats one after the other, and the people in parallel,
 at most `webhook.fanout-concurrency` at a time. `deliverToPerson` renders with `.Recipient` set to
-the directory user and sends through `sendToChat` or `sendToChatOnce` on a `personChat`: claim key
-`aad:<oid>`, the blocked flag on `directory_users`
+the directory user and their profile (`templates.PersonOf`), from `personalEvent`'s copy of the
+event: the recipients, the `teamster_recipient` label and an Alertmanager group's alerts narrowed to
+the ones that name this person or nobody
+([ADR 0086](adr/0086-a-personal-message-names-only-its-recipient.md)). It then sends through
+`sendToChat` or `sendToChatOnce` on a `personChat`: claim key `aad:<oid>`, the blocked flag on
+`directory_users`
 ([ADR 0064](adr/0064-chat-claims-for-people-share-the-recipient-table.md)). A person who blocked the
 bot is reported as `blocked` rather than failing the request.
 
 `writeReport` answers: 200 `ok` when nothing is undelivered, 200 `partial` with the list when some
 were delivered, 422 `undelivered` when none were, and the error otherwise. `closeEvent` needs no
 recipients: `chatForKey` resolves an `aad:` row to the directory user, and `recipientDeliveryFor`
-renders it with the first addressed delivery the plan still has.
+renders it with the first addressed delivery the plan still has, from the person's own copy of the
+closing event. A linked chat is a subscription, so it renders the whole event, with `.Recipient`
+taken from the directory when its object id is known there.
 
 `deriveKey` hashes the sorted, lower-cased recipients after the labels, and only when the list is not
 empty, so every other derived key is unchanged.
@@ -1041,6 +1047,11 @@ neither, and names people as it did.
 `broadcasts` came with broadcasts, by `0030` in SQLite and `0027` in Postgres
 ([ADR 0083](adr/0083-broadcasts-run-in-the-background.md)). It is indexed by state and request
 time, for the queue, and by requester, for the listing. The previous release ignores it.
+
+`directory_users.profile` (`TEXT NOT NULL DEFAULT '{}'`) came with personal messages, by `0031` in
+SQLite and `0028` in Postgres ([ADR 0086](adr/0086-a-personal-message-names-only-its-recipient.md)).
+It holds `models.Profile` as JSON: job, organisation, business address, phones and language from
+Graph. Nothing filters on it. The previous release neither reads nor writes it.
 
 `database.migrate` decides what opening the store does about a schema that is behind: `auto`
 applies what is missing, `verify` refuses and names `teamster migrate up`, `off` asks nothing.

@@ -594,7 +594,11 @@ func (s *Server) closeChatMessages(ctx context.Context, ev models.Event, plan []
 			continue
 		}
 
-		rendered, err := s.renderMessageFor(ctx, ev, delivery, target.person)
+		closing := ev
+		if strings.HasPrefix(card.RecipientID, personKeyPrefix) {
+			closing = personalEvent(ev, target.person, nil)
+		}
+		rendered, err := s.renderMessageFor(ctx, closing, delivery, target.person)
 		if err != nil {
 			failures = append(failures, err)
 			continue
@@ -972,14 +976,29 @@ type chatTarget struct {
 }
 
 // recipientChat is a linked recipient's chat.
-func (s *Server) recipientChat(recipient models.Recipient) chatTarget {
+func (s *Server) recipientChat(ctx context.Context, recipient models.Recipient) chatTarget {
 	return chatTarget{
 		key:          recipient.ID,
 		ref:          conversationRef(recipient),
-		person:       templates.Person{ID: recipient.AADObjectID, DisplayName: recipient.Name},
+		person:       s.recipientPerson(ctx, recipient),
 		markBlocked:  func(ctx context.Context, cause error) { s.markRecipientBlocked(ctx, recipient.ID, cause) },
 		clearBlocked: func(ctx context.Context) { s.clearRecipientBlocked(ctx, recipient.ID) },
 	}
+}
+
+// recipientPerson is who a linked chat belongs to, with their directory
+// profile when the directory knows them (ADR 0086).
+func (s *Server) recipientPerson(ctx context.Context, recipient models.Recipient) templates.Person {
+	if recipient.AADObjectID != "" {
+		u, err := s.store.GetDirectoryUser(ctx, recipient.AADObjectID)
+		if err == nil {
+			return templates.PersonOf(u)
+		}
+		if !errors.Is(err, store.ErrNotFound) {
+			logError(ctx, "directory user of recipient", err)
+		}
+	}
+	return templates.Person{ID: recipient.AADObjectID, DisplayName: recipient.Name}
 }
 
 // chatForKey finds the chat a claim row names, for closing it.
@@ -995,7 +1014,7 @@ func (s *Server) chatForKey(ctx context.Context, key string) (chatTarget, error)
 	if err != nil {
 		return chatTarget{}, err
 	}
-	return s.recipientChat(recipient), nil
+	return s.recipientChat(ctx, recipient), nil
 }
 
 // deliverToRecipient is deliverToChannel's counterpart for a person's chat:
@@ -1028,7 +1047,7 @@ func (s *Server) deliverToRecipientOnce(ctx context.Context, ev models.Event, de
 // reported as that even when the recipient is gone too.
 func (s *Server) recipientMessage(ctx context.Context, ev models.Event, delivery routing.Delivery) (bot.Message, chatTarget, error) {
 	recipient, lookupErr := s.store.GetRecipient(ctx, delivery.RecipientID)
-	target := s.recipientChat(recipient)
+	target := s.recipientChat(ctx, recipient)
 	rendered, err := s.renderMessageFor(ctx, ev, delivery, target.person)
 	if err != nil {
 		return bot.Message{}, chatTarget{}, err

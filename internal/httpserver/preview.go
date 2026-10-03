@@ -120,6 +120,13 @@ func previewRecipient() templates.Person {
 	return templates.Person{
 		ID: "00000000-0000-0000-0000-000000000000", DisplayName: "Alex Example", GivenName: "Alex",
 		Surname: "Example", UPN: "alex.example@example.com", Mail: "alex.example@example.com",
+		JobTitle: "Site Reliability Engineer", Department: "Platform", CompanyName: "Example GmbH",
+		OfficeLocation: "Berlin", EmployeeID: "4711",
+		Address: models.Address{
+			Street: "Beispielstraße 1", PostalCode: "10115", City: "Berlin", State: "Berlin", Country: "Germany",
+		},
+		BusinessPhones: []string{"+49 30 1234567"}, MobilePhone: "+49 170 1234567",
+		PreferredLanguage: "de-DE", UsageLocation: "DE",
 	}
 }
 

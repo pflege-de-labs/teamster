@@ -50,7 +50,10 @@ const (
 )
 
 // userFields are the properties every user read selects.
-const userFields = "id,displayName,givenName,surname,userPrincipalName,mail,accountEnabled,userType"
+const userFields = "id,displayName,givenName,surname,userPrincipalName,mail,accountEnabled,userType," +
+	"jobTitle,department,companyName,officeLocation,employeeId," +
+	"streetAddress,postalCode,city,state,country," +
+	"businessPhones,mobilePhone,preferredLanguage,usageLocation"
 
 // User is the subset of a directory user needed to address and greet a person.
 type User struct {
@@ -62,6 +65,22 @@ type User struct {
 	Mail              string `json:"mail"`
 	AccountEnabled    bool   `json:"accountEnabled"`
 	UserType          string `json:"userType"`
+
+	// The profile a personal message is addressed with (ADR 0086).
+	JobTitle          string   `json:"jobTitle"`
+	Department        string   `json:"department"`
+	CompanyName       string   `json:"companyName"`
+	OfficeLocation    string   `json:"officeLocation"`
+	EmployeeID        string   `json:"employeeId"`
+	StreetAddress     string   `json:"streetAddress"`
+	PostalCode        string   `json:"postalCode"`
+	City              string   `json:"city"`
+	State             string   `json:"state"`
+	Country           string   `json:"country"`
+	BusinessPhones    []string `json:"businessPhones"`
+	MobilePhone       string   `json:"mobilePhone"`
+	PreferredLanguage string   `json:"preferredLanguage"`
+	UsageLocation     string   `json:"usageLocation"`
 }
 
 // GetUser reads one user by object id or user principal name. It needs

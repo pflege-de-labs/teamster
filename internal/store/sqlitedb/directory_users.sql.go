@@ -58,7 +58,7 @@ func (q *Queries) CountDirectoryUsersByState(ctx context.Context) ([]CountDirect
 }
 
 const findDirectoryUserByMailKey = `-- name: FindDirectoryUserByMailKey :one
-SELECT aad_object_id, tenant_id, user_principal_name, mail, upn_key, mail_key, display_name, given_name, surname, eligible, conversation_id, service_url, install_state, installed_at, next_attempt_at, attempts, last_error, blocked_at, blocked_reason, directory_seen_at, created_at, updated_at FROM directory_users
+SELECT aad_object_id, tenant_id, user_principal_name, mail, upn_key, mail_key, display_name, given_name, surname, eligible, conversation_id, service_url, install_state, installed_at, next_attempt_at, attempts, last_error, blocked_at, blocked_reason, directory_seen_at, created_at, updated_at, profile FROM directory_users
 WHERE mail_key = ?1
 ORDER BY updated_at DESC
 LIMIT 1
@@ -90,12 +90,13 @@ func (q *Queries) FindDirectoryUserByMailKey(ctx context.Context, addressKey str
 		&i.DirectorySeenAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Profile,
 	)
 	return i, err
 }
 
 const findDirectoryUserByUPNKey = `-- name: FindDirectoryUserByUPNKey :one
-SELECT aad_object_id, tenant_id, user_principal_name, mail, upn_key, mail_key, display_name, given_name, surname, eligible, conversation_id, service_url, install_state, installed_at, next_attempt_at, attempts, last_error, blocked_at, blocked_reason, directory_seen_at, created_at, updated_at FROM directory_users
+SELECT aad_object_id, tenant_id, user_principal_name, mail, upn_key, mail_key, display_name, given_name, surname, eligible, conversation_id, service_url, install_state, installed_at, next_attempt_at, attempts, last_error, blocked_at, blocked_reason, directory_seen_at, created_at, updated_at, profile FROM directory_users
 WHERE upn_key = ?1
 ORDER BY updated_at DESC
 LIMIT 1
@@ -130,12 +131,13 @@ func (q *Queries) FindDirectoryUserByUPNKey(ctx context.Context, addressKey stri
 		&i.DirectorySeenAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Profile,
 	)
 	return i, err
 }
 
 const getDirectoryUser = `-- name: GetDirectoryUser :one
-SELECT aad_object_id, tenant_id, user_principal_name, mail, upn_key, mail_key, display_name, given_name, surname, eligible, conversation_id, service_url, install_state, installed_at, next_attempt_at, attempts, last_error, blocked_at, blocked_reason, directory_seen_at, created_at, updated_at FROM directory_users WHERE aad_object_id = ?1
+SELECT aad_object_id, tenant_id, user_principal_name, mail, upn_key, mail_key, display_name, given_name, surname, eligible, conversation_id, service_url, install_state, installed_at, next_attempt_at, attempts, last_error, blocked_at, blocked_reason, directory_seen_at, created_at, updated_at, profile FROM directory_users WHERE aad_object_id = ?1
 `
 
 func (q *Queries) GetDirectoryUser(ctx context.Context, aadObjectID string) (DirectoryUser, error) {
@@ -164,12 +166,13 @@ func (q *Queries) GetDirectoryUser(ctx context.Context, aadObjectID string) (Dir
 		&i.DirectorySeenAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Profile,
 	)
 	return i, err
 }
 
 const getDirectoryUserByConversation = `-- name: GetDirectoryUserByConversation :one
-SELECT aad_object_id, tenant_id, user_principal_name, mail, upn_key, mail_key, display_name, given_name, surname, eligible, conversation_id, service_url, install_state, installed_at, next_attempt_at, attempts, last_error, blocked_at, blocked_reason, directory_seen_at, created_at, updated_at FROM directory_users
+SELECT aad_object_id, tenant_id, user_principal_name, mail, upn_key, mail_key, display_name, given_name, surname, eligible, conversation_id, service_url, install_state, installed_at, next_attempt_at, attempts, last_error, blocked_at, blocked_reason, directory_seen_at, created_at, updated_at, profile FROM directory_users
 WHERE conversation_id = ?1
 ORDER BY updated_at DESC
 LIMIT 1
@@ -201,12 +204,13 @@ func (q *Queries) GetDirectoryUserByConversation(ctx context.Context, conversati
 		&i.DirectorySeenAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Profile,
 	)
 	return i, err
 }
 
 const listDirectoryUserProblems = `-- name: ListDirectoryUserProblems :many
-SELECT aad_object_id, tenant_id, user_principal_name, mail, upn_key, mail_key, display_name, given_name, surname, eligible, conversation_id, service_url, install_state, installed_at, next_attempt_at, attempts, last_error, blocked_at, blocked_reason, directory_seen_at, created_at, updated_at FROM directory_users
+SELECT aad_object_id, tenant_id, user_principal_name, mail, upn_key, mail_key, display_name, given_name, surname, eligible, conversation_id, service_url, install_state, installed_at, next_attempt_at, attempts, last_error, blocked_at, blocked_reason, directory_seen_at, created_at, updated_at, profile FROM directory_users
 WHERE install_state IN ('failed', 'ineligible')
 ORDER BY updated_at DESC, aad_object_id
 LIMIT CAST(?1 AS BIGINT)
@@ -246,6 +250,7 @@ func (q *Queries) ListDirectoryUserProblems(ctx context.Context, maxRows int64) 
 			&i.DirectorySeenAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Profile,
 		); err != nil {
 			return nil, err
 		}
@@ -261,7 +266,7 @@ func (q *Queries) ListDirectoryUserProblems(ctx context.Context, maxRows int64) 
 }
 
 const listDirectoryUsersDue = `-- name: ListDirectoryUsersDue :many
-SELECT aad_object_id, tenant_id, user_principal_name, mail, upn_key, mail_key, display_name, given_name, surname, eligible, conversation_id, service_url, install_state, installed_at, next_attempt_at, attempts, last_error, blocked_at, blocked_reason, directory_seen_at, created_at, updated_at FROM directory_users
+SELECT aad_object_id, tenant_id, user_principal_name, mail, upn_key, mail_key, display_name, given_name, surname, eligible, conversation_id, service_url, install_state, installed_at, next_attempt_at, attempts, last_error, blocked_at, blocked_reason, directory_seen_at, created_at, updated_at, profile FROM directory_users
 WHERE eligible
 	AND (
 		(install_state IN ('unknown', 'removed', 'failed', 'ineligible')
@@ -321,6 +326,7 @@ func (q *Queries) ListDirectoryUsersDue(ctx context.Context, arg ListDirectoryUs
 			&i.DirectorySeenAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Profile,
 		); err != nil {
 			return nil, err
 		}
@@ -336,7 +342,7 @@ func (q *Queries) ListDirectoryUsersDue(ctx context.Context, arg ListDirectoryUs
 }
 
 const listReachableDirectoryUsers = `-- name: ListReachableDirectoryUsers :many
-SELECT aad_object_id, tenant_id, user_principal_name, mail, upn_key, mail_key, display_name, given_name, surname, eligible, conversation_id, service_url, install_state, installed_at, next_attempt_at, attempts, last_error, blocked_at, blocked_reason, directory_seen_at, created_at, updated_at FROM directory_users
+SELECT aad_object_id, tenant_id, user_principal_name, mail, upn_key, mail_key, display_name, given_name, surname, eligible, conversation_id, service_url, install_state, installed_at, next_attempt_at, attempts, last_error, blocked_at, blocked_reason, directory_seen_at, created_at, updated_at, profile FROM directory_users
 WHERE eligible AND install_state = 'installed' AND conversation_id <> ''
 	AND aad_object_id > ?1
 ORDER BY aad_object_id
@@ -383,6 +389,7 @@ func (q *Queries) ListReachableDirectoryUsers(ctx context.Context, arg ListReach
 			&i.DirectorySeenAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Profile,
 		); err != nil {
 			return nil, err
 		}
@@ -548,11 +555,11 @@ func (q *Queries) SetDirectoryUserInstalled(ctx context.Context, arg SetDirector
 const upsertDirectoryUser = `-- name: UpsertDirectoryUser :exec
 INSERT INTO directory_users (
 	aad_object_id, tenant_id, user_principal_name, mail, upn_key, mail_key,
-	display_name, given_name, surname, eligible, directory_seen_at, created_at, updated_at
+	display_name, given_name, surname, profile, eligible, directory_seen_at, created_at, updated_at
 ) VALUES (
 	?1, ?2, ?3, ?4,
 	?5, ?6, ?7, ?8,
-	?9, ?10, ?11, ?11, ?11
+	?9, ?10, ?11, ?12, ?12, ?12
 )
 ON CONFLICT(aad_object_id) DO UPDATE SET
 	tenant_id           = excluded.tenant_id,
@@ -563,6 +570,7 @@ ON CONFLICT(aad_object_id) DO UPDATE SET
 	display_name        = excluded.display_name,
 	given_name          = excluded.given_name,
 	surname             = excluded.surname,
+	profile             = excluded.profile,
 	eligible            = excluded.eligible,
 	directory_seen_at   = excluded.directory_seen_at,
 	updated_at          = excluded.updated_at,
@@ -580,6 +588,7 @@ type UpsertDirectoryUserParams struct {
 	DisplayName       string
 	GivenName         string
 	Surname           string
+	Profile           string
 	Eligible          bool
 	SeenAt            time.Time
 }
@@ -598,6 +607,7 @@ func (q *Queries) UpsertDirectoryUser(ctx context.Context, arg UpsertDirectoryUs
 		arg.DisplayName,
 		arg.GivenName,
 		arg.Surname,
+		arg.Profile,
 		arg.Eligible,
 		arg.SeenAt,
 	)

@@ -70,9 +70,12 @@ type Delivery struct {
 	RecipientID   string       `json:"recipient_id,omitempty"`
 	// PersonID is the Entra object id an addressed delivery was expanded to;
 	// the router never sets it.
-	PersonID   string `json:"person_id,omitempty"`
-	TemplateID string `json:"template_id"`
-	Reason     Reason `json:"reason"`
+	PersonID string `json:"person_id,omitempty"`
+	// Addresses are what the event named that person by, so their copy of it
+	// names only them (ADR 0086). Like PersonID the router never sets it.
+	Addresses  []string `json:"-"`
+	TemplateID string   `json:"template_id"`
+	Reason     Reason   `json:"reason"`
 }
 
 // A Result is what an event's labels produce: the deliveries, and why the tree
