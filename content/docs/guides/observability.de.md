@@ -118,6 +118,25 @@ sum by (route) (increase(teamster_deliveries_total{outcome="app_missing"}[15m]))
 Go-Laufzeitmetriken tragen die Namen von OpenTelemetry, etwa `go_memory_used_bytes`, nicht die
 `go_memstats_*`, die ein älteres Dashboard womöglich erwartet.
 
+### Drosselung von einem hängenden Lauf unterscheiden {#tell-throttling-from-a-stuck-run}
+
+Wird eine Rundsendung oder eine große Nachricht langsam, ist sie entweder gedrosselt oder hängt.
+Zwei Metriken unterscheiden das:
+
+| Beobachten | Bedeutet |
+| --- | --- |
+| `teamster.throttled` steigt | Microsoft hat Aufrufe mit `429` oder `503` abgewiesen. `api` sagt, ob Graph oder der Bot Connector es war. Teamster wartet und wiederholt sie. |
+| `teamster.pacing.wait` hoch | Bot-Connector-Aufrufe warten auf das Budget des Bots. Die Taktung hält sie unter dem Limit. |
+
+```promql
+sum by (api) (rate(teamster_throttled_total[5m]))
+histogram_quantile(0.95, sum(rate(teamster_pacing_wait_seconds[5m])))
+```
+
+Wird der Bot Connector oft gedrosselt, senken Sie `bot.pacing.rate`; prüfen Sie bei mehreren
+Replikaten, dass ihre Raten zusammen das Budget des Mandanten nicht übersteigen. Siehe
+[Aufrufe an Teams takten](../teams-bot/#pace-the-calls-to-teams).
+
 ### Native Histogramme in Prometheus einschalten {#enable-native-histograms-in-prometheus}
 
 Der Prometheus-Exporter liefert **native** Histogramme, die nur über Protobuf übertragen werden.

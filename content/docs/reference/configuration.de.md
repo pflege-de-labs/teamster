@@ -174,6 +174,13 @@ Einen Schlüssel, den die Datei setzt, Teamster aber nicht kennt, ignoriert Team
 | `bot.inline-install-budget` | `TEAMSTER_BOT_INLINE_INSTALL_BUDGET` | `5` | Für wie viele Personen eine Nachricht die App installieren darf, bevor sie zugestellt wird. |
 | `bot.welcome-message` | `TEAMSTER_BOT_WELCOME_MESSAGE` | — | Wird einmal gesendet, wenn die App für eine Person installiert wird; leer sendet nichts. |
 | `bot.directory-ttl` | `TEAMSTER_BOT_DIRECTORY_TTL` | `24h` | Wie lange einer nachgeschlagenen Person vertraut wird, bevor Graph erneut gefragt wird. |
+| `bot.pacing.strategy` | `TEAMSTER_BOT_PACING_STRATEGY` | `process` | Wie Aufrufe getaktet werden: `process` gibt jedem Replikat ein eigenes Budget. Einer von `process`. |
+| `bot.pacing.rate` | `TEAMSTER_BOT_PACING_RATE` | `20` | Bot-Connector-Aufrufe pro Sekunde für dieses Replikat; teilen Sie das Budget des Mandanten durch die Zahl der Replikate. |
+| `bot.pacing.burst` | `TEAMSTER_BOT_PACING_BURST` | `20` | Aufrufe, die dieses Replikat auf einmal machen darf, bevor `rate` greift. |
+| `bot.pacing.conversation-rate` | `TEAMSTER_BOT_PACING_CONVERSATION_RATE` | `0.5` | Aufrufe pro Sekunde an eine Unterhaltung. |
+| `bot.pacing.conversation-burst` | `TEAMSTER_BOT_PACING_CONVERSATION_BURST` | `7` | Aufrufe an eine Unterhaltung auf einmal, bevor `conversation-rate` greift. |
+| `bot.pacing.retries` | `TEAMSTER_BOT_PACING_RETRIES` | `3` | Wie oft ein mit `429` oder `503` abgewiesener Aufruf wiederholt wird; `0` lässt ihn sofort fehlschlagen. |
+| `bot.pacing.max-retry-wait` | `TEAMSTER_BOT_PACING_MAX_RETRY_WAIT` | `30s` | Längste Wartezeit vor einer Wiederholung, gleich was `Retry-After` verlangt. |
 
 ## Ereignis-Stichproben {#event-samples}
 
@@ -233,6 +240,7 @@ anderen Befehle führen sie nicht aus.
 | `bot.metadata-url` | Eine `https`-URL, wenn der Bot konfiguriert ist. |
 | `bot.service-url` | Wenn gesetzt, eine `https`-URL. |
 | `bot.directory-ttl` | Positiv, wenn der Bot konfiguriert ist. |
+| `bot.pacing.*` | Wenn der Bot konfiguriert ist: `rate`, `burst`, `conversation-rate`, `conversation-burst` und `max-retry-wait` sind positiv; `retries` ist nicht negativ. |
 | `bot.global-install` | Braucht einen konfigurierten Bot und `bot.app-id` oder `bot.catalog-app-id`. |
 | `bot.reconcile-interval` | Mit `bot.global-install`: `0` oder mindestens `5m`. |
 | `bot.reverify-interval` | Mit `bot.global-install`: positiv. |

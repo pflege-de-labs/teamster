@@ -172,6 +172,13 @@ A key the file sets but Teamster does not know is ignored without a warning.
 | `bot.inline-install-budget` | `TEAMSTER_BOT_INLINE_INSTALL_BUDGET` | `5` | How many people one message may install the app for before it is delivered. |
 | `bot.welcome-message` | `TEAMSTER_BOT_WELCOME_MESSAGE` | — | Sent once when the app is installed for a person; empty sends nothing. |
 | `bot.directory-ttl` | `TEAMSTER_BOT_DIRECTORY_TTL` | `24h` | How long a looked-up person is trusted before Graph is asked again. |
+| `bot.pacing.strategy` | `TEAMSTER_BOT_PACING_STRATEGY` | `process` | How calls are paced: `process` gives each replica a budget of its own. One of `process`. |
+| `bot.pacing.rate` | `TEAMSTER_BOT_PACING_RATE` | `20` | Bot Connector calls per second for this replica; divide the tenant's budget by the replica count. |
+| `bot.pacing.burst` | `TEAMSTER_BOT_PACING_BURST` | `20` | Calls this replica may make at once before `rate` applies. |
+| `bot.pacing.conversation-rate` | `TEAMSTER_BOT_PACING_CONVERSATION_RATE` | `0.5` | Calls per second to one conversation. |
+| `bot.pacing.conversation-burst` | `TEAMSTER_BOT_PACING_CONVERSATION_BURST` | `7` | Calls to one conversation at once before `conversation-rate` applies. |
+| `bot.pacing.retries` | `TEAMSTER_BOT_PACING_RETRIES` | `3` | How often a call refused with `429` or `503` is retried; `0` fails it at once. |
+| `bot.pacing.max-retry-wait` | `TEAMSTER_BOT_PACING_MAX_RETRY_WAIT` | `30s` | Longest wait before a retry, whatever `Retry-After` asks for. |
 
 ## Event samples
 
@@ -231,6 +238,7 @@ commands do not run them.
 | `bot.metadata-url` | An `https` URL when the bot is configured. |
 | `bot.service-url` | An `https` URL when set. |
 | `bot.directory-ttl` | Positive when the bot is configured. |
+| `bot.pacing.*` | When the bot is configured: `rate`, `burst`, `conversation-rate`, `conversation-burst` and `max-retry-wait` are positive; `retries` is not negative. |
 | `bot.global-install` | Needs the bot configured and `bot.app-id` or `bot.catalog-app-id`. |
 | `bot.reconcile-interval` | With `bot.global-install`: `0` or at least `5m`. |
 | `bot.reverify-interval` | With `bot.global-install`: positive. |
