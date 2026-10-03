@@ -328,9 +328,11 @@ rather than at the next interval; `POST /api/people/install` does the same, and
 ineligible install at once, without waiting for its next attempt, so it is the step to take after
 granting a permission.
 
-A route can deliver to **People named in the message** instead of a channel or one person: pick
-it in **Delivers to**. Only an admin may create, edit or delete such a route
-([ADR 0062](docs/adr/0062-a-route-may-deliver-to-the-people-a-message-names.md)). A message names
+A route can deliver to **Any person named in the message** instead of a channel or one person:
+pick it in **Delivers to**. Anyone who may edit routes may create one
+([ADR 0087](docs/adr/0087-anyone-may-route-to-the-people-a-message-names.md)). Whom it reaches is
+decided by the sender's message level, not by the route: a token that may message only its creator
+reaches only them through it, however broad the selector. A message names
 the people in `recipients` or the `teamster_recipient` label; see
 [Messages to individual people](#messages-to-individual-people).
 
@@ -456,7 +458,7 @@ Alertmanager's `firing` and `resolved` arrive as `open` and `closed`. See
 A message names the people it is for in a top-level `recipients` list: UPNs, mail addresses or
 Entra object ids. A sender without such a field, such as Alertmanager, sets the label
 `teamster_recipient`, several addresses separated by commas. The list wins when both are there. A
-route whose **Delivers to** is **People named in the message** sends each of them their own message,
+route whose **Delivers to** is **Any person named in the message** sends each of them their own message,
 rendered for them, so a template can greet them by `{{ .Recipient.GivenName }}`
 ([ADR 0063](docs/adr/0063-a-message-names-its-recipients.md)). See
 [samples/universal-password-expiry.json](samples/universal-password-expiry.json).

@@ -10,6 +10,12 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 ## [Unreleased]
 
+### Changed
+
+* Anyone who may edit routes may create a route to **Any person named in the message**, formerly
+  *People named in the message* and admins only. Whom it reaches is still bounded by the sender's
+  message level ([ADR 0087](docs/adr/0087-anyone-may-route-to-the-people-a-message-names.md)).
+
 ## [0.12.0] — 2026-10-02
 
 ### Changed

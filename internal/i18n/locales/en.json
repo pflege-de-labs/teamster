@@ -323,7 +323,7 @@
   "people.problems_heading": "Installs that did not work",
   "people.problems_empty": "Nothing failed.",
   "people.next_attempt": "next attempt {0}",
-  "routes.target_addressed": "People named in the message",
+  "routes.target_addressed": "Any person named in the message",
   "notifications.bind_no_account": "We could not find your Teams account from how you signed in. Ask an administrator to check the object-id claim, or sign in with your work account.",
   "notifications.bind_no_chat": "We found your Teams account, but the bot has no chat with you yet. Set it up now, or wait for the next install run.",
   "notifications.bind_local": "You signed in with the local account, which has no Teams chat. Sign in with your work account to receive the alerts routed to you.",

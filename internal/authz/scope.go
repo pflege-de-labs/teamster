@@ -18,8 +18,8 @@ const (
 	ActionViewTeam    = "viewTeam"
 	// ActionDeliverToRecipient is pointing a route at a person's chat.
 	ActionDeliverToRecipient = "deliverToRecipient"
-	// ActionDeliverToAddressed is pointing a route at whoever a message names,
-	// which reaches anyone in the tenant (ADR 0062).
+	// ActionDeliverToAddressed is pointing a route at whoever a message names
+	// (ADR 0062); every user holds it (ADR 0087).
 	ActionDeliverToAddressed = "deliverToAddressed"
 )
 

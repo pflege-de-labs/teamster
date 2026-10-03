@@ -59,9 +59,13 @@ func TestAllow(t *testing.T) {
 			resource: AddressedResource, want: true,
 		},
 		{
-			// Addressing reaches anyone in the tenant, which no chat of one's own does.
-			name: "an editor may not address people", roles: []Role{RoleEditor}, action: ActionDeliverToAddressed,
-			resource: AddressedResource, want: false,
+			// The sender's message level bounds whom it reaches, not the route's author (ADR 0087).
+			name: "an editor may address people", roles: []Role{RoleEditor}, action: ActionDeliverToAddressed,
+			resource: AddressedResource, want: true,
+		},
+		{
+			name: "a user with no role may address people", roles: nil, action: ActionDeliverToAddressed,
+			resource: AddressedResource, want: true,
 		},
 		{
 			// A role this build does not know must not fall through to allowed.

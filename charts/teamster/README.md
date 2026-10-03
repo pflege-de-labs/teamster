@@ -142,7 +142,7 @@ Microsoft: it is on the Ingress, or on `httpRoute.external`, never only on `http
 
 With `config.settings.bot.global-install: true`, teamster installs the app for every enabled member
 of the tenant and nobody can opt out. A message then names its people in `recipients`, or in the
-`teamster_recipient` label, and a route delivers to **People named in the message**. Admins follow
+`teamster_recipient` label, and a route delivers to **Any person named in the message**. Admins follow
 the installs and start a run on `/admin/people`. The Graph registration needs more permissions for
 this; they are listed in the `bot` comments in `values.yaml` and in the
 [README](../../README.md#messages-to-individual-people). When Keycloak brokers the login against
