@@ -19,11 +19,19 @@ reasoning behind it in the [ADRs](docs/adr/).
   Teams throttles the bot ([ADR 0085](docs/adr/0085-pace-bot-connector-calls.md)).
 * `teamster.throttled`, by `api`, counts each `429` and `503` from Graph or the Bot Connector, and
   `teamster.pacing.wait` records how long each call waited for its turn.
+* `.Recipient` carries the person's Entra profile: `JobTitle`, `Department`, `CompanyName`,
+  `OfficeLocation`, `EmployeeID`, `Address` (`Street`, `PostalCode`, `City`, `State`, `Country`),
+  `BusinessPhones`, `MobilePhone`, `PreferredLanguage` and `UsageLocation`. A linked chat has them
+  too when its person is in the directory. People already known get them at the next install run
+  ([ADR 0086](docs/adr/0086-a-personal-message-names-only-its-recipient.md)).
 
 ### Changed
 
 * Listing teams and channels and checking a team's apps in Graph retry while Graph throttles, like
   the directory calls already did.
+* A message to the people it names shows each person only themselves: their address in
+  `.Event.Universal.Recipients` and the `teamster_recipient` label, and of an Alertmanager group only
+  the alerts that name them or nobody. A template could previously print every recipient.
 
 ## [0.12.0] — 2026-10-02
 

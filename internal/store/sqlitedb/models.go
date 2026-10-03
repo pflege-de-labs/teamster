@@ -151,6 +151,7 @@ type DirectoryUser struct {
 	DirectorySeenAt   time.Time
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
+	Profile           string
 }
 
 type EventSample struct {

@@ -402,3 +402,38 @@ func TestConformanceConcurrentDirectoryRunRequests(t *testing.T) {
 		}
 	})
 }
+
+func TestConformanceDirectoryUserProfile(t *testing.T) {
+	t.Parallel()
+
+	eachBackend(t, func(t *testing.T, open func(t *testing.T) store.Store) {
+		st := open(t)
+		ctx := t.Context()
+		seen := time.Date(2026, 9, 1, 12, 0, 0, 0, time.UTC)
+
+		profiles := []models.Profile{
+			{
+				JobTitle: "SRE", Department: "Platform", CompanyName: "Corp", OfficeLocation: "Berlin", EmployeeID: "4711",
+				Address:        models.Address{Street: "Hauptstraße 1", PostalCode: "10115", City: "Berlin", State: "BE", Country: "DE"},
+				BusinessPhones: []string{"+49 30 1", "+49 30 2"}, MobilePhone: "+49 170 1",
+				PreferredLanguage: "de-DE", UsageLocation: "DE",
+			},
+			// A later listing that no longer carries a field clears it.
+			{Department: "Security"},
+		}
+		for _, want := range profiles {
+			u := alice(seen)
+			u.Profile = want
+			if err := st.UpsertDirectoryUser(ctx, u); err != nil {
+				t.Fatalf("UpsertDirectoryUser: %v", err)
+			}
+			got, err := st.GetDirectoryUser(ctx, "oid-alice")
+			if err != nil {
+				t.Fatalf("GetDirectoryUser: %v", err)
+			}
+			if fmt.Sprint(got.Profile) != fmt.Sprint(want) {
+				t.Errorf("Profile = %+v, want %+v", got.Profile, want)
+			}
+		}
+	})
+}

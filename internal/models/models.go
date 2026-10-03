@@ -117,6 +117,7 @@ type DirectoryUser struct {
 	DisplayName       string       `json:"display_name"`
 	GivenName         string       `json:"given_name"`
 	Surname           string       `json:"surname"`
+	Profile           Profile      `json:"profile"`
 	Eligible          bool         `json:"eligible"`
 	ConversationID    string       `json:"conversation_id"`
 	ServiceURL        string       `json:"service_url"`
@@ -130,6 +131,30 @@ type DirectoryUser struct {
 	DirectorySeenAt   time.Time    `json:"directory_seen_at"`
 	CreatedAt         time.Time    `json:"created_at"`
 	UpdatedAt         time.Time    `json:"updated_at"`
+}
+
+// Profile is what Entra says about a person beyond their name, so a
+// personal message can address them (ADR 0086).
+type Profile struct {
+	JobTitle          string   `json:"job_title,omitempty"`
+	Department        string   `json:"department,omitempty"`
+	CompanyName       string   `json:"company_name,omitempty"`
+	OfficeLocation    string   `json:"office_location,omitempty"`
+	EmployeeID        string   `json:"employee_id,omitempty"`
+	Address           Address  `json:"address"`
+	BusinessPhones    []string `json:"business_phones,omitempty"`
+	MobilePhone       string   `json:"mobile_phone,omitempty"`
+	PreferredLanguage string   `json:"preferred_language,omitempty"`
+	UsageLocation     string   `json:"usage_location,omitempty"`
+}
+
+// Address is a person's business address in Entra, not where they live.
+type Address struct {
+	Street     string `json:"street,omitempty"`
+	PostalCode string `json:"postal_code,omitempty"`
+	City       string `json:"city,omitempty"`
+	State      string `json:"state,omitempty"`
+	Country    string `json:"country,omitempty"`
 }
 
 // RunKind says who asked for a directory run.

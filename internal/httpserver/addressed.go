@@ -122,7 +122,9 @@ func (s *Server) expandAddressed(ctx context.Context, ev models.Event, plan []ro
 			s.miss(ctx, &rep, delivery, "", reasonNoRecipient)
 			continue
 		}
-		seen := map[string]bool{}
+		// at is where each person's delivery sits in out, to add the other
+		// addresses they were named by.
+		at := map[string]int{}
 		for _, address := range addresses {
 			u, err := s.resolvePerson(ctx, address, resolved, &budget)
 			if err != nil {
@@ -133,13 +135,15 @@ func (s *Server) expandAddressed(ctx context.Context, ev models.Event, plan []ro
 				failures = append(failures, fmt.Errorf("recipient %s: %w", address, err))
 				continue
 			}
-			if seen[u.AADObjectID] {
+			if i, ok := at[u.AADObjectID]; ok {
+				out[i].Addresses = append(out[i].Addresses, address)
 				continue
 			}
-			seen[u.AADObjectID] = true
+			at[u.AADObjectID] = len(out)
 			addressOf[u.AADObjectID] = address
 			person := delivery
 			person.PersonID = u.AADObjectID
+			person.Addresses = []string{address}
 			out = append(out, person)
 		}
 	}
@@ -236,7 +240,7 @@ func (s *Server) deliverToPerson(ctx context.Context, ev models.Event, delivery 
 		return fmt.Errorf("directory user: %w", err)
 	}
 	target := s.personChat(u)
-	rendered, err := s.renderMessageFor(ctx, ev, delivery, target.person)
+	rendered, err := s.renderMessageFor(ctx, personalEvent(ev, target.person, delivery.Addresses), delivery, target.person)
 	if err != nil {
 		return err
 	}
@@ -263,10 +267,7 @@ func (s *Server) personChat(u models.DirectoryUser) chatTarget {
 			ServiceURL: serviceURL, ConversationID: u.ConversationID, BotChannelID: "msteams",
 			TenantID: u.TenantID, AADObjectID: oid,
 		},
-		person: templates.Person{
-			ID: oid, DisplayName: u.DisplayName, GivenName: u.GivenName, Surname: u.Surname,
-			UPN: u.UserPrincipalName, Mail: u.Mail,
-		},
+		person: templates.PersonOf(u),
 		markBlocked: func(ctx context.Context, cause error) {
 			if err := s.store.MarkDirectoryUserBlocked(ctx, oid, s.now(), blockedReason(cause)); err != nil {
 				logError(ctx, "mark directory user blocked", err)

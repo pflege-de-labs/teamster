@@ -924,8 +924,8 @@ Templates receive:
 - `Event` (the normalized event, below)
 - `Now` (RFC3339 string)
 - `Payload` (the request body as decoded JSON; Teams V2 only)
-- `Recipient` (who a chat message is rendered for: `ID`, `DisplayName`, `GivenName`, `Surname`,
-  `UPN`, `Mail`; empty for a channel, and only `ID` and `DisplayName` for a linked chat)
+- `Recipient` (who a chat message is rendered for; empty for a channel, see
+  [Personal messages](#personal-messages))
 
 Every event has the same core, whichever webhook it arrived at:
 
@@ -963,6 +963,39 @@ Helper functions:
 
 - `toJSON` to JSON-encode structures
 - `default` to provide fallbacks, including for a key an event did not set
+
+### Personal messages
+
+A chat message is rendered for one person, and `.Recipient` is who they are in Entra
+([ADR 0086](docs/adr/0086-a-personal-message-names-only-its-recipient.md)):
+
+| Field | Holds |
+| --- | --- |
+| `ID`, `DisplayName`, `GivenName`, `Surname`, `UPN`, `Mail` | Who they are |
+| `JobTitle`, `Department`, `CompanyName`, `OfficeLocation`, `EmployeeID` | Where they work |
+| `Address.Street`, `.PostalCode`, `.City`, `.State`, `.Country` | Their business address |
+| `BusinessPhones` (a list), `MobilePhone` | How to call them |
+| `PreferredLanguage`, `UsageLocation` | Which language to write in, such as `de-DE` |
+
+```gotemplate
+{{ if eq .Recipient.PreferredLanguage "de-DE" }}Hallo{{ else }}Hello{{ end }} {{ .Recipient.GivenName }},
+please return your laptop to {{ .Recipient.OfficeLocation }}, {{ .Recipient.Address.City }}.
+```
+
+A field Entra does not have for someone is empty. People already in the directory get these fields
+at the next install run (`bot.reconcile-interval`), or the next time a message reads them after
+`bot.directory-ttl`. A linked chat has them when its person is in the directory, and otherwise only
+`ID` and `DisplayName`.
+
+When a route delivers to the people a message names, each person's message names only them:
+
+- `.Event.Universal.Recipients` and the `teamster_recipient` label hold only the address that named
+  them.
+- An Alertmanager group holds only the alerts that name them and the alerts that name nobody. With
+  one such alert left, the flat `Annotations`, `StartsAt`, `EndsAt` and `GeneratorURL` are filled.
+
+A template can therefore not show anybody who else got the message. A channel, and a route to one
+linked chat, still sees the whole event.
 
 ### Groups of alerts
 
