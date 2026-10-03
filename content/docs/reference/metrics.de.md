@@ -35,6 +35,8 @@ Attributnamen behalten über OTLP ihre Punkte und verwenden in Prometheus Unters
 | `teamster.directory.users` | `teamster_directory_users` | Gauge | `{person}` | `state` | Personen im Verzeichnis, nach Installationsstatus. |
 | `teamster.audit.failed` | `teamster_audit_failed_total` | Counter | `{event}` | `sink` | Audit-Ereignisse, die ein Sink abgelehnt hat. |
 | `teamster.audit.dropped` | `teamster_audit_dropped_total` | Counter | `{event}` | `sink` | Audit-Ereignisse, die verworfen wurden, weil die Warteschlange eines Sinks voll war. |
+| `teamster.throttled` | `teamster_throttled_total` | Counter | `{call}` | `api` | Aufrufe, die Microsoft Graph oder der Bot Connector mit `429` oder `503` abgewiesen hat, nach API. Jeder abgewiesene Versuch zählt. |
+| `teamster.pacing.wait` | `teamster_pacing_wait_seconds` | Histogramm | `s` | — | Zeit, die ein Bot-Connector-Aufruf auf das Budget des Bots gewartet hat. Siehe [Aufrufe an Teams takten](../../guides/teams-bot/#pace-the-calls-to-teams). |
 
 Ein Counter erscheint in der Ausgabe, sobald er etwas gezählt hat. Die Gauges werden beim Abruf aus
 der Datenbank gelesen, und jede Antwort wird eine Sekunde lang wiederverwendet.
@@ -67,6 +69,7 @@ Histogramme für die Größe von Anfrage- und Antwortkörpern werden verworfen.
 | `teamster.directory.runs` | `outcome` | `done`, `failed`, `lost` |
 | `teamster.directory.users` | `state` | `unknown`, `installed`, `removed`, `failed`, `ineligible`, `departed` |
 | `teamster.audit.failed`, `teamster.audit.dropped` | `sink` | `database`, `file`, `nats` |
+| `teamster.throttled` | `api` | `bot`, `graph` |
 
 `app_missing` ist ein Kanal-Post, den der Bot Connector abgelehnt hat, fast immer, weil die
 Teams-App in diesem Team nicht installiert ist. Wie `blocked` bleibt der Zustand bestehen, bis

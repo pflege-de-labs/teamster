@@ -171,7 +171,9 @@ bot:
 ```
 
 One request's fan-out has to finish within `server.write-timeout`. Raise it if you raise the
-limits.
+limits. Every send also waits its turn in the bot's pacing, and a throttled one waits for its
+`Retry-After`. A send that would wait past the deadline fails, and the sender gets a `502` and
+retries. See [Pace the calls to Teams](../teams-bot/#pace-the-calls-to-teams).
 
 See [ADR 0063](https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0063-a-message-names-its-recipients.md)
 for the design.

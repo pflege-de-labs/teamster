@@ -103,7 +103,11 @@ Rundsendungen werden 30 Tage aufbewahrt.
 * Fällt ein Replikat aus, übernimmt ein anderes die Rundsendung innerhalb von etwa zwei Minuten,
   ab dem letzten Schritt, den es festgehalten hat. Bis zu 25 Personen erhalten sie dann womöglich
   zweimal.
-* Ein fehlgeschlagener Versand wird gezählt, nicht wiederholt.
+* Jeder Versand wird zusammen mit den übrigen Aufrufen des Bots getaktet, eine große Rundsendung
+  braucht also ihre Zeit; siehe [Aufrufe an Teams takten](../teams-bot/#pace-the-calls-to-teams).
+* Einen Versand, den Teams drosselt (`429`) oder für den es nicht verfügbar ist (`503`), wiederholt
+  Teamster nach seinem `Retry-After`. Jeder andere fehlgeschlagene Versand wird gezählt, nicht
+  wiederholt. Ebenso einer, der eine Minute nach Beginn seines Schritts von 25 noch wartet.
 * Die Empfänger werden beim Start der Rundsendung gelesen. Wer später hinzukommt, erhält sie nur,
   wenn ein Replikat die Rundsendung übernimmt und diese Person hinter der Stelle liest, bis zu der
   es gekommen war.

@@ -115,6 +115,25 @@ sum by (route) (increase(teamster_deliveries_total{outcome="app_missing"}[15m]))
 Go runtime metrics use OpenTelemetry's names, such as `go_memory_used_bytes`, not the
 `go_memstats_*` an older dashboard may expect.
 
+### Tell throttling from a stuck run
+
+A broadcast or a large message that slows down is either throttled or stuck. Two metrics tell them
+apart:
+
+| Watch | Means |
+| --- | --- |
+| `teamster.throttled` rising | Microsoft refused calls with `429` or `503`. `api` says whether Graph or the Bot Connector did. Teamster waits and retries them. |
+| `teamster.pacing.wait` high | Bot Connector calls wait for the bot's budget. The pacing keeps them under the limit. |
+
+```promql
+sum by (api) (rate(teamster_throttled_total[5m]))
+histogram_quantile(0.95, sum(rate(teamster_pacing_wait_seconds[5m])))
+```
+
+If the Bot Connector is throttled often, lower `bot.pacing.rate`; with several replicas, check that
+their rates add up to no more than the tenant's budget. See
+[Pace the calls to Teams](../teams-bot/#pace-the-calls-to-teams).
+
 ### Enable native histograms in Prometheus
 
 The Prometheus exporter emits **native** histograms, which travel only over protobuf. Start
