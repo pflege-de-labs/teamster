@@ -129,18 +129,59 @@ Einen Label-Schlüssel, der nicht hinter einem Punkt stehen kann, liest `index`:
 
 ## Empfänger {#recipient}
 
-Gesetzt, wenn eine Route in den Chat einer Person zustellt.
+Gesetzt, wenn eine Route in den Chat einer Person zustellt. Die Felder stammen aus dem Entra-Profil
+der Person. Ein Feld, das Entra für jemanden nicht kennt, ist leer.
 
-| Feld | Enthält | In der Nachricht genannte Person | Verknüpfter Chat |
-| --- | --- | --- | --- |
-| `.Recipient.ID` | Entra-Objekt-ID | ja | ja |
-| `.Recipient.DisplayName` | Anzeigename | ja | ja |
-| `.Recipient.GivenName` | Vorname | ja | leer |
-| `.Recipient.Surname` | Nachname | ja | leer |
-| `.Recipient.UPN` | User Principal Name | ja | leer |
-| `.Recipient.Mail` | E-Mail-Adresse | ja | leer |
+| Feld | Typ | Enthält |
+| --- | --- | --- |
+| `.Recipient.ID` | string | Entra-Objekt-ID |
+| `.Recipient.DisplayName` | string | Anzeigename |
+| `.Recipient.GivenName` | string | Vorname |
+| `.Recipient.Surname` | string | Nachname |
+| `.Recipient.UPN` | string | User Principal Name |
+| `.Recipient.Mail` | string | E-Mail-Adresse |
+| `.Recipient.JobTitle` | string | Position |
+| `.Recipient.Department` | string | Abteilung |
+| `.Recipient.CompanyName` | string | Firmenname |
+| `.Recipient.OfficeLocation` | string | Bürostandort |
+| `.Recipient.EmployeeID` | string | Personalnummer |
+| `.Recipient.Address.Street` | string | Straße der Geschäftsadresse |
+| `.Recipient.Address.PostalCode` | string | Postleitzahl der Geschäftsadresse |
+| `.Recipient.Address.City` | string | Ort der Geschäftsadresse |
+| `.Recipient.Address.State` | string | Bundesland der Geschäftsadresse |
+| `.Recipient.Address.Country` | string | Land der Geschäftsadresse |
+| `.Recipient.BusinessPhones` | Liste von string | Geschäftliche Telefonnummern |
+| `.Recipient.MobilePhone` | string | Mobilnummer |
+| `.Recipient.PreferredLanguage` | string | Bevorzugte Sprache, etwa `de-DE` |
+| `.Recipient.UsageLocation` | string | Nutzungsstandort, ein Ländercode wie `DE` |
 
-Bei einem Kanal sind alle Felder leer.
+Welche Felder gefüllt sind, hängt vom Chat ab:
+
+| Chat | Felder |
+| --- | --- |
+| In der Nachricht genannte Person, oder per Rundsendung über das Verzeichnis erreicht | Alle |
+| Verknüpfter Chat einer Person, die im Verzeichnis steht | Alle |
+| Verknüpfter Chat einer Person, die nicht im Verzeichnis steht | Nur `ID` und `DisplayName` |
+| Kanal | Keine |
+
+Nach einem Upgrade von einem Release ohne diese Felder erhält eine Person, die bereits im
+Verzeichnis steht, sie beim nächsten Installationslauf (`bot.reconcile-interval`) oder wenn eine
+Nachricht sie nach Ablauf von `bot.directory-ttl` erneut nachschlägt. Bis dahin sind sie leer.
+
+### Das Ereignis, das eine Person sieht {#the-event-a-person-sees}
+
+Wenn eine Route an die in einer Nachricht genannten Personen zustellt, wird die Nachricht jeder
+Person aus einer Kopie des Ereignisses gerendert, die nur sie nennt:
+
+* `.Event.Universal.Recipients` enthält nur die Adressen, die diese Person genannt haben.
+* Das Label `teamster_recipient` in `.Event.Labels`, `.Event.Alertmanager.CommonLabels` und den
+  Labels jedes Alarms enthält nur die Adressen, die diese Person genannt haben. Nannte es nur
+  andere, fehlt es.
+* `.Event.Alertmanager.Alerts` enthält nur die Alarme, die diese Person nennen, und die Alarme, die
+  niemanden nennen. Bleibt ein Alarm übrig, werden `Annotations`, `StartsAt`, `EndsAt` und
+  `GeneratorURL` aus ihm gefüllt, wie bei einer Gruppe mit einem Alarm.
+
+Ein Kanal und eine Route an einen einzelnen verknüpften Chat sehen das ganze Ereignis.
 
 ## Funktionen {#functions}
 

@@ -113,8 +113,8 @@ for a group of two alerts. A `200 {"status":"ok"}` means the notification was de
   [List the alerts of a group](../templates/#list-the-alerts-of-a-group) and
   [Template data](../../reference/template-data/#alertmanager-extension).
 * To send an alert to people rather than a channel, set the label `teamster_recipient`. The
-  addresses of all alerts in the group are joined. See
-  [Send messages to individual people](../direct-messages/).
+  addresses of all alerts in the group are joined. Each person gets only the alerts that name them
+  and the alerts that name nobody. See [Send messages to individual people](../direct-messages/).
 
 ## After upgrading from a release with one card per alert
 
