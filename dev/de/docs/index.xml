@@ -1112,17 +1112,24 @@ Alarme zutreffen, die ihre übergeordnete Route bisher herausgefiltert hat.&lt;/
 &lt;td&gt;den Chat dieser Person mit dem Bot, sobald sie ihn verknüpft hat&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
-&lt;td&gt;In der Nachricht genannte Personen&lt;/td&gt;
+&lt;td&gt;Jede in der Nachricht genannte Person&lt;/td&gt;
 &lt;td&gt;alle, die das Ereignis in &lt;code&gt;recipients&lt;/code&gt; oder im Label &lt;code&gt;teamster_recipient&lt;/code&gt; nennt&lt;/td&gt;
 &lt;/tr&gt;
 &lt;/tbody&gt;
 &lt;/table&gt;
 &lt;p&gt;Eine Wurzelroute muss ein Zustellziel nennen. Eine untergeordnete Route, die das Zustellziel ihrer
 übergeordneten übernimmt, muss eine andere Vorlage verwenden, sonst brächte sie nichts hinzu. Als
-Person kann eine Route nur Ihren eigenen Chat nennen, es sei denn, Sie sind Administrator. Nur
-Administratoren dürfen eine Route an die in einer Nachricht genannten Personen anlegen, weil sie
-jeden im Tenant erreichen kann. Siehe
+Person kann eine Route nur Ihren eigenen Chat nennen, es sei denn, Sie sind Administrator.&lt;/p&gt;
+&lt;p&gt;Wer Routen bearbeiten darf, darf auch eine Route an &lt;strong&gt;Jede in der Nachricht genannte Person&lt;/strong&gt;
+anlegen. Wen sie erreicht, entscheidet der Absender, nicht die Route: Ein Token, das nur seinen
+Ersteller nennen darf, erreicht über sie nur diesen, wie weit der Selektor auch gefasst ist. Siehe
 &lt;a href="../../guides/direct-messages/"&gt;Nachrichten an einzelne Personen senden&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Routen gelten allerdings global. Eine solche Route trifft auf jede Nachricht zu, die ihr Selektor
+erfasst, gleich von welchem Absender, und rendert sie mit der Vorlage ihres Autors. Eine Route mit
+weit gefasstem Selektor, etwa &lt;code&gt;{&amp;quot;teamster_source&amp;quot;: &amp;quot;universal&amp;quot;}&lt;/code&gt;, sendet daher den Personen, die
+andere Absender nennen, eine zusätzliche Nachricht mit den Worten ihres Autors. Sie erreicht
+niemanden, den diese Absender nicht ohnehin anschreiben dürften. Solche Routen finden Sie im
+&lt;a href="#seeing-the-routes"&gt;Routing-Bild&lt;/a&gt; und im &lt;a href="../../guides/audit-trail/"&gt;Änderungsprotokoll&lt;/a&gt;.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="fallbacks"&gt;Rückfallebenen&lt;span class="hx:absolute hx:-mt-20" id="fallbacks"&gt;&lt;/span&gt;
 &lt;a href="#fallbacks" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Trifft keine Wurzelroute zu, fällt Teamster in zwei Stufen zurück:&lt;/p&gt;
 &lt;ol&gt;
@@ -2740,9 +2747,9 @@ und sagt sonst nichts.&lt;/li&gt;
 fehlgeschlagene Installationen mit ihrem Grund. Ein von Hand gestarteter Lauf wiederholt sofort jede
 fehlgeschlagene Installation; starten Sie also einen, nachdem Sie eine fehlende Berechtigung
 erteilt haben.&lt;/p&gt;
-&lt;p&gt;Eine Route kann jetzt an &lt;strong&gt;In der Nachricht genannte Personen&lt;/strong&gt; zustellen. Nur ein Administrator
-darf eine solche Route anlegen, bearbeiten oder löschen. Siehe
-&lt;a href="../direct-messages/"&gt;Alarme an einzelne Personen senden&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Eine Route kann jetzt an &lt;strong&gt;Jede in der Nachricht genannte Person&lt;/strong&gt; zustellen. Wer Routen bearbeiten
+darf, darf eine solche Route anlegen. Siehe
+&lt;a href="../direct-messages/"&gt;Nachrichten an einzelne Personen senden&lt;/a&gt;.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="pace-the-calls-to-teams"&gt;Aufrufe an Teams takten&lt;span class="hx:absolute hx:-mt-20" id="pace-the-calls-to-teams"&gt;&lt;/span&gt;
 &lt;a href="#pace-the-calls-to-teams" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Teams drosselt den Bot als Ganzes, über alle Kanal-Posts, Chat-Nachrichten, Rundsendungen und
 Installationen hinweg. Teamster taktet jeden Aufruf an den Bot Connector so, dass er unter diesem
@@ -6455,9 +6462,12 @@ den Bot für Personen installieren, die ihn noch nicht haben.&lt;/p&gt;
 &lt;a href="#address-people" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;div class="hextra-steps hx:ml-4 hx:mb-12 hx:ltr:border-l hx:rtl:border-r hx:border-gray-200 hx:ltr:pl-6 hx:rtl:pr-6 hx:dark:border-neutral-800 [counter-reset:step]"&gt;
 &lt;h3 data-hextra-search-id="create-a-route-that-addresses-people"&gt;Eine Route anlegen, die Personen adressiert&lt;span class="hx:absolute hx:-mt-20" id="create-a-route-that-addresses-people"&gt;&lt;/span&gt;
 &lt;a href="#create-a-route-that-addresses-people" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Legen Sie in der Verwaltungsoberfläche eine Route an oder bearbeiten Sie eine, und setzen Sie
-&lt;strong&gt;Liefert an&lt;/strong&gt; auf &lt;strong&gt;In der Nachricht genannte Personen&lt;/strong&gt;. Geben Sie ihr einen Label-Selektor für
+&lt;strong&gt;Liefert an&lt;/strong&gt; auf &lt;strong&gt;Jede in der Nachricht genannte Person&lt;/strong&gt;. Geben Sie ihr einen Label-Selektor für
 die Nachrichten, die sie übernehmen soll, zum Beispiel &lt;code&gt;{&amp;quot;kind&amp;quot;: &amp;quot;password-expiry&amp;quot;}&lt;/code&gt;, und eine
-Vorlage.&lt;/p&gt;
+Vorlage. Wer Routen bearbeiten darf, darf eine solche Route anlegen.&lt;/p&gt;
+&lt;p&gt;Fassen Sie den Selektor eng. Die Route übernimmt jede Nachricht, die er erfasst, gleich von welchem
+Absender, und rendert sie mit Ihrer Vorlage. Wen sie erreicht, begrenzt das Token des jeweiligen
+Absenders, das Sie im nächsten Schritt festlegen.&lt;/p&gt;
 &lt;p&gt;Jede Person erhält ihre eigene, für sie gerenderte Nachricht. Die Vorlage kann sie also persönlich
 ansprechen:&lt;/p&gt;
 &lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
@@ -6810,11 +6820,11 @@ data-copied-label="Kopiert!"
 &lt;h3 data-hextra-search-id="create-a-route-that-addresses-people"&gt;Eine Route anlegen, die Personen adressiert&lt;span class="hx:absolute hx:-mt-20" id="create-a-route-that-addresses-people"&gt;&lt;/span&gt;
 &lt;a href="#create-a-route-that-addresses-people" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Legen Sie eine Route an, die die Nachricht selektiert, etwa mit &lt;code&gt;{&amp;quot;kind&amp;quot;: &amp;quot;office-notice&amp;quot;}&lt;/code&gt;, oder
 bearbeiten Sie eine solche, und setzen Sie &lt;strong&gt;Liefert an&lt;/strong&gt; auf
-&lt;strong&gt;In der Nachricht genannte Personen&lt;/strong&gt;. Jede Person erhält ihre eigene, für sie gerenderte Kopie;
+&lt;strong&gt;Jede in der Nachricht genannte Person&lt;/strong&gt;. Jede Person erhält ihre eigene, für sie gerenderte Kopie;
 die Vorlage kann also &lt;code&gt;.Recipient&lt;/code&gt; verwenden.&lt;/p&gt;
 &lt;p&gt;Eine Rundsendung wird geroutet wie jede Nachricht. Kanäle und verknüpfte Chats, die sie trifft,
 erhalten sie noch während der Anfrage. Nur die Routen, die an
-&lt;strong&gt;In der Nachricht genannte Personen&lt;/strong&gt; zustellen, senden sie an alle.&lt;/p&gt;
+&lt;strong&gt;Jede in der Nachricht genannte Person&lt;/strong&gt; zustellen, senden sie an alle.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="send-it"&gt;Senden&lt;span class="hx:absolute hx:-mt-20" id="send-it"&gt;&lt;/span&gt;
 &lt;a href="#send-it" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Posten Sie an den &lt;a href="../universal-webhook/"&gt;universellen Webhook&lt;/a&gt; mit &lt;code&gt;&amp;quot;broadcast&amp;quot;: true&lt;/code&gt;:&lt;/p&gt;
 &lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;

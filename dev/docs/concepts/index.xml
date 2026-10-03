@@ -59,16 +59,24 @@ become a root and match alerts its parent used to filter out.&lt;/p&gt;
 &lt;td&gt;that person&amp;rsquo;s chat with the bot, once they linked it&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
-&lt;td&gt;People named in the message&lt;/td&gt;
+&lt;td&gt;Any person named in the message&lt;/td&gt;
 &lt;td&gt;everyone the event names in &lt;code&gt;recipients&lt;/code&gt; or the &lt;code&gt;teamster_recipient&lt;/code&gt; label&lt;/td&gt;
 &lt;/tr&gt;
 &lt;/tbody&gt;
 &lt;/table&gt;
 &lt;p&gt;A root route must name a target. A child that keeps its parent&amp;rsquo;s target must use a different
 template, or it would add nothing. A route may name only your own chat as its person, unless you
-are an admin. Only admins may create a route to the people named in a message, because it can
-reach anyone in the tenant. See
+are an admin.&lt;/p&gt;
+&lt;p&gt;Anyone who may edit routes may create a route to &lt;strong&gt;Any person named in the message&lt;/strong&gt;. Whom it
+reaches is decided by the sender, not by the route: a token that may name only its creator reaches
+only them through it, however broad the selector. See
 &lt;a href="../../guides/direct-messages/"&gt;Send messages to individual people&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Routes are global, though. Such a route matches every message its selector matches, whoever sent
+it, and renders them with its author&amp;rsquo;s template. A route with a broad selector, such as
+&lt;code&gt;{&amp;quot;teamster_source&amp;quot;: &amp;quot;universal&amp;quot;}&lt;/code&gt;, therefore sends an extra message, in its author&amp;rsquo;s words, to the
+people other senders name. It reaches no one those senders could not message already. Look for
+such routes in the &lt;a href="#seeing-the-routes"&gt;routing picture&lt;/a&gt; and the
+&lt;a href="../../guides/audit-trail/"&gt;audit trail&lt;/a&gt;.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="fallbacks"&gt;Fallbacks&lt;span class="hx:absolute hx:-mt-20" id="fallbacks"&gt;&lt;/span&gt;
 &lt;a href="#fallbacks" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;When no root route matches, Teamster falls back in two steps:&lt;/p&gt;
 &lt;ol&gt;

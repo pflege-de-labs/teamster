@@ -1557,16 +1557,24 @@ become a root and match alerts its parent used to filter out.&lt;/p&gt;
 &lt;td&gt;that person&amp;rsquo;s chat with the bot, once they linked it&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
-&lt;td&gt;People named in the message&lt;/td&gt;
+&lt;td&gt;Any person named in the message&lt;/td&gt;
 &lt;td&gt;everyone the event names in &lt;code&gt;recipients&lt;/code&gt; or the &lt;code&gt;teamster_recipient&lt;/code&gt; label&lt;/td&gt;
 &lt;/tr&gt;
 &lt;/tbody&gt;
 &lt;/table&gt;
 &lt;p&gt;A root route must name a target. A child that keeps its parent&amp;rsquo;s target must use a different
 template, or it would add nothing. A route may name only your own chat as its person, unless you
-are an admin. Only admins may create a route to the people named in a message, because it can
-reach anyone in the tenant. See
+are an admin.&lt;/p&gt;
+&lt;p&gt;Anyone who may edit routes may create a route to &lt;strong&gt;Any person named in the message&lt;/strong&gt;. Whom it
+reaches is decided by the sender, not by the route: a token that may name only its creator reaches
+only them through it, however broad the selector. See
 &lt;a href="../../guides/direct-messages/"&gt;Send messages to individual people&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Routes are global, though. Such a route matches every message its selector matches, whoever sent
+it, and renders them with its author&amp;rsquo;s template. A route with a broad selector, such as
+&lt;code&gt;{&amp;quot;teamster_source&amp;quot;: &amp;quot;universal&amp;quot;}&lt;/code&gt;, therefore sends an extra message, in its author&amp;rsquo;s words, to the
+people other senders name. It reaches no one those senders could not message already. Look for
+such routes in the &lt;a href="#seeing-the-routes"&gt;routing picture&lt;/a&gt; and the
+&lt;a href="../../guides/audit-trail/"&gt;audit trail&lt;/a&gt;.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="fallbacks"&gt;Fallbacks&lt;span class="hx:absolute hx:-mt-20" id="fallbacks"&gt;&lt;/span&gt;
 &lt;a href="#fallbacks" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;When no root route matches, Teamster falls back in two steps:&lt;/p&gt;
 &lt;ol&gt;
@@ -2879,8 +2887,8 @@ otherwise.&lt;/li&gt;
 &lt;p&gt;&lt;strong&gt;People&lt;/strong&gt; shows how many people have the app, the latest run and its progress, and failed
 installs with their reason. A run started by hand retries every failed install at once, so start one
 after granting a missing permission.&lt;/p&gt;
-&lt;p&gt;A route can now deliver to &lt;strong&gt;People named in the message&lt;/strong&gt;. Only an admin may create, edit or
-delete such a route. See &lt;a href="../direct-messages/"&gt;Send alerts to individual people&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;A route can now deliver to &lt;strong&gt;Any person named in the message&lt;/strong&gt;. Anyone who may edit routes may
+create one. See &lt;a href="../direct-messages/"&gt;Send messages to individual people&lt;/a&gt;.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="pace-the-calls-to-teams"&gt;Pace the calls to Teams&lt;span class="hx:absolute hx:-mt-20" id="pace-the-calls-to-teams"&gt;&lt;/span&gt;
 &lt;a href="#pace-the-calls-to-teams" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Teams throttles the bot as a whole, across every channel post, chat message, broadcast and install.
 Teamster paces each call to the Bot Connector so that it stays under that limit instead of running
@@ -6345,9 +6353,11 @@ for people who do not have it yet.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="address-people"&gt;Address people&lt;span class="hx:absolute hx:-mt-20" id="address-people"&gt;&lt;/span&gt;
 &lt;a href="#address-people" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;div class="hextra-steps hx:ml-4 hx:mb-12 hx:ltr:border-l hx:rtl:border-r hx:border-gray-200 hx:ltr:pl-6 hx:rtl:pr-6 hx:dark:border-neutral-800 [counter-reset:step]"&gt;
 &lt;h3 data-hextra-search-id="create-a-route-that-addresses-people"&gt;Create a route that addresses people&lt;span class="hx:absolute hx:-mt-20" id="create-a-route-that-addresses-people"&gt;&lt;/span&gt;
-&lt;a href="#create-a-route-that-addresses-people" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;In the admin UI, create or edit a route and set &lt;strong&gt;Delivers to&lt;/strong&gt; to &lt;strong&gt;People named in the
-message&lt;/strong&gt;. Give it a label selector for the messages it should take, for example
-&lt;code&gt;{&amp;quot;kind&amp;quot;: &amp;quot;password-expiry&amp;quot;}&lt;/code&gt;, and a template.&lt;/p&gt;
+&lt;a href="#create-a-route-that-addresses-people" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;In the admin UI, create or edit a route and set &lt;strong&gt;Delivers to&lt;/strong&gt; to &lt;strong&gt;Any person named in
+the message&lt;/strong&gt;. Give it a label selector for the messages it should take, for example
+&lt;code&gt;{&amp;quot;kind&amp;quot;: &amp;quot;password-expiry&amp;quot;}&lt;/code&gt;, and a template. Anyone who may edit routes may create one.&lt;/p&gt;
+&lt;p&gt;Keep the selector narrow. The route takes every message it matches, from any sender, and renders
+it with your template. Whom it reaches is bounded by each sender&amp;rsquo;s token, set in the next step.&lt;/p&gt;
 &lt;p&gt;Each person gets their own message, rendered for them, so the template can greet them:&lt;/p&gt;
 &lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
 &lt;div&gt;&lt;pre&gt;&lt;code&gt;Hello {{ .Recipient.GivenName }}, your password expires on {{ .Event.Universal.Attributes.expires }}.&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class="hextra-code-copy-btn-container hx:opacity-0 hx:transition hx:group-hover/code:opacity-100 hx:flex hx:gap-1 hx:absolute hx:m-[11px] hx:right-0 hx:top-0"&gt;
@@ -6686,10 +6696,10 @@ data-copied-label="Copied!"
 &lt;a href="../webhook-tokens/#let-a-token-name-people"&gt;Let a token name people&lt;/a&gt;.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="create-a-route-that-addresses-people"&gt;Create a route that addresses people&lt;span class="hx:absolute hx:-mt-20" id="create-a-route-that-addresses-people"&gt;&lt;/span&gt;
 &lt;a href="#create-a-route-that-addresses-people" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Create or edit a route that selects the message, for example &lt;code&gt;{&amp;quot;kind&amp;quot;: &amp;quot;office-notice&amp;quot;}&lt;/code&gt;, and set
-&lt;strong&gt;Delivers to&lt;/strong&gt; to &lt;strong&gt;People named in the message&lt;/strong&gt;. Everyone gets their own copy, rendered for
+&lt;strong&gt;Delivers to&lt;/strong&gt; to &lt;strong&gt;Any person named in the message&lt;/strong&gt;. Everyone gets their own copy, rendered for
 them, so the template can use &lt;code&gt;.Recipient&lt;/code&gt;.&lt;/p&gt;
 &lt;p&gt;A broadcast is routed like any message. Channels and linked chats it matches get it during the
-request. Only the routes that deliver to &lt;strong&gt;People named in the message&lt;/strong&gt; send it to everyone.&lt;/p&gt;
+request. Only the routes that deliver to &lt;strong&gt;Any person named in the message&lt;/strong&gt; send it to everyone.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="send-it"&gt;Send it&lt;span class="hx:absolute hx:-mt-20" id="send-it"&gt;&lt;/span&gt;
 &lt;a href="#send-it" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Post to the &lt;a href="../universal-webhook/"&gt;universal webhook&lt;/a&gt; with &lt;code&gt;&amp;quot;broadcast&amp;quot;: true&lt;/code&gt;:&lt;/p&gt;
 &lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
