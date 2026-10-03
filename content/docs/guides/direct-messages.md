@@ -23,13 +23,17 @@ the message**. Give it a label selector for the messages it should take, for exa
 Keep the selector narrow. The route takes every message it matches, from any sender, and renders
 it with your template. Whom it reaches is bounded by each sender's token, set in the next step.
 
-Each person gets their own message, rendered for them, so the template can greet them:
+Each person gets their own message, rendered for them. `.Recipient` holds their Entra profile, so
+the template can greet them, write in their language and name their office:
 
 ```gotemplate
-Hello {{ .Recipient.GivenName }}, your password expires on {{ .Event.Universal.Attributes.expires }}.
+{{ if eq .Recipient.PreferredLanguage "de-DE" }}Hallo{{ else }}Hello{{ end }} {{ .Recipient.GivenName }},
+your password expires on {{ .Event.Universal.Attributes.expires }}.
+Questions? Visit the IT desk at {{ default .Recipient.OfficeLocation "your office" }}.
 ```
 
-`.Recipient` is described in [Template data](../../reference/template-data/).
+A field Entra does not have for someone is empty. All fields are listed in
+[Template data](../../reference/template-data/#recipient).
 
 ### Issue a token that may name people
 
@@ -142,6 +146,18 @@ Anything without an `@` that is not a GUID is answered as `invalid-address`.
   instead.
 * **Only me.** A token limited to its creator may use any of the three forms, as long as the
   address resolves to the creator's own object id.
+
+## Know what each person sees
+
+Each person's message names only them, so nobody learns who else got it:
+
+* `.Event.Universal.Recipients` and the `teamster_recipient` label hold only the addresses that
+  named this person.
+* An Alertmanager group holds only the alerts that name this person and the alerts that name
+  nobody. A notification that names Alice on one alert and Bob on another sends Alice only hers.
+
+A channel, and a route to one linked chat, still gets the whole event. See
+[The event a person sees](../../reference/template-data/#the-event-a-person-sees).
 
 ## Update or close the messages
 

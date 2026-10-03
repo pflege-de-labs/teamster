@@ -47,7 +47,9 @@ Wie jedes Token sendet es Rundsendungen nur, solange sein Ersteller die Stufe no
 Legen Sie eine Route an, die die Nachricht selektiert, etwa mit `{"kind": "office-notice"}`, oder
 bearbeiten Sie eine solche, und setzen Sie **Liefert an** auf
 **Jede in der Nachricht genannte Person**. Jede Person erhält ihre eigene, für sie gerenderte Kopie;
-die Vorlage kann also `.Recipient` verwenden.
+die Vorlage kann also `.Recipient` verwenden. Für eine Person im Verzeichnis enthält es ihr ganzes
+Entra-Profil, für jemanden, der nur einen Chat verknüpft hat, nur `ID` und `DisplayName`. Siehe
+[Vorlagendaten](../../reference/template-data/#recipient).
 
 Eine Rundsendung wird geroutet wie jede Nachricht. Kanäle und verknüpfte Chats, die sie trifft,
 erhalten sie noch während der Anfrage. Nur die Routen, die an

@@ -117,7 +117,8 @@ Die Antwort `200 {"status":"ok"}` bedeutet, dass die Benachrichtigung zugestellt
   gesetzt. Siehe [Die Alarme einer Gruppe auflisten](../templates/#list-the-alerts-of-a-group) und
   [Vorlagendaten](../../reference/template-data/#alertmanager-extension).
 * Um einen Alarm an Personen statt an einen Kanal zu senden, setzen Sie das Label
-  `teamster_recipient`. Die Adressen aller Alarme der Gruppe werden zusammengeführt. Siehe
+  `teamster_recipient`. Die Adressen aller Alarme der Gruppe werden zusammengeführt. Jede Person
+  erhält nur die Alarme, die sie nennen, und die Alarme, die niemanden nennen. Siehe
   [Nachrichten an einzelne Personen senden](../direct-messages/).
 
 ## Nach dem Upgrade von einem Release mit einer Karte je Alarm {#after-upgrading-from-a-release-with-one-card-per-alert}

@@ -57,9 +57,10 @@ an, für die die Vorlage geschrieben ist, oder lassen Sie alles frei für jeden 
 ### Die Vorschau ansehen {#preview-it}
 
 Die Vorschau rendert die Vorlage gegen Beispielnutzdaten für jeden Webhook und kann das JSON
-zeigen, das der Bot für einen Kanalbeitrag und für einen Chat senden würde. Für Alertmanager gibt
-es zwei Beispiele: **Alertmanager-Alarm**, eine Gruppe mit einem Alarm, und
-**Alertmanager-Alarmgruppe** mit zwei Alarmen.
+zeigen, das der Bot für einen Kanalbeitrag und für einen Chat senden würde. Jedes Beispiel außer
+Teams V2 wird für eine Beispielperson, Alex Example, gerendert, bei der jedes Feld von `.Recipient`
+gefüllt ist. Für Alertmanager gibt es zwei Beispiele: **Alertmanager-Alarm**, eine Gruppe mit einem
+Alarm, und **Alertmanager-Alarmgruppe** mit zwei Alarmen.
 
 ### Die Vorlage zuweisen {#attach-it}
 

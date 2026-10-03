@@ -26,14 +26,18 @@ Fassen Sie den Selektor eng. Die Route übernimmt jede Nachricht, die er erfasst
 Absender, und rendert sie mit Ihrer Vorlage. Wen sie erreicht, begrenzt das Token des jeweiligen
 Absenders, das Sie im nächsten Schritt festlegen.
 
-Jede Person erhält ihre eigene, für sie gerenderte Nachricht. Die Vorlage kann sie also persönlich
-ansprechen:
+Jede Person erhält ihre eigene, für sie gerenderte Nachricht. `.Recipient` enthält ihr
+Entra-Profil. Die Vorlage kann sie also persönlich ansprechen, in ihrer Sprache schreiben und ihr
+Büro nennen:
 
 ```gotemplate
-Hello {{ .Recipient.GivenName }}, your password expires on {{ .Event.Universal.Attributes.expires }}.
+{{ if eq .Recipient.PreferredLanguage "de-DE" }}Hallo{{ else }}Hello{{ end }} {{ .Recipient.GivenName }},
+your password expires on {{ .Event.Universal.Attributes.expires }}.
+Questions? Visit the IT desk at {{ default .Recipient.OfficeLocation "your office" }}.
 ```
 
-`.Recipient` ist in [Vorlagendaten](../../reference/template-data/) beschrieben.
+Ein Feld, das Entra für jemanden nicht kennt, ist leer. Alle Felder sind in
+[Vorlagendaten](../../reference/template-data/#recipient) aufgeführt.
 
 ### Ein Token ausstellen, das Personen nennen darf {#issue-a-token-that-may-name-people}
 
@@ -152,6 +156,19 @@ Alles ohne `@`, das keine GUID ist, wird mit `invalid-address` beantwortet.
   Sie die Person stattdessen über UPN oder Objekt-ID.
 * **nur mich.** Ein auf seinen Ersteller beschränktes Token darf jede der drei Formen verwenden,
   solange die Adresse auf die eigene Objekt-ID des Erstellers aufgelöst wird.
+
+## Wissen, was jede Person sieht {#know-what-each-person-sees}
+
+Die Nachricht jeder Person nennt nur sie. So erfährt niemand, wer sie sonst noch erhalten hat:
+
+* `.Event.Universal.Recipients` und das Label `teamster_recipient` enthalten nur die Adressen, die
+  diese Person genannt haben.
+* Eine Alertmanager-Gruppe enthält nur die Alarme, die diese Person nennen, und die Alarme, die
+  niemanden nennen. Nennt eine Benachrichtigung Alice in einem Alarm und Bob in einem anderen,
+  erhält Alice nur ihren.
+
+Ein Kanal und eine Route an einen einzelnen verknüpften Chat erhalten weiterhin das ganze
+Ereignis. Siehe [Das Ereignis, das eine Person sieht](../../reference/template-data/#the-event-a-person-sees).
 
 ## Die Nachrichten aktualisieren oder schließen {#update-or-close-the-messages}
 

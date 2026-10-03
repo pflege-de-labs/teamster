@@ -43,7 +43,9 @@ Like every token, it broadcasts only while its creator still holds the level. Se
 
 Create or edit a route that selects the message, for example `{"kind": "office-notice"}`, and set
 **Delivers to** to **Any person named in the message**. Everyone gets their own copy, rendered for
-them, so the template can use `.Recipient`.
+them, so the template can use `.Recipient`. A person in the directory has their whole Entra
+profile there; someone who only linked a chat has just `ID` and `DisplayName`. See
+[Template data](../../reference/template-data/#recipient).
 
 A broadcast is routed like any message. Channels and linked chats it matches get it during the
 request. Only the routes that deliver to **Any person named in the message** send it to everyone.

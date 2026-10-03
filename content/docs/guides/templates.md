@@ -54,8 +54,9 @@ is written for, or leave all unticked for any.
 ### Preview it
 
 The preview renders the template against a sample payload for each webhook, and can show the JSON
-the bot would send for a channel post and for a chat. For Alertmanager it has two samples: an
-**Alertmanager alert**, a group of one, and an **Alertmanager alert group** of two.
+the bot would send for a channel post and for a chat. Every sample but Teams V2 is rendered for a
+sample person, Alex Example, with every `.Recipient` field filled. For Alertmanager it has two
+samples: an **Alertmanager alert**, a group of one, and an **Alertmanager alert group** of two.
 
 ### Attach it
 

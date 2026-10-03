@@ -127,18 +127,59 @@ A label key that cannot follow a dot is read with `index`:
 
 ## Recipient
 
-Set when a route delivers to a person's chat.
+Set when a route delivers to a person's chat. The fields come from the person's Entra profile. A
+field Entra does not have for someone is empty.
 
-| Field | Holds | Person named in the message | Linked chat |
-| --- | --- | --- | --- |
-| `.Recipient.ID` | Entra object id | yes | yes |
-| `.Recipient.DisplayName` | Display name | yes | yes |
-| `.Recipient.GivenName` | Given name | yes | empty |
-| `.Recipient.Surname` | Surname | yes | empty |
-| `.Recipient.UPN` | User principal name | yes | empty |
-| `.Recipient.Mail` | Mail address | yes | empty |
+| Field | Type | Holds |
+| --- | --- | --- |
+| `.Recipient.ID` | string | Entra object id |
+| `.Recipient.DisplayName` | string | Display name |
+| `.Recipient.GivenName` | string | Given name |
+| `.Recipient.Surname` | string | Surname |
+| `.Recipient.UPN` | string | User principal name |
+| `.Recipient.Mail` | string | Mail address |
+| `.Recipient.JobTitle` | string | Job title |
+| `.Recipient.Department` | string | Department |
+| `.Recipient.CompanyName` | string | Company name |
+| `.Recipient.OfficeLocation` | string | Office location |
+| `.Recipient.EmployeeID` | string | Employee id |
+| `.Recipient.Address.Street` | string | Street of the business address |
+| `.Recipient.Address.PostalCode` | string | Postal code of the business address |
+| `.Recipient.Address.City` | string | City of the business address |
+| `.Recipient.Address.State` | string | State of the business address |
+| `.Recipient.Address.Country` | string | Country of the business address |
+| `.Recipient.BusinessPhones` | list of string | Business phone numbers |
+| `.Recipient.MobilePhone` | string | Mobile phone number |
+| `.Recipient.PreferredLanguage` | string | Preferred language, such as `de-DE` |
+| `.Recipient.UsageLocation` | string | Usage location, a country code such as `DE` |
 
-All fields are empty for a channel.
+Which fields are filled depends on the chat:
+
+| Chat | Fields |
+| --- | --- |
+| Person named in the message, or reached by a broadcast through the directory | All |
+| Linked chat whose person is in the directory | All |
+| Linked chat whose person is not in the directory | Only `ID` and `DisplayName` |
+| Channel | None |
+
+After an upgrade from a release without these fields, a person already in the directory gets them
+at the next install run (`bot.reconcile-interval`), or when a message looks them up again after
+`bot.directory-ttl`. Until then they are empty.
+
+### The event a person sees
+
+When a route delivers to the people a message names, each person's message is rendered from a
+copy of the event that names only them:
+
+* `.Event.Universal.Recipients` holds only the addresses that named them.
+* The `teamster_recipient` label, in `.Event.Labels`, `.Event.Alertmanager.CommonLabels` and each
+  alert's labels, holds only the addresses that named them. Where it named only others, it is
+  absent.
+* `.Event.Alertmanager.Alerts` holds only the alerts that name them and the alerts that name
+  nobody. When one alert is left, `Annotations`, `StartsAt`, `EndsAt` and `GeneratorURL` are filled
+  from it, as for a group of one.
+
+A channel, and a route to one linked chat, sees the whole event.
 
 ## Functions
 
