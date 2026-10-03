@@ -1,6 +1,7 @@
 # 0062. A route may deliver to the people a message names
 
-* Status: Accepted
+* Status: Superseded by [0087](0087-anyone-may-route-to-the-people-a-message-names.md) in part:
+  anyone signed in may create such a route; the addressed target stands
 * Date: 2026-09-30
 
 ## Context

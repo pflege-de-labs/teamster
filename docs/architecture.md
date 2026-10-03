@@ -677,9 +677,11 @@ The third kind of target is **the people the message names**: `addressed` set on
 ([ADR 0062](adr/0062-a-route-may-deliver-to-the-people-a-message-names.md)). It follows the same
 rule. It is one target of the three, it replaces an inherited target of every kind, and it is
 inherited by children that set none. `Plan` emits one `Delivery` of kind `addressed` with no person
-in it, because who that is comes from the message. Only the admin role may create, edit or delete
-such a route: the Cedar action `deliverToAddressed` on `AddressedPeople::"all"` is permitted by the
-blanket admin policy alone. The routing picture draws one "People named in the message" node, and
+in it, because who that is comes from the message. Anyone signed in may create, edit or delete
+such a route: the Cedar action `deliverToAddressed` on `AddressedPeople::"all"` is permitted to every
+`User` ([ADR 0087](adr/0087-anyone-may-route-to-the-people-a-message-names.md)), because whom it
+reaches is checked against the sender's message level (ADR 0082). The routing picture draws one
+"Any person named in the message" node, and
 the picture now resolves targets with the same nearest-route-wins rule as `routing.collect`.
 
 `Plan` returns a `Result`: the reason, every root that matched, and one `Delivery` per message with

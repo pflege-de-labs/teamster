@@ -323,7 +323,7 @@
   "people.problems_heading": "Installationen, die nicht geklappt haben",
   "people.problems_empty": "Nichts ist fehlgeschlagen.",
   "people.next_attempt": "nächster Versuch {0}",
-  "routes.target_addressed": "In der Nachricht genannte Personen",
+  "routes.target_addressed": "Jede in der Nachricht genannte Person",
   "notifications.bind_no_account": "Ihr Teams-Konto ließ sich aus Ihrer Anmeldung nicht ermitteln. Bitten Sie eine Administratorin oder einen Administrator, den Object-ID-Claim zu prüfen, oder melden Sie sich mit Ihrem Arbeitskonto an.",
   "notifications.bind_no_chat": "Ihr Teams-Konto wurde gefunden, aber der Bot hat noch keinen Chat mit Ihnen. Richten Sie ihn jetzt ein oder warten Sie auf den nächsten Installationslauf.",
   "notifications.bind_local": "Sie sind mit dem lokalen Konto angemeldet, das keinen Teams-Chat hat. Melden Sie sich mit Ihrem Arbeitskonto an, um die an Sie gerichteten Alarme zu erhalten.",

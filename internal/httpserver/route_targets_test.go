@@ -108,7 +108,7 @@ func TestTheRouteFormSavesOneTarget(t *testing.T) {
 		{name: "someone else's chat as admin", role: authz.RoleAdmin, target: "recipient:theirs", wantRecipient: "theirs"},
 		{name: "an unknown kind", role: authz.RoleAdmin, target: "team:dest", wantError: "unknown route target"},
 		{name: "the people a message names", role: authz.RoleAdmin, target: "addressed", wantAddressed: true},
-		{name: "the people a message names as editor", role: authz.RoleEditor, target: "addressed", wantError: "only an admin"},
+		{name: "the people a message names as editor", role: authz.RoleEditor, target: "addressed", wantAddressed: true},
 	}
 
 	for _, tt := range tests {
@@ -210,7 +210,7 @@ func postFormAs(t *testing.T, handler http.Handler, path string, form url.Values
 	return rec
 }
 
-func TestAnAddressedRouteIsTheAdmins(t *testing.T) {
+func TestAnyoneMayKeepAnAddressedRoute(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -219,7 +219,7 @@ func TestAnAddressedRouteIsTheAdmins(t *testing.T) {
 		wantRefused bool
 	}{
 		{role: authz.RoleAdmin, wantOption: true},
-		{role: authz.RoleEditor, wantRefused: true},
+		{role: authz.RoleEditor, wantOption: true},
 	}
 
 	for _, tt := range tests {
@@ -240,17 +240,17 @@ func TestAnAddressedRouteIsTheAdmins(t *testing.T) {
 			if got := strings.Contains(page, `value="addressed"`); got != tt.wantOption {
 				t.Errorf("option offered = %v, want %v", got, tt.wantOption)
 			}
-			if !strings.Contains(page, "People named in the message") {
+			if !strings.Contains(page, "Any person named in the message") {
 				t.Error("the route list does not say where Passwords delivers")
 			}
 
 			edit := postFormAs(t, handler, "/admin/routes", url.Values{"id": {"pw"}, "name": {"Renamed"}, "target": {"destination:dest"}, "priority": {"1"}})
-			refused := strings.Contains(edit.Header().Get("Location"), "only+an+admin")
+			refused := strings.Contains(edit.Header().Get("Location"), "may+not+deliver")
 			if refused != tt.wantRefused {
 				t.Errorf("editing the addressed route refused = %v (%s), want %v", refused, edit.Header().Get("Location"), tt.wantRefused)
 			}
 			del := postFormAs(t, handler, "/admin/routes/delete", url.Values{"id": {"pw"}})
-			if got := strings.Contains(del.Header().Get("Location"), "only+an+admin"); got != tt.wantRefused {
+			if got := strings.Contains(del.Header().Get("Location"), "may+not+deliver"); got != tt.wantRefused {
 				t.Errorf("deleting the addressed route refused = %v, want %v", got, tt.wantRefused)
 			}
 		})

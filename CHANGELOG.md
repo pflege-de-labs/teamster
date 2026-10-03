@@ -32,6 +32,9 @@ reasoning behind it in the [ADRs](docs/adr/).
 * A message to the people it names shows each person only themselves: their address in
   `.Event.Universal.Recipients` and the `teamster_recipient` label, and of an Alertmanager group only
   the alerts that name them or nobody. A template could previously print every recipient.
+* Anyone who may edit routes may create a route to **Any person named in the message**, formerly
+  *People named in the message* and admins only. Whom it reaches is still bounded by the sender's
+  message level ([ADR 0087](docs/adr/0087-anyone-may-route-to-the-people-a-message-names.md)).
 
 ## [0.12.0] — 2026-10-02
 

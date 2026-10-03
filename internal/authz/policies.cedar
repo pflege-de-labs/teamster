@@ -81,15 +81,14 @@ permit (
   resource
 ) when { principal == resource };
 
-// A route that delivers to the people a message names reaches anyone in the
-// tenant, so only admins may point one there, through the policy at the top.
-// To let a custom role do it too:
-//
-// permit (
-//   principal in Role::"it-messaging",
-//   action == Action::"deliverToAddressed",
-//   resource
-// );
+// Anyone signed in may point a route at the people a message names (ADR 0087):
+// whom it reaches is bounded by the sender's message level (ADR 0082), not by
+// who wrote the route.
+permit (
+  principal is User,
+  action == Action::"deliverToAddressed",
+  resource
+);
 
 // Anyone signed in may name themselves in a message sent with their own token;
 // naming anyone else takes a grant of message on People (ADR 0082). A token

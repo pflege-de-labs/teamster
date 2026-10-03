@@ -354,7 +354,7 @@ func buildGraph(cfg routingConfig, channelName func(teamID, channelID string) st
 			add(graphNode{
 				ID:     addressedNodeID,
 				Kind:   nodeAddressed,
-				Label:  "People named in the message",
+				Label:  "Any person named in the message",
 				Detail: "recipients, or the teamster_recipient label",
 				X:      sinkColumn,
 				Y:      row * rowGap,

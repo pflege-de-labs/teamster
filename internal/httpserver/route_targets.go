@@ -22,7 +22,7 @@ var errTemplateRefused = errors.New("you may not use that template")
 
 // errAddressedRefused is what a write touching a route that delivers to the
 // people a message names gets without the right to (ADR 0062).
-var errAddressedRefused = errors.New("only an admin may deliver to the people a message names")
+var errAddressedRefused = errors.New("you may not deliver to any person a message names")
 
 // Route form target values: one select names the channel or the person, so the
 // two cannot both be submitted.

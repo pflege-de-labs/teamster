@@ -13,6 +13,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 * `values.yaml` lists `config.settings.bot.pacing` commented out with its defaults, and says to
   divide the tenant's budget by `replicaCount`.
 
+### Changed
+
+* The chart README names the route target by its new label, **Any person named in the message**.
+
 ## [0.11.0] — 2026-10-02
 
 App version 0.12.0: naming people in a message takes permission (**breaking** for senders whose
