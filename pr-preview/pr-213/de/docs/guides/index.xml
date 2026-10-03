@@ -728,9 +728,56 @@ und sagt sonst nichts.&lt;/li&gt;
 fehlgeschlagene Installationen mit ihrem Grund. Ein von Hand gestarteter Lauf wiederholt sofort jede
 fehlgeschlagene Installation; starten Sie also einen, nachdem Sie eine fehlende Berechtigung
 erteilt haben.&lt;/p&gt;
-&lt;p&gt;Eine Route kann jetzt an &lt;strong&gt;In der Nachricht genannte Personen&lt;/strong&gt; zustellen. Nur ein Administrator
-darf eine solche Route anlegen, bearbeiten oder löschen. Siehe
-&lt;a href="../direct-messages/"&gt;Alarme an einzelne Personen senden&lt;/a&gt;.&lt;/p&gt;</description></item><item><title>Speicher wählen und betreiben</title><link>https://pflege-de-labs.github.io/teamster/pr-preview/pr-213/de/docs/guides/storage/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/pr-preview/pr-213/de/docs/guides/storage/</guid><description>
+&lt;p&gt;Eine Route kann jetzt an &lt;strong&gt;Jede in der Nachricht genannte Person&lt;/strong&gt; zustellen. Wer Routen bearbeiten
+darf, darf eine solche Route anlegen. Siehe
+&lt;a href="../direct-messages/"&gt;Nachrichten an einzelne Personen senden&lt;/a&gt;.&lt;/p&gt;
+&lt;h2 data-hextra-search-id="pace-the-calls-to-teams"&gt;Aufrufe an Teams takten&lt;span class="hx:absolute hx:-mt-20" id="pace-the-calls-to-teams"&gt;&lt;/span&gt;
+&lt;a href="#pace-the-calls-to-teams" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Teams drosselt den Bot als Ganzes, über alle Kanal-Posts, Chat-Nachrichten, Rundsendungen und
+Installationen hinweg. Teamster taktet jeden Aufruf an den Bot Connector so, dass er unter diesem
+Limit bleibt, statt daran zu stoßen:&lt;/p&gt;
+&lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
+&lt;div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nt"&gt;bot&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;pacing&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;strategy&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="s2"&gt;&amp;#34;process&amp;#34;&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="c"&gt;# jedes Replikat taktet sich selbst&lt;/span&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;rate&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;20&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="c"&gt;# Aufrufe pro Sekunde für dieses Replikat&lt;/span&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;burst&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;20&lt;/span&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;conversation-rate&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;0.5&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="c"&gt;# Teams erlaubt einer Unterhaltung 7 pro Sekunde und 1800 pro Stunde&lt;/span&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;conversation-burst&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;7&lt;/span&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;retries&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="m"&gt;3&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="c"&gt;# ein 429 oder 503 wird nach seinem Retry-After erneut gesendet&lt;/span&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;max-retry-wait&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="s2"&gt;&amp;#34;30s&amp;#34;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class="hextra-code-copy-btn-container hx:opacity-0 hx:transition hx:group-hover/code:opacity-100 hx:flex hx:gap-1 hx:absolute hx:m-[11px] hx:right-0 hx:top-0"&gt;
+&lt;button
+class="hextra-code-copy-btn hx:group/copybtn hx:cursor-pointer hx:transition-all hx:active:opacity-50 hx:bg-primary-700/5 hx:border hx:border-black/5 hx:text-gray-600 hx:hover:text-gray-900 hx:rounded-md hx:p-1.5 hx:dark:bg-primary-300/10 hx:dark:border-white/10 hx:dark:text-gray-400 hx:dark:hover:text-gray-50"
+title="Code kopieren"
+aria-label="Code kopieren"
+data-copied-label="Kopiert!"
+&gt;
+&lt;div class="hextra-copy-icon hx:group-[.copied]/copybtn:hidden hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;div class="hextra-success-icon hx:hidden hx:group-[.copied]/copybtn:block hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;/button&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;p&gt;Das sind die Standardwerte; eine Konfiguration ohne &lt;code&gt;bot.pacing&lt;/code&gt; erhält sie. Jeder Schlüssel hat
+eine Variable &lt;code&gt;TEAMSTER_BOT_PACING_*&lt;/code&gt;, aufgeführt unter
+&lt;a href="../../reference/configuration/#teams-bot"&gt;Konfiguration&lt;/a&gt;. Mit dem Helm-Chart setzen Sie sie unter
+&lt;code&gt;config.settings.bot.pacing&lt;/code&gt;.&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Teilen Sie das Budget durch die Zahl der Replikate.&lt;/strong&gt; Jedes Replikat hat ein eigenes Budget.
+Bei drei Replikaten und einem Budget des Mandanten von 30 Aufrufen pro Sekunde setzen Sie &lt;code&gt;rate&lt;/code&gt;
+und &lt;code&gt;burst&lt;/code&gt; auf &lt;code&gt;10&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Ein &lt;code&gt;429&lt;/code&gt; hält jeden Aufruf zurück&lt;/strong&gt;, bis sein &lt;code&gt;Retry-After&lt;/code&gt; verstrichen ist, nicht nur den,
+der es erhalten hat.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Nur &lt;code&gt;429&lt;/code&gt; und &lt;code&gt;503&lt;/code&gt; werden wiederholt&lt;/strong&gt;, bis zu &lt;code&gt;retries&lt;/code&gt; Mal. Die Wartezeit folgt
+&lt;code&gt;Retry-After&lt;/code&gt;, fällt sonst auf 1, 2 und 4 Sekunden zurück und übersteigt nie &lt;code&gt;max-retry-wait&lt;/code&gt;.
+Mit &lt;code&gt;0&lt;/code&gt; schlägt ein gedrosselter Aufruf sofort fehl. Nichts anderes wird wiederholt: Nach einem
+&lt;code&gt;502&lt;/code&gt; oder &lt;code&gt;504&lt;/code&gt; ist die Nachricht womöglich schon angekommen.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Eine Nachricht, die Personen nennt, muss weiterhin innerhalb von &lt;code&gt;server.write-timeout&lt;/code&gt; fertig
+werden.&lt;/strong&gt; Ein Versand, der länger warten müsste, schlägt als vorübergehend fehl; der Absender
+erhält ein &lt;code&gt;502&lt;/code&gt; und wiederholt.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;code&gt;teamster.throttled&lt;/code&gt; zählt, wie oft Microsoft abgewiesen hat, und &lt;code&gt;teamster.pacing.wait&lt;/code&gt;, wie lange
+Aufrufe auf ihre Reihe gewartet haben; siehe
+&lt;a href="../observability/#tell-throttling-from-a-stuck-run"&gt;Teamster überwachen&lt;/a&gt;. Den Entwurf beschreibt
+&lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0085-pace-bot-connector-calls.md" target="_blank" rel="noopener"&gt;ADR 0085&lt;/a&gt;.&lt;/p&gt;</description></item><item><title>Speicher wählen und betreiben</title><link>https://pflege-de-labs.github.io/teamster/pr-preview/pr-213/de/docs/guides/storage/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/pr-preview/pr-213/de/docs/guides/storage/</guid><description>
 &lt;p&gt;Teamster hält seine Konfiguration und den Zustand offener Alarme in einer Datenbank. Diese
 Anleitung hilft Ihnen, zwischen SQLite und Postgres zu wählen, die Datenbank zu konfigurieren,
 Schemamigrationen auszuführen und von einer zur anderen zu wechseln.&lt;/p&gt;
@@ -1523,9 +1570,12 @@ den Bot für Personen installieren, die ihn noch nicht haben.&lt;/p&gt;
 &lt;a href="#address-people" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;div class="hextra-steps hx:ml-4 hx:mb-12 hx:ltr:border-l hx:rtl:border-r hx:border-gray-200 hx:ltr:pl-6 hx:rtl:pr-6 hx:dark:border-neutral-800 [counter-reset:step]"&gt;
 &lt;h3 data-hextra-search-id="create-a-route-that-addresses-people"&gt;Eine Route anlegen, die Personen adressiert&lt;span class="hx:absolute hx:-mt-20" id="create-a-route-that-addresses-people"&gt;&lt;/span&gt;
 &lt;a href="#create-a-route-that-addresses-people" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Legen Sie in der Verwaltungsoberfläche eine Route an oder bearbeiten Sie eine, und setzen Sie
-&lt;strong&gt;Liefert an&lt;/strong&gt; auf &lt;strong&gt;In der Nachricht genannte Personen&lt;/strong&gt;. Geben Sie ihr einen Label-Selektor für
+&lt;strong&gt;Liefert an&lt;/strong&gt; auf &lt;strong&gt;Jede in der Nachricht genannte Person&lt;/strong&gt;. Geben Sie ihr einen Label-Selektor für
 die Nachrichten, die sie übernehmen soll, zum Beispiel &lt;code&gt;{&amp;quot;kind&amp;quot;: &amp;quot;password-expiry&amp;quot;}&lt;/code&gt;, und eine
-Vorlage.&lt;/p&gt;
+Vorlage. Wer Routen bearbeiten darf, darf eine solche Route anlegen.&lt;/p&gt;
+&lt;p&gt;Fassen Sie den Selektor eng. Die Route übernimmt jede Nachricht, die er erfasst, gleich von welchem
+Absender, und rendert sie mit Ihrer Vorlage. Wen sie erreicht, begrenzt das Token des jeweiligen
+Absenders, das Sie im nächsten Schritt festlegen.&lt;/p&gt;
 &lt;p&gt;Jede Person erhält ihre eigene, für sie gerenderte Nachricht. &lt;code&gt;.Recipient&lt;/code&gt; enthält ihr
 Entra-Profil. Die Vorlage kann sie also persönlich ansprechen, in ihrer Sprache schreiben und ihr
 Büro nennen:&lt;/p&gt;
@@ -1845,7 +1895,10 @@ data-copied-label="Kopiert!"
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;p&gt;Die Verteilung einer Anfrage muss innerhalb von &lt;code&gt;server.write-timeout&lt;/code&gt; abgeschlossen sein. Erhöhen
-Sie diesen Wert, wenn Sie die Grenzen erhöhen.&lt;/p&gt;
+Sie diesen Wert, wenn Sie die Grenzen erhöhen. Jeder Versand wartet außerdem, bis die Taktung des
+Bots ihn an die Reihe lässt, und ein gedrosselter wartet sein &lt;code&gt;Retry-After&lt;/code&gt; ab. Ein Versand, der
+über die Frist hinaus warten müsste, schlägt fehl; der Absender erhält ein &lt;code&gt;502&lt;/code&gt; und wiederholt.
+Siehe &lt;a href="../teams-bot/#pace-the-calls-to-teams"&gt;Aufrufe an Teams takten&lt;/a&gt;.&lt;/p&gt;
 &lt;p&gt;Den Entwurf beschreibt
 &lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0063-a-message-names-its-recipients.md" target="_blank" rel="noopener"&gt;ADR 0063&lt;/a&gt;.&lt;/p&gt;</description></item><item><title>Eine Nachricht an alle senden</title><link>https://pflege-de-labs.github.io/teamster/pr-preview/pr-213/de/docs/guides/broadcasts/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/pr-preview/pr-213/de/docs/guides/broadcasts/</guid><description>
 &lt;p&gt;Senden Sie eine Nachricht an alle, die der Bot erreichen kann, jeweils in ihren eigenen Teams-Chat,
@@ -1890,13 +1943,13 @@ data-copied-label="Kopiert!"
 &lt;h3 data-hextra-search-id="create-a-route-that-addresses-people"&gt;Eine Route anlegen, die Personen adressiert&lt;span class="hx:absolute hx:-mt-20" id="create-a-route-that-addresses-people"&gt;&lt;/span&gt;
 &lt;a href="#create-a-route-that-addresses-people" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Legen Sie eine Route an, die die Nachricht selektiert, etwa mit &lt;code&gt;{&amp;quot;kind&amp;quot;: &amp;quot;office-notice&amp;quot;}&lt;/code&gt;, oder
 bearbeiten Sie eine solche, und setzen Sie &lt;strong&gt;Liefert an&lt;/strong&gt; auf
-&lt;strong&gt;In der Nachricht genannte Personen&lt;/strong&gt;. Jede Person erhält ihre eigene, für sie gerenderte Kopie;
+&lt;strong&gt;Jede in der Nachricht genannte Person&lt;/strong&gt;. Jede Person erhält ihre eigene, für sie gerenderte Kopie;
 die Vorlage kann also &lt;code&gt;.Recipient&lt;/code&gt; verwenden. Für eine Person im Verzeichnis enthält es ihr ganzes
 Entra-Profil, für jemanden, der nur einen Chat verknüpft hat, nur &lt;code&gt;ID&lt;/code&gt; und &lt;code&gt;DisplayName&lt;/code&gt;. Siehe
 &lt;a href="../../reference/template-data/#recipient"&gt;Vorlagendaten&lt;/a&gt;.&lt;/p&gt;
 &lt;p&gt;Eine Rundsendung wird geroutet wie jede Nachricht. Kanäle und verknüpfte Chats, die sie trifft,
 erhalten sie noch während der Anfrage. Nur die Routen, die an
-&lt;strong&gt;In der Nachricht genannte Personen&lt;/strong&gt; zustellen, senden sie an alle.&lt;/p&gt;
+&lt;strong&gt;Jede in der Nachricht genannte Person&lt;/strong&gt; zustellen, senden sie an alle.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="send-it"&gt;Senden&lt;span class="hx:absolute hx:-mt-20" id="send-it"&gt;&lt;/span&gt;
 &lt;a href="#send-it" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Posten Sie an den &lt;a href="../universal-webhook/"&gt;universellen Webhook&lt;/a&gt; mit &lt;code&gt;&amp;quot;broadcast&amp;quot;: true&lt;/code&gt;:&lt;/p&gt;
 &lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
@@ -1978,7 +2031,11 @@ pro Schritt, &lt;code&gt;webhook.fanout-concurrency&lt;/code&gt; gleichzeitig.&l
 &lt;li&gt;Fällt ein Replikat aus, übernimmt ein anderes die Rundsendung innerhalb von etwa zwei Minuten,
 ab dem letzten Schritt, den es festgehalten hat. Bis zu 25 Personen erhalten sie dann womöglich
 zweimal.&lt;/li&gt;
-&lt;li&gt;Ein fehlgeschlagener Versand wird gezählt, nicht wiederholt.&lt;/li&gt;
+&lt;li&gt;Jeder Versand wird zusammen mit den übrigen Aufrufen des Bots getaktet, eine große Rundsendung
+braucht also ihre Zeit; siehe &lt;a href="../teams-bot/#pace-the-calls-to-teams"&gt;Aufrufe an Teams takten&lt;/a&gt;.&lt;/li&gt;
+&lt;li&gt;Einen Versand, den Teams drosselt (&lt;code&gt;429&lt;/code&gt;) oder für den es nicht verfügbar ist (&lt;code&gt;503&lt;/code&gt;), wiederholt
+Teamster nach seinem &lt;code&gt;Retry-After&lt;/code&gt;. Jeder andere fehlgeschlagene Versand wird gezählt, nicht
+wiederholt. Ebenso einer, der eine Minute nach Beginn seines Schritts von 25 noch wartet.&lt;/li&gt;
 &lt;li&gt;Die Empfänger werden beim Start der Rundsendung gelesen. Wer später hinzukommt, erhält sie nur,
 wenn ein Replikat die Rundsendung übernimmt und diese Person hinter der Stelle liest, bis zu der
 es gekommen war.&lt;/li&gt;
@@ -4173,6 +4230,44 @@ data-copied-label="Kopiert!"
 &lt;/div&gt;
 &lt;p&gt;Go-Laufzeitmetriken tragen die Namen von OpenTelemetry, etwa &lt;code&gt;go_memory_used_bytes&lt;/code&gt;, nicht die
 &lt;code&gt;go_memstats_*&lt;/code&gt;, die ein älteres Dashboard womöglich erwartet.&lt;/p&gt;
+&lt;h3 data-hextra-search-id="tell-throttling-from-a-stuck-run"&gt;Drosselung von einem hängenden Lauf unterscheiden&lt;span class="hx:absolute hx:-mt-20" id="tell-throttling-from-a-stuck-run"&gt;&lt;/span&gt;
+&lt;a href="#tell-throttling-from-a-stuck-run" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Wird eine Rundsendung oder eine große Nachricht langsam, ist sie entweder gedrosselt oder hängt.
+Zwei Metriken unterscheiden das:&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Beobachten&lt;/th&gt;
+&lt;th&gt;Bedeutet&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;teamster.throttled&lt;/code&gt; steigt&lt;/td&gt;
+&lt;td&gt;Microsoft hat Aufrufe mit &lt;code&gt;429&lt;/code&gt; oder &lt;code&gt;503&lt;/code&gt; abgewiesen. &lt;code&gt;api&lt;/code&gt; sagt, ob Graph oder der Bot Connector es war. Teamster wartet und wiederholt sie.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;teamster.pacing.wait&lt;/code&gt; hoch&lt;/td&gt;
+&lt;td&gt;Bot-Connector-Aufrufe warten auf das Budget des Bots. Die Taktung hält sie unter dem Limit.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
+&lt;div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-promql" data-lang="promql"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="k"&gt;sum&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="k"&gt;by&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="nv"&gt;api&lt;/span&gt;&lt;span class="o"&gt;)&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="kr"&gt;rate&lt;/span&gt;&lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="nv"&gt;teamster_throttled_total&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s"&gt;5m&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt;&lt;span class="o"&gt;))&lt;/span&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="kr"&gt;histogram_quantile&lt;/span&gt;&lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="mf"&gt;0.95&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="k"&gt;sum&lt;/span&gt;&lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="kr"&gt;rate&lt;/span&gt;&lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="nv"&gt;teamster_pacing_wait_seconds&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s"&gt;5m&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt;&lt;span class="o"&gt;)))&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class="hextra-code-copy-btn-container hx:opacity-0 hx:transition hx:group-hover/code:opacity-100 hx:flex hx:gap-1 hx:absolute hx:m-[11px] hx:right-0 hx:top-0"&gt;
+&lt;button
+class="hextra-code-copy-btn hx:group/copybtn hx:cursor-pointer hx:transition-all hx:active:opacity-50 hx:bg-primary-700/5 hx:border hx:border-black/5 hx:text-gray-600 hx:hover:text-gray-900 hx:rounded-md hx:p-1.5 hx:dark:bg-primary-300/10 hx:dark:border-white/10 hx:dark:text-gray-400 hx:dark:hover:text-gray-50"
+title="Code kopieren"
+aria-label="Code kopieren"
+data-copied-label="Kopiert!"
+&gt;
+&lt;div class="hextra-copy-icon hx:group-[.copied]/copybtn:hidden hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;div class="hextra-success-icon hx:hidden hx:group-[.copied]/copybtn:block hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;/button&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;p&gt;Wird der Bot Connector oft gedrosselt, senken Sie &lt;code&gt;bot.pacing.rate&lt;/code&gt;; prüfen Sie bei mehreren
+Replikaten, dass ihre Raten zusammen das Budget des Mandanten nicht übersteigen. Siehe
+&lt;a href="../teams-bot/#pace-the-calls-to-teams"&gt;Aufrufe an Teams takten&lt;/a&gt;.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="enable-native-histograms-in-prometheus"&gt;Native Histogramme in Prometheus einschalten&lt;span class="hx:absolute hx:-mt-20" id="enable-native-histograms-in-prometheus"&gt;&lt;/span&gt;
 &lt;a href="#enable-native-histograms-in-prometheus" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Der Prometheus-Exporter liefert &lt;strong&gt;native&lt;/strong&gt; Histogramme, die nur über Protobuf übertragen werden.
 Starten Sie Prometheus mit:&lt;/p&gt;
