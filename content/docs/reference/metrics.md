@@ -35,6 +35,8 @@ Attribute names keep dots over OTLP and use underscores in Prometheus (`http.rou
 | `teamster.directory.users` | `teamster_directory_users` | gauge | `{person}` | `state` | People in the directory, by install state. |
 | `teamster.audit.failed` | `teamster_audit_failed_total` | counter | `{event}` | `sink` | Audit events a sink refused. |
 | `teamster.audit.dropped` | `teamster_audit_dropped_total` | counter | `{event}` | `sink` | Audit events dropped because a sink's queue was full. |
+| `teamster.throttled` | `teamster_throttled_total` | counter | `{call}` | `api` | Calls Microsoft Graph or the Bot Connector refused with `429` or `503`, by API. Every refused attempt counts. |
+| `teamster.pacing.wait` | `teamster_pacing_wait_seconds` | histogram | `s` | — | Time a Bot Connector call waited for the bot's budget. See [Pace the calls to Teams](../../guides/teams-bot/#pace-the-calls-to-teams). |
 
 A counter appears in the output once it has counted something. The gauges are read from the
 database when collected, and each answer is reused for one second.
@@ -67,6 +69,7 @@ size histograms are dropped.
 | `teamster.directory.runs` | `outcome` | `done`, `failed`, `lost` |
 | `teamster.directory.users` | `state` | `unknown`, `installed`, `removed`, `failed`, `ineligible`, `departed` |
 | `teamster.audit.failed`, `teamster.audit.dropped` | `sink` | `database`, `file`, `nats` |
+| `teamster.throttled` | `api` | `bot`, `graph` |
 
 `app_missing` is a channel post the Bot Connector refused, almost always because the Teams app is
 not installed in that team. Like `blocked`, it lasts until somebody acts.

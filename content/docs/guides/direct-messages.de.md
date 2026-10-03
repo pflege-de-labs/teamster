@@ -186,7 +186,10 @@ bot:
 ```
 
 Die Verteilung einer Anfrage muss innerhalb von `server.write-timeout` abgeschlossen sein. Erhöhen
-Sie diesen Wert, wenn Sie die Grenzen erhöhen.
+Sie diesen Wert, wenn Sie die Grenzen erhöhen. Jeder Versand wartet außerdem, bis die Taktung des
+Bots ihn an die Reihe lässt, und ein gedrosselter wartet sein `Retry-After` ab. Ein Versand, der
+über die Frist hinaus warten müsste, schlägt fehl; der Absender erhält ein `502` und wiederholt.
+Siehe [Aufrufe an Teams takten](../teams-bot/#pace-the-calls-to-teams).
 
 Den Entwurf beschreibt
 [ADR 0063](https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0063-a-message-names-its-recipients.md).

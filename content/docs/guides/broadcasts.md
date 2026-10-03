@@ -96,7 +96,11 @@ returns the same list. Finished broadcasts are kept for 30 days.
   step, `webhook.fanout-concurrency` at once.
 * If a replica stops, another takes the broadcast over within about two minutes, from the last
   step it recorded. Up to 25 people may get it twice.
-* A failed send is counted, not retried.
+* Every send is paced with the rest of the bot's calls, so a large broadcast takes its time; see
+  [Pace the calls to Teams](../teams-bot/#pace-the-calls-to-teams).
+* A send Teams throttles (`429`) or finds unavailable (`503`) is retried after its `Retry-After`.
+  Any other failed send is counted, not retried. So is a send still waiting a minute into its
+  step of 25.
 * The audience is read when the broadcast starts. People who join later get it only if a replica
   takes the broadcast over and reads them after the point it got to.
 

@@ -284,3 +284,44 @@ erteilt haben.
 Eine Route kann jetzt an **Jede in der Nachricht genannte Person** zustellen. Wer Routen bearbeiten
 darf, darf eine solche Route anlegen. Siehe
 [Nachrichten an einzelne Personen senden](../direct-messages/).
+
+## Aufrufe an Teams takten {#pace-the-calls-to-teams}
+
+Teams drosselt den Bot als Ganzes, über alle Kanal-Posts, Chat-Nachrichten, Rundsendungen und
+Installationen hinweg. Teamster taktet jeden Aufruf an den Bot Connector so, dass er unter diesem
+Limit bleibt, statt daran zu stoßen:
+
+```yaml
+bot:
+  pacing:
+    strategy: "process"       # jedes Replikat taktet sich selbst
+    rate: 20                  # Aufrufe pro Sekunde für dieses Replikat
+    burst: 20
+    conversation-rate: 0.5    # Teams erlaubt einer Unterhaltung 7 pro Sekunde und 1800 pro Stunde
+    conversation-burst: 7
+    retries: 3                # ein 429 oder 503 wird nach seinem Retry-After erneut gesendet
+    max-retry-wait: "30s"
+```
+
+Das sind die Standardwerte; eine Konfiguration ohne `bot.pacing` erhält sie. Jeder Schlüssel hat
+eine Variable `TEAMSTER_BOT_PACING_*`, aufgeführt unter
+[Konfiguration](../../reference/configuration/#teams-bot). Mit dem Helm-Chart setzen Sie sie unter
+`config.settings.bot.pacing`.
+
+* **Teilen Sie das Budget durch die Zahl der Replikate.** Jedes Replikat hat ein eigenes Budget.
+  Bei drei Replikaten und einem Budget des Mandanten von 30 Aufrufen pro Sekunde setzen Sie `rate`
+  und `burst` auf `10`.
+* **Ein `429` hält jeden Aufruf zurück**, bis sein `Retry-After` verstrichen ist, nicht nur den,
+  der es erhalten hat.
+* **Nur `429` und `503` werden wiederholt**, bis zu `retries` Mal. Die Wartezeit folgt
+  `Retry-After`, fällt sonst auf 1, 2 und 4 Sekunden zurück und übersteigt nie `max-retry-wait`.
+  Mit `0` schlägt ein gedrosselter Aufruf sofort fehl. Nichts anderes wird wiederholt: Nach einem
+  `502` oder `504` ist die Nachricht womöglich schon angekommen.
+* **Eine Nachricht, die Personen nennt, muss weiterhin innerhalb von `server.write-timeout` fertig
+  werden.** Ein Versand, der länger warten müsste, schlägt als vorübergehend fehl; der Absender
+  erhält ein `502` und wiederholt.
+
+`teamster.throttled` zählt, wie oft Microsoft abgewiesen hat, und `teamster.pacing.wait`, wie lange
+Aufrufe auf ihre Reihe gewartet haben; siehe
+[Teamster überwachen](../observability/#tell-throttling-from-a-stuck-run). Den Entwurf beschreibt
+[ADR 0085](https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0085-pace-bot-connector-calls.md).
