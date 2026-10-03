@@ -19,9 +19,9 @@ that runs more than one instance. SQLite is the option with no other runtime dep
 | `internal/logging` | Builds the `slog` logger from `log.*` and carries a request's logger in its context. See [Logging and errors](#logging-and-errors). |
 | `internal/audit` | Records configuration changes: a `store.Store` decorator that emits an event per write, a `Recorder` that fans events out to sinks (database, JSON lines file, NATS JetStream), and the retention pruner. See [Audit trail](#audit-trail). |
 | `internal/samples` | Remembers the label keys, label values and attribute keys incoming events carry, for editor completion. See [Editor completion](#editor-completion). |
-| `internal/graph` | Microsoft Graph client: OAuth2 client credentials, list Teams and channels. It posts nothing: Graph does not let an application post or edit channel messages (ADR 0045). It also reads directory users and the organization app catalog, and installs the Teams app in a user's personal scope; those calls take a context and retry while Graph throttles (429/503), waiting as long as `Retry-After` says, up to 30 seconds. `BrokerClient` is the delegated-Teams half (ADR 0037): the same Graph endpoints, called with a per-request Entra bearer token instead of the app-only credential. |
+| `internal/graph` | Microsoft Graph client: OAuth2 client credentials, list Teams and channels. It posts nothing: Graph does not let an application post or edit channel messages (ADR 0045). It also reads directory users and the organization app catalog, and installs the Teams app in a user's personal scope. Every app-only call retries while Graph throttles (429/503), waiting as long as `Retry-After` says, up to 30 seconds ([ADR 0085](adr/0085-pace-bot-connector-calls.md)). `BrokerClient` is the delegated-Teams half (ADR 0037): the same Graph endpoints, called with a per-request Entra bearer token instead of the app-only credential. |
 | `internal/people` | Resolves an object id, UPN or mail address to a directory user, opens the bot's chat with them, installing the Teams app through Graph when allowed, and reconciles installs for the whole tenant. See [Installing the app for everyone](#installing-the-app-for-everyone). |
-| `internal/bot` | Bot Framework Connector client: a second, separate OAuth2 client credentials flow. It starts channel posts, sends to a person's chat, and edits both. `CreatePersonalConversation` opens the bot's 1:1 chat with a user by Entra object id, which works only once the app is installed for them. See [Bot configuration](#bot-configuration) and [Inbound bot messages](#inbound-bot-messages). |
+| `internal/bot` | Bot Framework Connector client: a second, separate OAuth2 client credentials flow. It starts channel posts, sends to a person's chat, and edits both. `CreatePersonalConversation` opens the bot's 1:1 chat with a user by Entra object id, which works only once the app is installed for them. Every call is paced and a throttled one retried; see [Pacing](#pacing), [Bot configuration](#bot-configuration) and [Inbound bot messages](#inbound-bot-messages). |
 | `internal/store` | `Store` interface, its SQLite and Postgres backends sharing one adapter; `internal/store/migrations` owns the schema for templates, destinations, routes, recipients, webhook endpoints, access tokens, active events, broker tokens and event samples. |
 | `internal/models` | Shared data types: `Event` and its extensions, `Route`, `Template`, `Destination`, `Recipient`, `ActiveEvent`, `AccessToken`, `BrokerToken`, `EventSample` and the two webhook payload shapes. See [Events](#events). |
 | `internal/httpserver/web` | Embedded static assets: icons, the web manifest, the Tailwind stylesheet built from `views/styles.css`, the page scripts, and the vendored libraries under `vendor/` (ADR 0031). |
@@ -800,6 +800,11 @@ Installing for everyone adds four instruments, none of which names a person:
 
 The audit trail adds two, by `sink`: `teamster.audit.failed` and `teamster.audit.dropped`.
 
+Pacing adds two ([ADR 0085](adr/0085-pace-bot-connector-calls.md)):
+
+* `teamster.throttled`, by `api` (`bot` or `graph`): each 429 or 503, retried or not.
+* `teamster.pacing.wait`, a histogram of the seconds each Bot Connector call waited for the pacer.
+
 ## Logging and errors
 
 Everything logs through one `log/slog` logger, built from `log.level` and `log.format` in
@@ -1392,6 +1397,29 @@ turns the feature on exposes no unauthenticated path and offers nobody a page in
 talk to a bot that isn't there. See [Inbound bot messages](#inbound-bot-messages) for what validates
 a request once the route exists, and [Linking a chat](#linking-a-chat) for how a person ends up
 receiving anything through it.
+
+### Pacing
+
+Teams throttles the bot as a whole, so every Bot Connector call goes through one `bot.Pacer`
+per process ([ADR 0085](adr/0085-pace-bot-connector-calls.md)). `bot.pacing.strategy: process`, the
+only strategy so far, holds:
+
+* a token bucket for the process (`bot.pacing.rate`, `.burst`);
+* a token bucket per conversation (`.conversation-rate`, `.conversation-burst`), keyed by the
+  conversation for a send or edit, the channel for a new post, and the person for opening a chat.
+  It is taken before the global one, so a call held in one conversation holds no global token;
+* a pause that a 429 sets to its `Retry-After`. Every later call waits it out first.
+
+`doRequest` waits on the pacer before each attempt and sends a 429 or 503 again up to
+`.retries` times, after `Retry-After` or 1s doubling, capped at `.max-retry-wait`. Nothing else is
+retried: after a 502 or 504 the message may have arrived. Every wait ends with the caller's
+context, so a synchronous fan-out that runs out of time is a transient failure as before.
+`validatePacing` refuses a zero rate or burst, which would park every call.
+A broadcast gives each chunk half of `broadcastStale`, so backoff cannot keep a chunk running past
+the heartbeat and let a second replica take it over.
+
+Each replica paces itself: the operator divides the tenant's budget by the replica count. A shared
+budget through Postgres or a NATS work queue is on the [roadmap](roadmap.md).
 
 ## Installing the app for everyone
 

@@ -80,11 +80,6 @@ whether the public service URL works before any activity has arrived, whether `F
 a personal install event names the person when Graph did the install, and how long a first run on a
 large tenant takes under Graph's throttling.
 
-### 23.6 A counter for Graph throttling
-
-`teamster.graph.throttled`, from a hook in the Graph client's retry, so a slow run can be told from
-a stuck one.
-
 ## Milestone 24 — Announcements
 
 Broadcasts to everyone the bot can reach are built: `"broadcast": true`, accepted with 202,
@@ -114,8 +109,27 @@ Either one should also retry a failed send instead of only counting it.
 
 * Cancelling a broadcast that is waiting or running.
 * An Entra group as the audience instead of everyone.
-* Pacing against the Bot Connector's limits, beyond `webhook.fanout-concurrency`.
 * An audit event of who broadcast what, and to how many.
+
+## Milestone 25 — Pacing across replicas
+
+Every Bot Connector call is paced per process, and a 429 holds back the calls behind it
+([ADR 0085](adr/0085-pace-bot-connector-calls.md)). Each replica has a budget of its own, so the
+operator divides the tenant's budget by the replica count. Two more values for
+`bot.pacing.strategy` would share one budget:
+
+### 25.1 `database`
+
+One budget for every replica, shared through Postgres: a row per time slot that a call claims a
+token from, and a pause that a 429 writes for everyone. It is exact, but it costs a round trip per
+call. SQLite has only one replica and does not need it.
+
+### 25.2 `nats`
+
+Every send is published to a JetStream work queue and drained by one paced consumer. It shares
+both the budget and the pause, and it is the same queue 24.1 weighs for sending to each person
+exactly once. It makes NATS a delivery dependency
+([ADR 0071](adr/0071-publish-audit-events-to-nats-jetstream.md)).
 
 ## Follow-ups from shipped work
 
@@ -159,9 +173,10 @@ Smaller items left open when a milestone shipped. Each is picked up on its own.
 | 3 | 21 App package from teamster | — | — |
 | 4 | 22 Personal routes by grant | — | — |
 | 5 | 20.4 More commands | 20.2 | — |
-| 6 | 23.4–23.6 Messages to individual people, the rest | 23 | a test tenant for 23.5 |
+| 6 | 23.4–23.5 Messages to individual people, the rest | 23 | a test tenant for 23.5 |
 | 7 | 24.1 Broadcasts exactly once | 24 | — |
 | 8 | 24.2 Announcements, the rest | 24 | — |
+| 9 | 25 Pacing across replicas | — | the 24.1 decision for 25.2 |
 
 Follow-ups are unordered and can be pulled in between milestones.
 
