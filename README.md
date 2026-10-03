@@ -341,6 +341,33 @@ and icons an operator uploads to Teams admin center so the bot can be installed 
 from the runtime configuration above. See [`manifest/README.md`](manifest/README.md) for what to
 replace before packaging and how to build the zip.
 
+#### Pacing
+
+Teams throttles the bot as a whole, across every message, broadcast and install. Teamster paces
+each call to stay under that limit rather than finding it
+([ADR 0085](docs/adr/0085-pace-bot-connector-calls.md)):
+
+```yaml
+bot:
+  pacing:
+    strategy: "process"       # each replica paces itself
+    rate: 20                  # calls per second for this replica
+    burst: 20
+    conversation-rate: 0.5    # Teams allows a conversation 7 a second and 1800 an hour
+    conversation-burst: 7
+    retries: 3                # a 429 or 503 is sent again, after its Retry-After
+    max-retry-wait: "30s"
+```
+
+- With several replicas, each one has its own budget, so divide the tenant's budget by their
+  number.
+- A `429` holds back **every** call until its `Retry-After` has passed, not only the one that got it.
+- Nothing but a `429` or `503` is retried. After a `502` the message may have arrived already.
+- A message that names people still has to finish within `server.write-timeout`. A send that would
+  wait longer fails as transient (`502`), so the sender retries it.
+- `teamster.throttled` and `teamster.pacing.wait` show how often Microsoft pushed back and how long
+  calls waited (see [Metrics](#metrics)).
+
 ## Storage
 
 | `database.driver` | What it is |
@@ -1449,6 +1476,8 @@ metrics:
 | `teamster.directory.lookups` | addresses resolved to a person, by where the answer came from |
 | `teamster.directory.runs` | install runs for the tenant, by kind and outcome |
 | `teamster.directory.users` | people in the directory, by install state |
+| `teamster.throttled` | calls Graph or the Bot Connector refused with `429` or `503`, by `api` |
+| `teamster.pacing.wait` | seconds a Bot Connector call waited for its turn ([Pacing](#pacing)) |
 
 `app_missing` is a channel post the Bot Connector refused, which almost always means the Teams app is
 not installed in that team. Like `blocked`, it lasts until somebody acts, so alert on it and on

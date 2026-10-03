@@ -22,6 +22,7 @@ import (
 type uninstrumented struct{}
 
 func (uninstrumented) ClientTransport(base http.RoundTripper) http.RoundTripper { return base }
+func (uninstrumented) Throttled(context.Context, string)                        {}
 
 // newTestClient points a client at a stub Graph API, bypassing the OAuth2
 // exchange that NewClient would otherwise perform against Entra.

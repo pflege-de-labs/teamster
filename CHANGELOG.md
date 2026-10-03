@@ -10,8 +10,20 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 ## [Unreleased]
 
+### Added
+
+* Every Bot Connector call is paced: `bot.pacing.rate` and `.burst` per replica, and
+  `.conversation-rate` and `.conversation-burst` per conversation. A call the Connector refuses with
+  `429` or `503` is retried up to `bot.pacing.retries` times after its `Retry-After`, and a `429`
+  holds back every other call until then. Messages and broadcasts slow down instead of failing when
+  Teams throttles the bot ([ADR 0085](docs/adr/0085-pace-bot-connector-calls.md)).
+* `teamster.throttled`, by `api`, counts each `429` and `503` from Graph or the Bot Connector, and
+  `teamster.pacing.wait` records how long each call waited for its turn.
+
 ### Changed
 
+* Listing teams and channels and checking a team's apps in Graph retry while Graph throttles, like
+  the directory calls already did.
 * Anyone who may edit routes may create a route to **Any person named in the message**, formerly
   *People named in the message* and admins only. Whom it reaches is still bounded by the sender's
   message level ([ADR 0087](docs/adr/0087-anyone-may-route-to-the-people-a-message-names.md)).

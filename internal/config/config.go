@@ -206,6 +206,21 @@ type BotConfig struct {
 	InlineInstallBudget int           `help:"How many people one message may install the app for before it is delivered." name:"inline-install-budget" default:"5"`
 	WelcomeMessage      string        `help:"Sent once when the app is installed for a person; empty sends nothing." name:"welcome-message"`
 	DirectoryTTL        time.Duration `help:"How long a looked-up person is trusted before Graph is asked again." name:"directory-ttl" default:"24h"`
+	// Every Bot Connector call shares this budget, so no fan-out runs into throttling (ADR 0085).
+	Pacing PacingConfig `embed:"" prefix:"pacing-"`
+}
+
+// PacingConfig bounds how fast the bot calls the Bot Connector (ADR 0085). The
+// conversation defaults stay under Teams' per-thread limit of 7 a second and
+// 1800 an hour.
+type PacingConfig struct {
+	Strategy          string        `help:"How calls are paced: process gives each replica a budget of its own." enum:"process" default:"process"`
+	Rate              float64       `help:"Bot Connector calls per second for this replica; divide the tenant's budget by the replica count." default:"20"`
+	Burst             int           `help:"Calls this replica may make at once before rate applies." default:"20"`
+	ConversationRate  float64       `help:"Calls per second to one conversation." name:"conversation-rate" default:"0.5"`
+	ConversationBurst int           `help:"Calls to one conversation at once before conversation-rate applies." name:"conversation-burst" default:"7"`
+	Retries           int           `help:"How often a throttled call is retried; 0 fails it at once." default:"3"`
+	MaxRetryWait      time.Duration `help:"Longest wait before a retry, whatever Retry-After asks for." name:"max-retry-wait" default:"30s"`
 }
 
 // Configured is the single place that decides whether the feature is on at
@@ -478,6 +493,22 @@ func validateBot(cfg BotConfig) error {
 	// teams an install event has named.
 	if parsed, err := url.Parse(cfg.ServiceURL); cfg.ServiceURL != "" && (err != nil || parsed.Scheme != "https") {
 		return fmt.Errorf("bot-service-url must be an https URL, not %q", cfg.ServiceURL)
+	}
+	return validatePacing(cfg.Pacing)
+}
+
+// validatePacing refuses a budget that would send nothing: a zero rate or
+// burst parks every call until its context ends.
+func validatePacing(cfg PacingConfig) error {
+	switch {
+	case cfg.Rate <= 0 || cfg.Burst < 1:
+		return fmt.Errorf("bot-pacing-rate and bot-pacing-burst must be positive, not %g and %d", cfg.Rate, cfg.Burst)
+	case cfg.ConversationRate <= 0 || cfg.ConversationBurst < 1:
+		return fmt.Errorf("bot-pacing-conversation-rate and bot-pacing-conversation-burst must be positive, not %g and %d", cfg.ConversationRate, cfg.ConversationBurst)
+	case cfg.Retries < 0:
+		return fmt.Errorf("bot-pacing-retries must not be negative, not %d", cfg.Retries)
+	case cfg.MaxRetryWait <= 0:
+		return fmt.Errorf("bot-pacing-max-retry-wait must be positive, not %s", cfg.MaxRetryWait)
 	}
 	return nil
 }

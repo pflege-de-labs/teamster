@@ -19,17 +19,17 @@ import (
 // obtained through Keycloak's broker endpoint. See ADR 0037.
 //
 // It lives in this package rather than internal/httpserver so it can share
-// Team, Channel and the unexported instrumentation interface Client already
-// declares, instead of duplicating either.
+// Team, Channel and the transport instrumentation Client already declares,
+// instead of duplicating either.
 type BrokerClient struct {
 	httpClient   *http.Client
 	graphBaseURL string
 }
 
-// NewBrokerClient takes the same instrumentation interface Client's
-// constructor does, so a Graph call made on an admin's behalf is measured the
+// NewBrokerClient takes the transport instrumentation Client's constructor
+// does, so a Graph call made on an admin's behalf is measured the
 // same way as one made with the service's own credential.
-func NewBrokerClient(graphBaseURL string, tel instrumentation, timeout time.Duration) *BrokerClient {
+func NewBrokerClient(graphBaseURL string, tel transportInstrumentation, timeout time.Duration) *BrokerClient {
 	return &BrokerClient{
 		httpClient: &http.Client{
 			Transport: tel.ClientTransport(http.DefaultTransport),

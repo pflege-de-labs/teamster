@@ -125,7 +125,32 @@ func (m *Metrics) instruments() error {
 	)
 	errs = append(errs, err)
 
+	m.throttled, err = meter.Int64Counter(
+		"teamster.throttled",
+		metric.WithDescription("Calls Microsoft refused with 429 or 503, by API."),
+		metric.WithUnit("{call}"),
+	)
+	errs = append(errs, err)
+
+	m.pacingWaits, err = meter.Float64Histogram(
+		"teamster.pacing.wait",
+		metric.WithDescription("Time a Bot Connector call waited for the bot's budget."),
+		metric.WithUnit("s"),
+	)
+	errs = append(errs, err)
+
 	return errors.Join(errs...)
+}
+
+// Throttled counts a call Graph or the Bot Connector refused for now, so a
+// slow run can be told apart from a stuck one.
+func (m *Metrics) Throttled(ctx context.Context, api string) {
+	m.throttled.Add(ctx, 1, metric.WithAttributes(attribute.String("api", api)))
+}
+
+// PacingWaited records how long a call was held back by the pacer.
+func (m *Metrics) PacingWaited(ctx context.Context, d time.Duration) {
+	m.pacingWaits.Record(ctx, d.Seconds())
 }
 
 // AuditFailed counts an audit event a sink could not take.
