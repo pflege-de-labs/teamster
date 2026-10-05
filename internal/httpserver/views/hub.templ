@@ -1,0 +1,109 @@
+package views
+
+import (
+	"context"
+	"net/url"
+	"strings"
+
+	"github.com/pflege-de-labs/teamster/internal/i18n"
+)
+
+// hubPicker is where anyone who may share a record picks a class of resources,
+// then the records to give someone access to (ADR 0075).
+templ hubPicker(h *Hub) {
+	if h == nil || len(h.Classes) == 0 {
+		@empty(i18n.T(ctx, "hub.none"))
+	} else {
+		<p class="text-sm text-slate-600">{ i18n.T(ctx, "hub.explainer") }</p>
+		<form method="get" action="/admin/access" class="flex max-w-xl items-end gap-2">
+			<label class="grow">
+				<span class="text-sm font-medium">{ i18n.T(ctx, "hub.class") }</span>
+				<select name="class" class="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm">
+					<option value="">{ i18n.T(ctx, "sharing.choose") }</option>
+					for _, class := range h.Classes {
+						<option value={ class.Type } selected?={ class.Type == h.Class }>{ i18n.T(ctx, "hub.class."+class.Type) }</option>
+					}
+				</select>
+			</label>
+			@submit(i18n.T(ctx, "hub.show"))
+		</form>
+		if h.Class != "" {
+			<form method="post" action="/admin/sharing/batch" class="space-y-4">
+				<input type="hidden" name="resource_type" value={ h.Class }/>
+				<input type="hidden" name="return" value={ "/admin/access?class=" + url.QueryEscape(h.Class) }/>
+				<fieldset class="space-y-1">
+					<legend class="text-sm font-medium">{ i18n.T(ctx, "hub.records") }</legend>
+					<ul class="divide-y divide-slate-100 rounded-md border border-slate-200">
+						for _, rec := range h.Records {
+							<li class="flex items-center justify-between gap-3 px-3 py-1.5 text-sm">
+								<label class="flex items-center gap-2">
+									<input type="checkbox" name="ids" value={ rec.ID } class="h-4 w-4 rounded border-slate-300"/>
+									{ rec.Name }
+								</label>
+								<span class="flex gap-3 text-xs">
+									<a href={ templ.SafeURL("/admin/access?class=" + url.QueryEscape(h.Class) + "&id=" + url.QueryEscape(rec.ID) + "#sharing") } class="text-sky-700 hover:underline">{ i18n.T(ctx, "hub.grants") }</a>
+									<a href={ templ.SafeURL(rec.Href) } class="text-slate-500 hover:underline">{ i18n.T(ctx, "action.edit") }</a>
+								</span>
+							</li>
+						}
+					</ul>
+				</fieldset>
+				@principalSelect(h.Principals)
+				@actionBoxes(h.Actions, false, nil)
+				<p class="text-xs text-slate-500">{ i18n.T(ctx, "hub.batch_hint") }</p>
+				@submit(i18n.T(ctx, "hub.grant_selected"))
+			</form>
+			if h.Selected != nil {
+				@sharingPanel(*h.Selected)
+			}
+		}
+	}
+}
+
+// grantedToMe lists what was shared with the viewer, and through whom.
+templ grantedToMe(rows []MyGrant, roles []RoleSummary) {
+	@accessSection(i18n.T(ctx, "me.granted")) {
+		if len(rows) == 0 && len(roles) == 0 {
+			@empty(i18n.T(ctx, "me.no_granted"))
+		}
+		if len(rows) > 0 {
+			<table class="w-full text-left text-sm">
+				<thead class="text-xs text-slate-500">
+					<tr>
+						<th class="py-1">{ i18n.T(ctx, "hub.class") }</th>
+						<th class="py-1">{ i18n.T(ctx, "access.resource") }</th>
+						<th class="py-1">{ i18n.T(ctx, "sharing.actions") }</th>
+						<th class="py-1">{ i18n.T(ctx, "me.via") }</th>
+					</tr>
+				</thead>
+				<tbody class="divide-y divide-slate-100">
+					for _, g := range rows {
+						<tr>
+							<td class="py-1">{ i18n.T(ctx, "hub.class."+g.Type) }</td>
+							<td class="py-1">
+								<a href={ templ.SafeURL(g.Href) } class="text-sky-700 hover:underline">{ g.Name }</a>
+							</td>
+							<td class="py-1 font-mono text-xs">{ joinOrDash(g.Actions) }</td>
+							<td class="py-1 text-xs text-slate-600">{ joinOrDash(g.Via) }</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		}
+		for _, role := range roles {
+			<p class="text-sm">
+				<span class="font-medium">{ role.Role }</span>:
+				{ i18n.T(ctx, "me.role_summary", actionLabels(ctx, role.Actions), i18n.T(ctx, "hub.class."+role.Type)) }
+			</p>
+		}
+	}
+}
+
+// actionLabels names actions in the viewer's language.
+func actionLabels(ctx context.Context, actions []string) string {
+	names := make([]string, 0, len(actions))
+	for _, a := range actions {
+		names = append(names, i18n.T(ctx, "sharing.action."+a))
+	}
+	return strings.Join(names, ", ")
+}

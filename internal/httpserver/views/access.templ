@@ -8,7 +8,13 @@ import (
 
 // Access is the admins' overview at /admin/access (ADR 0076).
 type Access struct {
-	Viewer     Viewer
+	Viewer Viewer
+	// Admin is whether the viewer administers access; everyone else gets the
+	// hub and the grants on records they may share, and nothing else here.
+	Admin bool
+	Hub   *Hub
+	// Records name every record for the "Who can?" form.
+	Records []HubClass
 	Webhooks   []WebhookAccess
 	// Messages are the principals granted a message level (ADR 0082).
 	Messages   []WebhookAccess
@@ -20,6 +26,32 @@ type Access struct {
 	Check      *AccessCheck
 	Notice     string
 	Error      string
+}
+
+// HubRecord is a record a grant may name, with where to edit it.
+type HubRecord struct {
+	ID       string
+	Name     string
+	Href     string
+	CanShare bool
+}
+
+// HubClass is a resource type and its records.
+type HubClass struct {
+	Type    string
+	Records []HubRecord
+}
+
+// Hub is the picker: a class, its records, and the grants of one record.
+type Hub struct {
+	Classes    []HubClass
+	Class      string
+	Records    []HubRecord
+	SelectedID string
+	Selected   *Sharing
+	Principals PrincipalOptions
+	// Actions are what a batch may grant; ownership is passed on one record at a time.
+	Actions []string
 }
 
 // WebhookAccess is one principal's webhook level.
@@ -35,6 +67,8 @@ type LabelledGrant struct {
 	Permission models.Permission
 	Principal  string
 	Resource   string
+	// Href is the record's edit page, empty for what has none.
+	Href string
 }
 
 // AccessCheck is the question asked in "Who can?" and its answer.
@@ -57,6 +91,10 @@ templ AccessPage(page Access) {
 	@Layout(i18n.T(ctx, "page.access"), &page.Viewer) {
 		@notice(page.Error, page.Notice)
 		<div class="space-y-6">
+			@accessSection(i18n.T(ctx, "hub.heading")) {
+				@hubPicker(page.Hub)
+			}
+			if page.Admin {
 			@accessSection(i18n.T(ctx, "access.webhooks")) {
 				<p class="text-sm text-slate-600">{ i18n.T(ctx, "access.webhooks_explainer") }</p>
 				if len(page.Webhooks) > 0 {
@@ -130,11 +168,28 @@ templ AccessPage(page Access) {
 				</form>
 			}
 			@accessSection(i18n.T(ctx, "access.check")) {
-				<form method="get" action="/admin/access" class="grid gap-3 sm:grid-cols-5 sm:items-end">
+				<form method="get" action="/admin/access" class="grid gap-3 sm:grid-cols-4 sm:items-end">
 					@textField("subject", i18n.T(ctx, "access.subject"), "", checkValue(page.Check, "subject"))
-					@textField("action", i18n.T(ctx, "audit.action"), "update", checkValue(page.Check, "action"))
-					@textField("type", i18n.T(ctx, "audit.type"), "Template", checkValue(page.Check, "type"))
-					@textField("id", i18n.T(ctx, "audit.id"), "", checkValue(page.Check, "id"))
+					<label class="block">
+						<span class="text-sm font-medium">{ i18n.T(ctx, "audit.action") }</span>
+						<select name="action" class="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm">
+							for _, a := range checkActions {
+								<option value={ a } selected?={ a == checkValue(page.Check, "action") }>{ i18n.T(ctx, "sharing.action."+a) }</option>
+							}
+						</select>
+					</label>
+					<label class="block">
+						<span class="text-sm font-medium">{ i18n.T(ctx, "access.resource") }</span>
+						<select name="resource" class="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm">
+							for _, class := range page.Records {
+								<optgroup label={ i18n.T(ctx, "hub.class."+class.Type) }>
+									for _, rec := range class.Records {
+										<option value={ class.Type + ":" + rec.ID } selected?={ class.Type+":"+rec.ID == checkValue(page.Check, "resource") }>{ rec.Name }</option>
+									}
+								</optgroup>
+							}
+						</select>
+					</label>
 					@submit(i18n.T(ctx, "access.ask"))
 				</form>
 				if page.Check != nil {
@@ -147,9 +202,10 @@ templ AccessPage(page Access) {
 						<p class="text-sm font-medium text-red-700">{ i18n.T(ctx, "access.refused") }</p>
 					}
 					for _, p := range page.Check.Result.Policies {
-						<pre class="overflow-x-auto rounded bg-slate-50 p-2 text-xs"><code>{ p.ID }: { p.Text }</code></pre>
+						<details><summary class="cursor-pointer text-xs text-slate-500">{ p.ID }</summary><pre class="overflow-x-auto rounded bg-slate-50 p-2 text-xs"><code>{ p.Text }</code></pre></details>
 					}
 				}
+			}
 			}
 			@accessSection(i18n.T(ctx, "access.grants")) {
 				<form method="get" action="/admin/access" class="flex max-w-xl items-end gap-2">
@@ -173,7 +229,13 @@ templ AccessPage(page Access) {
 							for _, g := range page.Grants {
 								<tr>
 									<td class="py-1">{ g.Principal }</td>
-									<td class="py-1">{ g.Resource }</td>
+									<td class="py-1">
+										if g.Href != "" {
+											<a href={ templ.SafeURL(g.Href) } class="text-sky-700 hover:underline">{ g.Resource }</a>
+										} else {
+											{ g.Resource }
+										}
+									</td>
 									<td class="py-1 font-mono text-xs">{ joinOrDash(g.Permission.Actions) }</td>
 								</tr>
 							}
@@ -181,6 +243,7 @@ templ AccessPage(page Access) {
 					</table>
 				}
 			}
+			if page.Admin {
 			@accessSection(i18n.T(ctx, "access.policies")) {
 				<p class="text-xs text-slate-500">{ i18n.T(ctx, "access.generation", page.Generation) }</p>
 				<details>
@@ -190,6 +253,7 @@ templ AccessPage(page Access) {
 				for _, p := range page.Generated {
 					<pre class="overflow-x-auto rounded bg-slate-50 p-2 text-xs"><code>{ p.Text }</code></pre>
 				}
+			}
 			}
 		</div>
 	}
@@ -216,9 +280,12 @@ func checkValue(check *AccessCheck, field string) string {
 	case "type":
 		return check.ResourceType
 	default:
-		return check.ResourceID
+		return check.ResourceType + ":" + check.ResourceID
 	}
 }
+
+// checkActions are what "Who can?" asks about.
+var checkActions = []string{"read", "update", "delete", "attach", "share", "own", "create", "use", "administer", "message", "broadcast"}
 
 // MyAccess is /admin/me: what the signed-in person may do, and why.
 type MyAccess struct {
@@ -231,7 +298,26 @@ type MyAccess struct {
 	// Messages is how far they may address people (ADR 0082).
 	Messages  string
 	Policies  []authz.GeneratedPolicy
-	Error     string
+	// Granted is what was shared with the viewer; Roles what their roles allow on whole collections.
+	Granted    []MyGrant
+	RoleGrants []RoleSummary
+	Error   string
+}
+
+// MyGrant is a record the viewer holds actions on, and through whom.
+type MyGrant struct {
+	Type    string
+	Name    string
+	Href    string
+	Actions []string
+	Via     []string
+}
+
+// RoleSummary is what one role allows on every record of a type.
+type RoleSummary struct {
+	Role    string
+	Type    string
+	Actions []string
 }
 
 templ MyAccessPage(page MyAccess) {
@@ -252,13 +338,18 @@ templ MyAccessPage(page MyAccess) {
 				<dt class="font-medium">{ i18n.T(ctx, "me.messages") }</dt>
 				<dd class="sm:col-span-3">{ i18n.T(ctx, "me.messages."+messagesOrNone(page.Messages)) }</dd>
 			</dl>
-			<h3 class="text-sm font-semibold">{ i18n.T(ctx, "me.policies") }</h3>
+		}
+		@grantedToMe(page.Granted, page.RoleGrants)
+		@accessSection(i18n.T(ctx, "me.policies")) {
 			if len(page.Policies) == 0 {
 				@empty(i18n.T(ctx, "me.no_policies"))
 			}
-			for _, p := range page.Policies {
-				<pre class="overflow-x-auto rounded bg-slate-50 p-2 text-xs"><code>{ p.Text }</code></pre>
-			}
+			<details>
+				<summary class="cursor-pointer text-sm text-slate-600">{ i18n.T(ctx, "me.show_policies") }</summary>
+				for _, p := range page.Policies {
+					<pre class="mt-2 overflow-x-auto rounded bg-slate-50 p-2 text-xs"><code>{ p.Text }</code></pre>
+				}
+			</details>
 		}
 	}
 }

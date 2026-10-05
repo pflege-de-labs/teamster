@@ -10,6 +10,7 @@ import (
 
 	"github.com/pflege-de-labs/teamster/internal/authz"
 	"github.com/pflege-de-labs/teamster/internal/httpserver/views"
+	"github.com/pflege-de-labs/teamster/internal/i18n"
 	"github.com/pflege-de-labs/teamster/internal/models"
 	"github.com/pflege-de-labs/teamster/internal/store"
 )
@@ -229,18 +230,46 @@ func (s *Server) handleAccessPage(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	query := r.URL.Query()
 	snapshot := s.policies(r)
+	// Anyone holding a grant reaches this page for the records they may share
+	// (ADR 0088); the rest of it is the admins'.
+	admin := s.can(r, authz.ActionAdminister, "Access", "")
 	page := views.Access{
-		Viewer:     s.viewerFor(r),
-		Filter:     query.Get("filter"),
-		BaseText:   authz.BaseText(),
-		Generated:  snapshot.Policies(),
-		Generation: snapshot.Generation(),
-		Notice:     query.Get("notice"),
-		Error:      query.Get("error"),
+		Viewer: s.viewerFor(r),
+		Admin:  admin,
+		Filter: query.Get("filter"),
+		Notice: query.Get("notice"),
+		Error:  query.Get("error"),
+	}
+	if admin {
+		page.BaseText = authz.BaseText()
+		page.Generated = snapshot.Policies()
+		page.Generation = snapshot.Generation()
+	}
+
+	index, err := s.recordIndex(ctx, r)
+	if err != nil {
+		page.Error = failureText(ctx, "list records", err)
+	}
+	if page.Hub, err = s.hubFor(r, index); err != nil && page.Error == "" {
+		page.Error = failureText(ctx, "load sharing", err)
+	}
+	if admin {
+		page.Records = append(index, views.HubClass{Type: "Webhook", Records: []views.HubRecord{
+			{ID: authz.WebhookAlertmanager, Name: authz.WebhookAlertmanager}, {ID: authz.WebhookUniversal, Name: authz.WebhookUniversal},
+			{ID: authz.WebhooksAll, Name: "*"},
+		}}, views.HubClass{Type: authz.PeopleResource.Type, Records: []views.HubRecord{{ID: authz.PeopleResource.ID, Name: "*"}}})
+	}
+	records := map[string]views.HubRecord{}
+	for _, class := range index {
+		for _, rec := range class.Records {
+			if admin || rec.CanShare {
+				records[class.Type+":"+rec.ID] = rec
+			}
+		}
 	}
 
 	labels, err := s.principalLabels(ctx)
-	if err != nil {
+	if err != nil && page.Error == "" {
 		page.Error = failureText(ctx, "load principals", err)
 	}
 	rows, err := s.store.ListPermissions(ctx)
@@ -252,23 +281,29 @@ func (s *Server) handleAccessPage(w http.ResponseWriter, r *http.Request) {
 	var order [][2]string
 	for _, p := range rows {
 		label := labelOf(labels, string(p.PrincipalType), p.PrincipalID)
-		if p.ResourceType == "Webhook" {
+		if admin && p.ResourceType == "Webhook" {
 			key := [2]string{string(p.PrincipalType), p.PrincipalID}
 			if _, seen := byPrincipal[key]; !seen {
 				order = append(order, key)
 			}
 			byPrincipal[key] = append(byPrincipal[key], p)
 		}
-		if p.ResourceType == authz.PeopleResource.Type {
+		if admin && p.ResourceType == authz.PeopleResource.Type {
 			page.Messages = append(page.Messages, views.WebhookAccess{
 				PrincipalType: string(p.PrincipalType), PrincipalID: p.PrincipalID, Label: label, Level: messageLevelOf(p),
 			})
 		}
 		resource := p.ResourceType + " " + p.ResourceID
+		href := ""
+		if rec, ok := records[p.ResourceType+":"+p.ResourceID]; ok {
+			resource, href = rec.Name, rec.Href
+		} else if !admin {
+			continue
+		}
 		if page.Filter != "" && !strings.Contains(strings.ToLower(label+" "+resource), strings.ToLower(page.Filter)) {
 			continue
 		}
-		page.Grants = append(page.Grants, views.LabelledGrant{Permission: p, Principal: label, Resource: resource})
+		page.Grants = append(page.Grants, views.LabelledGrant{Permission: p, Principal: label, Resource: resource, Href: href})
 	}
 	for _, key := range order {
 		page.Webhooks = append(page.Webhooks, views.WebhookAccess{
@@ -276,8 +311,13 @@ func (s *Server) handleAccessPage(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	if subject := strings.TrimSpace(query.Get("subject")); subject != "" {
-		page.Check = s.checkAccess(r, snapshot, subject, query.Get("action"), query.Get("type"), query.Get("id"))
+	if subject := strings.TrimSpace(query.Get("subject")); admin && subject != "" {
+		typ, id, _ := strings.Cut(query.Get("resource"), ":")
+		if typ == "" {
+			// Links from before the lists.
+			typ, id = query.Get("type"), query.Get("id")
+		}
+		page.Check = s.checkAccess(r, snapshot, subject, query.Get("action"), typ, id)
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -327,9 +367,104 @@ func (s *Server) handleMyAccess(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	page.Messages = snapshot.MessageLevel(p)
+	page.Granted, page.RoleGrants, err = s.grantedTo(r, snapshot, p, labels)
+	if err != nil && page.Error == "" {
+		page.Error = failureText(ctx, "list granted records", err)
+	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := views.MyAccessPage(page).Render(ctx, w); err != nil {
 		logError(ctx, "render my access page", err)
 	}
+}
+
+// grantedTo lists the records shared with p, directly or through a group,
+// provider group or role, and what each of p's roles allows on whole collections.
+func (s *Server) grantedTo(r *http.Request, snapshot *authz.Authorizer, p authz.Principal, labels map[string]string) ([]views.MyGrant, []views.RoleSummary, error) {
+	ctx := r.Context()
+	rows, err := s.store.ListPermissions(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	index, err := s.recordIndex(ctx, r)
+	if err != nil {
+		return nil, nil, err
+	}
+	known := map[string]views.HubRecord{}
+	for _, class := range index {
+		for _, rec := range class.Records {
+			known[class.Type+":"+rec.ID] = rec
+		}
+	}
+	groups := snapshot.GroupsOf(p)
+
+	byRecord := map[string]*views.MyGrant{}
+	var order []string
+	for _, row := range rows {
+		var via string
+		switch row.PrincipalType {
+		case models.PrincipalUser:
+			if row.PrincipalID == p.Subject {
+				via = ""
+			} else {
+				continue
+			}
+		case models.PrincipalGroup:
+			if !slices.Contains(groups, row.PrincipalID) {
+				continue
+			}
+			via = labelOf(labels, "group", row.PrincipalID)
+		case models.PrincipalIdPGroup:
+			if !slices.Contains(p.IdPGroups, row.PrincipalID) {
+				continue
+			}
+			via = row.PrincipalID
+		case models.PrincipalRole:
+			if !slices.Contains(p.Roles, authz.Role(row.PrincipalID)) {
+				continue
+			}
+			via = row.PrincipalID
+		}
+		key := row.ResourceType + ":" + row.ResourceID
+		rec, ok := known[key]
+		if !ok || len(row.Actions) == 0 {
+			continue
+		}
+		g := byRecord[key]
+		if g == nil {
+			g = &views.MyGrant{Type: row.ResourceType, Name: rec.Name, Href: rec.Href}
+			byRecord[key] = g
+			order = append(order, key)
+		}
+		g.Actions = append(g.Actions, row.Actions...)
+		if via == "" {
+			via = i18n.T(ctx, "me.via_direct")
+		}
+		if !slices.Contains(g.Via, via) {
+			g.Via = append(g.Via, via)
+		}
+	}
+	granted := make([]views.MyGrant, 0, len(order))
+	for _, key := range order {
+		g := byRecord[key]
+		slices.Sort(g.Actions)
+		g.Actions = slices.Compact(g.Actions)
+		granted = append(granted, *g)
+	}
+
+	var roles []views.RoleSummary
+	for _, role := range p.Roles {
+		for _, typ := range authz.PermissionedTypes {
+			var allowed []string
+			for _, action := range append(slices.Clone(recordActions), authz.ActionCreate) {
+				if snapshot.AllowFor(authz.Principal{Roles: []authz.Role{role}}, action, authz.Resource{Type: typ}) {
+					allowed = append(allowed, action)
+				}
+			}
+			if len(allowed) > 0 {
+				roles = append(roles, views.RoleSummary{Role: string(role), Type: typ, Actions: allowed})
+			}
+		}
+	}
+	return granted, roles, nil
 }

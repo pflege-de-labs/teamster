@@ -30,6 +30,9 @@ type Viewer struct {
 	// CanManage decides whether the permissions tab is offered. The page
 	// refuses the request either way; this is what keeps it out of the nav.
 	CanManage bool
+	// CanShare decides whether the nav offers the access page to someone who
+	// holds grants but does not administer.
+	CanShare bool
 	// CanAudit decides whether the nav offers the audit trail.
 	CanAudit bool
 	// CanTokens is whether the viewer may mint or manage webhook tokens.

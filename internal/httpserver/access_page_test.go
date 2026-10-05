@@ -112,8 +112,16 @@ func TestWebhookAdminsSetLevelsButSeeNoOverview(t *testing.T) {
 	if loc := postFormAs(t, h, "/admin/access/webhooks", url.Values{"principal_type": {"user"}, "principal_id": {"s-bob"}, "level": {"alertmanager"}}).Header().Get("Location"); strings.Contains(loc, "error=") {
 		t.Errorf("a webhook admin could not set a level: %s", loc)
 	}
-	if rec := call(t, h, http.MethodGet, "/admin/access", ""); rec.Code != http.StatusForbidden {
-		t.Errorf("GET /admin/access as a webhook admin = %d, want 403", rec.Code)
+	// The page opens to anyone holding a grant, but a webhook admin has no records to share
+	// and none of the admins' sections.
+	rec := call(t, h, http.MethodGet, "/admin/access", "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET /admin/access as a webhook admin = %d, want 200", rec.Code)
+	}
+	for _, unwanted := range []string{"Snapshot generation", `action="/admin/access/webhooks"`} {
+		if strings.Contains(rec.Body.String(), unwanted) {
+			t.Errorf("a webhook admin sees %q", unwanted)
+		}
 	}
 
 	editor := newTestServer(t, sessionAs(newFakeStore(), authz.RoleEditor), &fakeMessenger{}).Handler
@@ -145,11 +153,11 @@ func TestAccessPage(t *testing.T) {
 		},
 		{name: "filtered", query: "?filter=webhook", want: []string{"Webhook *"}, unwanted: []string{"Template t1"}},
 		{
-			name: "who can, through a provider group", query: "?subject=s-bob&action=update&type=Template&id=t1",
+			name: "who can, through a provider group", query: "?subject=s-bob&action=update&resource=Template:t1",
 			want: []string{"Allowed, by these policies:", "perm:seed-group-g-ops-Template-t1"},
 		},
-		{name: "who cannot", query: "?subject=s-bob&action=delete&type=Template&id=t1", want: []string{"Refused"}},
-		{name: "an unknown subject", query: "?subject=ghost&action=read&type=Template&id=t1", want: []string{"Nobody has signed in with that subject"}},
+		{name: "who cannot", query: "?subject=s-bob&action=delete&resource=Template:t1", want: []string{"Refused"}},
+		{name: "an unknown subject", query: "?subject=ghost&action=read&resource=Template:t1", want: []string{"Nobody has signed in with that subject"}},
 	}
 	for _, tt := range tests {
 		body := call(t, h, http.MethodGet, "/admin/access"+tt.query, "").Body.String()

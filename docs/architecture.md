@@ -483,10 +483,13 @@ they hold. See [ADR 0075](adr/0075-own-and-share-records-through-generated-polic
 
 The webhooks are resources too: `Webhook::"alertmanager"` and `Webhook::"universal"`, both in
 `Webhook::"*"`. `use` is sending to one. Editors may use both. Anyone else needs a `use` grant on
-one or on `*`, and `administer` on `*` makes a webhook admin. `/admin/access` is the admins'
-overview: webhook levels, every grant, the policies in force, and "Who can?", which answers with
-Cedar's deciding policies. `/admin/me` shows anyone signed in their own roles, groups, webhooks and
-grants. See [ADR 0076](adr/0076-webhook-permissions-and-access-overviews.md).
+one or on `*`, and `administer` on `*` makes a webhook admin. `/admin/access` is open to anyone
+holding a grant, as the place to share records across a class: a picker of what they may `share`, a
+batch grant that is all or nothing in one transaction, and the grants on those records
+([ADR 0088](adr/0088-open-the-access-page-to-whoever-may-share.md)). Its admin sections are webhook
+levels, every grant, the policies in force, and "Who can?", which answers with Cedar's deciding
+policies. `/admin/me` shows anyone signed in their own roles, groups, webhooks and
+the records shared with them. See [ADR 0076](adr/0076-webhook-permissions-and-access-overviews.md).
 
 The policies and entities are an immutable snapshot that `authz.Engine` hands out, versioned by the
 single row in `authz_generation`. `authorize` reads the generation once per request. When it has

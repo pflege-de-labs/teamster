@@ -4,19 +4,45 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"slices"
 	"strings"
 
 	"github.com/pflege-de-labs/teamster/internal/authz"
 	"github.com/pflege-de-labs/teamster/internal/httpserver/views"
+	"github.com/pflege-de-labs/teamster/internal/i18n"
 	"github.com/pflege-de-labs/teamster/internal/models"
 	"github.com/pflege-de-labs/teamster/internal/store"
 )
 
+// principalOptionsFor is the picker's choices. Roles are the built-in ones and
+// every role a user has been seen with, so a deployment's own roles can be named.
+func principalOptionsFor(users []models.User, groups []models.Group) views.PrincipalOptions {
+	options := views.PrincipalOptions{
+		Users: users, Groups: groups,
+		Roles: []string{string(authz.RoleEditor), string(authz.RoleViewer), string(authz.RoleAdmin)},
+	}
+	for _, u := range users {
+		for _, name := range u.IdPGroups {
+			if !slices.Contains(options.IdPGroups, name) {
+				options.IdPGroups = append(options.IdPGroups, name)
+			}
+		}
+		for _, role := range u.Roles {
+			if role != "" && !slices.Contains(options.Roles, role) {
+				options.Roles = append(options.Roles, role)
+			}
+		}
+	}
+	slices.Sort(options.IdPGroups)
+	return options
+}
+
 var (
 	errGrant       = errors.New("a grant needs a principal type of user, group, idp_group or role, a principal, and actions")
 	errNoSuchGrant = errors.New("no such permission")
+	errNoRecords   = errors.New("pick at least one record")
 )
 
 // recordActions are what can be granted on a record; create belongs to the collection.
@@ -43,40 +69,77 @@ func (s *Server) grantRefusal(r *http.Request, typ, id string, before, after []s
 	return nil
 }
 
-// share sets the actions one principal holds on one record; none revokes.
-func (s *Server) share(r *http.Request, p models.Permission) (models.Permission, error) {
+// validShare normalises a grant and rejects what the form or API may not name.
+func validShare(p models.Permission) (models.Permission, error) {
 	p.PrincipalID = strings.TrimSpace(p.PrincipalID)
 	if !p.PrincipalType.Valid() || p.PrincipalID == "" || p.ResourceID == "" || p.ResourceID == "*" {
-		return models.Permission{}, userError{errGrant}
+		return p, userError{errGrant}
 	}
 	for _, action := range p.Actions {
 		if !slices.Contains(recordActions, action) {
-			return models.Permission{}, userError{errGrant}
+			return p, userError{errGrant}
 		}
 	}
 	slices.Sort(p.Actions)
 	p.Actions = slices.Compact(p.Actions)
+	return p, nil
+}
 
+// putShare writes one grant inside a transaction, after the checks it takes.
+func (s *Server) putShare(ctx context.Context, tx store.Store, r *http.Request, p models.Permission) (models.Permission, error) {
+	existing, err := tx.ListPermissionsFor(ctx, p.ResourceType, p.ResourceID)
+	if err != nil {
+		return p, err
+	}
+	var before []string
+	for _, e := range existing {
+		if e.PrincipalType == p.PrincipalType && e.PrincipalID == p.PrincipalID {
+			before = e.Actions
+		}
+	}
+	if err := s.grantRefusal(r, p.ResourceType, p.ResourceID, before, p.Actions); err != nil {
+		return p, err
+	}
+	p.CreatedBy = principalSubject(r)
+	return tx.PutPermission(ctx, p)
+}
+
+// share sets the actions one principal holds on one record; none revokes.
+func (s *Server) share(r *http.Request, p models.Permission) (models.Permission, error) {
+	p, err := validShare(p)
+	if err != nil {
+		return models.Permission{}, err
+	}
 	var saved models.Permission
-	err := s.store.WithTx(r.Context(), func(ctx context.Context, tx store.Store) error {
-		existing, err := tx.ListPermissionsFor(ctx, p.ResourceType, p.ResourceID)
-		if err != nil {
-			return err
-		}
-		var before []string
-		for _, e := range existing {
-			if e.PrincipalType == p.PrincipalType && e.PrincipalID == p.PrincipalID {
-				before = e.Actions
-			}
-		}
-		if err := s.grantRefusal(r, p.ResourceType, p.ResourceID, before, p.Actions); err != nil {
-			return err
-		}
-		p.CreatedBy = principalSubject(r)
-		saved, err = tx.PutPermission(ctx, p)
+	err = s.store.WithTx(r.Context(), func(ctx context.Context, tx store.Store) error {
+		var err error
+		saved, err = s.putShare(ctx, tx, r, p)
 		return err
 	})
 	return saved, err
+}
+
+// shareMany gives one principal the same actions on several records of one
+// type, all or nothing: the first refusal names its record and nothing is saved.
+func (s *Server) shareMany(r *http.Request, p models.Permission, ids []string) error {
+	if len(ids) == 0 {
+		markChecked(r)
+		return userError{errNoRecords}
+	}
+	return s.store.WithTx(r.Context(), func(ctx context.Context, tx store.Store) error {
+		for _, id := range ids {
+			one := p
+			one.ResourceID = id
+			one, err := validShare(one)
+			if err == nil {
+				_, err = s.putShare(ctx, tx, r, one)
+			}
+			if err != nil {
+				return userError{fmt.Errorf("%s %s: %w", strings.ToLower(p.ResourceType), id, err)}
+			}
+		}
+		return nil
+	})
 }
 
 // unshare revokes one row, which takes what granting it would.
@@ -113,9 +176,10 @@ func (s *Server) handleShareForm(w http.ResponseWriter, r *http.Request) {
 	if !formGuard(target, w, r) {
 		return
 	}
+	kind, id := principalFromForm(r)
 	_, err := s.share(r, models.Permission{
-		PrincipalType: models.PrincipalType(r.PostFormValue("principal_type")),
-		PrincipalID:   r.PostFormValue("principal_id"),
+		PrincipalType: kind,
+		PrincipalID:   id,
 		ResourceType:  r.PostFormValue("resource_type"),
 		ResourceID:    r.PostFormValue("resource_id"),
 		Actions:       r.PostForm["actions"],
@@ -125,7 +189,7 @@ func (s *Server) handleShareForm(w http.ResponseWriter, r *http.Request) {
 		redirectTo(target, w, r, "", visibleError(r.Context(), "share", err))
 		return
 	}
-	redirectTo(target, w, r, "Permissions saved.", "")
+	redirectTo(target, w, r, i18n.T(r.Context(), "sharing.saved"), "")
 }
 
 func (s *Server) handleUnshareForm(w http.ResponseWriter, r *http.Request) {
@@ -137,7 +201,7 @@ func (s *Server) handleUnshareForm(w http.ResponseWriter, r *http.Request) {
 		redirectTo(target, w, r, "", visibleError(r.Context(), "unshare", err))
 		return
 	}
-	redirectTo(target, w, r, "Permission revoked.", "")
+	redirectTo(target, w, r, i18n.T(r.Context(), "sharing.revoked"), "")
 }
 
 // handleSharingAPI is GET /api/sharing?type=&id=, POST /api/sharing and
@@ -230,26 +294,19 @@ func (s *Server) sharingFor(r *http.Request, typ, id, returnTo string) (*views.S
 	}
 
 	labels := map[string]string{}
-	var idpGroups []string
 	for _, u := range users {
 		labels["user:"+u.Subject] = displayName(u)
-		for _, name := range u.IdPGroups {
-			if !slices.Contains(idpGroups, name) {
-				idpGroups = append(idpGroups, name)
-			}
-		}
 	}
 	for _, g := range groups {
 		labels["group:"+g.ID] = g.Name
 	}
-	slices.Sort(idpGroups)
 
 	sharing := &views.Sharing{
 		ResourceType: typ, ResourceID: id, Return: returnTo,
 		CanShare:    s.can(r, authz.ActionShare, typ, id),
 		CanTransfer: s.can(r, authz.ActionTransfer, typ, id),
 		Actions:     recordActions,
-		Users:       users, Groups: groups, IdPGroups: idpGroups,
+		Principals:  principalOptionsFor(users, groups),
 	}
 	for _, p := range rows {
 		label := p.PrincipalID
