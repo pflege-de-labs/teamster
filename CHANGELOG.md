@@ -10,6 +10,22 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 ## [Unreleased]
 
+### Added
+
+* `/admin/access` opens to anyone who may share a record: pick a kind of resource, tick several
+  records and grant one user, group, provider group or role the same actions on all of them, saved
+  all or nothing. The principal is chosen from a list, and grants are edited in place
+  ([ADR 0088](docs/adr/0088-open-the-access-page-to-whoever-may-share.md)).
+* `/admin/me` lists the records shared with you, with links and through whom, and what your roles
+  allow on whole collections.
+
+### Changed
+
+* "Who can?" takes an action and a record from lists, and the grants table shows record names with
+  links. The raw policy text moves behind a disclosure.
+* The sharing panel's principal field is a list instead of free text; a user who has not signed in
+  yet is entered in a separate field.
+
 ## [0.13.0] — 2026-10-03
 
 ### Added

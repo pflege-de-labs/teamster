@@ -293,6 +293,7 @@ func NewServer(logger *slog.Logger, cfg config.Config, store store.Store, graphC
 	adminMux.HandleFunc("/api/access/messages", api.handleMessageLevelAPI)
 	adminMux.HandleFunc("/admin/sharing/grant", api.handleShareForm)
 	adminMux.HandleFunc("/admin/sharing/revoke", api.handleUnshareForm)
+	adminMux.HandleFunc("/admin/sharing/batch", api.handleShareBatchForm)
 	adminMux.HandleFunc("/api/sharing", api.handleSharingAPI)
 	adminMux.HandleFunc("/api/sharing/", api.handleSharingAPI)
 	adminMux.HandleFunc("/admin/groups", api.handleGroupsPage)

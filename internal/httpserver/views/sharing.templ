@@ -7,6 +7,15 @@ import (
 	"github.com/pflege-de-labs/teamster/internal/models"
 )
 
+// PrincipalOptions are whom a grant may name: the users, groups and provider
+// groups known here, and the roles a deployment defines.
+type PrincipalOptions struct {
+	Users     []models.User
+	Groups    []models.Group
+	IdPGroups []string
+	Roles     []string
+}
+
 // Sharing is who may do what with one record, and the form to change it (ADR 0075).
 type Sharing struct {
 	ResourceType string
@@ -17,10 +26,8 @@ type Sharing struct {
 	CanShare    bool
 	CanTransfer bool
 	// Actions are what may be granted on this record, own last.
-	Actions   []string
-	Users     []models.User
-	Groups    []models.Group
-	IdPGroups []string
+	Actions    []string
+	Principals PrincipalOptions
 }
 
 // SharedPermission is a row and the name of whom it names.
@@ -48,21 +55,8 @@ templ sharingPanel(s Sharing) {
 		if len(s.Permissions) > 0 {
 			<ul class="divide-y divide-slate-200">
 				for _, p := range s.Permissions {
-					<li class="flex items-center justify-between gap-4 py-2 text-sm">
-						<div class="min-w-0">
-							<span class="mr-2 rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600">{ i18n.T(ctx, "sharing.principal." + string(p.Permission.PrincipalType)) }</span>
-							<span class="font-medium">{ p.Label }</span>
-							<span class="ml-2 font-mono text-xs text-slate-500">{ joinOrDash(p.Permission.Actions) }</span>
-						</div>
-						if s.CanShare && (s.CanTransfer || !slices.Contains(p.Permission.Actions, "own")) {
-							<form method="post" action="/admin/sharing/revoke" class="shrink-0">
-								<input type="hidden" name="id" value={ p.Permission.ID }/>
-								<input type="hidden" name="return" value={ s.Return }/>
-								<button type="submit" class="rounded-md border border-slate-300 px-3 py-1 text-xs text-slate-700 hover:border-red-400 hover:bg-red-50 hover:text-red-700">
-									{ i18n.T(ctx, "sharing.revoke") }
-								</button>
-							</form>
-						}
+					<li class="py-2 text-sm">
+						@sharedRow(s, p)
 					</li>
 				}
 			</ul>
@@ -72,45 +66,108 @@ templ sharingPanel(s Sharing) {
 				<input type="hidden" name="resource_type" value={ s.ResourceType }/>
 				<input type="hidden" name="resource_id" value={ s.ResourceID }/>
 				<input type="hidden" name="return" value={ s.Return }/>
-				<div class="grid gap-3 sm:grid-cols-2">
-					<label class="block">
-						<span class="text-sm font-medium">{ i18n.T(ctx, "sharing.principal_type") }</span>
-						<select name="principal_type" class="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm">
-							for _, t := range []string{"user", "group", "idp_group", "role"} {
-								<option value={ t }>{ i18n.T(ctx, "sharing.principal."+t) }</option>
-							}
-						</select>
-					</label>
-					<label class="block">
-						<span class="text-sm font-medium">{ i18n.T(ctx, "sharing.principal") }</span>
-						<input name="principal_id" list={ "sharing-suggestions-" + s.ResourceType } required class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm"/>
-					</label>
-				</div>
-				<datalist id={ "sharing-suggestions-" + s.ResourceType }>
-					for _, u := range s.Users {
-						<option value={ u.Subject }>{ displayName(u) }</option>
-					}
-					for _, g := range s.Groups {
-						<option value={ g.ID }>{ g.Name }</option>
-					}
-					for _, name := range s.IdPGroups {
-						<option value={ name }>{ name }</option>
-					}
-				</datalist>
-				<fieldset class="flex flex-wrap gap-4">
-					<legend class="text-sm font-medium">{ i18n.T(ctx, "sharing.actions") }</legend>
-					for _, action := range s.Actions {
-						if action != "own" || s.CanTransfer {
-							<label class="flex items-center gap-2 text-sm">
-								<input type="checkbox" name="actions" value={ action } class="h-4 w-4 rounded border-slate-300"/>
-								{ i18n.T(ctx, "sharing.action."+action) }
-							</label>
-						}
-					}
-				</fieldset>
+				@principalSelect(s.Principals)
+				@actionBoxes(s.Actions, s.CanTransfer, nil)
 				<p class="text-xs text-slate-500">{ i18n.T(ctx, "sharing.replace_hint") }</p>
 				@submit(i18n.T(ctx, "sharing.grant"))
 			</form>
 		}
 	</section>
+}
+
+// sharedRow is one grant, editable in place: its boxes are what the principal
+// holds now, and saving replaces them.
+templ sharedRow(s Sharing, p SharedPermission) {
+	{{ mayChange := s.CanShare && (s.CanTransfer || !slices.Contains(p.Permission.Actions, "own")) }}
+	<div class="flex flex-wrap items-center justify-between gap-3">
+		<div class="min-w-0">
+			<span class="mr-2 rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600">{ i18n.T(ctx, "sharing.principal." + string(p.Permission.PrincipalType)) }</span>
+			<span class="font-medium">{ p.Label }</span>
+		</div>
+		if mayChange {
+			<form method="post" action="/admin/sharing/grant" class="flex flex-wrap items-center gap-3">
+				<input type="hidden" name="resource_type" value={ s.ResourceType }/>
+				<input type="hidden" name="resource_id" value={ s.ResourceID }/>
+				<input type="hidden" name="return" value={ s.Return }/>
+				<input type="hidden" name="principal" value={ string(p.Permission.PrincipalType) + ":" + p.Permission.PrincipalID }/>
+				@actionBoxes(s.Actions, s.CanTransfer, p.Permission.Actions)
+				<button type="submit" class="rounded-md border border-slate-300 px-3 py-1 text-xs text-slate-700 hover:bg-slate-50">{ i18n.T(ctx, "sharing.grant") }</button>
+			</form>
+			<form method="post" action="/admin/sharing/revoke" class="shrink-0">
+				<input type="hidden" name="id" value={ p.Permission.ID }/>
+				<input type="hidden" name="return" value={ s.Return }/>
+				<button type="submit" class="rounded-md border border-slate-300 px-3 py-1 text-xs text-slate-700 hover:border-red-400 hover:bg-red-50 hover:text-red-700">
+					{ i18n.T(ctx, "sharing.revoke") }
+				</button>
+			</form>
+		} else {
+			<span class="font-mono text-xs text-slate-500">{ joinOrDash(p.Permission.Actions) }</span>
+		}
+	</div>
+}
+
+// principalSelect names whom a grant is for from the ones known here. A person
+// who has not signed in yet is not known, so a field below takes them by name.
+templ principalSelect(o PrincipalOptions) {
+	<label class="block">
+		<span class="text-sm font-medium">{ i18n.T(ctx, "sharing.principal_type") }</span>
+		<select name="principal" class="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm">
+			<option value="">{ i18n.T(ctx, "sharing.choose") }</option>
+			if len(o.Users) > 0 {
+				<optgroup label={ i18n.T(ctx, "sharing.principal.user") }>
+					for _, u := range o.Users {
+						<option value={ "user:" + u.Subject }>{ displayName(u) }</option>
+					}
+				</optgroup>
+			}
+			if len(o.Groups) > 0 {
+				<optgroup label={ i18n.T(ctx, "sharing.principal.group") }>
+					for _, g := range o.Groups {
+						<option value={ "group:" + g.ID }>{ g.Name }</option>
+					}
+				</optgroup>
+			}
+			if len(o.IdPGroups) > 0 {
+				<optgroup label={ i18n.T(ctx, "sharing.principal.idp_group") }>
+					for _, name := range o.IdPGroups {
+						<option value={ "idp_group:" + name }>{ name }</option>
+					}
+				</optgroup>
+			}
+			if len(o.Roles) > 0 {
+				<optgroup label={ i18n.T(ctx, "sharing.principal.role") }>
+					for _, role := range o.Roles {
+						<option value={ "role:" + role }>{ role }</option>
+					}
+				</optgroup>
+			}
+		</select>
+	</label>
+	<details class="text-sm">
+		<summary class="cursor-pointer text-slate-600">{ i18n.T(ctx, "sharing.not_listed") }</summary>
+		<div class="mt-2 grid gap-3 sm:grid-cols-2">
+			<select name="other_type" class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm">
+				for _, t := range []string{"user", "idp_group", "role"} {
+					<option value={ t }>{ i18n.T(ctx, "sharing.principal."+t) }</option>
+				}
+			</select>
+			<input name="other_id" class="block w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm"/>
+		</div>
+		<p class="mt-1 text-xs text-slate-500">{ i18n.T(ctx, "sharing.not_listed_hint") }</p>
+	</details>
+}
+
+// actionBoxes are the actions to grant, with those already held ticked.
+templ actionBoxes(actions []string, canTransfer bool, held []string) {
+	<fieldset class="flex flex-wrap gap-4">
+		<legend class="text-sm font-medium">{ i18n.T(ctx, "sharing.actions") }</legend>
+		for _, action := range actions {
+			if action != "own" || canTransfer {
+				<label class="flex items-center gap-2 text-sm">
+					<input type="checkbox" name="actions" value={ action } checked?={ slices.Contains(held, action) } class="h-4 w-4 rounded border-slate-300"/>
+					{ i18n.T(ctx, "sharing.action."+action) }
+				</label>
+			}
+		}
+	</fieldset>
 }

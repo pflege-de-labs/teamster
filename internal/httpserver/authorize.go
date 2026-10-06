@@ -59,6 +59,8 @@ func viewerOf(r *http.Request) views.Viewer {
 func (s *Server) viewerFor(r *http.Request) views.Viewer {
 	viewer := viewerOf(r)
 	viewer.CanManage = s.allow(r, authz.ActionAdminister, authz.Resource{Type: "Grant"})
+	// Whoever holds a grant may be able to share a record, which is what the access page is for.
+	viewer.CanShare = viewer.CanManage || s.policies(r).HasGrants(principalFor(r))
 	// Without the database trail there is nothing to list.
 	viewer.CanAudit = s.cfg.Audit.Database && s.allow(r, authz.ActionAdminister, authz.Resource{Type: "Audit"})
 	viewer.CanTokens = s.manageTokens(r) || len(s.usableWebhooks(r)) > 0
@@ -227,7 +229,7 @@ var recordPaths = []string{
 	"/admin/routes", "/admin/routes/delete",
 	"/admin/webhooks", "/admin/webhooks/rotate", "/admin/webhooks/delete",
 	"/admin/groups", "/admin/groups/save", "/admin/groups/delete", "/admin/groups/members/add", "/admin/groups/members/remove",
-	"/admin/sharing/grant", "/admin/sharing/revoke",
+	"/admin/sharing/grant", "/admin/sharing/revoke", "/admin/sharing/batch", "/admin/access",
 	"/admin/tokens", "/admin/tokens/new", "/admin/tokens/delete", "/api/tokens",
 	"/api/templates", "/api/destinations", "/api/routes", "/api/webhooks", "/api/groups", "/api/sharing",
 }

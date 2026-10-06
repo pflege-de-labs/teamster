@@ -1230,9 +1230,17 @@ revokes one. Every change is audited in its own transaction. Each permission is 
 
 ### Who may do what
 
-**/admin/access** (admins) shows:
+**/admin/access** is where records are shared across a class. Anyone holding a grant may open it:
+pick a kind of resource (templates, destinations, routes, webhook endpoints, groups), tick the
+records, choose a user, group, provider group or role from the list and the actions to give, and
+save. Only records you may share are listed, and a batch is saved all or nothing. Someone who has
+not signed in yet can be named in the field below the list; the page warns that the access applies
+once they do. Each record's grants can be edited in place from the same page or from the record's
+own edit page ([ADR 0088](docs/adr/0088-open-the-access-page-to-whoever-may-share.md)).
 
-- every grant;
+Admins additionally see:
+
+- every grant, with record names and links;
 - who may send to the webhooks;
 - who may message people;
 - the Cedar policies in force, both the embedded ones and the ones generated from grants;
@@ -1240,7 +1248,7 @@ revokes one. Every change is audited in its own transaction. Each permission is 
   or refuse it.
 
 **My access** in the user menu (`/admin/me`) shows anyone signed in their roles, groups, webhooks,
-whom they may message, and the grants that name them.
+whom they may message, and the records shared with them with links, and through whom.
 
 Webhook permission is set per user, group, provider group or role, at one of five levels:
 

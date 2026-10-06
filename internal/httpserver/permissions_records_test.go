@@ -103,6 +103,13 @@ func TestAGrantWithoutARole(t *testing.T) {
 		t.Errorf("templates = %+v", st.templates)
 	}
 
+	// The batch form refuses before it reaches a record in these two cases.
+	for _, form := range []url.Values{
+		{"resource_type": {"Template"}, "principal": {"group:g1"}, "actions": {"read"}},
+		{"resource_type": {"Template"}, "ids": {"t1"}, "principal": {"group:nobody"}, "actions": {"read"}},
+	} {
+		postFormAs(t, h, "/admin/sharing/batch", form)
+	}
 	if n := api.unchecked.Load(); n != 0 {
 		t.Errorf("%d deferred requests were answered without a record check", n)
 	}
@@ -239,7 +246,7 @@ func TestSharingForms(t *testing.T) {
 	h := newTestServer(t, st, &fakeMessenger{}).Handler
 
 	page := call(t, h, http.MethodGet, "/admin?edit=templates&id=t1", "").Body.String()
-	for _, want := range []string{`id="sharing"`, `action="/admin/sharing/grant"`, `value="g-sre"`, `name="actions" value="own"`} {
+	for _, want := range []string{`id="sharing"`, `action="/admin/sharing/grant"`, `value="group:g-sre"`, `name="actions" value="own"`} {
 		if !strings.Contains(page, want) {
 			t.Errorf("the edit page lacks %q", want)
 		}
@@ -382,6 +389,8 @@ func TestRecordPaths(t *testing.T) {
 
 	tests := map[string]bool{
 		"/admin":                         true,
+		"/admin/access":                  true,
+		"/admin/sharing/batch":           true,
 		"/admin/templates":               true,
 		"/api/templates/t1":              true,
 		"/api/sharing/p1":                true,
@@ -419,7 +428,7 @@ func TestDeferredEndpointsAllCheck(t *testing.T) {
 		"/admin", "/admin?edit=templates&id=t1", "/admin?edit=routes&id=r1", "/admin?edit=webhooks&id=w1", "/admin?edit=destinations&id=d1",
 		"/api/templates", "/api/templates/t1", "/api/destinations", "/api/destinations/d1", "/api/routes", "/api/routes/r1",
 		"/api/webhooks", "/api/webhooks/w1", "/api/groups", "/api/groups/g1", "/admin/groups", "/admin/groups?id=g1",
-		"/api/sharing?type=Template&id=t1",
+		"/api/sharing?type=Template&id=t1", "/admin/access", "/admin/access?class=Template&id=t1",
 	}
 	for _, path := range gets {
 		if rec := call(t, h, http.MethodGet, path, ""); rec.Code >= 400 {
@@ -442,6 +451,7 @@ func TestDeferredEndpointsAllCheck(t *testing.T) {
 		"/admin/groups/members/remove": {"group_id": {"g1"}, "type": {"user"}, "member": {"x"}},
 		"/admin/sharing/grant":         {"principal_type": {"user"}, "principal_id": {"x"}, "resource_type": {"Template"}, "resource_id": {"t1"}, "actions": {"read"}},
 		"/admin/sharing/revoke":        {"id": {"seed-user-tester-Template-t1"}},
+		"/admin/sharing/batch":         {"resource_type": {"Template"}, "ids": {"t1"}, "principal": {"group:g1"}, "actions": {"read"}},
 	}
 	for path, form := range posts {
 		postFormAs(t, h, path, form)

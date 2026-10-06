@@ -1,6 +1,6 @@
 # 0076. Webhook permissions, and overviews of who may do what
 
-* Status: Accepted
+* Status: Accepted; the page is opened to share holders by [ADR 0088](0088-open-the-access-page-to-whoever-may-share.md)
 * Date: 2026-10-01
 
 ## Context
