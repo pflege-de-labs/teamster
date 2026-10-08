@@ -262,11 +262,13 @@ einen Controller.
 
 ## pdb {#pdb}
 
-Wird nur mit `database.driver=postgres` und `replicaCount` größer als 1 gerendert.
+Wird nur gerendert, wenn `replicaCount` größer als 1 ist, unabhängig von `pdb.enabled`: Ein einzelner
+Pod lässt sich nicht budgetieren, ohne jeden Node-Drain zu blockieren. Bei einem Replikat und
+`pdb.enabled=true` gibt `helm install` einen Hinweis aus, dass kein Budget erstellt wurde.
 
 | Schlüssel | Standard | Beschreibung |
 | --- | --- | --- |
-| `pdb.enabled` | `true` | Ein PodDisruptionBudget rendern. |
+| `pdb.enabled` | `true` | Ein PodDisruptionBudget rendern (braucht `replicaCount` größer als 1). |
 | `pdb.minAvailable` | `1` | Mindestzahl verfügbarer Pods. Nicht zusammen mit `maxUnavailable`. |
 | `pdb.maxUnavailable` | `""` | Höchstzahl nicht verfügbarer Pods. |
 | `pdb.labels` | `{}` | Labels am Budget. |

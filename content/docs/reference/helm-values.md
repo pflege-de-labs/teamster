@@ -261,11 +261,13 @@ controller.
 
 ## pdb
 
-Rendered only with `database.driver=postgres` and `replicaCount` above 1.
+Rendered only when `replicaCount` is above 1, whatever `pdb.enabled` says: one pod cannot be budgeted
+without blocking every node drain. With a single replica and `pdb.enabled=true`, `helm install`
+prints a note that no budget was created.
 
 | Key | Default | Description |
 | --- | --- | --- |
-| `pdb.enabled` | `true` | Render a PodDisruptionBudget. |
+| `pdb.enabled` | `true` | Render a PodDisruptionBudget (needs `replicaCount` above 1). |
 | `pdb.minAvailable` | `1` | Minimum available pods. Not together with `maxUnavailable`. |
 | `pdb.maxUnavailable` | `""` | Maximum unavailable pods. |
 | `pdb.labels` | `{}` | Labels on the budget. |
