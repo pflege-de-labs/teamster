@@ -21,7 +21,7 @@ Architectural decisions are recorded here, one file per decision, in
 | [0004](0004-container-image.md) | Container image built multi-stage onto distroless nonroot | Accepted |
 | [0005](0005-image-tagging-and-promotion.md) | Image tags come from metadata-action, releases promote | Superseded by 0006 |
 | [0006](0006-release-rebuild-sbom-signing.md) | Releases rebuild, carry an SBOM and are signed | Accepted |
-| [0007](0007-renovate-dependency-updates.md) | Dependency updates run through Renovate | Accepted |
+| [0007](0007-renovate-dependency-updates.md) | Dependency updates run through Renovate | Superseded by [0089](0089-renovate-runs-as-the-hosted-app.md) |
 | [0008](0008-templ-tailwind-admin-ui.md) | The admin UI is server-rendered with templ and Tailwind | Accepted |
 | [0009](0009-admin-authentication.md) | Admin authentication by Keycloak login or local credentials | Accepted |
 | [0010](0010-message-shape.md) | A template decides the title, text and card of a message | Superseded by 0028 |
@@ -99,3 +99,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0082](0082-naming-people-takes-permission.md) | Naming people in a message takes permission | Accepted |
 | [0083](0083-broadcasts-run-in-the-background.md) | A broadcast reaches everyone, in the background | Accepted |
 | [0084](0084-an-alertmanager-notification-is-one-event.md) | An Alertmanager notification is one event | Accepted |
+| [0089](0089-renovate-runs-as-the-hosted-app.md) | Renovate runs as the hosted app | Accepted |
