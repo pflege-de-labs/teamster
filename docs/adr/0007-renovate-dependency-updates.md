@@ -1,6 +1,6 @@
 # 0007. Dependency updates run through Renovate
 
-* Status: Accepted
+* Status: Superseded by [0089](0089-renovate-runs-as-the-hosted-app.md)
 * Date: 2026-09-08
 
 ## Context
