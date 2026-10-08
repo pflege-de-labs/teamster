@@ -8,6 +8,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Changed
+
+* `pdb.enabled` creates a PodDisruptionBudget only when `replicaCount` is above 1, whatever the
+  database driver; with a single replica `helm install` prints a note that none was created.
+
 ## [0.12.0] — 2026-10-03
 
 App version 0.13.0: Bot Connector calls are paced and throttled ones retried, personal messages

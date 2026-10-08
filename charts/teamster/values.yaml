@@ -603,8 +603,9 @@ httpRoute:
     filters: []
     timeouts: {}
 
-# A disruption budget for a multi-replica postgres release. A single-pod release
-# gets none: one-of-one blocks every node drain.
+# A disruption budget, created only when replicaCount is above 1: one-of-one
+# blocks every node drain, so a single-pod release gets none whatever enabled
+# says (helm prints a note).
 pdb:
   enabled: true
   minAvailable: 1
