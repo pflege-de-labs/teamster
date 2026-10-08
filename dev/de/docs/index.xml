@@ -6046,7 +6046,9 @@ einen Controller.&lt;/p&gt;
 &lt;/tbody&gt;
 &lt;/table&gt;
 &lt;h2 data-hextra-search-id="pdb"&gt;pdb&lt;span class="hx:absolute hx:-mt-20" id="pdb"&gt;&lt;/span&gt;
-&lt;a href="#pdb" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Wird nur mit &lt;code&gt;database.driver=postgres&lt;/code&gt; und &lt;code&gt;replicaCount&lt;/code&gt; größer als 1 gerendert.&lt;/p&gt;
+&lt;a href="#pdb" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Wird nur gerendert, wenn &lt;code&gt;replicaCount&lt;/code&gt; größer als 1 ist, unabhängig von &lt;code&gt;pdb.enabled&lt;/code&gt;: Ein einzelner
+Pod lässt sich nicht budgetieren, ohne jeden Node-Drain zu blockieren. Bei einem Replikat und
+&lt;code&gt;pdb.enabled=true&lt;/code&gt; gibt &lt;code&gt;helm install&lt;/code&gt; einen Hinweis aus, dass kein Budget erstellt wurde.&lt;/p&gt;
 &lt;table&gt;
 &lt;thead&gt;
 &lt;tr&gt;
@@ -6059,7 +6061,7 @@ einen Controller.&lt;/p&gt;
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;pdb.enabled&lt;/code&gt;&lt;/td&gt;
 &lt;td&gt;&lt;code&gt;true&lt;/code&gt;&lt;/td&gt;
-&lt;td&gt;Ein PodDisruptionBudget rendern.&lt;/td&gt;
+&lt;td&gt;Ein PodDisruptionBudget rendern (braucht &lt;code&gt;replicaCount&lt;/code&gt; größer als 1).&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;pdb.minAvailable&lt;/code&gt;&lt;/td&gt;
