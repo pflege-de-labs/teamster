@@ -41,7 +41,8 @@ rather than deployed.
 With `sqlite` the chart refuses `replicaCount` above 1 — SQLite takes a single writer, so a second
 replica would serve a database of its own — and a Deployment rolls with `Recreate`, because a
 `ReadWriteOnce` volume admits one pod. With `postgres` there is no such limit: replicas roll with
-`maxUnavailable: 0` and a surge pod, and a multi-replica release gets a PodDisruptionBudget.
+`maxUnavailable: 0` and a surge pod, and a release of more than one replica gets a
+PodDisruptionBudget (`pdb.enabled`).
 
 `persistence` applies to `sqlite` only and is ignored under `postgres`, where nothing is written
 outside `/tmp`. `persistence.enabled=false` runs on an `emptyDir`: every template, destination,
@@ -453,7 +454,7 @@ The [values.yaml](values.yaml) comments are the reference. The ones most often c
 | `database.postgres.passwordFrom` | `{}` | Read the password from a secret somebody else owns. |
 | `workload.kind` | `""` | Derived from the driver; set to override. |
 | `replicaCount` | `1` | Must stay 1 under `sqlite`; any number under `postgres`. |
-| `pdb.enabled` | `true` | A disruption budget, for multi-replica `postgres` only. |
+| `pdb.enabled` | `true` | A disruption budget, created only when `replicaCount` is above 1; a single replica gets none and a note at install. |
 | `persistence.enabled` | `true` | Off means an `emptyDir` and no durable state. |
 | `persistence.size` | `1Gi` | Size of the SQLite volume. |
 | `persistence.storageClass` | `""` | Empty uses the cluster default. |

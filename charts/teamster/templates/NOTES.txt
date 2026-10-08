@@ -4,6 +4,11 @@ storing its state in postgres at {{ .Values.database.postgres.host }}:{{ .Values
 {{- else }}
 storing its state in {{ if .Values.persistence.enabled }}{{ include "teamster.databasePath" . }} on a persistent volume{{ else }}an emptyDir — EVERY TEMPLATE, DESTINATION AND ROUTE IS LOST WHEN THE POD RESTARTS. Set persistence.enabled=true{{ end }}.
 {{- end }}
+{{- if and .Values.pdb.enabled (le (int .Values.replicaCount) 1) }}
+
+NOTE: pdb.enabled is true but no PodDisruptionBudget was created: one replica cannot be budgeted
+without blocking every node drain. Raise replicaCount above 1 to get one.
+{{- end }}
 
 1. Reach the admin UI at /admin:
 {{- if .Values.httpRoute.internal.enabled }}

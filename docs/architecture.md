@@ -119,10 +119,10 @@ an OCI artifact to `ghcr.io/pflege-de-labs/charts`. The deployment shape is deri
 `database.driver`: a StatefulSet whose `volumeClaimTemplate` carries `/data` for `sqlite`, and a
 Deployment for `postgres`, which keeps nothing locally. A sqlite release is one pod, because SQLite
 takes a single writer, and rolls with `Recreate`; a postgres release is as many as asked for, rolls
-with `maxUnavailable: 0` and a surge pod, and gets a PodDisruptionBudget once there is more than
-one. The chart deploys no Postgres of its own — a bundled single-pod database would be less
-available than the StatefulSet it replaced — and reads the secret an operator or provider already
-made through `database.postgres.passwordFrom`.
+with `maxUnavailable: 0` and a surge pod, and gets a PodDisruptionBudget (`pdb.enabled`) once there
+is more than one. The chart deploys no Postgres of its own — a bundled single-pod database would be
+less available than the StatefulSet it replaced — and reads the secret an operator or provider
+already made through `database.postgres.passwordFrom`.
 
 Configuration follows the precedence the binary implements. The config file is rendered into a
 Secret and mounted at `/etc/xdg/teamster/config.yaml`, while the webhook token, the admin login and

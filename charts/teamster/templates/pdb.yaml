@@ -2,7 +2,7 @@
 A budget only makes sense once there is more than one pod to keep. One out of
 one is not availability, it is a node drain that never completes.
 */ -}}
-{{- if and .Values.pdb.enabled (eq .Values.database.driver "postgres") (gt (int .Values.replicaCount) 1) }}
+{{- if and .Values.pdb.enabled (gt (int .Values.replicaCount) 1) }}
 {{- if and .Values.pdb.minAvailable .Values.pdb.maxUnavailable }}
 {{- fail "set either pdb.minAvailable or pdb.maxUnavailable, not both" }}
 {{- end }}
