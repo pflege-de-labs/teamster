@@ -1,6 +1,7 @@
 # 0024. Scan images with Trivy and report to SecObserve
 
-* Status: Accepted
+* Status: Accepted, amended by [0090](0090-ci-and-release-use-shared-workflows.md):
+  uploads warn, never fail
 * Date: 2026-09-15
 
 ## Context

@@ -25,6 +25,11 @@ reasoning behind it in the [ADRs](docs/adr/).
   links. The raw policy text moves behind a disclosure.
 * The sharing panel's principal field is a list instead of free text; a user who has not signed in
   yet is entered in a separate field.
+* Images and release binaries are signed by the shared release workflows in
+  `pflege-de-labs/github-workflows`, with teamster as the calling repository. Verify them with the
+  new `--certificate-identity-regexp` and `--certificate-github-workflow-repository` shown in the
+  README; releases up to 0.13.0 keep the old identity. Builds of `main` are now signed too
+  ([ADR 0090](docs/adr/0090-ci-and-release-use-shared-workflows.md)).
 
 ## [0.13.0] — 2026-10-03
 

@@ -20,7 +20,7 @@ Architectural decisions are recorded here, one file per decision, in
 | [0003](0003-kong-commands-and-graceful-shutdown.md) | Commands run through kong, cancelled by signal | Accepted |
 | [0004](0004-container-image.md) | Container image built multi-stage onto distroless nonroot | Accepted |
 | [0005](0005-image-tagging-and-promotion.md) | Image tags come from metadata-action, releases promote | Superseded by 0006 |
-| [0006](0006-release-rebuild-sbom-signing.md) | Releases rebuild, carry an SBOM and are signed | Accepted |
+| [0006](0006-release-rebuild-sbom-signing.md) | Releases rebuild, carry an SBOM and are signed | Amended by [0090](0090-ci-and-release-use-shared-workflows.md) |
 | [0007](0007-renovate-dependency-updates.md) | Dependency updates run through Renovate | Superseded by [0089](0089-renovate-runs-as-the-hosted-app.md) |
 | [0008](0008-templ-tailwind-admin-ui.md) | The admin UI is server-rendered with templ and Tailwind | Accepted |
 | [0009](0009-admin-authentication.md) | Admin authentication by Keycloak login or local credentials | Accepted |
@@ -38,7 +38,7 @@ Architectural decisions are recorded here, one file per decision, in
 | [0021](0021-claim-a-card-before-posting.md) | A card is claimed before it is posted | Accepted |
 | [0022](0022-postgres-second-backend.md) | Postgres is the second storage backend | Accepted |
 | [0023](0023-chart-deploys-either-shape.md) | The chart deploys either shape | Accepted |
-| [0024](0024-trivy-image-scanning.md) | Scan images with Trivy and report to SecObserve | Accepted |
+| [0024](0024-trivy-image-scanning.md) | Scan images with Trivy and report to SecObserve | Amended by [0090](0090-ci-and-release-use-shared-workflows.md) |
 | [0025](0025-shell-completion.md) | Shell completion is generated from the command tree | Accepted |
 | [0026](0026-alerts-in-a-persons-chat.md) | Alerts reach a person's chat through a Bot Framework bot | Accepted, amended by [0045](0045-channel-delivery-through-the-bot.md), [0047](0047-a-route-targets-a-channel-or-yourself.md), [0065](0065-your-own-chat-is-found-from-your-sign-in.md) |
 | [0027](0027-notify-on-link-displacement.md) | A displaced recipient conversation is notified, not left silent | Accepted |
@@ -100,3 +100,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0083](0083-broadcasts-run-in-the-background.md) | A broadcast reaches everyone, in the background | Accepted |
 | [0084](0084-an-alertmanager-notification-is-one-event.md) | An Alertmanager notification is one event | Accepted |
 | [0089](0089-renovate-runs-as-the-hosted-app.md) | Renovate runs as the hosted app | Accepted |
+| [0090](0090-ci-and-release-use-shared-workflows.md) | CI and release use the shared labs workflows | Accepted |

@@ -1,6 +1,7 @@
 # 0006. Releases rebuild, carry an SBOM and are signed
 
-* Status: Accepted
+* Status: Accepted, amended by [0090](0090-ci-and-release-use-shared-workflows.md):
+  signed by the shared workflow
 * Date: 2026-09-08
 
 ## Context

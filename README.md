@@ -1581,22 +1581,29 @@ inside reports `git describe --tags --always --match 'v[0-9]*'`, such as `v0.10.
 last release, how many commits past it, and the commit. Use a `<short-sha>` tag to deploy an exact
 CI build.
 
-Every `main` build and every release is scanned with Trivy and the findings are reported to
-SecObserve; pull requests are not. A release is tracked as its own branch there, named after the
-tag, so its findings stay attributed to that release rather than blurred into `main`'s ongoing
-history — see [ADR 0024](docs/adr/0024-trivy-image-scanning.md).
+Every `main` build and every release is scanned with Trivy, and the scan and the image's SBOMs are
+reported to SecObserve; pull requests are not. A failed upload is a warning, not a failed build.
+A release is tracked as its own branch there, named after the tag, so its findings stay attributed
+to that release rather than blurred into `main`'s ongoing history — see [ADR 0024](docs/adr/0024-trivy-image-scanning.md).
 
 ### Verifying a release
 
-Images are signed with cosign using the release workflow's own identity — there is no public key
-to distribute:
+Images are signed keylessly with cosign, so there is no public key to distribute. The signing
+identity is the shared release workflow in
+[pflege-de-labs/github-workflows](https://github.com/pflege-de-labs/github-workflows), and the
+certificate names teamster as the repository that ran it; check both:
 
 ```bash
 cosign verify \
-  --certificate-identity-regexp '^https://github.com/pflege-de-labs/teamster/' \
+  --certificate-identity-regexp '^https://github\.com/pflege-de-labs/github-workflows/\.github/workflows/image-release\.yml@' \
+  --certificate-github-workflow-repository pflege-de-labs/teamster \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   ghcr.io/pflege-de-labs/teamster:1.2.3
 ```
+
+Releases up to and including 0.13.0 were signed by teamster's own workflow. Verify those with
+`--certificate-identity-regexp '^https://github.com/pflege-de-labs/teamster/'` and without the
+repository flag. Builds of `main` are signed too, by `image-build.yml`.
 
 The image carries an SPDX SBOM and SLSA provenance as attestations:
 
@@ -1611,7 +1618,8 @@ binaries and their SBOMs:
 ```bash
 cosign verify-blob \
   --bundle checksums.txt.bundle \
-  --certificate-identity-regexp '^https://github.com/pflege-de-labs/teamster/' \
+  --certificate-identity-regexp '^https://github\.com/pflege-de-labs/github-workflows/\.github/workflows/go-binaries\.yml@' \
+  --certificate-github-workflow-repository pflege-de-labs/teamster \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   checksums.txt
 sha256sum -c checksums.txt
