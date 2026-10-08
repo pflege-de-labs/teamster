@@ -7,17 +7,30 @@ on:
 permissions:
   contents: read
 
-env:
-  IMAGE: ghcr.io/${{ github.repository }}
-
+# Shared steps come from pflege-de-labs/github-workflows (ADR 0090); what only teamster needs stays here.
 jobs:
-  # The release rebuilds its artifacts, so the tagged commit is gated here
-  # rather than relying on the CI run of whatever was pushed to main.
+  # A release is cut from main. A tag elsewhere would publish code that never went through a pull request.
+  guard:
+    uses: pflege-de-labs/github-workflows/.github/workflows/release-guard.yml@d5b9ce5cc098cf3239e796f49d742a48140130c0 # v1.0.0
+
+  # The release rebuilds its artifacts, so the tagged commit is gated here rather than relying on
+  # the CI run of whatever was pushed to main. The build compiles the committed templ, sqlc and
+  # Tailwind output, so a tag must not ship output its sources no longer produce.
   verify:
+    needs: guard
+    uses: pflege-de-labs/github-workflows/.github/workflows/go-checks.yml@d5b9ce5cc098cf3239e796f49d742a48140130c0 # v1.0.0
+    with:
+      go-version: stable
+      test-command: go test -run '^$' ./...
+      generate-command: make generate
+      golangci-lint-version: v2.14.0
+      gosec-version: ""
+
+  test:
+    needs: guard
     runs-on: ubuntu-latest
-    # Mirrors ci.yml's test job: the Postgres backend's conformance suite
-    # fails rather than skips when the DSN is unset, so a release without this
-    # service would fail make coverage the same way an unset DSN in CI does.
+    # Mirrors ci.yml's test job, which the shared checks cannot run: they start no services, and the
+    # Postgres conformance suite fails rather than skips when the DSN is unset.
     services:
       postgres:
         image: postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
@@ -42,145 +55,35 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version: stable
-      - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9
-        with:
-          version: v2.14.0
       - name: Start NATS with JetStream
         run: docker run -d --name nats -p 4222:4222 "$NATS_IMAGE" -js
       - run: make coverage
-      # The build compiles the committed templ, sqlc and Tailwind output, so a
-      # tag must not ship output its sources no longer produce.
-      - run: make generate
-      - name: Fail when the committed output is not what the generators produce
-        run: git diff --exit-code
 
   image:
-    needs: verify
-    runs-on: ubuntu-latest
+    needs: [verify, test]
+    uses: pflege-de-labs/github-workflows/.github/workflows/image-release.yml@d5b9ce5cc098cf3239e796f49d742a48140130c0 # v1.0.0
     permissions:
       contents: read
       packages: write
       id-token: write
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          fetch-depth: 0
+    with:
+      # -X silently no-ops on a wrong symbol path; this catches an image reporting "dev".
+      version-check: true
 
-      # Re-releasing an older tag or cutting a pre-release must not move
-      # :latest, so it only follows the highest stable tag in the repository.
-      - name: Decide whether this release owns :latest
-        id: latest
-        run: |
-          case "$GITHUB_REF_NAME" in
-            *-*)
-              echo "$GITHUB_REF_NAME is a pre-release, leaving :latest alone"
-              echo "owns=false" >> "$GITHUB_OUTPUT"
-              exit 0
-              ;;
-          esac
-          newest=$(git tag --list 'v*' --sort=-v:refname | grep -v -- '-' | head -n 1)
-          if [ "$newest" = "$GITHUB_REF_NAME" ]; then
-            echo "$GITHUB_REF_NAME is the newest stable tag, it owns :latest"
-            echo "owns=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "$newest is newer than $GITHUB_REF_NAME, leaving :latest alone"
-            echo "owns=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
-
-      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Collect release metadata
-        id: meta
-        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6
-        env:
-          DOCKER_METADATA_ANNOTATIONS_LEVELS: index,manifest
-        with:
-          images: ${{ env.IMAGE }}
-          flavor: latest=${{ steps.latest.outputs.owns }}
-          tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
-
-      # One build feeds every release tag, so they all resolve to this digest.
-      # SBOM and provenance ride along as attestations on the same index.
-      - name: Build and push the release image
-        id: build
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
-        with:
-          context: .
-          platforms: linux/amd64,linux/arm64
-          push: true
-          build-args: |
-            VERSION=${{ github.ref_name }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          annotations: ${{ steps.meta.outputs.annotations }}
-          sbom: true
-          provenance: mode=max
-          cache-from: type=gha
-
-      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
-
-      # Keyless: the signing identity is this workflow's OIDC token, so there
-      # is no private key to hold. Signing by digest covers every tag at once.
-      - name: Sign the image
-        run: cosign sign --yes "${IMAGE}@${DIGEST}"
-        env:
-          DIGEST: ${{ steps.build.outputs.digest }}
-
-      - name: Verify the signature and the attestations
-        env:
-          DIGEST: ${{ steps.build.outputs.digest }}
-        run: |
-          cosign verify \
-            --certificate-identity-regexp "^https://github.com/${GITHUB_REPOSITORY}/" \
-            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-            "${IMAGE}@${DIGEST}" > /dev/null
-          # buildx attaches SBOM and provenance as in-toto attestations on the
-          # index, so they are asserted here rather than through cosign.
-          for kind in SBOM Provenance; do
-            if ! docker buildx imagetools inspect "${IMAGE}@${DIGEST}" \
-              --format "{{ json .${kind} }}" | grep -q .; then
-              echo "::error::the image carries no ${kind} attestation"
-              exit 1
-            fi
-            echo "${kind} attestation present"
-          done
-          {
-            echo "### Image"
-            echo
-            echo '```'
-            echo "${IMAGE}@${DIGEST}"
-            echo '```'
-            echo
-            echo "Tags: ${{ steps.meta.outputs.tags }}" | tr '\n' ' '
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      # Scans the exact digest that was just signed and verified, not a tag
-      # that could be repointed under it later. so_branch_name is the release
-      # tag itself, not "main": each release is tracked in SecObserve as its
-      # own branch, so a finding is attributed to the release it shipped in
-      # rather than blurred into the ongoing main history CI already reports.
-      - name: Scan the image with Trivy and upload results to SecObserve
-        uses: SecObserve/secobserve_actions_templates/actions/SCA/trivy_image@0a0f7d0981982a589f2a11c3f05c8e1c628fbd79 # v2026_08
-        env:
-          DIGEST: ${{ steps.build.outputs.digest }}
-        with:
-          target: ${{ env.IMAGE }}@${{ env.DIGEST }}
-          report_name: trivy-image-report.cdx.json
-          so_api_base_url: https://webhooks.management.p4e.io/secobserve
-          so_api_token: ${{ secrets.SO_API_TOKEN }}
-          so_product_name: teamster
-          so_branch_name: ${{ github.ref_name }}
-          so_origin_service: teamster
-          so_origin_docker_image_name_tag: ${{ env.IMAGE }}:${{ github.ref_name }}
+  # Each release is tracked in SecObserve as its own branch, so a finding is attributed to the
+  # release it shipped in. It reports and never fails the release.
+  secobserve:
+    needs: image
+    uses: pflege-de-labs/github-workflows/.github/workflows/secobserve-image.yml@d5b9ce5cc098cf3239e796f49d742a48140130c0 # v1.0.0
+    permissions:
+      contents: read
+      packages: read
+    with:
+      image: ${{ needs.image.outputs.image }}
+      digest: ${{ needs.image.outputs.digest }}
+      tag: ${{ github.ref_name }}
+    secrets:
+      SO_API_TOKEN: ${{ secrets.SO_API_TOKEN }}
 
   # A minor's documentation is frozen from the pages branch once its release is out (ADR 0080).
   docs:
@@ -219,64 +122,12 @@ jobs:
           echo "Created $branch from pages@${sha::7} and dispatched docs-deploy"
 
   binaries:
-    needs: verify
-    runs-on: ubuntu-latest
+    needs: [verify, test]
+    uses: pflege-de-labs/github-workflows/.github/workflows/go-binaries.yml@d5b9ce5cc098cf3239e796f49d742a48140130c0 # v1.0.0
     permissions:
       contents: write
       id-token: write
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
-        with:
-          go-version: stable
-
-      - name: Build release binaries
-        env:
-          VERSION: ${{ github.ref_name }}
-        run: |
-          mkdir -p dist
-          for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64; do
-            GOOS=${target%/*} GOARCH=${target#*/} CGO_ENABLED=0 \
-              go build -trimpath -ldflags "-s -w -X main.version=$VERSION" \
-              -o "dist/teamster-${target%/*}-${target#*/}" ./cmd/teamster
-          done
-
-      - uses: anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610 # v0
-
-      - name: Generate an SBOM per binary
-        run: |
-          for binary in dist/teamster-*; do
-            syft scan "file:${binary}" -o spdx-json > "${binary}.spdx.json"
-          done
-
-      # Checksums cover the binaries and their SBOMs, so signing this one file
-      # is enough to authenticate every release asset.
-      - name: Checksum the assets
-        run: (cd dist && sha256sum teamster-* > checksums.txt)
-
-      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
-
-      # A bundle carries the signature and the certificate in one file, and is
-      # what cosign v3 requires of sign-blob. cosign v2 writes it too.
-      - name: Sign the checksums
-        run: cosign sign-blob --yes --bundle dist/checksums.txt.bundle dist/checksums.txt
-
-      - name: Verify the signature
-        run: |
-          cosign verify-blob \
-            --bundle dist/checksums.txt.bundle \
-            --certificate-identity-regexp "^https://github.com/${GITHUB_REPOSITORY}/" \
-            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-            dist/checksums.txt
-
-      # A tag carrying a suffix is a pre-release, the same predicate the image
-      # job uses to decide :latest. Without this the release pointer and the
-      # container tags disagree about what is released.
-      - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
-        with:
-          generate_release_notes: true
-          prerelease: ${{ contains(github.ref_name, '-') }}
-          make_latest: ${{ !contains(github.ref_name, '-') }}
-          files: dist/*
+    with:
+      name: teamster
+      package: ./cmd/teamster
+      go-version: stable

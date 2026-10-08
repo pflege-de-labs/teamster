@@ -93,8 +93,9 @@ build is tagged with its short commit sha. The binary inside reports
 last release and the distance from it. Branches and pull requests get moving tags
 ([ADR 0005](adr/0005-image-tagging-and-promotion.md)).
 
-Every image pushed from `main`, and every release image, is scanned with Trivy and the findings
-are reported to SecObserve, against the exact digest just built. Pull requests are not scanned,
+Every image pushed from `main`, and every release image, is scanned with Trivy, and the findings
+and the image's SBOMs are reported to SecObserve against the exact digest just built. A failed
+upload warns rather than failing the build. Pull requests are not scanned,
 including same-repository ones that do push an image. A release is reported under its own
 SecObserve branch, named after the tag, rather than folded into `main`'s — see
 [ADR 0024](adr/0024-trivy-image-scanning.md).
@@ -104,6 +105,13 @@ describe the release; all of its tags share that one build's digest. The image c
 and SLSA provenance attestations and is signed with cosign by digest, and the released binaries
 ship per-binary SBOMs under a signed `checksums.txt`. `:latest` only ever moves forward, to the
 newest stable release. See [ADR 0006](adr/0006-release-rebuild-sbom-signing.md).
+
+The image, binary, chart and SecObserve steps, and the Go checks, are reusable workflows from
+[pflege-de-labs/github-workflows](https://github.com/pflege-de-labs/github-workflows), pinned by
+commit. Signatures therefore name the shared workflow, with teamster as the calling repository.
+What only teamster needs stays in its own workflows: the tests against Postgres and NATS, the
+vendored-library check, the chart's refusal checks and the docs branch of a release. See
+[ADR 0090](adr/0090-ci-and-release-use-shared-workflows.md).
 
 The user documentation is a Hugo site built from the `pages` and `pages-vX.Y` branches and
 served by GitHub Pages from `gh-pages`, one directory per minor release plus `dev/` for `main`. The

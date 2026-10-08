@@ -8,34 +8,31 @@ on:
 permissions:
   contents: read
 
-env:
-  IMAGE: ghcr.io/${{ github.repository }}
-
+# Shared steps come from pflege-de-labs/github-workflows (ADR 0090); what only teamster needs stays here.
 jobs:
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
-        with:
-          go-version: stable
-      - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9
-        with:
-          version: v2.14.0
+  # Build, vet, gofmt, tidiness, generated-output drift, golangci-lint and govulncheck. The tests
+  # need Postgres and NATS, which a called workflow cannot start, so they run in `test` below and
+  # the shared job only compiles them.
+  checks:
+    uses: pflege-de-labs/github-workflows/.github/workflows/go-checks.yml@d5b9ce5cc098cf3239e796f49d742a48140130c0 # v1.0.0
+    with:
+      go-version: stable
+      test-command: go test -run '^$' ./...
+      generate-command: make generate
+      golangci-lint-version: v2.14.0
+      # 42 findings on first run; enabled once they are triaged.
+      gosec-version: ""
 
-  # An out-of-date generated file is invisible in review and, for anything but
-  # templ, invisible to the compiler too: the build succeeds and the old code
-  # runs. Regenerating and diffing is the only thing that catches it.
-  generated:
+  # The ruleset requires a check named lint; a called workflow reports as "checks / ...".
+  lint:
+    needs: checks
+    if: always()
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
-        with:
-          go-version: stable
-      - run: make generate
-      - name: Fail when the committed output is not what the generators produce
-        run: git diff --exit-code
+      - name: Require the shared checks to have passed
+        env:
+          RESULT: ${{ needs.checks.result }}
+        run: test "$RESULT" = success
 
   # Renovate can move the version in manifest.json but cannot download the
   # library or compute its checksum, so a version-only bump leaves the
@@ -98,160 +95,48 @@ jobs:
           path: coverage.out
 
   chart:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+    uses: pflege-de-labs/github-workflows/.github/workflows/helm-lint.yml@d5b9ce5cc098cf3239e796f49d742a48140130c0 # v1.0.0
+    with:
+      chart: charts/teamster
+      # Both deployment shapes render; then assert what comes out and that every unsupported combination is refused.
+      assert-command: scripts/check-chart-render.sh charts/teamster && scripts/check-chart-rejects.sh charts/teamster
 
-      # helm ships on the runner image, so there is no action to pin here.
-      - name: Lint the chart
-        run: helm lint charts/teamster --values charts/teamster/ci/statefulset-values.yaml
-
-      # Both deployment shapes are rendered: the templates they share are the
-      # ones a bad edit breaks silently in only one of them.
-      - name: Render every deployment shape
-        run: |
-          for values in charts/teamster/ci/*-values.yaml; do
-            echo "::group::$values"
-            helm template teamster charts/teamster --values "$values"
-            echo "::endgroup::"
-          done
-
-      # Rendering proves the chart is not broken; it says nothing about a chart
-      # that is quietly wrong. This asserts what comes out.
-      - name: Assert what the chart renders
-        run: scripts/check-chart-render.sh charts/teamster
-
-      # The chart refuses what the application cannot do; a rendering run that
-      # succeeds here means the guard is gone.
-      # Each of these is a deployment that would start and then be wrong, which
-      # is why the chart refuses it at render time rather than at three in the
-      # morning.
-      - name: Reject the unsupported combinations
-        run: |
-          reject() {
-            if helm template teamster charts/teamster "$@" >/dev/null 2>&1; then
-              echo "chart accepted: $*" >&2
-              exit 1
-            fi
-          }
-          sqlite="--values charts/teamster/ci/statefulset-values.yaml"
-          postgres="--values charts/teamster/ci/postgres-values.yaml"
-
-          # SQLite takes one writer, and a Deployment needs a claim that outlives the pod.
-          reject $sqlite --set replicaCount=2
-          reject $sqlite --set workload.kind=Deployment
-          # A driver nothing implements.
-          reject $sqlite --set database.driver=cassandra
-          # Postgres without somewhere to connect, or without a password.
-          reject --set database.driver=postgres --set credentials.webhookToken=t \
-            --set credentials.adminPassword=p --set credentials.graphClientSecret=s
-          reject --set database.driver=postgres --set database.postgres.host=db \
-            --set credentials.webhookToken=t --set credentials.adminPassword=p \
-            --set credentials.graphClientSecret=s
-          # Two passwords, which is one too many to reason about.
-          reject $postgres --set database.postgres.passwordFrom.secretName=other
-          # A claim a postgres release has no use for.
-          reject $postgres --set persistence.existingClaim=data-teamster-0
-          # A secret in the config file, where it would beat the environment
-          # variable that carries it.
-          reject $postgres --set config.settings.database.postgres.password=leaked
-          reject $sqlite --set config.settings.webhook.token=leaked
-
-  # Branch protection requires image, so waiting on generated makes stale
-  # generated code block a merge, and keeps it out of the main image.
-  image:
-    needs: generated
-    runs-on: ubuntu-latest
+  # Branch protection requires image, so waiting on checks makes stale generated code block a
+  # merge, and keeps it out of the main image.
+  build:
+    needs: checks
+    uses: pflege-de-labs/github-workflows/.github/workflows/image-build.yml@d5b9ce5cc098cf3239e796f49d742a48140130c0 # v1.0.0
     permissions:
       contents: read
       packages: write
+      id-token: write
+    with:
+      # What the binary reports, e.g. v0.10.0-3-gabc1234: the last release and how far past it.
+      version: describe
+
+  # The ruleset requires a check named image; a called workflow reports as "build / Image".
+  image:
+    needs: build
+    if: always()
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          # The tags, so the version names its distance from the last release.
-          fetch-depth: 0
-
-      # Pull requests from forks get no registry credentials, so they build only.
-      - name: Decide whether the image can be pushed
-        id: push
-        run: |
-          if [ "${{ github.event_name }}" != "pull_request" ] \
-            || [ "${{ github.event.pull_request.head.repo.full_name }}" = "${{ github.repository }}" ]; then
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      # On pull_request the checked-out HEAD is the merge commit, so the tag has
-      # to come from the head commit to stay meaningful to whoever opened the PR.
-      - name: Resolve the commit being built
-        id: commit
+      - name: Require the image build to have passed
         env:
-          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: |
-          echo "short_sha=${SHA:0:7}" >> "$GITHUB_OUTPUT"
-          # What the binary reports, e.g. v0.10.0-3-gabc1234: the last release and how far past it.
-          # --match skips the chart's teamster-X.Y.Z tags.
-          echo "describe=$(git describe --tags --always --match 'v[0-9]*' "$SHA")" >> "$GITHUB_OUTPUT"
+          RESULT: ${{ needs.build.result }}
+        run: test "$RESULT" = success
 
-      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
-
-      - name: Log in to GitHub Container Registry
-        if: steps.push.outputs.enabled == 'true'
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Collect image metadata
-        id: meta
-        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6
-        env:
-          DOCKER_METADATA_ANNOTATIONS_LEVELS: index,manifest
-        with:
-          images: ${{ env.IMAGE }}
-          # :latest belongs to releases only, see ADR 0005.
-          flavor: latest=false
-          tags: |
-            type=raw,value=${{ steps.commit.outputs.short_sha }}
-            type=ref,event=branch
-            type=ref,event=pr
-
-      - name: Build the image
-        id: build
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
-        with:
-          context: .
-          platforms: linux/amd64,linux/arm64
-          push: ${{ steps.push.outputs.enabled == 'true' }}
-          build-args: |
-            VERSION=${{ steps.commit.outputs.describe }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          annotations: ${{ steps.meta.outputs.annotations }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      # Skipped for pull_request builds entirely, not just forks: SecObserve
-      # auto-creates a "branch" per so_branch_name on first import, and a
-      # transient PR branch has no reason to leave a permanent-ish trace in a
-      # findings tool. This repository's CI only otherwise runs on push to
-      # main, so what remains is exactly the branch worth tracking over time.
-      #
-      # Scans the exact digest that was just pushed, not a tag that could be
-      # repointed under it before the scan runs.
-      - name: Scan the image with Trivy and upload results to SecObserve
-        if: github.event_name != 'pull_request'
-        uses: SecObserve/secobserve_actions_templates/actions/SCA/trivy_image@0a0f7d0981982a589f2a11c3f05c8e1c628fbd79 # v2026_08
-        env:
-          DIGEST: ${{ steps.build.outputs.digest }}
-        with:
-          target: ${{ env.IMAGE }}@${{ env.DIGEST }}
-          report_name: trivy-image-report.cdx.json
-          so_api_base_url: https://webhooks.management.p4e.io/secobserve
-          so_api_token: ${{ secrets.SO_API_TOKEN }}
-          so_product_name: teamster
-          so_branch_name: ${{ github.ref_name }}
-          so_origin_service: teamster
-          so_origin_docker_image_name_tag: ${{ env.IMAGE }}:${{ steps.commit.outputs.short_sha }}
+  # Skipped for pull requests: SecObserve creates a branch per so_branch_name, and a transient PR
+  # branch has no reason to leave a trace there. It reports and never fails the run.
+  secobserve:
+    needs: build
+    if: github.event_name != 'pull_request'
+    uses: pflege-de-labs/github-workflows/.github/workflows/secobserve-image.yml@d5b9ce5cc098cf3239e796f49d742a48140130c0 # v1.0.0
+    permissions:
+      contents: read
+      packages: read
+    with:
+      image: ${{ needs.build.outputs.image }}
+      digest: ${{ needs.build.outputs.digest }}
+      tag: ${{ needs.build.outputs.short-sha }}
+    secrets:
+      SO_API_TOKEN: ${{ secrets.SO_API_TOKEN }}
