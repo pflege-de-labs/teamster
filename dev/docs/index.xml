@@ -3287,56 +3287,162 @@ data-copied-label="Copied!"
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;h2 data-hextra-search-id="recipient"&gt;Recipient&lt;span class="hx:absolute hx:-mt-20" id="recipient"&gt;&lt;/span&gt;
-&lt;a href="#recipient" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Set when a route delivers to a person&amp;rsquo;s chat.&lt;/p&gt;
+&lt;a href="#recipient" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Set when a route delivers to a person&amp;rsquo;s chat. The fields come from the person&amp;rsquo;s Entra profile. A
+field Entra does not have for someone is empty.&lt;/p&gt;
 &lt;table&gt;
 &lt;thead&gt;
 &lt;tr&gt;
 &lt;th&gt;Field&lt;/th&gt;
+&lt;th&gt;Type&lt;/th&gt;
 &lt;th&gt;Holds&lt;/th&gt;
-&lt;th&gt;Person named in the message&lt;/th&gt;
-&lt;th&gt;Linked chat&lt;/th&gt;
 &lt;/tr&gt;
 &lt;/thead&gt;
 &lt;tbody&gt;
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;.Recipient.ID&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;string&lt;/td&gt;
 &lt;td&gt;Entra object id&lt;/td&gt;
-&lt;td&gt;yes&lt;/td&gt;
-&lt;td&gt;yes&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;.Recipient.DisplayName&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;string&lt;/td&gt;
 &lt;td&gt;Display name&lt;/td&gt;
-&lt;td&gt;yes&lt;/td&gt;
-&lt;td&gt;yes&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;.Recipient.GivenName&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;string&lt;/td&gt;
 &lt;td&gt;Given name&lt;/td&gt;
-&lt;td&gt;yes&lt;/td&gt;
-&lt;td&gt;empty&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;.Recipient.Surname&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;string&lt;/td&gt;
 &lt;td&gt;Surname&lt;/td&gt;
-&lt;td&gt;yes&lt;/td&gt;
-&lt;td&gt;empty&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;.Recipient.UPN&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;string&lt;/td&gt;
 &lt;td&gt;User principal name&lt;/td&gt;
-&lt;td&gt;yes&lt;/td&gt;
-&lt;td&gt;empty&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;.Recipient.Mail&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;string&lt;/td&gt;
 &lt;td&gt;Mail address&lt;/td&gt;
-&lt;td&gt;yes&lt;/td&gt;
-&lt;td&gt;empty&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;.Recipient.JobTitle&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;string&lt;/td&gt;
+&lt;td&gt;Job title&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;.Recipient.Department&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;string&lt;/td&gt;
+&lt;td&gt;Department&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;.Recipient.CompanyName&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;string&lt;/td&gt;
+&lt;td&gt;Company name&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;.Recipient.OfficeLocation&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;string&lt;/td&gt;
+&lt;td&gt;Office location&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;.Recipient.EmployeeID&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;string&lt;/td&gt;
+&lt;td&gt;Employee id&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;.Recipient.Address.Street&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;string&lt;/td&gt;
+&lt;td&gt;Street of the business address&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;.Recipient.Address.PostalCode&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;string&lt;/td&gt;
+&lt;td&gt;Postal code of the business address&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;.Recipient.Address.City&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;string&lt;/td&gt;
+&lt;td&gt;City of the business address&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;.Recipient.Address.State&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;string&lt;/td&gt;
+&lt;td&gt;State of the business address&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;.Recipient.Address.Country&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;string&lt;/td&gt;
+&lt;td&gt;Country of the business address&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;.Recipient.BusinessPhones&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;list of string&lt;/td&gt;
+&lt;td&gt;Business phone numbers&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;.Recipient.MobilePhone&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;string&lt;/td&gt;
+&lt;td&gt;Mobile phone number&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;.Recipient.PreferredLanguage&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;string&lt;/td&gt;
+&lt;td&gt;Preferred language, such as &lt;code&gt;de-DE&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;.Recipient.UsageLocation&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;string&lt;/td&gt;
+&lt;td&gt;Usage location, a country code such as &lt;code&gt;DE&lt;/code&gt;&lt;/td&gt;
 &lt;/tr&gt;
 &lt;/tbody&gt;
 &lt;/table&gt;
-&lt;p&gt;All fields are empty for a channel.&lt;/p&gt;
+&lt;p&gt;Which fields are filled depends on the chat:&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Chat&lt;/th&gt;
+&lt;th&gt;Fields&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;Person named in the message, or reached by a broadcast through the directory&lt;/td&gt;
+&lt;td&gt;All&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;Linked chat whose person is in the directory&lt;/td&gt;
+&lt;td&gt;All&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;Linked chat whose person is not in the directory&lt;/td&gt;
+&lt;td&gt;Only &lt;code&gt;ID&lt;/code&gt; and &lt;code&gt;DisplayName&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;Channel&lt;/td&gt;
+&lt;td&gt;None&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;After an upgrade from a release without these fields, a person already in the directory gets them
+at the next install run (&lt;code&gt;bot.reconcile-interval&lt;/code&gt;), or when a message looks them up again after
+&lt;code&gt;bot.directory-ttl&lt;/code&gt;. Until then they are empty.&lt;/p&gt;
+&lt;h3 data-hextra-search-id="the-event-a-person-sees"&gt;The event a person sees&lt;span class="hx:absolute hx:-mt-20" id="the-event-a-person-sees"&gt;&lt;/span&gt;
+&lt;a href="#the-event-a-person-sees" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;When a route delivers to the people a message names, each person&amp;rsquo;s message is rendered from a
+copy of the event that names only them:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;.Event.Universal.Recipients&lt;/code&gt; holds only the addresses that named them.&lt;/li&gt;
+&lt;li&gt;The &lt;code&gt;teamster_recipient&lt;/code&gt; label, in &lt;code&gt;.Event.Labels&lt;/code&gt;, &lt;code&gt;.Event.Alertmanager.CommonLabels&lt;/code&gt; and each
+alert&amp;rsquo;s labels, holds only the addresses that named them. Where it named only others, it is
+absent.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;.Event.Alertmanager.Alerts&lt;/code&gt; holds only the alerts that name them and the alerts that name
+nobody. When one alert is left, &lt;code&gt;Annotations&lt;/code&gt;, &lt;code&gt;StartsAt&lt;/code&gt;, &lt;code&gt;EndsAt&lt;/code&gt; and &lt;code&gt;GeneratorURL&lt;/code&gt; are filled
+from it, as for a group of one.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;A channel, and a route to one linked chat, sees the whole event.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="functions"&gt;Functions&lt;span class="hx:absolute hx:-mt-20" id="functions"&gt;&lt;/span&gt;
 &lt;a href="#functions" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;table&gt;
 &lt;thead&gt;
@@ -6117,8 +6223,8 @@ alert, those are the alert&amp;rsquo;s labels.&lt;/li&gt;
 &lt;a href="../templates/#list-the-alerts-of-a-group"&gt;List the alerts of a group&lt;/a&gt; and
 &lt;a href="../../reference/template-data/#alertmanager-extension"&gt;Template data&lt;/a&gt;.&lt;/li&gt;
 &lt;li&gt;To send an alert to people rather than a channel, set the label &lt;code&gt;teamster_recipient&lt;/code&gt;. The
-addresses of all alerts in the group are joined. See
-&lt;a href="../direct-messages/"&gt;Send messages to individual people&lt;/a&gt;.&lt;/li&gt;
+addresses of all alerts in the group are joined. Each person gets only the alerts that name them
+and the alerts that name nobody. See &lt;a href="../direct-messages/"&gt;Send messages to individual people&lt;/a&gt;.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;h2 data-hextra-search-id="after-upgrading-from-a-release-with-one-card-per-alert"&gt;After upgrading from a release with one card per alert&lt;span class="hx:absolute hx:-mt-20" id="after-upgrading-from-a-release-with-one-card-per-alert"&gt;&lt;/span&gt;
 &lt;a href="#after-upgrading-from-a-release-with-one-card-per-alert" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Releases up to 0.11.0 posted one card per alert. After the upgrade:&lt;/p&gt;
@@ -6358,9 +6464,12 @@ the message&lt;/strong&gt;. Give it a label selector for the messages it should 
 &lt;code&gt;{&amp;quot;kind&amp;quot;: &amp;quot;password-expiry&amp;quot;}&lt;/code&gt;, and a template. Anyone who may edit routes may create one.&lt;/p&gt;
 &lt;p&gt;Keep the selector narrow. The route takes every message it matches, from any sender, and renders
 it with your template. Whom it reaches is bounded by each sender&amp;rsquo;s token, set in the next step.&lt;/p&gt;
-&lt;p&gt;Each person gets their own message, rendered for them, so the template can greet them:&lt;/p&gt;
+&lt;p&gt;Each person gets their own message, rendered for them. &lt;code&gt;.Recipient&lt;/code&gt; holds their Entra profile, so
+the template can greet them, write in their language and name their office:&lt;/p&gt;
 &lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
-&lt;div&gt;&lt;pre&gt;&lt;code&gt;Hello {{ .Recipient.GivenName }}, your password expires on {{ .Event.Universal.Attributes.expires }}.&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class="hextra-code-copy-btn-container hx:opacity-0 hx:transition hx:group-hover/code:opacity-100 hx:flex hx:gap-1 hx:absolute hx:m-[11px] hx:right-0 hx:top-0"&gt;
+&lt;div&gt;&lt;pre&gt;&lt;code&gt;{{ if eq .Recipient.PreferredLanguage &amp;#34;de-DE&amp;#34; }}Hallo{{ else }}Hello{{ end }} {{ .Recipient.GivenName }},
+your password expires on {{ .Event.Universal.Attributes.expires }}.
+Questions? Visit the IT desk at {{ default .Recipient.OfficeLocation &amp;#34;your office&amp;#34; }}.&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class="hextra-code-copy-btn-container hx:opacity-0 hx:transition hx:group-hover/code:opacity-100 hx:flex hx:gap-1 hx:absolute hx:m-[11px] hx:right-0 hx:top-0"&gt;
 &lt;button
 class="hextra-code-copy-btn hx:group/copybtn hx:cursor-pointer hx:transition-all hx:active:opacity-50 hx:bg-primary-700/5 hx:border hx:border-black/5 hx:text-gray-600 hx:hover:text-gray-900 hx:rounded-md hx:p-1.5 hx:dark:bg-primary-300/10 hx:dark:border-white/10 hx:dark:text-gray-400 hx:dark:hover:text-gray-50"
 title="Copy code"
@@ -6372,7 +6481,8 @@ data-copied-label="Copied!"
 &lt;/button&gt;
 &lt;/div&gt;
 &lt;/div&gt;
-&lt;p&gt;&lt;code&gt;.Recipient&lt;/code&gt; is described in &lt;a href="../../reference/template-data/"&gt;Template data&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;A field Entra does not have for someone is empty. All fields are listed in
+&lt;a href="../../reference/template-data/#recipient"&gt;Template data&lt;/a&gt;.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="issue-a-token-that-may-name-people"&gt;Issue a token that may name people&lt;span class="hx:absolute hx:-mt-20" id="issue-a-token-that-may-name-people"&gt;&lt;/span&gt;
 &lt;a href="#issue-a-token-that-may-name-people" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;A message that names anyone is refused with &lt;code&gt;403&lt;/code&gt; unless its token may name them. At
 &lt;strong&gt;/admin/tokens&lt;/strong&gt;, set &lt;strong&gt;May name recipients&lt;/strong&gt; when you issue the sender&amp;rsquo;s token:&lt;/p&gt;
@@ -6587,6 +6697,16 @@ instead.&lt;/li&gt;
 &lt;li&gt;&lt;strong&gt;Only me.&lt;/strong&gt; A token limited to its creator may use any of the three forms, as long as the
 address resolves to the creator&amp;rsquo;s own object id.&lt;/li&gt;
 &lt;/ul&gt;
+&lt;h2 data-hextra-search-id="know-what-each-person-sees"&gt;Know what each person sees&lt;span class="hx:absolute hx:-mt-20" id="know-what-each-person-sees"&gt;&lt;/span&gt;
+&lt;a href="#know-what-each-person-sees" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Each person&amp;rsquo;s message names only them, so nobody learns who else got it:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;.Event.Universal.Recipients&lt;/code&gt; and the &lt;code&gt;teamster_recipient&lt;/code&gt; label hold only the addresses that
+named this person.&lt;/li&gt;
+&lt;li&gt;An Alertmanager group holds only the alerts that name this person and the alerts that name
+nobody. A notification that names Alice on one alert and Bob on another sends Alice only hers.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;A channel, and a route to one linked chat, still gets the whole event. See
+&lt;a href="../../reference/template-data/#the-event-a-person-sees"&gt;The event a person sees&lt;/a&gt;.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="update-or-close-the-messages"&gt;Update or close the messages&lt;span class="hx:absolute hx:-mt-20" id="update-or-close-the-messages"&gt;&lt;/span&gt;
 &lt;a href="#update-or-close-the-messages" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Use &lt;code&gt;&amp;quot;state&amp;quot;: &amp;quot;open&amp;quot;&lt;/code&gt; and a &lt;code&gt;key&lt;/code&gt; to get the tracked lifecycle:&lt;/p&gt;
 &lt;ul&gt;
@@ -6697,7 +6817,9 @@ data-copied-label="Copied!"
 &lt;h3 data-hextra-search-id="create-a-route-that-addresses-people"&gt;Create a route that addresses people&lt;span class="hx:absolute hx:-mt-20" id="create-a-route-that-addresses-people"&gt;&lt;/span&gt;
 &lt;a href="#create-a-route-that-addresses-people" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Create or edit a route that selects the message, for example &lt;code&gt;{&amp;quot;kind&amp;quot;: &amp;quot;office-notice&amp;quot;}&lt;/code&gt;, and set
 &lt;strong&gt;Delivers to&lt;/strong&gt; to &lt;strong&gt;Any person named in the message&lt;/strong&gt;. Everyone gets their own copy, rendered for
-them, so the template can use &lt;code&gt;.Recipient&lt;/code&gt;.&lt;/p&gt;
+them, so the template can use &lt;code&gt;.Recipient&lt;/code&gt;. A person in the directory has their whole Entra
+profile there; someone who only linked a chat has just &lt;code&gt;ID&lt;/code&gt; and &lt;code&gt;DisplayName&lt;/code&gt;. See
+&lt;a href="../../reference/template-data/#recipient"&gt;Template data&lt;/a&gt;.&lt;/p&gt;
 &lt;p&gt;A broadcast is routed like any message. Channels and linked chats it matches get it during the
 request. Only the routes that deliver to &lt;strong&gt;Any person named in the message&lt;/strong&gt; send it to everyone.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="send-it"&gt;Send it&lt;span class="hx:absolute hx:-mt-20" id="send-it"&gt;&lt;/span&gt;
@@ -7251,8 +7373,9 @@ instead, or the built-in message when there is none, and a warning is logged.&lt
 &lt;/ul&gt;
 &lt;h3 data-hextra-search-id="preview-it"&gt;Preview it&lt;span class="hx:absolute hx:-mt-20" id="preview-it"&gt;&lt;/span&gt;
 &lt;a href="#preview-it" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;The preview renders the template against a sample payload for each webhook, and can show the JSON
-the bot would send for a channel post and for a chat. For Alertmanager it has two samples: an
-&lt;strong&gt;Alertmanager alert&lt;/strong&gt;, a group of one, and an &lt;strong&gt;Alertmanager alert group&lt;/strong&gt; of two.&lt;/p&gt;
+the bot would send for a channel post and for a chat. Every sample but Teams V2 is rendered for a
+sample person, Alex Example, with every &lt;code&gt;.Recipient&lt;/code&gt; field filled. For Alertmanager it has two
+samples: an &lt;strong&gt;Alertmanager alert&lt;/strong&gt;, a group of one, and an &lt;strong&gt;Alertmanager alert group&lt;/strong&gt; of two.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="attach-it"&gt;Attach it&lt;span class="hx:absolute hx:-mt-20" id="attach-it"&gt;&lt;/span&gt;
 &lt;a href="#attach-it" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Pick the template on a route, the global default route, or a Teams V2 endpoint. See
 &lt;a href="../../concepts/routing/"&gt;How routing works&lt;/a&gt;.&lt;/p&gt;
@@ -9042,15 +9165,25 @@ it can outlast the liveness probe and restart in a loop. The chart&amp;rsquo;s &
 &lt;code&gt;startupProbe&lt;/code&gt; commented out for that case.&lt;/p&gt;</description></item><item><title>Verify a release</title><link>https://pflege-de-labs.github.io/teamster/dev/docs/guides/verifying-a-release/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/dev/docs/guides/verifying-a-release/</guid><description>
 &lt;p&gt;Check that a Teamster image or binary was built by the project&amp;rsquo;s release workflow and has not been
 changed since.&lt;/p&gt;
-&lt;p&gt;Releases are signed with &lt;a href="https://docs.sigstore.dev/cosign/" target="_blank" rel="noopener"&gt;cosign&lt;/a&gt; keyless signing, using the
-release workflow&amp;rsquo;s own GitHub identity. There is no public key to download. You need &lt;code&gt;cosign&lt;/code&gt;
-installed, and Docker with &lt;code&gt;buildx&lt;/code&gt; to read the attestations.&lt;/p&gt;
+&lt;p&gt;Releases are signed with &lt;a href="https://docs.sigstore.dev/cosign/" target="_blank" rel="noopener"&gt;cosign&lt;/a&gt; keyless signing. There is no
+public key to download. The signing identity is the shared release workflow in
+&lt;a href="https://github.com/pflege-de-labs/github-workflows" target="_blank" rel="noopener"&gt;pflege-de-labs/github-workflows&lt;/a&gt;, and the
+certificate names &lt;code&gt;pflege-de-labs/teamster&lt;/code&gt; as the repository that ran it. The commands below check
+both. You need &lt;code&gt;cosign&lt;/code&gt; installed, and Docker with &lt;code&gt;buildx&lt;/code&gt; to read the attestations.&lt;/p&gt;
 &lt;div class="hx:overflow-x-auto hx:mt-6 hx:flex hx:rounded-lg hx:border hx:py-2 hx:ltr:pr-4 hx:rtl:pl-4 hx:contrast-more:border-current hx:contrast-more:dark:border-current hx:border-blue-200 hx:bg-blue-100 hx:text-blue-900 hx:dark:border-blue-200/30 hx:dark:bg-blue-900/30 hx:dark:text-blue-200"&gt;
 &lt;div class="hx:ltr:pl-3 hx:ltr:pr-2 hx:rtl:pr-3 hx:rtl:pl-2"&gt;&lt;svg height=1.2em class="hx:inline-block hx:align-middle" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"&gt;&lt;path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/&gt;&lt;/svg&gt;&lt;/div&gt;
 &lt;div class="hx:w-full hx:min-w-0 hx:leading-7"&gt;
-&lt;div class="hx:mt-6 hx:leading-7 hx:first:mt-0"&gt;Only release builds are signed: the version tags such as &lt;code&gt;0.11.0&lt;/code&gt;, &lt;code&gt;0.11&lt;/code&gt; and &lt;code&gt;0&lt;/code&gt; on
+&lt;div class="hx:mt-6 hx:leading-7 hx:first:mt-0"&gt;The commands accept only release builds: the version tags such as &lt;code&gt;0.14.0&lt;/code&gt;, &lt;code&gt;0.14&lt;/code&gt; and &lt;code&gt;0&lt;/code&gt; on
 &lt;code&gt;ghcr.io/pflege-de-labs/teamster&lt;/code&gt;, and the binaries on the GitHub release. The &lt;code&gt;main&lt;/code&gt;, &lt;code&gt;pr-&amp;lt;n&amp;gt;&lt;/code&gt; and
-&lt;code&gt;&amp;lt;short-sha&amp;gt;&lt;/code&gt; images from CI are not.&lt;/div&gt;
+&lt;code&gt;&amp;lt;short-sha&amp;gt;&lt;/code&gt; images from CI are signed by the CI image workflow, so they fail these checks.&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="hx:overflow-x-auto hx:mt-6 hx:flex hx:rounded-lg hx:border hx:py-2 hx:ltr:pr-4 hx:rtl:pl-4 hx:contrast-more:border-current hx:contrast-more:dark:border-current hx:border-amber-200 hx:bg-amber-100 hx:text-amber-900 hx:dark:border-amber-200/30 hx:dark:bg-amber-900/30 hx:dark:text-amber-200"&gt;
+&lt;div class="hx:ltr:pl-3 hx:ltr:pr-2 hx:rtl:pr-3 hx:rtl:pl-2"&gt;&lt;svg height=1.2em class="hx:inline-block hx:align-middle" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"&gt;&lt;path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/&gt;&lt;/svg&gt;&lt;/div&gt;
+&lt;div class="hx:w-full hx:min-w-0 hx:leading-7"&gt;
+&lt;div class="hx:mt-6 hx:leading-7 hx:first:mt-0"&gt;Releases up to and including 0.13.0 were signed by Teamster&amp;rsquo;s own release workflow. For those, use
+&lt;code&gt;--certificate-identity-regexp '^https://github.com/pflege-de-labs/teamster/'&lt;/code&gt; and leave out
+&lt;code&gt;--certificate-github-workflow-repository&lt;/code&gt;.&lt;/div&gt;
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;h2 data-hextra-search-id="verify-an-image"&gt;Verify an image&lt;span class="hx:absolute hx:-mt-20" id="verify-an-image"&gt;&lt;/span&gt;
@@ -9058,7 +9191,8 @@ installed, and Docker with &lt;code&gt;buildx&lt;/code&gt; to read the attestati
 &lt;h3 data-hextra-search-id="check-the-signature"&gt;Check the signature&lt;span class="hx:absolute hx:-mt-20" id="check-the-signature"&gt;&lt;/span&gt;
 &lt;a href="#check-the-signature" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
 &lt;div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;cosign verify &lt;span class="se"&gt;\
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; --certificate-identity-regexp &lt;span class="s1"&gt;&amp;#39;^https://github.com/pflege-de-labs/teamster/&amp;#39;&lt;/span&gt; &lt;span class="se"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; --certificate-identity-regexp &lt;span class="s1"&gt;&amp;#39;^https://github\.com/pflege-de-labs/github-workflows/\.github/workflows/image-release\.yml@&amp;#39;&lt;/span&gt; &lt;span class="se"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; --certificate-github-workflow-repository pflege-de-labs/teamster &lt;span class="se"&gt;\
 &lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; --certificate-oidc-issuer https://token.actions.githubusercontent.com &lt;span class="se"&gt;\
 &lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; ghcr.io/pflege-de-labs/teamster:&amp;lt;version&amp;gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class="hextra-code-copy-btn-container hx:opacity-0 hx:transition hx:group-hover/code:opacity-100 hx:flex hx:gap-1 hx:absolute hx:m-[11px] hx:right-0 hx:top-0"&gt;
 &lt;button
@@ -9072,7 +9206,7 @@ data-copied-label="Copied!"
 &lt;/button&gt;
 &lt;/div&gt;
 &lt;/div&gt;
-&lt;p&gt;&lt;code&gt;&amp;lt;version&amp;gt;&lt;/code&gt; has no &lt;code&gt;v&lt;/code&gt;, for example &lt;code&gt;0.11.0&lt;/code&gt;. cosign prints the verified claims, or fails.&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;&amp;lt;version&amp;gt;&lt;/code&gt; has no &lt;code&gt;v&lt;/code&gt;, for example &lt;code&gt;0.14.0&lt;/code&gt;. cosign prints the verified claims, or fails.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="pin-the-digest"&gt;Pin the digest&lt;span class="hx:absolute hx:-mt-20" id="pin-the-digest"&gt;&lt;/span&gt;
 &lt;a href="#pin-the-digest" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;The output names the digest that was verified. Deploy by that digest,
 &lt;code&gt;ghcr.io/pflege-de-labs/teamster@sha256:&amp;lt;digest&amp;gt;&lt;/code&gt;, so what runs is what you checked.&lt;/p&gt;
@@ -9105,7 +9239,8 @@ all of them, and its signature bundle &lt;code&gt;checksums.txt.bundle&lt;/code&
 &lt;a href="#check-the-checksum-files-signature" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
 &lt;div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;cosign verify-blob &lt;span class="se"&gt;\
 &lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; --bundle checksums.txt.bundle &lt;span class="se"&gt;\
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; --certificate-identity-regexp &lt;span class="s1"&gt;&amp;#39;^https://github.com/pflege-de-labs/teamster/&amp;#39;&lt;/span&gt; &lt;span class="se"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; --certificate-identity-regexp &lt;span class="s1"&gt;&amp;#39;^https://github\.com/pflege-de-labs/github-workflows/\.github/workflows/go-binaries\.yml@&amp;#39;&lt;/span&gt; &lt;span class="se"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; --certificate-github-workflow-repository pflege-de-labs/teamster &lt;span class="se"&gt;\
 &lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; --certificate-oidc-issuer https://token.actions.githubusercontent.com &lt;span class="se"&gt;\
 &lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; checksums.txt&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class="hextra-code-copy-btn-container hx:opacity-0 hx:transition hx:group-hover/code:opacity-100 hx:flex hx:gap-1 hx:absolute hx:m-[11px] hx:right-0 hx:top-0"&gt;
 &lt;button

@@ -3369,56 +3369,162 @@ data-copied-label="Kopiert!"
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;h2 data-hextra-search-id="recipient"&gt;Empfänger&lt;span class="hx:absolute hx:-mt-20" id="recipient"&gt;&lt;/span&gt;
-&lt;a href="#recipient" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Gesetzt, wenn eine Route in den Chat einer Person zustellt.&lt;/p&gt;
+&lt;a href="#recipient" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Gesetzt, wenn eine Route in den Chat einer Person zustellt. Die Felder stammen aus dem Entra-Profil
+der Person. Ein Feld, das Entra für jemanden nicht kennt, ist leer.&lt;/p&gt;
 &lt;table&gt;
 &lt;thead&gt;
 &lt;tr&gt;
 &lt;th&gt;Feld&lt;/th&gt;
+&lt;th&gt;Typ&lt;/th&gt;
 &lt;th&gt;Enthält&lt;/th&gt;
-&lt;th&gt;In der Nachricht genannte Person&lt;/th&gt;
-&lt;th&gt;Verknüpfter Chat&lt;/th&gt;
 &lt;/tr&gt;
 &lt;/thead&gt;
 &lt;tbody&gt;
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;.Recipient.ID&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;string&lt;/td&gt;
 &lt;td&gt;Entra-Objekt-ID&lt;/td&gt;
-&lt;td&gt;ja&lt;/td&gt;
-&lt;td&gt;ja&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;.Recipient.DisplayName&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;string&lt;/td&gt;
 &lt;td&gt;Anzeigename&lt;/td&gt;
-&lt;td&gt;ja&lt;/td&gt;
-&lt;td&gt;ja&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;.Recipient.GivenName&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;string&lt;/td&gt;
 &lt;td&gt;Vorname&lt;/td&gt;
-&lt;td&gt;ja&lt;/td&gt;
-&lt;td&gt;leer&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;.Recipient.Surname&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;string&lt;/td&gt;
 &lt;td&gt;Nachname&lt;/td&gt;
-&lt;td&gt;ja&lt;/td&gt;
-&lt;td&gt;leer&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;.Recipient.UPN&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;string&lt;/td&gt;
 &lt;td&gt;User Principal Name&lt;/td&gt;
-&lt;td&gt;ja&lt;/td&gt;
-&lt;td&gt;leer&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;.Recipient.Mail&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;string&lt;/td&gt;
 &lt;td&gt;E-Mail-Adresse&lt;/td&gt;
-&lt;td&gt;ja&lt;/td&gt;
-&lt;td&gt;leer&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;.Recipient.JobTitle&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;string&lt;/td&gt;
+&lt;td&gt;Position&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;.Recipient.Department&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;string&lt;/td&gt;
+&lt;td&gt;Abteilung&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;.Recipient.CompanyName&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;string&lt;/td&gt;
+&lt;td&gt;Firmenname&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;.Recipient.OfficeLocation&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;string&lt;/td&gt;
+&lt;td&gt;Bürostandort&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;.Recipient.EmployeeID&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;string&lt;/td&gt;
+&lt;td&gt;Personalnummer&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;.Recipient.Address.Street&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;string&lt;/td&gt;
+&lt;td&gt;Straße der Geschäftsadresse&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;.Recipient.Address.PostalCode&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;string&lt;/td&gt;
+&lt;td&gt;Postleitzahl der Geschäftsadresse&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;.Recipient.Address.City&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;string&lt;/td&gt;
+&lt;td&gt;Ort der Geschäftsadresse&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;.Recipient.Address.State&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;string&lt;/td&gt;
+&lt;td&gt;Bundesland der Geschäftsadresse&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;.Recipient.Address.Country&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;string&lt;/td&gt;
+&lt;td&gt;Land der Geschäftsadresse&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;.Recipient.BusinessPhones&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;Liste von string&lt;/td&gt;
+&lt;td&gt;Geschäftliche Telefonnummern&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;.Recipient.MobilePhone&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;string&lt;/td&gt;
+&lt;td&gt;Mobilnummer&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;.Recipient.PreferredLanguage&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;string&lt;/td&gt;
+&lt;td&gt;Bevorzugte Sprache, etwa &lt;code&gt;de-DE&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;.Recipient.UsageLocation&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;string&lt;/td&gt;
+&lt;td&gt;Nutzungsstandort, ein Ländercode wie &lt;code&gt;DE&lt;/code&gt;&lt;/td&gt;
 &lt;/tr&gt;
 &lt;/tbody&gt;
 &lt;/table&gt;
-&lt;p&gt;Bei einem Kanal sind alle Felder leer.&lt;/p&gt;
+&lt;p&gt;Welche Felder gefüllt sind, hängt vom Chat ab:&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Chat&lt;/th&gt;
+&lt;th&gt;Felder&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;In der Nachricht genannte Person, oder per Rundsendung über das Verzeichnis erreicht&lt;/td&gt;
+&lt;td&gt;Alle&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;Verknüpfter Chat einer Person, die im Verzeichnis steht&lt;/td&gt;
+&lt;td&gt;Alle&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;Verknüpfter Chat einer Person, die nicht im Verzeichnis steht&lt;/td&gt;
+&lt;td&gt;Nur &lt;code&gt;ID&lt;/code&gt; und &lt;code&gt;DisplayName&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;Kanal&lt;/td&gt;
+&lt;td&gt;Keine&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;Nach einem Upgrade von einem Release ohne diese Felder erhält eine Person, die bereits im
+Verzeichnis steht, sie beim nächsten Installationslauf (&lt;code&gt;bot.reconcile-interval&lt;/code&gt;) oder wenn eine
+Nachricht sie nach Ablauf von &lt;code&gt;bot.directory-ttl&lt;/code&gt; erneut nachschlägt. Bis dahin sind sie leer.&lt;/p&gt;
+&lt;h3 data-hextra-search-id="the-event-a-person-sees"&gt;Das Ereignis, das eine Person sieht&lt;span class="hx:absolute hx:-mt-20" id="the-event-a-person-sees"&gt;&lt;/span&gt;
+&lt;a href="#the-event-a-person-sees" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Wenn eine Route an die in einer Nachricht genannten Personen zustellt, wird die Nachricht jeder
+Person aus einer Kopie des Ereignisses gerendert, die nur sie nennt:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;.Event.Universal.Recipients&lt;/code&gt; enthält nur die Adressen, die diese Person genannt haben.&lt;/li&gt;
+&lt;li&gt;Das Label &lt;code&gt;teamster_recipient&lt;/code&gt; in &lt;code&gt;.Event.Labels&lt;/code&gt;, &lt;code&gt;.Event.Alertmanager.CommonLabels&lt;/code&gt; und den
+Labels jedes Alarms enthält nur die Adressen, die diese Person genannt haben. Nannte es nur
+andere, fehlt es.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;.Event.Alertmanager.Alerts&lt;/code&gt; enthält nur die Alarme, die diese Person nennen, und die Alarme, die
+niemanden nennen. Bleibt ein Alarm übrig, werden &lt;code&gt;Annotations&lt;/code&gt;, &lt;code&gt;StartsAt&lt;/code&gt;, &lt;code&gt;EndsAt&lt;/code&gt; und
+&lt;code&gt;GeneratorURL&lt;/code&gt; aus ihm gefüllt, wie bei einer Gruppe mit einem Alarm.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Ein Kanal und eine Route an einen einzelnen verknüpften Chat sehen das ganze Ereignis.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="functions"&gt;Funktionen&lt;span class="hx:absolute hx:-mt-20" id="functions"&gt;&lt;/span&gt;
 &lt;a href="#functions" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;table&gt;
 &lt;thead&gt;
@@ -6220,7 +6326,8 @@ Bei einer Gruppe mit einem Alarm sind das die Labels dieses Alarms.&lt;/li&gt;
 gesetzt. Siehe &lt;a href="../templates/#list-the-alerts-of-a-group"&gt;Die Alarme einer Gruppe auflisten&lt;/a&gt; und
 &lt;a href="../../reference/template-data/#alertmanager-extension"&gt;Vorlagendaten&lt;/a&gt;.&lt;/li&gt;
 &lt;li&gt;Um einen Alarm an Personen statt an einen Kanal zu senden, setzen Sie das Label
-&lt;code&gt;teamster_recipient&lt;/code&gt;. Die Adressen aller Alarme der Gruppe werden zusammengeführt. Siehe
+&lt;code&gt;teamster_recipient&lt;/code&gt;. Die Adressen aller Alarme der Gruppe werden zusammengeführt. Jede Person
+erhält nur die Alarme, die sie nennen, und die Alarme, die niemanden nennen. Siehe
 &lt;a href="../direct-messages/"&gt;Nachrichten an einzelne Personen senden&lt;/a&gt;.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;h2 data-hextra-search-id="after-upgrading-from-a-release-with-one-card-per-alert"&gt;Nach dem Upgrade von einem Release mit einer Karte je Alarm&lt;span class="hx:absolute hx:-mt-20" id="after-upgrading-from-a-release-with-one-card-per-alert"&gt;&lt;/span&gt;
@@ -6468,10 +6575,13 @@ Vorlage. Wer Routen bearbeiten darf, darf eine solche Route anlegen.&lt;/p&gt;
 &lt;p&gt;Fassen Sie den Selektor eng. Die Route übernimmt jede Nachricht, die er erfasst, gleich von welchem
 Absender, und rendert sie mit Ihrer Vorlage. Wen sie erreicht, begrenzt das Token des jeweiligen
 Absenders, das Sie im nächsten Schritt festlegen.&lt;/p&gt;
-&lt;p&gt;Jede Person erhält ihre eigene, für sie gerenderte Nachricht. Die Vorlage kann sie also persönlich
-ansprechen:&lt;/p&gt;
+&lt;p&gt;Jede Person erhält ihre eigene, für sie gerenderte Nachricht. &lt;code&gt;.Recipient&lt;/code&gt; enthält ihr
+Entra-Profil. Die Vorlage kann sie also persönlich ansprechen, in ihrer Sprache schreiben und ihr
+Büro nennen:&lt;/p&gt;
 &lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
-&lt;div&gt;&lt;pre&gt;&lt;code&gt;Hello {{ .Recipient.GivenName }}, your password expires on {{ .Event.Universal.Attributes.expires }}.&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class="hextra-code-copy-btn-container hx:opacity-0 hx:transition hx:group-hover/code:opacity-100 hx:flex hx:gap-1 hx:absolute hx:m-[11px] hx:right-0 hx:top-0"&gt;
+&lt;div&gt;&lt;pre&gt;&lt;code&gt;{{ if eq .Recipient.PreferredLanguage &amp;#34;de-DE&amp;#34; }}Hallo{{ else }}Hello{{ end }} {{ .Recipient.GivenName }},
+your password expires on {{ .Event.Universal.Attributes.expires }}.
+Questions? Visit the IT desk at {{ default .Recipient.OfficeLocation &amp;#34;your office&amp;#34; }}.&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class="hextra-code-copy-btn-container hx:opacity-0 hx:transition hx:group-hover/code:opacity-100 hx:flex hx:gap-1 hx:absolute hx:m-[11px] hx:right-0 hx:top-0"&gt;
 &lt;button
 class="hextra-code-copy-btn hx:group/copybtn hx:cursor-pointer hx:transition-all hx:active:opacity-50 hx:bg-primary-700/5 hx:border hx:border-black/5 hx:text-gray-600 hx:hover:text-gray-900 hx:rounded-md hx:p-1.5 hx:dark:bg-primary-300/10 hx:dark:border-white/10 hx:dark:text-gray-400 hx:dark:hover:text-gray-50"
 title="Code kopieren"
@@ -6483,7 +6593,8 @@ data-copied-label="Kopiert!"
 &lt;/button&gt;
 &lt;/div&gt;
 &lt;/div&gt;
-&lt;p&gt;&lt;code&gt;.Recipient&lt;/code&gt; ist in &lt;a href="../../reference/template-data/"&gt;Vorlagendaten&lt;/a&gt; beschrieben.&lt;/p&gt;
+&lt;p&gt;Ein Feld, das Entra für jemanden nicht kennt, ist leer. Alle Felder sind in
+&lt;a href="../../reference/template-data/#recipient"&gt;Vorlagendaten&lt;/a&gt; aufgeführt.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="issue-a-token-that-may-name-people"&gt;Ein Token ausstellen, das Personen nennen darf&lt;span class="hx:absolute hx:-mt-20" id="issue-a-token-that-may-name-people"&gt;&lt;/span&gt;
 &lt;a href="#issue-a-token-that-may-name-people" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Eine Nachricht, die jemanden nennt, wird mit &lt;code&gt;403&lt;/code&gt; abgewiesen, wenn ihr Token diese Personen nicht
 nennen darf. Setzen Sie unter &lt;strong&gt;/admin/tokens&lt;/strong&gt; beim Ausstellen des Tokens für den Absender
@@ -6704,6 +6815,17 @@ Sie die Person stattdessen über UPN oder Objekt-ID.&lt;/li&gt;
 &lt;li&gt;&lt;strong&gt;nur mich.&lt;/strong&gt; Ein auf seinen Ersteller beschränktes Token darf jede der drei Formen verwenden,
 solange die Adresse auf die eigene Objekt-ID des Erstellers aufgelöst wird.&lt;/li&gt;
 &lt;/ul&gt;
+&lt;h2 data-hextra-search-id="know-what-each-person-sees"&gt;Wissen, was jede Person sieht&lt;span class="hx:absolute hx:-mt-20" id="know-what-each-person-sees"&gt;&lt;/span&gt;
+&lt;a href="#know-what-each-person-sees" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Die Nachricht jeder Person nennt nur sie. So erfährt niemand, wer sie sonst noch erhalten hat:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;.Event.Universal.Recipients&lt;/code&gt; und das Label &lt;code&gt;teamster_recipient&lt;/code&gt; enthalten nur die Adressen, die
+diese Person genannt haben.&lt;/li&gt;
+&lt;li&gt;Eine Alertmanager-Gruppe enthält nur die Alarme, die diese Person nennen, und die Alarme, die
+niemanden nennen. Nennt eine Benachrichtigung Alice in einem Alarm und Bob in einem anderen,
+erhält Alice nur ihren.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Ein Kanal und eine Route an einen einzelnen verknüpften Chat erhalten weiterhin das ganze
+Ereignis. Siehe &lt;a href="../../reference/template-data/#the-event-a-person-sees"&gt;Das Ereignis, das eine Person sieht&lt;/a&gt;.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="update-or-close-the-messages"&gt;Die Nachrichten aktualisieren oder schließen&lt;span class="hx:absolute hx:-mt-20" id="update-or-close-the-messages"&gt;&lt;/span&gt;
 &lt;a href="#update-or-close-the-messages" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Mit &lt;code&gt;&amp;quot;state&amp;quot;: &amp;quot;open&amp;quot;&lt;/code&gt; und einem &lt;code&gt;key&lt;/code&gt; erhalten Sie den verfolgten Lebenszyklus:&lt;/p&gt;
 &lt;ul&gt;
@@ -6821,7 +6943,9 @@ data-copied-label="Kopiert!"
 &lt;a href="#create-a-route-that-addresses-people" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Legen Sie eine Route an, die die Nachricht selektiert, etwa mit &lt;code&gt;{&amp;quot;kind&amp;quot;: &amp;quot;office-notice&amp;quot;}&lt;/code&gt;, oder
 bearbeiten Sie eine solche, und setzen Sie &lt;strong&gt;Liefert an&lt;/strong&gt; auf
 &lt;strong&gt;Jede in der Nachricht genannte Person&lt;/strong&gt;. Jede Person erhält ihre eigene, für sie gerenderte Kopie;
-die Vorlage kann also &lt;code&gt;.Recipient&lt;/code&gt; verwenden.&lt;/p&gt;
+die Vorlage kann also &lt;code&gt;.Recipient&lt;/code&gt; verwenden. Für eine Person im Verzeichnis enthält es ihr ganzes
+Entra-Profil, für jemanden, der nur einen Chat verknüpft hat, nur &lt;code&gt;ID&lt;/code&gt; und &lt;code&gt;DisplayName&lt;/code&gt;. Siehe
+&lt;a href="../../reference/template-data/#recipient"&gt;Vorlagendaten&lt;/a&gt;.&lt;/p&gt;
 &lt;p&gt;Eine Rundsendung wird geroutet wie jede Nachricht. Kanäle und verknüpfte Chats, die sie trifft,
 erhalten sie noch während der Anfrage. Nur die Routen, die an
 &lt;strong&gt;Jede in der Nachricht genannte Person&lt;/strong&gt; zustellen, senden sie an alle.&lt;/p&gt;
@@ -7401,9 +7525,10 @@ Nachricht. Dabei wird eine Warnung protokolliert.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;h3 data-hextra-search-id="preview-it"&gt;Die Vorschau ansehen&lt;span class="hx:absolute hx:-mt-20" id="preview-it"&gt;&lt;/span&gt;
 &lt;a href="#preview-it" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Die Vorschau rendert die Vorlage gegen Beispielnutzdaten für jeden Webhook und kann das JSON
-zeigen, das der Bot für einen Kanalbeitrag und für einen Chat senden würde. Für Alertmanager gibt
-es zwei Beispiele: &lt;strong&gt;Alertmanager-Alarm&lt;/strong&gt;, eine Gruppe mit einem Alarm, und
-&lt;strong&gt;Alertmanager-Alarmgruppe&lt;/strong&gt; mit zwei Alarmen.&lt;/p&gt;
+zeigen, das der Bot für einen Kanalbeitrag und für einen Chat senden würde. Jedes Beispiel außer
+Teams V2 wird für eine Beispielperson, Alex Example, gerendert, bei der jedes Feld von &lt;code&gt;.Recipient&lt;/code&gt;
+gefüllt ist. Für Alertmanager gibt es zwei Beispiele: &lt;strong&gt;Alertmanager-Alarm&lt;/strong&gt;, eine Gruppe mit einem
+Alarm, und &lt;strong&gt;Alertmanager-Alarmgruppe&lt;/strong&gt; mit zwei Alarmen.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="attach-it"&gt;Die Vorlage zuweisen&lt;span class="hx:absolute hx:-mt-20" id="attach-it"&gt;&lt;/span&gt;
 &lt;a href="#attach-it" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Wählen Sie die Vorlage an einer Route, an der globalen Standardroute oder an einem
 Teams-V2-Endpunkt. Siehe &lt;a href="../../concepts/routing/"&gt;Wie das Routing funktioniert&lt;/a&gt;.&lt;/p&gt;
@@ -9250,16 +9375,28 @@ Migration aus, kann sie die Liveness-Probe überdauern und einen Neustart in Sch
 &lt;code&gt;values.yaml&lt;/code&gt; des Charts enthält für diesen Fall eine auskommentierte &lt;code&gt;startupProbe&lt;/code&gt;.&lt;/p&gt;</description></item><item><title>Ein Release verifizieren</title><link>https://pflege-de-labs.github.io/teamster/dev/de/docs/guides/verifying-a-release/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/dev/de/docs/guides/verifying-a-release/</guid><description>
 &lt;p&gt;Prüfen Sie, ob ein Image oder Binary von Teamster vom Release-Workflow des Projekts gebaut und
 seitdem nicht verändert wurde.&lt;/p&gt;
-&lt;p&gt;Releases werden mit &lt;a href="https://docs.sigstore.dev/cosign/" target="_blank" rel="noopener"&gt;cosign&lt;/a&gt; schlüssellos signiert, mit der
-eigenen GitHub-Identität des Release-Workflows. Es gibt keinen öffentlichen Schlüssel zum
-Herunterladen. Sie brauchen ein installiertes &lt;code&gt;cosign&lt;/code&gt; und Docker mit &lt;code&gt;buildx&lt;/code&gt;, um die
+&lt;p&gt;Releases werden mit &lt;a href="https://docs.sigstore.dev/cosign/" target="_blank" rel="noopener"&gt;cosign&lt;/a&gt; schlüssellos signiert. Es gibt
+keinen öffentlichen Schlüssel zum Herunterladen. Die signierende Identität ist der gemeinsame
+Release-Workflow in
+&lt;a href="https://github.com/pflege-de-labs/github-workflows" target="_blank" rel="noopener"&gt;pflege-de-labs/github-workflows&lt;/a&gt;, und das
+Zertifikat nennt &lt;code&gt;pflege-de-labs/teamster&lt;/code&gt; als das Repository, das ihn ausgeführt hat. Die Befehle
+unten prüfen beides. Sie brauchen ein installiertes &lt;code&gt;cosign&lt;/code&gt; und Docker mit &lt;code&gt;buildx&lt;/code&gt;, um die
 Attestierungen zu lesen.&lt;/p&gt;
 &lt;div class="hx:overflow-x-auto hx:mt-6 hx:flex hx:rounded-lg hx:border hx:py-2 hx:ltr:pr-4 hx:rtl:pl-4 hx:contrast-more:border-current hx:contrast-more:dark:border-current hx:border-blue-200 hx:bg-blue-100 hx:text-blue-900 hx:dark:border-blue-200/30 hx:dark:bg-blue-900/30 hx:dark:text-blue-200"&gt;
 &lt;div class="hx:ltr:pl-3 hx:ltr:pr-2 hx:rtl:pr-3 hx:rtl:pl-2"&gt;&lt;svg height=1.2em class="hx:inline-block hx:align-middle" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"&gt;&lt;path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/&gt;&lt;/svg&gt;&lt;/div&gt;
 &lt;div class="hx:w-full hx:min-w-0 hx:leading-7"&gt;
-&lt;div class="hx:mt-6 hx:leading-7 hx:first:mt-0"&gt;Signiert sind nur Release-Builds: die Versions-Tags wie &lt;code&gt;0.11.0&lt;/code&gt;, &lt;code&gt;0.11&lt;/code&gt; und &lt;code&gt;0&lt;/code&gt; auf
+&lt;div class="hx:mt-6 hx:leading-7 hx:first:mt-0"&gt;Die Befehle akzeptieren nur Release-Builds: die Versions-Tags wie &lt;code&gt;0.14.0&lt;/code&gt;, &lt;code&gt;0.14&lt;/code&gt; und &lt;code&gt;0&lt;/code&gt; auf
 &lt;code&gt;ghcr.io/pflege-de-labs/teamster&lt;/code&gt; und die Binaries im GitHub-Release. Die Images &lt;code&gt;main&lt;/code&gt;, &lt;code&gt;pr-&amp;lt;n&amp;gt;&lt;/code&gt;
-und &lt;code&gt;&amp;lt;short-sha&amp;gt;&lt;/code&gt; aus der CI sind es nicht.&lt;/div&gt;
+und &lt;code&gt;&amp;lt;short-sha&amp;gt;&lt;/code&gt; aus der CI signiert der CI-Image-Workflow, deshalb bestehen sie diese Prüfung
+nicht.&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="hx:overflow-x-auto hx:mt-6 hx:flex hx:rounded-lg hx:border hx:py-2 hx:ltr:pr-4 hx:rtl:pl-4 hx:contrast-more:border-current hx:contrast-more:dark:border-current hx:border-amber-200 hx:bg-amber-100 hx:text-amber-900 hx:dark:border-amber-200/30 hx:dark:bg-amber-900/30 hx:dark:text-amber-200"&gt;
+&lt;div class="hx:ltr:pl-3 hx:ltr:pr-2 hx:rtl:pr-3 hx:rtl:pl-2"&gt;&lt;svg height=1.2em class="hx:inline-block hx:align-middle" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"&gt;&lt;path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/&gt;&lt;/svg&gt;&lt;/div&gt;
+&lt;div class="hx:w-full hx:min-w-0 hx:leading-7"&gt;
+&lt;div class="hx:mt-6 hx:leading-7 hx:first:mt-0"&gt;Releases bis einschließlich 0.13.0 hat der eigene Release-Workflow von Teamster signiert. Für
+diese verwenden Sie &lt;code&gt;--certificate-identity-regexp '^https://github.com/pflege-de-labs/teamster/'&lt;/code&gt;
+und lassen &lt;code&gt;--certificate-github-workflow-repository&lt;/code&gt; weg.&lt;/div&gt;
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;h2 data-hextra-search-id="verify-an-image"&gt;Ein Image verifizieren&lt;span class="hx:absolute hx:-mt-20" id="verify-an-image"&gt;&lt;/span&gt;
@@ -9267,7 +9404,8 @@ und &lt;code&gt;&amp;lt;short-sha&amp;gt;&lt;/code&gt; aus der CI sind es nicht.
 &lt;h3 data-hextra-search-id="check-the-signature"&gt;Die Signatur prüfen&lt;span class="hx:absolute hx:-mt-20" id="check-the-signature"&gt;&lt;/span&gt;
 &lt;a href="#check-the-signature" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
 &lt;div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;cosign verify &lt;span class="se"&gt;\
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; --certificate-identity-regexp &lt;span class="s1"&gt;&amp;#39;^https://github.com/pflege-de-labs/teamster/&amp;#39;&lt;/span&gt; &lt;span class="se"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; --certificate-identity-regexp &lt;span class="s1"&gt;&amp;#39;^https://github\.com/pflege-de-labs/github-workflows/\.github/workflows/image-release\.yml@&amp;#39;&lt;/span&gt; &lt;span class="se"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; --certificate-github-workflow-repository pflege-de-labs/teamster &lt;span class="se"&gt;\
 &lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; --certificate-oidc-issuer https://token.actions.githubusercontent.com &lt;span class="se"&gt;\
 &lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; ghcr.io/pflege-de-labs/teamster:&amp;lt;version&amp;gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class="hextra-code-copy-btn-container hx:opacity-0 hx:transition hx:group-hover/code:opacity-100 hx:flex hx:gap-1 hx:absolute hx:m-[11px] hx:right-0 hx:top-0"&gt;
 &lt;button
@@ -9281,7 +9419,7 @@ data-copied-label="Kopiert!"
 &lt;/button&gt;
 &lt;/div&gt;
 &lt;/div&gt;
-&lt;p&gt;&lt;code&gt;&amp;lt;version&amp;gt;&lt;/code&gt; steht ohne &lt;code&gt;v&lt;/code&gt;, zum Beispiel &lt;code&gt;0.11.0&lt;/code&gt;. cosign gibt die verifizierten Claims aus oder
+&lt;p&gt;&lt;code&gt;&amp;lt;version&amp;gt;&lt;/code&gt; steht ohne &lt;code&gt;v&lt;/code&gt;, zum Beispiel &lt;code&gt;0.14.0&lt;/code&gt;. cosign gibt die verifizierten Claims aus oder
 schlägt fehl.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="pin-the-digest"&gt;Den Digest festschreiben&lt;span class="hx:absolute hx:-mt-20" id="pin-the-digest"&gt;&lt;/span&gt;
 &lt;a href="#pin-the-digest" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Die Ausgabe nennt den verifizierten Digest. Deployen Sie über diesen Digest,
@@ -9315,7 +9453,8 @@ für &lt;code&gt;linux&lt;/code&gt; und &lt;code&gt;darwin&lt;/code&gt; auf &lt;
 &lt;a href="#check-the-checksum-files-signature" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
 &lt;div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;cosign verify-blob &lt;span class="se"&gt;\
 &lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; --bundle checksums.txt.bundle &lt;span class="se"&gt;\
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; --certificate-identity-regexp &lt;span class="s1"&gt;&amp;#39;^https://github.com/pflege-de-labs/teamster/&amp;#39;&lt;/span&gt; &lt;span class="se"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; --certificate-identity-regexp &lt;span class="s1"&gt;&amp;#39;^https://github\.com/pflege-de-labs/github-workflows/\.github/workflows/go-binaries\.yml@&amp;#39;&lt;/span&gt; &lt;span class="se"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; --certificate-github-workflow-repository pflege-de-labs/teamster &lt;span class="se"&gt;\
 &lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; --certificate-oidc-issuer https://token.actions.githubusercontent.com &lt;span class="se"&gt;\
 &lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; checksums.txt&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class="hextra-code-copy-btn-container hx:opacity-0 hx:transition hx:group-hover/code:opacity-100 hx:flex hx:gap-1 hx:absolute hx:m-[11px] hx:right-0 hx:top-0"&gt;
 &lt;button
