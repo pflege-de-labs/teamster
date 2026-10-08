@@ -6,15 +6,25 @@ weight: 22
 Prüfen Sie, ob ein Image oder Binary von Teamster vom Release-Workflow des Projekts gebaut und
 seitdem nicht verändert wurde.
 
-Releases werden mit [cosign](https://docs.sigstore.dev/cosign/) schlüssellos signiert, mit der
-eigenen GitHub-Identität des Release-Workflows. Es gibt keinen öffentlichen Schlüssel zum
-Herunterladen. Sie brauchen ein installiertes `cosign` und Docker mit `buildx`, um die
+Releases werden mit [cosign](https://docs.sigstore.dev/cosign/) schlüssellos signiert. Es gibt
+keinen öffentlichen Schlüssel zum Herunterladen. Die signierende Identität ist der gemeinsame
+Release-Workflow in
+[pflege-de-labs/github-workflows](https://github.com/pflege-de-labs/github-workflows), und das
+Zertifikat nennt `pflege-de-labs/teamster` als das Repository, das ihn ausgeführt hat. Die Befehle
+unten prüfen beides. Sie brauchen ein installiertes `cosign` und Docker mit `buildx`, um die
 Attestierungen zu lesen.
 
 {{< callout type="info" >}}
-Signiert sind nur Release-Builds: die Versions-Tags wie `0.11.0`, `0.11` und `0` auf
+Die Befehle akzeptieren nur Release-Builds: die Versions-Tags wie `0.14.0`, `0.14` und `0` auf
 `ghcr.io/pflege-de-labs/teamster` und die Binaries im GitHub-Release. Die Images `main`, `pr-<n>`
-und `<short-sha>` aus der CI sind es nicht.
+und `<short-sha>` aus der CI signiert der CI-Image-Workflow, deshalb bestehen sie diese Prüfung
+nicht.
+{{< /callout >}}
+
+{{< callout type="warning" >}}
+Releases bis einschließlich 0.13.0 hat der eigene Release-Workflow von Teamster signiert. Für
+diese verwenden Sie `--certificate-identity-regexp '^https://github.com/pflege-de-labs/teamster/'`
+und lassen `--certificate-github-workflow-repository` weg.
 {{< /callout >}}
 
 ## Ein Image verifizieren {#verify-an-image}
@@ -25,12 +35,13 @@ und `<short-sha>` aus der CI sind es nicht.
 
 ```bash
 cosign verify \
-  --certificate-identity-regexp '^https://github.com/pflege-de-labs/teamster/' \
+  --certificate-identity-regexp '^https://github\.com/pflege-de-labs/github-workflows/\.github/workflows/image-release\.yml@' \
+  --certificate-github-workflow-repository pflege-de-labs/teamster \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   ghcr.io/pflege-de-labs/teamster:<version>
 ```
 
-`<version>` steht ohne `v`, zum Beispiel `0.11.0`. cosign gibt die verifizierten Claims aus oder
+`<version>` steht ohne `v`, zum Beispiel `0.14.0`. cosign gibt die verifizierten Claims aus oder
 schlägt fehl.
 
 ### Den Digest festschreiben {#pin-the-digest}
@@ -67,7 +78,8 @@ Laden Sie das gewünschte Binary, zum Beispiel `teamster-linux-amd64`, zusammen 
 ```bash
 cosign verify-blob \
   --bundle checksums.txt.bundle \
-  --certificate-identity-regexp '^https://github.com/pflege-de-labs/teamster/' \
+  --certificate-identity-regexp '^https://github\.com/pflege-de-labs/github-workflows/\.github/workflows/go-binaries\.yml@' \
+  --certificate-github-workflow-repository pflege-de-labs/teamster \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   checksums.txt
 ```

@@ -6,14 +6,22 @@ weight: 22
 Check that a Teamster image or binary was built by the project's release workflow and has not been
 changed since.
 
-Releases are signed with [cosign](https://docs.sigstore.dev/cosign/) keyless signing, using the
-release workflow's own GitHub identity. There is no public key to download. You need `cosign`
-installed, and Docker with `buildx` to read the attestations.
+Releases are signed with [cosign](https://docs.sigstore.dev/cosign/) keyless signing. There is no
+public key to download. The signing identity is the shared release workflow in
+[pflege-de-labs/github-workflows](https://github.com/pflege-de-labs/github-workflows), and the
+certificate names `pflege-de-labs/teamster` as the repository that ran it. The commands below check
+both. You need `cosign` installed, and Docker with `buildx` to read the attestations.
 
 {{< callout type="info" >}}
-Only release builds are signed: the version tags such as `0.11.0`, `0.11` and `0` on
+The commands accept only release builds: the version tags such as `0.14.0`, `0.14` and `0` on
 `ghcr.io/pflege-de-labs/teamster`, and the binaries on the GitHub release. The `main`, `pr-<n>` and
-`<short-sha>` images from CI are not.
+`<short-sha>` images from CI are signed by the CI image workflow, so they fail these checks.
+{{< /callout >}}
+
+{{< callout type="warning" >}}
+Releases up to and including 0.13.0 were signed by Teamster's own release workflow. For those, use
+`--certificate-identity-regexp '^https://github.com/pflege-de-labs/teamster/'` and leave out
+`--certificate-github-workflow-repository`.
 {{< /callout >}}
 
 ## Verify an image
@@ -24,12 +32,13 @@ Only release builds are signed: the version tags such as `0.11.0`, `0.11` and `0
 
 ```bash
 cosign verify \
-  --certificate-identity-regexp '^https://github.com/pflege-de-labs/teamster/' \
+  --certificate-identity-regexp '^https://github\.com/pflege-de-labs/github-workflows/\.github/workflows/image-release\.yml@' \
+  --certificate-github-workflow-repository pflege-de-labs/teamster \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   ghcr.io/pflege-de-labs/teamster:<version>
 ```
 
-`<version>` has no `v`, for example `0.11.0`. cosign prints the verified claims, or fails.
+`<version>` has no `v`, for example `0.14.0`. cosign prints the verified claims, or fails.
 
 ### Pin the digest
 
@@ -65,7 +74,8 @@ Download the binary you want, for example `teamster-linux-amd64`, with `checksum
 ```bash
 cosign verify-blob \
   --bundle checksums.txt.bundle \
-  --certificate-identity-regexp '^https://github.com/pflege-de-labs/teamster/' \
+  --certificate-identity-regexp '^https://github\.com/pflege-de-labs/github-workflows/\.github/workflows/go-binaries\.yml@' \
+  --certificate-github-workflow-repository pflege-de-labs/teamster \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   checksums.txt
 ```
