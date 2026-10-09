@@ -10,6 +10,12 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 ## [Unreleased]
 
+### Security
+
+* `golang.org/x/net` 0.60.0 fixes GO-2026-6617, and the image is built with Go 1.27.2, which fixes
+  eleven standard-library advisories in `net/http`, `crypto/tls`, `net/textproto` and
+  `html/template`.
+
 ## [0.14.0] — 2026-10-09
 
 ### Added
