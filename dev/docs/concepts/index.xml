@@ -282,6 +282,10 @@ that one record:&lt;/p&gt;
 &lt;/tbody&gt;
 &lt;/table&gt;
 &lt;p&gt;Nobody can give more than they hold. Granting or revoking &lt;code&gt;own&lt;/code&gt; makes you an owner as well.&lt;/p&gt;
+&lt;p&gt;To give one principal the same actions on several records of a kind at once, use &lt;strong&gt;Access
+overview&lt;/strong&gt; (&lt;code&gt;/admin/access&lt;/code&gt;); see
+&lt;a href="../../guides/roles/#share-several-records-at-once"&gt;Share several records at once&lt;/a&gt;. &lt;strong&gt;My access&lt;/strong&gt;
+(&lt;code&gt;/admin/me&lt;/code&gt;) lists what has been shared with you, and through whom.&lt;/p&gt;
 &lt;p&gt;Sharing adds to roles; it does not replace them. Editors keep editing everything. Someone with no
 role but a shared record sees &lt;code&gt;/admin&lt;/code&gt; with just what was shared. Pages built from the whole
 configuration stay closed to them: the routing graph, previews and the export.&lt;/p&gt;

@@ -3406,11 +3406,19 @@ so a role of your own means adding a policy for &lt;code&gt;Role::&amp;quot;audi
 Adding policies is safe. Removing or renaming &lt;code&gt;admin&lt;/code&gt;, &lt;code&gt;editor&lt;/code&gt; or &lt;code&gt;viewer&lt;/code&gt; breaks the admin UI.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="check-who-may-do-what"&gt;Check who may do what&lt;span class="hx:absolute hx:-mt-20" id="check-who-may-do-what"&gt;&lt;/span&gt;
 &lt;a href="#check-who-may-do-what" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;ul&gt;
-&lt;li&gt;&lt;strong&gt;/admin/access&lt;/strong&gt; (admins) shows every grant, who may send to the webhooks, who may message
-people, and the Cedar policies in force. &lt;strong&gt;Who can?&lt;/strong&gt; takes a subject, an action and a resource
-and names the policies that allow or refuse it.&lt;/li&gt;
-&lt;li&gt;&lt;strong&gt;My access&lt;/strong&gt; in the user menu (&lt;strong&gt;/admin/me&lt;/strong&gt;) shows anyone their own roles, groups, webhooks,
-&lt;strong&gt;People you may message&lt;/strong&gt;, and the grants that name them.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Access overview&lt;/strong&gt; (&lt;strong&gt;/admin/access&lt;/strong&gt;) appears in the menu for admins and for anyone a grant
+names, directly or through a group, provider group or role. There they
+&lt;a href="#share-several-records-at-once"&gt;share several records at once&lt;/a&gt;, and &lt;strong&gt;Every grant&lt;/strong&gt; lists the
+grants on the records they may share, with each record&amp;rsquo;s name linking to it.&lt;/li&gt;
+&lt;li&gt;Admins also see there who may send to the webhooks, who may message people, every grant, &lt;strong&gt;Who
+can?&lt;/strong&gt; and the &lt;strong&gt;Policies in force&lt;/strong&gt;. &lt;strong&gt;Who can?&lt;/strong&gt; takes a subject, and an action and a resource
+from lists that include the webhooks and &lt;strong&gt;People&lt;/strong&gt;, and names the policies that allow or refuse
+it. A policy&amp;rsquo;s text unfolds under its name. Older links with &lt;code&gt;type=&lt;/code&gt; and &lt;code&gt;id=&lt;/code&gt; still work.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;My access&lt;/strong&gt; in the user menu (&lt;strong&gt;/admin/me&lt;/strong&gt;) shows anyone their own roles, groups, webhooks and
+&lt;strong&gt;People you may message&lt;/strong&gt;. &lt;strong&gt;Shared with you&lt;/strong&gt; lists every record shared with them, with a link,
+the actions, and &lt;strong&gt;Through&lt;/strong&gt; whom: themselves, a group, a provider group or a role. Below it, one
+line per role says what that role allows on all records of a kind. The Cedar policies behind it
+are under &lt;strong&gt;Show the policies behind this&lt;/strong&gt;.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;p&gt;A refused request is a &lt;code&gt;403&lt;/code&gt; naming the role and the resource.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="collect-people-in-groups"&gt;Collect people in groups&lt;span class="hx:absolute hx:-mt-20" id="collect-people-in-groups"&gt;&lt;/span&gt;
@@ -3550,42 +3558,57 @@ and
 &lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0083-broadcasts-run-in-the-background.md" target="_blank" rel="noopener"&gt;ADR 0083&lt;/a&gt;.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="share-a-record"&gt;Share a record&lt;span class="hx:absolute hx:-mt-20" id="share-a-record"&gt;&lt;/span&gt;
 &lt;a href="#share-a-record" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Whoever creates a template, destination, route, webhook endpoint or group owns it. To share one,
-edit it and use &lt;strong&gt;Who may do what&lt;/strong&gt;: give a user, a group, a provider group or a role some of these
-actions.&lt;/p&gt;
+edit it and use &lt;strong&gt;Who may do what&lt;/strong&gt;:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Under &lt;strong&gt;Give to&lt;/strong&gt;, choose a user, a group, a provider group or a role from the list. Someone who
+has not signed in yet is not listed: open &lt;strong&gt;Someone not listed&lt;/strong&gt;, pick the kind and enter their
+subject, provider group or role name instead.&lt;/li&gt;
+&lt;li&gt;Tick what they &lt;strong&gt;May&lt;/strong&gt; do, and press &lt;strong&gt;Save&lt;/strong&gt;.&lt;/li&gt;
+&lt;/ol&gt;
 &lt;table&gt;
 &lt;thead&gt;
 &lt;tr&gt;
 &lt;th&gt;Action&lt;/th&gt;
+&lt;th&gt;In the form&lt;/th&gt;
 &lt;th&gt;Lets them&lt;/th&gt;
 &lt;/tr&gt;
 &lt;/thead&gt;
 &lt;tbody&gt;
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;read&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;read&lt;/td&gt;
 &lt;td&gt;See the record&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;update&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;change&lt;/td&gt;
 &lt;td&gt;Change it&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;delete&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;delete&lt;/td&gt;
 &lt;td&gt;Delete it&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;attach&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;use in routes and webhooks&lt;/td&gt;
 &lt;td&gt;Point routes and webhooks at it&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;share&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;share&lt;/td&gt;
 &lt;td&gt;Give others what they hold themselves&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;own&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;own (everything, and pass ownership on)&lt;/td&gt;
 &lt;td&gt;Everything, including passing ownership on&lt;/td&gt;
 &lt;/tr&gt;
 &lt;/tbody&gt;
 &lt;/table&gt;
+&lt;p&gt;Each principal who already holds something is a row with their actions ticked. Change the boxes and
+press &lt;strong&gt;Save&lt;/strong&gt; to replace what they hold; with no box ticked, it is all taken away. &lt;strong&gt;Revoke&lt;/strong&gt;
+removes the row.&lt;/p&gt;
 &lt;p&gt;Nobody can give more than they hold. Someone with no role but a shared record sees &lt;strong&gt;/admin&lt;/strong&gt; with
 just what was shared.&lt;/p&gt;
 &lt;p&gt;&lt;code&gt;create&lt;/code&gt; on a whole collection is granted through the API:&lt;/p&gt;
@@ -3606,6 +3629,23 @@ data-copied-label="Copied!"
 &lt;/div&gt;
 &lt;p&gt;&lt;code&gt;GET /api/sharing?type=Template&amp;amp;id=&amp;lt;id&amp;gt;&lt;/code&gt; lists a record&amp;rsquo;s permissions, and
 &lt;code&gt;DELETE /api/sharing/&amp;lt;id&amp;gt;&lt;/code&gt; revokes one.&lt;/p&gt;
+&lt;h2 data-hextra-search-id="share-several-records-at-once"&gt;Share several records at once&lt;span class="hx:absolute hx:-mt-20" id="share-several-records-at-once"&gt;&lt;/span&gt;
+&lt;a href="#share-several-records-at-once" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;div class="hextra-steps hx:ml-4 hx:mb-12 hx:ltr:border-l hx:rtl:border-r hx:border-gray-200 hx:ltr:pl-6 hx:rtl:pr-6 hx:dark:border-neutral-800 [counter-reset:step]"&gt;
+&lt;h3 data-hextra-search-id="pick-a-kind-of-resource"&gt;Pick a kind of resource&lt;span class="hx:absolute hx:-mt-20" id="pick-a-kind-of-resource"&gt;&lt;/span&gt;
+&lt;a href="#pick-a-kind-of-resource" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Open &lt;strong&gt;Access overview&lt;/strong&gt; (&lt;strong&gt;/admin/access&lt;/strong&gt;), choose a &lt;strong&gt;Kind of resource&lt;/strong&gt; (Templates,
+Destinations, Routes, Webhook endpoints or Groups) and press &lt;strong&gt;Show&lt;/strong&gt;. Only records you may &lt;code&gt;share&lt;/code&gt;
+are listed. If there are none, the page says that there is nothing you may share yet.&lt;/p&gt;
+&lt;h3 data-hextra-search-id="tick-the-records"&gt;Tick the records&lt;span class="hx:absolute hx:-mt-20" id="tick-the-records"&gt;&lt;/span&gt;
+&lt;a href="#tick-the-records" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Tick them under &lt;strong&gt;Records&lt;/strong&gt;. &lt;strong&gt;Who has access&lt;/strong&gt; next to a record opens its &lt;strong&gt;Who may do what&lt;/strong&gt; panel
+below the form, where you change or revoke single grants; &lt;strong&gt;Edit&lt;/strong&gt; opens the record.&lt;/p&gt;
+&lt;h3 data-hextra-search-id="choose-who-and-what"&gt;Choose who and what&lt;span class="hx:absolute hx:-mt-20" id="choose-who-and-what"&gt;&lt;/span&gt;
+&lt;a href="#choose-who-and-what" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Choose the principal under &lt;strong&gt;Give to&lt;/strong&gt;, or under &lt;strong&gt;Someone not listed&lt;/strong&gt;, tick what they &lt;strong&gt;May&lt;/strong&gt; do
+and press &lt;strong&gt;Grant on selected&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;p&gt;Saving replaces what that principal holds on each ticked record, all or nothing: if you may not
+grant it on one record, nothing is saved and the error names that record&amp;rsquo;s ID. A group must exist. A
+user who has not signed in yet is accepted, and the notice says the access applies once they do.
+&lt;code&gt;own&lt;/code&gt; is not offered here; pass ownership on from a single record.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="disable-a-user"&gt;Disable a user&lt;span class="hx:absolute hx:-mt-20" id="disable-a-user"&gt;&lt;/span&gt;
 &lt;a href="#disable-a-user" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;&lt;strong&gt;/admin/users&lt;/strong&gt; (admins) lists everyone who has signed in, with the roles and groups of their last
 sign-in. &lt;strong&gt;Disable&lt;/strong&gt; ends that user&amp;rsquo;s sessions at once, refuses their next sign-in and stops their

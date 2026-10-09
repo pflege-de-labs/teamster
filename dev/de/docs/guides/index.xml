@@ -3540,12 +3540,23 @@ zu bauen. Richtlinien hinzuzufügen ist unbedenklich. Wer &lt;code&gt;admin&lt;/
 oder umbenennt, macht die Verwaltungsoberfläche unbrauchbar.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="check-who-may-do-what"&gt;Prüfen, wer was darf&lt;span class="hx:absolute hx:-mt-20" id="check-who-may-do-what"&gt;&lt;/span&gt;
 &lt;a href="#check-who-may-do-what" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;ul&gt;
-&lt;li&gt;&lt;strong&gt;/admin/access&lt;/strong&gt; (Administratoren) zeigt jede Berechtigung, wer an die Webhooks senden darf,
-wer Personen anschreiben darf, und die geltenden Cedar-Richtlinien. &lt;strong&gt;Wer darf?&lt;/strong&gt; nimmt ein
-Subject, eine Aktion und eine Ressource entgegen und nennt die Richtlinien, die sie erlauben oder
-verweigern.&lt;/li&gt;
-&lt;li&gt;&lt;strong&gt;Mein Zugriff&lt;/strong&gt; im Kontomenü (&lt;strong&gt;/admin/me&lt;/strong&gt;) zeigt jedem die eigenen Rollen, Gruppen, Webhooks,
-&lt;strong&gt;Wen Sie anschreiben dürfen&lt;/strong&gt; und die Berechtigungen, die ihn nennen.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Zugriffsübersicht&lt;/strong&gt; (&lt;strong&gt;/admin/access&lt;/strong&gt;) erscheint im Menü für Administratoren und für alle, die
+eine Berechtigung nennt, direkt oder über eine Gruppe, Anbietergruppe oder Rolle. Dort
+&lt;a href="#share-several-records-at-once"&gt;teilen sie mehrere Datensätze auf einmal&lt;/a&gt;, und &lt;strong&gt;Alle
+Berechtigungen&lt;/strong&gt; listet die Berechtigungen auf den Datensätzen, die sie teilen dürfen; der Name
+jedes Datensatzes verlinkt auf ihn.&lt;/li&gt;
+&lt;li&gt;Administratoren sehen dort außerdem, wer an die Webhooks senden darf, wer Personen anschreiben
+darf, jede Berechtigung, &lt;strong&gt;Wer darf?&lt;/strong&gt; und die &lt;strong&gt;Geltenden Richtlinien&lt;/strong&gt;. &lt;strong&gt;Wer darf?&lt;/strong&gt; nimmt ein
+Subject entgegen, dazu eine Aktion und eine Ressource aus Listen, die auch die Webhooks und
+&lt;strong&gt;Personen&lt;/strong&gt; enthalten, und nennt die Richtlinien, die sie erlauben oder verweigern. Den Text einer
+Richtlinie klappen Sie unter ihrem Namen auf. Ältere Links mit &lt;code&gt;type=&lt;/code&gt; und &lt;code&gt;id=&lt;/code&gt; funktionieren
+weiterhin.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Mein Zugriff&lt;/strong&gt; im Kontomenü (&lt;strong&gt;/admin/me&lt;/strong&gt;) zeigt jedem die eigenen Rollen, Gruppen, Webhooks
+und &lt;strong&gt;Wen Sie anschreiben dürfen&lt;/strong&gt;. &lt;strong&gt;Mit Ihnen geteilt&lt;/strong&gt; listet jeden mit ihm geteilten
+Datensatz, mit Link, den Aktionen und &lt;strong&gt;Über&lt;/strong&gt; wen: sich selbst, eine Gruppe, eine Anbietergruppe
+oder eine Rolle. Darunter sagt je Rolle eine Zeile, was sie auf allen Datensätzen einer Art
+erlaubt. Die zugrunde liegenden Cedar-Richtlinien stehen unter &lt;strong&gt;Die zugrunde liegenden
+Richtlinien anzeigen&lt;/strong&gt;.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;p&gt;Eine verweigerte Anfrage ist ein &lt;code&gt;403&lt;/code&gt;, das die Rolle und die Ressource nennt.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="collect-people-in-groups"&gt;Personen in Gruppen zusammenfassen&lt;span class="hx:absolute hx:-mt-20" id="collect-people-in-groups"&gt;&lt;/span&gt;
@@ -3690,42 +3701,58 @@ und
 &lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0083-broadcasts-run-in-the-background.md" target="_blank" rel="noopener"&gt;ADR 0083&lt;/a&gt;.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="share-a-record"&gt;Einen Datensatz teilen&lt;span class="hx:absolute hx:-mt-20" id="share-a-record"&gt;&lt;/span&gt;
 &lt;a href="#share-a-record" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Wer eine Vorlage, ein Ziel, eine Route, einen Webhook-Endpunkt oder eine Gruppe anlegt, ist ihr
-Eigentümer. Um einen Datensatz zu teilen, bearbeiten Sie ihn und nutzen &lt;strong&gt;Wer was darf&lt;/strong&gt;: Geben Sie
-einem Benutzer, einer Gruppe, einer Anbietergruppe oder einer Rolle einige dieser Aktionen.&lt;/p&gt;
+Eigentümer. Um einen Datensatz zu teilen, bearbeiten Sie ihn und nutzen &lt;strong&gt;Wer was darf&lt;/strong&gt;:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Wählen Sie unter &lt;strong&gt;Geben an&lt;/strong&gt; einen Benutzer, eine Gruppe, eine Anbietergruppe oder eine Rolle
+aus der Liste. Wer sich noch nicht angemeldet hat, steht nicht darin: Öffnen Sie &lt;strong&gt;Nicht
+aufgeführte Person&lt;/strong&gt;, wählen Sie die Art und geben Sie stattdessen das Subject, den Namen der
+Anbietergruppe oder der Rolle ein.&lt;/li&gt;
+&lt;li&gt;Haken Sie an, was er &lt;strong&gt;Darf&lt;/strong&gt;, und klicken Sie auf &lt;strong&gt;Speichern&lt;/strong&gt;.&lt;/li&gt;
+&lt;/ol&gt;
 &lt;table&gt;
 &lt;thead&gt;
 &lt;tr&gt;
 &lt;th&gt;Aktion&lt;/th&gt;
+&lt;th&gt;Im Formular&lt;/th&gt;
 &lt;th&gt;Erlaubt&lt;/th&gt;
 &lt;/tr&gt;
 &lt;/thead&gt;
 &lt;tbody&gt;
 &lt;tr&gt;
-&lt;td&gt;&lt;code&gt;read&lt;/code&gt; (&lt;strong&gt;lesen&lt;/strong&gt;)&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;read&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;lesen&lt;/td&gt;
 &lt;td&gt;Den Datensatz sehen&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
-&lt;td&gt;&lt;code&gt;update&lt;/code&gt; (&lt;strong&gt;ändern&lt;/strong&gt;)&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;update&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;ändern&lt;/td&gt;
 &lt;td&gt;Ihn ändern&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
-&lt;td&gt;&lt;code&gt;delete&lt;/code&gt; (&lt;strong&gt;löschen&lt;/strong&gt;)&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;delete&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;löschen&lt;/td&gt;
 &lt;td&gt;Ihn löschen&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
-&lt;td&gt;&lt;code&gt;attach&lt;/code&gt; (&lt;strong&gt;in Routen und Webhooks verwenden&lt;/strong&gt;)&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;attach&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;in Routen und Webhooks verwenden&lt;/td&gt;
 &lt;td&gt;Routen und Webhooks auf ihn zeigen lassen&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
-&lt;td&gt;&lt;code&gt;share&lt;/code&gt; (&lt;strong&gt;teilen&lt;/strong&gt;)&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;share&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;teilen&lt;/td&gt;
 &lt;td&gt;Anderen geben, was man selbst hat&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
-&lt;td&gt;&lt;code&gt;own&lt;/code&gt; (&lt;strong&gt;besitzen&lt;/strong&gt;)&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;own&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;besitzen (alles, auch Eigentum weitergeben)&lt;/td&gt;
 &lt;td&gt;Alles, auch das Eigentum weitergeben&lt;/td&gt;
 &lt;/tr&gt;
 &lt;/tbody&gt;
 &lt;/table&gt;
+&lt;p&gt;Wer schon etwas hat, steht als Zeile mit seinen angehakten Aktionen darunter. Ändern Sie die
+Häkchen und klicken Sie auf &lt;strong&gt;Speichern&lt;/strong&gt;, um zu ersetzen, was er hat; ohne Häkchen wird ihm alles
+entzogen. &lt;strong&gt;Entziehen&lt;/strong&gt; entfernt die Zeile.&lt;/p&gt;
 &lt;p&gt;Niemand kann mehr vergeben, als er selbst hat. Wer keine Rolle, aber einen geteilten Datensatz hat,
 sieht &lt;strong&gt;/admin&lt;/strong&gt; nur mit dem, was geteilt wurde.&lt;/p&gt;
 &lt;p&gt;&lt;code&gt;create&lt;/code&gt; auf eine ganze Sammlung wird über die API erteilt:&lt;/p&gt;
@@ -3746,6 +3773,26 @@ data-copied-label="Kopiert!"
 &lt;/div&gt;
 &lt;p&gt;&lt;code&gt;GET /api/sharing?type=Template&amp;amp;id=&amp;lt;id&amp;gt;&lt;/code&gt; listet die Berechtigungen eines Datensatzes,
 &lt;code&gt;DELETE /api/sharing/&amp;lt;id&amp;gt;&lt;/code&gt; widerruft eine.&lt;/p&gt;
+&lt;h2 data-hextra-search-id="share-several-records-at-once"&gt;Mehrere Datensätze auf einmal teilen&lt;span class="hx:absolute hx:-mt-20" id="share-several-records-at-once"&gt;&lt;/span&gt;
+&lt;a href="#share-several-records-at-once" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;div class="hextra-steps hx:ml-4 hx:mb-12 hx:ltr:border-l hx:rtl:border-r hx:border-gray-200 hx:ltr:pl-6 hx:rtl:pr-6 hx:dark:border-neutral-800 [counter-reset:step]"&gt;
+&lt;h3 data-hextra-search-id="pick-a-kind-of-resource"&gt;Art der Ressource wählen&lt;span class="hx:absolute hx:-mt-20" id="pick-a-kind-of-resource"&gt;&lt;/span&gt;
+&lt;a href="#pick-a-kind-of-resource" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Öffnen Sie die &lt;strong&gt;Zugriffsübersicht&lt;/strong&gt; (&lt;strong&gt;/admin/access&lt;/strong&gt;), wählen Sie eine &lt;strong&gt;Art der Ressource&lt;/strong&gt;
+(Vorlagen, Ziele, Routen, Webhook-Endpunkte oder Gruppen) und klicken Sie auf &lt;strong&gt;Anzeigen&lt;/strong&gt;.
+Aufgeführt sind nur Datensätze, die Sie teilen (&lt;code&gt;share&lt;/code&gt;) dürfen. Gibt es keine, sagt die Seite, dass
+Sie noch nichts freigeben dürfen.&lt;/p&gt;
+&lt;h3 data-hextra-search-id="tick-the-records"&gt;Datensätze anhaken&lt;span class="hx:absolute hx:-mt-20" id="tick-the-records"&gt;&lt;/span&gt;
+&lt;a href="#tick-the-records" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Haken Sie sie unter &lt;strong&gt;Einträge&lt;/strong&gt; an. &lt;strong&gt;Wer hat Zugriff&lt;/strong&gt; neben einem Datensatz öffnet unter dem
+Formular sein Feld &lt;strong&gt;Wer was darf&lt;/strong&gt;, in dem Sie einzelne Berechtigungen ändern oder entziehen;
+&lt;strong&gt;Bearbeiten&lt;/strong&gt; öffnet den Datensatz.&lt;/p&gt;
+&lt;h3 data-hextra-search-id="choose-who-and-what"&gt;Wer und was festlegen&lt;span class="hx:absolute hx:-mt-20" id="choose-who-and-what"&gt;&lt;/span&gt;
+&lt;a href="#choose-who-and-what" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Wählen Sie den Empfänger unter &lt;strong&gt;Geben an&lt;/strong&gt; oder unter &lt;strong&gt;Nicht aufgeführte Person&lt;/strong&gt;, haken Sie an,
+was er &lt;strong&gt;Darf&lt;/strong&gt;, und klicken Sie auf &lt;strong&gt;Für Auswahl erteilen&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;p&gt;Speichern ersetzt, was dieser Empfänger auf jedem angehakten Datensatz hat, ganz oder gar nicht:
+Dürfen Sie es auf einem Datensatz nicht vergeben, wird nichts gespeichert, und der Fehler nennt die
+ID dieses Datensatzes. Eine Gruppe muss existieren. Ein Benutzer, der sich noch nicht angemeldet
+hat, wird angenommen, und der Hinweis sagt, dass der Zugriff gilt, sobald er sich anmeldet. &lt;code&gt;own&lt;/code&gt;
+wird hier nicht angeboten; Eigentum geben Sie an einem einzelnen Datensatz weiter.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="disable-a-user"&gt;Einen Benutzer deaktivieren&lt;span class="hx:absolute hx:-mt-20" id="disable-a-user"&gt;&lt;/span&gt;
 &lt;a href="#disable-a-user" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;&lt;strong&gt;/admin/users&lt;/strong&gt; (Administratoren) listet alle, die sich angemeldet haben, mit den Rollen und
 Gruppen ihrer letzten Anmeldung. &lt;strong&gt;Deaktivieren&lt;/strong&gt; beendet die Sitzungen des Benutzers sofort,
