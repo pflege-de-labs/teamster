@@ -31,6 +31,11 @@ reasoning behind it in the [ADRs](docs/adr/).
   README; releases up to 0.13.0 keep the old identity. Builds of `main` are now signed too
   ([ADR 0090](docs/adr/0090-ci-and-release-use-shared-workflows.md)).
 
+### Fixed
+
+* The bot's `/test` command no longer fails with "Something went wrong" in a chat delivered
+  through the default universal template.
+
 ## [0.13.0] — 2026-10-03
 
 ### Added
