@@ -7,7 +7,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pflege-de-labs/teamster/internal/cards"
 	"github.com/pflege-de-labs/teamster/internal/models"
+	"github.com/pflege-de-labs/teamster/internal/templates"
 )
 
 func TestParseBotCommand(t *testing.T) {
@@ -157,5 +159,17 @@ func TestFormatStatus(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestTestEventRendersWithDefaultPreset(t *testing.T) {
+	t.Parallel()
+
+	preset, ok := cards.PresetFor(testEvent().Source)
+	if !ok {
+		t.Fatalf("no preset for source %q", testEvent().Source)
+	}
+	if _, err := templates.RenderMessage(preset.Template(), templates.RenderData{Event: testEvent()}); err != nil {
+		t.Fatalf("render test event: %v", err)
 	}
 }

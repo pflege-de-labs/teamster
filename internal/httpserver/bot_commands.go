@@ -210,10 +210,11 @@ func (s *Server) sendTestAlert(ctx context.Context, activity botActivity) {
 }
 
 // testEvent is what test sends. Its source is one the store knows: an unknown
-// one fails the default-template lookup.
+// one fails the default-template lookup. Universal is set because templates
+// for that source read it unguarded.
 func testEvent() models.Event {
 	return models.Event{
 		Source: models.SourceUniversal, Labels: map[string]string{"alertname": "TeamsterTest"},
-		Title: testTitle, Text: testText,
+		Title: testTitle, Text: testText, Universal: &models.UniversalEvent{},
 	}
 }
