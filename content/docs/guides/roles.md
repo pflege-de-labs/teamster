@@ -36,11 +36,19 @@ Adding policies is safe. Removing or renaming `admin`, `editor` or `viewer` brea
 
 ## Check who may do what
 
-* **/admin/access** (admins) shows every grant, who may send to the webhooks, who may message
-  people, and the Cedar policies in force. **Who can?** takes a subject, an action and a resource
-  and names the policies that allow or refuse it.
-* **My access** in the user menu (**/admin/me**) shows anyone their own roles, groups, webhooks,
-  **People you may message**, and the grants that name them.
+* **Access overview** (**/admin/access**) appears in the menu for admins and for anyone a grant
+  names, directly or through a group, provider group or role. There they
+  [share several records at once](#share-several-records-at-once), and **Every grant** lists the
+  grants on the records they may share, with each record's name linking to it.
+* Admins also see there who may send to the webhooks, who may message people, every grant, **Who
+  can?** and the **Policies in force**. **Who can?** takes a subject, and an action and a resource
+  from lists that include the webhooks and **People**, and names the policies that allow or refuse
+  it. A policy's text unfolds under its name. Older links with `type=` and `id=` still work.
+* **My access** in the user menu (**/admin/me**) shows anyone their own roles, groups, webhooks and
+  **People you may message**. **Shared with you** lists every record shared with them, with a link,
+  the actions, and **Through** whom: themselves, a group, a provider group or a role. Below it, one
+  line per role says what that role allows on all records of a kind. The Cedar policies behind it
+  are under **Show the policies behind this**.
 
 A refused request is a `403` naming the role and the resource.
 
@@ -117,17 +125,25 @@ and
 ## Share a record
 
 Whoever creates a template, destination, route, webhook endpoint or group owns it. To share one,
-edit it and use **Who may do what**: give a user, a group, a provider group or a role some of these
-actions.
+edit it and use **Who may do what**:
 
-| Action | Lets them |
-| --- | --- |
-| `read` | See the record |
-| `update` | Change it |
-| `delete` | Delete it |
-| `attach` | Point routes and webhooks at it |
-| `share` | Give others what they hold themselves |
-| `own` | Everything, including passing ownership on |
+1. Under **Give to**, choose a user, a group, a provider group or a role from the list. Someone who
+   has not signed in yet is not listed: open **Someone not listed**, pick the kind and enter their
+   subject, provider group or role name instead.
+2. Tick what they **May** do, and press **Save**.
+
+| Action | In the form | Lets them |
+| --- | --- | --- |
+| `read` | read | See the record |
+| `update` | change | Change it |
+| `delete` | delete | Delete it |
+| `attach` | use in routes and webhooks | Point routes and webhooks at it |
+| `share` | share | Give others what they hold themselves |
+| `own` | own (everything, and pass ownership on) | Everything, including passing ownership on |
+
+Each principal who already holds something is a row with their actions ticked. Change the boxes and
+press **Save** to replace what they hold; with no box ticked, it is all taken away. **Revoke**
+removes the row.
 
 Nobody can give more than they hold. Someone with no role but a shared record sees **/admin** with
 just what was shared.
@@ -142,6 +158,33 @@ curl -u <admin-user>:<admin-password> -X POST http://localhost:8080/api/sharing 
 
 `GET /api/sharing?type=Template&id=<id>` lists a record's permissions, and
 `DELETE /api/sharing/<id>` revokes one.
+
+## Share several records at once
+
+{{% steps %}}
+
+### Pick a kind of resource
+
+Open **Access overview** (**/admin/access**), choose a **Kind of resource** (Templates,
+Destinations, Routes, Webhook endpoints or Groups) and press **Show**. Only records you may `share`
+are listed. If there are none, the page says that there is nothing you may share yet.
+
+### Tick the records
+
+Tick them under **Records**. **Who has access** next to a record opens its **Who may do what** panel
+below the form, where you change or revoke single grants; **Edit** opens the record.
+
+### Choose who and what
+
+Choose the principal under **Give to**, or under **Someone not listed**, tick what they **May** do
+and press **Grant on selected**.
+
+{{% /steps %}}
+
+Saving replaces what that principal holds on each ticked record, all or nothing: if you may not
+grant it on one record, nothing is saved and the error names that record's ID. A group must exist. A
+user who has not signed in yet is accepted, and the notice says the access applies once they do.
+`own` is not offered here; pass ownership on from a single record.
 
 ## Disable a user
 

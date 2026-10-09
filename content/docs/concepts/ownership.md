@@ -53,6 +53,11 @@ that one record:
 
 Nobody can give more than they hold. Granting or revoking `own` makes you an owner as well.
 
+To give one principal the same actions on several records of a kind at once, use **Access
+overview** (`/admin/access`); see
+[Share several records at once](../../guides/roles/#share-several-records-at-once). **My access**
+(`/admin/me`) lists what has been shared with you, and through whom.
+
 Sharing adds to roles; it does not replace them. Editors keep editing everything. Someone with no
 role but a shared record sees `/admin` with just what was shared. Pages built from the whole
 configuration stay closed to them: the routing graph, previews and the export.

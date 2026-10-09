@@ -41,12 +41,23 @@ oder umbenennt, macht die Verwaltungsoberfläche unbrauchbar.
 
 ## Prüfen, wer was darf {#check-who-may-do-what}
 
-* **/admin/access** (Administratoren) zeigt jede Berechtigung, wer an die Webhooks senden darf,
-  wer Personen anschreiben darf, und die geltenden Cedar-Richtlinien. **Wer darf?** nimmt ein
-  Subject, eine Aktion und eine Ressource entgegen und nennt die Richtlinien, die sie erlauben oder
-  verweigern.
-* **Mein Zugriff** im Kontomenü (**/admin/me**) zeigt jedem die eigenen Rollen, Gruppen, Webhooks,
-  **Wen Sie anschreiben dürfen** und die Berechtigungen, die ihn nennen.
+* **Zugriffsübersicht** (**/admin/access**) erscheint im Menü für Administratoren und für alle, die
+  eine Berechtigung nennt, direkt oder über eine Gruppe, Anbietergruppe oder Rolle. Dort
+  [teilen sie mehrere Datensätze auf einmal](#share-several-records-at-once), und **Alle
+  Berechtigungen** listet die Berechtigungen auf den Datensätzen, die sie teilen dürfen; der Name
+  jedes Datensatzes verlinkt auf ihn.
+* Administratoren sehen dort außerdem, wer an die Webhooks senden darf, wer Personen anschreiben
+  darf, jede Berechtigung, **Wer darf?** und die **Geltenden Richtlinien**. **Wer darf?** nimmt ein
+  Subject entgegen, dazu eine Aktion und eine Ressource aus Listen, die auch die Webhooks und
+  **Personen** enthalten, und nennt die Richtlinien, die sie erlauben oder verweigern. Den Text einer
+  Richtlinie klappen Sie unter ihrem Namen auf. Ältere Links mit `type=` und `id=` funktionieren
+  weiterhin.
+* **Mein Zugriff** im Kontomenü (**/admin/me**) zeigt jedem die eigenen Rollen, Gruppen, Webhooks
+  und **Wen Sie anschreiben dürfen**. **Mit Ihnen geteilt** listet jeden mit ihm geteilten
+  Datensatz, mit Link, den Aktionen und **Über** wen: sich selbst, eine Gruppe, eine Anbietergruppe
+  oder eine Rolle. Darunter sagt je Rolle eine Zeile, was sie auf allen Datensätzen einer Art
+  erlaubt. Die zugrunde liegenden Cedar-Richtlinien stehen unter **Die zugrunde liegenden
+  Richtlinien anzeigen**.
 
 Eine verweigerte Anfrage ist ein `403`, das die Rolle und die Ressource nennt.
 
@@ -128,17 +139,26 @@ und
 ## Einen Datensatz teilen {#share-a-record}
 
 Wer eine Vorlage, ein Ziel, eine Route, einen Webhook-Endpunkt oder eine Gruppe anlegt, ist ihr
-Eigentümer. Um einen Datensatz zu teilen, bearbeiten Sie ihn und nutzen **Wer was darf**: Geben Sie
-einem Benutzer, einer Gruppe, einer Anbietergruppe oder einer Rolle einige dieser Aktionen.
+Eigentümer. Um einen Datensatz zu teilen, bearbeiten Sie ihn und nutzen **Wer was darf**:
 
-| Aktion | Erlaubt |
-| --- | --- |
-| `read` (**lesen**) | Den Datensatz sehen |
-| `update` (**ändern**) | Ihn ändern |
-| `delete` (**löschen**) | Ihn löschen |
-| `attach` (**in Routen und Webhooks verwenden**) | Routen und Webhooks auf ihn zeigen lassen |
-| `share` (**teilen**) | Anderen geben, was man selbst hat |
-| `own` (**besitzen**) | Alles, auch das Eigentum weitergeben |
+1. Wählen Sie unter **Geben an** einen Benutzer, eine Gruppe, eine Anbietergruppe oder eine Rolle
+   aus der Liste. Wer sich noch nicht angemeldet hat, steht nicht darin: Öffnen Sie **Nicht
+   aufgeführte Person**, wählen Sie die Art und geben Sie stattdessen das Subject, den Namen der
+   Anbietergruppe oder der Rolle ein.
+2. Haken Sie an, was er **Darf**, und klicken Sie auf **Speichern**.
+
+| Aktion | Im Formular | Erlaubt |
+| --- | --- | --- |
+| `read` | lesen | Den Datensatz sehen |
+| `update` | ändern | Ihn ändern |
+| `delete` | löschen | Ihn löschen |
+| `attach` | in Routen und Webhooks verwenden | Routen und Webhooks auf ihn zeigen lassen |
+| `share` | teilen | Anderen geben, was man selbst hat |
+| `own` | besitzen (alles, auch Eigentum weitergeben) | Alles, auch das Eigentum weitergeben |
+
+Wer schon etwas hat, steht als Zeile mit seinen angehakten Aktionen darunter. Ändern Sie die
+Häkchen und klicken Sie auf **Speichern**, um zu ersetzen, was er hat; ohne Häkchen wird ihm alles
+entzogen. **Entziehen** entfernt die Zeile.
 
 Niemand kann mehr vergeben, als er selbst hat. Wer keine Rolle, aber einen geteilten Datensatz hat,
 sieht **/admin** nur mit dem, was geteilt wurde.
@@ -153,6 +173,36 @@ curl -u <admin-user>:<admin-password> -X POST http://localhost:8080/api/sharing 
 
 `GET /api/sharing?type=Template&id=<id>` listet die Berechtigungen eines Datensatzes,
 `DELETE /api/sharing/<id>` widerruft eine.
+
+## Mehrere Datensätze auf einmal teilen {#share-several-records-at-once}
+
+{{% steps %}}
+
+### Art der Ressource wählen {#pick-a-kind-of-resource}
+
+Öffnen Sie die **Zugriffsübersicht** (**/admin/access**), wählen Sie eine **Art der Ressource**
+(Vorlagen, Ziele, Routen, Webhook-Endpunkte oder Gruppen) und klicken Sie auf **Anzeigen**.
+Aufgeführt sind nur Datensätze, die Sie teilen (`share`) dürfen. Gibt es keine, sagt die Seite, dass
+Sie noch nichts freigeben dürfen.
+
+### Datensätze anhaken {#tick-the-records}
+
+Haken Sie sie unter **Einträge** an. **Wer hat Zugriff** neben einem Datensatz öffnet unter dem
+Formular sein Feld **Wer was darf**, in dem Sie einzelne Berechtigungen ändern oder entziehen;
+**Bearbeiten** öffnet den Datensatz.
+
+### Wer und was festlegen {#choose-who-and-what}
+
+Wählen Sie den Empfänger unter **Geben an** oder unter **Nicht aufgeführte Person**, haken Sie an,
+was er **Darf**, und klicken Sie auf **Für Auswahl erteilen**.
+
+{{% /steps %}}
+
+Speichern ersetzt, was dieser Empfänger auf jedem angehakten Datensatz hat, ganz oder gar nicht:
+Dürfen Sie es auf einem Datensatz nicht vergeben, wird nichts gespeichert, und der Fehler nennt die
+ID dieses Datensatzes. Eine Gruppe muss existieren. Ein Benutzer, der sich noch nicht angemeldet
+hat, wird angenommen, und der Hinweis sagt, dass der Zugriff gilt, sobald er sich anmeldet. `own`
+wird hier nicht angeboten; Eigentum geben Sie an einem einzelnen Datensatz weiter.
 
 ## Einen Benutzer deaktivieren {#disable-a-user}
 
