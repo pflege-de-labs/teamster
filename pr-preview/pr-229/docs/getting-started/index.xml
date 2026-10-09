@@ -1,0 +1,426 @@
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Teamster – Getting started</title><link>https://pflege-de-labs.github.io/teamster/pr-preview/pr-229/docs/getting-started/</link><description>Recent content in Getting started on Teamster</description><generator>Hugo -- gohugo.io</generator><language>en-US</language><atom:link href="https://pflege-de-labs.github.io/teamster/pr-preview/pr-229/docs/getting-started/index.xml" rel="self" type="application/rss+xml"/><item><title>Quick start</title><link>https://pflege-de-labs.github.io/teamster/pr-preview/pr-229/docs/getting-started/quick-start/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/pr-preview/pr-229/docs/getting-started/quick-start/</guid><description>
+&lt;p&gt;In this tutorial you run Teamster on your machine, point a route at a Teams channel and send it an
+alert. Then you resolve the alert and watch the card change.&lt;/p&gt;
+&lt;h2 data-hextra-search-id="before-you-start"&gt;Before you start&lt;span class="hx:absolute hx:-mt-20" id="before-you-start"&gt;&lt;/span&gt;
+&lt;a href="#before-you-start" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;You need:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;An Entra app registration for Microsoft Graph, with its tenant id, client id and client secret.
+Teamster uses it to list your Teams and channels. See
+&lt;a href="../../guides/graph-permissions/"&gt;Grant the Microsoft Graph permissions&lt;/a&gt;.&lt;/li&gt;
+&lt;li&gt;A second Entra registration for the Teams bot, with its client id and client secret. The bot
+posts every card. See &lt;a href="../../guides/teams-bot/"&gt;Set up the Teams bot&lt;/a&gt;.&lt;/li&gt;
+&lt;li&gt;The Teamster Teams app installed in the team you want to post to.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;curl&lt;/code&gt;, and either Docker or a Linux or macOS machine to run the binary on.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class="hx:overflow-x-auto hx:mt-6 hx:flex hx:rounded-lg hx:border hx:py-2 hx:ltr:pr-4 hx:rtl:pl-4 hx:contrast-more:border-current hx:contrast-more:dark:border-current hx:border-blue-200 hx:bg-blue-100 hx:text-blue-900 hx:dark:border-blue-200/30 hx:dark:bg-blue-900/30 hx:dark:text-blue-200"&gt;
+&lt;div class="hx:ltr:pl-3 hx:ltr:pr-2 hx:rtl:pr-3 hx:rtl:pl-2"&gt;&lt;svg height=1.2em class="hx:inline-block hx:align-middle" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"&gt;&lt;path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/&gt;&lt;/svg&gt;&lt;/div&gt;
+&lt;div class="hx:w-full hx:min-w-0 hx:leading-7"&gt;
+&lt;div class="hx:mt-6 hx:leading-7 hx:first:mt-0"&gt;Teamster starts without the bot, but then no card reaches a channel: every delivery fails with a
+&lt;code&gt;502&lt;/code&gt; that says the bot is not configured.&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="hextra-steps hx:ml-4 hx:mb-12 hx:ltr:border-l hx:rtl:border-r hx:border-gray-200 hx:ltr:pl-6 hx:rtl:pr-6 hx:dark:border-neutral-800 [counter-reset:step]"&gt;
+&lt;h3 data-hextra-search-id="write-a-configuration-file"&gt;Write a configuration file&lt;span class="hx:absolute hx:-mt-20" id="write-a-configuration-file"&gt;&lt;/span&gt;
+&lt;a href="#write-a-configuration-file" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Create &lt;code&gt;config.yaml&lt;/code&gt; in an empty directory:&lt;/p&gt;
+&lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
+&lt;div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nt"&gt;admin&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;username&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;admin&lt;/span&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;password&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;&amp;lt;admin-password&amp;gt;&lt;/span&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nt"&gt;graph&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;tenant-id&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;&amp;lt;tenant-id&amp;gt;&lt;/span&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;client-id&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;&amp;lt;graph-client-id&amp;gt;&lt;/span&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nt"&gt;bot&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;tenant-id&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;&amp;lt;tenant-id&amp;gt;&lt;/span&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;client-id&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;&amp;lt;bot-client-id&amp;gt;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class="hextra-code-copy-btn-container hx:opacity-0 hx:transition hx:group-hover/code:opacity-100 hx:flex hx:gap-1 hx:absolute hx:m-[11px] hx:right-0 hx:top-0"&gt;
+&lt;button
+class="hextra-code-copy-btn hx:group/copybtn hx:cursor-pointer hx:transition-all hx:active:opacity-50 hx:bg-primary-700/5 hx:border hx:border-black/5 hx:text-gray-600 hx:hover:text-gray-900 hx:rounded-md hx:p-1.5 hx:dark:bg-primary-300/10 hx:dark:border-white/10 hx:dark:text-gray-400 hx:dark:hover:text-gray-50"
+title="Copy code"
+aria-label="Copy code"
+data-copied-label="Copied!"
+&gt;
+&lt;div class="hextra-copy-icon hx:group-[.copied]/copybtn:hidden hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;div class="hextra-success-icon hx:hidden hx:group-[.copied]/copybtn:block hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;/button&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;p&gt;Keep the two client secrets out of the file and export them instead. Teamster reads an environment
+variable only when no config file sets that key.&lt;/p&gt;
+&lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
+&lt;div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nb"&gt;export&lt;/span&gt; &lt;span class="nv"&gt;TEAMSTER_GRAPH_CLIENT_SECRET&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s1"&gt;&amp;#39;&amp;lt;graph-client-secret&amp;gt;&amp;#39;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nb"&gt;export&lt;/span&gt; &lt;span class="nv"&gt;TEAMSTER_BOT_CLIENT_SECRET&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s1"&gt;&amp;#39;&amp;lt;bot-client-secret&amp;gt;&amp;#39;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class="hextra-code-copy-btn-container hx:opacity-0 hx:transition hx:group-hover/code:opacity-100 hx:flex hx:gap-1 hx:absolute hx:m-[11px] hx:right-0 hx:top-0"&gt;
+&lt;button
+class="hextra-code-copy-btn hx:group/copybtn hx:cursor-pointer hx:transition-all hx:active:opacity-50 hx:bg-primary-700/5 hx:border hx:border-black/5 hx:text-gray-600 hx:hover:text-gray-900 hx:rounded-md hx:p-1.5 hx:dark:bg-primary-300/10 hx:dark:border-white/10 hx:dark:text-gray-400 hx:dark:hover:text-gray-50"
+title="Copy code"
+aria-label="Copy code"
+data-copied-label="Copied!"
+&gt;
+&lt;div class="hextra-copy-icon hx:group-[.copied]/copybtn:hidden hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;div class="hextra-success-icon hx:hidden hx:group-[.copied]/copybtn:block hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;/button&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;p&gt;Everything else keeps its default: the server listens on &lt;code&gt;:8080&lt;/code&gt; and stores its state in a SQLite
+file. &lt;a href="../../guides/configuration/"&gt;Configure Teamster&lt;/a&gt; explains where else the configuration can
+come from.&lt;/p&gt;
+&lt;h3 data-hextra-search-id="start-the-server"&gt;Start the server&lt;span class="hx:absolute hx:-mt-20" id="start-the-server"&gt;&lt;/span&gt;
+&lt;a href="#start-the-server" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;div class="hextra-scrollbar hx:overflow-x-auto hx:overflow-y-hidden hx:overscroll-x-contain"&gt;
+&lt;div class="hx:mt-4 hx:flex hx:w-max hx:min-w-full hx:border-b hx:border-gray-200 hx:pb-px hx:dark:border-neutral-800" role="tablist"&gt;&lt;button class="hextra-tabs-toggle hx:cursor-pointer hx:data-[state=selected]:border-primary-500 hx:data-[state=selected]:text-primary-600 hx:data-[state=selected]:dark:border-primary-500 hx:data-[state=selected]:dark:text-primary-600 hx:mr-2 hx:rounded-t hx:p-2 hx:font-medium hx:leading-5 hx:transition-colors hx:-mb-0.5 hx:select-none hx:border-b-2 hx:border-transparent hx:text-gray-600 hx:hover:border-gray-200 hx:hover:text-black hx:dark:text-gray-200 hx:dark:hover:border-neutral-800 hx:dark:hover:text-white hx:hextra-focus-visible-inset" id="tabs-tab-tabs-00-0" role="tab" type="button" aria-controls="tabs-panel-tabs-00-0" aria-selected="true" tabindex="0" data-state="selected"&gt;&lt;span class="hx:inline-flex hx:items-center hx:gap-1.5"&gt;&lt;span&gt;Binary&lt;/span&gt;&lt;/span&gt;&lt;/button&gt;&lt;button class="hextra-tabs-toggle hx:cursor-pointer hx:data-[state=selected]:border-primary-500 hx:data-[state=selected]:text-primary-600 hx:data-[state=selected]:dark:border-primary-500 hx:data-[state=selected]:dark:text-primary-600 hx:mr-2 hx:rounded-t hx:p-2 hx:font-medium hx:leading-5 hx:transition-colors hx:-mb-0.5 hx:select-none hx:border-b-2 hx:border-transparent hx:text-gray-600 hx:hover:border-gray-200 hx:hover:text-black hx:dark:text-gray-200 hx:dark:hover:border-neutral-800 hx:dark:hover:text-white hx:hextra-focus-visible-inset" id="tabs-tab-tabs-00-1" role="tab" type="button" aria-controls="tabs-panel-tabs-00-1" aria-selected="false" tabindex="-1"&gt;&lt;span class="hx:inline-flex hx:items-center hx:gap-1.5"&gt;&lt;span&gt;Container&lt;/span&gt;&lt;/span&gt;&lt;/button&gt;&lt;/div&gt;
+&lt;/div&gt;
+&lt;div&gt;&lt;div class="hextra-tabs-panel hx:rounded-sm hx:pt-6 hx:hidden hx:data-[state=selected]:block" id="tabs-panel-tabs-00-0" role="tabpanel" aria-labelledby="tabs-tab-tabs-00-0" aria-hidden="false" tabindex="0" data-state="selected"&gt;&lt;p&gt;Download the release binary for your platform (&lt;code&gt;linux-amd64&lt;/code&gt;, &lt;code&gt;linux-arm64&lt;/code&gt;, &lt;code&gt;darwin-amd64&lt;/code&gt; or
+&lt;code&gt;darwin-arm64&lt;/code&gt;) and run it with the configuration file:&lt;/p&gt;
+&lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
+&lt;div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;curl -fLo teamster &lt;span class="se"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; https://github.com/pflege-de-labs/teamster/releases/latest/download/teamster-linux-amd64
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;chmod +x teamster
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;./teamster -c config.yaml&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class="hextra-code-copy-btn-container hx:opacity-0 hx:transition hx:group-hover/code:opacity-100 hx:flex hx:gap-1 hx:absolute hx:m-[11px] hx:right-0 hx:top-0"&gt;
+&lt;button
+class="hextra-code-copy-btn hx:group/copybtn hx:cursor-pointer hx:transition-all hx:active:opacity-50 hx:bg-primary-700/5 hx:border hx:border-black/5 hx:text-gray-600 hx:hover:text-gray-900 hx:rounded-md hx:p-1.5 hx:dark:bg-primary-300/10 hx:dark:border-white/10 hx:dark:text-gray-400 hx:dark:hover:text-gray-50"
+title="Copy code"
+aria-label="Copy code"
+data-copied-label="Copied!"
+&gt;
+&lt;div class="hextra-copy-icon hx:group-[.copied]/copybtn:hidden hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;div class="hextra-success-icon hx:hidden hx:group-[.copied]/copybtn:block hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;/button&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;p&gt;The database is written to &lt;code&gt;teamster.db&lt;/code&gt; in the current directory.&lt;/p&gt;
+&lt;/div&gt;&lt;div class="hextra-tabs-panel hx:rounded-sm hx:pt-6 hx:hidden hx:data-[state=selected]:block" id="tabs-panel-tabs-00-1" role="tabpanel" aria-labelledby="tabs-tab-tabs-00-1" aria-hidden="true"&gt;&lt;p&gt;Mount the configuration at the system-wide location Teamster searches, and keep the database on a
+volume:&lt;/p&gt;
+&lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
+&lt;div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;docker run --rm -p 8080:8080 &lt;span class="se"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; -e TEAMSTER_GRAPH_CLIENT_SECRET -e TEAMSTER_BOT_CLIENT_SECRET &lt;span class="se"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; -v &lt;span class="s2"&gt;&amp;#34;&lt;/span&gt;&lt;span class="nv"&gt;$PWD&lt;/span&gt;&lt;span class="s2"&gt;/config.yaml:/etc/xdg/teamster/config.yaml:ro&amp;#34;&lt;/span&gt; &lt;span class="se"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; -v teamster-data:/data &lt;span class="se"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; ghcr.io/pflege-de-labs/teamster:latest&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class="hextra-code-copy-btn-container hx:opacity-0 hx:transition hx:group-hover/code:opacity-100 hx:flex hx:gap-1 hx:absolute hx:m-[11px] hx:right-0 hx:top-0"&gt;
+&lt;button
+class="hextra-code-copy-btn hx:group/copybtn hx:cursor-pointer hx:transition-all hx:active:opacity-50 hx:bg-primary-700/5 hx:border hx:border-black/5 hx:text-gray-600 hx:hover:text-gray-900 hx:rounded-md hx:p-1.5 hx:dark:bg-primary-300/10 hx:dark:border-white/10 hx:dark:text-gray-400 hx:dark:hover:text-gray-50"
+title="Copy code"
+aria-label="Copy code"
+data-copied-label="Copied!"
+&gt;
+&lt;div class="hextra-copy-icon hx:group-[.copied]/copybtn:hidden hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;div class="hextra-success-icon hx:hidden hx:group-[.copied]/copybtn:block hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;/button&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;&lt;code&gt;serve&lt;/code&gt; is the default command, so it runs when you give none. The server stops on &lt;code&gt;Ctrl+C&lt;/code&gt;.&lt;/p&gt;
+&lt;h3 data-hextra-search-id="sign-in"&gt;Sign in&lt;span class="hx:absolute hx:-mt-20" id="sign-in"&gt;&lt;/span&gt;
+&lt;a href="#sign-in" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Open &lt;a href="http://localhost:8080/admin" target="_blank" rel="noopener"&gt;http://localhost:8080/admin&lt;/a&gt; and sign in with the admin username and password from
+&lt;code&gt;config.yaml&lt;/code&gt;.&lt;/p&gt;
+&lt;h3 data-hextra-search-id="add-a-destination"&gt;Add a destination&lt;span class="hx:absolute hx:-mt-20" id="add-a-destination"&gt;&lt;/span&gt;
+&lt;a href="#add-a-destination" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;On the &lt;strong&gt;Destinations&lt;/strong&gt; tab, give the destination a name, pick the &lt;strong&gt;Team&lt;/strong&gt; and the &lt;strong&gt;Channel&lt;/strong&gt;,
+and save it.&lt;/p&gt;
+&lt;p&gt;The first destination you create becomes the &lt;strong&gt;global default destination&lt;/strong&gt;: whatever no route
+claims goes there.&lt;/p&gt;
+&lt;h3 data-hextra-search-id="add-a-route"&gt;Add a route&lt;span class="hx:absolute hx:-mt-20" id="add-a-route"&gt;&lt;/span&gt;
+&lt;a href="#add-a-route" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;On the &lt;strong&gt;Routes&lt;/strong&gt; tab, create a route:&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Field&lt;/th&gt;
+&lt;th&gt;Value&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;Name&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;Worker alerts&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;Label selector (JSON)&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;{&amp;quot;service&amp;quot;: &amp;quot;worker&amp;quot;}&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;Delivers to&lt;/td&gt;
+&lt;td&gt;the destination you just created&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;Template&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;Universal webhook (default)&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;Leave &lt;strong&gt;Refines&lt;/strong&gt; empty, so this is a root route.&lt;/p&gt;
+&lt;h3 data-hextra-search-id="issue-a-token-for-the-sender"&gt;Issue a token for the sender&lt;span class="hx:absolute hx:-mt-20" id="issue-a-token-for-the-sender"&gt;&lt;/span&gt;
+&lt;a href="#issue-a-token-for-the-sender" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Open &lt;a href="http://localhost:8080/admin/tokens" target="_blank" rel="noopener"&gt;http://localhost:8080/admin/tokens&lt;/a&gt;. Create a token named &lt;code&gt;quick-start&lt;/code&gt; that may send to the
+universal webhook, and copy it. It is shown only once.&lt;/p&gt;
+&lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
+&lt;div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nb"&gt;export&lt;/span&gt; &lt;span class="nv"&gt;TOKEN&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s1"&gt;&amp;#39;&amp;lt;token&amp;gt;&amp;#39;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class="hextra-code-copy-btn-container hx:opacity-0 hx:transition hx:group-hover/code:opacity-100 hx:flex hx:gap-1 hx:absolute hx:m-[11px] hx:right-0 hx:top-0"&gt;
+&lt;button
+class="hextra-code-copy-btn hx:group/copybtn hx:cursor-pointer hx:transition-all hx:active:opacity-50 hx:bg-primary-700/5 hx:border hx:border-black/5 hx:text-gray-600 hx:hover:text-gray-900 hx:rounded-md hx:p-1.5 hx:dark:bg-primary-300/10 hx:dark:border-white/10 hx:dark:text-gray-400 hx:dark:hover:text-gray-50"
+title="Copy code"
+aria-label="Copy code"
+data-copied-label="Copied!"
+&gt;
+&lt;div class="hextra-copy-icon hx:group-[.copied]/copybtn:hidden hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;div class="hextra-success-icon hx:hidden hx:group-[.copied]/copybtn:block hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;/button&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;h3 data-hextra-search-id="send-an-alert"&gt;Send an alert&lt;span class="hx:absolute hx:-mt-20" id="send-an-alert"&gt;&lt;/span&gt;
+&lt;a href="#send-an-alert" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
+&lt;div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;curl -H &lt;span class="s2"&gt;&amp;#34;Authorization: Bearer &lt;/span&gt;&lt;span class="nv"&gt;$TOKEN&lt;/span&gt;&lt;span class="s2"&gt;&amp;#34;&lt;/span&gt; -H &lt;span class="s1"&gt;&amp;#39;Content-Type: application/json&amp;#39;&lt;/span&gt; &lt;span class="se"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; http://localhost:8080/webhook/universal --data &lt;span class="s1"&gt;&amp;#39;{
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="s1"&gt; &amp;#34;key&amp;#34;: &amp;#34;quick-start-1&amp;#34;,
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="s1"&gt; &amp;#34;state&amp;#34;: &amp;#34;open&amp;#34;,
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="s1"&gt; &amp;#34;labels&amp;#34;: {&amp;#34;alertname&amp;#34;: &amp;#34;HighMemory&amp;#34;, &amp;#34;severity&amp;#34;: &amp;#34;warning&amp;#34;, &amp;#34;service&amp;#34;: &amp;#34;worker&amp;#34;},
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="s1"&gt; &amp;#34;attributes&amp;#34;: {
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="s1"&gt; &amp;#34;summary&amp;#34;: &amp;#34;Memory usage is above 80%&amp;#34;,
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="s1"&gt; &amp;#34;description&amp;#34;: &amp;#34;worker service memory is high&amp;#34;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="s1"&gt; }
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="s1"&gt; }&amp;#39;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class="hextra-code-copy-btn-container hx:opacity-0 hx:transition hx:group-hover/code:opacity-100 hx:flex hx:gap-1 hx:absolute hx:m-[11px] hx:right-0 hx:top-0"&gt;
+&lt;button
+class="hextra-code-copy-btn hx:group/copybtn hx:cursor-pointer hx:transition-all hx:active:opacity-50 hx:bg-primary-700/5 hx:border hx:border-black/5 hx:text-gray-600 hx:hover:text-gray-900 hx:rounded-md hx:p-1.5 hx:dark:bg-primary-300/10 hx:dark:border-white/10 hx:dark:text-gray-400 hx:dark:hover:text-gray-50"
+title="Copy code"
+aria-label="Copy code"
+data-copied-label="Copied!"
+&gt;
+&lt;div class="hextra-copy-icon hx:group-[.copied]/copybtn:hidden hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;div class="hextra-success-icon hx:hidden hx:group-[.copied]/copybtn:block hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;/button&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;p&gt;Teamster answers &lt;code&gt;{&amp;quot;status&amp;quot;:&amp;quot;ok&amp;quot;}&lt;/code&gt;, and a card for &lt;code&gt;HighMemory&lt;/code&gt; appears in the channel. The label
+&lt;code&gt;service=worker&lt;/code&gt; matched your route.&lt;/p&gt;
+&lt;h3 data-hextra-search-id="resolve-the-alert"&gt;Resolve the alert&lt;span class="hx:absolute hx:-mt-20" id="resolve-the-alert"&gt;&lt;/span&gt;
+&lt;a href="#resolve-the-alert" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Send the same &lt;code&gt;key&lt;/code&gt; again with &lt;code&gt;state&lt;/code&gt; set to &lt;code&gt;closed&lt;/code&gt;:&lt;/p&gt;
+&lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
+&lt;div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;curl -H &lt;span class="s2"&gt;&amp;#34;Authorization: Bearer &lt;/span&gt;&lt;span class="nv"&gt;$TOKEN&lt;/span&gt;&lt;span class="s2"&gt;&amp;#34;&lt;/span&gt; -H &lt;span class="s1"&gt;&amp;#39;Content-Type: application/json&amp;#39;&lt;/span&gt; &lt;span class="se"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; http://localhost:8080/webhook/universal --data &lt;span class="s1"&gt;&amp;#39;{
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="s1"&gt; &amp;#34;key&amp;#34;: &amp;#34;quick-start-1&amp;#34;,
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="s1"&gt; &amp;#34;state&amp;#34;: &amp;#34;closed&amp;#34;,
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="s1"&gt; &amp;#34;labels&amp;#34;: {&amp;#34;alertname&amp;#34;: &amp;#34;HighMemory&amp;#34;, &amp;#34;severity&amp;#34;: &amp;#34;warning&amp;#34;, &amp;#34;service&amp;#34;: &amp;#34;worker&amp;#34;},
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="s1"&gt; &amp;#34;attributes&amp;#34;: {&amp;#34;summary&amp;#34;: &amp;#34;Memory usage is back to normal&amp;#34;}
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="s1"&gt; }&amp;#39;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class="hextra-code-copy-btn-container hx:opacity-0 hx:transition hx:group-hover/code:opacity-100 hx:flex hx:gap-1 hx:absolute hx:m-[11px] hx:right-0 hx:top-0"&gt;
+&lt;button
+class="hextra-code-copy-btn hx:group/copybtn hx:cursor-pointer hx:transition-all hx:active:opacity-50 hx:bg-primary-700/5 hx:border hx:border-black/5 hx:text-gray-600 hx:hover:text-gray-900 hx:rounded-md hx:p-1.5 hx:dark:bg-primary-300/10 hx:dark:border-white/10 hx:dark:text-gray-400 hx:dark:hover:text-gray-50"
+title="Copy code"
+aria-label="Copy code"
+data-copied-label="Copied!"
+&gt;
+&lt;div class="hextra-copy-icon hx:group-[.copied]/copybtn:hidden hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;div class="hextra-success-icon hx:hidden hx:group-[.copied]/copybtn:block hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;/button&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;p&gt;The existing card changes to the resolved state. Teamster does not post a second card, because it
+remembers which card belongs to the key.&lt;/p&gt;
+&lt;/div&gt;
+&lt;h2 data-hextra-search-id="next-steps"&gt;Next steps&lt;span class="hx:absolute hx:-mt-20" id="next-steps"&gt;&lt;/span&gt;
+&lt;a href="#next-steps" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;ul&gt;
+&lt;li&gt;Connect Prometheus: &lt;a href="../../guides/alertmanager/"&gt;Send alerts from Alertmanager&lt;/a&gt;.&lt;/li&gt;
+&lt;li&gt;Design your own cards: &lt;a href="../../guides/templates/"&gt;Write templates&lt;/a&gt;.&lt;/li&gt;
+&lt;li&gt;Understand which route an alert takes: &lt;a href="https://pflege-de-labs.github.io/teamster/pr-preview/pr-229/docs/concepts/routing/"&gt;Routing&lt;/a&gt;.&lt;/li&gt;
+&lt;li&gt;Run it for real: &lt;a href="https://pflege-de-labs.github.io/teamster/pr-preview/pr-229/docs/getting-started/container/"&gt;Container&lt;/a&gt; or
+&lt;a href="https://pflege-de-labs.github.io/teamster/pr-preview/pr-229/docs/getting-started/kubernetes/"&gt;Kubernetes&lt;/a&gt;.&lt;/li&gt;
+&lt;/ul&gt;</description></item><item><title>Container</title><link>https://pflege-de-labs.github.io/teamster/pr-preview/pr-229/docs/getting-started/container/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/pr-preview/pr-229/docs/getting-started/container/</guid><description>
+&lt;p&gt;Run Teamster from the published container image, with its configuration mounted from a file and
+its database on a volume.&lt;/p&gt;
+&lt;h2 data-hextra-search-id="the-image"&gt;The image&lt;span class="hx:absolute hx:-mt-20" id="the-image"&gt;&lt;/span&gt;
+&lt;a href="#the-image" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Images are published to &lt;code&gt;ghcr.io/pflege-de-labs/teamster&lt;/code&gt; for &lt;code&gt;linux/amd64&lt;/code&gt; and &lt;code&gt;linux/arm64&lt;/code&gt;.&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Tag&lt;/th&gt;
+&lt;th&gt;Points at&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;latest&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;the newest stable release&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;X.Y.Z&lt;/code&gt;, &lt;code&gt;X.Y&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;that release, for example &lt;code&gt;0.11.0&lt;/code&gt; and &lt;code&gt;0.11&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;&amp;lt;short-sha&amp;gt;&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;the build of that commit; never moves&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;main&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;the newest build of &lt;code&gt;main&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;pr-&amp;lt;n&amp;gt;&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;the newest build of that pull request&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;The release tags of one release share a single digest, and the binary inside reports the release
+version. A &lt;code&gt;main&lt;/code&gt; or pull request image reports &lt;code&gt;git describe&lt;/code&gt; instead, such as
+&lt;code&gt;v0.10.0-3-gabc1234&lt;/code&gt;: the last release, how many commits past it, and the commit. Deploy a
+&lt;code&gt;&amp;lt;short-sha&amp;gt;&lt;/code&gt; tag when you need an exact build that does not move.&lt;/p&gt;
+&lt;p&gt;To check a signature, an SBOM or the provenance before you deploy, see
+&lt;a href="../../guides/verifying-a-release/"&gt;Verify a release&lt;/a&gt;.&lt;/p&gt;
+&lt;h2 data-hextra-search-id="run-it"&gt;Run it&lt;span class="hx:absolute hx:-mt-20" id="run-it"&gt;&lt;/span&gt;
+&lt;a href="#run-it" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Write a &lt;code&gt;config.yaml&lt;/code&gt; as in the &lt;a href="https://pflege-de-labs.github.io/teamster/pr-preview/pr-229/docs/getting-started/quick-start/"&gt;quick start&lt;/a&gt;,
+then mount it at &lt;code&gt;/etc/xdg/teamster/config.yaml&lt;/code&gt;, the system-wide location the binary searches:&lt;/p&gt;
+&lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
+&lt;div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;docker run --rm -p 8080:8080 --read-only &lt;span class="se"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; -e TEAMSTER_GRAPH_CLIENT_SECRET -e TEAMSTER_BOT_CLIENT_SECRET &lt;span class="se"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; -v &lt;span class="s2"&gt;&amp;#34;&lt;/span&gt;&lt;span class="nv"&gt;$PWD&lt;/span&gt;&lt;span class="s2"&gt;/config.yaml:/etc/xdg/teamster/config.yaml:ro&amp;#34;&lt;/span&gt; &lt;span class="se"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; -v teamster-data:/data &lt;span class="se"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; ghcr.io/pflege-de-labs/teamster:&amp;lt;version&amp;gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class="hextra-code-copy-btn-container hx:opacity-0 hx:transition hx:group-hover/code:opacity-100 hx:flex hx:gap-1 hx:absolute hx:m-[11px] hx:right-0 hx:top-0"&gt;
+&lt;button
+class="hextra-code-copy-btn hx:group/copybtn hx:cursor-pointer hx:transition-all hx:active:opacity-50 hx:bg-primary-700/5 hx:border hx:border-black/5 hx:text-gray-600 hx:hover:text-gray-900 hx:rounded-md hx:p-1.5 hx:dark:bg-primary-300/10 hx:dark:border-white/10 hx:dark:text-gray-400 hx:dark:hover:text-gray-50"
+title="Copy code"
+aria-label="Copy code"
+data-copied-label="Copied!"
+&gt;
+&lt;div class="hextra-copy-icon hx:group-[.copied]/copybtn:hidden hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;div class="hextra-success-icon hx:hidden hx:group-[.copied]/copybtn:block hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;/button&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;/data&lt;/code&gt; is the only path the service writes, so &lt;code&gt;--read-only&lt;/code&gt; works. &lt;code&gt;TEAMSTER_DATABASE_PATH&lt;/code&gt;
+already points the SQLite database at &lt;code&gt;/data/teamster.db&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;Settings can come from &lt;code&gt;TEAMSTER_*&lt;/code&gt; environment variables instead of the file. A value in the
+mounted file wins over the variable, so keep secrets out of the file.&lt;/li&gt;
+&lt;li&gt;The image runs as uid &lt;code&gt;65532&lt;/code&gt; and has no shell or package manager. There is nothing to exec
+into: diagnose through the container logs.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Set &lt;code&gt;server.external-url&lt;/code&gt; (&lt;code&gt;TEAMSTER_SERVER_EXTERNAL_URL&lt;/code&gt;) to the address people reach the admin
+UI at, for example &lt;code&gt;https://teamster.example.com&lt;/code&gt;. Messages sent without a template link there. It
+must be an absolute &lt;code&gt;http&lt;/code&gt; or &lt;code&gt;https&lt;/code&gt; URL.&lt;/p&gt;
+&lt;h2 data-hextra-search-id="health-probes"&gt;Health probes&lt;span class="hx:absolute hx:-mt-20" id="health-probes"&gt;&lt;/span&gt;
+&lt;a href="#health-probes" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Path&lt;/th&gt;
+&lt;th&gt;Answers&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;GET /healthz&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;the process is running&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;GET /readyz&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;it can serve: not shutting down, and the database answers&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;Both are unauthenticated and answer &lt;code&gt;HEAD&lt;/code&gt; as well as &lt;code&gt;GET&lt;/code&gt;.&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Liveness ignores the database. Restarting the process does not bring a database back; it only
+turns an outage into a crash loop.&lt;/li&gt;
+&lt;li&gt;Readiness ignores Microsoft Graph. Taking the instance out of rotation when Graph is unreachable
+would close the admin UI exactly when you want to see why delivery fails.&lt;/li&gt;
+&lt;li&gt;Readiness fails as soon as a shutdown begins, so a rolling update stops sending traffic before
+the process stops accepting it.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;On shutdown the server drains in-flight requests for up to &lt;code&gt;server.shutdown-timeout&lt;/code&gt; (default
+&lt;code&gt;15s&lt;/code&gt;). A second signal stops it at once.&lt;/p&gt;
+&lt;h2 data-hextra-search-id="next-steps"&gt;Next steps&lt;span class="hx:absolute hx:-mt-20" id="next-steps"&gt;&lt;/span&gt;
+&lt;a href="#next-steps" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;ul&gt;
+&lt;li&gt;&lt;a href="../../guides/configuration/"&gt;Configure Teamster&lt;/a&gt; for production settings.&lt;/li&gt;
+&lt;li&gt;&lt;a href="../../guides/storage/"&gt;Choose and run storage&lt;/a&gt; when you need more than one instance.&lt;/li&gt;
+&lt;li&gt;&lt;a href="https://pflege-de-labs.github.io/teamster/pr-preview/pr-229/docs/getting-started/kubernetes/"&gt;Install on Kubernetes&lt;/a&gt; with the Helm chart.&lt;/li&gt;
+&lt;/ul&gt;</description></item><item><title>Kubernetes</title><link>https://pflege-de-labs.github.io/teamster/pr-preview/pr-229/docs/getting-started/kubernetes/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/pr-preview/pr-229/docs/getting-started/kubernetes/</guid><description>
+&lt;p&gt;Install Teamster into a Kubernetes cluster with the Helm chart. The chart is published as an OCI
+artifact at &lt;code&gt;oci://ghcr.io/pflege-de-labs/charts/teamster&lt;/code&gt; and versioned independently of the
+application; its &lt;code&gt;appVersion&lt;/code&gt; names the Teamster release its image defaults to.&lt;/p&gt;
+&lt;h2 data-hextra-search-id="before-you-start"&gt;Before you start&lt;span class="hx:absolute hx:-mt-20" id="before-you-start"&gt;&lt;/span&gt;
+&lt;a href="#before-you-start" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;You need the Graph and bot registrations described in the
+&lt;a href="https://pflege-de-labs.github.io/teamster/pr-preview/pr-229/docs/getting-started/quick-start/"&gt;quick start&lt;/a&gt;, Helm 3, and a namespace to install
+into.&lt;/p&gt;
+&lt;div class="hextra-steps hx:ml-4 hx:mb-12 hx:ltr:border-l hx:rtl:border-r hx:border-gray-200 hx:ltr:pl-6 hx:rtl:pr-6 hx:dark:border-neutral-800 [counter-reset:step]"&gt;
+&lt;h3 data-hextra-search-id="install-the-chart"&gt;Install the chart&lt;span class="hx:absolute hx:-mt-20" id="install-the-chart"&gt;&lt;/span&gt;
+&lt;a href="#install-the-chart" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
+&lt;div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;helm install teamster oci://ghcr.io/pflege-de-labs/charts/teamster &lt;span class="se"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; --namespace monitoring --create-namespace &lt;span class="se"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; --set credentials.adminPassword&lt;span class="o"&gt;=&lt;/span&gt;&amp;lt;admin-password&amp;gt; &lt;span class="se"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; --set credentials.graphClientSecret&lt;span class="o"&gt;=&lt;/span&gt;&amp;lt;graph-client-secret&amp;gt; &lt;span class="se"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; --set config.settings.graph.tenant-id&lt;span class="o"&gt;=&lt;/span&gt;&amp;lt;tenant-id&amp;gt; &lt;span class="se"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; --set config.settings.graph.client-id&lt;span class="o"&gt;=&lt;/span&gt;&amp;lt;graph-client-id&amp;gt; &lt;span class="se"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; --set credentials.botClientSecret&lt;span class="o"&gt;=&lt;/span&gt;&amp;lt;bot-client-secret&amp;gt; &lt;span class="se"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; --set config.settings.bot.tenant-id&lt;span class="o"&gt;=&lt;/span&gt;&amp;lt;tenant-id&amp;gt; &lt;span class="se"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; --set config.settings.bot.client-id&lt;span class="o"&gt;=&lt;/span&gt;&amp;lt;bot-client-id&amp;gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class="hextra-code-copy-btn-container hx:opacity-0 hx:transition hx:group-hover/code:opacity-100 hx:flex hx:gap-1 hx:absolute hx:m-[11px] hx:right-0 hx:top-0"&gt;
+&lt;button
+class="hextra-code-copy-btn hx:group/copybtn hx:cursor-pointer hx:transition-all hx:active:opacity-50 hx:bg-primary-700/5 hx:border hx:border-black/5 hx:text-gray-600 hx:hover:text-gray-900 hx:rounded-md hx:p-1.5 hx:dark:bg-primary-300/10 hx:dark:border-white/10 hx:dark:text-gray-400 hx:dark:hover:text-gray-50"
+title="Copy code"
+aria-label="Copy code"
+data-copied-label="Copied!"
+&gt;
+&lt;div class="hextra-copy-icon hx:group-[.copied]/copybtn:hidden hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;div class="hextra-success-icon hx:hidden hx:group-[.copied]/copybtn:block hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;/button&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;p&gt;Teamster refuses to start without an admin login and a Graph credential. It starts without the
+bot, but then nothing reaches Teams.&lt;/p&gt;
+&lt;div class="hx:overflow-x-auto hx:mt-6 hx:flex hx:rounded-lg hx:border hx:py-2 hx:ltr:pr-4 hx:rtl:pl-4 hx:contrast-more:border-current hx:contrast-more:dark:border-current hx:border-amber-200 hx:bg-amber-100 hx:text-amber-900 hx:dark:border-amber-200/30 hx:dark:bg-amber-900/30 hx:dark:text-amber-200"&gt;
+&lt;div class="hx:ltr:pl-3 hx:ltr:pr-2 hx:rtl:pr-3 hx:rtl:pl-2"&gt;&lt;svg height=1.2em class="hx:inline-block hx:align-middle" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"&gt;&lt;path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/&gt;&lt;/svg&gt;&lt;/div&gt;
+&lt;div class="hx:w-full hx:min-w-0 hx:leading-7"&gt;
+&lt;div class="hx:mt-6 hx:leading-7 hx:first:mt-0"&gt;&lt;code&gt;--set&lt;/code&gt; puts the secrets into the release history. Outside a demo, create a Secret yourself and
+point &lt;code&gt;credentials.existingSecret&lt;/code&gt; at it.&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;h3 data-hextra-search-id="open-the-admin-ui"&gt;Open the admin UI&lt;span class="hx:absolute hx:-mt-20" id="open-the-admin-ui"&gt;&lt;/span&gt;
+&lt;a href="#open-the-admin-ui" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
+&lt;div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;kubectl --namespace monitoring port-forward svc/teamster 8080:8080&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class="hextra-code-copy-btn-container hx:opacity-0 hx:transition hx:group-hover/code:opacity-100 hx:flex hx:gap-1 hx:absolute hx:m-[11px] hx:right-0 hx:top-0"&gt;
+&lt;button
+class="hextra-code-copy-btn hx:group/copybtn hx:cursor-pointer hx:transition-all hx:active:opacity-50 hx:bg-primary-700/5 hx:border hx:border-black/5 hx:text-gray-600 hx:hover:text-gray-900 hx:rounded-md hx:p-1.5 hx:dark:bg-primary-300/10 hx:dark:border-white/10 hx:dark:text-gray-400 hx:dark:hover:text-gray-50"
+title="Copy code"
+aria-label="Copy code"
+data-copied-label="Copied!"
+&gt;
+&lt;div class="hextra-copy-icon hx:group-[.copied]/copybtn:hidden hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;div class="hextra-success-icon hx:hidden hx:group-[.copied]/copybtn:block hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;/button&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;p&gt;Open &lt;a href="http://localhost:8080/admin" target="_blank" rel="noopener"&gt;http://localhost:8080/admin&lt;/a&gt; and sign in as &lt;code&gt;admin&lt;/code&gt; with the password you set. From here,
+continue with the destination, route and token steps of the
+&lt;a href="https://pflege-de-labs.github.io/teamster/pr-preview/pr-229/docs/getting-started/quick-start/" target="_blank" rel="noopener"&gt;quick start&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;h2 data-hextra-search-id="what-the-chart-deploys"&gt;What the chart deploys&lt;span class="hx:absolute hx:-mt-20" id="what-the-chart-deploys"&gt;&lt;/span&gt;
+&lt;a href="#what-the-chart-deploys" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;A StatefulSet with one replica&lt;/strong&gt; by default. State lives in a SQLite file on a volume, and
+SQLite takes a single writer, so the chart refuses &lt;code&gt;replicaCount&lt;/code&gt; above 1 with &lt;code&gt;sqlite&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;A config Secret&lt;/strong&gt; built from &lt;code&gt;config.settings&lt;/code&gt; and mounted at
+&lt;code&gt;/etc/xdg/teamster/config.yaml&lt;/code&gt;. Its keys are Teamster&amp;rsquo;s own hyphenated YAML keys.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;A credentials Secret&lt;/strong&gt; built from &lt;code&gt;credentials&lt;/code&gt;, injected as &lt;code&gt;TEAMSTER_*&lt;/code&gt; environment
+variables. Teamster reads an environment variable only when no config file sets that key, so a
+secret never belongs under &lt;code&gt;config.settings&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;A Service&lt;/strong&gt; on port &lt;code&gt;8080&lt;/code&gt;. Publish it with &lt;code&gt;ingress.enabled&lt;/code&gt; or with Gateway API
+&lt;code&gt;httpRoute.external.enabled&lt;/code&gt; and &lt;code&gt;httpRoute.internal.enabled&lt;/code&gt;.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Changing either Secret rolls the pod.&lt;/p&gt;
+&lt;h2 data-hextra-search-id="run-more-than-one-replica"&gt;Run more than one replica&lt;span class="hx:absolute hx:-mt-20" id="run-more-than-one-replica"&gt;&lt;/span&gt;
+&lt;a href="#run-more-than-one-replica" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Point the release at a Postgres database. The chart then deploys a Deployment instead of a
+StatefulSet, and any number of replicas share the database:&lt;/p&gt;
+&lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
+&lt;div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;helm upgrade teamster oci://ghcr.io/pflege-de-labs/charts/teamster &lt;span class="se"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; --namespace monitoring --reuse-values &lt;span class="se"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; --set database.driver&lt;span class="o"&gt;=&lt;/span&gt;postgres &lt;span class="se"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; --set database.postgres.host&lt;span class="o"&gt;=&lt;/span&gt;teamster-pg-rw &lt;span class="se"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; --set database.postgres.passwordFrom.secretName&lt;span class="o"&gt;=&lt;/span&gt;teamster-pg-app &lt;span class="se"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; --set &lt;span class="nv"&gt;replicaCount&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="m"&gt;3&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class="hextra-code-copy-btn-container hx:opacity-0 hx:transition hx:group-hover/code:opacity-100 hx:flex hx:gap-1 hx:absolute hx:m-[11px] hx:right-0 hx:top-0"&gt;
+&lt;button
+class="hextra-code-copy-btn hx:group/copybtn hx:cursor-pointer hx:transition-all hx:active:opacity-50 hx:bg-primary-700/5 hx:border hx:border-black/5 hx:text-gray-600 hx:hover:text-gray-900 hx:rounded-md hx:p-1.5 hx:dark:bg-primary-300/10 hx:dark:border-white/10 hx:dark:text-gray-400 hx:dark:hover:text-gray-50"
+title="Copy code"
+aria-label="Copy code"
+data-copied-label="Copied!"
+&gt;
+&lt;div class="hextra-copy-icon hx:group-[.copied]/copybtn:hidden hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;div class="hextra-success-icon hx:hidden hx:group-[.copied]/copybtn:block hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;/button&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;p&gt;The chart deploys no Postgres of its own. It reads the password from the Secret your Postgres
+operator or cloud provider already created.&lt;/p&gt;
+&lt;h2 data-hextra-search-id="next-steps"&gt;Next steps&lt;span class="hx:absolute hx:-mt-20" id="next-steps"&gt;&lt;/span&gt;
+&lt;a href="#next-steps" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;ul&gt;
+&lt;li&gt;&lt;a href="../../guides/storage/"&gt;Choose and run storage&lt;/a&gt; and
+&lt;a href="../../guides/backup-and-migration/"&gt;move from SQLite to Postgres&lt;/a&gt;.&lt;/li&gt;
+&lt;li&gt;&lt;a href="../../guides/alertmanager/"&gt;Send alerts from Alertmanager&lt;/a&gt; inside the cluster.&lt;/li&gt;
+&lt;li&gt;Every chart value: &lt;a href="../../reference/helm-values/"&gt;Helm values&lt;/a&gt;.&lt;/li&gt;
+&lt;/ul&gt;</description></item></channel></rss>
