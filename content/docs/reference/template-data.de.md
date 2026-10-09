@@ -194,9 +194,26 @@ Die eingebauten Funktionen von `text/template` stehen ebenfalls zur Verfügung: 
 `len`, `index`, `slice`, `print`, `printf`, `println`, `html`, `js`, `urlquery`, `call` und die
 Vergleiche `eq`, `ne`, `lt`, `le`, `gt`, `ge`.
 
+Ebenso die Funktionen von [sprig](https://masterminds.github.io/sprig/) – für Strings, reguläre
+Ausdrücke, Listen, Dicts, Semver und mehr – mit diesen Ausnahmen:
+
+| Ausgenommen | Grund |
+| --- | --- |
+| `env`, `expandenv` | Sie würden Teamsters Geheimnisse jedem zeigen, der eine Vorlage bearbeiten darf. |
+| `getHostByName` | Sie greift auf das Netzwerk zu. |
+| `now`, `date`, `dateInZone`, `dateModify`, `htmlDate`, `htmlDateInZone`, die `rand…`-Funktionen, `uuidv4` | Ihr Ergebnis ist nicht wiederholbar. Die Zeit liefert `.Now`. |
+| `bcrypt`, `htpasswd`, `derivePassword`, `encryptAES`, `decryptAES`, die `gen…`-Funktionen und `buildCustomCert` | Sie kosten bei jeder Vorschau CPU und haben in einer Nachricht keinen Nutzen. |
+
+`toJSON` und `default` sind Teamsters eigene Funktionen und haben Vorrang vor denen von sprig.
+Beachten Sie die Reihenfolge der Argumente von `default`: Der Wert kommt zuerst. Die Pipeline-Form
+aus der Dokumentation von sprig, `.x | default "y"`, ergibt immer `"y"`; schreiben Sie
+`default .x "y"`.
+
 ```gotemplate
 {{ default .Event.Labels.severity "unknown" }}
 {{ toJSON .Event.Labels }}
+{{ regexFind "^[a-z]+" .Event.Universal.Attributes.commit_message }}
+{{ splitList "\n" .Event.Universal.Attributes.commit_message | first | trunc 80 }}
 ```
 
 ## Siehe auch {#see-also}
