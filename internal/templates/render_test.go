@@ -96,6 +96,21 @@ func TestRenderHelpers(t *testing.T) {
 			want: `{"text":"set"}`,
 		},
 		{
+			name: "default keeps teamster's argument order over sprig's",
+			body: `{"text":"{{ default "set" "fallback" }}"}`,
+			want: `{"text":"set"}`,
+		},
+		{
+			name: "sprig string functions",
+			body: `{"text":{{ toJSON (trimPrefix "fix: " "fix: the thing" | upper) }}}`,
+			want: `{"text":"THE THING"}`,
+		},
+		{
+			name: "sprig regex functions",
+			body: `{"text":"{{ regexFind "^[a-z]+" "feat(x): y" }}"}`,
+			want: `{"text":"feat"}`,
+		},
+		{
 			name: "Now is exposed to the template",
 			body: `{"time":"{{ .Now }}"}`,
 			data: RenderData{Now: "2026-09-08T10:00:00Z"},
@@ -183,5 +198,44 @@ func TestRenderMessageSkipsAnEmptyCard(t *testing.T) {
 	}
 	if _, err := Render(tmpl.Body, RenderData{Event: map[string]string{}}); err == nil {
 		t.Error("Render accepted an empty card; only RenderMessage may skip one")
+	}
+}
+
+// A conventional commit's header decides a change's semver size; this is the
+// template a deployment notice uses, run through the real function set.
+func TestRenderConventionalCommitSize(t *testing.T) {
+	t.Parallel()
+
+	body := `{{- $msg := index .Event "commit_message" -}}
+{{- $subject := splitList "\n" $msg | first -}}
+{{- $header := regexFind "^[a-z]+(\\([^)]*\\))?!?: " $subject -}}
+{{- $size := "patch" -}}
+{{- if not $header }}{{ $size = "unknown" }}
+{{- else if or (contains "!:" $header) (regexMatch "(?m)^BREAKING[ -]CHANGE:" $msg) }}{{ $size = "major" }}
+{{- else if hasPrefix "feat" $header }}{{ $size = "minor" }}{{ end -}}
+{"size":{{ toJSON $size }},"description":{{ toJSON (trimPrefix $header $subject) }}}`
+
+	tests := []struct {
+		name, msg, want string
+	}{
+		{"bang is major", "feat(keycloak)!: upgrade to 26\n\nbody", `{"size":"major","description":"upgrade to 26"}`},
+		{"breaking footer is major", "fix(x): thing\n\nBREAKING CHANGE: sessions dropped", `{"size":"major","description":"thing"}`},
+		{"feat is minor", `feat(crossplane): CloudFront "XR" (#602)`, `{"size":"minor","description":"CloudFront \"XR\" (#602)"}`},
+		{"fix is patch", "fix(renovate): match settings", `{"size":"patch","description":"match settings"}`},
+		{"other types are patch", "build: automatic update", `{"size":"patch","description":"automatic update"}`},
+		{"not conventional is unknown", "Merge pull request #1 from x/y", `{"size":"unknown","description":"Merge pull request #1 from x/y"}`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := Render(body, RenderData{Event: map[string]string{"commit_message": tt.msg}})
+			if err != nil {
+				t.Fatalf("Render: %v", err)
+			}
+			if string(got) != tt.want {
+				t.Errorf("Render() = %s, want %s", got, tt.want)
+			}
+		})
 	}
 }

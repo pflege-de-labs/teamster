@@ -964,7 +964,13 @@ handles only the universal webhook, and into the Alertmanager one otherwise. See
 Helper functions:
 
 - `toJSON` to JSON-encode structures
-- `default` to provide fallbacks, including for a key an event did not set
+- `default` to provide fallbacks, including for a key an event did not set. It takes the value
+  first and the fallback second, the reverse of sprig's: write `default .x "y"`, not
+  `.x | default "y"`, which always yields `"y"`
+- [sprig](https://masterminds.github.io/sprig/)'s functions — strings, regular expressions, lists,
+  dicts, semver and more — except `env`, `expandenv`, `getHostByName`, the date and random
+  functions and the crypto functions
+  ([ADR 0091](docs/adr/0091-sprig-template-functions.md))
 
 ### Personal messages
 
