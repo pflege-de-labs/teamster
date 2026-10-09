@@ -101,3 +101,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0084](0084-an-alertmanager-notification-is-one-event.md) | An Alertmanager notification is one event | Accepted |
 | [0089](0089-renovate-runs-as-the-hosted-app.md) | Renovate runs as the hosted app | Accepted |
 | [0090](0090-ci-and-release-use-shared-workflows.md) | CI and release use the shared labs workflows | Accepted |
+| [0091](0091-sprig-template-functions.md) | Templates get sprig's hermetic functions | Accepted |

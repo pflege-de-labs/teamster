@@ -8,6 +8,8 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/Masterminds/sprig/v3"
+
 	"github.com/pflege-de-labs/teamster/internal/models"
 )
 
@@ -196,7 +198,30 @@ func Render(body string, data RenderData) (json.RawMessage, error) {
 	return json.RawMessage(output), nil
 }
 
+// cryptoFunctions are hermetic but burn CPU on every preview and have no
+// place in a card (ADR 0091).
+var cryptoFunctions = []string{
+	"bcrypt", "htpasswd", "genPrivateKey", "derivePassword", "buildCustomCert",
+	"genCA", "genCAWithKey", "genSelfSignedCert", "genSelfSignedCertWithKey",
+	"genSignedCert", "genSignedCertWithKey", "encryptAES", "decryptAES",
+}
+
+// funcs is sprig's hermetic set, which leaves out env, expandenv and
+// getHostByName, under teamster's own helpers (ADR 0091).
 func funcs() template.FuncMap {
+	fm := sprig.HermeticTxtFuncMap()
+	for _, name := range cryptoFunctions {
+		delete(fm, name)
+	}
+	for name, fn := range helpers() {
+		fm[name] = fn
+	}
+	return fm
+}
+
+// helpers win over sprig: stored templates call default with teamster's
+// (value, fallback) order, the reverse of sprig's.
+func helpers() template.FuncMap {
 	return template.FuncMap{
 		"toJSON": func(v any) (string, error) {
 			b, err := json.Marshal(v)

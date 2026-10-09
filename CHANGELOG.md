@@ -10,6 +10,13 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 ## [Unreleased]
 
+### Added
+
+* Templates can call [sprig](https://masterminds.github.io/sprig/)'s functions for strings,
+  regular expressions, lists and more. `env`, `expandenv`, `getHostByName`, the date, random and
+  crypto functions are left out, and teamster's `default` keeps its `(value, fallback)` order
+  ([ADR 0091](docs/adr/0091-sprig-template-functions.md)).
+
 ### Security
 
 * `golang.org/x/net` 0.60.0 fixes GO-2026-6617, and the image is built with Go 1.27.2, which fixes

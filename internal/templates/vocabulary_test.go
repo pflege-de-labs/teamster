@@ -29,6 +29,7 @@ func TestEditorVocabulary(t *testing.T) {
 		{"attributes are an attribute map", v.AttributeMaps, ".Event.Universal.Attributes"},
 		{"our own function", v.Functions, "default"},
 		{"another of ours", v.Functions, "toJSON"},
+		{"a sprig function", v.Functions, "regexFind"},
 		{"a text/template builtin", v.Functions, "printf"},
 		{"an action keyword", v.Keywords, "range"},
 	}
@@ -51,6 +52,22 @@ func TestEditorVocabulary(t *testing.T) {
 	for _, field := range v.Fields {
 		if field == ".Event.Alertmanager.StartsAt.wall" || field == ".Event.Card.0" {
 			t.Errorf("vocabulary offers %q, which no template can use", field)
+		}
+	}
+}
+
+// A template's author must not reach the process environment, the network or
+// burn CPU on key generation (ADR 0091).
+func TestFunctionsLeaveOutUnsafeSprig(t *testing.T) {
+	t.Parallel()
+
+	offered := EditorVocabulary().Functions
+	for _, name := range []string{"env", "expandenv", "getHostByName", "now", "randBytes", "genPrivateKey", "encryptAES"} {
+		if _, ok := funcs()[name]; ok {
+			t.Errorf("funcs() has %q", name)
+		}
+		if slices.Contains(offered, name) {
+			t.Errorf("vocabulary offers %q", name)
 		}
 	}
 }
