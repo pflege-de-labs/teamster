@@ -8,6 +8,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.13.0] — 2026-10-09
+
+App version 0.14.0: `/admin/access` opens to anyone who may share a record and grants on several
+records at once, `/admin/me` lists what is shared with you, and the bot's `/test` works in a
+personal chat again; see the [service changelog](../../CHANGELOG.md).
+
 ### Changed
 
 * `pdb.enabled` creates a PodDisruptionBudget only when `replicaCount` is above 1, whatever the
@@ -173,7 +179,8 @@ an Ingress or HTTPRoute, configuration and credentials from values, `extraObject
 an optional startupProbe, and `helm test`
 ([ADR 0016](../../docs/adr/0016-helm-chart.md)).
 
-[Unreleased]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.12.0...HEAD
+[Unreleased]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.13.0...HEAD
+[0.13.0]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.12.0...teamster-0.13.0
 [0.12.0]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.11.0...teamster-0.12.0
 [0.11.0]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.10.0...teamster-0.11.0
 [0.10.0]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.9.0...teamster-0.10.0

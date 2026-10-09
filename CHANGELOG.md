@@ -10,6 +10,8 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 ## [Unreleased]
 
+## [0.14.0] — 2026-10-09
+
 ### Added
 
 * `/admin/access` opens to anyone who may share a record: pick a kind of resource, tick several
@@ -426,7 +428,8 @@ Adaptive Cards posted to Teams channels, alert state in SQLite so a resolve upda
 an admin UI for templates, destinations and routes. Released as a signed container image and
 binaries with SBOMs ([ADR 0006](docs/adr/0006-release-rebuild-sbom-signing.md)).
 
-[Unreleased]: https://github.com/pflege-de-labs/teamster/compare/v0.13.0...HEAD
+[Unreleased]: https://github.com/pflege-de-labs/teamster/compare/v0.14.0...HEAD
+[0.14.0]: https://github.com/pflege-de-labs/teamster/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/pflege-de-labs/teamster/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/pflege-de-labs/teamster/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/pflege-de-labs/teamster/compare/v0.10.0...v0.11.0
