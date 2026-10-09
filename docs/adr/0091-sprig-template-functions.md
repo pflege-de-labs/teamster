@@ -15,13 +15,16 @@ template users already know.
 
 ## Decision
 
-`funcs()` starts from `sprig.HermeticTxtFuncMap()`, removes sprig's crypto functions and puts
-teamster's own `toJSON` and `default` on top.
+`funcs()` starts from `sprig.HermeticTxtFuncMap()`, removes `ago`, `randInt` and sprig's crypto
+functions and puts teamster's own `toJSON` and `default` on top.
 
 * **Hermetic only.** The full map has `env` and `expandenv`, which would let anyone who may edit a
   template post the Graph or bot client secret into a channel, and `getHostByName`, which reaches
-  the network. The hermetic map also leaves out `now`, `date` and the random functions; `.Now`
-  already gives a template the time.
+  the network. The hermetic map also leaves out `now`, `date`, `dateInZone`, `dateModify`,
+  `htmlDate`, `htmlDateInZone`, `uuidv4` and most `rand…` functions. It keeps `ago`, which reads
+  the clock, and `randInt`; teamster drops both so a template renders the same twice. `.Now`
+  already gives a template the time. `toDate`, `unixEpoch`, `duration` and `mustDateModify` stay:
+  they only work on their arguments.
 * **No crypto.** Key, certificate and password generation is hermetic but costs CPU on every
   preview and has nothing to do in a card.
 * **teamster's `default` wins.** It takes `(value, fallback)`, sprig's takes

@@ -1214,8 +1214,9 @@ rewritten with an `input` event on every change, so posting, the preview and the
 it as before; without JavaScript it is the plain field it always was. The card palette inserts
 through the editor by a cancelable `teamster:insert` event on the field.
 
-Template functions are sprig's hermetic set without its crypto functions, under teamster's own
-`toJSON` and `default` (`templates.funcs`, [ADR 0091](adr/0091-sprig-template-functions.md)).
+Template functions are sprig's hermetic set without `ago`, `randInt` and the crypto functions,
+under teamster's own `toJSON` and `default` (`templates.funcs`,
+[ADR 0091](adr/0091-sprig-template-functions.md)).
 
 Inside `{{ … }}` the editor completes the fields of the template data, template functions and
 actions — all three from `templates.EditorVocabulary`, which the admin page embeds as JSON — and,

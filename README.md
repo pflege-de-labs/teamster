@@ -968,8 +968,8 @@ Helper functions:
   first and the fallback second, the reverse of sprig's: write `default .x "y"`, not
   `.x | default "y"`, which always yields `"y"`
 - [sprig](https://masterminds.github.io/sprig/)'s functions — strings, regular expressions, lists,
-  dicts, semver and more — except `env`, `expandenv`, `getHostByName`, the date and random
-  functions and the crypto functions
+  dicts, semver and more — except `env`, `expandenv`, `getHostByName`, those that read the clock
+  or randomness (`now`, `ago`, `date`, `rand…`, `uuidv4`) and the crypto functions
   ([ADR 0091](docs/adr/0091-sprig-template-functions.md))
 
 ### Personal messages

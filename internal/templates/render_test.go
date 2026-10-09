@@ -96,9 +96,9 @@ func TestRenderHelpers(t *testing.T) {
 			want: `{"text":"set"}`,
 		},
 		{
-			name: "default keeps teamster's argument order over sprig's",
-			body: `{"text":"{{ default "set" "fallback" }}"}`,
-			want: `{"text":"set"}`,
+			name: "default in sprig's pipeline form yields the fallback",
+			body: `{"text":"{{ "set" | default "fallback" }}"}`,
+			want: `{"text":"fallback"}`,
 		},
 		{
 			name: "sprig string functions",

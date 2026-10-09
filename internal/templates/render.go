@@ -198,19 +198,20 @@ func Render(body string, data RenderData) (json.RawMessage, error) {
 	return json.RawMessage(output), nil
 }
 
-// cryptoFunctions are hermetic but burn CPU on every preview and have no
-// place in a card (ADR 0091).
-var cryptoFunctions = []string{
+// leftOut are in sprig's hermetic map anyway: ago and randInt are not
+// repeatable, the crypto functions burn CPU on every preview (ADR 0091).
+var leftOut = []string{
+	"ago", "randInt",
 	"bcrypt", "htpasswd", "genPrivateKey", "derivePassword", "buildCustomCert",
 	"genCA", "genCAWithKey", "genSelfSignedCert", "genSelfSignedCertWithKey",
 	"genSignedCert", "genSignedCertWithKey", "encryptAES", "decryptAES",
 }
 
-// funcs is sprig's hermetic set, which leaves out env, expandenv and
-// getHostByName, under teamster's own helpers (ADR 0091).
+// funcs is sprig's hermetic set, which already drops env, expandenv,
+// getHostByName and now, under teamster's own helpers (ADR 0091).
 func funcs() template.FuncMap {
 	fm := sprig.HermeticTxtFuncMap()
-	for _, name := range cryptoFunctions {
+	for _, name := range leftOut {
 		delete(fm, name)
 	}
 	for name, fn := range helpers() {

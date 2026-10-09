@@ -13,9 +13,9 @@ reasoning behind it in the [ADRs](docs/adr/).
 ### Added
 
 * Templates can call [sprig](https://masterminds.github.io/sprig/)'s functions for strings,
-  regular expressions, lists and more. `env`, `expandenv`, `getHostByName`, the date, random and
-  crypto functions are left out, and teamster's `default` keeps its `(value, fallback)` order
-  ([ADR 0091](docs/adr/0091-sprig-template-functions.md)).
+  regular expressions, lists and more. `env`, `expandenv`, `getHostByName`, the functions that
+  read the clock or randomness and the crypto functions are left out, and teamster's `default`
+  keeps its `(value, fallback)` order ([ADR 0091](docs/adr/0091-sprig-template-functions.md)).
 
 ### Security
 

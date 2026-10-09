@@ -62,7 +62,7 @@ func TestFunctionsLeaveOutUnsafeSprig(t *testing.T) {
 	t.Parallel()
 
 	offered := EditorVocabulary().Functions
-	for _, name := range []string{"env", "expandenv", "getHostByName", "now", "randBytes", "genPrivateKey", "encryptAES"} {
+	for _, name := range []string{"env", "expandenv", "getHostByName", "now", "ago", "randInt", "randBytes", "genPrivateKey", "encryptAES"} {
 		if _, ok := funcs()[name]; ok {
 			t.Errorf("funcs() has %q", name)
 		}
