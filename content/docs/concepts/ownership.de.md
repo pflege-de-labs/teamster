@@ -57,6 +57,11 @@ Anbietergruppe oder einer Rolle Aktionen an genau diesem Datensatz geben:
 Niemand kann mehr vergeben, als er selbst hält. Wer `own` vergibt oder entzieht, wird dadurch
 ebenfalls Eigentümer.
 
+Um einem Empfänger dieselben Aktionen auf mehreren Datensätzen einer Art auf einmal zu geben,
+nutzen Sie die **Zugriffsübersicht** (`/admin/access`); siehe
+[Mehrere Datensätze auf einmal teilen](../../guides/roles/#share-several-records-at-once). **Mein
+Zugriff** (`/admin/me`) listet, was mit Ihnen geteilt wurde, und über wen.
+
 Teilen ergänzt Rollen, es ersetzt sie nicht. Bearbeiter dürfen weiterhin alles bearbeiten. Wer
 keine Rolle hat, aber einen geteilten Datensatz, sieht unter `/admin` nur das Geteilte. Seiten,
 die aus der gesamten Konfiguration entstehen, bleiben für diese Person geschlossen: das
