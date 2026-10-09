@@ -95,7 +95,9 @@ Ein Label-Schlüssel, der nicht auf einen Punkt folgen kann, braucht `index`:
 ```
 
 Verwenden Sie `default` für einen Schlüssel, den ein Ereignis womöglich nicht setzt, und `toJSON`,
-um eine Struktur in eine Karte einzubetten.
+um eine Struktur in eine Karte einzubetten. Um einen Wert zu zerlegen – Zeilen trennen, ein Muster
+finden, ein Präfix entfernen –, nutzen Sie die
+[sprig-Funktionen](../../reference/template-data/#functions).
 
 ## Die Alarme einer Gruppe auflisten {#list-the-alerts-of-a-group}
 

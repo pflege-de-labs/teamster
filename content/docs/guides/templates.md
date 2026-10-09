@@ -89,7 +89,9 @@ A label key that cannot follow a dot needs `index`:
 {{ index .Event.Labels "app.kubernetes.io/name" }}
 ```
 
-Use `default` for a key an event may not set, and `toJSON` to embed a structure in a card.
+Use `default` for a key an event may not set, and `toJSON` to embed a structure in a card. To
+take a value apart — split lines, match a pattern, strip a prefix — use the
+[sprig functions](../../reference/template-data/#functions).
 
 ## List the alerts of a group
 

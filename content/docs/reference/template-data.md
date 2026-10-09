@@ -192,9 +192,25 @@ The built-in functions of `text/template` are available as well: `and`, `or`, `n
 `index`, `slice`, `print`, `printf`, `println`, `html`, `js`, `urlquery`, `call`, and the
 comparisons `eq`, `ne`, `lt`, `le`, `gt`, `ge`.
 
+So are the [sprig](https://masterminds.github.io/sprig/) functions — strings, regular expressions,
+lists, dicts, semver and more — except these:
+
+| Left out | Why |
+| --- | --- |
+| `env`, `expandenv` | They would expose Teamster's client secrets and tokens to anyone who may edit a template. |
+| `getHostByName` | It reaches the network. |
+| `now`, `ago`, `date`, `dateInZone`, `dateModify`, `htmlDate`, `htmlDateInZone`, the `rand…` functions, `uuidv4` | They read the clock or randomness, so a template would not render the same twice. Use `.Now` for the time. |
+| `bcrypt`, `htpasswd`, `derivePassword`, `encryptAES`, `decryptAES`, the `gen…` and `buildCustomCert` functions | They cost CPU on every preview and have no use in a message. |
+
+`toJSON` and `default` are Teamster's own and take precedence over sprig's. Mind the argument
+order of `default`: the value comes first. The pipeline form from sprig's documentation,
+`.x | default "y"`, always yields `"y"`; write `default .x "y"`.
+
 ```gotemplate
 {{ default .Event.Labels.severity "unknown" }}
 {{ toJSON .Event.Labels }}
+{{ regexFind "^[a-z]+" .Event.Universal.Attributes.commit_message }}
+{{ splitList "\n" .Event.Universal.Attributes.commit_message | first | trunc 80 }}
 ```
 
 ## See also
