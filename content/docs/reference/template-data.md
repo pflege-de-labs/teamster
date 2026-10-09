@@ -197,9 +197,9 @@ lists, dicts, semver and more — except these:
 
 | Left out | Why |
 | --- | --- |
-| `env`, `expandenv` | They would expose Teamster's secrets to anyone who may edit a template. |
+| `env`, `expandenv` | They would expose Teamster's client secrets and tokens to anyone who may edit a template. |
 | `getHostByName` | It reaches the network. |
-| `now`, `date`, `dateInZone`, `dateModify`, `htmlDate`, `htmlDateInZone`, the `rand…` functions, `uuidv4` | They are not repeatable. Use `.Now` for the time. |
+| `now`, `ago`, `date`, `dateInZone`, `dateModify`, `htmlDate`, `htmlDateInZone`, the `rand…` functions, `uuidv4` | They read the clock or randomness, so a template would not render the same twice. Use `.Now` for the time. |
 | `bcrypt`, `htpasswd`, `derivePassword`, `encryptAES`, `decryptAES`, the `gen…` and `buildCustomCert` functions | They cost CPU on every preview and have no use in a message. |
 
 `toJSON` and `default` are Teamster's own and take precedence over sprig's. Mind the argument

@@ -199,9 +199,9 @@ Ausdrücke, Listen, Dicts, Semver und mehr – mit diesen Ausnahmen:
 
 | Ausgenommen | Grund |
 | --- | --- |
-| `env`, `expandenv` | Sie würden Teamsters Geheimnisse jedem zeigen, der eine Vorlage bearbeiten darf. |
+| `env`, `expandenv` | Sie würden Teamsters Client-Secrets und Tokens jedem zeigen, der eine Vorlage bearbeiten darf. |
 | `getHostByName` | Sie greift auf das Netzwerk zu. |
-| `now`, `date`, `dateInZone`, `dateModify`, `htmlDate`, `htmlDateInZone`, die `rand…`-Funktionen, `uuidv4` | Ihr Ergebnis ist nicht wiederholbar. Die Zeit liefert `.Now`. |
+| `now`, `ago`, `date`, `dateInZone`, `dateModify`, `htmlDate`, `htmlDateInZone`, die `rand…`-Funktionen, `uuidv4` | Sie lesen die Uhr oder den Zufall, eine Vorlage ergäbe also nicht zweimal dasselbe. Die Zeit liefert `.Now`. |
 | `bcrypt`, `htpasswd`, `derivePassword`, `encryptAES`, `decryptAES`, die `gen…`-Funktionen und `buildCustomCert` | Sie kosten bei jeder Vorschau CPU und haben in einer Nachricht keinen Nutzen. |
 
 `toJSON` und `default` sind Teamsters eigene Funktionen und haben Vorrang vor denen von sprig.
