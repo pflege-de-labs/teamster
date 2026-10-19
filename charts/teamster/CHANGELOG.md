@@ -8,6 +8,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.13.1] — 2026-10-09
+
+App version 0.14.1: the 0.14.0 release was never published, and 0.14.1 also fixes GO-2026-6617
+and the Go 1.27.2 standard-library advisories; see the [service changelog](../../CHANGELOG.md).
+
+### Fixed
+
+* `appVersion` points at an image that exists. Chart 0.13.0 defaults to the 0.14.0 image, which
+  was never published; install 0.13.1 instead, or set `image.tag`.
+
 ## [0.13.0] — 2026-10-09
 
 App version 0.14.0: `/admin/access` opens to anyone who may share a record and grants on several
@@ -179,7 +189,8 @@ an Ingress or HTTPRoute, configuration and credentials from values, `extraObject
 an optional startupProbe, and `helm test`
 ([ADR 0016](../../docs/adr/0016-helm-chart.md)).
 
-[Unreleased]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.13.0...HEAD
+[Unreleased]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.13.1...HEAD
+[0.13.1]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.13.0...teamster-0.13.1
 [0.13.0]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.12.0...teamster-0.13.0
 [0.12.0]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.11.0...teamster-0.12.0
 [0.11.0]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.10.0...teamster-0.11.0
