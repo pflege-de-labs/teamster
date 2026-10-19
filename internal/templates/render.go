@@ -8,6 +8,8 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/Masterminds/sprig/v3"
+
 	"github.com/pflege-de-labs/teamster/internal/models"
 )
 
@@ -196,7 +198,31 @@ func Render(body string, data RenderData) (json.RawMessage, error) {
 	return json.RawMessage(output), nil
 }
 
+// leftOut are in sprig's hermetic map anyway: ago and randInt are not
+// repeatable, the crypto functions burn CPU on every preview (ADR 0091).
+var leftOut = []string{
+	"ago", "randInt",
+	"bcrypt", "htpasswd", "genPrivateKey", "derivePassword", "buildCustomCert",
+	"genCA", "genCAWithKey", "genSelfSignedCert", "genSelfSignedCertWithKey",
+	"genSignedCert", "genSignedCertWithKey", "encryptAES", "decryptAES",
+}
+
+// funcs is sprig's hermetic set, which already drops env, expandenv,
+// getHostByName and now, under teamster's own helpers (ADR 0091).
 func funcs() template.FuncMap {
+	fm := sprig.HermeticTxtFuncMap()
+	for _, name := range leftOut {
+		delete(fm, name)
+	}
+	for name, fn := range helpers() {
+		fm[name] = fn
+	}
+	return fm
+}
+
+// helpers win over sprig: stored templates call default with teamster's
+// (value, fallback) order, the reverse of sprig's.
+func helpers() template.FuncMap {
 	return template.FuncMap{
 		"toJSON": func(v any) (string, error) {
 			b, err := json.Marshal(v)
