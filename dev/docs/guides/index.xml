@@ -2480,7 +2480,9 @@ data-copied-label="Copied!"
 &lt;/button&gt;
 &lt;/div&gt;
 &lt;/div&gt;
-&lt;p&gt;Use &lt;code&gt;default&lt;/code&gt; for a key an event may not set, and &lt;code&gt;toJSON&lt;/code&gt; to embed a structure in a card.&lt;/p&gt;
+&lt;p&gt;Use &lt;code&gt;default&lt;/code&gt; for a key an event may not set, and &lt;code&gt;toJSON&lt;/code&gt; to embed a structure in a card. To
+take a value apart — split lines, match a pattern, strip a prefix — use the
+&lt;a href="../../reference/template-data/#functions"&gt;sprig functions&lt;/a&gt;.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="list-the-alerts-of-a-group"&gt;List the alerts of a group&lt;span class="hx:absolute hx:-mt-20" id="list-the-alerts-of-a-group"&gt;&lt;/span&gt;
 &lt;a href="#list-the-alerts-of-a-group" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Alertmanager sends a group of alerts as one notification, and Teamster posts one card for it. The
 alerts are in &lt;code&gt;.Event.Alertmanager.Alerts&lt;/code&gt;, each with &lt;code&gt;Status&lt;/code&gt;, &lt;code&gt;Labels&lt;/code&gt;, &lt;code&gt;Annotations&lt;/code&gt;,

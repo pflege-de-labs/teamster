@@ -1998,9 +1998,43 @@ niemanden nennen. Bleibt ein Alarm übrig, werden &lt;code&gt;Annotations&lt;/co
 &lt;p&gt;Die eingebauten Funktionen von &lt;code&gt;text/template&lt;/code&gt; stehen ebenfalls zur Verfügung: &lt;code&gt;and&lt;/code&gt;, &lt;code&gt;or&lt;/code&gt;, &lt;code&gt;not&lt;/code&gt;,
 &lt;code&gt;len&lt;/code&gt;, &lt;code&gt;index&lt;/code&gt;, &lt;code&gt;slice&lt;/code&gt;, &lt;code&gt;print&lt;/code&gt;, &lt;code&gt;printf&lt;/code&gt;, &lt;code&gt;println&lt;/code&gt;, &lt;code&gt;html&lt;/code&gt;, &lt;code&gt;js&lt;/code&gt;, &lt;code&gt;urlquery&lt;/code&gt;, &lt;code&gt;call&lt;/code&gt; und die
 Vergleiche &lt;code&gt;eq&lt;/code&gt;, &lt;code&gt;ne&lt;/code&gt;, &lt;code&gt;lt&lt;/code&gt;, &lt;code&gt;le&lt;/code&gt;, &lt;code&gt;gt&lt;/code&gt;, &lt;code&gt;ge&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;Ebenso die Funktionen von &lt;a href="https://masterminds.github.io/sprig/" target="_blank" rel="noopener"&gt;sprig&lt;/a&gt; – für Strings, reguläre
+Ausdrücke, Listen, Dicts, Semver und mehr – mit diesen Ausnahmen:&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Ausgenommen&lt;/th&gt;
+&lt;th&gt;Grund&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;env&lt;/code&gt;, &lt;code&gt;expandenv&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;Sie würden Teamsters Client-Secrets und Tokens jedem zeigen, der eine Vorlage bearbeiten darf.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;getHostByName&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;Sie greift auf das Netzwerk zu.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;now&lt;/code&gt;, &lt;code&gt;ago&lt;/code&gt;, &lt;code&gt;date&lt;/code&gt;, &lt;code&gt;dateInZone&lt;/code&gt;, &lt;code&gt;dateModify&lt;/code&gt;, &lt;code&gt;htmlDate&lt;/code&gt;, &lt;code&gt;htmlDateInZone&lt;/code&gt;, die &lt;code&gt;rand…&lt;/code&gt;-Funktionen, &lt;code&gt;uuidv4&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;Sie lesen die Uhr oder den Zufall, eine Vorlage ergäbe also nicht zweimal dasselbe. Die Zeit liefert &lt;code&gt;.Now&lt;/code&gt;.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;bcrypt&lt;/code&gt;, &lt;code&gt;htpasswd&lt;/code&gt;, &lt;code&gt;derivePassword&lt;/code&gt;, &lt;code&gt;encryptAES&lt;/code&gt;, &lt;code&gt;decryptAES&lt;/code&gt;, die &lt;code&gt;gen…&lt;/code&gt;-Funktionen und &lt;code&gt;buildCustomCert&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;Sie kosten bei jeder Vorschau CPU und haben in einer Nachricht keinen Nutzen.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;&lt;code&gt;toJSON&lt;/code&gt; und &lt;code&gt;default&lt;/code&gt; sind Teamsters eigene Funktionen und haben Vorrang vor denen von sprig.
+Beachten Sie die Reihenfolge der Argumente von &lt;code&gt;default&lt;/code&gt;: Der Wert kommt zuerst. Die Pipeline-Form
+aus der Dokumentation von sprig, &lt;code&gt;.x | default &amp;quot;y&amp;quot;&lt;/code&gt;, ergibt immer &lt;code&gt;&amp;quot;y&amp;quot;&lt;/code&gt;; schreiben Sie
+&lt;code&gt;default .x &amp;quot;y&amp;quot;&lt;/code&gt;.&lt;/p&gt;
 &lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
 &lt;div&gt;&lt;pre&gt;&lt;code&gt;{{ default .Event.Labels.severity &amp;#34;unknown&amp;#34; }}
-{{ toJSON .Event.Labels }}&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class="hextra-code-copy-btn-container hx:opacity-0 hx:transition hx:group-hover/code:opacity-100 hx:flex hx:gap-1 hx:absolute hx:m-[11px] hx:right-0 hx:top-0"&gt;
+{{ toJSON .Event.Labels }}
+{{ regexFind &amp;#34;^[a-z]&amp;#43;&amp;#34; .Event.Universal.Attributes.commit_message }}
+{{ splitList &amp;#34;\n&amp;#34; .Event.Universal.Attributes.commit_message | first | trunc 80 }}&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class="hextra-code-copy-btn-container hx:opacity-0 hx:transition hx:group-hover/code:opacity-100 hx:flex hx:gap-1 hx:absolute hx:m-[11px] hx:right-0 hx:top-0"&gt;
 &lt;button
 class="hextra-code-copy-btn hx:group/copybtn hx:cursor-pointer hx:transition-all hx:active:opacity-50 hx:bg-primary-700/5 hx:border hx:border-black/5 hx:text-gray-600 hx:hover:text-gray-900 hx:rounded-md hx:p-1.5 hx:dark:bg-primary-300/10 hx:dark:border-white/10 hx:dark:text-gray-400 hx:dark:hover:text-gray-50"
 title="Code kopieren"

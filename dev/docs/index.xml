@@ -3472,9 +3472,42 @@ from it, as for a group of one.&lt;/li&gt;
 &lt;p&gt;The built-in functions of &lt;code&gt;text/template&lt;/code&gt; are available as well: &lt;code&gt;and&lt;/code&gt;, &lt;code&gt;or&lt;/code&gt;, &lt;code&gt;not&lt;/code&gt;, &lt;code&gt;len&lt;/code&gt;,
 &lt;code&gt;index&lt;/code&gt;, &lt;code&gt;slice&lt;/code&gt;, &lt;code&gt;print&lt;/code&gt;, &lt;code&gt;printf&lt;/code&gt;, &lt;code&gt;println&lt;/code&gt;, &lt;code&gt;html&lt;/code&gt;, &lt;code&gt;js&lt;/code&gt;, &lt;code&gt;urlquery&lt;/code&gt;, &lt;code&gt;call&lt;/code&gt;, and the
 comparisons &lt;code&gt;eq&lt;/code&gt;, &lt;code&gt;ne&lt;/code&gt;, &lt;code&gt;lt&lt;/code&gt;, &lt;code&gt;le&lt;/code&gt;, &lt;code&gt;gt&lt;/code&gt;, &lt;code&gt;ge&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;So are the &lt;a href="https://masterminds.github.io/sprig/" target="_blank" rel="noopener"&gt;sprig&lt;/a&gt; functions — strings, regular expressions,
+lists, dicts, semver and more — except these:&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Left out&lt;/th&gt;
+&lt;th&gt;Why&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;env&lt;/code&gt;, &lt;code&gt;expandenv&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;They would expose Teamster&amp;rsquo;s client secrets and tokens to anyone who may edit a template.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;getHostByName&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;It reaches the network.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;now&lt;/code&gt;, &lt;code&gt;ago&lt;/code&gt;, &lt;code&gt;date&lt;/code&gt;, &lt;code&gt;dateInZone&lt;/code&gt;, &lt;code&gt;dateModify&lt;/code&gt;, &lt;code&gt;htmlDate&lt;/code&gt;, &lt;code&gt;htmlDateInZone&lt;/code&gt;, the &lt;code&gt;rand…&lt;/code&gt; functions, &lt;code&gt;uuidv4&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;They read the clock or randomness, so a template would not render the same twice. Use &lt;code&gt;.Now&lt;/code&gt; for the time.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;bcrypt&lt;/code&gt;, &lt;code&gt;htpasswd&lt;/code&gt;, &lt;code&gt;derivePassword&lt;/code&gt;, &lt;code&gt;encryptAES&lt;/code&gt;, &lt;code&gt;decryptAES&lt;/code&gt;, the &lt;code&gt;gen…&lt;/code&gt; and &lt;code&gt;buildCustomCert&lt;/code&gt; functions&lt;/td&gt;
+&lt;td&gt;They cost CPU on every preview and have no use in a message.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;&lt;code&gt;toJSON&lt;/code&gt; and &lt;code&gt;default&lt;/code&gt; are Teamster&amp;rsquo;s own and take precedence over sprig&amp;rsquo;s. Mind the argument
+order of &lt;code&gt;default&lt;/code&gt;: the value comes first. The pipeline form from sprig&amp;rsquo;s documentation,
+&lt;code&gt;.x | default &amp;quot;y&amp;quot;&lt;/code&gt;, always yields &lt;code&gt;&amp;quot;y&amp;quot;&lt;/code&gt;; write &lt;code&gt;default .x &amp;quot;y&amp;quot;&lt;/code&gt;.&lt;/p&gt;
 &lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
 &lt;div&gt;&lt;pre&gt;&lt;code&gt;{{ default .Event.Labels.severity &amp;#34;unknown&amp;#34; }}
-{{ toJSON .Event.Labels }}&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class="hextra-code-copy-btn-container hx:opacity-0 hx:transition hx:group-hover/code:opacity-100 hx:flex hx:gap-1 hx:absolute hx:m-[11px] hx:right-0 hx:top-0"&gt;
+{{ toJSON .Event.Labels }}
+{{ regexFind &amp;#34;^[a-z]&amp;#43;&amp;#34; .Event.Universal.Attributes.commit_message }}
+{{ splitList &amp;#34;\n&amp;#34; .Event.Universal.Attributes.commit_message | first | trunc 80 }}&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class="hextra-code-copy-btn-container hx:opacity-0 hx:transition hx:group-hover/code:opacity-100 hx:flex hx:gap-1 hx:absolute hx:m-[11px] hx:right-0 hx:top-0"&gt;
 &lt;button
 class="hextra-code-copy-btn hx:group/copybtn hx:cursor-pointer hx:transition-all hx:active:opacity-50 hx:bg-primary-700/5 hx:border hx:border-black/5 hx:text-gray-600 hx:hover:text-gray-900 hx:rounded-md hx:p-1.5 hx:dark:bg-primary-300/10 hx:dark:border-white/10 hx:dark:text-gray-400 hx:dark:hover:text-gray-50"
 title="Copy code"
@@ -7432,7 +7465,9 @@ data-copied-label="Copied!"
 &lt;/button&gt;
 &lt;/div&gt;
 &lt;/div&gt;
-&lt;p&gt;Use &lt;code&gt;default&lt;/code&gt; for a key an event may not set, and &lt;code&gt;toJSON&lt;/code&gt; to embed a structure in a card.&lt;/p&gt;
+&lt;p&gt;Use &lt;code&gt;default&lt;/code&gt; for a key an event may not set, and &lt;code&gt;toJSON&lt;/code&gt; to embed a structure in a card. To
+take a value apart — split lines, match a pattern, strip a prefix — use the
+&lt;a href="../../reference/template-data/#functions"&gt;sprig functions&lt;/a&gt;.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="list-the-alerts-of-a-group"&gt;List the alerts of a group&lt;span class="hx:absolute hx:-mt-20" id="list-the-alerts-of-a-group"&gt;&lt;/span&gt;
 &lt;a href="#list-the-alerts-of-a-group" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Alertmanager sends a group of alerts as one notification, and Teamster posts one card for it. The
 alerts are in &lt;code&gt;.Event.Alertmanager.Alerts&lt;/code&gt;, each with &lt;code&gt;Status&lt;/code&gt;, &lt;code&gt;Labels&lt;/code&gt;, &lt;code&gt;Annotations&lt;/code&gt;,

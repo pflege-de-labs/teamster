@@ -2582,7 +2582,9 @@ data-copied-label="Kopiert!"
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;p&gt;Verwenden Sie &lt;code&gt;default&lt;/code&gt; für einen Schlüssel, den ein Ereignis womöglich nicht setzt, und &lt;code&gt;toJSON&lt;/code&gt;,
-um eine Struktur in eine Karte einzubetten.&lt;/p&gt;
+um eine Struktur in eine Karte einzubetten. Um einen Wert zu zerlegen – Zeilen trennen, ein Muster
+finden, ein Präfix entfernen –, nutzen Sie die
+&lt;a href="../../reference/template-data/#functions"&gt;sprig-Funktionen&lt;/a&gt;.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="list-the-alerts-of-a-group"&gt;Die Alarme einer Gruppe auflisten&lt;span class="hx:absolute hx:-mt-20" id="list-the-alerts-of-a-group"&gt;&lt;/span&gt;
 &lt;a href="#list-the-alerts-of-a-group" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Alertmanager sendet eine Gruppe von Alarmen als eine Benachrichtigung, und Teamster postet dafür
 eine Karte. Die Alarme stehen in &lt;code&gt;.Event.Alertmanager.Alerts&lt;/code&gt;, jeder mit &lt;code&gt;Status&lt;/code&gt;, &lt;code&gt;Labels&lt;/code&gt;,
