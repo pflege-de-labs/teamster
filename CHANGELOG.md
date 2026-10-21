@@ -16,7 +16,11 @@ reasoning behind it in the [ADRs](docs/adr/).
   regular expressions, lists and more. `env`, `expandenv`, `getHostByName`, the functions that
   read the clock or randomness and the crypto functions are left out, and teamster's `default`
   keeps its `(value, fallback)` order ([ADR 0091](docs/adr/0091-sprig-template-functions.md)).
-  
+
+### Security
+
+* The image is built with Go 1.27.3, which fixes GO-2026-6809 in `crypto/x509`.
+
 ## [0.14.1] — 2026-10-09
 
 Carries everything in 0.14.0, which was tagged but never published: its release run failed the
