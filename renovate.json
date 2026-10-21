@@ -132,7 +132,7 @@
       "automerge": false
     },
     {
-      "description": "A templ bump changes the generated *_templ.go, and the hosted app cannot run `make generate` (postUpgradeTasks need a self-hosted Renovate), so it gets its own pull request that waits for a person.",
+      "description": "A templ bump changes the generated *_templ.go, and the hosted app cannot run `make generate` (postUpgradeTasks need a self-hosted Renovate), so it gets its own pull request that waits for a person. Once the self-hosted Renovate covers this org, replace this with a postUpgradeTasks running make generate.",
       "matchManagers": [
         "gomod"
       ],
