@@ -491,9 +491,12 @@ they hold. See [ADR 0075](adr/0075-own-and-share-records-through-generated-polic
 
 The webhooks are resources too: `Webhook::"alertmanager"` and `Webhook::"universal"`, both in
 `Webhook::"*"`. `use` is sending to one. Editors may use both. Anyone else needs a `use` grant on
-one or on `*`, and `administer` on `*` makes a webhook admin. `/admin/access` is open to anyone
-holding a grant, as the place to share records across a class: a picker of what they may `share`, a
-batch grant that is all or nothing in one transaction, and the grants on those records
+one or on `*`, and `administer` on `*` makes a webhook admin. `/admin/access` is open to admins and
+anyone holding a grant, and the nav offers it to the same people. That is everyone who may `share`:
+no role policy gives `share` to anyone but admins, so it comes from a grant row, an owner's
+included, naming the user, one of their groups or provider groups, or their role. It is the place
+to share records across a class: a picker of what they may `share`, a batch grant that is all or
+nothing in one transaction, and the grants on those records
 ([ADR 0088](adr/0088-open-the-access-page-to-whoever-may-share.md)). Its admin sections are webhook
 levels, every grant, the policies in force, and "Who can?", which answers with Cedar's deciding
 policies. `/admin/me` shows anyone signed in their own roles, groups, webhooks and
