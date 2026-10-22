@@ -202,10 +202,11 @@ was er **Darf**, und klicken Sie auf **Für Auswahl erteilen**.
 {{% /steps %}}
 
 Speichern ersetzt, was dieser Empfänger auf jedem angehakten Datensatz hat, ganz oder gar nicht:
-Dürfen Sie es auf einem Datensatz nicht vergeben, wird nichts gespeichert, und der Fehler nennt die
-ID dieses Datensatzes. Eine Gruppe muss existieren. Ein Benutzer, der sich noch nicht angemeldet
-hat, wird angenommen, und der Hinweis sagt, dass der Zugriff gilt, sobald er sich anmeldet. `own`
-wird hier nicht angeboten; Eigentum geben Sie an einem einzelnen Datensatz weiter.
+Dürfen Sie es auf einem Datensatz nicht vergeben, wird nichts gespeichert, und der Fehler nennt
+diesen Datensatz so, wie die Liste ihn zeigt. Eine Gruppe muss existieren. Ein Benutzer, der sich
+noch nicht angemeldet hat, wird angenommen, und der Hinweis sagt, dass der Zugriff gilt, sobald er
+sich anmeldet. `own` wird hier nicht angeboten; Eigentum geben Sie an einem einzelnen Datensatz
+weiter.
 
 ## Einen Benutzer deaktivieren {#disable-a-user}
 
