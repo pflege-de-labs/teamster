@@ -474,6 +474,7 @@
   "sharing.revoked": "Berechtigung entzogen.",
   "sharing.no_such_group": "Diese Gruppe gibt es nicht.",
   "sharing.not_seen": "Diese Person hat sich noch nicht angemeldet; der Zugriff gilt, sobald sie es tut.",
+  "sharing.idp_group_not_seen": "Aus dieser Anbietergruppe hat sich noch niemand angemeldet; der Zugriff gilt, sobald sich jemand anmeldet.",
   "hub.heading": "Einträge freigeben",
   "hub.none": "Sie dürfen noch nichts freigeben.",
   "hub.explainer": "Wählen Sie eine Art von Ressource, haken Sie die Einträge an, auf die jemand Zugriff bekommen soll, und legen Sie fest, wer was darf. Aufgeführt sind nur Einträge, die Sie freigeben dürfen.",

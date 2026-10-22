@@ -203,6 +203,13 @@ func (s *Server) handleShareForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	kind, id := principalFromForm(r)
+	id = strings.TrimSpace(id)
+	warn, ok := s.checkPrincipal(r, kind, id)
+	if !ok {
+		markChecked(r)
+		redirectTo(target, w, r, "", i18n.T(r.Context(), "sharing.no_such_group"))
+		return
+	}
 	_, err := s.share(r, models.Permission{
 		PrincipalType: kind,
 		PrincipalID:   id,
@@ -215,7 +222,38 @@ func (s *Server) handleShareForm(w http.ResponseWriter, r *http.Request) {
 		redirectTo(target, w, r, "", visibleError(r.Context(), "share", err))
 		return
 	}
-	redirectTo(target, w, r, i18n.T(r.Context(), "sharing.saved"), "")
+	redirectTo(target, w, r, savedNotice(r, warn), "")
+}
+
+// checkPrincipal is false for a local group that does not exist. A user or provider
+// group nobody has signed in as yet is accepted with a warning: access may be granted ahead.
+func (s *Server) checkPrincipal(r *http.Request, kind models.PrincipalType, id string) (warn string, ok bool) {
+	if id == "" {
+		return "", true
+	}
+	ctx := r.Context()
+	switch kind {
+	case models.PrincipalGroup:
+		_, err := s.store.GetGroup(ctx, id)
+		return "", err == nil
+	case models.PrincipalUser:
+		if _, err := s.store.GetUser(ctx, id); err != nil {
+			return i18n.T(ctx, "sharing.not_seen"), true
+		}
+	case models.PrincipalIdPGroup:
+		if seen, err := s.store.IdPGroupSeen(ctx, id); err != nil || !seen {
+			return i18n.T(ctx, "sharing.idp_group_not_seen"), true
+		}
+	}
+	return "", true
+}
+
+func savedNotice(r *http.Request, warn string) string {
+	notice := i18n.T(r.Context(), "sharing.saved")
+	if warn != "" {
+		notice += " " + warn
+	}
+	return notice
 }
 
 func (s *Server) handleUnshareForm(w http.ResponseWriter, r *http.Request) {

@@ -1877,6 +1877,20 @@ func (f *fakeStore) GetUser(_ context.Context, subject string) (models.User, err
 	return u, nil
 }
 
+func (f *fakeStore) IdPGroupSeen(_ context.Context, name string) (bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("IdPGroupSeen"); err != nil {
+		return false, err
+	}
+	for _, u := range f.users {
+		if slices.Contains(u.IdPGroups, name) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 func (f *fakeStore) ListUsers(_ context.Context, search string, limit int) ([]models.User, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()

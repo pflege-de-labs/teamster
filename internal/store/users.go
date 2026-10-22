@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/pflege-de-labs/teamster/internal/models"
@@ -45,6 +46,20 @@ func (s queryAdapter) GetUser(ctx context.Context, subject string) (models.User,
 		return models.User{}, notFound(err)
 	}
 	return userFromRow(row), nil
+}
+
+func (s queryAdapter) IdPGroupSeen(ctx context.Context, name string) (bool, error) {
+	rows, err := s.q.ListUserIdPGroups(ctx)
+	if err != nil {
+		return false, fmt.Errorf("list provider groups: %w", err)
+	}
+	for _, row := range rows {
+		var groups []string
+		if json.Unmarshal([]byte(row), &groups) == nil && slices.Contains(groups, name) {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func (s queryAdapter) ListUsers(ctx context.Context, search string, limit int) ([]models.User, error) {

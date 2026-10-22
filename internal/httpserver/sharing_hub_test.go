@@ -15,6 +15,7 @@ func hubStore() *fakeStore {
 	st := sharedStore()
 	st.templates["t3"] = models.Template{ID: "t3", Name: "Third card", Body: "{}"}
 	st.groups["g-sre"] = models.Group{ID: "g-sre", Name: "SRE"}
+	st.users["s-seen"] = models.User{Subject: "s-seen", Name: "Seen", IdPGroups: []string{"oncall"}}
 	grantTo(st, models.PrincipalUser, "tester", "Template", "t1", "own")
 	grantTo(st, models.PrincipalUser, "tester", "Template", "t3", "own")
 	st.templates["t4"] = models.Template{ID: "t4", Name: "Fourth card", Body: "{}"}
@@ -137,6 +138,69 @@ func TestShareBatch(t *testing.T) {
 				t.Errorf("saved %d rows, want %d", rows, tt.wantRows)
 			}
 		})
+	}
+}
+
+// TestShareWarnsAboutPrincipalsNotSeen checks the batch form and a record's own
+// sharing panel warn alike.
+func TestShareWarnsAboutPrincipalsNotSeen(t *testing.T) {
+	t.Parallel()
+
+	const notSeen, groupNotSeen = "has not signed in yet", "Nobody from this provider group"
+	principals := []struct {
+		name      string
+		principal url.Values
+		wantWarn  string
+		wantError string
+	}{
+		{name: "known user", principal: url.Values{"principal": {"user:s-seen"}}},
+		{name: "unknown user", principal: url.Values{"other_type": {"user"}, "other_id": {"s-new"}}, wantWarn: notSeen},
+		{name: "known provider group", principal: url.Values{"principal": {"idp_group:oncall"}}},
+		{name: "unknown provider group", principal: url.Values{"other_type": {"idp_group"}, "other_id": {" nightshift "}}, wantWarn: groupNotSeen},
+		{name: "known local group", principal: url.Values{"principal": {"group:g-sre"}}},
+		{name: "unknown local group", principal: url.Values{"principal": {"group:g-nobody"}}, wantError: "No such group"},
+	}
+	forms := []struct {
+		name, path string
+		record     url.Values
+	}{
+		{name: "batch", path: "/admin/sharing/batch", record: url.Values{"ids": {"t1"}}},
+		{name: "record", path: "/admin/sharing/grant", record: url.Values{"resource_id": {"t1"}}},
+	}
+	for _, form := range forms {
+		for _, tt := range principals {
+			t.Run(form.name+"/"+tt.name, func(t *testing.T) {
+				t.Parallel()
+
+				values := url.Values{"resource_type": {"Template"}, "actions": {"read"}, "return": {"/admin/access?class=Template"}}
+				for k, v := range form.record {
+					values[k] = v
+				}
+				for k, v := range tt.principal {
+					values[k] = v
+				}
+				h := newTestServer(t, hubStore(), &fakeMessenger{}).Handler
+				loc, err := url.Parse(postFormAs(t, h, form.path, values).Header().Get("Location"))
+				if err != nil {
+					t.Fatal(err)
+				}
+				notice, gotError := loc.Query().Get("notice"), loc.Query().Get("error")
+				if tt.wantError != "" {
+					if !strings.Contains(gotError, tt.wantError) {
+						t.Errorf("error = %q, want %q", gotError, tt.wantError)
+					}
+					return
+				}
+				if gotError != "" || !strings.HasPrefix(notice, "Permissions saved.") {
+					t.Fatalf("notice = %q, error = %q", notice, gotError)
+				}
+				for _, warn := range []string{notSeen, groupNotSeen} {
+					if strings.Contains(notice, warn) != (warn == tt.wantWarn) {
+						t.Errorf("notice = %q, want warning %q", notice, tt.wantWarn)
+					}
+				}
+			})
+		}
 	}
 }
 
