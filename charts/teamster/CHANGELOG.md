@@ -8,6 +8,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.14.0] — 2026-10-22
+
+App version 0.15.0: templates can call sprig's functions, and the image is built with Go 1.27.3,
+which fixes GO-2026-6809; see the [service changelog](../../CHANGELOG.md).
+
 ## [0.13.1] — 2026-10-09
 
 App version 0.14.1: the 0.14.0 release was never published, and 0.14.1 also fixes GO-2026-6617
@@ -189,7 +194,8 @@ an Ingress or HTTPRoute, configuration and credentials from values, `extraObject
 an optional startupProbe, and `helm test`
 ([ADR 0016](../../docs/adr/0016-helm-chart.md)).
 
-[Unreleased]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.13.1...HEAD
+[Unreleased]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.14.0...HEAD
+[0.14.0]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.13.1...teamster-0.14.0
 [0.13.1]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.13.0...teamster-0.13.1
 [0.13.0]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.12.0...teamster-0.13.0
 [0.12.0]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.11.0...teamster-0.12.0
