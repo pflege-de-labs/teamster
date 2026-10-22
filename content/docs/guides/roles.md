@@ -135,6 +135,9 @@ edit it and use **Who may do what**:
    subject, provider group or role name instead.
 2. Tick what they **May** do, and press **Save**.
 
+A group must exist. A user or provider group that has not signed in yet is accepted, and the notice
+says the access applies once they, or someone in that provider group, sign in.
+
 | Action | In the form | Lets them |
 | --- | --- | --- |
 | `read` | read | See the record |
@@ -185,9 +188,9 @@ and press **Grant on selected**.
 {{% /steps %}}
 
 Saving replaces what that principal holds on each ticked record, all or nothing: if you may not
-grant it on one record, nothing is saved and the error names that record as the list shows it. A
-group must exist. A user who has not signed in yet is accepted, and the notice says the access
-applies once they do. `own` is not offered here; pass ownership on from a single record.
+grant it on one record, nothing is saved and the error names that record as the list shows it. As
+on a single record, a group must exist, and a user or provider group that has not signed in yet is
+accepted with a notice. `own` is not offered here; pass ownership on from a single record.
 
 ## Disable a user
 
