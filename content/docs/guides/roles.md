@@ -40,12 +40,13 @@ Adding policies is safe. Removing or renaming `admin`, `editor` or `viewer` brea
   names, directly or through a group, provider group or role. Creating a record makes you its
   owner, which is such a grant. No role but admin may `share`, so an editor who owns nothing and
   holds no grant sees neither the entry nor the page. There they
-  [share several records at once](#share-several-records-at-once), and **Every grant** lists the
-  grants on the records they may share, with each record's name linking to it.
-* Admins also see there who may send to the webhooks, who may message people, every grant, **Who
-  can?** and the **Policies in force**. **Who can?** takes a subject, and an action and a resource
-  from lists that include the webhooks and **People**, and names the policies that allow or refuse
-  it. A policy's text unfolds under its name. Older links with `type=` and `id=` still work.
+  [share several records at once](#share-several-records-at-once), and **Grants you may change**
+  lists the grants on the records they may share, with each record's name linking to it.
+* Admins also see there who may send to the webhooks, who may message people, all grants under
+  **Every grant**, **Who can?** and the **Policies in force**. **Who can?** takes a subject, and an
+  action and a resource from lists that include the webhooks and **People**, and names the policies
+  that allow or refuse it. A policy's text unfolds under its name. Older links with `type=` and
+  `id=` still work.
 * **My access** in the user menu (**/admin/me**) shows anyone their own roles, groups, webhooks and
   **People you may message**. **Shared with you** lists every record shared with them, with a link,
   the actions, and **Through** whom: themselves, a group, a provider group or a role. Below it, one

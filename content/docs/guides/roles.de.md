@@ -46,15 +46,15 @@ oder umbenennt, macht die Verwaltungsoberfläche unbrauchbar.
   Datensatz anlegt, wird sein Eigentümer und hat damit eine solche Berechtigung. Außer der Rolle
   Administrator darf keine Rolle teilen (`share`); ein Bearbeiter, der nichts besitzt und keine
   Berechtigung hat, sieht daher weder den Menüeintrag noch die Seite. Dort
-  [teilen sie mehrere Datensätze auf einmal](#share-several-records-at-once), und **Alle
-  Berechtigungen** listet die Berechtigungen auf den Datensätzen, die sie teilen dürfen; der Name
-  jedes Datensatzes verlinkt auf ihn.
+  [teilen sie mehrere Datensätze auf einmal](#share-several-records-at-once), und **Berechtigungen,
+  die Sie ändern dürfen** listet die Berechtigungen auf den Datensätzen, die sie teilen dürfen; der
+  Name jedes Datensatzes verlinkt auf ihn.
 * Administratoren sehen dort außerdem, wer an die Webhooks senden darf, wer Personen anschreiben
-  darf, jede Berechtigung, **Wer darf?** und die **Geltenden Richtlinien**. **Wer darf?** nimmt ein
-  Subject entgegen, dazu eine Aktion und eine Ressource aus Listen, die auch die Webhooks und
-  **Personen** enthalten, und nennt die Richtlinien, die sie erlauben oder verweigern. Den Text einer
-  Richtlinie klappen Sie unter ihrem Namen auf. Ältere Links mit `type=` und `id=` funktionieren
-  weiterhin.
+  darf, jede Berechtigung unter **Alle Berechtigungen**, **Wer darf?** und die **Geltenden
+  Richtlinien**. **Wer darf?** nimmt ein Subject entgegen, dazu eine Aktion und eine Ressource aus
+  Listen, die auch die Webhooks und **Personen** enthalten, und nennt die Richtlinien, die sie
+  erlauben oder verweigern. Den Text einer Richtlinie klappen Sie unter ihrem Namen auf. Ältere
+  Links mit `type=` und `id=` funktionieren weiterhin.
 * **Mein Zugriff** im Kontomenü (**/admin/me**) zeigt jedem die eigenen Rollen, Gruppen, Webhooks
   und **Wen Sie anschreiben dürfen**. **Mit Ihnen geteilt** listet jeden mit ihm geteilten
   Datensatz, mit Link, den Aktionen und **Über** wen: sich selbst, eine Gruppe, eine Anbietergruppe
