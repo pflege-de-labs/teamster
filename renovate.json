@@ -132,6 +132,20 @@
       "automerge": false
     },
     {
+      "description": "A templ bump changes the generated *_templ.go, and the hosted app cannot run `make generate` (postUpgradeTasks need a self-hosted Renovate), so it gets its own pull request that waits for a person. Once the self-hosted Renovate covers this org, replace this with a postUpgradeTasks running make generate.",
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchPackageNames": [
+        "github.com/a-h/templ"
+      ],
+      "groupName": "templ",
+      "automerge": false,
+      "prBodyNotes": [
+        "Run `make generate` on this branch, commit and push — CI fails with `generated output is stale` until the committed templ output matches this version."
+      ]
+    },
+    {
       "description": "A vendor manifest bump only moves the version; the checksum still needs `make vendor-record` by hand, so this never merges itself.",
       "matchManagers": [
         "custom.regex"
