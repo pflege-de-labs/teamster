@@ -3543,16 +3543,19 @@ oder umbenennt, macht die Verwaltungsoberfläche unbrauchbar.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="check-who-may-do-what"&gt;Prüfen, wer was darf&lt;span class="hx:absolute hx:-mt-20" id="check-who-may-do-what"&gt;&lt;/span&gt;
 &lt;a href="#check-who-may-do-what" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;ul&gt;
 &lt;li&gt;&lt;strong&gt;Zugriffsübersicht&lt;/strong&gt; (&lt;strong&gt;/admin/access&lt;/strong&gt;) erscheint im Menü für Administratoren und für alle, die
-eine Berechtigung nennt, direkt oder über eine Gruppe, Anbietergruppe oder Rolle. Dort
-&lt;a href="#share-several-records-at-once"&gt;teilen sie mehrere Datensätze auf einmal&lt;/a&gt;, und &lt;strong&gt;Alle
-Berechtigungen&lt;/strong&gt; listet die Berechtigungen auf den Datensätzen, die sie teilen dürfen; der Name
-jedes Datensatzes verlinkt auf ihn.&lt;/li&gt;
+eine Berechtigung nennt, direkt oder über eine Gruppe, Anbietergruppe oder Rolle. Wer einen
+Datensatz anlegt, wird sein Eigentümer und hat damit eine solche Berechtigung. Außer der Rolle
+Administrator darf keine Rolle teilen (&lt;code&gt;share&lt;/code&gt;); ein Bearbeiter, der nichts besitzt und keine
+Berechtigung hat, sieht daher weder den Menüeintrag noch die Seite. Dort
+&lt;a href="#share-several-records-at-once"&gt;teilen sie mehrere Datensätze auf einmal&lt;/a&gt;, und &lt;strong&gt;Berechtigungen,
+die Sie ändern dürfen&lt;/strong&gt; listet die Berechtigungen auf den Datensätzen, die sie teilen dürfen; der
+Name jedes Datensatzes verlinkt auf ihn.&lt;/li&gt;
 &lt;li&gt;Administratoren sehen dort außerdem, wer an die Webhooks senden darf, wer Personen anschreiben
-darf, jede Berechtigung, &lt;strong&gt;Wer darf?&lt;/strong&gt; und die &lt;strong&gt;Geltenden Richtlinien&lt;/strong&gt;. &lt;strong&gt;Wer darf?&lt;/strong&gt; nimmt ein
-Subject entgegen, dazu eine Aktion und eine Ressource aus Listen, die auch die Webhooks und
-&lt;strong&gt;Personen&lt;/strong&gt; enthalten, und nennt die Richtlinien, die sie erlauben oder verweigern. Den Text einer
-Richtlinie klappen Sie unter ihrem Namen auf. Ältere Links mit &lt;code&gt;type=&lt;/code&gt; und &lt;code&gt;id=&lt;/code&gt; funktionieren
-weiterhin.&lt;/li&gt;
+darf, jede Berechtigung unter &lt;strong&gt;Alle Berechtigungen&lt;/strong&gt;, &lt;strong&gt;Wer darf?&lt;/strong&gt; und die &lt;strong&gt;Geltenden
+Richtlinien&lt;/strong&gt;. &lt;strong&gt;Wer darf?&lt;/strong&gt; nimmt ein Subject entgegen, dazu eine Aktion und eine Ressource aus
+Listen, die auch die Webhooks und &lt;strong&gt;Personen&lt;/strong&gt; enthalten, und nennt die Richtlinien, die sie
+erlauben oder verweigern. Den Text einer Richtlinie klappen Sie unter ihrem Namen auf. Ältere
+Links mit &lt;code&gt;type=&lt;/code&gt; und &lt;code&gt;id=&lt;/code&gt; funktionieren weiterhin.&lt;/li&gt;
 &lt;li&gt;&lt;strong&gt;Mein Zugriff&lt;/strong&gt; im Kontomenü (&lt;strong&gt;/admin/me&lt;/strong&gt;) zeigt jedem die eigenen Rollen, Gruppen, Webhooks
 und &lt;strong&gt;Wen Sie anschreiben dürfen&lt;/strong&gt;. &lt;strong&gt;Mit Ihnen geteilt&lt;/strong&gt; listet jeden mit ihm geteilten
 Datensatz, mit Link, den Aktionen und &lt;strong&gt;Über&lt;/strong&gt; wen: sich selbst, eine Gruppe, eine Anbietergruppe
@@ -3711,6 +3714,9 @@ aufgeführte Person&lt;/strong&gt;, wählen Sie die Art und geben Sie stattdesse
 Anbietergruppe oder der Rolle ein.&lt;/li&gt;
 &lt;li&gt;Haken Sie an, was er &lt;strong&gt;Darf&lt;/strong&gt;, und klicken Sie auf &lt;strong&gt;Speichern&lt;/strong&gt;.&lt;/li&gt;
 &lt;/ol&gt;
+&lt;p&gt;Eine Gruppe muss existieren. Ein Benutzer oder eine Anbietergruppe, die sich noch nicht angemeldet
+hat, wird angenommen, und der Hinweis sagt, dass der Zugriff gilt, sobald sich der Benutzer oder
+jemand aus der Anbietergruppe anmeldet.&lt;/p&gt;
 &lt;table&gt;
 &lt;thead&gt;
 &lt;tr&gt;
@@ -3791,10 +3797,11 @@ Formular sein Feld &lt;strong&gt;Wer was darf&lt;/strong&gt;, in dem Sie einzeln
 was er &lt;strong&gt;Darf&lt;/strong&gt;, und klicken Sie auf &lt;strong&gt;Für Auswahl erteilen&lt;/strong&gt;.&lt;/p&gt;
 &lt;/div&gt;
 &lt;p&gt;Speichern ersetzt, was dieser Empfänger auf jedem angehakten Datensatz hat, ganz oder gar nicht:
-Dürfen Sie es auf einem Datensatz nicht vergeben, wird nichts gespeichert, und der Fehler nennt die
-ID dieses Datensatzes. Eine Gruppe muss existieren. Ein Benutzer, der sich noch nicht angemeldet
-hat, wird angenommen, und der Hinweis sagt, dass der Zugriff gilt, sobald er sich anmeldet. &lt;code&gt;own&lt;/code&gt;
-wird hier nicht angeboten; Eigentum geben Sie an einem einzelnen Datensatz weiter.&lt;/p&gt;
+Dürfen Sie es auf einem Datensatz nicht vergeben, wird nichts gespeichert, und der Fehler nennt
+diesen Datensatz so, wie die Liste ihn zeigt. Wie bei einem einzelnen Datensatz muss eine Gruppe
+existieren, und ein Benutzer oder eine Anbietergruppe, die sich noch nicht angemeldet hat, wird mit
+einem Hinweis angenommen. &lt;code&gt;own&lt;/code&gt; wird hier nicht angeboten; Eigentum geben Sie an einem einzelnen
+Datensatz weiter.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="disable-a-user"&gt;Einen Benutzer deaktivieren&lt;span class="hx:absolute hx:-mt-20" id="disable-a-user"&gt;&lt;/span&gt;
 &lt;a href="#disable-a-user" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;&lt;strong&gt;/admin/users&lt;/strong&gt; (Administratoren) listet alle, die sich angemeldet haben, mit den Rollen und
 Gruppen ihrer letzten Anmeldung. &lt;strong&gt;Deaktivieren&lt;/strong&gt; beendet die Sitzungen des Benutzers sofort,
