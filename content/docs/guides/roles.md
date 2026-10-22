@@ -185,9 +185,9 @@ and press **Grant on selected**.
 {{% /steps %}}
 
 Saving replaces what that principal holds on each ticked record, all or nothing: if you may not
-grant it on one record, nothing is saved and the error names that record's ID. A group must exist. A
-user who has not signed in yet is accepted, and the notice says the access applies once they do.
-`own` is not offered here; pass ownership on from a single record.
+grant it on one record, nothing is saved and the error names that record as the list shows it. A
+group must exist. A user who has not signed in yet is accepted, and the notice says the access
+applies once they do. `own` is not offered here; pass ownership on from a single record.
 
 ## Disable a user
 
