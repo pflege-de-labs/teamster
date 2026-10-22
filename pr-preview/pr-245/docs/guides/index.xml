@@ -3409,7 +3409,9 @@ Adding policies is safe. Removing or renaming &lt;code&gt;admin&lt;/code&gt;, &l
 &lt;h2 data-hextra-search-id="check-who-may-do-what"&gt;Check who may do what&lt;span class="hx:absolute hx:-mt-20" id="check-who-may-do-what"&gt;&lt;/span&gt;
 &lt;a href="#check-who-may-do-what" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;ul&gt;
 &lt;li&gt;&lt;strong&gt;Access overview&lt;/strong&gt; (&lt;strong&gt;/admin/access&lt;/strong&gt;) appears in the menu for admins and for anyone a grant
-names, directly or through a group, provider group or role. There they
+names, directly or through a group, provider group or role. Creating a record makes you its
+owner, which is such a grant. No role but admin may &lt;code&gt;share&lt;/code&gt;, so an editor who owns nothing and
+holds no grant sees neither the entry nor the page. There they
 &lt;a href="#share-several-records-at-once"&gt;share several records at once&lt;/a&gt;, and &lt;strong&gt;Grants you may change&lt;/strong&gt;
 lists the grants on the records they may share, with each record&amp;rsquo;s name linking to it.&lt;/li&gt;
 &lt;li&gt;Admins also see there who may send to the webhooks, who may message people, all grants under

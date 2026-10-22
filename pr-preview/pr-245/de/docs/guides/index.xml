@@ -3543,7 +3543,10 @@ oder umbenennt, macht die Verwaltungsoberfläche unbrauchbar.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="check-who-may-do-what"&gt;Prüfen, wer was darf&lt;span class="hx:absolute hx:-mt-20" id="check-who-may-do-what"&gt;&lt;/span&gt;
 &lt;a href="#check-who-may-do-what" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;ul&gt;
 &lt;li&gt;&lt;strong&gt;Zugriffsübersicht&lt;/strong&gt; (&lt;strong&gt;/admin/access&lt;/strong&gt;) erscheint im Menü für Administratoren und für alle, die
-eine Berechtigung nennt, direkt oder über eine Gruppe, Anbietergruppe oder Rolle. Dort
+eine Berechtigung nennt, direkt oder über eine Gruppe, Anbietergruppe oder Rolle. Wer einen
+Datensatz anlegt, wird sein Eigentümer und hat damit eine solche Berechtigung. Außer der Rolle
+Administrator darf keine Rolle teilen (&lt;code&gt;share&lt;/code&gt;); ein Bearbeiter, der nichts besitzt und keine
+Berechtigung hat, sieht daher weder den Menüeintrag noch die Seite. Dort
 &lt;a href="#share-several-records-at-once"&gt;teilen sie mehrere Datensätze auf einmal&lt;/a&gt;, und &lt;strong&gt;Berechtigungen,
 die Sie ändern dürfen&lt;/strong&gt; listet die Berechtigungen auf den Datensätzen, die sie teilen dürfen; der
 Name jedes Datensatzes verlinkt auf ihn.&lt;/li&gt;
