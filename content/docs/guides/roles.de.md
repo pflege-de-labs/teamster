@@ -42,7 +42,10 @@ oder umbenennt, macht die Verwaltungsoberfläche unbrauchbar.
 ## Prüfen, wer was darf {#check-who-may-do-what}
 
 * **Zugriffsübersicht** (**/admin/access**) erscheint im Menü für Administratoren und für alle, die
-  eine Berechtigung nennt, direkt oder über eine Gruppe, Anbietergruppe oder Rolle. Dort
+  eine Berechtigung nennt, direkt oder über eine Gruppe, Anbietergruppe oder Rolle. Wer einen
+  Datensatz anlegt, wird sein Eigentümer und hat damit eine solche Berechtigung. Außer der Rolle
+  Administrator darf keine Rolle teilen (`share`); ein Bearbeiter, der nichts besitzt und keine
+  Berechtigung hat, sieht daher weder den Menüeintrag noch die Seite. Dort
   [teilen sie mehrere Datensätze auf einmal](#share-several-records-at-once), und **Alle
   Berechtigungen** listet die Berechtigungen auf den Datensätzen, die sie teilen dürfen; der Name
   jedes Datensatzes verlinkt auf ihn.

@@ -37,7 +37,9 @@ Adding policies is safe. Removing or renaming `admin`, `editor` or `viewer` brea
 ## Check who may do what
 
 * **Access overview** (**/admin/access**) appears in the menu for admins and for anyone a grant
-  names, directly or through a group, provider group or role. There they
+  names, directly or through a group, provider group or role. Creating a record makes you its
+  owner, which is such a grant. No role but admin may `share`, so an editor who owns nothing and
+  holds no grant sees neither the entry nor the page. There they
   [share several records at once](#share-several-records-at-once), and **Every grant** lists the
   grants on the records they may share, with each record's name linking to it.
 * Admins also see there who may send to the webhooks, who may message people, every grant, **Who
