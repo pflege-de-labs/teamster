@@ -207,7 +207,7 @@ templ AccessPage(page Access) {
 				}
 			}
 			}
-			@accessSection(i18n.T(ctx, "access.grants")) {
+			@accessSection(i18n.T(ctx, grantsHeading(page.Admin))) {
 				<form method="get" action="/admin/access" class="flex max-w-xl items-end gap-2">
 					<div class="grow">
 						@textField("filter", i18n.T(ctx, "access.filter"), "Template", page.Filter)
@@ -266,6 +266,14 @@ templ accessSection(title string) {
 			{ children... }
 		</div>
 	</section>
+}
+
+// grantsHeading names the grants table; a non-admin's lists only records they may share.
+func grantsHeading(admin bool) string {
+	if admin {
+		return "access.grants"
+	}
+	return "access.grants_mine"
 }
 
 func checkValue(check *AccessCheck, field string) string {

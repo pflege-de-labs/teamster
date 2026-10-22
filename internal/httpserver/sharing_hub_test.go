@@ -30,7 +30,7 @@ func TestAccessHubListsWhatMayBeShared(t *testing.T) {
 		want     []string
 		unwanted []string
 	}{
-		{name: "classes", want: []string{"Templates", `href="/admin/access"`}, unwanted: []string{"Snapshot generation", "Webhook endpoints"}},
+		{name: "classes", want: []string{"Templates", `href="/admin/access"`, "Grants you may change"}, unwanted: []string{"Snapshot generation", "Webhook endpoints", "Every grant"}},
 		{
 			name: "records of a class", query: "?class=Template",
 			want:     []string{"Shared card", "Third card", `name="ids" value="t1"`, `action="/admin/sharing/batch"`, `value="group:g-sre"`},

@@ -10,6 +10,11 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 ## [Unreleased]
 
+### Fixed
+
+* The access page heads a non-admin's grants "Grants you may change" instead of "Every grant": the
+  table lists only the grants on records they may share.
+
 ## [0.15.0] — 2026-10-22
 
 ### Added

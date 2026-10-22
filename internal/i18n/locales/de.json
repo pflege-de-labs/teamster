@@ -421,6 +421,7 @@
   "access.allowed": "Erlaubt, durch diese Richtlinien:",
   "access.refused": "Verweigert: keine Richtlinie erlaubt es.",
   "access.grants": "Alle Berechtigungen",
+  "access.grants_mine": "Berechtigungen, die Sie ändern dürfen",
   "access.filter": "Filter",
   "access.no_grants": "Keine Berechtigungen.",
   "access.resource": "Ressource",
