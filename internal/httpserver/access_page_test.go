@@ -283,3 +283,46 @@ func TestMessageLevels(t *testing.T) {
 		t.Errorf("an editor granting message levels = %d, want 403", rec.Code)
 	}
 }
+
+// TestAccessMenuFollowsShare: share comes only from admin or a grant row, so the nav and the gate agree (#233).
+func TestAccessMenuFollowsShare(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		setup func(t *testing.T, st *fakeStore, h http.Handler)
+		roles []authz.Role
+		want  bool
+	}{
+		{name: "admin", roles: []authz.Role{authz.RoleAdmin}, want: true},
+		{name: "user a grant names", want: true, setup: func(_ *testing.T, st *fakeStore, _ http.Handler) {
+			grantTo(st, models.PrincipalUser, "tester", "Template", "t1", "share")
+		}},
+		{name: "editor owning what they created", roles: []authz.Role{authz.RoleEditor}, want: true, setup: func(t *testing.T, _ *fakeStore, h http.Handler) {
+			if rec := call(t, h, http.MethodPost, "/api/templates", `{"name":"Mine","body":"{}"}`); rec.Code != http.StatusCreated {
+				t.Fatalf("create = %d", rec.Code)
+			}
+		}},
+		{name: "role a share grant names", roles: []authz.Role{"oncall"}, want: true, setup: func(_ *testing.T, st *fakeStore, _ http.Handler) {
+			grantTo(st, models.PrincipalRole, "oncall", "Template", "t1", "share")
+		}},
+		{name: "editor without grants", roles: []authz.Role{authz.RoleEditor}, want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			st := sessionAs(newFakeStore(), tt.roles...)
+			st.templates["t1"] = models.Template{ID: "t1", Name: "Card", Body: `{"type":"AdaptiveCard"}`}
+			h := newTestServer(t, st, &fakeMessenger{}).Handler
+			if tt.setup != nil {
+				tt.setup(t, st, h)
+			}
+			if got := strings.Contains(call(t, h, http.MethodGet, "/admin", "").Body.String(), `href="/admin/access"`); got != tt.want {
+				t.Errorf("menu offers the access page = %v, want %v", got, tt.want)
+			}
+			if got := call(t, h, http.MethodGet, "/admin/access", "").Code == http.StatusOK; got != tt.want {
+				t.Errorf("access page opens = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
