@@ -16,6 +16,9 @@ reasoning behind it in the [ADRs](docs/adr/).
   table lists only the grants on records they may share.
 * When a grant to several records in `/admin/access` is refused, the error names the record as the
   list shows it rather than by its ID ([#232](https://github.com/pflege-de-labs/teamster/issues/232)).
+* Sharing warns about a provider group nobody has signed in as yet, not only about such a person,
+  and a record's own sharing panel now warns like `/admin/access` does and refuses a local group
+  that does not exist.
 
 ## [0.15.0] — 2026-10-22
 

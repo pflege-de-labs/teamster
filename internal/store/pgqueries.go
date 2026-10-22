@@ -655,6 +655,10 @@ func (p pgQueries) GetUser(ctx context.Context, subject string) (sqlitedb.User, 
 	return sqlitedb.User(row), err
 }
 
+func (p pgQueries) ListUserIdPGroups(ctx context.Context) ([]string, error) {
+	return p.q.ListUserIdPGroups(ctx)
+}
+
 func (p pgQueries) ListUsers(ctx context.Context, arg sqlitedb.ListUsersParams) ([]sqlitedb.User, error) {
 	rows, err := p.q.ListUsers(ctx, pgdb.ListUsersParams(arg))
 	if err != nil {

@@ -474,6 +474,7 @@
   "sharing.revoked": "Permission revoked.",
   "sharing.no_such_group": "No such group.",
   "sharing.not_seen": "This person has not signed in yet; the access applies once they do.",
+  "sharing.idp_group_not_seen": "Nobody from this provider group has signed in yet; the access applies once someone does.",
   "hub.heading": "Share records",
   "hub.none": "There is nothing you may share yet.",
   "hub.explainer": "Pick a kind of resource, tick the records to give someone access to, and choose who and what they may do. Only records you may share are listed.",

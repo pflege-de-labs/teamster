@@ -1240,9 +1240,11 @@ revokes one. Every change is audited in its own transaction. Each permission is 
 a record's owner included, may open it, and only they see it in the menu: pick a kind of resource
 (templates, destinations, routes, webhook endpoints, groups), tick the records, choose a user,
 group, provider group or role from the list and the actions to give, and save. Only records you
-may share are listed, and a batch is saved all or nothing. Someone who has not signed in yet can be
-named in the field below the list; the page warns that the access applies once they do. Each
-record's grants can be edited in place from the same page or from the record's own edit page ([ADR 0088](docs/adr/0088-open-the-access-page-to-whoever-may-share.md)).
+may share are listed, and a batch is saved all or nothing. A person or provider group that has not
+signed in yet can be named in the field below the list; saving warns that the access applies once
+they do, here and on a record's own edit page. Each record's grants can be edited in place from
+the same page or from the record's own edit page
+([ADR 0088](docs/adr/0088-open-the-access-page-to-whoever-may-share.md)).
 
 Admins additionally see:
 

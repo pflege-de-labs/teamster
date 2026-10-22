@@ -55,6 +55,19 @@ func TestConformanceUsersSignIn(t *testing.T) {
 		if _, err := st.GetUser(ctx, "nobody"); !errors.Is(err, store.ErrNotFound) {
 			t.Errorf("GetUser(nobody) = %v, want ErrNotFound", err)
 		}
+
+		other := models.User{Subject: "s-2", Source: "oidc", IdPGroups: []string{"R&D", "sre"}, LastSeen: t0}
+		if err := st.RecordSignIn(ctx, other); err != nil {
+			t.Fatalf("RecordSignIn s-2: %v", err)
+		}
+		for _, tt := range []struct {
+			group string
+			want  bool
+		}{{"sre", true}, {"R&D", true}, {"SRE", false}, {"sr", false}, {"nobody", false}} {
+			if got, err := st.IdPGroupSeen(ctx, tt.group); err != nil || got != tt.want {
+				t.Errorf("IdPGroupSeen(%q) = %v, %v; want %v", tt.group, got, err, tt.want)
+			}
+		}
 	})
 }
 

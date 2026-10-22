@@ -55,6 +55,34 @@ func (q *Queries) GetUser(ctx context.Context, subject string) (User, error) {
 	return i, err
 }
 
+const listUserIdPGroups = `-- name: ListUserIdPGroups :many
+SELECT idp_groups FROM users WHERE idp_groups <> '[]'
+`
+
+// The provider groups each user signed in with; matched in Go, as the column is JSON.
+func (q *Queries) ListUserIdPGroups(ctx context.Context) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listUserIdPGroups)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var idp_groups string
+		if err := rows.Scan(&idp_groups); err != nil {
+			return nil, err
+		}
+		items = append(items, idp_groups)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listUsers = `-- name: ListUsers :many
 SELECT subject, source, name, email, roles, idp_groups, first_seen, last_seen, disabled_at, disabled_by, object_id
 FROM users

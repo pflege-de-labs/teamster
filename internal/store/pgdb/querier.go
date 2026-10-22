@@ -305,6 +305,8 @@ type Querier interface {
 	// The statements are the SQLite ones with ? replaced by $n. Edit the SQLite
 	// file and run make generate.
 	ListTemplates(ctx context.Context) ([]Template, error)
+	// The provider groups each user signed in with; matched in Go, as the column is JSON.
+	ListUserIdPGroups(ctx context.Context) ([]string, error)
 	// pattern is a lower-cased LIKE pattern; its % and _ stay wildcards.
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
 	// Code generated from ../sqlite by internal/store/queries/gen. DO NOT EDIT.

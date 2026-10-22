@@ -363,6 +363,8 @@ type Store interface {
 	// RecordSignIn creates or refreshes a user from a sign-in (ADR 0072).
 	RecordSignIn(ctx context.Context, u models.User) error
 	GetUser(ctx context.Context, subject string) (models.User, error)
+	// IdPGroupSeen reports whether anyone has signed in as a member of the provider group.
+	IdPGroupSeen(ctx context.Context, name string) (bool, error)
 	// ListUsers matches search against subject, name and email, ignoring case.
 	ListUsers(ctx context.Context, search string, limit int) ([]models.User, error)
 	// DisableUser refuses the user's next sign-in and ends their sessions,

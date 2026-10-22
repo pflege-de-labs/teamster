@@ -24,6 +24,10 @@ SELECT subject, source, name, email, roles, idp_groups, first_seen, last_seen, d
 FROM users
 WHERE subject = sqlc.arg(subject);
 
+-- name: ListUserIdPGroups :many
+-- The provider groups each user signed in with; matched in Go, as the column is JSON.
+SELECT idp_groups FROM users WHERE idp_groups <> '[]';
+
 -- name: ListUsers :many
 -- pattern is a lower-cased LIKE pattern; its % and _ stay wildcards.
 SELECT subject, source, name, email, roles, idp_groups, first_seen, last_seen, disabled_at, disabled_by, object_id

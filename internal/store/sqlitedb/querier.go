@@ -233,6 +233,8 @@ type Querier interface {
 	ListRecipients(ctx context.Context) ([]Recipient, error)
 	ListRoutes(ctx context.Context) ([]Route, error)
 	ListTemplates(ctx context.Context) ([]Template, error)
+	// The provider groups each user signed in with; matched in Go, as the column is JSON.
+	ListUserIdPGroups(ctx context.Context) ([]string, error)
 	// pattern is a lower-cased LIKE pattern; its % and _ stay wildcards.
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
 	ListWebhookEndpoints(ctx context.Context) ([]WebhookEndpoint, error)

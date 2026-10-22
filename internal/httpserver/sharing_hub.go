@@ -154,8 +154,6 @@ func (s *Server) hubFor(r *http.Request, index []views.HubClass) (*views.Hub, er
 }
 
 // handleShareBatchForm gives one principal the same actions on several records.
-// A local group must exist; a user or provider group that has not signed in yet
-// is accepted with a warning, because someone may be granted before their first sign-in.
 func (s *Server) handleShareBatchForm(w http.ResponseWriter, r *http.Request) {
 	target := safeReturn(r.FormValue("return"))
 	if !formGuard(target, w, r) {
@@ -163,21 +161,11 @@ func (s *Server) handleShareBatchForm(w http.ResponseWriter, r *http.Request) {
 	}
 	kind, id := principalFromForm(r)
 	id = strings.TrimSpace(id)
-
-	var warn string
-	if kind.Valid() && id != "" {
-		switch kind {
-		case models.PrincipalGroup:
-			if _, err := s.store.GetGroup(r.Context(), id); err != nil {
-				markChecked(r)
-				redirectTo(target, w, r, "", i18n.T(r.Context(), "sharing.no_such_group"))
-				return
-			}
-		case models.PrincipalUser:
-			if _, err := s.store.GetUser(r.Context(), id); err != nil {
-				warn = i18n.T(r.Context(), "sharing.not_seen")
-			}
-		}
+	warn, ok := s.checkPrincipal(r, kind, id)
+	if !ok {
+		markChecked(r)
+		redirectTo(target, w, r, "", i18n.T(r.Context(), "sharing.no_such_group"))
+		return
 	}
 	err := s.shareMany(r, models.Permission{
 		PrincipalType: kind, PrincipalID: id, ResourceType: r.PostFormValue("resource_type"), Actions: r.PostForm["actions"],
@@ -186,9 +174,5 @@ func (s *Server) handleShareBatchForm(w http.ResponseWriter, r *http.Request) {
 		redirectTo(target, w, r, "", visibleError(r.Context(), "share", err))
 		return
 	}
-	notice := i18n.T(r.Context(), "sharing.saved")
-	if warn != "" {
-		notice += " " + warn
-	}
-	redirectTo(target, w, r, notice, "")
+	redirectTo(target, w, r, savedNotice(r, warn), "")
 }
