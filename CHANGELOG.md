@@ -14,6 +14,8 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 * The access page heads a non-admin's grants "Grants you may change" instead of "Every grant": the
   table lists only the grants on records they may share.
+* When a grant to several records in `/admin/access` is refused, the error names the record as the
+  list shows it rather than by its ID ([#232](https://github.com/pflege-de-labs/teamster/issues/232)).
 
 ## [0.15.0] — 2026-10-22
 

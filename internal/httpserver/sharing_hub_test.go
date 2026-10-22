@@ -17,6 +17,8 @@ func hubStore() *fakeStore {
 	st.groups["g-sre"] = models.Group{ID: "g-sre", Name: "SRE"}
 	grantTo(st, models.PrincipalUser, "tester", "Template", "t1", "own")
 	grantTo(st, models.PrincipalUser, "tester", "Template", "t3", "own")
+	st.templates["t4"] = models.Template{ID: "t4", Name: "Fourth card", Body: "{}"}
+	grantTo(st, models.PrincipalUser, "tester", "Template", "t4", "read", "share")
 	return st
 }
 
@@ -76,7 +78,12 @@ func TestShareBatch(t *testing.T) {
 		{
 			name:      "one refused record saves none",
 			form:      url.Values{"resource_type": {"Template"}, "ids": {"t1", "t2"}, "principal": {"group:g-sre"}, "actions": {"read"}},
-			wantError: "template t2", wantRows: 0,
+			wantError: "t2: you may not share this template", wantRows: 0,
+		},
+		{
+			name:      "a refused record the viewer may share is named as listed",
+			form:      url.Values{"resource_type": {"Template"}, "ids": {"t1", "t4"}, "principal": {"group:g-sre"}, "actions": {"update"}},
+			wantError: "Fourth card: you may not update this template", wantRows: 0,
 		},
 		{
 			name:      "a group must exist",
