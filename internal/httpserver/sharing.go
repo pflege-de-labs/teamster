@@ -126,7 +126,8 @@ func (s *Server) shareMany(r *http.Request, p models.Permission, ids []string) e
 		markChecked(r)
 		return userError{errNoRecords}
 	}
-	return s.store.WithTx(r.Context(), func(ctx context.Context, tx store.Store) error {
+	var failed string
+	err := s.store.WithTx(r.Context(), func(ctx context.Context, tx store.Store) error {
 		for _, id := range ids {
 			one := p
 			one.ResourceID = id
@@ -135,11 +136,36 @@ func (s *Server) shareMany(r *http.Request, p models.Permission, ids []string) e
 				_, err = s.putShare(ctx, tx, r, one)
 			}
 			if err != nil {
-				return userError{fmt.Errorf("%s %s: %w", strings.ToLower(p.ResourceType), id, err)}
+				failed = id
+				return err
 			}
 		}
 		return nil
 	})
+	if failed == "" {
+		return err
+	}
+	return userError{fmt.Errorf("%s: %w", s.shareableName(r, p.ResourceType, failed), err)}
+}
+
+// shareableName is a record's name as /admin/access lists it, or its ID for one
+// the viewer may not share, so a refusal does not reveal a hidden record's name.
+func (s *Server) shareableName(r *http.Request, typ, id string) string {
+	index, err := s.recordIndex(r.Context(), r)
+	if err != nil {
+		return id
+	}
+	for _, class := range shareable(index) {
+		if class.Type != typ {
+			continue
+		}
+		for _, rec := range class.Records {
+			if rec.ID == id {
+				return rec.Name
+			}
+		}
+	}
+	return id
 }
 
 // unshare revokes one row, which takes what granting it would.
