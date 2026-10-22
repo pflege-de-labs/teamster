@@ -148,8 +148,9 @@ func TestAccessPage(t *testing.T) {
 		unwanted []string
 	}{
 		{
-			name: "the overview",
-			want: []string{"Bob (s-bob)", "both webhooks", "Ops (g-ops)", "Template t1", `Role::&#34;admin&#34;`, `principal in Group::&#34;g-ops&#34;`, "Snapshot generation 2"},
+			name:     "the overview",
+			want:     []string{"Bob (s-bob)", "both webhooks", "Ops (g-ops)", "Template t1", `Role::&#34;admin&#34;`, `principal in Group::&#34;g-ops&#34;`, "Snapshot generation 2", "Every grant"},
+			unwanted: []string{"Grants you may change"},
 		},
 		{name: "filtered", query: "?filter=webhook", want: []string{"Webhook *"}, unwanted: []string{"Template t1"}},
 		{

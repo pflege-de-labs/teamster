@@ -421,6 +421,7 @@
   "access.allowed": "Allowed, by these policies:",
   "access.refused": "Refused: no policy permits it.",
   "access.grants": "Every grant",
+  "access.grants_mine": "Grants you may change",
   "access.filter": "Filter",
   "access.no_grants": "No grants.",
   "access.resource": "Resource",
