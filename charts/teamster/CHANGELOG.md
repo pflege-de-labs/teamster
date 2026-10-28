@@ -8,6 +8,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.15.0] — 2026-10-28
+
+App version 0.16.0: the delegated Teams picker uses Keycloak's Identity Brokering API V2 and falls
+back to V1, and `golang.org/x/net` 0.62.0 fixes GO-2026-6860; see the
+[service changelog](../../CHANGELOG.md).
+
 ## [0.14.0] — 2026-10-22
 
 App version 0.15.0: templates can call sprig's functions, and the image is built with Go 1.27.3,
@@ -194,7 +200,8 @@ an Ingress or HTTPRoute, configuration and credentials from values, `extraObject
 an optional startupProbe, and `helm test`
 ([ADR 0016](../../docs/adr/0016-helm-chart.md)).
 
-[Unreleased]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.14.0...HEAD
+[Unreleased]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.15.0...HEAD
+[0.15.0]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.14.0...teamster-0.15.0
 [0.14.0]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.13.1...teamster-0.14.0
 [0.13.1]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.13.0...teamster-0.13.1
 [0.13.0]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.12.0...teamster-0.13.0
