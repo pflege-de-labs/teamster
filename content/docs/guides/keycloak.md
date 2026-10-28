@@ -180,6 +180,67 @@ If the role is missing, Teamster logs
 `broker token request failed: {"errorMessage":"Client [teamster] not authorized to retrieve tokens
 from identity provider [microsoft]."}` and the picker shows nothing.
 
+This is the Identity Brokering API V1, which Keycloak serves by default. Keycloak 26.6 and later
+can serve [V2](#identity-brokering-api-v2) instead; Teamster tries V2 first and falls back to V1.
+
+### Identity Brokering API V2
+
+Keycloak 26.6 added V2 as a preview, and 26.7 supports it. It is off by default; start Keycloak
+with:
+
+```text
+--features=identity-brokering-api:v2
+```
+
+That switches V1 off: the two versions are one feature.
+
+V2 authorises the client rather than the user, so the `broker` `read-token` role, Stored Tokens
+Readable and the mappers granting the role are not needed. Instead:
+
+| Where | Setting | Value |
+| --- | --- | --- |
+| Identity provider link | Store Tokens | **On**, as for V1 |
+| `teamster` client → Settings → Capability config | Client authentication | **On** |
+| | Allow retrieve external tokens | **On** |
+| | Allowed Identity Providers for External Tokens | the link's alias, e.g. `microsoft` |
+
+A public client cannot call V2. Give Teamster the client's secret as `auth.oidc-client-secret`
+(`TEAMSTER_AUTH_OIDC_CLIENT_SECRET`); without it, Teamster only tries V1. No other Teamster setting
+changes.
+
+Teamster sends the V2 request, with the client's credentials, to
+`{issuer}/broker/{alias}/token`. If Keycloak answers it with an error, Teamster retries with V1. If
+Keycloak cannot be reached, it does not retry. If both fail, the log holds both answers, e.g.
+`identity brokering API v2: broker token request failed: {"error":"invalid_client",
+"error_description":"Client not allowed to retrieve token for the provider"}; v1: …`.
+
+As code, the capability is two client attributes, `external.token.enabled` and
+`external.token.idp`; separate several aliases with `##`. With Terraform, on the
+`keycloak_openid_client` from [As code](#as-code):
+
+```hcl
+resource "keycloak_openid_client" "teamster" {
+  # ...
+  access_type = "CONFIDENTIAL"
+
+  extra_config = {
+    "external.token.enabled" = "true"
+    "external.token.idp"     = keycloak_oidc_identity_provider.microsoft.alias
+  }
+}
+```
+
+With Crossplane, on the `Client`:
+
+```yaml
+spec:
+  forProvider:
+    accessType: CONFIDENTIAL
+    extraConfig:
+      external.token.enabled: "true"
+      external.token.idp: microsoft
+```
+
 ### As code
 
 These resources set up the Entra link with Store Tokens, Stored Tokens Readable and the Graph

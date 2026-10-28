@@ -126,6 +126,8 @@ the picker falls back to the tenant-wide list; logins and deliveries are not aff
 A local login, or an OIDC login through a realm with no Entra federation, never sees the toggle.
 
 Keycloak needs Store Tokens, Stored Tokens Readable, the `broker` client's `read-token` role and the
-delegated Graph scopes. See
+delegated Graph scopes. On Keycloak 26.6 and later, Teamster can instead use Identity Brokering API
+V2: set `auth.oidc-client-secret` and allow the client to retrieve external tokens. It tries V2
+first and falls back to V1; without the secret it uses V1 only. See
 [Configure Keycloak: delegated Teams and channels](../keycloak/#let-admins-pick-their-own-teams-and-channels)
 and [ADR 0037](https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0037-delegated-teams-via-keycloak-broker-token.md).
