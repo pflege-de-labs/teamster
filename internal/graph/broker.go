@@ -3,6 +3,7 @@ package graph
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,10 +14,9 @@ import (
 
 // BrokerClient asks Microsoft Graph for what one signed-in admin can see --
 // their own Teams and channels -- rather than the tenant-wide list Client
-// asks for with its own app-only credential. It is unrelated to Client's
-// oauth2.Config: there is no token of its own to refresh here, only a bearer
-// header set per request from whatever Entra token the caller already
-// obtained through Keycloak's broker endpoint. See ADR 0037.
+// asks for with its own app-only credential. It has no Entra token of its own
+// to refresh, only a bearer header set per request from whatever Entra token
+// Keycloak's broker endpoint handed back. See ADR 0037 and ADR 0092.
 //
 // It lives in this package rather than internal/httpserver so it can share
 // Team, Channel and the transport instrumentation Client already declares,
@@ -24,36 +24,87 @@ import (
 type BrokerClient struct {
 	httpClient   *http.Client
 	graphBaseURL string
+	// Teamster's own Keycloak client, which authenticates the V2 broker call.
+	clientID     string
+	clientSecret string
 }
 
 // NewBrokerClient takes the transport instrumentation Client's constructor
 // does, so a Graph call made on an admin's behalf is measured the
 // same way as one made with the service's own credential.
-func NewBrokerClient(graphBaseURL string, tel transportInstrumentation, timeout time.Duration) *BrokerClient {
+func NewBrokerClient(graphBaseURL, clientID, clientSecret string, tel transportInstrumentation, timeout time.Duration) *BrokerClient {
 	return &BrokerClient{
 		httpClient: &http.Client{
 			Transport: tel.ClientTransport(http.DefaultTransport),
 			Timeout:   timeout,
 		},
 		graphBaseURL: graphBaseURL,
+		clientID:     clientID,
+		clientSecret: clientSecret,
 	}
 }
 
 // EntraToken asks Keycloak's broker endpoint for the Entra token stored
 // against keycloakAccessToken's federated login. Keycloak refreshes it
 // upstream itself if needed; Teamster never talks to Entra's own token
-// endpoint for this. The response is Keycloak's token-endpoint-shaped JSON
-// wrapping the stored provider token, so this only ever looks at the
-// top-level access_token field.
+// endpoint for this.
+//
+// Keycloak enables exactly one Identity Brokering API version, so this tries
+// V2 first and falls back to V1 when Keycloak refuses it (ADR 0092). V2 only
+// admits a confidential client, so without a client secret it goes straight to V1.
 func (b *BrokerClient) EntraToken(ctx context.Context, issuer, alias, keycloakAccessToken string) (string, error) {
 	endpoint := strings.TrimSuffix(issuer, "/") + "/broker/" + url.PathEscape(alias) + "/token"
 
+	if b.clientSecret == "" {
+		return b.entraTokenV1(ctx, endpoint, keycloakAccessToken)
+	}
+	token, errV2 := b.entraTokenV2(ctx, endpoint, keycloakAccessToken)
+	if errV2 == nil {
+		return token, nil
+	}
+	// No HTTP answer at all: V1 would only wait out the same timeout.
+	var transportErr *url.Error
+	if errors.As(errV2, &transportErr) {
+		return "", errV2
+	}
+	token, errV1 := b.entraTokenV1(ctx, endpoint, keycloakAccessToken)
+	if errV1 != nil {
+		return "", fmt.Errorf("identity brokering API v2: %w; v1: %w", errV2, errV1)
+	}
+	return token, nil
+}
+
+// entraTokenV2 authenticates as Teamster's own client and names the user by
+// the token form parameter.
+func (b *BrokerClient) entraTokenV2(ctx context.Context, endpoint, keycloakAccessToken string) (string, error) {
+	form := url.Values{
+		"client_id":     {b.clientID},
+		"client_secret": {b.clientSecret},
+		"token":         {keycloakAccessToken},
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, strings.NewReader(form.Encode()))
+	if err != nil {
+		return "", fmt.Errorf("new broker token request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Accept", "application/json")
+	return b.brokerToken(req)
+}
+
+// entraTokenV1 authenticates as the user, whose token needs the broker
+// client's read-token role.
+func (b *BrokerClient) entraTokenV1(ctx context.Context, endpoint, keycloakAccessToken string) (string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return "", fmt.Errorf("new broker token request: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+keycloakAccessToken)
+	return b.brokerToken(req)
+}
 
+// brokerToken sends req and reads the top-level access_token both versions
+// answer with, in Keycloak's token-endpoint-shaped JSON.
+func (b *BrokerClient) brokerToken(req *http.Request) (string, error) {
 	resp, err := b.httpClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("broker token request: %w", err)

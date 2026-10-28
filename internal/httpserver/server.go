@@ -150,7 +150,7 @@ func NewServer(logger *slog.Logger, cfg config.Config, store store.Store, graphC
 		if err != nil {
 			return nil, fmt.Errorf("auth broker sealer: %w", err)
 		}
-		brokerClient = graph.NewBrokerClient(cfg.Graph.BaseURL, tel, time.Duration(cfg.Graph.TimeoutSec)*time.Second)
+		brokerClient = graph.NewBrokerClient(cfg.Graph.BaseURL, cfg.Auth.OIDCClientID, cfg.Auth.OIDCClientSecret, tel, time.Duration(cfg.Graph.TimeoutSec)*time.Second)
 	}
 
 	if channels == nil {

@@ -10,6 +10,14 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 ## [Unreleased]
 
+### Changed
+
+* The delegated Teams picker fetches the admin's Entra token through Keycloak's Identity Brokering
+  API V2 (Keycloak 26.6 and later) and falls back to V1, so Keycloak can switch to V2 without a
+  Teamster change. V2 needs a confidential `teamster` client that may retrieve external tokens
+  from the Entra link
+  ([ADR 0092](docs/adr/0092-identity-brokering-api-v2-with-v1-fallback.md)).
+
 ### Fixed
 
 * The access page heads a non-admin's grants "Grants you may change" instead of "Every grant": the
