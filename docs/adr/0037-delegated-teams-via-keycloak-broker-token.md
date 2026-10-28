@@ -1,6 +1,8 @@
 # 0037. Delegated Teams/Channels via Keycloak broker token pass-through
 
-* Status: Accepted, amends [0009](0009-admin-authentication.md)
+* Status: Accepted, amends [0009](0009-admin-authentication.md); amended by
+  [0092](0092-identity-brokering-api-v2-with-v1-fallback.md): the token is fetched through
+  Keycloak's Identity Brokering API V2 first, V1 only as a fallback
 * Date: 2026-09-23
 
 ## Context

@@ -1313,8 +1313,11 @@ federated through Keycloak and has nothing to ask for — and answer `409` other
 
 The Entra token behind these calls is never obtained from Entra directly. Keycloak's Entra identity
 provider link, with **Store Tokens** enabled, keeps the upstream Entra token from the login that
-created each session; `GET {issuer}/broker/{alias}/token`, bearing that session's own Keycloak
-access token, returns it — refreshing it upstream itself if needed. `internal/httpserver/broker.go`
+created each session; `{issuer}/broker/{alias}/token` returns it — refreshing it upstream itself if
+needed. `BrokerClient.EntraToken` asks Keycloak's Identity Brokering API V2 first (`POST`, Teamster's
+own client credentials and the session's Keycloak access token in a form body) and V1 only when that
+fails or no client secret is configured (`GET`, the access token as bearer), because Keycloak
+answers exactly one of them ([ADR 0092](adr/0092-identity-brokering-api-v2-with-v1-fallback.md)). `internal/httpserver/broker.go`
 keeps only a live Keycloak access and refresh token per session, in a new `broker_tokens` table
 keyed by session id, sealed with AES-256-GCM (`internal/cryptutil`) under a key from
 `auth-broker-token-encryption-key`, the session id as additional authenticated data so a row cannot

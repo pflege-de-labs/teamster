@@ -145,7 +145,9 @@ auth:
   # admin their own Teams alongside the tenant-wide list, using the Entra
   # token Keycloak already stored when it brokered this login against Entra.
   # Off by default, and only meaningful when Keycloak federates against
-  # Entra -- see docs/keycloak.md#delegated-teams-and-channels.
+  # Entra -- see docs/keycloak.md#delegated-teams-and-channels. Keycloak's
+  # Identity Brokering API V2 is tried first and needs oidc-client-secret;
+  # V1 is the fallback (ADR 0092).
   broker:
     enabled: false
     idp-alias: "microsoft"

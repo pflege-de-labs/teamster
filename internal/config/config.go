@@ -130,7 +130,7 @@ type AdminConfig struct {
 type AuthConfig struct {
 	OIDCDiscoveryURL string        `help:"URL of the provider's /.well-known/openid-configuration document." name:"oidc-discovery-url"`
 	OIDCClientID     string        `help:"OIDC client ID." name:"oidc-client-id"`
-	OIDCClientSecret string        `help:"OIDC client secret; omit for a public client using PKCE." name:"oidc-client-secret"`
+	OIDCClientSecret string        `help:"OIDC client secret; omit for a public client using PKCE. Also authenticates the Identity Brokering API V2 call." name:"oidc-client-secret"`
 	OIDCRedirectURL  string        `help:"Absolute URL of /admin/auth/callback as registered with the provider." name:"oidc-redirect-url"`
 	OIDCScopes       []string      `help:"Extra scopes to request beyond openid." name:"oidc-scopes" default:"profile,email,roles"`
 	Claim            string        `help:"Dotted path of the claim carrying membership, e.g. realm_access.roles." default:"realm_access.roles"`
