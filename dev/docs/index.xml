@@ -440,7 +440,7 @@ files above are still read for every key it does not set.&lt;/p&gt;
 &lt;td&gt;&lt;code&gt;auth.oidc-client-secret&lt;/code&gt;&lt;/td&gt;
 &lt;td&gt;&lt;code&gt;TEAMSTER_AUTH_OIDC_CLIENT_SECRET&lt;/code&gt;&lt;/td&gt;
 &lt;td&gt;—&lt;/td&gt;
-&lt;td&gt;OIDC client secret; omit for a public client using PKCE.&lt;/td&gt;
+&lt;td&gt;OIDC client secret; omit for a public client using PKCE. Also authenticates the Identity Brokering API V2 call.&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;auth.oidc-redirect-url&lt;/code&gt;&lt;/td&gt;
@@ -7866,7 +7866,9 @@ key, and keep it as durable as any other secret. Losing it makes the stored toke
 the picker falls back to the tenant-wide list; logins and deliveries are not affected.&lt;/p&gt;
 &lt;p&gt;A local login, or an OIDC login through a realm with no Entra federation, never sees the toggle.&lt;/p&gt;
 &lt;p&gt;Keycloak needs Store Tokens, Stored Tokens Readable, the &lt;code&gt;broker&lt;/code&gt; client&amp;rsquo;s &lt;code&gt;read-token&lt;/code&gt; role and the
-delegated Graph scopes. See
+delegated Graph scopes. On Keycloak 26.6 and later, Teamster can instead use Identity Brokering API
+V2: set &lt;code&gt;auth.oidc-client-secret&lt;/code&gt; and allow the client to retrieve external tokens. It tries V2
+first and falls back to V1; without the secret it uses V1 only. See
 &lt;a href="../keycloak/#let-admins-pick-their-own-teams-and-channels"&gt;Configure Keycloak: delegated Teams and channels&lt;/a&gt;
 and &lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0037-delegated-teams-via-keycloak-broker-token.md" target="_blank" rel="noopener"&gt;ADR 0037&lt;/a&gt;.&lt;/p&gt;</description></item><item><title>Configure Keycloak for the admin login</title><link>https://pflege-de-labs.github.io/teamster/dev/docs/guides/keycloak/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/dev/docs/guides/keycloak/</guid><description>
 &lt;p&gt;Set up a Keycloak client so people sign in to Teamster with their realm account, get their role
@@ -8081,6 +8083,108 @@ the generated access token. It should carry
 &lt;code&gt;&amp;quot;resource_access&amp;quot;: {&amp;quot;broker&amp;quot;: {&amp;quot;roles&amp;quot;: [&amp;quot;read-token&amp;quot;]}}&lt;/code&gt;.&lt;/p&gt;
 &lt;p&gt;If the role is missing, Teamster logs
 &lt;code&gt;broker token request failed: {&amp;quot;errorMessage&amp;quot;:&amp;quot;Client [teamster] not authorized to retrieve tokens from identity provider [microsoft].&amp;quot;}&lt;/code&gt; and the picker shows nothing.&lt;/p&gt;
+&lt;p&gt;This is the Identity Brokering API V1, which Keycloak serves by default. Keycloak 26.6 and later
+can serve &lt;a href="#identity-brokering-api-v2"&gt;V2&lt;/a&gt; instead; Teamster tries V2 first and falls back to V1.&lt;/p&gt;
+&lt;h3 data-hextra-search-id="identity-brokering-api-v2"&gt;Identity Brokering API V2&lt;span class="hx:absolute hx:-mt-20" id="identity-brokering-api-v2"&gt;&lt;/span&gt;
+&lt;a href="#identity-brokering-api-v2" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Keycloak 26.6 added V2 as a preview, and 26.7 supports it. It is off by default; start Keycloak
+with:&lt;/p&gt;
+&lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
+&lt;div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;--features=identity-brokering-api:v2&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class="hextra-code-copy-btn-container hx:opacity-0 hx:transition hx:group-hover/code:opacity-100 hx:flex hx:gap-1 hx:absolute hx:m-[11px] hx:right-0 hx:top-0"&gt;
+&lt;button
+class="hextra-code-copy-btn hx:group/copybtn hx:cursor-pointer hx:transition-all hx:active:opacity-50 hx:bg-primary-700/5 hx:border hx:border-black/5 hx:text-gray-600 hx:hover:text-gray-900 hx:rounded-md hx:p-1.5 hx:dark:bg-primary-300/10 hx:dark:border-white/10 hx:dark:text-gray-400 hx:dark:hover:text-gray-50"
+title="Copy code"
+aria-label="Copy code"
+data-copied-label="Copied!"
+&gt;
+&lt;div class="hextra-copy-icon hx:group-[.copied]/copybtn:hidden hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;div class="hextra-success-icon hx:hidden hx:group-[.copied]/copybtn:block hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;/button&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;p&gt;That switches V1 off: the two versions are one feature.&lt;/p&gt;
+&lt;p&gt;V2 authorises the client rather than the user, so the &lt;code&gt;broker&lt;/code&gt; &lt;code&gt;read-token&lt;/code&gt; role, Stored Tokens
+Readable and the mappers granting the role are not needed. Instead:&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Where&lt;/th&gt;
+&lt;th&gt;Setting&lt;/th&gt;
+&lt;th&gt;Value&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;Identity provider link&lt;/td&gt;
+&lt;td&gt;Store Tokens&lt;/td&gt;
+&lt;td&gt;&lt;strong&gt;On&lt;/strong&gt;, as for V1&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;teamster&lt;/code&gt; client → Settings → Capability config&lt;/td&gt;
+&lt;td&gt;Client authentication&lt;/td&gt;
+&lt;td&gt;&lt;strong&gt;On&lt;/strong&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;Allow retrieve external tokens&lt;/td&gt;
+&lt;td&gt;&lt;strong&gt;On&lt;/strong&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;Allowed Identity Providers for External Tokens&lt;/td&gt;
+&lt;td&gt;the link&amp;rsquo;s alias, e.g. &lt;code&gt;microsoft&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;A public client cannot call V2. Give Teamster the client&amp;rsquo;s secret as &lt;code&gt;auth.oidc-client-secret&lt;/code&gt;
+(&lt;code&gt;TEAMSTER_AUTH_OIDC_CLIENT_SECRET&lt;/code&gt;); without it, Teamster only tries V1. No other Teamster setting
+changes.&lt;/p&gt;
+&lt;p&gt;Teamster sends the V2 request, with the client&amp;rsquo;s credentials, to
+&lt;code&gt;{issuer}/broker/{alias}/token&lt;/code&gt;. If Keycloak answers it with an error, Teamster retries with V1. If
+Keycloak cannot be reached, it does not retry. If both fail, the log holds both answers, e.g.
+&lt;code&gt;identity brokering API v2: broker token request failed: {&amp;quot;error&amp;quot;:&amp;quot;invalid_client&amp;quot;, &amp;quot;error_description&amp;quot;:&amp;quot;Client not allowed to retrieve token for the provider&amp;quot;}; v1: …&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;As code, the capability is two client attributes, &lt;code&gt;external.token.enabled&lt;/code&gt; and
+&lt;code&gt;external.token.idp&lt;/code&gt;; separate several aliases with &lt;code&gt;##&lt;/code&gt;. With Terraform, on the
+&lt;code&gt;keycloak_openid_client&lt;/code&gt; from &lt;a href="#as-code"&gt;As code&lt;/a&gt;:&lt;/p&gt;
+&lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
+&lt;div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-hcl" data-lang="hcl"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="k"&gt;resource&lt;/span&gt; &lt;span class="s2"&gt;&amp;#34;keycloak_openid_client&amp;#34; &amp;#34;teamster&amp;#34;&lt;/span&gt; {&lt;span class="c1"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="c1"&gt; # ...
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="n"&gt; access_type&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="s2"&gt;&amp;#34;CONFIDENTIAL&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="n"&gt; extra_config&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; {
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="n"&gt; &amp;#34;external.token.enabled&amp;#34;&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="s2"&gt;&amp;#34;true&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="n"&gt; &amp;#34;external.token.idp&amp;#34;&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="k"&gt;keycloak_oidc_identity_provider&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="k"&gt;microsoft&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="k"&gt;alias&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; }
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class="hextra-code-copy-btn-container hx:opacity-0 hx:transition hx:group-hover/code:opacity-100 hx:flex hx:gap-1 hx:absolute hx:m-[11px] hx:right-0 hx:top-0"&gt;
+&lt;button
+class="hextra-code-copy-btn hx:group/copybtn hx:cursor-pointer hx:transition-all hx:active:opacity-50 hx:bg-primary-700/5 hx:border hx:border-black/5 hx:text-gray-600 hx:hover:text-gray-900 hx:rounded-md hx:p-1.5 hx:dark:bg-primary-300/10 hx:dark:border-white/10 hx:dark:text-gray-400 hx:dark:hover:text-gray-50"
+title="Copy code"
+aria-label="Copy code"
+data-copied-label="Copied!"
+&gt;
+&lt;div class="hextra-copy-icon hx:group-[.copied]/copybtn:hidden hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;div class="hextra-success-icon hx:hidden hx:group-[.copied]/copybtn:block hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;/button&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;p&gt;With Crossplane, on the &lt;code&gt;Client&lt;/code&gt;:&lt;/p&gt;
+&lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
+&lt;div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nt"&gt;spec&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;forProvider&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;accessType&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;CONFIDENTIAL&lt;/span&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;extraConfig&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;external.token.enabled&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="s2"&gt;&amp;#34;true&amp;#34;&lt;/span&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;external.token.idp&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="l"&gt;microsoft&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class="hextra-code-copy-btn-container hx:opacity-0 hx:transition hx:group-hover/code:opacity-100 hx:flex hx:gap-1 hx:absolute hx:m-[11px] hx:right-0 hx:top-0"&gt;
+&lt;button
+class="hextra-code-copy-btn hx:group/copybtn hx:cursor-pointer hx:transition-all hx:active:opacity-50 hx:bg-primary-700/5 hx:border hx:border-black/5 hx:text-gray-600 hx:hover:text-gray-900 hx:rounded-md hx:p-1.5 hx:dark:bg-primary-300/10 hx:dark:border-white/10 hx:dark:text-gray-400 hx:dark:hover:text-gray-50"
+title="Copy code"
+aria-label="Copy code"
+data-copied-label="Copied!"
+&gt;
+&lt;div class="hextra-copy-icon hx:group-[.copied]/copybtn:hidden hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;div class="hextra-success-icon hx:hidden hx:group-[.copied]/copybtn:block hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;/button&gt;
+&lt;/div&gt;
+&lt;/div&gt;
 &lt;h3 data-hextra-search-id="as-code"&gt;As code&lt;span class="hx:absolute hx:-mt-20" id="as-code"&gt;&lt;/span&gt;
 &lt;a href="#as-code" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;These resources set up the Entra link with Store Tokens, Stored Tokens Readable and the Graph
 scopes, grant &lt;code&gt;read-token&lt;/code&gt; at every login through the link, and keep the &lt;code&gt;roles&lt;/code&gt; scope on the

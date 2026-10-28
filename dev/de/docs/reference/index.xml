@@ -442,7 +442,7 @@ gewinnen. Die Dateien oben werden weiterhin für jeden Schlüssel gelesen, den s
 &lt;td&gt;&lt;code&gt;auth.oidc-client-secret&lt;/code&gt;&lt;/td&gt;
 &lt;td&gt;&lt;code&gt;TEAMSTER_AUTH_OIDC_CLIENT_SECRET&lt;/code&gt;&lt;/td&gt;
 &lt;td&gt;—&lt;/td&gt;
-&lt;td&gt;OIDC-Client-Secret; weglassen für einen öffentlichen Client mit PKCE.&lt;/td&gt;
+&lt;td&gt;OIDC-Client-Secret; weglassen für einen öffentlichen Client mit PKCE. Authentifiziert auch den Aufruf der Identity Brokering API V2.&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;auth.oidc-redirect-url&lt;/code&gt;&lt;/td&gt;

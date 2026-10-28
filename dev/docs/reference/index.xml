@@ -440,7 +440,7 @@ files above are still read for every key it does not set.&lt;/p&gt;
 &lt;td&gt;&lt;code&gt;auth.oidc-client-secret&lt;/code&gt;&lt;/td&gt;
 &lt;td&gt;&lt;code&gt;TEAMSTER_AUTH_OIDC_CLIENT_SECRET&lt;/code&gt;&lt;/td&gt;
 &lt;td&gt;—&lt;/td&gt;
-&lt;td&gt;OIDC client secret; omit for a public client using PKCE.&lt;/td&gt;
+&lt;td&gt;OIDC client secret; omit for a public client using PKCE. Also authenticates the Identity Brokering API V2 call.&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;auth.oidc-redirect-url&lt;/code&gt;&lt;/td&gt;
