@@ -133,6 +133,9 @@ Eine lokale Anmeldung oder eine OIDC-Anmeldung über einen Realm ohne Entra-Föd
 Umschalter nie.
 
 Keycloak braucht Store Tokens, Stored Tokens Readable, die Rolle `read-token` des Clients `broker`
-und die delegierten Graph-Scopes. Siehe
+und die delegierten Graph-Scopes. Ab Keycloak 26.6 kann Teamster stattdessen die Identity Brokering
+API V2 nutzen: Setzen Sie `auth.oidc-client-secret` und erlauben Sie dem Client, externe Tokens
+abzurufen. Teamster versucht zuerst V2 und fällt auf V1 zurück; ohne das Secret nutzt es nur V1.
+Siehe
 [Keycloak einrichten: eigene Teams und Kanäle](../keycloak/#let-admins-pick-their-own-teams-and-channels)
 und [ADR 0037](https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0037-delegated-teams-via-keycloak-broker-token.md).

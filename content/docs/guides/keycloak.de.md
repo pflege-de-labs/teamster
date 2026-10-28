@@ -190,6 +190,68 @@ Fehlt die Rolle, protokolliert Teamster
 `broker token request failed: {"errorMessage":"Client [teamster] not authorized to retrieve tokens
 from identity provider [microsoft]."}`, und die Auswahl zeigt nichts.
 
+Das ist die Identity Brokering API V1, die Keycloak standardmäßig anbietet. Keycloak 26.6 und
+neuer kann stattdessen [V2](#identity-brokering-api-v2) anbieten; Teamster versucht zuerst V2 und fällt
+auf V1 zurück.
+
+### Identity Brokering API V2 {#identity-brokering-api-v2}
+
+Keycloak 26.6 hat V2 als Preview eingeführt, 26.7 unterstützt sie. Sie ist standardmäßig aus;
+starten Sie Keycloak mit:
+
+```text
+--features=identity-brokering-api:v2
+```
+
+Das schaltet V1 ab: Beide Versionen sind ein Feature.
+
+V2 autorisiert den Client statt des Benutzers. Die Rolle `read-token` des Clients `broker`, Stored
+Tokens Readable und die Mapper, die die Rolle vergeben, sind daher nicht nötig. Stattdessen:
+
+| Wo | Einstellung | Wert |
+| --- | --- | --- |
+| Identity-Provider-Verknüpfung | Store Tokens | **On**, wie bei V1 |
+| Client `teamster` → Settings → Capability config | Client authentication | **On** |
+| | Allow retrieve external tokens | **On** |
+| | Allowed Identity Providers for External Tokens | der Alias der Verknüpfung, z. B. `microsoft` |
+
+Ein öffentlicher Client kann V2 nicht aufrufen. Geben Sie Teamster das Secret des Clients als
+`auth.oidc-client-secret` (`TEAMSTER_AUTH_OIDC_CLIENT_SECRET`); ohne es versucht Teamster nur V1.
+Weitere Teamster-Einstellungen ändern sich nicht.
+
+Teamster sendet die V2-Anfrage mit den Zugangsdaten des Clients an `{issuer}/broker/{alias}/token`.
+Antwortet Keycloak darauf mit einem Fehler, versucht Teamster es mit V1 erneut. Ist Keycloak nicht
+erreichbar, gibt es keinen weiteren Versuch. Schlagen beide fehl, enthält das Protokoll beide
+Antworten, z. B. `identity brokering API v2: broker token request failed: {"error":"invalid_client",
+"error_description":"Client not allowed to retrieve token for the provider"}; v1: …`.
+
+Als Code besteht die Berechtigung aus zwei Client-Attributen, `external.token.enabled` und
+`external.token.idp`; mehrere Aliase trennen Sie mit `##`. Mit Terraform, am
+`keycloak_openid_client` aus [Als Code](#as-code):
+
+```hcl
+resource "keycloak_openid_client" "teamster" {
+  # ...
+  access_type = "CONFIDENTIAL"
+
+  extra_config = {
+    "external.token.enabled" = "true"
+    "external.token.idp"     = keycloak_oidc_identity_provider.microsoft.alias
+  }
+}
+```
+
+Mit Crossplane, am `Client`:
+
+```yaml
+spec:
+  forProvider:
+    accessType: CONFIDENTIAL
+    extraConfig:
+      external.token.enabled: "true"
+      external.token.idp: microsoft
+```
+
 ### Als Code {#as-code}
 
 Diese Ressourcen richten die Entra-Verknüpfung mit Store Tokens, Stored Tokens Readable und den

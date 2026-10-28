@@ -126,7 +126,7 @@ A key the file sets but Teamster does not know is ignored without a warning.
 | --- | --- | --- | --- |
 | `auth.oidc-discovery-url` | `TEAMSTER_AUTH_OIDC_DISCOVERY_URL` | — | URL of the provider's `/.well-known/openid-configuration` document. |
 | `auth.oidc-client-id` | `TEAMSTER_AUTH_OIDC_CLIENT_ID` | — | OIDC client ID. |
-| `auth.oidc-client-secret` | `TEAMSTER_AUTH_OIDC_CLIENT_SECRET` | — | OIDC client secret; omit for a public client using PKCE. |
+| `auth.oidc-client-secret` | `TEAMSTER_AUTH_OIDC_CLIENT_SECRET` | — | OIDC client secret; omit for a public client using PKCE. Also authenticates the Identity Brokering API V2 call. |
 | `auth.oidc-redirect-url` | `TEAMSTER_AUTH_OIDC_REDIRECT_URL` | — | Absolute URL of `/admin/auth/callback` as registered with the provider. |
 | `auth.oidc-scopes` | `TEAMSTER_AUTH_OIDC_SCOPES` | `profile,email,roles` | Extra scopes to request beyond openid. |
 | `auth.claim` | `TEAMSTER_AUTH_CLAIM` | `realm_access.roles` | Dotted path of the claim carrying membership, e.g. `realm_access.roles`. |
