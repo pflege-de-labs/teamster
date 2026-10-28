@@ -17,7 +17,7 @@ require (
 	github.com/pressly/goose/v3 v3.29.0
 	github.com/yuin/goldmark/v2 v2.1.8
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.72.0
-	golang.org/x/net v0.61.0
+	golang.org/x/net v0.62.0
 	golang.org/x/oauth2 v0.37.0
 	golang.org/x/text v0.43.0
 	golang.org/x/time v0.16.0

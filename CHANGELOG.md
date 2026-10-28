@@ -20,6 +20,11 @@ reasoning behind it in the [ADRs](docs/adr/).
   and a record's own sharing panel now warns like `/admin/access` does and refuses a local group
   that does not exist.
 
+### Security
+
+* `golang.org/x/net` 0.62.0 fixes GO-2026-6860, which Markdown rendering in templates reached
+  through `html.ParseFragment`.
+
 ## [0.15.0] — 2026-10-22
 
 ### Added
