@@ -320,6 +320,34 @@ func (p Page) editingRoute() models.Route {
 	return *p.EditRoute
 }
 
+// routeManaged is true while the edited route belongs to a webhook, which owns its targeting.
+func (p Page) routeManaged() bool {
+	return p.EditRoute != nil && p.EditRoute.WebhookEndpointID != ""
+}
+
+// managingWebhook is <team>/<channel> of the edited route's webhook, from its selector when the endpoint is gone.
+func (p Page) managingWebhook() string {
+	for _, e := range p.WebhookEndpoints {
+		if e.ID == p.EditRoute.WebhookEndpointID {
+			return e.TeamSlug + "/" + e.ChannelSlug
+		}
+	}
+	return p.EditRoute.LabelSelector[models.TeamLabel] + "/" + p.EditRoute.LabelSelector[models.ChannelLabel]
+}
+
+// endpointRouteID is the route linked to the edited webhook, if any.
+func (p Page) endpointRouteID() string {
+	if p.EditWebhookEndpoint == nil {
+		return ""
+	}
+	for _, r := range p.Routes {
+		if r.WebhookEndpointID == p.EditWebhookEndpoint.ID {
+			return r.ID
+		}
+	}
+	return ""
+}
+
 func (p Page) editingWebhookEndpoint() models.WebhookEndpoint {
 	if p.EditWebhookEndpoint == nil {
 		return models.WebhookEndpoint{}
