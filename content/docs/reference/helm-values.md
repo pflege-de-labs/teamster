@@ -155,6 +155,7 @@ The config file, mounted at `/etc/xdg/teamster/config.yaml`.
 | `config.settings.server.write-timeout` | `60s` |
 | `config.settings.server.idle-timeout` | `120s` |
 | `config.settings.server.external-url` | `""` |
+| `config.settings.server.webhook-url` | `""` |
 | `config.settings.graph.tenant-id` | `""` |
 | `config.settings.graph.client-id` | `""` |
 | `config.settings.graph.base-url` | `https://graph.microsoft.com/v1.0` |
@@ -239,6 +240,10 @@ Changing either Secret rolls the pod.
 
 Gateway API HTTPRoutes, an alternative to the Ingress. Require the Gateway API CRDs and a
 controller.
+
+With `internal` on its own hostname, set `config.settings.server.webhook-url` to the address
+`external` publishes, for example `https://teamster.example.com`. Otherwise the webhook URLs the
+admin UI hands out name the admin hostname, which senders cannot reach.
 
 | Key | Default | Description |
 | --- | --- | --- |

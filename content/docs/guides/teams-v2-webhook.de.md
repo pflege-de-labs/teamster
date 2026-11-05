@@ -29,6 +29,12 @@ Ziffer.
 Die Seite, die auf das Formular antwortet, zeigt die vollständige URL samt Token einmal an.
 Teamster speichert vom Token nur einen Digest und kann es nicht erneut anzeigen.
 
+Die URL beginnt mit `server.webhook-url`, wenn es gesetzt ist, sonst mit Schema und Host, unter
+denen Sie die Verwaltungsoberfläche aufrufen. Liegt die Verwaltungsoberfläche auf einem eigenen
+Hostnamen, setzen Sie `server.webhook-url` auf die Adresse, die Absender erreichen; sonst nennt die
+URL einen Host, den sie nicht erreichen. Eine bereits ausgegebene URL mit falschem Host korrigieren
+Sie im Absender; das Token bleibt gleich.
+
 ### Den Absender darauf ausrichten {#point-the-sender-at-it}
 
 Ersetzen Sie in der Konfiguration des Absenders die alte Workflows-URL durch die neue, zum Beispiel
