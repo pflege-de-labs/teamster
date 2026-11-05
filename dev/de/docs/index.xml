@@ -156,6 +156,12 @@ gewinnen. Die Dateien oben werden weiterhin für jeden Schlüssel gelesen, den s
 &lt;td&gt;—&lt;/td&gt;
 &lt;td&gt;Absolute URL, unter der die Verwaltungsoberfläche erreichbar ist; dient Nachrichten als Link dorthin.&lt;/td&gt;
 &lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;server.webhook-url&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;TEAMSTER_SERVER_WEBHOOK_URL&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;—&lt;/td&gt;
+&lt;td&gt;Absolute URL, unter der Absender die Webhooks erreichen. Die Teams-V2-Webhook-URLs und der Alertmanager-Ausschnitt in der Verwaltungsoberfläche beginnen damit. Leer verwendet Schema und Host, unter denen die Verwaltungsoberfläche aufgerufen wird.&lt;/td&gt;
+&lt;/tr&gt;
 &lt;/tbody&gt;
 &lt;/table&gt;
 &lt;h2 data-hextra-search-id="admin-ui-text"&gt;Texte der Verwaltungsoberfläche&lt;span class="hx:absolute hx:-mt-20" id="admin-ui-text"&gt;&lt;/span&gt;
@@ -937,7 +943,7 @@ anderen Befehle führen sie nicht aus.&lt;/p&gt;
 &lt;td&gt;Nicht kombinierbar mit &lt;code&gt;database.postgres.host&lt;/code&gt;, &lt;code&gt;.password&lt;/code&gt; oder &lt;code&gt;.sslrootcert&lt;/code&gt;.&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
-&lt;td&gt;&lt;code&gt;server.external-url&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;server.external-url&lt;/code&gt;, &lt;code&gt;server.webhook-url&lt;/code&gt;&lt;/td&gt;
 &lt;td&gt;Wenn gesetzt, eine absolute &lt;code&gt;http&lt;/code&gt;- oder &lt;code&gt;https&lt;/code&gt;-URL.&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
@@ -5691,6 +5697,10 @@ der Anwendung. &lt;code&gt;database.*&lt;/code&gt; schreibt das Chart aus den We
 &lt;td&gt;&lt;code&gt;&amp;quot;&amp;quot;&lt;/code&gt;&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
+&lt;td&gt;&lt;code&gt;config.settings.server.webhook-url&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;&amp;quot;&amp;quot;&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
 &lt;td&gt;&lt;code&gt;config.settings.graph.tenant-id&lt;/code&gt;&lt;/td&gt;
 &lt;td&gt;&lt;code&gt;&amp;quot;&amp;quot;&lt;/code&gt;&lt;/td&gt;
 &lt;/tr&gt;
@@ -5992,6 +6002,10 @@ der Anwendung. &lt;code&gt;database.*&lt;/code&gt; schreibt das Chart aus den We
 &lt;h2 data-hextra-search-id="httproute"&gt;httpRoute&lt;span class="hx:absolute hx:-mt-20" id="httproute"&gt;&lt;/span&gt;
 &lt;a href="#httproute" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;HTTPRoutes der Gateway API, eine Alternative zum Ingress. Erfordern die CRDs der Gateway API und
 einen Controller.&lt;/p&gt;
+&lt;p&gt;Liegt &lt;code&gt;internal&lt;/code&gt; auf einem eigenen Hostnamen, setzen Sie &lt;code&gt;config.settings.server.webhook-url&lt;/code&gt; auf
+die Adresse, die &lt;code&gt;external&lt;/code&gt; veröffentlicht, zum Beispiel &lt;code&gt;https://teamster.example.com&lt;/code&gt;. Sonst
+nennen die Webhook-URLs, die die Verwaltungsoberfläche ausgibt, den Hostnamen der Verwaltung, den
+Absender nicht erreichen.&lt;/p&gt;
 &lt;table&gt;
 &lt;thead&gt;
 &lt;tr&gt;
@@ -7343,6 +7357,11 @@ Bindestrichen, sind bis zu 64 Zeichen lang und beginnen und enden mit einem Buch
 Ziffer.&lt;/p&gt;
 &lt;p&gt;Die Seite, die auf das Formular antwortet, zeigt die vollständige URL samt Token einmal an.
 Teamster speichert vom Token nur einen Digest und kann es nicht erneut anzeigen.&lt;/p&gt;
+&lt;p&gt;Die URL beginnt mit &lt;code&gt;server.webhook-url&lt;/code&gt;, wenn es gesetzt ist, sonst mit Schema und Host, unter
+denen Sie die Verwaltungsoberfläche aufrufen. Liegt die Verwaltungsoberfläche auf einem eigenen
+Hostnamen, setzen Sie &lt;code&gt;server.webhook-url&lt;/code&gt; auf die Adresse, die Absender erreichen; sonst nennt die
+URL einen Host, den sie nicht erreichen. Eine bereits ausgegebene URL mit falschem Host korrigieren
+Sie im Absender; das Token bleibt gleich.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="point-the-sender-at-it"&gt;Den Absender darauf ausrichten&lt;span class="hx:absolute hx:-mt-20" id="point-the-sender-at-it"&gt;&lt;/span&gt;
 &lt;a href="#point-the-sender-at-it" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Ersetzen Sie in der Konfiguration des Absenders die alte Workflows-URL durch die neue, zum Beispiel
 &lt;code&gt;https://teamster.example/teamsv2/platform/alerts/&amp;lt;token&amp;gt;&lt;/code&gt;. Halten Sie sie so geheim wie die alte.&lt;/p&gt;

@@ -2210,6 +2210,10 @@ segments for the team and the channel. Segments are lower case letters, digits a
 64 characters, starting and ending with a letter or digit.&lt;/p&gt;
 &lt;p&gt;The page that answers the form shows the full URL, token included, once. Teamster stores only a
 digest of the token and cannot show it again.&lt;/p&gt;
+&lt;p&gt;The URL starts with &lt;code&gt;server.webhook-url&lt;/code&gt; when it is set, and otherwise with the scheme and host
+you read the admin UI on. If the admin UI sits on its own hostname, set &lt;code&gt;server.webhook-url&lt;/code&gt; to
+the address senders reach, or the URL names a host they cannot. A URL already handed out with the
+wrong host needs correcting in the sender; the token stays the same.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="point-the-sender-at-it"&gt;Point the sender at it&lt;span class="hx:absolute hx:-mt-20" id="point-the-sender-at-it"&gt;&lt;/span&gt;
 &lt;a href="#point-the-sender-at-it" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Replace the old Workflows URL in the sender&amp;rsquo;s configuration with the new one, for example
 &lt;code&gt;https://teamster.example/teamsv2/platform/alerts/&amp;lt;token&amp;gt;&lt;/code&gt;. Keep it as secret as the old one.&lt;/p&gt;

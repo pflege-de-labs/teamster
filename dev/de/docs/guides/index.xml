@@ -2304,6 +2304,11 @@ Bindestrichen, sind bis zu 64 Zeichen lang und beginnen und enden mit einem Buch
 Ziffer.&lt;/p&gt;
 &lt;p&gt;Die Seite, die auf das Formular antwortet, zeigt die vollständige URL samt Token einmal an.
 Teamster speichert vom Token nur einen Digest und kann es nicht erneut anzeigen.&lt;/p&gt;
+&lt;p&gt;Die URL beginnt mit &lt;code&gt;server.webhook-url&lt;/code&gt;, wenn es gesetzt ist, sonst mit Schema und Host, unter
+denen Sie die Verwaltungsoberfläche aufrufen. Liegt die Verwaltungsoberfläche auf einem eigenen
+Hostnamen, setzen Sie &lt;code&gt;server.webhook-url&lt;/code&gt; auf die Adresse, die Absender erreichen; sonst nennt die
+URL einen Host, den sie nicht erreichen. Eine bereits ausgegebene URL mit falschem Host korrigieren
+Sie im Absender; das Token bleibt gleich.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="point-the-sender-at-it"&gt;Den Absender darauf ausrichten&lt;span class="hx:absolute hx:-mt-20" id="point-the-sender-at-it"&gt;&lt;/span&gt;
 &lt;a href="#point-the-sender-at-it" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Ersetzen Sie in der Konfiguration des Absenders die alte Workflows-URL durch die neue, zum Beispiel
 &lt;code&gt;https://teamster.example/teamsv2/platform/alerts/&amp;lt;token&amp;gt;&lt;/code&gt;. Halten Sie sie so geheim wie die alte.&lt;/p&gt;
