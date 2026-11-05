@@ -15,7 +15,7 @@ auf GitHub.
 ```text
  Alertmanager ───► /webhook/alertmanager ─┬─► routing ─► template ─┐
  any sender ─────► /webhook/universal ────┤                        ├─► Teams bot ─► channel / chat
- Power Automate ─► /teamsv2/… ────────────┘                                                             ▲
+ Power Automate ─► /teamsv2/… ────────────┘                                  ▲
                                                                              │ /bot/messages
  browser ────────► /admin, /api                                        Microsoft Teams
                       │
