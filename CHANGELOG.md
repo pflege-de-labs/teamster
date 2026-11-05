@@ -22,11 +22,12 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 ### Changed
 
-* A Teams V2 message fans out to every matching root route, and one failing delivery answers 502,
-  so a sender retry can duplicate deliveries that succeeded. The success body is the universal
-  webhook's report instead of `{"status":"ok"}`, and the delivery metric label is the route label
-  instead of `teamsv2:<team>/<channel>`. Routes selecting `teamster_source=teamsv2`, which never
-  fired, now fire. Linked routes and their children are left out of export bundles
+* **Breaking:** a Teams V2 message fans out to every matching root route, and one failing
+  delivery answers 502, so a sender retry can duplicate deliveries that succeeded. The success body
+  is the universal webhook's report instead of `{"status":"ok"}`, and the delivery metric label is
+  the route label instead of `teamsv2:<team>/<channel>`. Routes selecting
+  `teamster_source=teamsv2`, which never fired, now fire. Linked routes and their children are left
+  out of export bundles
   ([ADR 0094](docs/adr/0094-a-teams-v2-message-is-routed.md)).
 
 ### Fixed

@@ -120,6 +120,8 @@ a plain insert: the losing replica rolls back on the unique index, logs a warnin
    after the previous release deleted a route.
 2. A linked route whose endpoint is gone is deleted, or unlinked (`''`) and kept as a plain route
    when it has children.
+3. A linked route the previous release edited gets its locked fields back; name, priority and
+   greedy are kept. (Added in the final review.)
 
 ## Export and import
 

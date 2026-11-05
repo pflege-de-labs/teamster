@@ -25,17 +25,19 @@ index and no foreign key. It is created, synced and deleted with the endpoint in
 Its name is `webhook <team>/<channel>`, priority 0, not greedy, with the selector
 `teamster_source=teamsv2, teamster_team=<team>, teamster_channel=<channel>`, and the endpoint's
 destination and template. The routes page and API lock its selector, target, template, parent and
-default flag; name, priority and greedy stay editable. It cannot be deleted on its own: "managed by
-webhook <team>/<channel>; delete the webhook instead". Child routes and independent routes on the
-same labels follow the normal rules. An endpoint with child routes under its route cannot be
-deleted; the API answers 400. An endpoint update renames the route only while it still has the
-default name.
+default flag; name, priority and greedy stay editable. While its endpoint exists it cannot be
+deleted on its own: "managed by webhook <team>/<channel>; delete the webhook instead". Child routes
+and independent routes on the same labels follow the normal rules. An endpoint with child routes
+under its route cannot be deleted; the API answers 400. An endpoint update renames the route only
+while it still has the default name.
 
 An endpoint without a linked route, as the previous release creates, posts straight to its own
 destination. A startup reconcile backfills routes for existing endpoints, copying the `own`
-permissions (shared grants are not copied), and deletes a linked route whose endpoint is gone, or
-unlinks it when it has children. Concurrent replicas insert plainly: the loser's transaction rolls
-back on the unique index, logs a warning and startup continues.
+permissions (shared grants are not copied), rewrites the locked fields of a linked route the
+previous release edited, and deletes a linked route whose endpoint is gone, or unlinks it when it
+has children. Endpoint delete and the reconcile run serializably, because both decide on the route
+tree. Concurrent replicas insert plainly: the loser's conflict rolls back its transaction, which
+Postgres retries; one that persists logs a warning and startup continues.
 
 Alternatives:
 
@@ -55,6 +57,9 @@ Alternatives:
   * The delivery metric label is the route label instead of `teamsv2:<team>/<channel>` on the routed
     path.
   * Existing routes selecting `teamster_source=teamsv2`, which never fired, start firing.
+* A greedy child under a linked route stops the webhook's own channel from receiving its messages.
+  Its creator needs no permission on the parent route, and the endpoint cannot be deleted while the
+  child exists.
 * Linked routes and their descendants are left out of export bundles, like endpoints, so child
   routes under a linked route do not travel. Import refuses a bundle route whose id is a managed
   route, and replace-import never deletes managed routes.
