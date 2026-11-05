@@ -285,6 +285,16 @@ func (s *auditedStore) UpdateRoute(ctx context.Context, r models.Route) (models.
 	return updated, err
 }
 
+func (s *auditedStore) UnlinkRoute(ctx context.Context, id string) error {
+	before := lookup(s.GetRoute(ctx, id))
+	err := s.Store.UnlinkRoute(ctx, id)
+	if err == nil {
+		after := lookup(s.GetRoute(ctx, id))
+		s.emit(ctx, event("route.update", TypeRoute, id, before.raw, after.raw))
+	}
+	return err
+}
+
 func (s *auditedStore) DeleteRoute(ctx context.Context, id string) error {
 	before := lookup(s.GetRoute(ctx, id))
 	err := s.Store.DeleteRoute(ctx, id)

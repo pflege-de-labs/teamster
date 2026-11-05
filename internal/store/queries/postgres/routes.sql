@@ -4,18 +4,18 @@
 -- file and run make generate.
 
 -- name: ListRoutes :many
-SELECT id, name, parent_id, greedy, label_selector, destination_id, template_id, is_default, priority, created_at, updated_at, recipient_id, addressed
+SELECT id, name, parent_id, greedy, label_selector, destination_id, template_id, is_default, priority, created_at, updated_at, recipient_id, addressed, webhook_endpoint_id
 FROM routes
 ORDER BY priority DESC, name;
 
 -- name: GetRoute :one
-SELECT id, name, parent_id, greedy, label_selector, destination_id, template_id, is_default, priority, created_at, updated_at, recipient_id, addressed
+SELECT id, name, parent_id, greedy, label_selector, destination_id, template_id, is_default, priority, created_at, updated_at, recipient_id, addressed, webhook_endpoint_id
 FROM routes
 WHERE id = $1;
 
 -- name: CreateRoute :exec
-INSERT INTO routes (id, name, parent_id, greedy, label_selector, destination_id, template_id, is_default, priority, created_at, updated_at, recipient_id, addressed)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13);
+INSERT INTO routes (id, name, parent_id, greedy, label_selector, destination_id, template_id, is_default, priority, created_at, updated_at, recipient_id, addressed, webhook_endpoint_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14);
 
 -- name: UpdateRoute :exec
 UPDATE routes
@@ -24,3 +24,6 @@ WHERE id = $12;
 
 -- name: DeleteRoute :exec
 DELETE FROM routes WHERE id = $1;
+
+-- name: UnlinkRoute :exec
+UPDATE routes SET webhook_endpoint_id = '' WHERE id = $1;

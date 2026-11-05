@@ -394,6 +394,7 @@ type Querier interface {
 	// ordinary equality, not a NULL comparison, so a card whose send returned no
 	// id is still reachable here.
 	TouchActiveEventRecipient(ctx context.Context, arg TouchActiveEventRecipientParams) error
+	UnlinkRoute(ctx context.Context, id string) error
 	UpdateBrokerToken(ctx context.Context, arg UpdateBrokerTokenParams) error
 	UpdateDestination(ctx context.Context, arg UpdateDestinationParams) error
 	UpdateGroup(ctx context.Context, arg UpdateGroupParams) (int64, error)

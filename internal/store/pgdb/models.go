@@ -213,19 +213,20 @@ type Recipient struct {
 }
 
 type Route struct {
-	ID            string
-	Name          string
-	ParentID      string
-	Greedy        bool
-	LabelSelector string
-	DestinationID string
-	TemplateID    string
-	IsDefault     bool
-	Priority      int64
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
-	RecipientID   string
-	Addressed     bool
+	ID                string
+	Name              string
+	ParentID          string
+	Greedy            bool
+	LabelSelector     string
+	DestinationID     string
+	TemplateID        string
+	IsDefault         bool
+	Priority          int64
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+	RecipientID       string
+	Addressed         bool
+	WebhookEndpointID string
 }
 
 type Session struct {

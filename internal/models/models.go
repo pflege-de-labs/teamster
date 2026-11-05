@@ -319,6 +319,8 @@ type Route struct {
 	Priority   int       `json:"priority"`
 	CreatedAt  time.Time `json:"created_at"`
 	UpdatedAt  time.Time `json:"updated_at"`
+	// WebhookEndpointID names the endpoint this route was made for; empty for a hand-written one.
+	WebhookEndpointID string `json:"webhook_endpoint_id,omitempty"`
 }
 
 // An ActiveEvent is one card: the message this service posted to one channel
