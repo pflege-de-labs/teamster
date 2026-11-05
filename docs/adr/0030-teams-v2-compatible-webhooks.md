@@ -1,7 +1,8 @@
 # 0030. Accept the payloads a Teams V2 webhook accepts
 
 * Status: Accepted, amended by [0040](0040-teams-v2-endpoint-templates.md): an endpoint may
-  name a template
+  name a template; amended by [0094](0094-a-teams-v2-message-is-routed.md):
+  a message is routed
 * Date: 2026-09-16
 
 ## Context

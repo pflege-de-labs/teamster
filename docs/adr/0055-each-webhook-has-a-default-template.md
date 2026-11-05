@@ -1,6 +1,7 @@
 # 0055. Each webhook has a default template
 
-* Status: Accepted
+* Status: Accepted, amended by [0094](0094-a-teams-v2-message-is-routed.md):
+  a Teams V2 message is routed
 * Date: 2026-09-29
 
 ## Context

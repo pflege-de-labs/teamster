@@ -434,16 +434,18 @@ POST /teamsv2/{team}/{channel}/{token}
             │
    teamsv2.Parse: V2 envelope | plain text | legacy MessageCard
             │
-   store.GetDestination(endpoint.DestinationID)
+   processEvent: labels teamster_source, teamster_team, teamster_channel
             │
-   endpoint.TemplateID? ── yes ──► templates.RenderMessage ── fails ──► 502
-            │ no
-   payload cards + hint card
+   routing.Plan ── linked route + any further matching roots ──► deliverOnce each ──► 200 | 502
             │
-   bot post (ChannelTransport) ────────────────────────► 200
+   no linked route (previous release)? ── post to endpoint.DestinationID, as given ──► 200
 ```
 
-There is no routing, because the URL has already decided where the message goes. An endpoint may
+The message is routed like any other ([ADR 0094](adr/0094-a-teams-v2-message-is-routed.md)): the
+URL slugs become the labels `teamster_team` and `teamster_channel`, which are stripped from every
+other source. Each endpoint has a linked route (`routes.webhook_endpoint_id`), written with the
+endpoint in one transaction, whose selector, target and template the routes page locks. A startup
+reconcile backfills missing routes and removes orphaned ones. An endpoint may
 name a template. It renders with `.Event` set to the parsed message and `.Payload` set to the raw
 body as decoded JSON. An endpoint without a template sends the payload as it came, followed by the
 hint card from [Messages](#messages), which links to that endpoint's form. See
@@ -568,7 +570,7 @@ per level of nesting below them, and the destinations last. There is one origin 
 `source:alertmanager` and `source:universal`. A root route whose selector pins `teamster_source`
 (ADR 0052) is entered from that webhook only, and a root pinned to anything else is marked
 unreachable. Below them, each Teams V2 endpoint is an origin of its own (`endpoint:<id>`), linked
-straight to its destination by a `direct` edge, because no route decides where it posts (ADR 0030).
+straight to its destination by a `direct` edge (ADR 0030, ADR 0094).
 Every edge means "an alert can go this way" and says which step it is — `enters`, `refines`,
 `delivers` or `direct` — so a dashed refinement edge can be labelled *as well as* or *instead of*
 according to the child's greedy flag.
@@ -672,9 +674,9 @@ destinations remain. See [ADR 0038](adr/0038-global-default-destination.md).
 
 Before `Plan`, `processEvent` sets the label `teamster_source` to the webhook the event arrived at:
 `alertmanager` or `universal`. It overwrites a sender's own value, and it is set after the key is
-derived so that keys stay as they were. Teams V2 messages are not routed,
-but their templates see `teamster_source=teamsv2`
-([ADR 0052](adr/0052-the-receiving-webhook-is-a-label.md)).
+derived so that keys stay as they were. Teams V2 messages are routed as well
+and carry `teamster_source=teamsv2`
+([ADR 0052](adr/0052-the-receiving-webhook-is-a-label.md), [ADR 0094](adr/0094-a-teams-v2-message-is-routed.md)).
 
 A child is evaluated only once its parent matched, and applies when its own selector matches. Every
 matching child delivers; a greedy one delivers *instead of* its parent, a non-greedy one *as well

@@ -112,7 +112,8 @@ endpoint; the endpoint form links to its route. New strings in `en.json` and `de
 ## Startup reconcile
 
 Runs on every start, idempotent; replicas starting together are safe through the unique index and
-an insert that does nothing on conflict.
+a plain insert: the losing replica rolls back on the unique index, logs a warning and carries on.
+(Corrected during implementation; the first draft said the insert does nothing on conflict.)
 
 1. Every endpoint without a linked route gets one, owned by the principals holding `own` on the
    endpoint (permissions copied). This is the backfill for existing installations and the repair
