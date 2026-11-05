@@ -448,12 +448,12 @@ endpoint in one transaction, whose selector, target and template the routes page
 reconcile backfills missing routes and removes orphaned ones.
 
 An endpoint may name a template. It renders with `.Event` set to the parsed message and `.Payload`
-set to the raw body as decoded JSON. An endpoint without a template sends the payload as it came, followed by the
-hint card from [Messages](#messages). Delivered through the linked route, or straight to the
-destination when there is none, a card's hint links to that endpoint's form; a text-only message
-has no card, so its hint links to the templates panel. See
-[ADR 0040](adr/0040-teams-v2-endpoint-templates.md). The event has no extension and no state, so
-nothing is written to `active_events` and there is nothing later to update or close.
+set to the raw body as decoded JSON. An endpoint without a template sends the payload as it came,
+followed by the hint card from [Messages](#messages). Delivered through the linked route, or
+straight to the destination when there is none, a card's hint links to that endpoint's form; a
+text-only message has no card, so its hint links to the templates panel. See [ADR
+0040](adr/0040-teams-v2-endpoint-templates.md). The event has no extension and no state, so nothing
+is written to `active_events` and there is nothing later to update or close.
 
 An endpoint names a `Destination` rather than a Team and a channel of its own, which is what makes
 it inherit the Teams picker that filled the destination and the grants that bound who may choose
