@@ -44,7 +44,8 @@ curl -H 'Content-Type: application/json' -d '{"text": "something broke on node-3
   https://teamster.example/teamsv2/platform/alerts/<token>
 ```
 
-A `200 {"status":"ok"}` means the message was posted.
+A `200` means the message was delivered. The body is the universal webhook's report, such as
+`{"status":"ok"}`.
 
 {{% /steps %}}
 
@@ -130,9 +131,42 @@ In such a template:
 
 The template preview has a **Teams V2 webhook** sample to try it against.
 
+## Send the messages to more channels
+
+Every endpoint has a route that sends its messages to the endpoint's own destination. Add routes
+that select the same messages to deliver them somewhere else as well.
+
+{{% steps %}}
+
+### Find the endpoint's route
+
+Open the **Routes** panel on **/admin**. The route named `webhook <team>/<channel>` is marked
+**Managed by webhook `<team>/<channel>`**. Its selector is `teamster_source=teamsv2`,
+`teamster_team=<team>` and `teamster_channel=<channel>`. The endpoint's form links to it as
+**Route of this webhook**.
+
+### Add a route
+
+Create a route with a selector of the three labels, or with `teamster_source=teamsv2` and one of
+the others to match several endpoints. Pick the destination and template. Both routes now deliver
+the message.
+
+To add a condition, make the route a child of the endpoint's route and add a label of its own to
+the selector. A child is as well as its parent unless you mark it greedy.
+
+{{% /steps %}}
+
+{{< callout type="warning" >}}
+A greedy child replaces the endpoint's route, so the endpoint's own channel stops receiving the
+messages that child matches. The endpoint cannot be deleted while it has child routes. See
+[Routing]({{< ref "/docs/concepts/routing" >}}).
+{{< /callout >}}
+
+If one delivery fails, the answer is `502`, and a sender that retries can duplicate the deliveries
+that succeeded.
+
 ## What it does not do
 
-* **No routing.** The URL decides the channel, as it did before.
 * **No tracking.** The payloads carry no key and no state, so a message is never updated or closed.
   Use the [universal webhook](../universal-webhook/) for that.
 

@@ -13,8 +13,8 @@ on GitHub.
 
 ```text
  Alertmanager ───► /webhook/alertmanager ─┬─► routing ─► template ─┐
- any sender ─────► /webhook/universal ────┘                        ├─► Teams bot ─► channel / chat
- Power Automate ─► /teamsv2/… ───────── its own channel ─► template ┘        ▲
+ any sender ─────► /webhook/universal ────┤                        ├─► Teams bot ─► channel / chat
+ Power Automate ─► /teamsv2/… ────────────┘                                                             ▲
                                                                              │ /bot/messages
  browser ────────► /admin, /api                                        Microsoft Teams
                       │
@@ -24,7 +24,7 @@ on GitHub.
 
 | Part | What it does |
 | --- | --- |
-| Webhooks | accept events from senders that present a token; a Teams V2 endpoint carries its token in the URL and posts to the one channel it names |
+| Webhooks | accept events from senders that present a token; a Teams V2 endpoint carries its token in the URL, and its URL segments become labels |
 | Routing | picks targets and a template from the event's labels |
 | Templates | render the title, text and Adaptive Card |
 | Teams bot | posts and edits every channel card and chat message, through the Bot Framework |

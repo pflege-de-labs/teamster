@@ -26,8 +26,27 @@ Before routing, Teamster sets the label `teamster_source` to the webhook the eve
 `alertmanager` or `universal`. It overwrites any value the sender set. A route can therefore
 select on the source, for example `{"teamster_source": "alertmanager"}`.
 
-Teams V2 messages are not routed: each Teams V2 endpoint posts to the channel it names. Their
-templates still see `teamster_source=teamsv2`.
+### The `teamster_team` and `teamster_channel` labels
+
+A Teams V2 message arrives with `teamster_source=teamsv2` and the two URL segments it was posted to
+as `teamster_team` and `teamster_channel`. Only the URL sets them: Teamster removes all three from
+a sender's labels on every other webhook.
+
+Teams V2 messages are routed like any other event. Each Teams V2 endpoint has a linked route that
+selects these three labels and delivers to the endpoint's destination with its template. It is
+created, updated and deleted with the endpoint, and the Routes panel marks it **Managed by webhook
+`<team>/<channel>`**. Its selector, target, template, parent and default flag are locked; its name,
+priority and greedy flag are not. You cannot delete it while its endpoint exists, and you cannot
+delete the endpoint while the route has child routes.
+
+Because the message goes through routing, any other route that selects the same labels also
+delivers it. See
+[Send the messages to more channels](../../guides/teams-v2-webhook/#send-the-messages-to-more-channels).
+A greedy child of the linked route replaces it, and the endpoint's own channel then no longer
+receives the message.
+
+An endpoint without a linked route, such as one created by an earlier release, posts straight to
+its destination. Teamster creates the missing route when it starts.
 
 ## Root routes and priority
 

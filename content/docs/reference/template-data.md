@@ -105,7 +105,7 @@ An event from `POST /teamsv2/…` has no extension.
 | Field | Holds |
 | --- | --- |
 | `.Event.Source` | `teamsv2` |
-| `.Event.Labels` | Only `teamster_source`. |
+| `.Event.Labels` | `teamster_source`, `teamster_team` and `teamster_channel`. |
 | `.Event.Title`, `.Event.Text`, `.Event.Card` | The parsed message. `.Event.Text` is already HTML. |
 | `.Payload` | The body as sent, for fields the parsed form flattens, such as `{{ .Payload.themeColor }}`. |
 
