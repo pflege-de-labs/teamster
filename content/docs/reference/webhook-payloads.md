@@ -249,13 +249,15 @@ Responses. Error bodies are `{"error": "<message>"}`.
 
 | Status | Means |
 | --- | --- |
-| `200` | Delivered. Body is the [universal report](#responses), or `{"status": "ok"}` when the endpoint has no linked route. |
+| `200` | `{"status": "ok"}`: every delivery succeeded, or the endpoint has no linked route and posted directly. |
+| `200` | `{"status": "partial", "delivered": <n>, "undelivered": [...]}`: some deliveries were not delivered, as in the [universal report](#responses). |
+| `422` | `{"status": "undelivered", "delivered": 0, "undelivered": [...]}`: no delivery succeeded. |
 | `400` | Not JSON, or neither text nor an Adaptive Card. |
 | `401` | `invalid token`. |
 | `404` | `unknown endpoint`: no endpoint has that team and channel, or the path is incomplete. |
 | `405` | Not a `POST`. Carries `Allow: POST`. |
 | `413` | `payload too large`: the body is over 128 KiB. |
-| `502` | Teams, the database or a template failed, or any one of several deliveries failed. A retry can repeat the deliveries that succeeded. |
+| `502` | Teams, the database or a template failed, or a delivery failed with an error. A retry can repeat the deliveries that succeeded. |
 
 Nothing is tracked. A Teams V2 message is never updated or closed.
 
