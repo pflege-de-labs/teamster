@@ -831,7 +831,11 @@ func untemplatedMessage(ev models.Event) (templates.Message, error) {
 // contents are not otherwise validated.
 func directMessage(ev models.Event) (templates.Message, error) {
 	msg := templates.Message{Title: ev.Title}
-	if ev.Text != "" {
+	switch {
+	case ev.TeamsV2 != nil:
+		// teamsv2.Parse already ran the sanitizer, the trust boundary; rendering again would turn literal text into Markdown.
+		msg.Text = ev.Text
+	case ev.Text != "":
 		safe, err := templates.RenderText(ev.Text)
 		if err != nil {
 			return templates.Message{}, fmt.Errorf("text: %w", err)
@@ -866,7 +870,7 @@ func (s *Server) channelTarget(ctx context.Context, delivery routing.Delivery) (
 // templates.ToMarkdown.
 // channelMessage is chatMessage's counterpart for a channel. graph.Message
 // carries a slice because a Teams V2 payload may bring several cards; a
-// template renders exactly one.
+// template renders one, and an untemplated Teams V2 message passes all of its own on.
 // The notice is a card only beside a card of the message's own; next to plain
 // text it is a line of text, because a channel post is one Teams message and
 // the text would otherwise have to move into a card that renders it worse.
@@ -879,6 +883,7 @@ func (s *Server) channelMessage(rendered templates.Message) graph.Message {
 		return msg
 	}
 	if len(msg.Cards) == 0 && msg.Text != "" {
+		// shortcut: text-only hint links the templates panel, pass the path when a teamsv2 sender needs it
 		if hint, err := templates.RenderText(templates.HintText(s.cfg.Server.ExternalURL, templatesPanelPath)); err == nil {
 			msg.Text += hint
 			return msg

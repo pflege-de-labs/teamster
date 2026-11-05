@@ -476,3 +476,38 @@ func TestTeamsV2IsRouted(t *testing.T) {
 		})
 	}
 }
+
+// Parse already sanitized the text, so routing must not render it as Markdown a second time.
+func TestTeamsV2RoutedTextMatchesTheFallback(t *testing.T) {
+	t.Parallel()
+
+	const body = `{"text":"a **b** c"}`
+	tests := []struct {
+		name   string
+		server func(*testing.T, *fakeMessenger) (*fakeStore, http.Handler)
+	}{
+		{name: "fallback", server: teamsV2Server},
+		{name: "routed", server: teamsV2RoutedServer},
+	}
+	posted := map[string]string{}
+	for _, tt := range tests {
+		msg := &fakeMessenger{messageID: "posted"}
+		_, handler := tt.server(t, msg)
+		if rec := postTeamsV2(t, handler, "/teamsv2/platform/alerts/"+testWebhookToken, body); rec.Code != http.StatusOK {
+			t.Fatalf("%s: status = %d: %s", tt.name, rec.Code, rec.Body)
+		}
+		if len(msg.posts) != 1 {
+			t.Fatalf("%s: posts = %d, want 1", tt.name, len(msg.posts))
+		}
+		posted[tt.name] = msg.posts[0].msg.Text
+		if tt.name == "routed" && len(msg.posts[0].msg.Cards) != 0 {
+			t.Errorf("routed cards = %s, want none beside text", msg.posts[0].msg.Cards)
+		}
+	}
+	if posted["fallback"] != "a **b** c" {
+		t.Errorf("fallback text = %q", posted["fallback"])
+	}
+	if !strings.HasPrefix(posted["routed"], posted["fallback"]) {
+		t.Errorf("routed text = %q, want it to start with the fallback's %q", posted["routed"], posted["fallback"])
+	}
+}
