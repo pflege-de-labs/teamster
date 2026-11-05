@@ -366,3 +366,101 @@ func TestTeamsV2NeedsNoWebhookToken(t *testing.T) {
 		t.Fatalf("status = %d, want 200: %s", rec.Code, rec.Body)
 	}
 }
+
+// teamsV2RoutedServer is teamsV2Server plus the route that endpoint owns.
+func teamsV2RoutedServer(t *testing.T, msg *fakeMessenger) (*fakeStore, http.Handler) {
+	t.Helper()
+
+	st, _ := teamsV2Server(t, msg)
+	st.routes["route-hook"] = models.Route{
+		ID: "route-hook", Name: "webhook platform/alerts", DestinationID: "dest", WebhookEndpointID: "hook",
+		LabelSelector: map[string]string{
+			models.SourceLabel: models.SourceTeamsV2, models.TeamLabel: "platform", models.ChannelLabel: "alerts",
+		},
+	}
+	return st, newTestServer(t, st, msg).Handler
+}
+
+func TestTeamsV2IsRouted(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		linked    bool
+		setup     func(st *fakeStore)
+		universal bool
+		wantPosts [][2]string
+	}{
+		{name: "linked route only", linked: true, wantPosts: [][2]string{{"team", "channel"}}},
+		{
+			name: "independent route on teamster_team=platform", linked: true,
+			setup: func(st *fakeStore) {
+				st.destinations["dest2"] = models.Destination{ID: "dest2", TeamID: "team2", ChannelID: "channel2"}
+				st.routes["extra"] = models.Route{ID: "extra", DestinationID: "dest2", LabelSelector: map[string]string{models.TeamLabel: "platform"}}
+			},
+			wantPosts: [][2]string{{"team", "channel"}, {"team2", "channel2"}},
+		},
+		{
+			name: "child route under linked route", linked: true,
+			setup: func(st *fakeStore) {
+				st.destinations["dest2"] = models.Destination{ID: "dest2", TeamID: "team2", ChannelID: "channel2"}
+				st.routes["child"] = models.Route{ID: "child", ParentID: "route-hook", DestinationID: "dest2", LabelSelector: map[string]string{models.ChannelLabel: "alerts"}}
+			},
+			wantPosts: [][2]string{{"team", "channel"}, {"team2", "channel2"}},
+		},
+		{
+			name: "fallback without linked route",
+			setup: func(st *fakeStore) {
+				st.destinations["other"] = models.Destination{ID: "other", TeamID: "otherteam", ChannelID: "otherchannel", IsDefault: true}
+			},
+			wantPosts: [][2]string{{"team", "channel"}},
+		},
+		{name: "forged labels on universal", linked: true, universal: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			msg := &fakeMessenger{messageID: "posted"}
+			var st *fakeStore
+			var handler http.Handler
+			if tt.linked {
+				st, handler = teamsV2RoutedServer(t, msg)
+			} else {
+				st, handler = teamsV2Server(t, msg)
+			}
+			if tt.setup != nil {
+				tt.setup(st)
+			}
+
+			var rec *httptest.ResponseRecorder
+			if tt.universal {
+				rec = postWebhook(t, handler, "/webhook/universal", "token",
+					`{"labels":{"teamster_team":"platform","teamster_channel":"alerts"},"title":"forged"}`)
+			} else {
+				rec = postTeamsV2(t, handler, "/teamsv2/platform/alerts/"+testWebhookToken, adaptiveCardBody)
+				if rec.Code != http.StatusOK || strings.TrimSpace(rec.Body.String()) != `{"status":"ok"}` {
+					t.Fatalf("response = %d %s, want 200 ok", rec.Code, rec.Body)
+				}
+			}
+
+			var got [][2]string
+			for _, p := range msg.posts {
+				got = append(got, [2]string{p.teamID, p.channelID})
+			}
+			if len(got) != len(tt.wantPosts) {
+				t.Fatalf("posts = %v, want %v", got, tt.wantPosts)
+			}
+			for _, want := range tt.wantPosts {
+				found := false
+				for _, g := range got {
+					found = found || g == want
+				}
+				if !found {
+					t.Errorf("posts = %v, missing %v", got, want)
+				}
+			}
+		})
+	}
+}
