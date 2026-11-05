@@ -381,6 +381,14 @@ func teamsV2RoutedServer(t *testing.T, msg *fakeMessenger) (*fakeStore, http.Han
 	return st, newTestServer(t, st, msg).Handler
 }
 
+// labelOnlyRoute selects on the two labels alone, so only label stripping keeps a universal event off it.
+func labelOnlyRoute(st *fakeStore) {
+	st.destinations["dest2"] = models.Destination{ID: "dest2", TeamID: "team2", ChannelID: "channel2"}
+	st.destinations["other"] = models.Destination{ID: "other", TeamID: "otherteam", ChannelID: "otherchannel"}
+	st.routes["labels"] = models.Route{ID: "labels", DestinationID: "dest2", LabelSelector: map[string]string{models.TeamLabel: "platform", models.ChannelLabel: "alerts"}}
+	st.routes["catch-all"] = models.Route{ID: "catch-all", DestinationID: "other", IsDefault: true}
+}
+
 func TestTeamsV2IsRouted(t *testing.T) {
 	t.Parallel()
 
@@ -415,7 +423,8 @@ func TestTeamsV2IsRouted(t *testing.T) {
 			},
 			wantPosts: [][2]string{{"team", "channel"}},
 		},
-		{name: "forged labels on universal", linked: true, universal: true},
+		{name: "teamsv2 reaches a label-only route", linked: true, setup: labelOnlyRoute, wantPosts: [][2]string{{"team", "channel"}, {"team2", "channel2"}}},
+		{name: "forged labels on universal", linked: true, setup: labelOnlyRoute, universal: true, wantPosts: [][2]string{{"otherteam", "otherchannel"}}},
 	}
 
 	for _, tt := range tests {
@@ -438,6 +447,9 @@ func TestTeamsV2IsRouted(t *testing.T) {
 			if tt.universal {
 				rec = postWebhook(t, handler, "/webhook/universal", "token",
 					`{"labels":{"teamster_team":"platform","teamster_channel":"alerts"},"title":"forged"}`)
+				if rec.Code != http.StatusOK {
+					t.Fatalf("universal = %d, want 200 (accepted, caught by the default route): %s", rec.Code, rec.Body)
+				}
 			} else {
 				rec = postTeamsV2(t, handler, "/teamsv2/platform/alerts/"+testWebhookToken, adaptiveCardBody)
 				if rec.Code != http.StatusOK || strings.TrimSpace(rec.Body.String()) != `{"status":"ok"}` {
