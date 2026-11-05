@@ -62,6 +62,7 @@ A key the file sets but Teamster does not know is ignored without a warning.
 | `server.write-timeout` | `TEAMSTER_SERVER_WRITE_TIMEOUT` | `60s` | How long a handler may take to answer; must exceed `graph.timeout-sec`. |
 | `server.idle-timeout` | `TEAMSTER_SERVER_IDLE_TIMEOUT` | `120s` | How long an idle keep-alive connection is held open. |
 | `server.external-url` | `TEAMSTER_SERVER_EXTERNAL_URL` | — | Absolute URL the admin UI is reachable at, used to link to it from messages. |
+| `server.webhook-url` | `TEAMSTER_SERVER_WEBHOOK_URL` | — | Absolute URL senders reach the webhooks at. The Teams V2 webhook URLs and the Alertmanager snippet in the admin UI start with it. Empty uses the scheme and host the admin UI is read on. |
 
 ## Admin UI text
 
@@ -231,7 +232,7 @@ commands do not run them.
 | `database.postgres.host` | Required when `database.driver` is `postgres` and `database.postgres.url` is empty. |
 | `database.postgres.dbname`, `database.postgres.user` | Required when `database.driver` is `postgres` and `database.postgres.url` is empty. |
 | `database.postgres.url` | Cannot be combined with `database.postgres.host`, `.password` or `.sslrootcert`. |
-| `server.external-url` | Absolute `http` or `https` URL when set. |
+| `server.external-url`, `server.webhook-url` | Absolute `http` or `https` URL when set. |
 | `metrics.*` | With `metrics.enabled`: `metrics.prometheus` or `metrics.otlp-endpoint` is set; with the exporter on, `metrics.addr` is set and differs from `server.addr`, and `metrics.path` starts with `/`; with an OTLP endpoint, `metrics.otlp-interval` is positive. |
 | `bot.tenant-id`, `bot.client-id`, `bot.client-secret` | Setting any one requires `bot.client-id` and `bot.client-secret`, and `bot.tenant-id` unless `bot.tenant-type` is `multi`. |
 | `bot.timeout-sec` | Positive when the bot is configured. |

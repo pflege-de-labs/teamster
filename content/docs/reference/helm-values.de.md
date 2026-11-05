@@ -156,6 +156,7 @@ der Anwendung. `database.*` schreibt das Chart aus den Werten unter [`database`]
 | `config.settings.server.write-timeout` | `60s` |
 | `config.settings.server.idle-timeout` | `120s` |
 | `config.settings.server.external-url` | `""` |
+| `config.settings.server.webhook-url` | `""` |
 | `config.settings.graph.tenant-id` | `""` |
 | `config.settings.graph.client-id` | `""` |
 | `config.settings.graph.base-url` | `https://graph.microsoft.com/v1.0` |
@@ -240,6 +241,11 @@ Eine Änderung an einem der beiden Secrets startet den Pod neu.
 
 HTTPRoutes der Gateway API, eine Alternative zum Ingress. Erfordern die CRDs der Gateway API und
 einen Controller.
+
+Liegt `internal` auf einem eigenen Hostnamen, setzen Sie `config.settings.server.webhook-url` auf
+die Adresse, die `external` veröffentlicht, zum Beispiel `https://teamster.example.com`. Sonst
+nennen die Webhook-URLs, die die Verwaltungsoberfläche ausgibt, den Hostnamen der Verwaltung, den
+Absender nicht erreichen.
 
 | Schlüssel | Standard | Beschreibung |
 | --- | --- | --- |

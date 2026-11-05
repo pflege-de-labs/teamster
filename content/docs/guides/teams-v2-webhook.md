@@ -27,6 +27,11 @@ segments for the team and the channel. Segments are lower case letters, digits a
 The page that answers the form shows the full URL, token included, once. Teamster stores only a
 digest of the token and cannot show it again.
 
+The URL starts with `server.webhook-url` when it is set, and otherwise with the scheme and host
+you read the admin UI on. If the admin UI sits on its own hostname, set `server.webhook-url` to
+the address senders reach, or the URL names a host they cannot. A URL already handed out with the
+wrong host needs correcting in the sender; the token stays the same.
+
 ### Point the sender at it
 
 Replace the old Workflows URL in the sender's configuration with the new one, for example

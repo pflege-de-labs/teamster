@@ -64,6 +64,7 @@ Einen Schlüssel, den die Datei setzt, Teamster aber nicht kennt, ignoriert Team
 | `server.write-timeout` | `TEAMSTER_SERVER_WRITE_TIMEOUT` | `60s` | Wie lange ein Handler für die Antwort brauchen darf; muss `graph.timeout-sec` übersteigen. |
 | `server.idle-timeout` | `TEAMSTER_SERVER_IDLE_TIMEOUT` | `120s` | Wie lange eine untätige Keep-alive-Verbindung offen gehalten wird. |
 | `server.external-url` | `TEAMSTER_SERVER_EXTERNAL_URL` | — | Absolute URL, unter der die Verwaltungsoberfläche erreichbar ist; dient Nachrichten als Link dorthin. |
+| `server.webhook-url` | `TEAMSTER_SERVER_WEBHOOK_URL` | — | Absolute URL, unter der Absender die Webhooks erreichen. Die Teams-V2-Webhook-URLs und der Alertmanager-Ausschnitt in der Verwaltungsoberfläche beginnen damit. Leer verwendet Schema und Host, unter denen die Verwaltungsoberfläche aufgerufen wird. |
 
 ## Texte der Verwaltungsoberfläche {#admin-ui-text}
 
@@ -233,7 +234,7 @@ anderen Befehle führen sie nicht aus.
 | `database.postgres.host` | Erforderlich, wenn `database.driver` `postgres` ist und `database.postgres.url` leer ist. |
 | `database.postgres.dbname`, `database.postgres.user` | Erforderlich, wenn `database.driver` `postgres` ist und `database.postgres.url` leer ist. |
 | `database.postgres.url` | Nicht kombinierbar mit `database.postgres.host`, `.password` oder `.sslrootcert`. |
-| `server.external-url` | Wenn gesetzt, eine absolute `http`- oder `https`-URL. |
+| `server.external-url`, `server.webhook-url` | Wenn gesetzt, eine absolute `http`- oder `https`-URL. |
 | `metrics.*` | Mit `metrics.enabled`: `metrics.prometheus` oder `metrics.otlp-endpoint` ist gesetzt; bei eingeschaltetem Exporter ist `metrics.addr` gesetzt und von `server.addr` verschieden, und `metrics.path` beginnt mit `/`; mit einem OTLP-Endpunkt ist `metrics.otlp-interval` positiv. |
 | `bot.tenant-id`, `bot.client-id`, `bot.client-secret` | Ist einer gesetzt, sind `bot.client-id` und `bot.client-secret` erforderlich, außerdem `bot.tenant-id`, sofern `bot.tenant-type` nicht `multi` ist. |
 | `bot.timeout-sec` | Positiv, wenn der Bot konfiguriert ist. |
