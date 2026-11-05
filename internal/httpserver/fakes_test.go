@@ -852,6 +852,9 @@ func (f *fakeStore) CreateRoute(ctx context.Context, r models.Route) (models.Rou
 	}
 	if r.ID == "" {
 		r.ID = "generated"
+		for n := 2; f.routes[r.ID].ID != ""; n++ {
+			r.ID = fmt.Sprintf("generated-%d", n)
+		}
 	}
 	if err := f.endpointFree(r.WebhookEndpointID); err != nil {
 		return models.Route{}, err

@@ -52,22 +52,26 @@ func syncEndpointRoute(ctx context.Context, tx store.Store, r *http.Request, e m
 	if err != nil {
 		return err
 	}
-	want := endpointRoute(e)
 	if !found {
-		created, err := tx.CreateRoute(ctx, want)
+		created, err := tx.CreateRoute(ctx, endpointRoute(e))
 		if err != nil {
 			return err
 		}
 		return grantOwner(ctx, tx, r, typeRoute, created.ID)
 	}
+	return alignEndpointRoute(ctx, tx, current, e)
+}
 
+// alignEndpointRoute rewrites the locked fields of an endpoint's route, keeping name, priority and greedy.
+func alignEndpointRoute(ctx context.Context, tx store.Store, current models.Route, e models.WebhookEndpoint) error {
+	want := endpointRoute(e)
 	// The selector is locked, so it still names the previous slugs.
 	oldName := endpointRouteName(current.LabelSelector[models.TeamLabel], current.LabelSelector[models.ChannelLabel])
 	if current.Name != oldName {
 		want.Name = current.Name
 	}
 	want.ID, want.Priority, want.Greedy = current.ID, current.Priority, current.Greedy
-	_, err = tx.UpdateRoute(ctx, want)
+	_, err := tx.UpdateRoute(ctx, want)
 	return err
 }
 
@@ -103,11 +107,11 @@ func deleteEndpointRoute(ctx context.Context, tx store.Store, endpointID string)
 }
 
 // Reconciled counts what ReconcileEndpointRoutes changed.
-type Reconciled struct{ Created, Deleted, Unlinked int }
+type Reconciled struct{ Created, Updated, Deleted, Unlinked int }
 
-// ReconcileEndpointRoutes gives every endpoint its linked route and cleans up links the previous
-// release left dangling. It is idempotent and applies all or nothing, serializably because
-// deleting versus unlinking an orphan depends on its children.
+// ReconcileEndpointRoutes gives every endpoint its linked route, repairs one the previous release
+// edited, and cleans up links it left dangling. It is idempotent and applies all or nothing,
+// serializably because deleting versus unlinking an orphan depends on its children.
 func ReconcileEndpointRoutes(ctx context.Context, st store.Store) (Reconciled, error) {
 	var done Reconciled
 	err := st.WithSerializableTx(ctx, func(ctx context.Context, tx store.Store) error {
@@ -124,12 +128,12 @@ func ReconcileEndpointRoutes(ctx context.Context, st store.Store) (Reconciled, e
 		for _, e := range endpoints {
 			exists[e.ID] = true
 		}
-		linked := make(map[string]bool, len(routes))
+		linked := make(map[string]models.Route, len(routes))
 		parents := make(map[string]bool, len(routes))
 		for _, r := range routes {
 			parents[r.ParentID] = true
 			if r.WebhookEndpointID != "" && exists[r.WebhookEndpointID] {
-				linked[r.WebhookEndpointID] = true
+				linked[r.WebhookEndpointID] = r
 			}
 		}
 
@@ -154,7 +158,15 @@ func ReconcileEndpointRoutes(ctx context.Context, st store.Store) (Reconciled, e
 		}
 
 		for _, e := range endpoints {
-			if linked[e.ID] {
+			if current, ok := linked[e.ID]; ok {
+				// The previous release did not lock the route, so it may have been edited.
+				if !lockedFieldsChanged(current, endpointRoute(e)) {
+					continue
+				}
+				if err := alignEndpointRoute(ctx, tx, current, e); err != nil {
+					return err
+				}
+				done.Updated++
 				continue
 			}
 			created, err := tx.CreateRoute(ctx, endpointRoute(e))

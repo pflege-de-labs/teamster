@@ -163,7 +163,7 @@ func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
 	if done, err := httpserver.ReconcileEndpointRoutes(ctx, auditedStore); err != nil {
 		logger.Warn("reconcile webhook routes failed", "error", err)
 	} else if done != (httpserver.Reconciled{}) {
-		logger.Info("reconciled webhook routes", "created", done.Created, "deleted", done.Deleted, "unlinked", done.Unlinked)
+		logger.Info("reconciled webhook routes", "created", done.Created, "updated", done.Updated, "deleted", done.Deleted, "unlinked", done.Unlinked)
 	}
 
 	if err := telemetry.ObserveActiveEvents(func(ctx context.Context) (int64, error) {

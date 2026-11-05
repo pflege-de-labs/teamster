@@ -200,6 +200,27 @@ func TestSyncEndpointRouteGrantsOwner(t *testing.T) {
 	t.Error("no owner permission on the new route")
 }
 
+// drifted is hook's linked route as the previous release may have edited it.
+func drifted(st *fakeStore, edit func(*models.Route)) models.Route {
+	r := endpointRoute(st.webhooks["hook"])
+	r.ID = "wroute"
+	edit(&r)
+	return r
+}
+
+// repaired checks the locked fields are back while priority and greedy survive.
+func repaired(priority int, greedy bool) func(*testing.T, *fakeStore) {
+	return func(t *testing.T, st *fakeStore) {
+		t.Helper()
+		want := endpointRoute(st.webhooks["hook"])
+		want.ID, want.Priority, want.Greedy = "wroute", priority, greedy
+		got := st.routes["wroute"]
+		if lockedFieldsChanged(want, got) || got.Name != want.Name || got.Priority != priority || got.Greedy != greedy {
+			t.Errorf("route = %+v, want %+v", got, want)
+		}
+	}
+}
+
 func TestReconcileEndpointRoutes(t *testing.T) {
 	t.Parallel()
 
@@ -297,6 +318,39 @@ func TestReconcileEndpointRoutes(t *testing.T) {
 				}
 				if got := owners(st, "gone"); !slices.Equal(got, []string{"alice"}) {
 					t.Errorf("owners = %v", got)
+				}
+			},
+		},
+		{
+			name: "drifted selector repaired",
+			setup: func(st *fakeStore) {
+				st.routes["wroute"] = drifted(st, func(r *models.Route) {
+					r.LabelSelector = map[string]string{models.TeamLabel: "other"}
+					r.Priority, r.Greedy = 5, true
+				})
+			},
+			want:  Reconciled{Updated: 1},
+			check: repaired(5, true),
+		},
+		{
+			name: "drifted destination repaired",
+			setup: func(st *fakeStore) {
+				st.routes["wroute"] = drifted(st, func(r *models.Route) { r.DestinationID, r.ParentID = "dest2", "elsewhere" })
+			},
+			want:  Reconciled{Updated: 1},
+			check: repaired(0, false),
+		},
+		{
+			name: "backfill two endpoints",
+			setup: func(st *fakeStore) {
+				st.webhooks["hook2"] = models.WebhookEndpoint{ID: "hook2", TeamSlug: "ops", ChannelSlug: "pager", DestinationID: "dest"}
+			},
+			want: Reconciled{Created: 2},
+			check: func(t *testing.T, st *fakeStore) {
+				a, okA := routeFor(st, "hook")
+				b, okB := routeFor(st, "hook2")
+				if !okA || !okB || a.ID == b.ID {
+					t.Errorf("routes = %v", st.routes)
 				}
 			},
 		},
