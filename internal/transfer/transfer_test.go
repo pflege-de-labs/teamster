@@ -622,3 +622,95 @@ func TestAnAddressedRouteTravels(t *testing.T) {
 		t.Errorf("imported route = %+v, %v; want it still addressing people", got, err)
 	}
 }
+
+func TestTransferSkipsManagedRoutes(t *testing.T) {
+	t.Parallel()
+
+	linked := func(t *testing.T) *store.SQLiteStore {
+		st := configured(t)
+		ctx := t.Context()
+		for _, r := range []models.Route{
+			{ID: "linked", Name: "webhook a/b", DestinationID: "dest", TemplateID: "tmpl", WebhookEndpointID: "ep"},
+			{ID: "linked-child", Name: "Child", ParentID: "linked", DestinationID: "dest", TemplateID: "tmpl", LabelSelector: map[string]string{"x": "y"}},
+		} {
+			if _, err := st.CreateRoute(ctx, r); err != nil {
+				t.Fatalf("seed %s: %v", r.ID, err)
+			}
+		}
+		return st
+	}
+	ids := func(t *testing.T, st store.Store) map[string]models.Route {
+		routes, err := st.ListRoutes(t.Context())
+		if err != nil {
+			t.Fatal(err)
+		}
+		m := map[string]models.Route{}
+		for _, r := range routes {
+			m[r.ID] = r
+		}
+		return m
+	}
+	base := Bundle{
+		Version:      Version,
+		Templates:    []models.Template{{ID: "tmpl", Name: "Card", Body: "{}"}},
+		Destinations: []BundleDestination{{Destination: models.Destination{ID: "dest", Name: "Ops"}}},
+	}
+
+	t.Run("export omits linked route and its child", func(t *testing.T) {
+		t.Parallel()
+		bundle, err := Export(t.Context(), linked(t), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(bundle.Routes) != 1 || bundle.Routes[0].ID != "root" {
+			t.Errorf("routes = %+v, want only root", bundle.Routes)
+		}
+	})
+
+	t.Run("replace import keeps linked route and its child", func(t *testing.T) {
+		t.Parallel()
+		st := linked(t)
+		if _, err := Import(t.Context(), st, base, ModeReplace, false); err != nil {
+			t.Fatal(err)
+		}
+		got := ids(t, st)
+		if _, ok := got["linked"]; !ok {
+			t.Errorf("linked route deleted: %+v", got)
+		}
+		if _, ok := got["linked-child"]; !ok {
+			t.Errorf("linked child deleted: %+v", got)
+		}
+		if _, ok := got["root"]; ok {
+			t.Errorf("unmentioned hand-written route kept: %+v", got)
+		}
+	})
+
+	for _, dryRun := range []bool{false, true} {
+		t.Run("import refuses a bundle route whose id is a linked route", func(t *testing.T) {
+			t.Parallel()
+			st := linked(t)
+			bundle := base
+			bundle.Routes = []models.Route{{ID: "linked-child", Name: "Hijack", DestinationID: "dest"}}
+			_, err := Import(t.Context(), st, bundle, ModeMerge, dryRun)
+			if err == nil || !strings.Contains(err.Error(), `route "linked-child" is managed by a webhook`) {
+				t.Fatalf("err = %v", err)
+			}
+			if got := ids(t, st)["linked-child"].Name; got != "Child" {
+				t.Errorf("name = %q, route was modified", got)
+			}
+		})
+	}
+
+	t.Run("imported route never carries a link", func(t *testing.T) {
+		t.Parallel()
+		st := linked(t)
+		bundle := base
+		bundle.Routes = []models.Route{{ID: "fresh", Name: "Fresh", DestinationID: "dest", WebhookEndpointID: "ep2"}}
+		if _, err := Import(t.Context(), st, bundle, ModeMerge, false); err != nil {
+			t.Fatal(err)
+		}
+		if got := ids(t, st)["fresh"].WebhookEndpointID; got != "" {
+			t.Errorf("WebhookEndpointID = %q, want empty", got)
+		}
+	})
+}
