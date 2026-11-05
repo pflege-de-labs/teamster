@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"maps"
 	"net/http"
+	"net/url"
 	"sort"
 	"strings"
 	"time"
@@ -734,7 +735,11 @@ func (s *Server) renderMessageFor(ctx context.Context, ev models.Event, delivery
 		// A route whose template names other sources has one; saying there is
 		// none would send somebody to create a second.
 		if err == nil && delivery.TemplateID == "" {
-			msg.Notice, err = templates.HintCard(s.cfg.Server.ExternalURL, templatesPanelPath)
+			path := templatesPanelPath
+			if delivery.WebhookEndpointID != "" {
+				path = "/admin?edit=webhooks&id=" + url.QueryEscape(delivery.WebhookEndpointID) + "#webhooks"
+			}
+			msg.Notice, err = templates.HintCard(s.cfg.Server.ExternalURL, path)
 		}
 		if err != nil {
 			s.metrics.RenderFailed(ctx, delivery.TemplateID, metrics.StageRender)
@@ -743,11 +748,15 @@ func (s *Server) renderMessageFor(ctx context.Context, ev models.Event, delivery
 		return msg, nil
 	}
 
-	rendered, err := templates.RenderMessage(template, templates.RenderData{
+	data := templates.RenderData{
 		Event:     ev,
 		Now:       time.Now().UTC().Format(time.RFC3339),
 		Recipient: person,
-	})
+	}
+	if ev.TeamsV2 != nil {
+		data.Payload = ev.TeamsV2.Payload
+	}
+	rendered, err := templates.RenderMessage(template, data)
 	if err != nil {
 		s.metrics.RenderFailed(ctx, template.ID, metrics.StageRender)
 		return templates.Message{}, fmt.Errorf("render: %w", err)
@@ -836,6 +845,9 @@ func directMessage(ev models.Event) (templates.Message, error) {
 		}
 		msg.Card = ev.Card
 	}
+	if ev.TeamsV2 != nil && len(ev.TeamsV2.Cards) > 1 {
+		msg.More = ev.TeamsV2.Cards[1:]
+	}
 	return msg, nil
 }
 
@@ -861,7 +873,7 @@ func (s *Server) channelTarget(ctx context.Context, delivery routing.Delivery) (
 func (s *Server) channelMessage(rendered templates.Message) graph.Message {
 	msg := graph.Message{Title: rendered.Title, Text: rendered.Text}
 	if len(rendered.Card) > 0 {
-		msg.Cards = []json.RawMessage{rendered.Card}
+		msg.Cards = append([]json.RawMessage{rendered.Card}, rendered.More...)
 	}
 	if len(rendered.Notice) == 0 {
 		return msg

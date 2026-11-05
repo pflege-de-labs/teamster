@@ -486,6 +486,13 @@ type BrokerToken struct {
 // sets it, overwriting whatever the sender put there, so a route can trust it.
 const SourceLabel = "teamster_source"
 
+// TeamLabel and ChannelLabel carry the URL slugs of the Teams V2 webhook an
+// event arrived at. Only the teamsv2 receiver may set them.
+const (
+	TeamLabel    = "teamster_team"
+	ChannelLabel = "teamster_channel"
+)
+
 // RecipientLabel names the people an addressed route delivers to, comma
 // separated, for a sender with no recipients field of its own, such as
 // Alertmanager (ADR 0063). Unlike SourceLabel the sender sets it.
@@ -528,6 +535,10 @@ const (
 func WithSourceLabel(labels map[string]string, source string) map[string]string {
 	out := make(map[string]string, len(labels)+1)
 	maps.Copy(out, labels)
+	if source != SourceTeamsV2 {
+		delete(out, TeamLabel)
+		delete(out, ChannelLabel)
+	}
 	out[SourceLabel] = source
 	return out
 }
@@ -569,6 +580,14 @@ type Event struct {
 
 	Alertmanager *AlertmanagerEvent `json:"alertmanager,omitempty"`
 	Universal    *UniversalEvent    `json:"universal,omitempty"`
+	TeamsV2      *TeamsV2Event      `json:"teamsv2,omitempty"`
+}
+
+// TeamsV2Event is a Teams V2 webhook body beyond the core: the decoded payload
+// for templates, and every card the message carried, the first included.
+type TeamsV2Event struct {
+	Payload any               `json:"payload"`
+	Cards   []json.RawMessage `json:"cards"`
 }
 
 // AlertmanagerEvent is one Alertmanager group notification beyond the core
