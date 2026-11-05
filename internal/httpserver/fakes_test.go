@@ -856,7 +856,6 @@ func (f *fakeStore) CreateRoute(ctx context.Context, r models.Route) (models.Rou
 	if err := f.endpointFree(r.WebhookEndpointID); err != nil {
 		return models.Route{}, err
 	}
-	r.WebhookEndpointID = f.routes[r.ID].WebhookEndpointID
 	f.routes[r.ID] = r
 	return r, nil
 }
@@ -890,6 +889,7 @@ func (f *fakeStore) UpdateRoute(ctx context.Context, r models.Route) (models.Rou
 	if err := f.failing("UpdateRoute"); err != nil {
 		return models.Route{}, err
 	}
+	r.WebhookEndpointID = f.routes[r.ID].WebhookEndpointID
 	f.routes[r.ID] = r
 	return r, nil
 }
