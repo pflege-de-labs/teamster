@@ -414,3 +414,59 @@ func TestWebhookFormSavesATemplate(t *testing.T) {
 		t.Error("page does not offer the template picker or name the endpoint's template")
 	}
 }
+
+// A configured webhook URL beats the host the admin UI is read on, which in a
+// split deployment is an internal one senders cannot reach.
+func TestConfiguredWebhookURLIsHandedOut(t *testing.T) {
+	t.Parallel()
+
+	const want = "https://hooks.example.org/"
+	tests := []struct {
+		name  string
+		store func() *fakeStore
+		call  func(t *testing.T, h http.Handler) string
+		path  string
+	}{
+		{
+			name:  "admin form",
+			store: seededUIStore,
+			call: func(t *testing.T, h http.Handler) string {
+				form := url.Values{"team_slug": {"platform"}, "channel_slug": {"alerts"}, "destination_id": {"dest"}}
+				return postForm(t, h, "/admin/webhooks", form, map[string]string{"Sec-Fetch-Site": "same-origin"}).Body.String()
+			},
+			path: "teamsv2/platform/alerts/",
+		},
+		{
+			name:  "API",
+			store: webhookUIStore,
+			call: func(t *testing.T, h http.Handler) string {
+				return do(t, h, http.MethodPost, "/api/webhooks", `{"team_slug":"ops","channel_slug":"pages","destination_id":"dest"}`).Body.String()
+			},
+			path: "teamsv2/ops/pages/",
+		},
+		{
+			name:  "tokens page",
+			store: tokenStore,
+			call: func(t *testing.T, h http.Handler) string {
+				form := url.Values{"name": {"sender"}, "scope": {"alertmanager"}}
+				return postForm(t, h, "/admin/tokens/new", form, map[string]string{"Sec-Fetch-Site": "same-origin"}).Body.String()
+			},
+			path: "webhook/alertmanager",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := testConfig()
+			cfg.Server.WebhookURL = want
+			body := tt.call(t, mustServer(t, cfg, tt.store(), &fakeMessenger{}).Handler)
+			if !strings.Contains(body, want+tt.path) {
+				t.Errorf("response does not hand out %s%s", want, tt.path)
+			}
+			if strings.Contains(body, "example.com/"+tt.path) {
+				t.Error("response still hands out the request's host")
+			}
+		})
+	}
+}

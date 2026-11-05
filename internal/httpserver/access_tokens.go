@@ -225,7 +225,7 @@ func (s *Server) revokeAccessTokenForm(r *http.Request) (string, error) {
 func (s *Server) renderTokens(w http.ResponseWriter, r *http.Request, page views.Tokens) {
 	ctx := r.Context()
 	page.Viewer = s.viewerFor(r)
-	page.WebhookURL = webhookBaseURL(r) + "/webhook/alertmanager"
+	page.WebhookURL = s.webhookBaseURL(r) + "/webhook/alertmanager"
 	page.ConfigTokenSet = s.cfg.Webhook.Token != ""
 
 	tokens, err := s.store.ListAccessTokens(ctx)
@@ -255,9 +255,12 @@ func levelsUpTo(limit string) []string {
 	return out
 }
 
-// webhookBaseURL is built from the request, like webhookURL, because the host
-// the admin is reading is the host the sender will be pointed at.
-func webhookBaseURL(r *http.Request) string {
+// webhookBaseURL falls back to the host the admin is reading on, which is wrong
+// once the admin UI and the webhooks are published under different hostnames.
+func (s *Server) webhookBaseURL(r *http.Request) string {
+	if s.cfg.Server.WebhookURL != "" {
+		return strings.TrimSuffix(s.cfg.Server.WebhookURL, "/")
+	}
 	scheme := "http"
 	if isTLS(r) {
 		scheme = "https"

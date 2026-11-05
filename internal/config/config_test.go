@@ -289,6 +289,9 @@ func TestValidate(t *testing.T) {
 		{name: "an external URL", mutate: func(c *Config) { c.Server.ExternalURL = "https://teamster.example.com" }},
 		{name: "a relative external URL", mutate: func(c *Config) { c.Server.ExternalURL = "/admin" }, wantErr: `server-external-url must be an absolute http or https URL, not "/admin"`},
 		{name: "an external URL of another scheme", mutate: func(c *Config) { c.Server.ExternalURL = "ftp://teamster.example.com" }, wantErr: `server-external-url must be an absolute http or https URL, not "ftp://teamster.example.com"`},
+		{name: "a webhook URL", mutate: func(c *Config) { c.Server.WebhookURL = "https://teamster.example.com" }},
+		{name: "a relative webhook URL", mutate: func(c *Config) { c.Server.WebhookURL = "/teamsv2" }, wantErr: `server-webhook-url must be an absolute http or https URL, not "/teamsv2"`},
+		{name: "a webhook URL of another scheme", mutate: func(c *Config) { c.Server.WebhookURL = "ftp://teamster.example.com" }, wantErr: `server-webhook-url must be an absolute http or https URL, not "ftp://teamster.example.com"`},
 	}
 
 	for _, tt := range tests {

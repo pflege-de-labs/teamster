@@ -8,6 +8,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+* `config.settings.server.webhook-url`, for a deployment whose `httpRoute.internal` puts the admin
+  UI on a hostname senders cannot reach; see the [service changelog](../../CHANGELOG.md).
+
 ## [0.15.0] — 2026-10-28
 
 App version 0.16.0: the delegated Teams picker uses Keycloak's Identity Brokering API V2 and falls

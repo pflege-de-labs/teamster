@@ -11,6 +11,11 @@ server:
   # here so that someone can create one. Leave it empty and the message still
   # says a template is missing, but has no link.
   external-url: ""
+  # Where senders reach the webhooks, when that is not where people reach the
+  # admin UI. The Teams V2 webhook URLs and the Alertmanager snippet the admin
+  # UI hands out start with it. Leave it empty to use the host the admin UI is
+  # read on.
+  webhook-url: ""
 
 database:
   # Where the state lives.

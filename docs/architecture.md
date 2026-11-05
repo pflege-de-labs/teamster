@@ -161,7 +161,10 @@ behaviour, kept as the default. Enabling `httpRoute.internal` splits the two ont
 listener while the webhooks stay internet-reachable. The fallback runs one way only: enabling
 `httpRoute.internal` without `httpRoute.external` does not expose the webhooks. Ingress mode keeps
 its single-resource, all-paths shape; the split is Gateway API only. See
-[ADR 0033](adr/0033-split-httproute-external-and-internal.md).
+[ADR 0033](adr/0033-split-httproute-external-and-internal.md). Under such a split the admin UI's
+host is not the webhooks' host, so the URLs it hands out to senders start with
+`server.webhook-url`, falling back to the request's scheme and host when that is empty
+([ADR 0093](adr/0093-configurable-webhook-url.md)).
 
 ## Request flow
 
@@ -450,7 +453,8 @@ nothing is written to `active_events` and there is nothing later to update or cl
 An endpoint names a `Destination` rather than a Team and a channel of its own, which is what makes
 it inherit the Teams picker that filled the destination and the grants that bound who may choose
 it. Its token is per endpoint and stored only as a SHA-256 digest; it is shown once, in the answer
-to the post that generated it, and rotating it is its own form. See
+to the post that generated it, and rotating it is its own form. The URL starts with
+`server.webhook-url`, or the request's scheme and host. See
 [ADR 0030](adr/0030-teams-v2-compatible-webhooks.md).
 
 ## Authorization

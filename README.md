@@ -781,7 +781,8 @@ it was before.
 
 Create the endpoint under **Teams V2 webhooks** on `/admin`: pick the destination to post into and
 give the URL two readable segments (lower case letters, digits and hyphens). The full URL, token
-included, is shown once on the page that answers the form. Only a digest of the token is stored, so
+included, is shown once on the page that answers the form. Its host is `server.webhook-url`, or the
+host the page is read on when that is empty. Only a digest of the token is stored, so
 there is no way to show it again — if it is lost, or leaks, use **New token**, which replaces it and
 stops the old URL working.
 
@@ -1652,6 +1653,11 @@ docker run --rm -p 8080:8080 --read-only \
 `server.external-url` is the address people reach the admin UI at, for example
 `https://teamster.example.com`. Messages sent without a template link there, and it must be an
 absolute `http` or `https` URL.
+
+`server.webhook-url` is the address senders reach the webhooks at. The Teams V2 webhook URLs and
+the Alertmanager snippet the admin UI hands out start with it. Left empty, they use the host the
+admin UI is read on, which is wrong when the admin UI has a hostname of its own that senders cannot
+reach. It must be an absolute `http` or `https` URL.
 
 Connections are bounded by `server.read-timeout`, `server.write-timeout` and
 `server.idle-timeout`. If you raise `graph.timeout-sec`, raise the write timeout past it, or a

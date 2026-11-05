@@ -60,7 +60,7 @@ func (s *Server) handleWebhookEndpoints(w http.ResponseWriter, r *http.Request) 
 		writeJSON(w, http.StatusCreated, webhookEndpointResponse{
 			WebhookEndpoint: created,
 			Token:           token,
-			URL:             webhookURL(r, created, token),
+			URL:             s.webhookURL(r, created, token),
 		})
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -152,7 +152,7 @@ func (s *Server) rotateWebhookEndpointToken(w http.ResponseWriter, r *http.Reque
 	writeJSON(w, http.StatusOK, webhookEndpointResponse{
 		WebhookEndpoint: endpoint,
 		Token:           token,
-		URL:             webhookURL(r, endpoint, token),
+		URL:             s.webhookURL(r, endpoint, token),
 	})
 }
 

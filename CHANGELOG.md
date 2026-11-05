@@ -10,6 +10,19 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 ## [Unreleased]
 
+### Added
+
+* `server.webhook-url` sets the address the Teams V2 webhook URLs and the Alertmanager snippet in
+  the admin UI start with
+  ([ADR 0093](docs/adr/0093-configurable-webhook-url.md)).
+
+### Fixed
+
+* A deployment that publishes the admin UI and the webhooks under different hostnames no longer
+  hands out webhook URLs naming the admin UI's host, which senders cannot reach. Set
+  `server.webhook-url` to the webhooks' address; left empty, the URL still uses the host the admin
+  UI is read on.
+
 ## [0.16.0] — 2026-10-28
 
 ### Changed
