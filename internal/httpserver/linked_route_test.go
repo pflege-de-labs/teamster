@@ -117,10 +117,11 @@ func TestLinkedRouteDeleteAndCreate(t *testing.T) {
 
 	tests := []struct {
 		name  string
+		setup func(st *fakeStore)
 		run   func(t *testing.T, h http.Handler) string
 		check func(t *testing.T, st *fakeStore, body string)
 	}{
-		{"delete refused via api", func(t *testing.T, h http.Handler) string {
+		{"delete refused via api", nil, func(t *testing.T, h http.Handler) string {
 			return do(t, h, http.MethodDelete, "/api/routes/wroute", "").Body.String()
 		}, func(t *testing.T, st *fakeStore, body string) {
 			if !strings.Contains(body, managedDelete) {
@@ -130,7 +131,7 @@ func TestLinkedRouteDeleteAndCreate(t *testing.T) {
 				t.Error("route deleted")
 			}
 		}},
-		{"delete refused via form", func(t *testing.T, h http.Handler) string {
+		{"delete refused via form", nil, func(t *testing.T, h http.Handler) string {
 			_, body := respText(postForm(t, h, "/admin/routes/delete", url.Values{"id": {"wroute"}}, nil))
 			return body
 		}, func(t *testing.T, st *fakeStore, body string) {
@@ -141,14 +142,44 @@ func TestLinkedRouteDeleteAndCreate(t *testing.T) {
 				t.Error("route deleted")
 			}
 		}},
-		{"delete refused for an orphan", func(t *testing.T, h http.Handler) string {
+		{"delete allowed for an orphan", func(st *fakeStore) {
+			delete(st.webhooks, "hook")
+			st.permissions["p"] = models.Permission{ID: "p", ResourceType: typeRoute, ResourceID: "wroute"}
+		}, func(t *testing.T, h http.Handler) string {
 			return do(t, h, http.MethodDelete, "/api/routes/wroute", "").Body.String()
 		}, func(t *testing.T, st *fakeStore, body string) {
-			if !strings.Contains(body, managedDelete) {
-				t.Errorf("body = %q", body)
+			if _, ok := st.routes["wroute"]; ok {
+				t.Errorf("route kept: %q", body)
+			}
+			if _, ok := st.permissions["p"]; ok {
+				t.Error("route permission kept")
 			}
 		}},
-		{"create cannot set webhook_endpoint_id", func(t *testing.T, h http.Handler) string {
+		{"priority change accepted though the template is for other sources", func(st *fakeStore) {
+			st.templates["am"] = models.Template{ID: "am", Name: "Alertmanager card", Body: `{"type":"AdaptiveCard"}`, Sources: []string{models.SourceAlertmanager}}
+			r := st.routes["wroute"]
+			r.TemplateID = "am"
+			st.routes["wroute"] = r
+		}, func(t *testing.T, h http.Handler) string {
+			return do(t, h, http.MethodPut, "/api/routes/wroute",
+				`{"name":"webhook platform/alerts","priority":4,"destination_id":"dest","template_id":"am",`+
+					`"label_selector":{"teamster_source":"teamsv2","teamster_team":"platform","teamster_channel":"alerts"}}`).Body.String()
+		}, func(t *testing.T, st *fakeStore, body string) {
+			if st.routes["wroute"].Priority != 4 {
+				t.Errorf("priority not saved: %q", body)
+			}
+		}},
+		{"update response carries the link", nil, func(t *testing.T, h http.Handler) string {
+			return do(t, h, http.MethodPut, "/api/routes/wroute",
+				`{"name":"renamed","destination_id":"dest",`+
+					`"label_selector":{"teamster_source":"teamsv2","teamster_team":"platform","teamster_channel":"alerts"}}`).Body.String()
+		}, func(t *testing.T, _ *fakeStore, body string) {
+			var got models.Route
+			if err := json.Unmarshal([]byte(body), &got); err != nil || got.WebhookEndpointID != "hook" {
+				t.Errorf("response = %q, want webhook_endpoint_id hook", body)
+			}
+		}},
+		{"create cannot set webhook_endpoint_id", nil, func(t *testing.T, h http.Handler) string {
 			return do(t, h, http.MethodPost, "/api/routes", `{"id":"","name":"mine","destination_id":"dest","webhook_endpoint_id":"hook"}`).Body.String()
 		}, func(t *testing.T, st *fakeStore, _ string) {
 			for _, r := range st.routes {
@@ -157,7 +188,7 @@ func TestLinkedRouteDeleteAndCreate(t *testing.T) {
 				}
 			}
 		}},
-		{"child under linked route accepted", func(t *testing.T, h http.Handler) string {
+		{"child under linked route accepted", nil, func(t *testing.T, h http.Handler) string {
 			return do(t, h, http.MethodPost, "/api/routes", `{"name":"child","parent_id":"wroute","template_id":"tmpl2","label_selector":{"severity":"critical"}}`).Body.String()
 		}, func(t *testing.T, st *fakeStore, body string) {
 			for _, r := range st.routes {
@@ -173,8 +204,8 @@ func TestLinkedRouteDeleteAndCreate(t *testing.T) {
 			t.Parallel()
 
 			st := linkedRouteStore()
-			if strings.Contains(tt.name, "orphan") {
-				delete(st.webhooks, "hook")
+			if tt.setup != nil {
+				tt.setup(st)
 			}
 			handler := newTestServer(t, st, &fakeMessenger{}).Handler
 			tt.check(t, st, tt.run(t, handler))

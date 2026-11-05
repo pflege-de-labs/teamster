@@ -480,16 +480,23 @@ func (s *Server) saveRouteChecked(r *http.Request, route models.Route) (models.R
 		}
 		// Only the endpoint sync may link a route; a client-supplied link is ignored.
 		route.WebhookEndpointID = ""
+		var link string
 		if route.ID != "" {
-			if stored, ok := routeByID(existing, route.ID); ok && stored.WebhookEndpointID != "" && lockedFieldsChanged(stored, route) {
-				return errRouteManaged(ctx, tx, stored, "change it on the webhook instead")
+			if stored, ok := routeByID(existing, route.ID); ok && stored.WebhookEndpointID != "" {
+				if lockedFieldsChanged(stored, route) {
+					return errRouteManaged(ctx, tx, stored, "change it on the webhook instead")
+				}
+				link = stored.WebhookEndpointID
 			}
 		}
 		if err := routing.ValidateRoute(route, existing); err != nil {
 			return invalidRoute{err}
 		}
-		if err := routeTemplateHandlesSource(ctx, tx, route, existing); err != nil {
-			return err
+		// A linked route's template is the webhook's to change, so the edit cannot be refused over it.
+		if link == "" {
+			if err := routeTemplateHandlesSource(ctx, tx, route, existing); err != nil {
+				return err
+			}
 		}
 		if route.ID == "" {
 			if saved, err = tx.CreateRoute(ctx, route); err != nil {
@@ -498,6 +505,7 @@ func (s *Server) saveRouteChecked(r *http.Request, route models.Route) (models.R
 			return grantOwner(ctx, tx, r, typeRoute, saved.ID)
 		}
 		saved, err = tx.UpdateRoute(ctx, route)
+		saved.WebhookEndpointID = link
 		return err
 	})
 	return saved, err
@@ -560,7 +568,14 @@ func (s *Server) deleteRouteChecked(ctx context.Context, id string) error {
 			return err
 		}
 		if stored, ok := routeByID(existing, id); ok && stored.WebhookEndpointID != "" {
-			return errRouteManaged(ctx, tx, stored, "delete the webhook instead")
+			// A route whose webhook is gone has nobody left to delete it for.
+			_, err := tx.GetWebhookEndpoint(ctx, stored.WebhookEndpointID)
+			if err == nil {
+				return errRouteManaged(ctx, tx, stored, "delete the webhook instead")
+			}
+			if !errors.Is(err, store.ErrNotFound) {
+				return err
+			}
 		}
 		if err := routing.ValidateDelete(id, existing); err != nil {
 			return invalidRoute{err}

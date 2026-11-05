@@ -892,8 +892,10 @@ func (f *fakeStore) UpdateRoute(ctx context.Context, r models.Route) (models.Rou
 	if err := f.failing("UpdateRoute"); err != nil {
 		return models.Route{}, err
 	}
-	r.WebhookEndpointID = f.routes[r.ID].WebhookEndpointID
-	f.routes[r.ID] = r
+	// Like the real store: the link is kept, the route comes back as given.
+	stored := r
+	stored.WebhookEndpointID = f.routes[r.ID].WebhookEndpointID
+	f.routes[r.ID] = stored
 	return r, nil
 }
 
