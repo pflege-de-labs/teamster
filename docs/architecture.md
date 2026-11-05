@@ -445,10 +445,13 @@ The message is routed like any other ([ADR 0094](adr/0094-a-teams-v2-message-is-
 URL slugs become the labels `teamster_team` and `teamster_channel`, which are stripped from every
 other source. Each endpoint has a linked route (`routes.webhook_endpoint_id`), written with the
 endpoint in one transaction, whose selector, target and template the routes page locks. A startup
-reconcile backfills missing routes and removes orphaned ones. An endpoint may
-name a template. It renders with `.Event` set to the parsed message and `.Payload` set to the raw
+reconcile backfills missing routes and removes orphaned ones.
+
+An endpoint may name a template. It renders with `.Event` set to the parsed message and `.Payload` set to the raw
 body as decoded JSON. An endpoint without a template sends the payload as it came, followed by the
-hint card from [Messages](#messages), which links to that endpoint's form. See
+hint card from [Messages](#messages). Delivered through the linked route, or straight to the
+destination when there is none, a card's hint links to that endpoint's form; a text-only message
+has no card, so its hint links to the templates panel. See
 [ADR 0040](adr/0040-teams-v2-endpoint-templates.md). The event has no extension and no state, so
 nothing is written to `active_events` and there is nothing later to update or close.
 
@@ -676,7 +679,8 @@ Before `Plan`, `processEvent` sets the label `teamster_source` to the webhook th
 `alertmanager` or `universal`. It overwrites a sender's own value, and it is set after the key is
 derived so that keys stay as they were. Teams V2 messages are routed as well
 and carry `teamster_source=teamsv2`
-([ADR 0052](adr/0052-the-receiving-webhook-is-a-label.md), [ADR 0094](adr/0094-a-teams-v2-message-is-routed.md)).
+([ADR 0052](adr/0052-the-receiving-webhook-is-a-label.md),
+[ADR 0094](adr/0094-a-teams-v2-message-is-routed.md)).
 
 A child is evaluated only once its parent matched, and applies when its own selector matches. Every
 matching child delivers; a greedy one delivers *instead of* its parent, a non-greedy one *as well
