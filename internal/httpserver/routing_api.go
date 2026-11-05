@@ -59,13 +59,13 @@ const (
 	linkEnters   = "enters"
 	linkRefines  = "refines"
 	linkDelivers = "delivers"
-	// linkDirect is a Teams V2 endpoint posting to its channel, which no
-	// route decides (ADR 0030).
+	// linkDirect is the fallback for a Teams V2 endpoint without a linked
+	// route: it posts to its channel, which no route decides (ADR 0094).
 	linkDirect = "direct"
 )
 
 // Kinds of node an alert starts from: a routed webhook, or a Teams V2
-// endpoint that bypasses routing.
+// endpoint, which goes through its linked route when it has one.
 const (
 	nodeSource   = "source"
 	nodeEndpoint = "endpoint"
@@ -375,8 +375,14 @@ func buildGraph(cfg routingConfig, channelName func(teamID, channelID string) st
 	missingTop := row*rowGap + groupGap
 	missing := 0
 
-	// Teams V2 endpoints sit under the routed webhooks and post straight to
-	// their channel.
+	// Teams V2 endpoints sit under the routed webhooks; one with a linked route
+	// enters it, one without posts straight to its channel (ADR 0094).
+	linkedRoute := map[string]string{}
+	for _, route := range ordered {
+		if route.WebhookEndpointID != "" {
+			linkedRoute[route.WebhookEndpointID] = "route:" + route.ID
+		}
+	}
 	endpointTop := len(routedSources())*rowGap + groupGap
 	for i, endpoint := range endpoints(cfg) {
 		node := graphNode{
@@ -385,6 +391,10 @@ func buildGraph(cfg routingConfig, channelName func(teamID, channelID string) st
 			Label:  "/teamsv2/" + endpoint.TeamSlug + "/" + endpoint.ChannelSlug,
 			Detail: "POST, bypasses routing",
 			Y:      endpointTop + i*rowGap,
+		}
+		routeNode, routed := linkedRoute[endpoint.ID]
+		if routed {
+			node.Detail = "POST, routed"
 		}
 		if endpoint.TemplateID != "" {
 			if name, ok := templateNames[endpoint.TemplateID]; ok {
@@ -395,6 +405,10 @@ func buildGraph(cfg routingConfig, channelName func(teamID, channelID string) st
 			}
 		}
 		add(node)
+		if routed {
+			links = append(links, graphLink{Source: node.ID, Target: routeNode, Kind: linkEnters})
+			continue
+		}
 		target := "destination:" + endpoint.DestinationID
 		if !index[target] {
 			add(graphNode{
