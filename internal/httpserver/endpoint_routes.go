@@ -106,10 +106,11 @@ func deleteEndpointRoute(ctx context.Context, tx store.Store, endpointID string)
 type Reconciled struct{ Created, Deleted, Unlinked int }
 
 // ReconcileEndpointRoutes gives every endpoint its linked route and cleans up links the previous
-// release left dangling. It is idempotent and applies all or nothing.
+// release left dangling. It is idempotent and applies all or nothing, serializably because
+// deleting versus unlinking an orphan depends on its children.
 func ReconcileEndpointRoutes(ctx context.Context, st store.Store) (Reconciled, error) {
 	var done Reconciled
-	err := st.WithTx(ctx, func(ctx context.Context, tx store.Store) error {
+	err := st.WithSerializableTx(ctx, func(ctx context.Context, tx store.Store) error {
 		done = Reconciled{}
 		endpoints, err := tx.ListWebhookEndpoints(ctx)
 		if err != nil {

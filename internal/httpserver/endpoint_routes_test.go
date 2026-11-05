@@ -2,6 +2,7 @@ package httpserver
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -329,6 +330,37 @@ func TestReconcileEndpointRoutes(t *testing.T) {
 				t.Errorf("Reconciled = %+v, want %+v", got, tt.want)
 			}
 			tt.check(t, st)
+		})
+	}
+}
+
+// Both decide delete-vs-refuse on the route tree, so a concurrent child must not slip past (write skew).
+func TestEndpointRouteTreeChecksAreSerializable(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		run  func(st *fakeStore) error
+	}{
+		{name: "endpoint delete", run: func(st *fakeStore) error {
+			rec := do(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodDelete, "/api/webhooks/hook", "")
+			if rec.Code < 400 {
+				return nil
+			}
+			return errors.New(rec.Body.String())
+		}},
+		{name: "reconcile", run: func(st *fakeStore) error {
+			_, err := ReconcileEndpointRoutes(context.Background(), st)
+			return err
+		}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			st := linkedStore().fail("WithSerializableTx")
+			if err := tt.run(st); err == nil {
+				t.Error("ran outside a serializable transaction")
+			}
 		})
 	}
 }
