@@ -147,7 +147,7 @@ func (s *Server) deleteWebhookEndpoint(r *http.Request) (string, error) {
 // will ever be.
 func (s *Server) revealWebhookURL(w http.ResponseWriter, r *http.Request, endpoint models.WebhookEndpoint, token, notice string) {
 	page := s.adminPage(r, notice, "")
-	page.NewWebhookURL = webhookURL(r, endpoint, token)
+	page.NewWebhookURL = s.webhookURL(r, endpoint, token)
 	page.Tab = "webhooks"
 	s.renderAdmin(w, r, page)
 }
@@ -197,15 +197,8 @@ func (s *Server) endpointTemplateExists(ctx context.Context, endpoint models.Web
 	return nil
 }
 
-// webhookURL is built from the request rather than from configuration, because
-// the host the admin is reading the page on is the host their sender will be
-// pointed at.
-func webhookURL(r *http.Request, endpoint models.WebhookEndpoint, token string) string {
-	scheme := "http"
-	if isTLS(r) {
-		scheme = "https"
-	}
-	return fmt.Sprintf("%s://%s/teamsv2/%s/%s/%s", scheme, r.Host, endpoint.TeamSlug, endpoint.ChannelSlug, token)
+func (s *Server) webhookURL(r *http.Request, endpoint models.WebhookEndpoint, token string) string {
+	return fmt.Sprintf("%s/teamsv2/%s/%s/%s", s.webhookBaseURL(r), endpoint.TeamSlug, endpoint.ChannelSlug, token)
 }
 
 // visibleWebhookEndpoints hides the endpoints whose channel this session may not

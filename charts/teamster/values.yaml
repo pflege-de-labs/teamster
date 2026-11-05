@@ -204,6 +204,11 @@ config:
       # message sent without a template links here so that someone can
       # create one.
       external-url: ""
+      # Where senders reach the webhooks, e.g. https://teamster.example.com.
+      # Set it when httpRoute.internal puts the admin UI on another hostname:
+      # the webhook URLs the admin UI hands out start with it. Empty uses the
+      # host the admin UI is read on.
+      webhook-url: ""
     # The chart owns database.driver, .path and .postgres (see `database`
     # above); the rest of the section is yours. The values shown are the
     # defaults.

@@ -177,6 +177,11 @@ Enable one of the two, or neither and reach the service through `kubectl port-fo
   `httpRoute.external` left off does not expose the webhooks, because that would change what a
   deployment publishes based on a flag named for the opposite purpose.
 
+  With the two split onto different hostnames, set `config.settings.server.webhook-url` to the
+  address `httpRoute.external` publishes, for example `https://teamster.example.com`. Otherwise
+  the webhook URLs the admin UI hands out name the admin interface's hostname, which senders
+  cannot reach.
+
   This split exists for HTTPRoute only. Ingress keeps its single-resource, all-paths shape; if the
   split matters to you, use Gateway API.
 

@@ -103,3 +103,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0090](0090-ci-and-release-use-shared-workflows.md) | CI and release use the shared labs workflows | Accepted |
 | [0091](0091-sprig-template-functions.md) | Templates get sprig's hermetic functions | Accepted |
 | [0092](0092-identity-brokering-api-v2-with-v1-fallback.md) | Prefer Keycloak's Identity Brokering API V2, fall back to V1 | Accepted |
+| [0093](0093-configurable-webhook-url.md) | Hand out webhook URLs from a configured base URL | Accepted |
