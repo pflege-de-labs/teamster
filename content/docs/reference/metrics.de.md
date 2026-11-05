@@ -57,7 +57,7 @@ Histogramme für die Größe von Anfrage- und Antwortkörpern werden verworfen.
 
 | Metrik | Attribut | Werte |
 | --- | --- | --- |
-| `teamster.deliveries` | `route` | Name der Route oder, wenn sie keinen hat, ihre ID. Für Teams V2 `teamsv2:<team>/<channel>`. |
+| `teamster.deliveries` | `route` | Name der Route oder, wenn sie keinen hat, ihre ID. Für einen Teams-V2-Endpunkt ohne verknüpfte Route `teamsv2:<team>/<channel>`. |
 | `teamster.deliveries` | `outcome` | `posted`, `updated`, `failed`, `blocked`, `app_missing`; für eine nicht erreichbare Person `invalid-address`, `unknown-recipient`, `ineligible`, `not-installed`, `no-recipient` |
 | `teamster.webhook.receipts` | `source` | `alertmanager`, `universal`, `teamsv2`, `bot` |
 | `teamster.webhook.receipts` | `state` | `alertmanager`, `universal`: `open`, `closed`, leer ohne Status, `refused` (unbekanntes oder fehlendes Token), `forbidden` (Bereich des Tokens). `teamsv2`: `accepted`, `refused`, `unknown`, `rejected`, `error`. `bot`: `accepted` oder der Grund, aus dem die Nachricht abgewiesen oder ignoriert wurde. |

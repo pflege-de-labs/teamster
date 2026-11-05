@@ -81,7 +81,7 @@ angehaltenen Installation.
 | --- | --- |
 | Migrationen | Werden nie angewendet. Der Export verweigert eine Datenbank mit ausstehenden Migrationen, unabhängig von `database.migrate`. |
 | Team- und Kanalnamen | Nicht enthalten; das Bundle enthält die IDs. Der Export der Verwaltungsoberfläche ergänzt die Namen. |
-| Nicht exportiert | Alles andere, etwa Zugriffstoken für Webhooks, Teams-V2-Endpunkte, Benutzer, Gruppen, aktive Ereignisse und das Änderungsprotokoll. |
+| Nicht exportiert | Alles andere, etwa Zugriffstoken für Webhooks, Teams-V2-Endpunkte, die Routen, die diese Endpunkte verwalten, und jede Route darunter, Benutzer, Gruppen, aktive Ereignisse und das Änderungsprotokoll. |
 
 ## import {#import}
 
@@ -103,6 +103,7 @@ Wendet ein von `export` geschriebenes Bundle auf die konfigurierte Datenbank an.
 | Verhalten | Detail |
 | --- | --- |
 | Migrationen | Werden so behandelt, wie `database.migrate` es vorgibt. |
+| Verwaltete Routen | Eine Route des Bundles, deren ID die einer von einem Teams-V2-Webhook verwalteten Route ist oder darunter liegt, wird als ungültig abgewiesen. Der Modus `replace` löscht solche Routen nie. |
 | Audit | Jede Änderung wird in den konfigurierten Audit-Sinks festgehalten, mit dem Benutzer des Betriebssystems als Akteur. Ereignisse für NATS warten im Änderungsprotokoll der Datenbank, bis ein laufender Server sie veröffentlicht. |
 | Ausgabe | Eine Zeile je Änderung: Aktion (`create`, `update`, `delete`), Art, Name und ID. Danach `applied <n> changes in <mode> mode`, mit `--dry-run` `would apply …`. `nothing to change`, wenn das Bundle dem Bestand entspricht. |
 

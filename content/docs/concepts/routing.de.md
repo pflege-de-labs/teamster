@@ -28,8 +28,28 @@ angekommen ist: `alertmanager` oder `universal`. Einen vom Absender gesetzten We
 Eine Route kann daher nach der Quelle auswählen, zum Beispiel mit
 `{"teamster_source": "alertmanager"}`.
 
-Teams-V2-Nachrichten werden nicht geroutet: Jeder Teams-V2-Endpunkt postet in den Kanal, den er
-nennt. Ihre Vorlagen sehen trotzdem `teamster_source=teamsv2`.
+### Die Labels `teamster_team` und `teamster_channel` {#the-teamster_team-and-teamster_channel-labels}
+
+Eine Teams-V2-Nachricht kommt mit `teamster_source=teamsv2` an, dazu mit den beiden URL-Segmenten,
+an die sie gepostet wurde, als `teamster_team` und `teamster_channel`. Nur die URL setzt sie:
+Teamster entfernt alle drei aus den Labels eines Absenders an jedem anderen Webhook.
+
+Teams-V2-Nachrichten werden wie jedes andere Ereignis geroutet. Jeder Teams-V2-Endpunkt hat eine
+verknüpfte Route, die diese drei Labels selektiert und mit der Vorlage des Endpunkts an sein Ziel
+zustellt. Sie wird mit dem Endpunkt angelegt, aktualisiert und gelöscht, und der Bereich **Routen**
+kennzeichnet sie mit **Verwaltet vom Webhook `<team>/<channel>`**. Ihr Selektor, Zustellziel,
+Vorlage, übergeordnete Route und Standard-Markierung sind gesperrt; Name, Priorität und die
+Markierung „verdrängend“ nicht. Sie können die Route nicht löschen, solange ihr Endpunkt besteht,
+und den Endpunkt nicht, solange die Route untergeordnete Routen hat.
+
+Weil die Nachricht durch das Routing läuft, stellt auch jede andere Route zu, die dieselben Labels
+selektiert. Siehe
+[Die Nachrichten an weitere Kanäle senden](../../guides/teams-v2-webhook/#send-the-messages-to-more-channels).
+Eine verdrängende untergeordnete Route der verknüpften Route ersetzt diese; der eigene Kanal des
+Endpunkts erhält die Nachricht dann nicht mehr.
+
+Ein Endpunkt ohne verknüpfte Route, etwa einer aus einem früheren Release, postet direkt an sein
+Ziel. Teamster legt die fehlende Route beim Start an.
 
 ## Wurzelrouten und Priorität {#root-routes-and-priority}
 

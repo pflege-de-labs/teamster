@@ -47,7 +47,8 @@ curl -H 'Content-Type: application/json' -d '{"text": "something broke on node-3
   https://teamster.example/teamsv2/platform/alerts/<token>
 ```
 
-Die Antwort `200 {"status":"ok"}` bedeutet, dass die Nachricht gepostet wurde.
+Die Antwort `200` bedeutet, dass die Nachricht zugestellt wurde. Der Body ist der Bericht des
+universellen Webhooks, etwa `{"status":"ok"}`.
 
 {{% /steps %}}
 
@@ -135,9 +136,45 @@ In einer solchen Vorlage gilt:
 
 Die Vorschau der Vorlage bietet ein Beispiel **Teams-V2-Webhook**, um sie daran auszuprobieren.
 
+## Die Nachrichten an weitere Kanäle senden {#send-the-messages-to-more-channels}
+
+Jeder Endpunkt hat eine Route, die seine Nachrichten an das eigene Ziel des Endpunkts sendet.
+Fügen Sie Routen hinzu, die dieselben Nachrichten auswählen, um sie zusätzlich anderswohin
+zuzustellen.
+
+{{% steps %}}
+
+### Die Route des Endpunkts finden {#find-the-endpoints-route}
+
+Öffnen Sie den Bereich **Routen** unter **/admin**. Die Route mit dem Namen
+`webhook <team>/<channel>` ist mit **Verwaltet vom Webhook `<team>/<channel>`** gekennzeichnet.
+Ihr Selektor ist `teamster_source=teamsv2`, `teamster_team=<team>` und
+`teamster_channel=<channel>`. Das Formular des Endpunkts verweist als **Route dieses Webhooks**
+darauf.
+
+### Eine Route hinzufügen {#add-a-route}
+
+Legen Sie eine Route mit einem Selektor aus den drei Labels an, oder mit `teamster_source=teamsv2`
+und einem der beiden anderen, um mehrere Endpunkte zu erfassen. Wählen Sie Ziel und Vorlage. Beide
+Routen stellen die Nachricht nun zu.
+
+Für eine zusätzliche Bedingung machen Sie die Route zur untergeordneten Route der Endpunkt-Route
+und nehmen ein eigenes Label in den Selektor auf. Eine untergeordnete Route gilt zusätzlich zur
+übergeordneten, es sei denn, Sie markieren sie als verdrängend.
+
+{{% /steps %}}
+
+{{< callout type="warning" >}}
+Eine verdrängende untergeordnete Route ersetzt die Route des Endpunkts, sodass der eigene Kanal des
+Endpunkts die Nachrichten, auf die sie zutrifft, nicht mehr erhält. Der Endpunkt lässt sich nicht
+löschen, solange er untergeordnete Routen hat. Siehe [Routing]({{< ref "/docs/concepts/routing" >}}).
+{{< /callout >}}
+
+Schlägt eine Zustellung fehl, lautet die Antwort `502`, und ein Absender, der es erneut versucht,
+kann die erfolgreichen Zustellungen doppelt auslösen.
+
 ## Was er nicht kann {#what-it-does-not-do}
 
-* **Kein Routing.** Die URL bestimmt den Kanal, wie zuvor auch.
 * **Keine Verfolgung.** Die Nutzdaten tragen weder Schlüssel noch Zustand, eine Nachricht wird also
   nie aktualisiert oder geschlossen. Dafür gibt es den [universellen Webhook](../universal-webhook/).
 

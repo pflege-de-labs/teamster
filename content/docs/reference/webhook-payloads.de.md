@@ -13,7 +13,7 @@ was sie antworten.
 | `POST /webhook/alertmanager` | `Authorization: Bearer <token>` | [Alertmanager](#alertmanager) | ja |
 | `POST /webhook/universal` | `Authorization: Bearer <token>` | [Universell](#universal) | ja |
 | `GET /webhook/broadcasts/{id}` | `Authorization: Bearer <token>` | — | nein, siehe [Status einer Rundsendung](#broadcast-status) |
-| `POST /teamsv2/{team}/{channel}/{token}` | Das Token im Pfad | [Teams V2](#teams-v2) | nein, postet an das Ziel des Endpunkts |
+| `POST /teamsv2/{team}/{channel}/{token}` | Das Token im Pfad | [Teams V2](#teams-v2) | ja, über die verknüpfte Route des Endpunkts |
 | `POST /bot/messages` | Signiertes Bot-Framework-Token | Bot-Framework-Activity | — |
 | `GET /healthz` | keine | — | — |
 | `GET /readyz` | keine | — | — |
@@ -127,6 +127,7 @@ mehr gelesen.
 | Label | Gesetzt von | Bedeutung |
 | --- | --- | --- |
 | `teamster_source` | Teamster | Der Webhook, an dem das Ereignis ankam: `alertmanager`, `universal` oder `teamsv2`. Ein vom Absender gesetzter Wert wird überschrieben. |
+| `teamster_team`, `teamster_channel` | Teamster | Die URL-Segmente einer Teams-V2-Nachricht. An jedem anderen Webhook werden sie aus den Labels eines Absenders entfernt. |
 | `teamster_recipient` | Dem Absender | Personen, an die eine adressierte Route zustellt, durch Kommas getrennt. Wird nur verwendet, wenn die Nutzdaten kein `recipients` enthalten. |
 
 Empfänger werden von Leerraum befreit und ohne Rücksicht auf Groß- und Kleinschreibung
@@ -251,13 +252,15 @@ Antworten. Fehlerkörper haben die Form `{"error": "<message>"}`.
 
 | Status | Bedeutung |
 | --- | --- |
-| `200` | Gepostet. Körper `{"status": "ok"}`. |
+| `200` | `{"status": "ok"}`: Jede Zustellung war erfolgreich, oder der Endpunkt hat keine verknüpfte Route und hat direkt gepostet. |
+| `200` | `{"status": "partial", "delivered": <n>, "undelivered": [...]}`: Einige Zustellungen wurden nicht zugestellt, wie im [Bericht des universellen Webhooks](#responses). |
+| `422` | `{"status": "undelivered", "delivered": 0, "undelivered": [...]}`: Keine Zustellung war erfolgreich. |
 | `400` | Kein JSON, oder weder Text noch Adaptive Card. |
 | `401` | `invalid token`. |
 | `404` | `unknown endpoint`: Kein Endpunkt hat dieses Team und diesen Kanal, oder der Pfad ist unvollständig. |
 | `405` | Kein `POST`. Trägt `Allow: POST`. |
 | `413` | `payload too large`: Der Körper ist größer als 128 KiB. |
-| `502` | Teams, die Datenbank oder die Vorlage des Endpunkts ist fehlgeschlagen. |
+| `502` | Teams, die Datenbank oder eine Vorlage ist fehlgeschlagen, oder eine Zustellung ist mit einem Fehler fehlgeschlagen. Ein erneuter Versuch kann die erfolgreichen Zustellungen wiederholen. |
 
 Nichts wird verfolgt. Eine Teams-V2-Nachricht wird nie aktualisiert oder geschlossen.
 
