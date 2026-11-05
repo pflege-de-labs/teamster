@@ -56,7 +56,7 @@ func (s *Server) handleWebhookForm(w http.ResponseWriter, r *http.Request) {
 
 	// An existing endpoint keeps its token, so its senders keep working.
 	if endpoint.ID != "" {
-		if _, err := s.store.UpdateWebhookEndpoint(r.Context(), endpoint); err != nil {
+		if _, err := s.updateEndpoint(r, endpoint); err != nil {
 			redirectTo(adminTabPath("webhooks"), w, r, "", visibleError(r.Context(), "save webhook", err))
 			return
 		}
