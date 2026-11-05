@@ -83,9 +83,9 @@ func (s *Server) handleTeamsV2(w http.ResponseWriter, r *http.Request) {
 
 	s.metrics.WebhookReceived(ctx, teamsV2Source, "accepted")
 
-	_, linked, err := s.linkedRoute(ctx, endpoint.ID)
+	_, linked, err := linkedRoute(ctx, s.store, endpoint.ID)
 	if err != nil {
-		writeError(w, r, http.StatusBadGateway, err)
+		writeError(w, r, http.StatusBadGateway, fmt.Errorf("routes: %w", err))
 		return
 	}
 	if linked {
@@ -126,20 +126,6 @@ func (s *Server) handleTeamsV2(w http.ResponseWriter, r *http.Request) {
 
 	s.metrics.DeliveryRecorded(ctx, label, metrics.OutcomePosted)
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
-}
-
-// linkedRoute is the route made for this endpoint, if it still has one.
-func (s *Server) linkedRoute(ctx context.Context, endpointID string) (models.Route, bool, error) {
-	routes, err := s.store.ListRoutes(ctx)
-	if err != nil {
-		return models.Route{}, false, fmt.Errorf("routes: %w", err)
-	}
-	for _, rt := range routes {
-		if rt.WebhookEndpointID == endpointID {
-			return rt, true, nil
-		}
-	}
-	return models.Route{}, false, nil
 }
 
 // teamsV2Message is what an endpoint posts: its template, or failing that the
