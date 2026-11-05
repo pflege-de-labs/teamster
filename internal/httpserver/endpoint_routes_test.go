@@ -5,9 +5,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"strings"
 	"testing"
 
+	"github.com/pflege-de-labs/teamster/internal/authz"
 	"github.com/pflege-de-labs/teamster/internal/models"
 )
 
@@ -195,4 +197,138 @@ func TestSyncEndpointRouteGrantsOwner(t *testing.T) {
 		}
 	}
 	t.Error("no owner permission on the new route")
+}
+
+func TestReconcileEndpointRoutes(t *testing.T) {
+	t.Parallel()
+
+	own := func(principal, resType, resID string) models.Permission {
+		return models.Permission{
+			PrincipalType: models.PrincipalUser, PrincipalID: principal,
+			ResourceType: resType, ResourceID: resID,
+			Actions: []string{authz.ActionOwn}, CreatedBy: "creator",
+		}
+	}
+	put := func(st *fakeStore, ps ...models.Permission) {
+		for _, p := range ps {
+			if _, err := st.PutPermission(context.Background(), p); err != nil {
+				panic(err)
+			}
+		}
+	}
+	owners := func(st *fakeStore, routeID string) []string {
+		var out []string
+		for _, p := range st.permissions {
+			if p.ResourceType == typeRoute && p.ResourceID == routeID {
+				if len(p.Actions) != 1 || p.Actions[0] != authz.ActionOwn || p.CreatedBy != "creator" {
+					t.Errorf("permission = %+v", p)
+				}
+				out = append(out, p.PrincipalID)
+			}
+		}
+		slices.Sort(out)
+		return out
+	}
+
+	tests := []struct {
+		name  string
+		setup func(*fakeStore)
+		want  Reconciled
+		check func(t *testing.T, st *fakeStore)
+	}{
+		{
+			name: "backfill copies owners",
+			setup: func(st *fakeStore) {
+				put(st, own("alice", typeWebhookEndpoint, "hook"), own("bob", typeWebhookEndpoint, "hook"),
+					models.Permission{
+						PrincipalType: models.PrincipalUser, PrincipalID: "carol",
+						ResourceType: typeWebhookEndpoint, ResourceID: "hook", Actions: []string{authz.ActionRead},
+					})
+			},
+			want: Reconciled{Created: 1},
+			check: func(t *testing.T, st *fakeStore) {
+				r, ok := routeFor(st, "hook")
+				if !ok {
+					t.Fatal("no linked route")
+				}
+				if got := owners(st, r.ID); !slices.Equal(got, []string{"alice", "bob"}) {
+					t.Errorf("owners = %v", got)
+				}
+			},
+		},
+		{
+			name:  "repair after route deleted",
+			setup: func(st *fakeStore) { put(st, own("alice", typeWebhookEndpoint, "hook")) },
+			want:  Reconciled{Created: 1},
+			check: func(t *testing.T, st *fakeStore) {
+				if _, ok := routeFor(st, "hook"); !ok {
+					t.Error("route not recreated")
+				}
+			},
+		},
+		{
+			name: "orphan deleted",
+			setup: func(st *fakeStore) {
+				st.webhooks = map[string]models.WebhookEndpoint{}
+				st.routes["gone"] = models.Route{ID: "gone", WebhookEndpointID: "missing"}
+				put(st, own("alice", typeRoute, "gone"))
+			},
+			want: Reconciled{Deleted: 1},
+			check: func(t *testing.T, st *fakeStore) {
+				if len(st.routes) != 0 || len(st.permissions) != 0 {
+					t.Errorf("routes = %v, permissions = %v", st.routes, st.permissions)
+				}
+			},
+		},
+		{
+			name: "orphan with children unlinked",
+			setup: func(st *fakeStore) {
+				st.webhooks = map[string]models.WebhookEndpoint{}
+				st.routes["gone"] = models.Route{ID: "gone", WebhookEndpointID: "missing"}
+				st.routes["kid"] = models.Route{ID: "kid", ParentID: "gone"}
+				put(st, own("alice", typeRoute, "gone"))
+			},
+			want: Reconciled{Unlinked: 1},
+			check: func(t *testing.T, st *fakeStore) {
+				r, ok := st.routes["gone"]
+				if !ok || r.WebhookEndpointID != "" {
+					t.Errorf("route = %+v, kept = %v", r, ok)
+				}
+				if got := owners(st, "gone"); !slices.Equal(got, []string{"alice"}) {
+					t.Errorf("owners = %v", got)
+				}
+			},
+		},
+		{
+			name: "second run is a no-op",
+			setup: func(st *fakeStore) {
+				put(st, own("alice", typeWebhookEndpoint, "hook"))
+				if _, err := ReconcileEndpointRoutes(context.Background(), st); err != nil {
+					panic(err)
+				}
+			},
+			want: Reconciled{},
+			check: func(t *testing.T, st *fakeStore) {
+				if len(st.routes) != 1 || len(st.permissions) != 2 {
+					t.Errorf("routes = %v, permissions = %v", st.routes, st.permissions)
+				}
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			st := webhookUIStore()
+			st.routes = map[string]models.Route{}
+			tt.setup(st)
+			got, err := ReconcileEndpointRoutes(context.Background(), st)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != tt.want {
+				t.Errorf("Reconciled = %+v, want %+v", got, tt.want)
+			}
+			tt.check(t, st)
+		})
+	}
 }

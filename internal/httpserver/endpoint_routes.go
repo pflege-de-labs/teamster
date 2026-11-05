@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"slices"
 
+	"github.com/pflege-de-labs/teamster/internal/authz"
 	"github.com/pflege-de-labs/teamster/internal/models"
 	"github.com/pflege-de-labs/teamster/internal/routing"
 	"github.com/pflege-de-labs/teamster/internal/store"
@@ -98,4 +100,88 @@ func deleteEndpointRoute(ctx context.Context, tx store.Store, endpointID string)
 		return err
 	}
 	return tx.DeletePermissionsFor(ctx, typeRoute, route.ID)
+}
+
+// Reconciled counts what ReconcileEndpointRoutes changed.
+type Reconciled struct{ Created, Deleted, Unlinked int }
+
+// ReconcileEndpointRoutes gives every endpoint its linked route and cleans up links the previous
+// release left dangling. It is idempotent and applies all or nothing.
+func ReconcileEndpointRoutes(ctx context.Context, st store.Store) (Reconciled, error) {
+	var done Reconciled
+	err := st.WithTx(ctx, func(ctx context.Context, tx store.Store) error {
+		done = Reconciled{}
+		endpoints, err := tx.ListWebhookEndpoints(ctx)
+		if err != nil {
+			return err
+		}
+		routes, err := tx.ListRoutes(ctx)
+		if err != nil {
+			return err
+		}
+		exists := make(map[string]bool, len(endpoints))
+		for _, e := range endpoints {
+			exists[e.ID] = true
+		}
+		linked := make(map[string]bool, len(routes))
+		parents := make(map[string]bool, len(routes))
+		for _, r := range routes {
+			parents[r.ParentID] = true
+			if r.WebhookEndpointID != "" && exists[r.WebhookEndpointID] {
+				linked[r.WebhookEndpointID] = true
+			}
+		}
+
+		for _, r := range routes {
+			if r.WebhookEndpointID == "" || exists[r.WebhookEndpointID] {
+				continue
+			}
+			if parents[r.ID] {
+				if err := tx.UnlinkRoute(ctx, r.ID); err != nil {
+					return err
+				}
+				done.Unlinked++
+				continue
+			}
+			if err := tx.DeleteRoute(ctx, r.ID); err != nil {
+				return err
+			}
+			if err := tx.DeletePermissionsFor(ctx, typeRoute, r.ID); err != nil {
+				return err
+			}
+			done.Deleted++
+		}
+
+		for _, e := range endpoints {
+			if linked[e.ID] {
+				continue
+			}
+			created, err := tx.CreateRoute(ctx, endpointRoute(e))
+			if err != nil {
+				return err
+			}
+			perms, err := tx.ListPermissionsFor(ctx, typeWebhookEndpoint, e.ID)
+			if err != nil {
+				return err
+			}
+			for _, p := range perms {
+				if !slices.Contains(p.Actions, authz.ActionOwn) {
+					continue
+				}
+				if _, err := tx.PutPermission(ctx, models.Permission{
+					PrincipalType: p.PrincipalType, PrincipalID: p.PrincipalID,
+					ResourceType: typeRoute, ResourceID: created.ID,
+					Actions: []string{authz.ActionOwn}, CreatedBy: p.CreatedBy,
+				}); err != nil {
+					return err
+				}
+			}
+			done.Created++
+		}
+		return nil
+	})
+	if err != nil {
+		return Reconciled{}, err
+	}
+	return done, nil
 }
