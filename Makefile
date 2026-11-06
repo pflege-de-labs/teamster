@@ -2,7 +2,7 @@
 export GOWORK := off
 
 COVERAGE_MIN ?= 75
-TAILWIND_VERSION ?= v4.3.3
+TAILWIND_VERSION ?= v4.3.4
 SQLC_VERSION ?= v1.31.1
 POSTGRES_IMAGE ?= postgres:18-alpine
 POSTGRES_DSN ?= postgres://teamster:teamster@127.0.0.1:15432/teamster?sslmode=disable
