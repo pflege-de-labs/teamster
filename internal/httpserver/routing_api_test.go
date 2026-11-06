@@ -347,6 +347,18 @@ func TestRoutingMatch(t *testing.T) {
 			wantExplanation: "2 routes matched",
 		},
 		{
+			name: "a route without a selector takes every alert",
+			store: func() *fakeStore {
+				st := routingStore()
+				delete(st.routes, "critical")
+				st.routes["all"] = models.Route{ID: "all", Name: "All", TemplateID: "tmpl", DestinationID: "dest", Priority: 5}
+				return st
+			},
+			labels: `{"severity":"warning"}`, wantReason: "selector",
+			wantRoutes:      []string{"route:all"},
+			wantExplanation: `"All" has no selector, so it takes every alert`,
+		},
+		{
 			name: "no default to fall back on",
 			store: func() *fakeStore {
 				st := routingStore()

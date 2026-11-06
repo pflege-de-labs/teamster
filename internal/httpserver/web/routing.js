@@ -58,7 +58,7 @@
     if (node.kind === "route") {
       if (node.synthetic) return node.detail;
       if (node.selector) return node.selector;
-      return node.default ? "no selector — catches the rest" : "no selector — matches nothing";
+      return node.default ? "no selector — catches the rest" : "no selector — matches every alert";
     }
     return node.detail || "";
   }

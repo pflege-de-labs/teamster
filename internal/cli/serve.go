@@ -166,6 +166,8 @@ func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
 		logger.Info("reconciled webhook routes", "created", done.Created, "updated", done.Updated, "deleted", done.Deleted, "unlinked", done.Unlinked)
 	}
 
+	warnCatchAllRoutes(ctx, logger, sqlStore)
+
 	if err := telemetry.ObserveActiveEvents(func(ctx context.Context) (int64, error) {
 		return sqlStore.CountActiveEvents(ctx)
 	}); err != nil {
@@ -374,4 +376,19 @@ func seedPresets(ctx context.Context, logger *slog.Logger, st store.Store) error
 		logger.Info("seeded default templates", "count", len(seed))
 	}
 	return nil
+}
+
+// warnCatchAllRoutes names every root route without a selector: before ADR 0095
+// such a route matched nothing, and now it receives every alert.
+func warnCatchAllRoutes(ctx context.Context, logger *slog.Logger, st store.Store) {
+	list, err := st.ListRoutes(ctx)
+	if err != nil {
+		logger.Warn("list routes for catch-all check failed", "error", err)
+		return
+	}
+	for _, route := range list {
+		if route.ParentID == "" && !route.IsDefault && len(route.LabelSelector) == 0 {
+			logger.Warn("route has no label selector and receives every alert", "route", route.Name, "route_id", route.ID)
+		}
+	}
 }

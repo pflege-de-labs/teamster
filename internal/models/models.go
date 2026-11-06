@@ -323,6 +323,14 @@ type Route struct {
 	WebhookEndpointID string `json:"webhook_endpoint_id,omitempty"`
 }
 
+// Replaces reports whether the route, a child of parent, delivers instead of
+// parent rather than as well as it. A child without a selector receives
+// everything its parent does, so letting it replace the parent would silence
+// the parent entirely (ADR 0095).
+func (r Route) Replaces(parent Route) bool {
+	return r.Greedy && len(r.LabelSelector) > 0
+}
+
 // An ActiveEvent is one card: the message this service posted to one channel
 // for one event, and is keeping up to date until the event closes. An event
 // that fans out to several channels has one per channel, which is why the key

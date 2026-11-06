@@ -25,7 +25,7 @@ Architectural decisions are recorded here, one file per decision, in
 | [0008](0008-templ-tailwind-admin-ui.md) | The admin UI is server-rendered with templ and Tailwind | Accepted |
 | [0009](0009-admin-authentication.md) | Admin authentication by Keycloak login or local credentials | Accepted |
 | [0010](0010-message-shape.md) | A template decides the title, text and card of a message | Superseded by 0028 |
-| [0011](0011-nested-routes.md) | Routes form a tree and an alert can fan out | Accepted |
+| [0011](0011-nested-routes.md) | Routes form a tree and an alert can fan out | Accepted, amended by [0095](0095-an-empty-selector-matches-every-alert.md) |
 | [0012](0012-role-based-authorization.md) | Roles are authorized with Cedar, evaluated in-process | Accepted, extended by [0075](0075-own-and-share-records-through-generated-policies.md) |
 | [0013](0013-configuration-transfer.md) | Configuration moves as a versioned JSON bundle | Accepted |
 | [0014](0014-card-editor.md) | Better JSON editing instead of a card designer | Accepted |
@@ -105,3 +105,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0092](0092-identity-brokering-api-v2-with-v1-fallback.md) | Prefer Keycloak's Identity Brokering API V2, fall back to V1 | Accepted |
 | [0093](0093-configurable-webhook-url.md) | Hand out webhook URLs from a configured base URL | Accepted |
 | [0094](0094-a-teams-v2-message-is-routed.md) | A Teams V2 message is routed | Accepted |
+| [0095](0095-an-empty-selector-matches-every-alert.md) | Let an empty selector match every alert | Accepted |

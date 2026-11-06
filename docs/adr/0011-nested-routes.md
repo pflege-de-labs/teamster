@@ -1,6 +1,6 @@
 # 0011. Route alerts through a tree, not a single match
 
-* Status: Accepted
+* Status: Accepted, amended by [0095](0095-an-empty-selector-matches-every-alert.md)
 * Date: 2026-09-11
 
 ## Context

@@ -1066,12 +1066,16 @@ per event. Counts are therefore approximate. Replicas sharing Postgres add to th
 
 ## Notes
 
-- Route selection matches label selectors exactly; highest priority wins.
+- A route's selector matches when every one of its labels is on the alert with the same value.
+  Every matching root route delivers, highest priority first. A selector left empty matches every
+  alert.
 - Routes nest. A child refines its parent's match and sends the alert somewhere else — *as well as*
   its parent, or *instead of* it when marked greedy. A child that names no destination, person or
   template inherits the nearest ancestor's, so "the same card, one more channel" is a one-field
   route. A greedy child takes *both* of its parent's deliveries with it, not just the one it shares
   a kind with.
+- A child route without a selector receives every alert its parent does, so it is how to send all
+  of a route's alerts to one more channel. It cannot be greedy.
 - A route has two targets and they are independent, not alternatives: a destination for a Team
   channel and, optionally, a person for a chat. A route naming both sends both — one card and one
   chat message, each claimed and tracked on its own, so one failing does not cost the other its
@@ -1090,7 +1094,8 @@ per event. Counts are therefore approximate. Replicas sharing Postgres add to th
   it — `{"teamster_source": "alertmanager"}`. Teams V2 messages are routed too: each endpoint has
   a linked route selecting `teamsv2` and the URL's `teamster_team` and `teamster_channel`, which
   only the URL can set.
-- A default route is used if no labels match.
+- A default route is used only if no other root route matches, so a root route without a selector
+  leaves it nothing to catch.
 - Where no route matches and there is no default route, the message goes to the **global default
   destination**. The first destination you create becomes the global default, and an admin can
   make another one the default from the Destinations list. Only one destination is the default at
