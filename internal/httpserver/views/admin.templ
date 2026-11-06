@@ -312,6 +312,9 @@ templ webhooks(page Page) {
 				@selectField("destination_id", i18n.T(ctx, "routes.destination"), destinationOptions(page), page.editingWebhookEndpoint().DestinationID)
 				@selectField("template_id", i18n.T(ctx, "webhooks.template"), webhookTemplateOptions(ctx, page), page.editingWebhookEndpoint().TemplateID)
 				<p class="text-xs text-slate-500">{ i18n.T(ctx, "webhooks.hint") }</p>
+				if id := page.endpointRouteID(); id != "" {
+					<p class="text-sm"><a href={ templ.SafeURL("/admin?edit=routes&id=" + id + "#routes") } class="underline hover:text-slate-900">{ i18n.T(ctx, "webhooks.route_link") }</a></p>
+				}
 				<div class="flex items-center gap-2">
 					@submit(submitLabel(ctx, page.EditWebhookEndpoint != nil, "noun.webhook"))
 					if page.EditWebhookEndpoint != nil {
@@ -391,11 +394,27 @@ templ routes(page Page) {
 					<input type="hidden" name="id" value={ page.EditRoute.ID }/>
 				}
 				@textField("name", i18n.T(ctx, "templates.name"), i18n.T(ctx, "routes.name_placeholder"), page.editingRoute().Name)
+				if page.routeManaged() {
+					<p class="text-sm text-slate-700">
+						<a href={ templ.SafeURL("/admin?edit=webhooks&id=" + page.EditRoute.WebhookEndpointID + "#webhooks") } class="underline hover:text-slate-900">{ i18n.T(ctx, "routes.managed_by", page.managingWebhook()) }</a>
+					</p>
+					// Disabled fields do not post, so the form carries the locked values itself.
+					<input type="hidden" name="parent_id" value={ page.EditRoute.ParentID }/>
+					<input type="hidden" name="label_selector" value={ selectorJSON(page) }/>
+					<input type="hidden" name="target" value={ routeTargetValue(page.editingRoute()) }/>
+					<input type="hidden" name="template_id" value={ page.EditRoute.TemplateID }/>
+					if page.EditRoute.IsDefault {
+						<input type="hidden" name="is_default" value="true"/>
+					}
+				}
+				<fieldset disabled?={ page.routeManaged() } class="space-y-3">
 				@selectField("parent_id", i18n.T(ctx, "routes.parent"), parentOptions(ctx, page), page.editingRoute().ParentID)
 				@editorField("label_selector", i18n.T(ctx, "routes.selector"), selectorJSON(page), "3", "selector")
 				@selectField("target", i18n.T(ctx, "routes.target"), routeTargetOptions(ctx, page), routeTargetValue(page.editingRoute()))
 				<p class="text-xs text-slate-500">{ i18n.T(ctx, "routes.target_hint") }</p>
 				@selectField("template_id", i18n.T(ctx, "routes.template"), routeTemplateOptions(ctx, page), page.editingRoute().TemplateID)
+				@checkboxField("is_default", i18n.T(ctx, "routes.default"), page.editingRoute().IsDefault)
+				</fieldset>
 				<label class="block">
 					<span class="text-sm font-medium">{ i18n.T(ctx, "routes.priority") }</span>
 					<input
@@ -405,7 +424,6 @@ templ routes(page Page) {
 						class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-sky-500 focus:outline-none"
 					/>
 				</label>
-				@checkboxField("is_default", i18n.T(ctx, "routes.default"), page.editingRoute().IsDefault)
 				@checkboxField("greedy", i18n.T(ctx, "routes.greedy"), page.editingRoute().Greedy)
 				<div class="flex items-center gap-2">
 					@submit(submitLabel(ctx, page.EditRoute != nil, "noun.route"))
@@ -458,7 +476,7 @@ templ routes(page Page) {
 								if page.mayUpdate("Route", r.Route.ID) {
 									@editLink("routes", r.Route.ID, r.Route.Name)
 								}
-								if page.mayDelete("Route", r.Route.ID) {
+								if page.mayDelete("Route", r.Route.ID) && r.Route.WebhookEndpointID == "" {
 									@deleteButton("/admin/routes/delete", r.Route.ID, r.Route.Name)
 								}
 							</div>

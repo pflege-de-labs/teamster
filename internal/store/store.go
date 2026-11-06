@@ -252,6 +252,8 @@ type Store interface {
 	CreateRoute(ctx context.Context, r models.Route) (models.Route, error)
 	UpdateRoute(ctx context.Context, r models.Route) (models.Route, error)
 	DeleteRoute(ctx context.Context, id string) error
+	// UnlinkRoute detaches a route from its webhook endpoint, leaving it hand-managed.
+	UnlinkRoute(ctx context.Context, id string) error
 	GetRoute(ctx context.Context, id string) (models.Route, error)
 
 	ListGrants(ctx context.Context) ([]models.Grant, error)

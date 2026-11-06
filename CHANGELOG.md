@@ -12,9 +12,23 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 ### Added
 
+* A Teams V2 message is routed: the URL's team and channel become the labels `teamster_team` and
+  `teamster_channel`, and every webhook endpoint gets a route, locked on the routes page, that
+  delivers to its destination. Further routes can select the same message
+  ([ADR 0094](docs/adr/0094-a-teams-v2-message-is-routed.md)).
 * `server.webhook-url` sets the address the Teams V2 webhook URLs and the Alertmanager snippet in
   the admin UI start with
   ([ADR 0093](docs/adr/0093-configurable-webhook-url.md)).
+
+### Changed
+
+* **Breaking:** a Teams V2 message fans out to every matching root route, and one failing
+  delivery answers 502, so a sender retry can duplicate deliveries that succeeded. The success body
+  is the universal webhook's report instead of `{"status":"ok"}`, and the delivery metric label is
+  the route label instead of `teamsv2:<team>/<channel>`. Routes selecting
+  `teamster_source=teamsv2`, which never fired, now fire. Linked routes and their children are left
+  out of export bundles
+  ([ADR 0094](docs/adr/0094-a-teams-v2-message-is-routed.md)).
 
 ### Fixed
 

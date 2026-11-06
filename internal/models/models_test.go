@@ -118,3 +118,26 @@ func TestAddressesOf(t *testing.T) {
 		})
 	}
 }
+
+func TestWithSourceLabelStripsEndpointLabels(t *testing.T) {
+	t.Parallel()
+
+	in := map[string]string{TeamLabel: "x", ChannelLabel: "y", SourceLabel: "forged"}
+	tests := []struct {
+		name, source string
+		want         map[string]string
+	}{
+		{"universal", SourceUniversal, map[string]string{SourceLabel: SourceUniversal}},
+		{"alertmanager", SourceAlertmanager, map[string]string{SourceLabel: SourceAlertmanager}},
+		{"teamsv2", SourceTeamsV2, map[string]string{TeamLabel: "x", ChannelLabel: "y", SourceLabel: SourceTeamsV2}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := WithSourceLabel(in, tt.source); !maps.Equal(got, tt.want) {
+				t.Errorf("WithSourceLabel = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

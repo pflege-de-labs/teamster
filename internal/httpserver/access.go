@@ -213,15 +213,24 @@ func (s *Server) createEndpoint(r *http.Request, e models.WebhookEndpoint) (mode
 	var created models.WebhookEndpoint
 	err := s.createOwned(r.Context(), r, typeWebhookEndpoint, func(ctx context.Context, tx store.Store) (string, error) {
 		var err error
-		created, err = tx.CreateWebhookEndpoint(ctx, e)
-		return created.ID, err
+		if created, err = tx.CreateWebhookEndpoint(ctx, e); err != nil {
+			return "", err
+		}
+		return created.ID, syncEndpointRoute(ctx, tx, r, created)
 	})
 	return created, err
 }
 
+// deleteEndpoint is serializable because its route's child check would otherwise miss a child saved concurrently.
 func (s *Server) deleteEndpoint(r *http.Request, id string) error {
-	return s.deleteOwned(r.Context(), typeWebhookEndpoint, id, func(ctx context.Context, tx store.Store) error {
-		return tx.DeleteWebhookEndpoint(ctx, id)
+	return s.store.WithSerializableTx(r.Context(), func(ctx context.Context, tx store.Store) error {
+		if err := deleteEndpointRoute(ctx, tx, id); err != nil {
+			return err
+		}
+		if err := tx.DeleteWebhookEndpoint(ctx, id); err != nil {
+			return err
+		}
+		return tx.DeletePermissionsFor(ctx, typeWebhookEndpoint, id)
 	})
 }
 

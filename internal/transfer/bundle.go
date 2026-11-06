@@ -80,6 +80,8 @@ func Export(ctx context.Context, st store.Store, directory Directory) (Bundle, e
 	if err != nil {
 		return Bundle{}, fmt.Errorf("routes: %w", err)
 	}
+	managed := managedRouteIDs(routes)
+	routes = slices.DeleteFunc(routes, func(r models.Route) bool { return managed[r.ID] })
 	grants, err := st.ListGrants(ctx)
 	if err != nil {
 		return Bundle{}, fmt.Errorf("grants: %w", err)

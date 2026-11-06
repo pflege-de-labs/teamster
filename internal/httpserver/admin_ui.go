@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -477,11 +478,25 @@ func (s *Server) saveRouteChecked(r *http.Request, route models.Route) (models.R
 		if err != nil {
 			return err
 		}
+		// Only the endpoint sync may link a route; a client-supplied link is ignored.
+		route.WebhookEndpointID = ""
+		var link string
+		if route.ID != "" {
+			if stored, ok := routeByID(existing, route.ID); ok && stored.WebhookEndpointID != "" {
+				if lockedFieldsChanged(stored, route) {
+					return errRouteManaged(ctx, tx, stored, "change it on the webhook instead")
+				}
+				link = stored.WebhookEndpointID
+			}
+		}
 		if err := routing.ValidateRoute(route, existing); err != nil {
 			return invalidRoute{err}
 		}
-		if err := routeTemplateHandlesSource(ctx, tx, route, existing); err != nil {
-			return err
+		// A linked route's template is the webhook's to change, so the edit cannot be refused over it.
+		if link == "" {
+			if err := routeTemplateHandlesSource(ctx, tx, route, existing); err != nil {
+				return err
+			}
 		}
 		if route.ID == "" {
 			if saved, err = tx.CreateRoute(ctx, route); err != nil {
@@ -490,9 +505,36 @@ func (s *Server) saveRouteChecked(r *http.Request, route models.Route) (models.R
 			return grantOwner(ctx, tx, r, typeRoute, saved.ID)
 		}
 		saved, err = tx.UpdateRoute(ctx, route)
+		saved.WebhookEndpointID = link
 		return err
 	})
 	return saved, err
+}
+
+func routeByID(routes []models.Route, id string) (models.Route, bool) {
+	for _, r := range routes {
+		if r.ID == id {
+			return r, true
+		}
+	}
+	return models.Route{}, false
+}
+
+// lockedFieldsChanged reports whether an edit touches what the webhook owns; name, priority and greedy stay editable.
+func lockedFieldsChanged(old, edited models.Route) bool {
+	return !maps.Equal(old.LabelSelector, edited.LabelSelector) ||
+		old.DestinationID != edited.DestinationID || old.RecipientID != edited.RecipientID ||
+		old.Addressed != edited.Addressed || old.TemplateID != edited.TemplateID ||
+		old.ParentID != edited.ParentID || old.IsDefault != edited.IsDefault
+}
+
+// errRouteManaged names the webhook that owns a route; an orphan falls back to the selector it was made with.
+func errRouteManaged(ctx context.Context, tx store.Store, route models.Route, instead string) error {
+	team, channel := route.LabelSelector[models.TeamLabel], route.LabelSelector[models.ChannelLabel]
+	if e, err := tx.GetWebhookEndpoint(ctx, route.WebhookEndpointID); err == nil {
+		team, channel = e.TeamSlug, e.ChannelSlug
+	}
+	return invalidRoute{fmt.Errorf("managed by webhook %s/%s; %s", team, channel, instead)}
 }
 
 // routeTemplateHandlesSource refuses a route whose selector pins one webhook
@@ -524,6 +566,16 @@ func (s *Server) deleteRouteChecked(ctx context.Context, id string) error {
 		existing, err := tx.ListRoutes(ctx)
 		if err != nil {
 			return err
+		}
+		if stored, ok := routeByID(existing, id); ok && stored.WebhookEndpointID != "" {
+			// A route whose webhook is gone has nobody left to delete it for.
+			_, err := tx.GetWebhookEndpoint(ctx, stored.WebhookEndpointID)
+			if err == nil {
+				return errRouteManaged(ctx, tx, stored, "delete the webhook instead")
+			}
+			if !errors.Is(err, store.ErrNotFound) {
+				return err
+			}
 		}
 		if err := routing.ValidateDelete(id, existing); err != nil {
 			return invalidRoute{err}

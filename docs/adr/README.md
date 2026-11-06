@@ -104,3 +104,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0091](0091-sprig-template-functions.md) | Templates get sprig's hermetic functions | Accepted |
 | [0092](0092-identity-brokering-api-v2-with-v1-fallback.md) | Prefer Keycloak's Identity Brokering API V2, fall back to V1 | Accepted |
 | [0093](0093-configurable-webhook-url.md) | Hand out webhook URLs from a configured base URL | Accepted |
+| [0094](0094-a-teams-v2-message-is-routed.md) | A Teams V2 message is routed | Accepted |

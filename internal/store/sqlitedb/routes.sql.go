@@ -11,24 +11,25 @@ import (
 )
 
 const createRoute = `-- name: CreateRoute :exec
-INSERT INTO routes (id, name, parent_id, greedy, label_selector, destination_id, template_id, is_default, priority, created_at, updated_at, recipient_id, addressed)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO routes (id, name, parent_id, greedy, label_selector, destination_id, template_id, is_default, priority, created_at, updated_at, recipient_id, addressed, webhook_endpoint_id)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type CreateRouteParams struct {
-	ID            string
-	Name          string
-	ParentID      string
-	Greedy        bool
-	LabelSelector string
-	DestinationID string
-	TemplateID    string
-	IsDefault     bool
-	Priority      int64
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
-	RecipientID   string
-	Addressed     bool
+	ID                string
+	Name              string
+	ParentID          string
+	Greedy            bool
+	LabelSelector     string
+	DestinationID     string
+	TemplateID        string
+	IsDefault         bool
+	Priority          int64
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+	RecipientID       string
+	Addressed         bool
+	WebhookEndpointID string
 }
 
 func (q *Queries) CreateRoute(ctx context.Context, arg CreateRouteParams) error {
@@ -46,6 +47,7 @@ func (q *Queries) CreateRoute(ctx context.Context, arg CreateRouteParams) error 
 		arg.UpdatedAt,
 		arg.RecipientID,
 		arg.Addressed,
+		arg.WebhookEndpointID,
 	)
 	return err
 }
@@ -60,7 +62,7 @@ func (q *Queries) DeleteRoute(ctx context.Context, id string) error {
 }
 
 const getRoute = `-- name: GetRoute :one
-SELECT id, name, parent_id, greedy, label_selector, destination_id, template_id, is_default, priority, created_at, updated_at, recipient_id, addressed
+SELECT id, name, parent_id, greedy, label_selector, destination_id, template_id, is_default, priority, created_at, updated_at, recipient_id, addressed, webhook_endpoint_id
 FROM routes
 WHERE id = ?
 `
@@ -82,12 +84,13 @@ func (q *Queries) GetRoute(ctx context.Context, id string) (Route, error) {
 		&i.UpdatedAt,
 		&i.RecipientID,
 		&i.Addressed,
+		&i.WebhookEndpointID,
 	)
 	return i, err
 }
 
 const listRoutes = `-- name: ListRoutes :many
-SELECT id, name, parent_id, greedy, label_selector, destination_id, template_id, is_default, priority, created_at, updated_at, recipient_id, addressed
+SELECT id, name, parent_id, greedy, label_selector, destination_id, template_id, is_default, priority, created_at, updated_at, recipient_id, addressed, webhook_endpoint_id
 FROM routes
 ORDER BY priority DESC, name
 `
@@ -115,6 +118,7 @@ func (q *Queries) ListRoutes(ctx context.Context) ([]Route, error) {
 			&i.UpdatedAt,
 			&i.RecipientID,
 			&i.Addressed,
+			&i.WebhookEndpointID,
 		); err != nil {
 			return nil, err
 		}
@@ -127,6 +131,15 @@ func (q *Queries) ListRoutes(ctx context.Context) ([]Route, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const unlinkRoute = `-- name: UnlinkRoute :exec
+UPDATE routes SET webhook_endpoint_id = '' WHERE id = ?
+`
+
+func (q *Queries) UnlinkRoute(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, unlinkRoute, id)
+	return err
 }
 
 const updateRoute = `-- name: UpdateRoute :exec

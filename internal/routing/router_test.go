@@ -1234,3 +1234,13 @@ func TestPlanDeliversToAddressedPeople(t *testing.T) {
 		})
 	}
 }
+
+func TestPlanCarriesWebhookEndpointID(t *testing.T) {
+	t.Parallel()
+
+	routes := []models.Route{{ID: "r", Name: "r", LabelSelector: map[string]string{"a": "b"}, DestinationID: "d", WebhookEndpointID: "hook"}}
+	result := planOf(t, routes, map[string]string{"a": "b"})
+	if len(result.Deliveries) != 1 || result.Deliveries[0].WebhookEndpointID != "hook" {
+		t.Errorf("deliveries = %+v, want one with WebhookEndpointID hook", result.Deliveries)
+	}
+}

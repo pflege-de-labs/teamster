@@ -105,7 +105,7 @@ func (s *Server) handleWebhookEndpointByID(w http.ResponseWriter, r *http.Reques
 		if !ok {
 			return
 		}
-		updated, err := s.store.UpdateWebhookEndpoint(ctx, endpoint)
+		updated, err := s.updateEndpoint(r, endpoint)
 		if err != nil {
 			writeError(w, r, http.StatusInternalServerError, err)
 			return
@@ -116,7 +116,7 @@ func (s *Server) handleWebhookEndpointByID(w http.ResponseWriter, r *http.Reques
 			return
 		}
 		if err := s.deleteEndpoint(r, id); err != nil {
-			writeError(w, r, http.StatusInternalServerError, err)
+			writeRouteError(w, r, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]string{"status": "deleted"})

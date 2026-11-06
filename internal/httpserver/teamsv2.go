@@ -41,12 +41,11 @@ var slugPattern = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,62}[a-z0-9])?$`)
 
 // handleTeamsV2 answers the URL a Microsoft Teams webhook used to have.
 //
-// It runs no routing: the sender has already decided which channel the message
-// goes to, which is the whole contract of the webhook this replaces. It renders
-// the endpoint's template when it names one, and otherwise sends the payload as
-// given with a hint card after it (ADR 0040). Nothing is written to
-// active_events, because there is no key and no state -- there is
-// nothing later to update or close.
+// It routes the message through the endpoint's linked route (ADR 0094). An
+// endpoint without one falls back to its own destination: its template when it
+// names one, otherwise the payload as given with a hint card (ADR 0040).
+// Nothing is written to active_events, because there is no key and no state --
+// there is nothing later to update or close.
 func (s *Server) handleTeamsV2(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	if r.Method != http.MethodPost {
@@ -83,6 +82,27 @@ func (s *Server) handleTeamsV2(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.metrics.WebhookReceived(ctx, teamsV2Source, "accepted")
+
+	_, linked, err := linkedRoute(ctx, s.store, endpoint.ID)
+	if err != nil {
+		writeError(w, r, http.StatusBadGateway, fmt.Errorf("routes: %w", err))
+		return
+	}
+	if linked {
+		ev := models.Event{
+			Source: teamsV2Source, State: models.StateNone, Title: msg.Title, Text: msg.Text,
+			Labels:  map[string]string{models.TeamLabel: endpoint.TeamSlug, models.ChannelLabel: endpoint.ChannelSlug},
+			TeamsV2: &models.TeamsV2Event{Cards: msg.Cards},
+		}
+		if len(msg.Cards) > 0 {
+			ev.Card = msg.Cards[0]
+		}
+		// Parse already accepted the body, so it decodes.
+		_ = json.Unmarshal(body, &ev.TeamsV2.Payload)
+		rep, err := s.processEvent(ctx, ev)
+		writeReport(w, r, rep, err)
+		return
+	}
 
 	label := teamsV2Label(endpoint.TeamSlug, endpoint.ChannelSlug)
 	destination, err := s.store.GetDestination(ctx, endpoint.DestinationID)

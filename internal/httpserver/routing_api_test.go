@@ -213,6 +213,55 @@ func TestRoutingGraphDrawsTeamsV2Endpoints(t *testing.T) {
 	}
 }
 
+func TestRoutingGraphEndpointLinks(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		linked     bool
+		wantTarget string
+		wantKind   string
+	}{
+		{"linked endpoint links to its route", true, "route:wh", linkEnters},
+		{"endpoint without route keeps direct link", false, "destination:dest", linkDirect},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			st := routingStore()
+			st.webhooks["e"] = models.WebhookEndpoint{ID: "e", TeamSlug: "platform", ChannelSlug: "builds", DestinationID: "dest", TemplateID: "tmpl"}
+			if tt.linked {
+				st.routes["wh"] = models.Route{
+					ID: "wh", Name: "webhook platform/builds", DestinationID: "dest", TemplateID: "tmpl",
+					WebhookEndpointID: "e", LabelSelector: map[string]string{"teamster_source": "teamsv2"},
+				}
+			}
+			nodes, links := graphFrom(t, newTestServer(t, st, &fakeMessenger{}).Handler)
+
+			var from []graphLink
+			for _, link := range links {
+				if link.Source == "endpoint:e" {
+					from = append(from, link)
+				}
+			}
+			if len(from) != 1 || from[0].Target != tt.wantTarget || from[0].Kind != tt.wantKind {
+				t.Errorf("links from endpoint = %+v, want one %s to %s", from, tt.wantKind, tt.wantTarget)
+			}
+			if tt.linked {
+				for _, link := range links {
+					if link.Target == "route:critical" && strings.HasPrefix(link.Source, "source:") && link.Kind != tt.wantKind {
+						t.Errorf("source link kind = %q, want same as endpoint's %q", link.Kind, tt.wantKind)
+					}
+				}
+			}
+			if nodes["endpoint:e"].Template != "Critical card" {
+				t.Errorf("endpoint template = %q, want kept", nodes["endpoint:e"].Template)
+			}
+		})
+	}
+}
+
 // Columns left to right: what arrives, what decides, where it lands. The rows
 // follow the order the router evaluates routes in.
 func TestRoutingGraphLaysOutColumns(t *testing.T) {

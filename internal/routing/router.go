@@ -76,6 +76,8 @@ type Delivery struct {
 	Addresses  []string `json:"-"`
 	TemplateID string   `json:"template_id"`
 	Reason     Reason   `json:"reason"`
+	// WebhookEndpointID is the Teams V2 webhook the route belongs to, if any.
+	WebhookEndpointID string `json:"webhook_endpoint_id,omitempty"`
 }
 
 // A Result is what an event's labels produce: the deliveries, and why the tree
@@ -251,7 +253,7 @@ func collect(route models.Route, reason Reason, children map[string][]models.Rou
 
 	plan := make([]Delivery, 0, len(fromChildren)+2)
 	if !suppressed {
-		base := Delivery{RouteID: route.ID, RouteName: route.Name, TemplateID: templateID, Reason: reason}
+		base := Delivery{RouteID: route.ID, RouteName: route.Name, TemplateID: templateID, Reason: reason, WebhookEndpointID: route.WebhookEndpointID}
 		// Channel before recipient, so a mixed plan orders the same way every
 		// time and Deliveries[1] means something stable.
 		if to.destinationID != "" {

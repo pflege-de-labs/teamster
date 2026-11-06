@@ -80,6 +80,8 @@ type Message struct {
 	Title string          `json:"title,omitempty"`
 	Text  string          `json:"text,omitempty"`
 	Card  json.RawMessage `json:"card,omitempty"`
+	// More are the cards after Card, for a Teams V2 message that brought several.
+	More []json.RawMessage `json:"more,omitempty"`
 	// Notice is a card sent after the message itself: the hint that no
 	// template rendered it (see HintCard).
 	Notice json.RawMessage `json:"notice,omitempty"`

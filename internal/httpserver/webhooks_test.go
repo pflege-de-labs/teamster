@@ -15,6 +15,7 @@ import (
 	"github.com/pflege-de-labs/teamster/internal/cards"
 	"github.com/pflege-de-labs/teamster/internal/config"
 	"github.com/pflege-de-labs/teamster/internal/models"
+	"github.com/pflege-de-labs/teamster/internal/routing"
 	"github.com/pflege-de-labs/teamster/internal/templates"
 )
 
@@ -1143,6 +1144,70 @@ func TestAlertmanagerSamplesDeliver(t *testing.T) {
 			}
 			if len(msg.posts) != 1 || msg.posts[0].msg.Title != tt.wantTitle {
 				t.Errorf("posts = %+v, want one titled %q", msg.posts, tt.wantTitle)
+			}
+		})
+	}
+}
+
+func TestRenderPassesTeamsV2Payload(t *testing.T) {
+	t.Parallel()
+
+	st := newFakeStore()
+	st.templates["t"] = models.Template{ID: "t", Name: "t", Text: "{{ .Payload.themeColor }}"}
+	srv := &Server{store: st}
+	ev := models.Event{Source: models.SourceTeamsV2, TeamsV2: &models.TeamsV2Event{Payload: map[string]any{"themeColor": "FF0000"}}}
+
+	msg, err := srv.renderMessage(t.Context(), ev, routing.Delivery{TemplateID: "t"})
+	if err != nil {
+		t.Fatalf("renderMessage: %v", err)
+	}
+	if !strings.Contains(msg.Text, "FF0000") {
+		t.Errorf("text = %q, want it to contain FF0000", msg.Text)
+	}
+}
+
+func TestDirectMessageForwardsEveryCard(t *testing.T) {
+	t.Parallel()
+
+	c1, c2 := json.RawMessage(`{"n":1}`), json.RawMessage(`{"n":2}`)
+	srv := &Server{store: newFakeStore(), cfg: config.Config{Server: config.ServerConfig{ExternalURL: "https://t.example.com"}}}
+	ev := models.Event{Source: models.SourceTeamsV2, Card: c1, TeamsV2: &models.TeamsV2Event{Cards: []json.RawMessage{c1, c2}}}
+
+	msg, err := srv.renderMessage(t.Context(), ev, routing.Delivery{})
+	if err != nil {
+		t.Fatalf("renderMessage: %v", err)
+	}
+	cards := srv.channelMessage(msg).Cards
+	if len(cards) != 3 || string(cards[0]) != string(c1) || string(cards[1]) != string(c2) {
+		t.Fatalf("cards = %s, want [c1 c2 hint]", cards)
+	}
+	chat, err := srv.chatMessage(msg)
+	if err != nil || string(chat.Card) != string(c1) {
+		t.Errorf("chat card = %s, err %v, want only c1", chat.Card, err)
+	}
+}
+
+func TestHintLinksTheEndpoint(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name, endpoint, want string
+	}{
+		{"endpoint", "hook", `/admin?edit=webhooks\u0026id=hook#webhooks`},
+		{"none", "", templatesPanelPath},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			srv := &Server{store: newFakeStore(), cfg: config.Config{Server: config.ServerConfig{ExternalURL: "https://t.example.com"}}}
+			ev := models.Event{Source: models.SourceTeamsV2, Title: "hi"}
+			msg, err := srv.renderMessage(t.Context(), ev, routing.Delivery{WebhookEndpointID: tt.endpoint})
+			if err != nil {
+				t.Fatalf("renderMessage: %v", err)
+			}
+			if !strings.Contains(string(msg.Notice), tt.want) {
+				t.Errorf("notice = %s, want it to contain %s", msg.Notice, tt.want)
 			}
 		})
 	}

@@ -159,6 +159,13 @@ func (c *ServeCmd) Run(ctx context.Context, cfg *config.Config) error {
 		return err
 	}
 
+	// Not fatal: delivery falls back to the destination, so a failed repair must not block startup.
+	if done, err := httpserver.ReconcileEndpointRoutes(ctx, auditedStore); err != nil {
+		logger.Warn("reconcile webhook routes failed", "error", err)
+	} else if done != (httpserver.Reconciled{}) {
+		logger.Info("reconciled webhook routes", "created", done.Created, "updated", done.Updated, "deleted", done.Deleted, "unlinked", done.Unlinked)
+	}
+
 	if err := telemetry.ObserveActiveEvents(func(ctx context.Context) (int64, error) {
 		return sqlStore.CountActiveEvents(ctx)
 	}); err != nil {

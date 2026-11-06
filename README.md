@@ -1087,8 +1087,9 @@ per event. Counts are therefore approximate. Replicas sharing Postgres add to th
   and names the file; delete it and start again to recreate the schema.
 - Every event carries the label `teamster_source`: `alertmanager`, `universal` or `teamsv2`, for the
   webhook it arrived at. The server sets it and overwrites a sender's own, so a route can select on
-  it — `{"teamster_source": "alertmanager"}`. Teams V2 messages are not routed; their templates can
-  read the label all the same.
+  it — `{"teamster_source": "alertmanager"}`. Teams V2 messages are routed too: each endpoint has
+  a linked route selecting `teamsv2` and the URL's `teamster_team` and `teamster_channel`, which
+  only the URL can set.
 - A default route is used if no labels match.
 - Where no route matches and there is no default route, the message goes to the **global default
   destination**. The first destination you create becomes the global default, and an admin can
@@ -1369,8 +1370,9 @@ delivers is named, explained, and the paths are picked out in colour while the r
 
 The picture starts at the webhook a message arrives at. The Alertmanager and universal webhooks feed
 every root route, except that a route whose selector pins `teamster_source` is fed only by that
-webhook. Each Teams V2 endpoint is drawn below them with a dotted arrow straight to its channel,
-since those messages are not routed.
+webhook. Each Teams V2 endpoint is drawn below them with a dotted arrow straight to its channel.
+That arrow is the fallback for an endpoint whose route is missing; routed messages enter through
+its linked route.
 
 Route nodes show the labels they filter for and name the template they render with, marked when it
 is inherited. A dashed arrow between two routes is a refinement, labelled *as well as* or *instead

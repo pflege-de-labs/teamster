@@ -498,6 +498,10 @@ func (p pgQueries) UpdateRecipient(ctx context.Context, arg sqlitedb.UpdateRecip
 	return p.q.UpdateRecipient(ctx, pgdb.UpdateRecipientParams(arg))
 }
 
+func (p pgQueries) UnlinkRoute(ctx context.Context, id string) error {
+	return p.q.UnlinkRoute(ctx, id)
+}
+
 func (p pgQueries) UpdateRoute(ctx context.Context, arg sqlitedb.UpdateRouteParams) error {
 	return p.q.UpdateRoute(ctx, pgdb.UpdateRouteParams(arg))
 }

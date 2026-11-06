@@ -103,6 +103,18 @@ func Import(ctx context.Context, st store.Store, bundle Bundle, mode Mode, dryRu
 func apply(ctx context.Context, tx store.Store, bundle Bundle, mode Mode) ([]Change, error) {
 	var changes []Change
 
+	routes, err := tx.ListRoutes(ctx)
+	if err != nil {
+		return nil, err
+	}
+	existingRoutes := index(routes, func(r models.Route) string { return r.ID })
+	managed := managedRouteIDs(routes)
+	for _, route := range bundle.Routes {
+		if managed[route.ID] {
+			return nil, InvalidError{fmt.Errorf("route %q is managed by a webhook and cannot be imported", route.ID)}
+		}
+	}
+
 	templates, err := tx.ListTemplates(ctx)
 	if err != nil {
 		return nil, err
@@ -157,13 +169,8 @@ func apply(ctx context.Context, tx store.Store, bundle Bundle, mode Mode) ([]Cha
 		return nil, err
 	}
 
-	routes, err := tx.ListRoutes(ctx)
-	if err != nil {
-		return nil, err
-	}
-	existingRoutes := index(routes, func(r models.Route) string { return r.ID })
-
 	for _, route := range parentsFirst(bundle.Routes) {
+		route.WebhookEndpointID = ""
 		action := actionCreate
 		if _, found := existingRoutes[route.ID]; found {
 			action = actionUpdate
@@ -200,7 +207,7 @@ func apply(ctx context.Context, tx store.Store, bundle Bundle, mode Mode) ([]Cha
 
 	// Deletions run children first, so removing a parent never orphans a route
 	// that is about to go as well.
-	removals, err := deleteUnmentioned(ctx, tx, bundle, existingTemplates, existingDestinations, existingRoutes, existingGrants)
+	removals, err := deleteUnmentioned(ctx, tx, bundle, managed, existingTemplates, existingDestinations, existingRoutes, existingGrants)
 	if err != nil {
 		return nil, err
 	}
@@ -283,6 +290,7 @@ func deleteUnmentioned(
 	ctx context.Context,
 	tx store.Store,
 	bundle Bundle,
+	managed map[string]bool,
 	templates map[string]models.Template,
 	destinations map[string]models.Destination,
 	routes map[string]models.Route,
@@ -293,7 +301,7 @@ func deleteUnmentioned(
 	keepRoutes := idsOf(bundle.Routes, func(r models.Route) string { return r.ID })
 	doomed := make([]models.Route, 0, len(routes))
 	for _, entry := range byID(routes) {
-		if !keepRoutes[entry.ID] {
+		if !keepRoutes[entry.ID] && !managed[entry.ID] {
 			doomed = append(doomed, entry.Value)
 		}
 	}
@@ -344,6 +352,22 @@ func deleteUnmentioned(
 	}
 
 	return changes, nil
+}
+
+// managedRouteIDs is every linked route and all its descendants: the routes a
+// webhook endpoint owns, which a bundle neither carries nor may touch.
+func managedRouteIDs(routes []models.Route) map[string]bool {
+	managed := map[string]bool{}
+	for changed := true; changed; {
+		changed = false
+		for _, r := range routes {
+			if !managed[r.ID] && (r.WebhookEndpointID != "" || (r.ParentID != "" && managed[r.ParentID])) {
+				managed[r.ID] = true
+				changed = true
+			}
+		}
+	}
+	return managed
 }
 
 // parentsFirst orders routes so that a parent is written before its children,

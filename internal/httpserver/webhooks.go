@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"maps"
 	"net/http"
+	"net/url"
 	"sort"
 	"strings"
 	"time"
@@ -734,7 +735,11 @@ func (s *Server) renderMessageFor(ctx context.Context, ev models.Event, delivery
 		// A route whose template names other sources has one; saying there is
 		// none would send somebody to create a second.
 		if err == nil && delivery.TemplateID == "" {
-			msg.Notice, err = templates.HintCard(s.cfg.Server.ExternalURL, templatesPanelPath)
+			path := templatesPanelPath
+			if delivery.WebhookEndpointID != "" {
+				path = "/admin?edit=webhooks&id=" + url.QueryEscape(delivery.WebhookEndpointID) + "#webhooks"
+			}
+			msg.Notice, err = templates.HintCard(s.cfg.Server.ExternalURL, path)
 		}
 		if err != nil {
 			s.metrics.RenderFailed(ctx, delivery.TemplateID, metrics.StageRender)
@@ -743,11 +748,15 @@ func (s *Server) renderMessageFor(ctx context.Context, ev models.Event, delivery
 		return msg, nil
 	}
 
-	rendered, err := templates.RenderMessage(template, templates.RenderData{
+	data := templates.RenderData{
 		Event:     ev,
 		Now:       time.Now().UTC().Format(time.RFC3339),
 		Recipient: person,
-	})
+	}
+	if ev.TeamsV2 != nil {
+		data.Payload = ev.TeamsV2.Payload
+	}
+	rendered, err := templates.RenderMessage(template, data)
 	if err != nil {
 		s.metrics.RenderFailed(ctx, template.ID, metrics.StageRender)
 		return templates.Message{}, fmt.Errorf("render: %w", err)
@@ -822,7 +831,11 @@ func untemplatedMessage(ev models.Event) (templates.Message, error) {
 // contents are not otherwise validated.
 func directMessage(ev models.Event) (templates.Message, error) {
 	msg := templates.Message{Title: ev.Title}
-	if ev.Text != "" {
+	switch {
+	case ev.TeamsV2 != nil:
+		// teamsv2.Parse already ran the sanitizer, the trust boundary; rendering again would turn literal text into Markdown.
+		msg.Text = ev.Text
+	case ev.Text != "":
 		safe, err := templates.RenderText(ev.Text)
 		if err != nil {
 			return templates.Message{}, fmt.Errorf("text: %w", err)
@@ -835,6 +848,9 @@ func directMessage(ev models.Event) (templates.Message, error) {
 			return templates.Message{}, fmt.Errorf("card: not valid JSON: %w", err)
 		}
 		msg.Card = ev.Card
+	}
+	if ev.TeamsV2 != nil && len(ev.TeamsV2.Cards) > 1 {
+		msg.More = ev.TeamsV2.Cards[1:]
 	}
 	return msg, nil
 }
@@ -854,19 +870,20 @@ func (s *Server) channelTarget(ctx context.Context, delivery routing.Delivery) (
 // templates.ToMarkdown.
 // channelMessage is chatMessage's counterpart for a channel. graph.Message
 // carries a slice because a Teams V2 payload may bring several cards; a
-// template renders exactly one.
+// template renders one, and an untemplated Teams V2 message passes all of its own on.
 // The notice is a card only beside a card of the message's own; next to plain
 // text it is a line of text, because a channel post is one Teams message and
 // the text would otherwise have to move into a card that renders it worse.
 func (s *Server) channelMessage(rendered templates.Message) graph.Message {
 	msg := graph.Message{Title: rendered.Title, Text: rendered.Text}
 	if len(rendered.Card) > 0 {
-		msg.Cards = []json.RawMessage{rendered.Card}
+		msg.Cards = append([]json.RawMessage{rendered.Card}, rendered.More...)
 	}
 	if len(rendered.Notice) == 0 {
 		return msg
 	}
 	if len(msg.Cards) == 0 && msg.Text != "" {
+		// shortcut: text-only hint links the templates panel, pass the path when a teamsv2 sender needs it
 		if hint, err := templates.RenderText(templates.HintText(s.cfg.Server.ExternalURL, templatesPanelPath)); err == nil {
 			msg.Text += hint
 			return msg

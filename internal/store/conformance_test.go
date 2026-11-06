@@ -1582,3 +1582,46 @@ func TestConformanceChannelAndChatClaimsAreIndependent(t *testing.T) {
 		}
 	})
 }
+
+func TestConformanceRouteWebhookEndpoint(t *testing.T) {
+	t.Parallel()
+
+	eachBackend(t, func(t *testing.T, open func(t *testing.T) store.Store) {
+		st := open(t)
+		ctx := t.Context()
+
+		linked, err := st.CreateRoute(ctx, models.Route{Name: "linked", WebhookEndpointID: "hook"})
+		if err != nil {
+			t.Fatalf("CreateRoute: %v", err)
+		}
+		got, err := st.GetRoute(ctx, linked.ID)
+		if err != nil || got.WebhookEndpointID != "hook" {
+			t.Fatalf("GetRoute = %+v, %v; want WebhookEndpointID hook", got, err)
+		}
+
+		linked.WebhookEndpointID = ""
+		if _, err := st.UpdateRoute(ctx, linked); err != nil {
+			t.Fatalf("UpdateRoute: %v", err)
+		}
+		if got, _ = st.GetRoute(ctx, linked.ID); got.WebhookEndpointID != "hook" {
+			t.Errorf("after UpdateRoute WebhookEndpointID = %q, want hook kept", got.WebhookEndpointID)
+		}
+
+		if _, err := st.CreateRoute(ctx, models.Route{Name: "dup", WebhookEndpointID: "hook"}); err == nil {
+			t.Error("second route linked to the same endpoint: want an error")
+		}
+
+		if err := st.UnlinkRoute(ctx, linked.ID); err != nil {
+			t.Fatalf("UnlinkRoute: %v", err)
+		}
+		if got, _ = st.GetRoute(ctx, linked.ID); got.WebhookEndpointID != "" {
+			t.Errorf("after UnlinkRoute WebhookEndpointID = %q, want empty", got.WebhookEndpointID)
+		}
+
+		for _, name := range []string{"a", "b"} {
+			if _, err := st.CreateRoute(ctx, models.Route{Name: name}); err != nil {
+				t.Errorf("unlinked route %s: %v", name, err)
+			}
+		}
+	})
+}

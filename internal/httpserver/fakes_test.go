@@ -852,9 +852,38 @@ func (f *fakeStore) CreateRoute(ctx context.Context, r models.Route) (models.Rou
 	}
 	if r.ID == "" {
 		r.ID = "generated"
+		for n := 2; f.routes[r.ID].ID != ""; n++ {
+			r.ID = fmt.Sprintf("generated-%d", n)
+		}
+	}
+	if err := f.endpointFree(r.WebhookEndpointID); err != nil {
+		return models.Route{}, err
 	}
 	f.routes[r.ID] = r
 	return r, nil
+}
+
+// endpointFree mirrors the unique index on routes.webhook_endpoint_id; callers hold f.mu.
+func (f *fakeStore) endpointFree(endpoint string) error {
+	for _, r := range f.routes {
+		if endpoint != "" && r.WebhookEndpointID == endpoint {
+			return errors.New("route for this webhook endpoint already exists")
+		}
+	}
+	return nil
+}
+
+func (f *fakeStore) UnlinkRoute(ctx context.Context, id string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("UnlinkRoute"); err != nil {
+		return err
+	}
+	if r, ok := f.routes[id]; ok {
+		r.WebhookEndpointID = ""
+		f.routes[id] = r
+	}
+	return nil
 }
 
 func (f *fakeStore) UpdateRoute(ctx context.Context, r models.Route) (models.Route, error) {
@@ -863,7 +892,10 @@ func (f *fakeStore) UpdateRoute(ctx context.Context, r models.Route) (models.Rou
 	if err := f.failing("UpdateRoute"); err != nil {
 		return models.Route{}, err
 	}
-	f.routes[r.ID] = r
+	// Like the real store: the link is kept, the route comes back as given.
+	stored := r
+	stored.WebhookEndpointID = f.routes[r.ID].WebhookEndpointID
+	f.routes[r.ID] = stored
 	return r, nil
 }
 
