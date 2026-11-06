@@ -152,7 +152,8 @@ the others to match several endpoints. Pick the destination and template. Both r
 the message.
 
 To add a condition, make the route a child of the endpoint's route and add a label of its own to
-the selector. A child is as well as its parent unless you mark it greedy.
+the selector, or leave the selector empty to receive everything the endpoint's route does. A child
+is as well as its parent unless you mark it greedy; a child without a selector cannot be greedy.
 
 {{% /steps %}}
 

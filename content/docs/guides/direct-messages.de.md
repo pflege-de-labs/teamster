@@ -22,9 +22,10 @@ Legen Sie in der Verwaltungsoberfläche eine Route an oder bearbeiten Sie eine, 
 die Nachrichten, die sie übernehmen soll, zum Beispiel `{"kind": "password-expiry"}`, und eine
 Vorlage. Wer Routen bearbeiten darf, darf eine solche Route anlegen.
 
-Fassen Sie den Selektor eng. Die Route übernimmt jede Nachricht, die er erfasst, gleich von welchem
-Absender, und rendert sie mit Ihrer Vorlage. Wen sie erreicht, begrenzt das Token des jeweiligen
-Absenders, das Sie im nächsten Schritt festlegen.
+Fassen Sie den Selektor eng und lassen Sie ihn nie leer: Ein leerer Selektor trifft auf jede
+Nachricht zu. Die Route übernimmt jede Nachricht, die er erfasst, gleich von welchem Absender, und
+rendert sie mit Ihrer Vorlage. Wen sie erreicht, begrenzt das Token des jeweiligen Absenders, das
+Sie im nächsten Schritt festlegen.
 
 Jede Person erhält ihre eigene, für sie gerenderte Nachricht. `.Recipient` enthält ihr
 Entra-Profil. Die Vorlage kann sie also persönlich ansprechen, in ihrer Sprache schreiben und ihr
