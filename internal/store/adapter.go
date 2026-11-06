@@ -859,6 +859,7 @@ func (s queryAdapter) CreateRoute(ctx context.Context, r models.Route) (models.R
 		UpdatedAt:     r.UpdatedAt,
 
 		WebhookEndpointID: r.WebhookEndpointID,
+		NoGreedyChildren:  r.NoGreedyChildren,
 	})
 	if err != nil {
 		return models.Route{}, fmt.Errorf("create route: %w", err)
@@ -885,6 +886,8 @@ func (s queryAdapter) UpdateRoute(ctx context.Context, r models.Route) (models.R
 		Priority:      int64(r.Priority),
 		UpdatedAt:     r.UpdatedAt,
 		ID:            r.ID,
+
+		NoGreedyChildren: r.NoGreedyChildren,
 	})
 	if err != nil {
 		return models.Route{}, fmt.Errorf("update route: %w", err)
@@ -934,6 +937,7 @@ func routeOf(row sqlitedb.Route) models.Route {
 		UpdatedAt:     row.UpdatedAt,
 
 		WebhookEndpointID: row.WebhookEndpointID,
+		NoGreedyChildren:  row.NoGreedyChildren,
 	}
 }
 

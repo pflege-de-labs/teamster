@@ -1,6 +1,6 @@
 # 0094. A Teams V2 message is routed
 
-* Status: Accepted
+* Status: Accepted, amended by [0096](0096-a-route-can-keep-its-children-from-replacing-it.md)
 * Date: 2026-11-05
 
 ## Context

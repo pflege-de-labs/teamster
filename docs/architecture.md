@@ -444,9 +444,11 @@ POST /teamsv2/{team}/{channel}/{token}
 The message is routed like any other ([ADR 0094](adr/0094-a-teams-v2-message-is-routed.md)): the
 URL slugs become the labels `teamster_team` and `teamster_channel`, which are stripped from every
 other source. Each endpoint has a linked route (`routes.webhook_endpoint_id`), written with the
-endpoint in one transaction, whose selector, target and template the routes page locks. A startup
-reconcile backfills missing routes, repairs ones the previous release edited and removes orphaned
-ones.
+endpoint in one transaction, whose selector, target and template the routes page locks. It keeps
+its children from replacing it (`no_greedy_children`), so a greedy child cannot silence the
+endpoint's own channel ([ADR 0096](adr/0096-a-route-can-keep-its-children-from-replacing-it.md)). A
+startup reconcile backfills missing routes, repairs ones the previous release edited, sets that flag
+on ones linked before it, and removes orphaned ones.
 
 An endpoint may name a template. It renders with `.Event` set to the parsed message and `.Payload`
 set to the raw body as decoded JSON. An endpoint without a template sends the payload as it came,
@@ -667,7 +669,9 @@ one winning; here, every matching *root* does. An empty selector matches every a
 every alert, which leaves the default nothing to catch, and a child without one receives everything
 its parent does. Such a child cannot be greedy, since replacing its parent on every alert would
 silence it; `models.Route.Replaces` decides whether a child delivers instead of its parent, for the
-router and for every view that draws it.
+router and for every view that draws it. A route with `no_greedy_children` is never replaced: its
+greedy children deliver as well as it, and `ValidateRoute` refuses a new one
+([ADR 0096](adr/0096-a-route-can-keep-its-children-from-replacing-it.md)).
 
 The last fallback is the **global default destination**. It is one destination with
 `is_default` set, and the first one created gets it. When nothing matched and there is no default
@@ -1041,6 +1045,12 @@ Both are new tables and nothing else, so the previous release ignores them.
 names, by `0021` in SQLite and `0018` in Postgres
 ([ADR 0062](adr/0062-a-route-may-deliver-to-the-people-a-message-names.md)). The previous release
 never reads it, so it sees an addressed route as one with no target and delivers nothing through it.
+
+`routes.no_greedy_children` (`NOT NULL DEFAULT false`) came with routes that keep their children
+from replacing them, by `0033` in SQLite and `0030` in Postgres
+([ADR 0096](adr/0096-a-route-can-keep-its-children-from-replacing-it.md)). The previous release
+never reads or writes it, so its updates keep the stored value, and its router still lets a greedy
+child replace a linked route until the rollout completes.
 
 `audit_events` came with the audit trail, by `0023` in SQLite and `0020` in Postgres
 ([ADR 0070](adr/0070-audit-configuration-changes-at-the-store.md)). It is append-only, and pruning

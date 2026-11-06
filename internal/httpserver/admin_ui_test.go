@@ -173,6 +173,18 @@ func TestFormsCreateAndUpdate(t *testing.T) {
 			},
 		},
 		{
+			name:       "a route can keep its children from replacing it",
+			path:       "/admin/routes",
+			wantTab:    "routes",
+			form:       url.Values{"name": {"Ops"}, "label_selector": {`{"team":"ops"}`}, "target": {"destination:dest"}, "no_greedy_children": {"true"}},
+			wantNotice: "Route created.",
+			check: func(t *testing.T, st *fakeStore) {
+				if !st.routes["generated"].NoGreedyChildren {
+					t.Errorf("route = %+v, want no greedy children", st.routes["generated"])
+				}
+			},
+		},
+		{
 			name:       "an empty selector is allowed and stays empty",
 			path:       "/admin/routes",
 			wantTab:    "routes",

@@ -414,6 +414,7 @@ templ routes(page Page) {
 				<p class="text-xs text-slate-500">{ i18n.T(ctx, "routes.target_hint") }</p>
 				@selectField("template_id", i18n.T(ctx, "routes.template"), routeTemplateOptions(ctx, page), page.editingRoute().TemplateID)
 				@checkboxField("is_default", i18n.T(ctx, "routes.default"), page.editingRoute().IsDefault)
+				@checkboxField("no_greedy_children", i18n.T(ctx, "routes.no_greedy_children"), page.editingRoute().NoGreedyChildren)
 				</fieldset>
 				<label class="block">
 					<span class="text-sm font-medium">{ i18n.T(ctx, "routes.priority") }</span>

@@ -10,6 +10,14 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 ## [Unreleased]
 
+### Added
+
+* A route can keep its child routes from replacing it: marked **Child routes deliver as well as
+  this route, never instead of it**, a greedy child below it is refused and one saved before
+  delivers as well as it. Every Teams V2 webhook's route has the mark, locked, so a child route can
+  no longer stop the webhook's own channel from getting its messages
+  ([ADR 0096](docs/adr/0096-a-route-can-keep-its-children-from-replacing-it.md)).
+
 ### Changed
 
 * **Breaking:** an empty label selector matches every alert. A root route without a selector, which

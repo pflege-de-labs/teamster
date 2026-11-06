@@ -52,7 +52,8 @@ func TestEndpointRouteSync(t *testing.T) {
 				}
 				if r.Name != "webhook platform/alerts" || r.DestinationID != "dest" || r.TemplateID != "tmpl" ||
 					r.LabelSelector[models.TeamLabel] != "platform" || r.LabelSelector[models.ChannelLabel] != "alerts" ||
-					r.LabelSelector[models.SourceLabel] != models.SourceTeamsV2 || r.Priority != 0 || r.Greedy || r.IsDefault {
+					r.LabelSelector[models.SourceLabel] != models.SourceTeamsV2 || r.Priority != 0 || r.Greedy || r.IsDefault ||
+					!r.NoGreedyChildren {
 					t.Errorf("route = %+v", r)
 				}
 			},
@@ -336,6 +337,15 @@ func TestReconcileEndpointRoutes(t *testing.T) {
 			name: "drifted destination repaired",
 			setup: func(st *fakeStore) {
 				st.routes["wroute"] = drifted(st, func(r *models.Route) { r.DestinationID, r.ParentID = "dest2", "elsewhere" })
+			},
+			want:  Reconciled{Updated: 1},
+			check: repaired(0, false),
+		},
+		{
+			// A route linked before ADR 0096 has the flag unset; startup sets it.
+			name: "route without the no-greedy-children flag repaired",
+			setup: func(st *fakeStore) {
+				st.routes["wroute"] = drifted(st, func(r *models.Route) { r.NoGreedyChildren = false })
 			},
 			want:  Reconciled{Updated: 1},
 			check: repaired(0, false),

@@ -28,6 +28,8 @@ sql:
             go_type: "bool"
           - column: "routes.addressed"
             go_type: "bool"
+          - column: "routes.no_greedy_children"
+            go_type: "bool"
   - engine: "postgresql"
     schema: "migrations/postgres"
     queries: "queries/postgres"

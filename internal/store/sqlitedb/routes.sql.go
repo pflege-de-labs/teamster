@@ -11,8 +11,8 @@ import (
 )
 
 const createRoute = `-- name: CreateRoute :exec
-INSERT INTO routes (id, name, parent_id, greedy, label_selector, destination_id, template_id, is_default, priority, created_at, updated_at, recipient_id, addressed, webhook_endpoint_id)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO routes (id, name, parent_id, greedy, label_selector, destination_id, template_id, is_default, priority, created_at, updated_at, recipient_id, addressed, webhook_endpoint_id, no_greedy_children)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type CreateRouteParams struct {
@@ -30,6 +30,7 @@ type CreateRouteParams struct {
 	RecipientID       string
 	Addressed         bool
 	WebhookEndpointID string
+	NoGreedyChildren  bool
 }
 
 func (q *Queries) CreateRoute(ctx context.Context, arg CreateRouteParams) error {
@@ -48,6 +49,7 @@ func (q *Queries) CreateRoute(ctx context.Context, arg CreateRouteParams) error 
 		arg.RecipientID,
 		arg.Addressed,
 		arg.WebhookEndpointID,
+		arg.NoGreedyChildren,
 	)
 	return err
 }
@@ -62,7 +64,7 @@ func (q *Queries) DeleteRoute(ctx context.Context, id string) error {
 }
 
 const getRoute = `-- name: GetRoute :one
-SELECT id, name, parent_id, greedy, label_selector, destination_id, template_id, is_default, priority, created_at, updated_at, recipient_id, addressed, webhook_endpoint_id
+SELECT id, name, parent_id, greedy, label_selector, destination_id, template_id, is_default, priority, created_at, updated_at, recipient_id, addressed, webhook_endpoint_id, no_greedy_children
 FROM routes
 WHERE id = ?
 `
@@ -85,12 +87,13 @@ func (q *Queries) GetRoute(ctx context.Context, id string) (Route, error) {
 		&i.RecipientID,
 		&i.Addressed,
 		&i.WebhookEndpointID,
+		&i.NoGreedyChildren,
 	)
 	return i, err
 }
 
 const listRoutes = `-- name: ListRoutes :many
-SELECT id, name, parent_id, greedy, label_selector, destination_id, template_id, is_default, priority, created_at, updated_at, recipient_id, addressed, webhook_endpoint_id
+SELECT id, name, parent_id, greedy, label_selector, destination_id, template_id, is_default, priority, created_at, updated_at, recipient_id, addressed, webhook_endpoint_id, no_greedy_children
 FROM routes
 ORDER BY priority DESC, name
 `
@@ -119,6 +122,7 @@ func (q *Queries) ListRoutes(ctx context.Context) ([]Route, error) {
 			&i.RecipientID,
 			&i.Addressed,
 			&i.WebhookEndpointID,
+			&i.NoGreedyChildren,
 		); err != nil {
 			return nil, err
 		}
@@ -144,23 +148,24 @@ func (q *Queries) UnlinkRoute(ctx context.Context, id string) error {
 
 const updateRoute = `-- name: UpdateRoute :exec
 UPDATE routes
-SET name = ?, parent_id = ?, greedy = ?, label_selector = ?, destination_id = ?, template_id = ?, is_default = ?, priority = ?, updated_at = ?, recipient_id = ?, addressed = ?
+SET name = ?, parent_id = ?, greedy = ?, label_selector = ?, destination_id = ?, template_id = ?, is_default = ?, priority = ?, updated_at = ?, recipient_id = ?, addressed = ?, no_greedy_children = ?
 WHERE id = ?
 `
 
 type UpdateRouteParams struct {
-	Name          string
-	ParentID      string
-	Greedy        bool
-	LabelSelector string
-	DestinationID string
-	TemplateID    string
-	IsDefault     bool
-	Priority      int64
-	UpdatedAt     time.Time
-	RecipientID   string
-	Addressed     bool
-	ID            string
+	Name             string
+	ParentID         string
+	Greedy           bool
+	LabelSelector    string
+	DestinationID    string
+	TemplateID       string
+	IsDefault        bool
+	Priority         int64
+	UpdatedAt        time.Time
+	RecipientID      string
+	Addressed        bool
+	NoGreedyChildren bool
+	ID               string
 }
 
 func (q *Queries) UpdateRoute(ctx context.Context, arg UpdateRouteParams) error {
@@ -176,6 +181,7 @@ func (q *Queries) UpdateRoute(ctx context.Context, arg UpdateRouteParams) error 
 		arg.UpdatedAt,
 		arg.RecipientID,
 		arg.Addressed,
+		arg.NoGreedyChildren,
 		arg.ID,
 	)
 	return err

@@ -178,6 +178,7 @@
   "routes.panel": "Routes",
   "routes.parent": "Refines (optional)",
   "routes.parent_none": "— nothing, this is a root route —",
+  "routes.no_greedy_children": "Child routes deliver as well as this route, never instead of it",
   "routes.priority": "Priority",
   "routes.priority_badge": "priority {0}",
   "routes.selector": "Label selector (JSON)",

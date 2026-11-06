@@ -1076,6 +1076,8 @@ per event. Counts are therefore approximate. Replicas sharing Postgres add to th
   a kind with.
 - A child route without a selector receives every alert its parent does, so it is how to send all
   of a route's alerts to one more channel. It cannot be greedy.
+- A route marked **Child routes deliver as well as this route, never instead of it** cannot be
+  replaced: a greedy child below it is refused, and one saved before delivers as well as it.
 - A route has two targets and they are independent, not alternatives: a destination for a Team
   channel and, optionally, a person for a chat. A route naming both sends both — one card and one
   chat message, each claimed and tracked on its own, so one failing does not cost the other its
@@ -1093,7 +1095,7 @@ per event. Counts are therefore approximate. Replicas sharing Postgres add to th
   webhook it arrived at. The server sets it and overwrites a sender's own, so a route can select on
   it — `{"teamster_source": "alertmanager"}`. Teams V2 messages are routed too: each endpoint has
   a linked route selecting `teamsv2` and the URL's `teamster_team` and `teamster_channel`, which
-  only the URL can set.
+  only the URL can set. Child routes under it deliver as well as it, never instead of it.
 - A default route is used only if no other root route matches, so a root route without a selector
   leaves it nothing to catch.
 - Where no route matches and there is no default route, the message goes to the **global default
