@@ -106,7 +106,7 @@ Ein Ereignis von `POST /teamsv2/…` hat keine Erweiterung.
 | Feld | Enthält |
 | --- | --- |
 | `.Event.Source` | `teamsv2` |
-| `.Event.Labels` | Nur `teamster_source`. |
+| `.Event.Labels` | `teamster_source`, `teamster_team` und `teamster_channel`. |
 | `.Event.Title`, `.Event.Text`, `.Event.Card` | Die geparste Nachricht. `.Event.Text` ist bereits HTML. |
 | `.Payload` | Der Körper so, wie er gesendet wurde, für Felder, die die geparste Form glättet, etwa `{{ .Payload.themeColor }}`. |
 

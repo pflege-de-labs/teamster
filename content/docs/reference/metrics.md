@@ -57,7 +57,7 @@ size histograms are dropped.
 
 | Metric | Attribute | Values |
 | --- | --- | --- |
-| `teamster.deliveries` | `route` | The route's name, or its id when it has none. For Teams V2, `teamsv2:<team>/<channel>`. |
+| `teamster.deliveries` | `route` | The route's name, or its id when it has none. For a Teams V2 endpoint without a linked route, `teamsv2:<team>/<channel>`. |
 | `teamster.deliveries` | `outcome` | `posted`, `updated`, `failed`, `blocked`, `app_missing`; for a person who cannot be reached, `invalid-address`, `unknown-recipient`, `ineligible`, `not-installed`, `no-recipient` |
 | `teamster.webhook.receipts` | `source` | `alertmanager`, `universal`, `teamsv2`, `bot` |
 | `teamster.webhook.receipts` | `state` | `alertmanager`, `universal`: `open`, `closed`, empty for no state, `refused` (unknown or missing token), `forbidden` (token scope). `teamsv2`: `accepted`, `refused`, `unknown`, `rejected`, `error`. `bot`: `accepted`, or the reason it was refused or ignored. |

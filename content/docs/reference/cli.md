@@ -79,7 +79,7 @@ JSON bundle. It reads the database directly, so it works on a stopped installati
 | --- | --- |
 | Migrations | Never applied. The export refuses a database with pending migrations, whatever `database.migrate` says. |
 | Team and channel names | Not included; the bundle carries the ids. The admin UI's export adds the names. |
-| Not exported | Everything else, such as webhook access tokens, Teams V2 endpoints, users, groups, active events and the audit trail. |
+| Not exported | Everything else, such as webhook access tokens, Teams V2 endpoints, the routes those endpoints manage and every route beneath them, users, groups, active events and the audit trail. |
 
 ## import
 
@@ -102,6 +102,7 @@ Applies a bundle written by `export` to the configured database.
 | --- | --- |
 | Migrations | Handled as `database.migrate` says. |
 | Audit | Each change is recorded in the configured audit sinks, with the operating system user as the actor. Events for NATS wait in the database trail for a running server to publish. |
+| Managed routes | A bundle route whose id is a route a Teams V2 webhook manages, or one beneath it, is refused as invalid. `replace` mode never deletes such routes. |
 | Output | One line per change: action (`create`, `update`, `delete`), kind, name and id. Then `applied <n> changes in <mode> mode`, or `would apply …` with `--dry-run`. `nothing to change` when the bundle matches. |
 
 ## migrate

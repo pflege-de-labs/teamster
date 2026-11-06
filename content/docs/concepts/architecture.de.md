@@ -14,8 +14,8 @@ auf GitHub.
 
 ```text
  Alertmanager ───► /webhook/alertmanager ─┬─► routing ─► template ─┐
- any sender ─────► /webhook/universal ────┘                        ├─► Teams bot ─► channel / chat
- Power Automate ─► /teamsv2/… ───────── its own channel ─► template ┘        ▲
+ any sender ─────► /webhook/universal ────┤                        ├─► Teams bot ─► channel / chat
+ Power Automate ─► /teamsv2/… ────────────┘                                  ▲
                                                                              │ /bot/messages
  browser ────────► /admin, /api                                        Microsoft Teams
                       │
@@ -25,7 +25,7 @@ auf GitHub.
 
 | Teil | Aufgabe |
 | --- | --- |
-| Webhooks | nehmen Ereignisse von Absendern an, die ein Token vorweisen; ein Teams-V2-Endpunkt trägt sein Token in der URL und postet in den einen Kanal, den er nennt |
+| Webhooks | nehmen Ereignisse von Absendern an, die ein Token vorweisen; ein Teams-V2-Endpunkt trägt sein Token in der URL, und seine URL-Segmente werden zu Labels |
 | Routing | wählt anhand der Labels des Ereignisses Zustellziele und eine Vorlage |
 | Vorlagen | rendern Titel, Text und Adaptive Card |
 | Teams-Bot | postet und bearbeitet jede Kanalkarte und Chatnachricht über das Bot Framework |

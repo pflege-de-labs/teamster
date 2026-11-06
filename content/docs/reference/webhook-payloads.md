@@ -13,7 +13,7 @@ answer.
 | `POST /webhook/alertmanager` | `Authorization: Bearer <token>` | [Alertmanager](#alertmanager) | yes |
 | `POST /webhook/universal` | `Authorization: Bearer <token>` | [Universal](#universal) | yes |
 | `GET /webhook/broadcasts/{id}` | `Authorization: Bearer <token>` | — | no, see [Broadcast status](#broadcast-status) |
-| `POST /teamsv2/{team}/{channel}/{token}` | The token in the path | [Teams V2](#teams-v2) | no, posts to the endpoint's destination |
+| `POST /teamsv2/{team}/{channel}/{token}` | The token in the path | [Teams V2](#teams-v2) | yes, through the endpoint's linked route |
 | `POST /bot/messages` | Bot Framework signed token | Bot Framework activity | — |
 | `GET /healthz` | none | — | — |
 | `GET /readyz` | none | — | — |
@@ -125,6 +125,7 @@ Payloads from before events replaced alerts used `status`, `fingerprint`, `annot
 | Label | Set by | Meaning |
 | --- | --- | --- |
 | `teamster_source` | Teamster | The webhook the event arrived at: `alertmanager`, `universal` or `teamsv2`. A sender's own value is overwritten. |
+| `teamster_team`, `teamster_channel` | Teamster | The URL segments of a Teams V2 message. Removed from a sender's labels on every other webhook. |
 | `teamster_recipient` | The sender | People an addressed route delivers to, comma-separated. Used only when the payload has no `recipients`. |
 
 Recipients are trimmed and deduplicated ignoring case. A message may name at most
@@ -248,13 +249,15 @@ Responses. Error bodies are `{"error": "<message>"}`.
 
 | Status | Means |
 | --- | --- |
-| `200` | Posted. Body `{"status": "ok"}`. |
+| `200` | `{"status": "ok"}`: every delivery succeeded, or the endpoint has no linked route and posted directly. |
+| `200` | `{"status": "partial", "delivered": <n>, "undelivered": [...]}`: some deliveries were not delivered, as in the [universal report](#responses). |
+| `422` | `{"status": "undelivered", "delivered": 0, "undelivered": [...]}`: no delivery succeeded. |
 | `400` | Not JSON, or neither text nor an Adaptive Card. |
 | `401` | `invalid token`. |
 | `404` | `unknown endpoint`: no endpoint has that team and channel, or the path is incomplete. |
 | `405` | Not a `POST`. Carries `Allow: POST`. |
 | `413` | `payload too large`: the body is over 128 KiB. |
-| `502` | Teams, the database or the endpoint's template failed. |
+| `502` | Teams, the database or a template failed, or a delivery failed with an error. A retry can repeat the deliveries that succeeded. |
 
 Nothing is tracked. A Teams V2 message is never updated or closed.
 
