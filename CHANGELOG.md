@@ -10,6 +10,8 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 ## [Unreleased]
 
+## [0.17.0] — 2026-11-06
+
 ### Added
 
 * A Teams V2 message is routed: the URL's team and channel become the labels `teamster_team` and
@@ -506,7 +508,8 @@ Adaptive Cards posted to Teams channels, alert state in SQLite so a resolve upda
 an admin UI for templates, destinations and routes. Released as a signed container image and
 binaries with SBOMs ([ADR 0006](docs/adr/0006-release-rebuild-sbom-signing.md)).
 
-[Unreleased]: https://github.com/pflege-de-labs/teamster/compare/v0.16.0...HEAD
+[Unreleased]: https://github.com/pflege-de-labs/teamster/compare/v0.17.0...HEAD
+[0.17.0]: https://github.com/pflege-de-labs/teamster/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/pflege-de-labs/teamster/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/pflege-de-labs/teamster/compare/v0.14.1...v0.15.0
 [0.14.1]: https://github.com/pflege-de-labs/teamster/compare/v0.14.0...v0.14.1
