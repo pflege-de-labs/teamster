@@ -1070,8 +1070,24 @@ einem universellen Ereignis sind es die Einträge seines &lt;code&gt;labels&lt;/
 angekommen ist: &lt;code&gt;alertmanager&lt;/code&gt; oder &lt;code&gt;universal&lt;/code&gt;. Einen vom Absender gesetzten Wert überschreibt es.
 Eine Route kann daher nach der Quelle auswählen, zum Beispiel mit
 &lt;code&gt;{&amp;quot;teamster_source&amp;quot;: &amp;quot;alertmanager&amp;quot;}&lt;/code&gt;.&lt;/p&gt;
-&lt;p&gt;Teams-V2-Nachrichten werden nicht geroutet: Jeder Teams-V2-Endpunkt postet in den Kanal, den er
-nennt. Ihre Vorlagen sehen trotzdem &lt;code&gt;teamster_source=teamsv2&lt;/code&gt;.&lt;/p&gt;
+&lt;h3 data-hextra-search-id="the-teamster_team-and-teamster_channel-labels"&gt;Die Labels &lt;code&gt;teamster_team&lt;/code&gt; und &lt;code&gt;teamster_channel&lt;/code&gt;&lt;span class="hx:absolute hx:-mt-20" id="the-teamster_team-and-teamster_channel-labels"&gt;&lt;/span&gt;
+&lt;a href="#the-teamster_team-and-teamster_channel-labels" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Eine Teams-V2-Nachricht kommt mit &lt;code&gt;teamster_source=teamsv2&lt;/code&gt; an, dazu mit den beiden URL-Segmenten,
+an die sie gepostet wurde, als &lt;code&gt;teamster_team&lt;/code&gt; und &lt;code&gt;teamster_channel&lt;/code&gt;. Nur die URL setzt sie:
+Teamster entfernt alle drei aus den Labels eines Absenders an jedem anderen Webhook.&lt;/p&gt;
+&lt;p&gt;Teams-V2-Nachrichten werden wie jedes andere Ereignis geroutet. Jeder Teams-V2-Endpunkt hat eine
+verknüpfte Route, die diese drei Labels selektiert und mit der Vorlage des Endpunkts an sein Ziel
+zustellt. Sie wird mit dem Endpunkt angelegt, aktualisiert und gelöscht, und der Bereich &lt;strong&gt;Routen&lt;/strong&gt;
+kennzeichnet sie mit &lt;strong&gt;Verwaltet vom Webhook &lt;code&gt;&amp;lt;team&amp;gt;/&amp;lt;channel&amp;gt;&lt;/code&gt;&lt;/strong&gt;. Ihr Selektor, Zustellziel,
+Vorlage, übergeordnete Route und Standard-Markierung sind gesperrt; Name, Priorität und die
+Markierung „verdrängend“ nicht. Sie können die Route nicht löschen, solange ihr Endpunkt besteht,
+und den Endpunkt nicht, solange die Route untergeordnete Routen hat.&lt;/p&gt;
+&lt;p&gt;Weil die Nachricht durch das Routing läuft, stellt auch jede andere Route zu, die dieselben Labels
+selektiert. Siehe
+&lt;a href="../../guides/teams-v2-webhook/#send-the-messages-to-more-channels"&gt;Die Nachrichten an weitere Kanäle senden&lt;/a&gt;.
+Eine verdrängende untergeordnete Route der verknüpften Route ersetzt diese; der eigene Kanal des
+Endpunkts erhält die Nachricht dann nicht mehr.&lt;/p&gt;
+&lt;p&gt;Ein Endpunkt ohne verknüpfte Route, etwa einer aus einem früheren Release, postet direkt an sein
+Ziel. Teamster legt die fehlende Route beim Start an.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="root-routes-and-priority"&gt;Wurzelrouten und Priorität&lt;span class="hx:absolute hx:-mt-20" id="root-routes-and-priority"&gt;&lt;/span&gt;
 &lt;a href="#root-routes-and-priority" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Eine Route ohne übergeordnete Route ist eine Wurzelroute. Teamster wertet jede Wurzelroute aus, in
 absteigender Priorität, bei gleicher Priorität nach Namen sortiert. &lt;strong&gt;Jede Wurzelroute, deren
@@ -1844,7 +1860,7 @@ angehaltenen Installation.&lt;/p&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;Nicht exportiert&lt;/td&gt;
-&lt;td&gt;Alles andere, etwa Zugriffstoken für Webhooks, Teams-V2-Endpunkte, Benutzer, Gruppen, aktive Ereignisse und das Änderungsprotokoll.&lt;/td&gt;
+&lt;td&gt;Alles andere, etwa Zugriffstoken für Webhooks, Teams-V2-Endpunkte, die Routen, die diese Endpunkte verwalten, und jede Route darunter, Benutzer, Gruppen, aktive Ereignisse und das Änderungsprotokoll.&lt;/td&gt;
 &lt;/tr&gt;
 &lt;/tbody&gt;
 &lt;/table&gt;
@@ -1912,6 +1928,10 @@ data-copied-label="Kopiert!"
 &lt;tr&gt;
 &lt;td&gt;Migrationen&lt;/td&gt;
 &lt;td&gt;Werden so behandelt, wie &lt;code&gt;database.migrate&lt;/code&gt; es vorgibt.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;Verwaltete Routen&lt;/td&gt;
+&lt;td&gt;Eine Route des Bundles, deren ID die einer von einem Teams-V2-Webhook verwalteten Route ist oder darunter liegt, wird als ungültig abgewiesen. Der Modus &lt;code&gt;replace&lt;/code&gt; löscht solche Routen nie.&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;Audit&lt;/td&gt;
@@ -3334,7 +3354,7 @@ stammt aus &lt;code&gt;commonLabels&lt;/code&gt; und &lt;code&gt;.Event.State&lt
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;.Event.Labels&lt;/code&gt;&lt;/td&gt;
-&lt;td&gt;Nur &lt;code&gt;teamster_source&lt;/code&gt;.&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;teamster_source&lt;/code&gt;, &lt;code&gt;teamster_team&lt;/code&gt; und &lt;code&gt;teamster_channel&lt;/code&gt;.&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;.Event.Title&lt;/code&gt;, &lt;code&gt;.Event.Text&lt;/code&gt;, &lt;code&gt;.Event.Card&lt;/code&gt;&lt;/td&gt;
@@ -3622,8 +3642,8 @@ auf GitHub.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="the-parts"&gt;Die Bestandteile&lt;span class="hx:absolute hx:-mt-20" id="the-parts"&gt;&lt;/span&gt;
 &lt;a href="#the-parts" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
 &lt;div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; Alertmanager ───► /webhook/alertmanager ─┬─► routing ─► template ─┐
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; any sender ─────► /webhook/universal ────┘ ├─► Teams bot ─► channel / chat
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; Power Automate ─► /teamsv2/… ───────── its own channel ─► template ┘ ▲
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; any sender ─────► /webhook/universal ────┤ ├─► Teams bot ─► channel / chat
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; Power Automate ─► /teamsv2/… ────────────┘ ▲
 &lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; │ /bot/messages
 &lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; browser ────────► /admin, /api Microsoft Teams
 &lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; │
@@ -3650,7 +3670,7 @@ data-copied-label="Kopiert!"
 &lt;tbody&gt;
 &lt;tr&gt;
 &lt;td&gt;Webhooks&lt;/td&gt;
-&lt;td&gt;nehmen Ereignisse von Absendern an, die ein Token vorweisen; ein Teams-V2-Endpunkt trägt sein Token in der URL und postet in den einen Kanal, den er nennt&lt;/td&gt;
+&lt;td&gt;nehmen Ereignisse von Absendern an, die ein Token vorweisen; ein Teams-V2-Endpunkt trägt sein Token in der URL, und seine URL-Segmente werden zu Labels&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;Routing&lt;/td&gt;
@@ -4035,7 +4055,7 @@ was sie antworten.&lt;/p&gt;
 &lt;td&gt;&lt;code&gt;POST /teamsv2/{team}/{channel}/{token}&lt;/code&gt;&lt;/td&gt;
 &lt;td&gt;Das Token im Pfad&lt;/td&gt;
 &lt;td&gt;&lt;a href="#teams-v2"&gt;Teams V2&lt;/a&gt;&lt;/td&gt;
-&lt;td&gt;nein, postet an das Ziel des Endpunkts&lt;/td&gt;
+&lt;td&gt;ja, über die verknüpfte Route des Endpunkts&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;POST /bot/messages&lt;/code&gt;&lt;/td&gt;
@@ -4319,6 +4339,11 @@ mehr gelesen.&lt;/p&gt;
 &lt;td&gt;&lt;code&gt;teamster_source&lt;/code&gt;&lt;/td&gt;
 &lt;td&gt;Teamster&lt;/td&gt;
 &lt;td&gt;Der Webhook, an dem das Ereignis ankam: &lt;code&gt;alertmanager&lt;/code&gt;, &lt;code&gt;universal&lt;/code&gt; oder &lt;code&gt;teamsv2&lt;/code&gt;. Ein vom Absender gesetzter Wert wird überschrieben.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;teamster_team&lt;/code&gt;, &lt;code&gt;teamster_channel&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;Teamster&lt;/td&gt;
+&lt;td&gt;Die URL-Segmente einer Teams-V2-Nachricht. An jedem anderen Webhook werden sie aus den Labels eines Absenders entfernt.&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;teamster_recipient&lt;/code&gt;&lt;/td&gt;
@@ -4681,7 +4706,15 @@ data-copied-label="Kopiert!"
 &lt;tbody&gt;
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;200&lt;/code&gt;&lt;/td&gt;
-&lt;td&gt;Gepostet. Körper &lt;code&gt;{&amp;quot;status&amp;quot;: &amp;quot;ok&amp;quot;}&lt;/code&gt;.&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;{&amp;quot;status&amp;quot;: &amp;quot;ok&amp;quot;}&lt;/code&gt;: Jede Zustellung war erfolgreich, oder der Endpunkt hat keine verknüpfte Route und hat direkt gepostet.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;200&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;{&amp;quot;status&amp;quot;: &amp;quot;partial&amp;quot;, &amp;quot;delivered&amp;quot;: &amp;lt;n&amp;gt;, &amp;quot;undelivered&amp;quot;: [...]}&lt;/code&gt;: Einige Zustellungen wurden nicht zugestellt, wie im &lt;a href="#responses"&gt;Bericht des universellen Webhooks&lt;/a&gt;.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;422&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;{&amp;quot;status&amp;quot;: &amp;quot;undelivered&amp;quot;, &amp;quot;delivered&amp;quot;: 0, &amp;quot;undelivered&amp;quot;: [...]}&lt;/code&gt;: Keine Zustellung war erfolgreich.&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;400&lt;/code&gt;&lt;/td&gt;
@@ -4705,7 +4738,7 @@ data-copied-label="Kopiert!"
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;502&lt;/code&gt;&lt;/td&gt;
-&lt;td&gt;Teams, die Datenbank oder die Vorlage des Endpunkts ist fehlgeschlagen.&lt;/td&gt;
+&lt;td&gt;Teams, die Datenbank oder eine Vorlage ist fehlgeschlagen, oder eine Zustellung ist mit einem Fehler fehlgeschlagen. Ein erneuter Versuch kann die erfolgreichen Zustellungen wiederholen.&lt;/td&gt;
 &lt;/tr&gt;
 &lt;/tbody&gt;
 &lt;/table&gt;
@@ -5065,7 +5098,7 @@ Histogramme für die Größe von Anfrage- und Antwortkörpern werden verworfen.&
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;teamster.deliveries&lt;/code&gt;&lt;/td&gt;
 &lt;td&gt;&lt;code&gt;route&lt;/code&gt;&lt;/td&gt;
-&lt;td&gt;Name der Route oder, wenn sie keinen hat, ihre ID. Für Teams V2 &lt;code&gt;teamsv2:&amp;lt;team&amp;gt;/&amp;lt;channel&amp;gt;&lt;/code&gt;.&lt;/td&gt;
+&lt;td&gt;Name der Route oder, wenn sie keinen hat, ihre ID. Für einen Teams-V2-Endpunkt ohne verknüpfte Route &lt;code&gt;teamsv2:&amp;lt;team&amp;gt;/&amp;lt;channel&amp;gt;&lt;/code&gt;.&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;teamster.deliveries&lt;/code&gt;&lt;/td&gt;
@@ -7380,7 +7413,8 @@ data-copied-label="Kopiert!"
 &lt;/button&gt;
 &lt;/div&gt;
 &lt;/div&gt;
-&lt;p&gt;Die Antwort &lt;code&gt;200 {&amp;quot;status&amp;quot;:&amp;quot;ok&amp;quot;}&lt;/code&gt; bedeutet, dass die Nachricht gepostet wurde.&lt;/p&gt;
+&lt;p&gt;Die Antwort &lt;code&gt;200&lt;/code&gt; bedeutet, dass die Nachricht zugestellt wurde. Der Body ist der Bericht des
+universellen Webhooks, etwa &lt;code&gt;{&amp;quot;status&amp;quot;:&amp;quot;ok&amp;quot;}&lt;/code&gt;.&lt;/p&gt;
 &lt;/div&gt;
 &lt;p&gt;Geht die URL verloren oder wird sie bekannt, verwenden Sie &lt;strong&gt;Neues Token&lt;/strong&gt; am Endpunkt. Das ersetzt
 das Token, und die alte URL funktioniert sofort nicht mehr.&lt;/p&gt;
@@ -7473,9 +7507,37 @@ ist bereits HTML.&lt;/li&gt;
 &lt;code&gt;{{ .Payload.themeColor }}&lt;/code&gt; oder &lt;code&gt;{{ range .Payload.sections }}&lt;/code&gt;.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;p&gt;Die Vorschau der Vorlage bietet ein Beispiel &lt;strong&gt;Teams-V2-Webhook&lt;/strong&gt;, um sie daran auszuprobieren.&lt;/p&gt;
+&lt;h2 data-hextra-search-id="send-the-messages-to-more-channels"&gt;Die Nachrichten an weitere Kanäle senden&lt;span class="hx:absolute hx:-mt-20" id="send-the-messages-to-more-channels"&gt;&lt;/span&gt;
+&lt;a href="#send-the-messages-to-more-channels" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Jeder Endpunkt hat eine Route, die seine Nachrichten an das eigene Ziel des Endpunkts sendet.
+Fügen Sie Routen hinzu, die dieselben Nachrichten auswählen, um sie zusätzlich anderswohin
+zuzustellen.&lt;/p&gt;
+&lt;div class="hextra-steps hx:ml-4 hx:mb-12 hx:ltr:border-l hx:rtl:border-r hx:border-gray-200 hx:ltr:pl-6 hx:rtl:pr-6 hx:dark:border-neutral-800 [counter-reset:step]"&gt;
+&lt;h3 data-hextra-search-id="find-the-endpoints-route"&gt;Die Route des Endpunkts finden&lt;span class="hx:absolute hx:-mt-20" id="find-the-endpoints-route"&gt;&lt;/span&gt;
+&lt;a href="#find-the-endpoints-route" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Öffnen Sie den Bereich &lt;strong&gt;Routen&lt;/strong&gt; unter &lt;strong&gt;/admin&lt;/strong&gt;. Die Route mit dem Namen
+&lt;code&gt;webhook &amp;lt;team&amp;gt;/&amp;lt;channel&amp;gt;&lt;/code&gt; ist mit &lt;strong&gt;Verwaltet vom Webhook &lt;code&gt;&amp;lt;team&amp;gt;/&amp;lt;channel&amp;gt;&lt;/code&gt;&lt;/strong&gt; gekennzeichnet.
+Ihr Selektor ist &lt;code&gt;teamster_source=teamsv2&lt;/code&gt;, &lt;code&gt;teamster_team=&amp;lt;team&amp;gt;&lt;/code&gt; und
+&lt;code&gt;teamster_channel=&amp;lt;channel&amp;gt;&lt;/code&gt;. Das Formular des Endpunkts verweist als &lt;strong&gt;Route dieses Webhooks&lt;/strong&gt;
+darauf.&lt;/p&gt;
+&lt;h3 data-hextra-search-id="add-a-route"&gt;Eine Route hinzufügen&lt;span class="hx:absolute hx:-mt-20" id="add-a-route"&gt;&lt;/span&gt;
+&lt;a href="#add-a-route" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Legen Sie eine Route mit einem Selektor aus den drei Labels an, oder mit &lt;code&gt;teamster_source=teamsv2&lt;/code&gt;
+und einem der beiden anderen, um mehrere Endpunkte zu erfassen. Wählen Sie Ziel und Vorlage. Beide
+Routen stellen die Nachricht nun zu.&lt;/p&gt;
+&lt;p&gt;Für eine zusätzliche Bedingung machen Sie die Route zur untergeordneten Route der Endpunkt-Route
+und nehmen ein eigenes Label in den Selektor auf. Eine untergeordnete Route gilt zusätzlich zur
+übergeordneten, es sei denn, Sie markieren sie als verdrängend.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="hx:overflow-x-auto hx:mt-6 hx:flex hx:rounded-lg hx:border hx:py-2 hx:ltr:pr-4 hx:rtl:pl-4 hx:contrast-more:border-current hx:contrast-more:dark:border-current hx:border-amber-200 hx:bg-amber-100 hx:text-amber-900 hx:dark:border-amber-200/30 hx:dark:bg-amber-900/30 hx:dark:text-amber-200"&gt;
+&lt;div class="hx:ltr:pl-3 hx:ltr:pr-2 hx:rtl:pr-3 hx:rtl:pl-2"&gt;&lt;svg height=1.2em class="hx:inline-block hx:align-middle" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"&gt;&lt;path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/&gt;&lt;/svg&gt;&lt;/div&gt;
+&lt;div class="hx:w-full hx:min-w-0 hx:leading-7"&gt;
+&lt;div class="hx:mt-6 hx:leading-7 hx:first:mt-0"&gt;Eine verdrängende untergeordnete Route ersetzt die Route des Endpunkts, sodass der eigene Kanal des
+Endpunkts die Nachrichten, auf die sie zutrifft, nicht mehr erhält. Der Endpunkt lässt sich nicht
+löschen, solange er untergeordnete Routen hat. Siehe &lt;a href="https://pflege-de-labs.github.io/teamster/dev/de/docs/concepts/routing/" target="_blank" rel="noopener"&gt;Routing&lt;/a&gt;.&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;p&gt;Schlägt eine Zustellung fehl, lautet die Antwort &lt;code&gt;502&lt;/code&gt;, und ein Absender, der es erneut versucht,
+kann die erfolgreichen Zustellungen doppelt auslösen.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="what-it-does-not-do"&gt;Was er nicht kann&lt;span class="hx:absolute hx:-mt-20" id="what-it-does-not-do"&gt;&lt;/span&gt;
 &lt;a href="#what-it-does-not-do" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;ul&gt;
-&lt;li&gt;&lt;strong&gt;Kein Routing.&lt;/strong&gt; Die URL bestimmt den Kanal, wie zuvor auch.&lt;/li&gt;
 &lt;li&gt;&lt;strong&gt;Keine Verfolgung.&lt;/strong&gt; Die Nutzdaten tragen weder Schlüssel noch Zustand, eine Nachricht wird also
 nie aktualisiert oder geschlossen. Dafür gibt es den &lt;a href="../universal-webhook/"&gt;universellen Webhook&lt;/a&gt;.&lt;/li&gt;
 &lt;/ul&gt;

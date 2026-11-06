@@ -19,8 +19,24 @@ einem universellen Ereignis sind es die Einträge seines &lt;code&gt;labels&lt;/
 angekommen ist: &lt;code&gt;alertmanager&lt;/code&gt; oder &lt;code&gt;universal&lt;/code&gt;. Einen vom Absender gesetzten Wert überschreibt es.
 Eine Route kann daher nach der Quelle auswählen, zum Beispiel mit
 &lt;code&gt;{&amp;quot;teamster_source&amp;quot;: &amp;quot;alertmanager&amp;quot;}&lt;/code&gt;.&lt;/p&gt;
-&lt;p&gt;Teams-V2-Nachrichten werden nicht geroutet: Jeder Teams-V2-Endpunkt postet in den Kanal, den er
-nennt. Ihre Vorlagen sehen trotzdem &lt;code&gt;teamster_source=teamsv2&lt;/code&gt;.&lt;/p&gt;
+&lt;h3 data-hextra-search-id="the-teamster_team-and-teamster_channel-labels"&gt;Die Labels &lt;code&gt;teamster_team&lt;/code&gt; und &lt;code&gt;teamster_channel&lt;/code&gt;&lt;span class="hx:absolute hx:-mt-20" id="the-teamster_team-and-teamster_channel-labels"&gt;&lt;/span&gt;
+&lt;a href="#the-teamster_team-and-teamster_channel-labels" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Eine Teams-V2-Nachricht kommt mit &lt;code&gt;teamster_source=teamsv2&lt;/code&gt; an, dazu mit den beiden URL-Segmenten,
+an die sie gepostet wurde, als &lt;code&gt;teamster_team&lt;/code&gt; und &lt;code&gt;teamster_channel&lt;/code&gt;. Nur die URL setzt sie:
+Teamster entfernt alle drei aus den Labels eines Absenders an jedem anderen Webhook.&lt;/p&gt;
+&lt;p&gt;Teams-V2-Nachrichten werden wie jedes andere Ereignis geroutet. Jeder Teams-V2-Endpunkt hat eine
+verknüpfte Route, die diese drei Labels selektiert und mit der Vorlage des Endpunkts an sein Ziel
+zustellt. Sie wird mit dem Endpunkt angelegt, aktualisiert und gelöscht, und der Bereich &lt;strong&gt;Routen&lt;/strong&gt;
+kennzeichnet sie mit &lt;strong&gt;Verwaltet vom Webhook &lt;code&gt;&amp;lt;team&amp;gt;/&amp;lt;channel&amp;gt;&lt;/code&gt;&lt;/strong&gt;. Ihr Selektor, Zustellziel,
+Vorlage, übergeordnete Route und Standard-Markierung sind gesperrt; Name, Priorität und die
+Markierung „verdrängend“ nicht. Sie können die Route nicht löschen, solange ihr Endpunkt besteht,
+und den Endpunkt nicht, solange die Route untergeordnete Routen hat.&lt;/p&gt;
+&lt;p&gt;Weil die Nachricht durch das Routing läuft, stellt auch jede andere Route zu, die dieselben Labels
+selektiert. Siehe
+&lt;a href="../../guides/teams-v2-webhook/#send-the-messages-to-more-channels"&gt;Die Nachrichten an weitere Kanäle senden&lt;/a&gt;.
+Eine verdrängende untergeordnete Route der verknüpften Route ersetzt diese; der eigene Kanal des
+Endpunkts erhält die Nachricht dann nicht mehr.&lt;/p&gt;
+&lt;p&gt;Ein Endpunkt ohne verknüpfte Route, etwa einer aus einem früheren Release, postet direkt an sein
+Ziel. Teamster legt die fehlende Route beim Start an.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="root-routes-and-priority"&gt;Wurzelrouten und Priorität&lt;span class="hx:absolute hx:-mt-20" id="root-routes-and-priority"&gt;&lt;/span&gt;
 &lt;a href="#root-routes-and-priority" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Eine Route ohne übergeordnete Route ist eine Wurzelroute. Teamster wertet jede Wurzelroute aus, in
 absteigender Priorität, bei gleicher Priorität nach Namen sortiert. &lt;strong&gt;Jede Wurzelroute, deren
@@ -347,8 +363,8 @@ auf GitHub.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="the-parts"&gt;Die Bestandteile&lt;span class="hx:absolute hx:-mt-20" id="the-parts"&gt;&lt;/span&gt;
 &lt;a href="#the-parts" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
 &lt;div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; Alertmanager ───► /webhook/alertmanager ─┬─► routing ─► template ─┐
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; any sender ─────► /webhook/universal ────┘ ├─► Teams bot ─► channel / chat
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; Power Automate ─► /teamsv2/… ───────── its own channel ─► template ┘ ▲
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; any sender ─────► /webhook/universal ────┤ ├─► Teams bot ─► channel / chat
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; Power Automate ─► /teamsv2/… ────────────┘ ▲
 &lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; │ /bot/messages
 &lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; browser ────────► /admin, /api Microsoft Teams
 &lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; │
@@ -375,7 +391,7 @@ data-copied-label="Kopiert!"
 &lt;tbody&gt;
 &lt;tr&gt;
 &lt;td&gt;Webhooks&lt;/td&gt;
-&lt;td&gt;nehmen Ereignisse von Absendern an, die ein Token vorweisen; ein Teams-V2-Endpunkt trägt sein Token in der URL und postet in den einen Kanal, den er nennt&lt;/td&gt;
+&lt;td&gt;nehmen Ereignisse von Absendern an, die ein Token vorweisen; ein Teams-V2-Endpunkt trägt sein Token in der URL, und seine URL-Segmente werden zu Labels&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;Routing&lt;/td&gt;

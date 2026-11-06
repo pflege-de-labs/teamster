@@ -17,8 +17,23 @@ group shares; for a group of one alert, that alert&amp;rsquo;s labels. For a uni
 &lt;a href="#the-teamster_source-label" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Before routing, Teamster sets the label &lt;code&gt;teamster_source&lt;/code&gt; to the webhook the event arrived at:
 &lt;code&gt;alertmanager&lt;/code&gt; or &lt;code&gt;universal&lt;/code&gt;. It overwrites any value the sender set. A route can therefore
 select on the source, for example &lt;code&gt;{&amp;quot;teamster_source&amp;quot;: &amp;quot;alertmanager&amp;quot;}&lt;/code&gt;.&lt;/p&gt;
-&lt;p&gt;Teams V2 messages are not routed: each Teams V2 endpoint posts to the channel it names. Their
-templates still see &lt;code&gt;teamster_source=teamsv2&lt;/code&gt;.&lt;/p&gt;
+&lt;h3 data-hextra-search-id="the-teamster_team-and-teamster_channel-labels"&gt;The &lt;code&gt;teamster_team&lt;/code&gt; and &lt;code&gt;teamster_channel&lt;/code&gt; labels&lt;span class="hx:absolute hx:-mt-20" id="the-teamster_team-and-teamster_channel-labels"&gt;&lt;/span&gt;
+&lt;a href="#the-teamster_team-and-teamster_channel-labels" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;A Teams V2 message arrives with &lt;code&gt;teamster_source=teamsv2&lt;/code&gt; and the two URL segments it was posted to
+as &lt;code&gt;teamster_team&lt;/code&gt; and &lt;code&gt;teamster_channel&lt;/code&gt;. Only the URL sets them: Teamster removes all three from
+a sender&amp;rsquo;s labels on every other webhook.&lt;/p&gt;
+&lt;p&gt;Teams V2 messages are routed like any other event. Each Teams V2 endpoint has a linked route that
+selects these three labels and delivers to the endpoint&amp;rsquo;s destination with its template. It is
+created, updated and deleted with the endpoint, and the Routes panel marks it &lt;strong&gt;Managed by webhook
+&lt;code&gt;&amp;lt;team&amp;gt;/&amp;lt;channel&amp;gt;&lt;/code&gt;&lt;/strong&gt;. Its selector, target, template, parent and default flag are locked; its name,
+priority and greedy flag are not. You cannot delete it while its endpoint exists, and you cannot
+delete the endpoint while the route has child routes.&lt;/p&gt;
+&lt;p&gt;Because the message goes through routing, any other route that selects the same labels also
+delivers it. See
+&lt;a href="../../guides/teams-v2-webhook/#send-the-messages-to-more-channels"&gt;Send the messages to more channels&lt;/a&gt;.
+A greedy child of the linked route replaces it, and the endpoint&amp;rsquo;s own channel then no longer
+receives the message.&lt;/p&gt;
+&lt;p&gt;An endpoint without a linked route, such as one created by an earlier release, posts straight to
+its destination. Teamster creates the missing route when it starts.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="root-routes-and-priority"&gt;Root routes and priority&lt;span class="hx:absolute hx:-mt-20" id="root-routes-and-priority"&gt;&lt;/span&gt;
 &lt;a href="#root-routes-and-priority" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;A route without a parent is a root route. Teamster evaluates every root route, in descending
 priority, with ties ordered by name. &lt;strong&gt;Every root whose selector matches delivers.&lt;/strong&gt; Priority sets
@@ -318,8 +333,8 @@ on GitHub.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="the-parts"&gt;The parts&lt;span class="hx:absolute hx:-mt-20" id="the-parts"&gt;&lt;/span&gt;
 &lt;a href="#the-parts" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
 &lt;div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; Alertmanager ───► /webhook/alertmanager ─┬─► routing ─► template ─┐
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; any sender ─────► /webhook/universal ────┘ ├─► Teams bot ─► channel / chat
-&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; Power Automate ─► /teamsv2/… ───────── its own channel ─► template ┘ ▲
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; any sender ─────► /webhook/universal ────┤ ├─► Teams bot ─► channel / chat
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; Power Automate ─► /teamsv2/… ────────────┘ ▲
 &lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; │ /bot/messages
 &lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; browser ────────► /admin, /api Microsoft Teams
 &lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; │
@@ -346,7 +361,7 @@ data-copied-label="Copied!"
 &lt;tbody&gt;
 &lt;tr&gt;
 &lt;td&gt;Webhooks&lt;/td&gt;
-&lt;td&gt;accept events from senders that present a token; a Teams V2 endpoint carries its token in the URL and posts to the one channel it names&lt;/td&gt;
+&lt;td&gt;accept events from senders that present a token; a Teams V2 endpoint carries its token in the URL, and its URL segments become labels&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
 &lt;td&gt;Routing&lt;/td&gt;
