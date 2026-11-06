@@ -159,8 +159,10 @@ und einem der beiden anderen, um mehrere Endpunkte zu erfassen. Wählen Sie Ziel
 Routen stellen die Nachricht nun zu.
 
 Für eine zusätzliche Bedingung machen Sie die Route zur untergeordneten Route der Endpunkt-Route
-und nehmen ein eigenes Label in den Selektor auf. Eine untergeordnete Route gilt zusätzlich zur
-übergeordneten, es sei denn, Sie markieren sie als verdrängend.
+und nehmen ein eigenes Label in den Selektor auf, oder lassen den Selektor leer, um alles zu
+erhalten, was die Endpunkt-Route erhält. Eine untergeordnete Route gilt zusätzlich zur
+übergeordneten, es sei denn, Sie markieren sie als verdrängend; ohne Selektor kann sie nicht
+verdrängend sein.
 
 {{% /steps %}}
 

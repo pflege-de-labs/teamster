@@ -20,8 +20,9 @@ In the admin UI, create or edit a route and set **Delivers to** to **Any person 
 the message**. Give it a label selector for the messages it should take, for example
 `{"kind": "password-expiry"}`, and a template. Anyone who may edit routes may create one.
 
-Keep the selector narrow. The route takes every message it matches, from any sender, and renders
-it with your template. Whom it reaches is bounded by each sender's token, set in the next step.
+Keep the selector narrow, and never empty: an empty selector matches every message. The route
+takes every message it matches, from any sender, and renders it with your template. Whom it
+reaches is bounded by each sender's token, set in the next step.
 
 Each person gets their own message, rendered for them. `.Recipient` holds their Entra profile, so
 the template can greet them, write in their language and name their office:

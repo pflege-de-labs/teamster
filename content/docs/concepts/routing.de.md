@@ -14,8 +14,10 @@ unter den Labels des Ereignisses mit genau demselben Wert vorkommt. Weitere Labe
 spielen keine Rolle.
 
 * Der Vergleich ist exakt. Es gibt keine Platzhalter, regulären Ausdrücke oder Negationen.
-* Ein leerer Selektor trifft auf nichts zu. Eine Route, die alles auffangen soll, ist die
-  Standardroute, die weiter unten beschrieben ist.
+* Ein leerer Selektor trifft auf jeden Alarm zu. Eine Wurzelroute ohne Selektor erhält jeden Alarm
+  von jedem Webhook, neben jeder anderen Wurzelroute, die zutrifft. Die Standardroute bleibt eine
+  Rückfallebene, sodass eine Wurzelroute ohne Selektor ihr nichts übrig lässt. Siehe
+  [Rückfallebenen](#fallbacks).
 
 Bei einer Benachrichtigung aus Alertmanager sind es ihre `commonLabels`, die Labels, die alle
 Alarme der Gruppe gemeinsam haben; bei einer Gruppe mit einem Alarm die Labels dieses Alarms. Bei
@@ -66,7 +68,9 @@ wie im nächsten Abschnitt beschrieben.
 
 Eine Route kann eine andere Route verfeinern. Eine untergeordnete Route wird nur betrachtet, wenn
 ihre übergeordnete zugetroffen hat, und greift, wenn auch ihr eigener Selektor zutrifft. Eine
-untergeordnete Route braucht einen eigenen Selektor.
+untergeordnete Route ohne Selektor erhält alles, was ihre übergeordnete erhält: So senden Sie alle
+Alarme einer Route in einen weiteren Kanal. Sie muss dennoch ein Ziel oder eine Vorlage ergänzen
+und kann nicht verdrängend sein; das Speichern wird abgewiesen.
 
 * **Zusätzlich.** Standardmäßig stellt eine zutreffende untergeordnete Route zusätzlich zu ihrer
   übergeordneten zu.
@@ -129,8 +133,10 @@ Nur wenn überhaupt kein Ziel existiert, wird ein Ereignis nirgendwohin zugestel
 der Reihenfolge ihrer Auswertung mit ihren untergeordneten Routen daran, und die Kanäle und
 Personen, an die sie zustellen.
 
-* Routenknoten zeigen die Labels, die sie auswählen, und die Vorlage, mit der sie rendern; eine
-  geerbte Vorlage ist gekennzeichnet.
+* Routenknoten zeigen die Labels, die sie auswählen, oder *no selector — matches every alert*, und
+  die Vorlage, mit der sie rendern; eine geerbte Vorlage ist gekennzeichnet. Die Routenliste sagt
+  bei einem leeren Selektor **trifft auf jeden Alarm zu** und bei einer Standardroute mit Selektor
+  **fängt auf, was keine andere Route trifft**.
 * Ein gestrichelter Pfeil zwischen zwei Routen ist eine Verfeinerung, beschriftet mit
   *zusätzlich zur übergeordneten* oder *statt der übergeordneten*.
 * Eine Route, die auf ein gelöschtes Ziel oder eine gelöschte Person zeigt, erscheint als
@@ -139,8 +145,9 @@ Personen, an die sie zustellen.
   neben der nichts steht, wird nicht verwendet.
 
 Tragen Sie `key=value`-Labels auf der Seite ein, um zu fragen, welche Routen ein bestimmtes
-Ereignis nehmen würde. Jede Route, die zustellt, wird genannt und begründet, und ihr Weg wird
-hervorgehoben, während der Rest verblasst.
+Ereignis nehmen würde. Jede Route, die zustellt, wird genannt und begründet (eine Route ohne
+Selektor sagt, dass sie jeden Alarm nimmt), und ihr Weg wird hervorgehoben, während der Rest
+verblasst.
 
 ## Verwandte Themen {#related}
 

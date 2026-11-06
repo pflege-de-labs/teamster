@@ -13,8 +13,9 @@ selector matches an event when every key in it is present among the event's labe
 the same value. Extra labels on the event do not matter.
 
 * Matching is exact. There are no wildcards, regular expressions or negations.
-* An empty selector matches nothing. A route that should catch everything is the default route,
-  described below.
+* An empty selector matches every alert. A root route without a selector receives every alert from
+  every webhook, alongside any other root that matches. The default route stays a fallback, so a
+  selector-less root leaves it nothing to catch. See [Fallbacks](#fallbacks).
 
 For an Alertmanager notification the labels are its `commonLabels`, the labels every alert in the
 group shares; for a group of one alert, that alert's labels. For a universal event they are its
@@ -61,7 +62,9 @@ take over from another, nest it under that route and mark it greedy, as describe
 ## Nested routes
 
 A route can refine another route. A child is considered only when its parent matched, and applies
-when its own selector matches too. A child needs a selector of its own.
+when its own selector matches too. A child without a selector receives everything its parent
+receives: the way to send all of a route's alerts to one more channel. It must still add a target
+or a template, and it cannot be greedy; saving is refused.
 
 * **As well as.** By default a matching child delivers in addition to its parent.
 * **Instead of.** A *greedy* child delivers instead of its parent. It suppresses all of its
@@ -120,15 +123,18 @@ Only when no destination exists at all is an event delivered nowhere.
 they are evaluated with their children hanging off them, and the channels and people they deliver
 to.
 
-* Route nodes show the labels they select and the template they render with, marked when it is
-  inherited.
+* Route nodes show the labels they select, or *no selector — matches every alert*, and the
+  template they render with, marked when it is inherited. The Routes list says *matches every
+  alert* for an empty selector, and *catches what no other route matches* for a default route
+  with one.
 * A dashed arrow between two routes is a refinement, labelled *as well as* or *instead of*.
 * A route pointing at a deleted destination or person shows up as a missing node.
 * A second graph pairs templates with the routes and webhooks that use them. A template with
   nothing beside it is unused.
 
 Paste `key=value` labels into the page to ask which routes a given event would take. Every route
-that delivers is named and explained, and its path is highlighted while the rest dims.
+that delivers is named and explained (a route without a selector says it takes every alert), and
+its path is highlighted while the rest dims.
 
 ## Related
 
