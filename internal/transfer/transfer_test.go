@@ -597,6 +597,27 @@ func TestValidateRefusesABadSourceDefault(t *testing.T) {
 
 // An addressed route names nobody in particular, so it can travel in a bundle
 // where a route to one person cannot.
+func TestANoGreedyChildrenRouteTravels(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	source := configured(t)
+	if _, err := source.CreateRoute(ctx, models.Route{ID: "keep", Name: "Keeper", DestinationID: "dest", TemplateID: "tmpl", LabelSelector: map[string]string{"team": "ops"}, NoGreedyChildren: true}); err != nil {
+		t.Fatalf("seed route: %v", err)
+	}
+	bundle, err := Export(ctx, source, nil)
+	if err != nil {
+		t.Fatalf("Export: %v", err)
+	}
+	target := configured(t)
+	if _, err := Import(ctx, target, bundle, ModeReplace, false); err != nil {
+		t.Fatalf("Import: %v", err)
+	}
+	if got, err := target.GetRoute(ctx, "keep"); err != nil || !got.NoGreedyChildren {
+		t.Errorf("imported route = %+v, %v; want it still keeping its deliveries", got, err)
+	}
+}
+
 func TestAnAddressedRouteTravels(t *testing.T) {
 	t.Parallel()
 

@@ -396,6 +396,8 @@ func (s *Server) saveRoute(r *http.Request) (string, error) {
 		IsDefault:     r.PostFormValue("is_default") == "true",
 		Greedy:        r.PostFormValue("greedy") == "true",
 		Priority:      priority,
+
+		NoGreedyChildren: r.PostFormValue("no_greedy_children") == "true",
 	}
 	// A route is how an alert reaches a channel or a chat, so its targets are
 	// checked the same way creating them would be.
@@ -483,6 +485,8 @@ func (s *Server) saveRouteChecked(r *http.Request, route models.Route) (models.R
 		var link string
 		if route.ID != "" {
 			if stored, ok := routeByID(existing, route.ID); ok && stored.WebhookEndpointID != "" {
+				// The webhook sets this flag; a client need not echo it back.
+				route.NoGreedyChildren = stored.NoGreedyChildren
 				if lockedFieldsChanged(stored, route) {
 					return errRouteManaged(ctx, tx, stored, "change it on the webhook instead")
 				}
@@ -525,7 +529,8 @@ func lockedFieldsChanged(old, edited models.Route) bool {
 	return !maps.Equal(old.LabelSelector, edited.LabelSelector) ||
 		old.DestinationID != edited.DestinationID || old.RecipientID != edited.RecipientID ||
 		old.Addressed != edited.Addressed || old.TemplateID != edited.TemplateID ||
-		old.ParentID != edited.ParentID || old.IsDefault != edited.IsDefault
+		old.ParentID != edited.ParentID || old.IsDefault != edited.IsDefault ||
+		old.NoGreedyChildren != edited.NoGreedyChildren
 }
 
 // errRouteManaged names the webhook that owns a route; an orphan falls back to the selector it was made with.

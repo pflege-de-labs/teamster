@@ -321,14 +321,17 @@ type Route struct {
 	UpdatedAt  time.Time `json:"updated_at"`
 	// WebhookEndpointID names the endpoint this route was made for; empty for a hand-written one.
 	WebhookEndpointID string `json:"webhook_endpoint_id,omitempty"`
+	// NoGreedyChildren keeps every child delivering as well as this route, never instead of it (ADR 0096).
+	NoGreedyChildren bool `json:"no_greedy_children,omitempty"`
 }
 
 // Replaces reports whether the route, a child of parent, delivers instead of
 // parent rather than as well as it. A child without a selector receives
 // everything its parent does, so letting it replace the parent would silence
-// the parent entirely (ADR 0095).
+// the parent entirely (ADR 0095); a parent may also refuse to be replaced
+// (ADR 0096).
 func (r Route) Replaces(parent Route) bool {
-	return r.Greedy && len(r.LabelSelector) > 0
+	return r.Greedy && len(r.LabelSelector) > 0 && !parent.NoGreedyChildren
 }
 
 // An ActiveEvent is one card: the message this service posted to one channel

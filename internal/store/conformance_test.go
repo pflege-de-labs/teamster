@@ -171,6 +171,8 @@ func TestConformanceRoutes(t *testing.T) {
 			IsDefault:     false,
 			Priority:      100,
 			LabelSelector: map[string]string{"severity": "critical"},
+
+			NoGreedyChildren: true,
 		})
 		if err != nil {
 			t.Fatalf("CreateRoute: %v", err)
@@ -180,8 +182,15 @@ func TestConformanceRoutes(t *testing.T) {
 		if err != nil {
 			t.Fatalf("GetRoute: %v", err)
 		}
-		if !got.Greedy || got.IsDefault {
-			t.Errorf("route = %+v, want greedy and not default", got)
+		if !got.Greedy || got.IsDefault || !got.NoGreedyChildren {
+			t.Errorf("route = %+v, want greedy, not default and keeping its deliveries", got)
+		}
+		got.NoGreedyChildren = false
+		if _, err := st.UpdateRoute(ctx, got); err != nil {
+			t.Fatalf("UpdateRoute: %v", err)
+		}
+		if got, _ = st.GetRoute(ctx, created.ID); got.NoGreedyChildren {
+			t.Errorf("route = %+v, want the cleared flag saved", got)
 		}
 		if got.Priority != 100 {
 			t.Errorf("Priority = %d, want 100", got.Priority)

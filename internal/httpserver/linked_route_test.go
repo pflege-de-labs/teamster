@@ -65,6 +65,8 @@ func TestLinkedRouteIsLocked(t *testing.T) {
 		{"priority change accepted", func(r *models.Route) { r.Priority = 9 }, false},
 		{"name change accepted", func(r *models.Route) { r.Name = "renamed" }, false},
 		{"greedy change accepted", func(r *models.Route) { r.Greedy = true }, false},
+		// The webhook owns the flag, so a client that leaves it out or clears it changes nothing.
+		{"no greedy children cleared is ignored", func(r *models.Route) { r.NoGreedyChildren = false }, false},
 	}
 	for _, via := range []string{"api", "form"} {
 		for _, tt := range tests {
@@ -104,8 +106,8 @@ func TestLinkedRouteIsLocked(t *testing.T) {
 				if strings.Contains(body, "managed by webhook") {
 					t.Fatalf("refused: %q", body)
 				}
-				if got.Name != r.Name || got.Priority != r.Priority || got.Greedy != r.Greedy {
-					t.Errorf("route = %+v, want the edit applied", got)
+				if got.Name != r.Name || got.Priority != r.Priority || got.Greedy != r.Greedy || !got.NoGreedyChildren {
+					t.Errorf("route = %+v, want the edit applied and the flag kept", got)
 				}
 			})
 		}

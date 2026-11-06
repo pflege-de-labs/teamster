@@ -602,6 +602,8 @@ func TestPlanNesting(t *testing.T) {
 	t.Parallel()
 
 	parent := models.Route{ID: "parent", Name: "parent", LabelSelector: map[string]string{"severity": "critical"}, DestinationID: "ops", TemplateID: "card", Priority: 100}
+	keeper := parent
+	keeper.NoGreedyChildren = true
 
 	tests := []struct {
 		name       string
@@ -642,6 +644,24 @@ func TestPlanNesting(t *testing.T) {
 			},
 			labels:     map[string]string{"severity": "critical"},
 			wantRoutes: []string{"parent", "child"},
+		},
+		{
+			name: "a greedy child does not replace a parent that keeps its deliveries",
+			routes: []models.Route{keeper,
+				{ID: "child", Name: "child", ParentID: "parent", Greedy: true, LabelSelector: map[string]string{"team": "payments"}, DestinationID: "payments"},
+			},
+			labels:     map[string]string{"severity": "critical", "team": "payments"},
+			wantRoutes: []string{"parent", "child"},
+		},
+		{
+			// The flag protects only the route that sets it, not the routes below it.
+			name: "a greedy grandchild still replaces its own parent under a route that keeps its deliveries",
+			routes: []models.Route{keeper,
+				{ID: "child", Name: "child", ParentID: "parent", LabelSelector: map[string]string{"team": "payments"}, DestinationID: "payments"},
+				{ID: "grandchild", Name: "grandchild", ParentID: "child", Greedy: true, LabelSelector: map[string]string{"tier": "gold"}, DestinationID: "gold"},
+			},
+			labels:     map[string]string{"severity": "critical", "team": "payments", "tier": "gold"},
+			wantRoutes: []string{"parent", "grandchild"},
 		},
 		{
 			name: "a child whose selector does not match leaves the parent alone",
@@ -804,6 +824,7 @@ func TestValidateRoute(t *testing.T) {
 		{ID: "root", Name: "root", DestinationID: "ops", TemplateID: "card"},
 		{ID: "child", Name: "child", ParentID: "root", LabelSelector: map[string]string{"team": "payments"}, DestinationID: "payments"},
 		{ID: "grandchild", Name: "grandchild", ParentID: "child", LabelSelector: map[string]string{"tier": "gold"}, DestinationID: "gold"},
+		{ID: "keeper", Name: "keeper", DestinationID: "ops", NoGreedyChildren: true},
 	}
 
 	tests := []struct {
@@ -895,6 +916,15 @@ func TestValidateRoute(t *testing.T) {
 		{
 			name:      "a child keeping the target with a different template refines it",
 			candidate: models.Route{ID: "new", Name: "new", ParentID: "root", LabelSelector: map[string]string{"team": "search"}, TemplateID: "compact"},
+		},
+		{
+			name:      "a greedy child under a route that keeps its deliveries is refused",
+			candidate: models.Route{ID: "new", Name: "new", ParentID: "keeper", Greedy: true, LabelSelector: map[string]string{"team": "search"}, DestinationID: "search"},
+			wantErr:   `route "keeper" keeps its own deliveries`,
+		},
+		{
+			name:      "a non-greedy child under a route that keeps its deliveries is fine",
+			candidate: models.Route{ID: "new", Name: "new", ParentID: "keeper", LabelSelector: map[string]string{"team": "search"}, DestinationID: "search"},
 		},
 		{
 			name:      "only a root can be the default",

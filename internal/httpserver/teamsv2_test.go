@@ -373,7 +373,7 @@ func teamsV2RoutedServer(t *testing.T, msg *fakeMessenger) (*fakeStore, http.Han
 
 	st, _ := teamsV2Server(t, msg)
 	st.routes["route-hook"] = models.Route{
-		ID: "route-hook", Name: "webhook platform/alerts", DestinationID: "dest", WebhookEndpointID: "hook",
+		ID: "route-hook", Name: "webhook platform/alerts", DestinationID: "dest", WebhookEndpointID: "hook", NoGreedyChildren: true,
 		LabelSelector: map[string]string{
 			models.SourceLabel: models.SourceTeamsV2, models.TeamLabel: "platform", models.ChannelLabel: "alerts",
 		},
@@ -413,6 +413,15 @@ func TestTeamsV2IsRouted(t *testing.T) {
 			setup: func(st *fakeStore) {
 				st.destinations["dest2"] = models.Destination{ID: "dest2", TeamID: "team2", ChannelID: "channel2"}
 				st.routes["child"] = models.Route{ID: "child", ParentID: "route-hook", DestinationID: "dest2", LabelSelector: map[string]string{models.ChannelLabel: "alerts"}}
+			},
+			wantPosts: [][2]string{{"team", "channel"}, {"team2", "channel2"}},
+		},
+		{
+			// A greedy child stored before ADR 0096 must not silence the webhook's own channel.
+			name: "greedy child under linked route", linked: true,
+			setup: func(st *fakeStore) {
+				st.destinations["dest2"] = models.Destination{ID: "dest2", TeamID: "team2", ChannelID: "channel2"}
+				st.routes["child"] = models.Route{ID: "child", ParentID: "route-hook", Greedy: true, DestinationID: "dest2", LabelSelector: map[string]string{models.ChannelLabel: "alerts"}}
 			},
 			wantPosts: [][2]string{{"team", "channel"}, {"team2", "channel2"}},
 		},

@@ -29,6 +29,8 @@ func endpointRoute(e models.WebhookEndpoint) models.Route {
 		DestinationID:     e.DestinationID,
 		TemplateID:        e.TemplateID,
 		WebhookEndpointID: e.ID,
+		// A greedy child would silence the endpoint's own channel (ADR 0096).
+		NoGreedyChildren: true,
 	}
 }
 

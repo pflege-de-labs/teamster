@@ -227,6 +227,7 @@ type Route struct {
 	RecipientID       string
 	Addressed         bool
 	WebhookEndpointID string
+	NoGreedyChildren  bool
 }
 
 type Session struct {

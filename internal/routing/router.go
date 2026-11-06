@@ -310,8 +310,12 @@ func ValidateRoute(candidate models.Route, existing []models.Route) error {
 	for _, route := range existing {
 		byID[route.ID] = route
 	}
-	if _, ok := byID[candidate.ParentID]; !ok {
+	parent, ok := byID[candidate.ParentID]
+	if !ok {
 		return fmt.Errorf("parent route %q does not exist", candidate.ParentID)
+	}
+	if candidate.Greedy && parent.NoGreedyChildren {
+		return fmt.Errorf("route %q keeps its own deliveries, so a child route can only deliver as well as it", parent.Name)
 	}
 
 	// A child without a selector receives everything its parent does, so
