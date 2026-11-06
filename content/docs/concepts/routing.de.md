@@ -40,15 +40,16 @@ Teams-V2-Nachrichten werden wie jedes andere Ereignis geroutet. Jeder Teams-V2-E
 verknüpfte Route, die diese drei Labels selektiert und mit der Vorlage des Endpunkts an sein Ziel
 zustellt. Sie wird mit dem Endpunkt angelegt, aktualisiert und gelöscht, und der Bereich **Routen**
 kennzeichnet sie mit **Verwaltet vom Webhook `<team>/<channel>`**. Ihr Selektor, Zustellziel,
-Vorlage, übergeordnete Route und Standard-Markierung sind gesperrt; Name, Priorität und die
-Markierung „verdrängend“ nicht. Sie können die Route nicht löschen, solange ihr Endpunkt besteht,
+Vorlage, übergeordnete Route, Standard-Markierung und die Einstellung „untergeordnete Routen stellen
+ebenfalls zu“ (siehe [Verschachtelte Routen](#nested-routes)) sind gesperrt; Name, Priorität und
+die Markierung „verdrängend“ nicht. Sie können die Route nicht löschen, solange ihr Endpunkt besteht,
 und den Endpunkt nicht, solange die Route untergeordnete Routen hat.
 
 Weil die Nachricht durch das Routing läuft, stellt auch jede andere Route zu, die dieselben Labels
 selektiert. Siehe
 [Die Nachrichten an weitere Kanäle senden](../../guides/teams-v2-webhook/#send-the-messages-to-more-channels).
-Eine verdrängende untergeordnete Route der verknüpften Route ersetzt diese; der eigene Kanal des
-Endpunkts erhält die Nachricht dann nicht mehr.
+Eine untergeordnete Route der verknüpften Route stellt immer zusätzlich zu ihr zu; der eigene Kanal
+des Endpunkts erhält die Nachricht also immer.
 
 Ein Endpunkt ohne verknüpfte Route, etwa einer aus einem früheren Release, postet direkt an sein
 Ziel. Teamster legt die fehlende Route beim Start an.
@@ -80,6 +81,16 @@ und kann nicht verdrängend sein; das Speichern wird abgewiesen.
 * **Vererbung.** Eine untergeordnete Route ohne eigenes Zustellziel oder ohne eigene Vorlage
   übernimmt die des nächsten Vorfahren. „Dieselbe Karte an einen weiteren Kanal“ ist eine
   untergeordnete Route, in der ein einziges Feld gesetzt ist.
+* **Ersetzen verhindern.** Setzen Sie bei einer Route das Häkchen bei
+  **Untergeordnete Routen stellen zusätzlich zu dieser Route zu, nie an ihrer Stelle**, und jede
+  untergeordnete Route darunter stellt zusätzlich zu ihr zu. Das Speichern einer verdrängenden
+  untergeordneten Route unter einer solchen Route wird mit `route "<name>" keeps its own
+  deliveries, so a child route can only deliver as well as it` abgewiesen. Hat die Route bereits
+  verdrängende untergeordnete Routen, können Sie das Häkchen trotzdem setzen: Sie stellen dann
+  zusätzlich zu ihr zu, und die Routenliste zeigt sie als *zusätzlich zur übergeordneten*. Das
+  Häkchen schützt nur diese Route; eine verdrängende Enkelroute ersetzt weiterhin ihre eigene
+  übergeordnete Route. In der API heißt das Feld `no_greedy_children`, und Export und Import
+  übernehmen es.
 * Jede zutreffende untergeordnete Route stellt zu, nicht nur die erste.
 * Routen lassen sich höchstens fünf Ebenen tief verschachteln.
 

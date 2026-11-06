@@ -153,13 +153,16 @@ the message.
 
 To add a condition, make the route a child of the endpoint's route and add a label of its own to
 the selector, or leave the selector empty to receive everything the endpoint's route does. A child
-is as well as its parent unless you mark it greedy; a child without a selector cannot be greedy.
+is as well as its parent; it cannot be greedy.
 
 {{% /steps %}}
 
-{{< callout type="warning" >}}
-A greedy child replaces the endpoint's route, so the endpoint's own channel stops receiving the
-messages that child matches. The endpoint cannot be deleted while it has child routes. See
+{{< callout type="info" >}}
+A child of the endpoint's route always delivers as well as it, so the endpoint's own channel keeps
+receiving its messages. The route has **Child routes deliver as well as this route, never instead
+of it** ticked and locked, and saving a greedy child under it is refused. A greedy child that
+existed before this rule now delivers as well as the route, and saving it again is refused until
+you clear greedy. The endpoint cannot be deleted while it has child routes. See
 [Routing]({{< ref "/docs/concepts/routing" >}}).
 {{< /callout >}}
 

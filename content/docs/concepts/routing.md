@@ -36,14 +36,15 @@ a sender's labels on every other webhook.
 Teams V2 messages are routed like any other event. Each Teams V2 endpoint has a linked route that
 selects these three labels and delivers to the endpoint's destination with its template. It is
 created, updated and deleted with the endpoint, and the Routes panel marks it **Managed by webhook
-`<team>/<channel>`**. Its selector, target, template, parent and default flag are locked; its name,
+`<team>/<channel>`**. Its selector, target, template, parent, default flag and the "child routes
+deliver as well as this route" setting (see [Nested routes](#nested-routes)) are locked; its name,
 priority and greedy flag are not. You cannot delete it while its endpoint exists, and you cannot
 delete the endpoint while the route has child routes.
 
 Because the message goes through routing, any other route that selects the same labels also
 delivers it. See
 [Send the messages to more channels](../../guides/teams-v2-webhook/#send-the-messages-to-more-channels).
-A greedy child of the linked route replaces it, and the endpoint's own channel then no longer
+A child of the linked route always delivers as well as it, so the endpoint's own channel always
 receives the message.
 
 An endpoint without a linked route, such as one created by an earlier release, posts straight to
@@ -71,6 +72,13 @@ or a template, and it cannot be greedy; saving is refused.
   parent's deliveries, not just the one it shares a kind with.
 * **Inheritance.** A child that names no target or no template uses the nearest ancestor's. "The
   same card, to one more channel" is a child with a single field set.
+* **Keep a route from being replaced.** Tick **Child routes deliver as well as this route, never
+  instead of it** on a route and every child below it delivers as well as it. Saving a greedy
+  child under such a route is refused with `route "<name>" keeps its own deliveries, so a child
+  route can only deliver as well as it`. If the route already has greedy children, you can still
+  set the box: they then deliver as well as it, and the route list shows them as *as well as*. The
+  box protects only that route; a greedy grandchild still replaces its own parent. In the API the
+  field is `no_greedy_children`, and export and import carry it.
 * Every matching child delivers, not just the first.
 * Routes nest at most five levels deep.
 

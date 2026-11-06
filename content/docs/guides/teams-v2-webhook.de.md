@@ -161,15 +161,19 @@ Routen stellen die Nachricht nun zu.
 Für eine zusätzliche Bedingung machen Sie die Route zur untergeordneten Route der Endpunkt-Route
 und nehmen ein eigenes Label in den Selektor auf, oder lassen den Selektor leer, um alles zu
 erhalten, was die Endpunkt-Route erhält. Eine untergeordnete Route gilt zusätzlich zur
-übergeordneten, es sei denn, Sie markieren sie als verdrängend; ohne Selektor kann sie nicht
-verdrängend sein.
+übergeordneten; sie kann nicht verdrängend sein.
 
 {{% /steps %}}
 
-{{< callout type="warning" >}}
-Eine verdrängende untergeordnete Route ersetzt die Route des Endpunkts, sodass der eigene Kanal des
-Endpunkts die Nachrichten, auf die sie zutrifft, nicht mehr erhält. Der Endpunkt lässt sich nicht
-löschen, solange er untergeordnete Routen hat. Siehe [Routing]({{< ref "/docs/concepts/routing" >}}).
+{{< callout type="info" >}}
+Eine untergeordnete Route der Endpunkt-Route stellt immer zusätzlich zu ihr zu, sodass der eigene
+Kanal des Endpunkts seine Nachrichten weiterhin erhält. Bei der Route ist das Häkchen
+**Untergeordnete Routen stellen zusätzlich zu dieser Route zu, nie an ihrer Stelle** gesetzt und
+gesperrt, und das Speichern einer verdrängenden untergeordneten Route darunter wird abgewiesen.
+Eine verdrängende untergeordnete Route, die schon vorher bestand, stellt jetzt zusätzlich zur Route
+zu; erneutes Speichern wird abgewiesen, bis Sie
+„verdrängend“ abwählen. Der Endpunkt lässt sich nicht löschen, solange er untergeordnete Routen
+hat. Siehe [Routing]({{< ref "/docs/concepts/routing" >}}).
 {{< /callout >}}
 
 Schlägt eine Zustellung fehl, lautet die Antwort `502`, und ein Absender, der es erneut versucht,
