@@ -8,6 +8,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.17.0] — 2026-11-06
+
+App version 0.18.0: an empty label selector matches every alert, which is **breaking** for a root
+route left without a selector, and a route can keep its child routes from replacing it, which every
+Teams V2 webhook's route does; see the [service changelog](../../CHANGELOG.md).
+
 ## [0.16.0] — 2026-11-06
 
 App version 0.17.0: Teams V2 messages are routed by label, which is **breaking** for senders and
@@ -211,7 +217,8 @@ an Ingress or HTTPRoute, configuration and credentials from values, `extraObject
 an optional startupProbe, and `helm test`
 ([ADR 0016](../../docs/adr/0016-helm-chart.md)).
 
-[Unreleased]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.16.0...HEAD
+[Unreleased]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.17.0...HEAD
+[0.17.0]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.16.0...teamster-0.17.0
 [0.16.0]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.15.0...teamster-0.16.0
 [0.15.0]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.14.0...teamster-0.15.0
 [0.14.0]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.13.1...teamster-0.14.0
