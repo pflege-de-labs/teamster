@@ -7,8 +7,9 @@ selector matches an event when every key in it is present among the event&amp;rs
 the same value. Extra labels on the event do not matter.&lt;/p&gt;
 &lt;ul&gt;
 &lt;li&gt;Matching is exact. There are no wildcards, regular expressions or negations.&lt;/li&gt;
-&lt;li&gt;An empty selector matches nothing. A route that should catch everything is the default route,
-described below.&lt;/li&gt;
+&lt;li&gt;An empty selector matches every alert. A root route without a selector receives every alert from
+every webhook, alongside any other root that matches. The default route stays a fallback, so a
+selector-less root leaves it nothing to catch. See &lt;a href="#fallbacks"&gt;Fallbacks&lt;/a&gt;.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;p&gt;For an Alertmanager notification the labels are its &lt;code&gt;commonLabels&lt;/code&gt;, the labels every alert in the
 group shares; for a group of one alert, that alert&amp;rsquo;s labels. For a universal event they are its
@@ -43,7 +44,9 @@ another.&lt;/p&gt;
 take over from another, nest it under that route and mark it greedy, as described next.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="nested-routes"&gt;Nested routes&lt;span class="hx:absolute hx:-mt-20" id="nested-routes"&gt;&lt;/span&gt;
 &lt;a href="#nested-routes" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;A route can refine another route. A child is considered only when its parent matched, and applies
-when its own selector matches too. A child needs a selector of its own.&lt;/p&gt;
+when its own selector matches too. A child without a selector receives everything its parent
+receives: the way to send all of a route&amp;rsquo;s alerts to one more channel. It must still add a target
+or a template, and it cannot be greedy; saving is refused.&lt;/p&gt;
 &lt;ul&gt;
 &lt;li&gt;&lt;strong&gt;As well as.&lt;/strong&gt; By default a matching child delivers in addition to its parent.&lt;/li&gt;
 &lt;li&gt;&lt;strong&gt;Instead of.&lt;/strong&gt; A &lt;em&gt;greedy&lt;/em&gt; child delivers instead of its parent. It suppresses all of its
@@ -109,15 +112,18 @@ message.&lt;/li&gt;
 they are evaluated with their children hanging off them, and the channels and people they deliver
 to.&lt;/p&gt;
 &lt;ul&gt;
-&lt;li&gt;Route nodes show the labels they select and the template they render with, marked when it is
-inherited.&lt;/li&gt;
+&lt;li&gt;Route nodes show the labels they select, or &lt;em&gt;no selector — matches every alert&lt;/em&gt;, and the
+template they render with, marked when it is inherited. The Routes list says &lt;em&gt;matches every
+alert&lt;/em&gt; for an empty selector, and &lt;em&gt;catches what no other route matches&lt;/em&gt; for a default route
+with one.&lt;/li&gt;
 &lt;li&gt;A dashed arrow between two routes is a refinement, labelled &lt;em&gt;as well as&lt;/em&gt; or &lt;em&gt;instead of&lt;/em&gt;.&lt;/li&gt;
 &lt;li&gt;A route pointing at a deleted destination or person shows up as a missing node.&lt;/li&gt;
 &lt;li&gt;A second graph pairs templates with the routes and webhooks that use them. A template with
 nothing beside it is unused.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;p&gt;Paste &lt;code&gt;key=value&lt;/code&gt; labels into the page to ask which routes a given event would take. Every route
-that delivers is named and explained, and its path is highlighted while the rest dims.&lt;/p&gt;
+that delivers is named and explained (a route without a selector says it takes every alert), and
+its path is highlighted while the rest dims.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="related"&gt;Related&lt;span class="hx:absolute hx:-mt-20" id="related"&gt;&lt;/span&gt;
 &lt;a href="#related" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;ul&gt;
 &lt;li&gt;How a delivered card is updated and resolved:

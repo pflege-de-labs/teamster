@@ -1511,8 +1511,9 @@ selector matches an event when every key in it is present among the event&amp;rs
 the same value. Extra labels on the event do not matter.&lt;/p&gt;
 &lt;ul&gt;
 &lt;li&gt;Matching is exact. There are no wildcards, regular expressions or negations.&lt;/li&gt;
-&lt;li&gt;An empty selector matches nothing. A route that should catch everything is the default route,
-described below.&lt;/li&gt;
+&lt;li&gt;An empty selector matches every alert. A root route without a selector receives every alert from
+every webhook, alongside any other root that matches. The default route stays a fallback, so a
+selector-less root leaves it nothing to catch. See &lt;a href="#fallbacks"&gt;Fallbacks&lt;/a&gt;.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;p&gt;For an Alertmanager notification the labels are its &lt;code&gt;commonLabels&lt;/code&gt;, the labels every alert in the
 group shares; for a group of one alert, that alert&amp;rsquo;s labels. For a universal event they are its
@@ -1547,7 +1548,9 @@ another.&lt;/p&gt;
 take over from another, nest it under that route and mark it greedy, as described next.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="nested-routes"&gt;Nested routes&lt;span class="hx:absolute hx:-mt-20" id="nested-routes"&gt;&lt;/span&gt;
 &lt;a href="#nested-routes" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;A route can refine another route. A child is considered only when its parent matched, and applies
-when its own selector matches too. A child needs a selector of its own.&lt;/p&gt;
+when its own selector matches too. A child without a selector receives everything its parent
+receives: the way to send all of a route&amp;rsquo;s alerts to one more channel. It must still add a target
+or a template, and it cannot be greedy; saving is refused.&lt;/p&gt;
 &lt;ul&gt;
 &lt;li&gt;&lt;strong&gt;As well as.&lt;/strong&gt; By default a matching child delivers in addition to its parent.&lt;/li&gt;
 &lt;li&gt;&lt;strong&gt;Instead of.&lt;/strong&gt; A &lt;em&gt;greedy&lt;/em&gt; child delivers instead of its parent. It suppresses all of its
@@ -1613,15 +1616,18 @@ message.&lt;/li&gt;
 they are evaluated with their children hanging off them, and the channels and people they deliver
 to.&lt;/p&gt;
 &lt;ul&gt;
-&lt;li&gt;Route nodes show the labels they select and the template they render with, marked when it is
-inherited.&lt;/li&gt;
+&lt;li&gt;Route nodes show the labels they select, or &lt;em&gt;no selector — matches every alert&lt;/em&gt;, and the
+template they render with, marked when it is inherited. The Routes list says &lt;em&gt;matches every
+alert&lt;/em&gt; for an empty selector, and &lt;em&gt;catches what no other route matches&lt;/em&gt; for a default route
+with one.&lt;/li&gt;
 &lt;li&gt;A dashed arrow between two routes is a refinement, labelled &lt;em&gt;as well as&lt;/em&gt; or &lt;em&gt;instead of&lt;/em&gt;.&lt;/li&gt;
 &lt;li&gt;A route pointing at a deleted destination or person shows up as a missing node.&lt;/li&gt;
 &lt;li&gt;A second graph pairs templates with the routes and webhooks that use them. A template with
 nothing beside it is unused.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;p&gt;Paste &lt;code&gt;key=value&lt;/code&gt; labels into the page to ask which routes a given event would take. Every route
-that delivers is named and explained, and its path is highlighted while the rest dims.&lt;/p&gt;
+that delivers is named and explained (a route without a selector says it takes every alert), and
+its path is highlighted while the rest dims.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="related"&gt;Related&lt;span class="hx:absolute hx:-mt-20" id="related"&gt;&lt;/span&gt;
 &lt;a href="#related" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;ul&gt;
 &lt;li&gt;How a delivered card is updated and resolved:
@@ -6546,8 +6552,9 @@ for people who do not have it yet.&lt;/p&gt;
 &lt;a href="#create-a-route-that-addresses-people" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;In the admin UI, create or edit a route and set &lt;strong&gt;Delivers to&lt;/strong&gt; to &lt;strong&gt;Any person named in
 the message&lt;/strong&gt;. Give it a label selector for the messages it should take, for example
 &lt;code&gt;{&amp;quot;kind&amp;quot;: &amp;quot;password-expiry&amp;quot;}&lt;/code&gt;, and a template. Anyone who may edit routes may create one.&lt;/p&gt;
-&lt;p&gt;Keep the selector narrow. The route takes every message it matches, from any sender, and renders
-it with your template. Whom it reaches is bounded by each sender&amp;rsquo;s token, set in the next step.&lt;/p&gt;
+&lt;p&gt;Keep the selector narrow, and never empty: an empty selector matches every message. The route
+takes every message it matches, from any sender, and renders it with your template. Whom it
+reaches is bounded by each sender&amp;rsquo;s token, set in the next step.&lt;/p&gt;
 &lt;p&gt;Each person gets their own message, rendered for them. &lt;code&gt;.Recipient&lt;/code&gt; holds their Entra profile, so
 the template can greet them, write in their language and name their office:&lt;/p&gt;
 &lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
@@ -7368,7 +7375,8 @@ that select the same messages to deliver them somewhere else as well.&lt;/p&gt;
 the others to match several endpoints. Pick the destination and template. Both routes now deliver
 the message.&lt;/p&gt;
 &lt;p&gt;To add a condition, make the route a child of the endpoint&amp;rsquo;s route and add a label of its own to
-the selector. A child is as well as its parent unless you mark it greedy.&lt;/p&gt;
+the selector, or leave the selector empty to receive everything the endpoint&amp;rsquo;s route does. A child
+is as well as its parent unless you mark it greedy; a child without a selector cannot be greedy.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="hx:overflow-x-auto hx:mt-6 hx:flex hx:rounded-lg hx:border hx:py-2 hx:ltr:pr-4 hx:rtl:pl-4 hx:contrast-more:border-current hx:contrast-more:dark:border-current hx:border-amber-200 hx:bg-amber-100 hx:text-amber-900 hx:dark:border-amber-200/30 hx:dark:bg-amber-900/30 hx:dark:text-amber-200"&gt;
 &lt;div class="hx:ltr:pl-3 hx:ltr:pr-2 hx:rtl:pr-3 hx:rtl:pl-2"&gt;&lt;svg height=1.2em class="hx:inline-block hx:align-middle" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"&gt;&lt;path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/&gt;&lt;/svg&gt;&lt;/div&gt;
@@ -9545,6 +9553,15 @@ application and its container image, released as tags &lt;code&gt;vX.Y.Z&lt;/cod
 the chart, released separately as tags &lt;code&gt;teamster-X.Y.Z&lt;/code&gt;.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;p&gt;Both list unreleased changes at the top, under &lt;code&gt;Unreleased&lt;/code&gt;.&lt;/p&gt;
+&lt;div class="hx:overflow-x-auto hx:mt-6 hx:flex hx:rounded-lg hx:border hx:py-2 hx:ltr:pr-4 hx:rtl:pl-4 hx:contrast-more:border-current hx:contrast-more:dark:border-current hx:border-amber-200 hx:bg-amber-100 hx:text-amber-900 hx:dark:border-amber-200/30 hx:dark:bg-amber-900/30 hx:dark:text-amber-200"&gt;
+&lt;div class="hx:ltr:pl-3 hx:ltr:pr-2 hx:rtl:pr-3 hx:rtl:pl-2"&gt;&lt;svg height=1.2em class="hx:inline-block hx:align-middle" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"&gt;&lt;path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/&gt;&lt;/svg&gt;&lt;/div&gt;
+&lt;div class="hx:w-full hx:min-w-0 hx:leading-7"&gt;
+&lt;div class="hx:mt-6 hx:leading-7 hx:first:mt-0"&gt;Before you upgrade to 0.18: a root route with an empty label selector used
+to match nothing. It now receives every alert from every webhook. On startup, Teamster logs
+&lt;code&gt;route has no label selector and receives every alert&lt;/code&gt; for each such route. Give it a selector or
+delete it before you upgrade. See &lt;a href="https://pflege-de-labs.github.io/teamster/dev/docs/concepts/routing/" target="_blank" rel="noopener"&gt;Routing&lt;/a&gt;.&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
 &lt;p&gt;The &lt;a href="https://github.com/pflege-de-labs/teamster/releases" target="_blank" rel="noopener"&gt;releases page&lt;/a&gt; carries the binaries,
 their SBOMs and the signed checksums for each release. To check them before you deploy, see
 &lt;a href="../guides/verifying-a-release/"&gt;Verify a release&lt;/a&gt;.&lt;/p&gt;

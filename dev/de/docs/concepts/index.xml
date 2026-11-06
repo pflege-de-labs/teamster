@@ -8,8 +8,10 @@ unter den Labels des Ereignisses mit genau demselben Wert vorkommt. Weitere Labe
 spielen keine Rolle.&lt;/p&gt;
 &lt;ul&gt;
 &lt;li&gt;Der Vergleich ist exakt. Es gibt keine Platzhalter, regulären Ausdrücke oder Negationen.&lt;/li&gt;
-&lt;li&gt;Ein leerer Selektor trifft auf nichts zu. Eine Route, die alles auffangen soll, ist die
-Standardroute, die weiter unten beschrieben ist.&lt;/li&gt;
+&lt;li&gt;Ein leerer Selektor trifft auf jeden Alarm zu. Eine Wurzelroute ohne Selektor erhält jeden Alarm
+von jedem Webhook, neben jeder anderen Wurzelroute, die zutrifft. Die Standardroute bleibt eine
+Rückfallebene, sodass eine Wurzelroute ohne Selektor ihr nichts übrig lässt. Siehe
+&lt;a href="#fallbacks"&gt;Rückfallebenen&lt;/a&gt;.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;p&gt;Bei einer Benachrichtigung aus Alertmanager sind es ihre &lt;code&gt;commonLabels&lt;/code&gt;, die Labels, die alle
 Alarme der Gruppe gemeinsam haben; bei einer Gruppe mit einem Alarm die Labels dieses Alarms. Bei
@@ -48,7 +50,9 @@ wie im nächsten Abschnitt beschrieben.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="nested-routes"&gt;Verschachtelte Routen&lt;span class="hx:absolute hx:-mt-20" id="nested-routes"&gt;&lt;/span&gt;
 &lt;a href="#nested-routes" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Eine Route kann eine andere Route verfeinern. Eine untergeordnete Route wird nur betrachtet, wenn
 ihre übergeordnete zugetroffen hat, und greift, wenn auch ihr eigener Selektor zutrifft. Eine
-untergeordnete Route braucht einen eigenen Selektor.&lt;/p&gt;
+untergeordnete Route ohne Selektor erhält alles, was ihre übergeordnete erhält: So senden Sie alle
+Alarme einer Route in einen weiteren Kanal. Sie muss dennoch ein Ziel oder eine Vorlage ergänzen
+und kann nicht verdrängend sein; das Speichern wird abgewiesen.&lt;/p&gt;
 &lt;ul&gt;
 &lt;li&gt;&lt;strong&gt;Zusätzlich.&lt;/strong&gt; Standardmäßig stellt eine zutreffende untergeordnete Route zusätzlich zu ihrer
 übergeordneten zu.&lt;/li&gt;
@@ -118,8 +122,10 @@ eine eingebaute Nachricht.&lt;/li&gt;
 der Reihenfolge ihrer Auswertung mit ihren untergeordneten Routen daran, und die Kanäle und
 Personen, an die sie zustellen.&lt;/p&gt;
 &lt;ul&gt;
-&lt;li&gt;Routenknoten zeigen die Labels, die sie auswählen, und die Vorlage, mit der sie rendern; eine
-geerbte Vorlage ist gekennzeichnet.&lt;/li&gt;
+&lt;li&gt;Routenknoten zeigen die Labels, die sie auswählen, oder &lt;em&gt;no selector — matches every alert&lt;/em&gt;, und
+die Vorlage, mit der sie rendern; eine geerbte Vorlage ist gekennzeichnet. Die Routenliste sagt
+bei einem leeren Selektor &lt;strong&gt;trifft auf jeden Alarm zu&lt;/strong&gt; und bei einer Standardroute mit Selektor
+&lt;strong&gt;fängt auf, was keine andere Route trifft&lt;/strong&gt;.&lt;/li&gt;
 &lt;li&gt;Ein gestrichelter Pfeil zwischen zwei Routen ist eine Verfeinerung, beschriftet mit
 &lt;em&gt;zusätzlich zur übergeordneten&lt;/em&gt; oder &lt;em&gt;statt der übergeordneten&lt;/em&gt;.&lt;/li&gt;
 &lt;li&gt;Eine Route, die auf ein gelöschtes Ziel oder eine gelöschte Person zeigt, erscheint als
@@ -128,8 +134,9 @@ fehlender Knoten.&lt;/li&gt;
 neben der nichts steht, wird nicht verwendet.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;p&gt;Tragen Sie &lt;code&gt;key=value&lt;/code&gt;-Labels auf der Seite ein, um zu fragen, welche Routen ein bestimmtes
-Ereignis nehmen würde. Jede Route, die zustellt, wird genannt und begründet, und ihr Weg wird
-hervorgehoben, während der Rest verblasst.&lt;/p&gt;
+Ereignis nehmen würde. Jede Route, die zustellt, wird genannt und begründet (eine Route ohne
+Selektor sagt, dass sie jeden Alarm nimmt), und ihr Weg wird hervorgehoben, während der Rest
+verblasst.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="related"&gt;Verwandte Themen&lt;span class="hx:absolute hx:-mt-20" id="related"&gt;&lt;/span&gt;
 &lt;a href="#related" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;ul&gt;
 &lt;li&gt;Wie eine zugestellte Karte aktualisiert und aufgelöst wird:

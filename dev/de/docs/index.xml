@@ -1059,8 +1059,10 @@ unter den Labels des Ereignisses mit genau demselben Wert vorkommt. Weitere Labe
 spielen keine Rolle.&lt;/p&gt;
 &lt;ul&gt;
 &lt;li&gt;Der Vergleich ist exakt. Es gibt keine Platzhalter, regulären Ausdrücke oder Negationen.&lt;/li&gt;
-&lt;li&gt;Ein leerer Selektor trifft auf nichts zu. Eine Route, die alles auffangen soll, ist die
-Standardroute, die weiter unten beschrieben ist.&lt;/li&gt;
+&lt;li&gt;Ein leerer Selektor trifft auf jeden Alarm zu. Eine Wurzelroute ohne Selektor erhält jeden Alarm
+von jedem Webhook, neben jeder anderen Wurzelroute, die zutrifft. Die Standardroute bleibt eine
+Rückfallebene, sodass eine Wurzelroute ohne Selektor ihr nichts übrig lässt. Siehe
+&lt;a href="#fallbacks"&gt;Rückfallebenen&lt;/a&gt;.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;p&gt;Bei einer Benachrichtigung aus Alertmanager sind es ihre &lt;code&gt;commonLabels&lt;/code&gt;, die Labels, die alle
 Alarme der Gruppe gemeinsam haben; bei einer Gruppe mit einem Alarm die Labels dieses Alarms. Bei
@@ -1099,7 +1101,9 @@ wie im nächsten Abschnitt beschrieben.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="nested-routes"&gt;Verschachtelte Routen&lt;span class="hx:absolute hx:-mt-20" id="nested-routes"&gt;&lt;/span&gt;
 &lt;a href="#nested-routes" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Eine Route kann eine andere Route verfeinern. Eine untergeordnete Route wird nur betrachtet, wenn
 ihre übergeordnete zugetroffen hat, und greift, wenn auch ihr eigener Selektor zutrifft. Eine
-untergeordnete Route braucht einen eigenen Selektor.&lt;/p&gt;
+untergeordnete Route ohne Selektor erhält alles, was ihre übergeordnete erhält: So senden Sie alle
+Alarme einer Route in einen weiteren Kanal. Sie muss dennoch ein Ziel oder eine Vorlage ergänzen
+und kann nicht verdrängend sein; das Speichern wird abgewiesen.&lt;/p&gt;
 &lt;ul&gt;
 &lt;li&gt;&lt;strong&gt;Zusätzlich.&lt;/strong&gt; Standardmäßig stellt eine zutreffende untergeordnete Route zusätzlich zu ihrer
 übergeordneten zu.&lt;/li&gt;
@@ -1169,8 +1173,10 @@ eine eingebaute Nachricht.&lt;/li&gt;
 der Reihenfolge ihrer Auswertung mit ihren untergeordneten Routen daran, und die Kanäle und
 Personen, an die sie zustellen.&lt;/p&gt;
 &lt;ul&gt;
-&lt;li&gt;Routenknoten zeigen die Labels, die sie auswählen, und die Vorlage, mit der sie rendern; eine
-geerbte Vorlage ist gekennzeichnet.&lt;/li&gt;
+&lt;li&gt;Routenknoten zeigen die Labels, die sie auswählen, oder &lt;em&gt;no selector — matches every alert&lt;/em&gt;, und
+die Vorlage, mit der sie rendern; eine geerbte Vorlage ist gekennzeichnet. Die Routenliste sagt
+bei einem leeren Selektor &lt;strong&gt;trifft auf jeden Alarm zu&lt;/strong&gt; und bei einer Standardroute mit Selektor
+&lt;strong&gt;fängt auf, was keine andere Route trifft&lt;/strong&gt;.&lt;/li&gt;
 &lt;li&gt;Ein gestrichelter Pfeil zwischen zwei Routen ist eine Verfeinerung, beschriftet mit
 &lt;em&gt;zusätzlich zur übergeordneten&lt;/em&gt; oder &lt;em&gt;statt der übergeordneten&lt;/em&gt;.&lt;/li&gt;
 &lt;li&gt;Eine Route, die auf ein gelöschtes Ziel oder eine gelöschte Person zeigt, erscheint als
@@ -1179,8 +1185,9 @@ fehlender Knoten.&lt;/li&gt;
 neben der nichts steht, wird nicht verwendet.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;p&gt;Tragen Sie &lt;code&gt;key=value&lt;/code&gt;-Labels auf der Seite ein, um zu fragen, welche Routen ein bestimmtes
-Ereignis nehmen würde. Jede Route, die zustellt, wird genannt und begründet, und ihr Weg wird
-hervorgehoben, während der Rest verblasst.&lt;/p&gt;
+Ereignis nehmen würde. Jede Route, die zustellt, wird genannt und begründet (eine Route ohne
+Selektor sagt, dass sie jeden Alarm nimmt), und ihr Weg wird hervorgehoben, während der Rest
+verblasst.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="related"&gt;Verwandte Themen&lt;span class="hx:absolute hx:-mt-20" id="related"&gt;&lt;/span&gt;
 &lt;a href="#related" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;ul&gt;
 &lt;li&gt;Wie eine zugestellte Karte aktualisiert und aufgelöst wird:
@@ -6659,9 +6666,10 @@ den Bot für Personen installieren, die ihn noch nicht haben.&lt;/p&gt;
 &lt;strong&gt;Liefert an&lt;/strong&gt; auf &lt;strong&gt;Jede in der Nachricht genannte Person&lt;/strong&gt;. Geben Sie ihr einen Label-Selektor für
 die Nachrichten, die sie übernehmen soll, zum Beispiel &lt;code&gt;{&amp;quot;kind&amp;quot;: &amp;quot;password-expiry&amp;quot;}&lt;/code&gt;, und eine
 Vorlage. Wer Routen bearbeiten darf, darf eine solche Route anlegen.&lt;/p&gt;
-&lt;p&gt;Fassen Sie den Selektor eng. Die Route übernimmt jede Nachricht, die er erfasst, gleich von welchem
-Absender, und rendert sie mit Ihrer Vorlage. Wen sie erreicht, begrenzt das Token des jeweiligen
-Absenders, das Sie im nächsten Schritt festlegen.&lt;/p&gt;
+&lt;p&gt;Fassen Sie den Selektor eng und lassen Sie ihn nie leer: Ein leerer Selektor trifft auf jede
+Nachricht zu. Die Route übernimmt jede Nachricht, die er erfasst, gleich von welchem Absender, und
+rendert sie mit Ihrer Vorlage. Wen sie erreicht, begrenzt das Token des jeweiligen Absenders, das
+Sie im nächsten Schritt festlegen.&lt;/p&gt;
 &lt;p&gt;Jede Person erhält ihre eigene, für sie gerenderte Nachricht. &lt;code&gt;.Recipient&lt;/code&gt; enthält ihr
 Entra-Profil. Die Vorlage kann sie also persönlich ansprechen, in ihrer Sprache schreiben und ihr
 Büro nennen:&lt;/p&gt;
@@ -7523,8 +7531,10 @@ darauf.&lt;/p&gt;
 und einem der beiden anderen, um mehrere Endpunkte zu erfassen. Wählen Sie Ziel und Vorlage. Beide
 Routen stellen die Nachricht nun zu.&lt;/p&gt;
 &lt;p&gt;Für eine zusätzliche Bedingung machen Sie die Route zur untergeordneten Route der Endpunkt-Route
-und nehmen ein eigenes Label in den Selektor auf. Eine untergeordnete Route gilt zusätzlich zur
-übergeordneten, es sei denn, Sie markieren sie als verdrängend.&lt;/p&gt;
+und nehmen ein eigenes Label in den Selektor auf, oder lassen den Selektor leer, um alles zu
+erhalten, was die Endpunkt-Route erhält. Eine untergeordnete Route gilt zusätzlich zur
+übergeordneten, es sei denn, Sie markieren sie als verdrängend; ohne Selektor kann sie nicht
+verdrängend sein.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="hx:overflow-x-auto hx:mt-6 hx:flex hx:rounded-lg hx:border hx:py-2 hx:ltr:pr-4 hx:rtl:pl-4 hx:contrast-more:border-current hx:contrast-more:dark:border-current hx:border-amber-200 hx:bg-amber-100 hx:text-amber-900 hx:dark:border-amber-200/30 hx:dark:bg-amber-900/30 hx:dark:text-amber-200"&gt;
 &lt;div class="hx:ltr:pl-3 hx:ltr:pr-2 hx:rtl:pr-3 hx:rtl:pl-2"&gt;&lt;svg height=1.2em class="hx:inline-block hx:align-middle" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"&gt;&lt;path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/&gt;&lt;/svg&gt;&lt;/div&gt;
@@ -9777,6 +9787,15 @@ Anwendung und ihr Container-Image, veröffentlicht als Tags &lt;code&gt;vX.Y.Z&l
 das Chart, separat veröffentlicht als Tags &lt;code&gt;teamster-X.Y.Z&lt;/code&gt;.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;p&gt;Beide führen noch nicht veröffentlichte Änderungen oben unter &lt;code&gt;Unreleased&lt;/code&gt;.&lt;/p&gt;
+&lt;div class="hx:overflow-x-auto hx:mt-6 hx:flex hx:rounded-lg hx:border hx:py-2 hx:ltr:pr-4 hx:rtl:pl-4 hx:contrast-more:border-current hx:contrast-more:dark:border-current hx:border-amber-200 hx:bg-amber-100 hx:text-amber-900 hx:dark:border-amber-200/30 hx:dark:bg-amber-900/30 hx:dark:text-amber-200"&gt;
+&lt;div class="hx:ltr:pl-3 hx:ltr:pr-2 hx:rtl:pr-3 hx:rtl:pl-2"&gt;&lt;svg height=1.2em class="hx:inline-block hx:align-middle" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"&gt;&lt;path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/&gt;&lt;/svg&gt;&lt;/div&gt;
+&lt;div class="hx:w-full hx:min-w-0 hx:leading-7"&gt;
+&lt;div class="hx:mt-6 hx:leading-7 hx:first:mt-0"&gt;Vor dem Upgrade auf 0.18: Eine Wurzelroute mit leerem Label-Selektor traf bisher auf nichts zu. Jetzt
+erhält sie jeden Alarm von jedem Webhook. Beim Start protokolliert Teamster für jede solche Route
+&lt;code&gt;route has no label selector and receives every alert&lt;/code&gt;. Geben Sie ihr einen Selektor oder löschen
+Sie sie vor dem Upgrade. Siehe &lt;a href="https://pflege-de-labs.github.io/teamster/dev/de/docs/concepts/routing/" target="_blank" rel="noopener"&gt;Routing&lt;/a&gt;.&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
 &lt;p&gt;Die &lt;a href="https://github.com/pflege-de-labs/teamster/releases" target="_blank" rel="noopener"&gt;Release-Seite&lt;/a&gt; enthält zu jedem Release
 die Binaries, ihre SBOMs und die signierten Prüfsummen. Wie Sie diese vor dem Deployment prüfen,
 beschreibt &lt;a href="../guides/verifying-a-release/"&gt;Release verifizieren&lt;/a&gt;.&lt;/p&gt;

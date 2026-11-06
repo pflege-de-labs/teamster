@@ -1573,9 +1573,10 @@ den Bot für Personen installieren, die ihn noch nicht haben.&lt;/p&gt;
 &lt;strong&gt;Liefert an&lt;/strong&gt; auf &lt;strong&gt;Jede in der Nachricht genannte Person&lt;/strong&gt;. Geben Sie ihr einen Label-Selektor für
 die Nachrichten, die sie übernehmen soll, zum Beispiel &lt;code&gt;{&amp;quot;kind&amp;quot;: &amp;quot;password-expiry&amp;quot;}&lt;/code&gt;, und eine
 Vorlage. Wer Routen bearbeiten darf, darf eine solche Route anlegen.&lt;/p&gt;
-&lt;p&gt;Fassen Sie den Selektor eng. Die Route übernimmt jede Nachricht, die er erfasst, gleich von welchem
-Absender, und rendert sie mit Ihrer Vorlage. Wen sie erreicht, begrenzt das Token des jeweiligen
-Absenders, das Sie im nächsten Schritt festlegen.&lt;/p&gt;
+&lt;p&gt;Fassen Sie den Selektor eng und lassen Sie ihn nie leer: Ein leerer Selektor trifft auf jede
+Nachricht zu. Die Route übernimmt jede Nachricht, die er erfasst, gleich von welchem Absender, und
+rendert sie mit Ihrer Vorlage. Wen sie erreicht, begrenzt das Token des jeweiligen Absenders, das
+Sie im nächsten Schritt festlegen.&lt;/p&gt;
 &lt;p&gt;Jede Person erhält ihre eigene, für sie gerenderte Nachricht. &lt;code&gt;.Recipient&lt;/code&gt; enthält ihr
 Entra-Profil. Die Vorlage kann sie also persönlich ansprechen, in ihrer Sprache schreiben und ihr
 Büro nennen:&lt;/p&gt;
@@ -2437,8 +2438,10 @@ darauf.&lt;/p&gt;
 und einem der beiden anderen, um mehrere Endpunkte zu erfassen. Wählen Sie Ziel und Vorlage. Beide
 Routen stellen die Nachricht nun zu.&lt;/p&gt;
 &lt;p&gt;Für eine zusätzliche Bedingung machen Sie die Route zur untergeordneten Route der Endpunkt-Route
-und nehmen ein eigenes Label in den Selektor auf. Eine untergeordnete Route gilt zusätzlich zur
-übergeordneten, es sei denn, Sie markieren sie als verdrängend.&lt;/p&gt;
+und nehmen ein eigenes Label in den Selektor auf, oder lassen den Selektor leer, um alles zu
+erhalten, was die Endpunkt-Route erhält. Eine untergeordnete Route gilt zusätzlich zur
+übergeordneten, es sei denn, Sie markieren sie als verdrängend; ohne Selektor kann sie nicht
+verdrängend sein.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="hx:overflow-x-auto hx:mt-6 hx:flex hx:rounded-lg hx:border hx:py-2 hx:ltr:pr-4 hx:rtl:pl-4 hx:contrast-more:border-current hx:contrast-more:dark:border-current hx:border-amber-200 hx:bg-amber-100 hx:text-amber-900 hx:dark:border-amber-200/30 hx:dark:bg-amber-900/30 hx:dark:text-amber-200"&gt;
 &lt;div class="hx:ltr:pl-3 hx:ltr:pr-2 hx:rtl:pr-3 hx:rtl:pl-2"&gt;&lt;svg height=1.2em class="hx:inline-block hx:align-middle" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"&gt;&lt;path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/&gt;&lt;/svg&gt;&lt;/div&gt;
