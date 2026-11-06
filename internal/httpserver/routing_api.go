@@ -231,8 +231,10 @@ func buildGraph(cfg routingConfig, channelName func(teamID, channelID string) st
 
 	ordered := evaluationOrder(routes)
 	known := map[string]bool{}
+	byID := map[string]models.Route{}
 	for _, route := range ordered {
 		known[route.ID] = true
+		byID[route.ID] = route
 	}
 
 	templateNames := map[string]string{}
@@ -261,7 +263,7 @@ func buildGraph(cfg routingConfig, channelName func(teamID, channelID string) st
 			Selector: selectorSummary(route.LabelSelector),
 			Priority: route.Priority,
 			Default:  route.IsDefault,
-			Greedy:   route.Greedy,
+			Greedy:   route.Replaces(byID[route.ParentID]),
 			X:        (1 + depth) * columnGap,
 			Y:        rows[depth] * rowGap,
 		}
@@ -288,7 +290,7 @@ func buildGraph(cfg routingConfig, channelName func(teamID, channelID string) st
 				Source: "route:" + route.ParentID,
 				Target: "route:" + route.ID,
 				Kind:   linkRefines,
-				Greedy: route.Greedy,
+				Greedy: route.Replaces(byID[route.ParentID]),
 			})
 			continue
 		}
@@ -906,8 +908,11 @@ func explainResult(result routing.Result, byID map[string]models.Route) string {
 	if len(result.Roots) == 1 {
 		root := byID[result.Roots[0]]
 		opening := fmt.Sprintf("%q matched on %s, at priority %d", root.Name, selectorSummary(root.LabelSelector), root.Priority)
-		if result.Reason == routing.ReasonDefault {
+		switch {
+		case result.Reason == routing.ReasonDefault:
 			opening = fmt.Sprintf("no selector matched, so the default route %q takes it", root.Name)
+		case len(root.LabelSelector) == 0:
+			opening = fmt.Sprintf("%q has no selector, so it takes every alert, at priority %d", root.Name, root.Priority)
 		}
 
 		rootDelivers := false

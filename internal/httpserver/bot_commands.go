@@ -165,7 +165,7 @@ func formatStatus(recipient models.Recipient, routes []models.Route) string {
 	return b.String()
 }
 
-// selectorLine renders a label selector the way /route will accept it later.
+// selectorLine renders a label selector; an empty one matches every alert (ADR 0095).
 func selectorLine(selector map[string]string) string {
 	if len(selector) == 0 {
 		return "every alert"

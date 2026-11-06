@@ -189,6 +189,8 @@ type routeRow struct {
 	// Addressed is set, with ID "addressed", when the route delivers to the
 	// people a message names, its own choice or inherited (ADR 0062).
 	Addressed inheritedRef
+	// Replaces is set when the route delivers instead of its parent.
+	Replaces bool
 }
 
 type inheritedRef struct {
@@ -214,8 +216,8 @@ func (p Page) routeTree() []routeRow {
 	}
 
 	var rows []routeRow
-	var walk func(route models.Route, depth int, destination, template, addressed inheritedRef)
-	walk = func(route models.Route, depth int, destination, template, addressed inheritedRef) {
+	var walk func(route, parent models.Route, depth int, destination, template, addressed inheritedRef)
+	walk = func(route, parent models.Route, depth int, destination, template, addressed inheritedRef) {
 		switch {
 		case route.Addressed:
 			destination, addressed = inheritedRef{}, inheritedRef{ID: "addressed"}
@@ -234,13 +236,13 @@ func (p Page) routeTree() []routeRow {
 			template.Inherited = template.ID != ""
 		}
 
-		rows = append(rows, routeRow{Route: route, Depth: depth, Destination: destination, Template: template, Addressed: addressed})
+		rows = append(rows, routeRow{Route: route, Depth: depth, Destination: destination, Template: template, Addressed: addressed, Replaces: depth > 0 && route.Replaces(parent)})
 		for _, child := range children[route.ID] {
-			walk(child, depth+1, destination, template, addressed)
+			walk(child, route, depth+1, destination, template, addressed)
 		}
 	}
 	for _, root := range roots {
-		walk(root, 0, inheritedRef{}, inheritedRef{}, inheritedRef{})
+		walk(root, models.Route{}, 0, inheritedRef{}, inheritedRef{}, inheritedRef{})
 	}
 	return rows
 }
@@ -551,8 +553,13 @@ func webhookTemplateOptions(ctx context.Context, p Page) []option {
 	return out
 }
 
-// selectorText renders a label selector the way an operator writes it.
-func selectorText(ctx context.Context, selector map[string]string) string {
+// selectorText renders a route's label selector the way an operator writes it.
+// A default never consults its selector, so an empty one reads as the fallback it is.
+func selectorText(ctx context.Context, route models.Route) string {
+	selector := route.LabelSelector
+	if len(selector) == 0 && route.IsDefault {
+		return i18n.T(ctx, "routes.selector_default")
+	}
 	if len(selector) == 0 {
 		return i18n.T(ctx, "routes.selector_none")
 	}

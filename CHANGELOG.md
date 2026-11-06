@@ -10,6 +10,14 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 ## [Unreleased]
 
+### Changed
+
+* **Breaking:** an empty label selector matches every alert. A root route without a selector, which
+  never fired, now receives every alert and leaves the default route nothing to catch; startup logs
+  a warning naming each such route. A child route without a selector receives everything its
+  parent does and cannot be greedy
+  ([ADR 0095](docs/adr/0095-an-empty-selector-matches-every-alert.md)).
+
 ## [0.17.0] — 2026-11-06
 
 ### Added

@@ -242,7 +242,7 @@ func collect(route models.Route, reason Reason, children map[string][]models.Rou
 			if !labelsMatch(child.LabelSelector, labels) {
 				continue
 			}
-			if child.Greedy {
+			if child.Replaces(route) {
 				// A greedy child takes all of its parent's deliveries with it,
 				// not just the one it happens to share a target kind with.
 				suppressed = true
@@ -314,10 +314,10 @@ func ValidateRoute(candidate models.Route, existing []models.Route) error {
 		return fmt.Errorf("parent route %q does not exist", candidate.ParentID)
 	}
 
-	// A child is only reachable once its parent matched, so it needs a selector
-	// of its own and something to add.
-	if len(candidate.LabelSelector) == 0 {
-		return fmt.Errorf("a child route needs a label selector to refine its parent")
+	// A child without a selector receives everything its parent does, so
+	// replacing the parent would silence it entirely (ADR 0095).
+	if len(candidate.LabelSelector) == 0 && candidate.Greedy {
+		return fmt.Errorf("a child route without a label selector receives everything its parent does, so it cannot deliver instead of it")
 	}
 	if candidate.IsDefault {
 		return fmt.Errorf("only a root route can be the default")
@@ -402,10 +402,9 @@ func sortRoutes(routes []models.Route) {
 	})
 }
 
+// labelsMatch is true when every pair of the selector is among the labels, so
+// an empty selector matches every message (ADR 0095).
 func labelsMatch(selector map[string]string, labels map[string]string) bool {
-	if len(selector) == 0 {
-		return false
-	}
 	for key, value := range selector {
 		if labels[key] != value {
 			return false

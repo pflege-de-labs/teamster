@@ -363,6 +363,42 @@ func TestWebhookTokenWarning(t *testing.T) {
 	}
 }
 
+// A root route without a selector used to match nothing and now takes every
+// alert, so startup names it (ADR 0095).
+func TestWarnCatchAllRoutes(t *testing.T) {
+	t.Parallel()
+
+	cfg := validConfig(t)
+	st, err := store.Open(t.Context(), storeOptions(cfg, store.MigrateAuto))
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	t.Cleanup(func() { _ = st.Close() })
+	dest, err := st.CreateDestination(t.Context(), models.Destination{Name: "d", TeamID: "t", ChannelID: "c"})
+	if err != nil {
+		t.Fatalf("CreateDestination: %v", err)
+	}
+	parent, err := st.CreateRoute(t.Context(), models.Route{Name: "catch-all", DestinationID: dest.ID})
+	if err != nil {
+		t.Fatalf("CreateRoute: %v", err)
+	}
+	for _, route := range []models.Route{
+		{Name: "fallback", IsDefault: true, DestinationID: dest.ID},
+		{Name: "critical", LabelSelector: map[string]string{"severity": "critical"}, DestinationID: dest.ID},
+		{Name: "child", ParentID: parent.ID, DestinationID: dest.ID, TemplateID: "other"},
+	} {
+		if _, err := st.CreateRoute(t.Context(), route); err != nil {
+			t.Fatalf("CreateRoute(%s): %v", route.Name, err)
+		}
+	}
+
+	var out strings.Builder
+	warnCatchAllRoutes(t.Context(), slog.New(slog.NewTextHandler(&out, nil)), st)
+	if got := strings.Count(out.String(), "receives every alert"); got != 1 || !strings.Contains(out.String(), "route=catch-all") {
+		t.Errorf("warnings = %q, want exactly one, naming catch-all", out.String())
+	}
+}
+
 // A new installation starts with one default template per webhook, once.
 func TestSeedPresets(t *testing.T) {
 	t.Parallel()

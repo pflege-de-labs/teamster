@@ -223,8 +223,8 @@ func TestRouteTreeValidationOnTheAPI(t *testing.T) {
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			name: "a child with nothing to refine", method: http.MethodPost, path: "/api/routes",
-			body:       `{"name":"child","parent_id":"known","destination_id":"d"}`,
+			name: "a greedy child without a selector", method: http.MethodPost, path: "/api/routes",
+			body:       `{"name":"child","parent_id":"known","destination_id":"d","greedy":true}`,
 			wantStatus: http.StatusBadRequest,
 		},
 		{

@@ -656,13 +656,18 @@ one trust boundary, two transports. See [ADR 0010](adr/0010-message-shape.md) an
 ## Routing rules
 
 Routes form a tree. `routing.Plan` enters **every root** whose selector matches — every selector key
-present with the same value, an empty selector never matching — in descending priority, ties on
-name, and walks each matched root's children. Nothing stops two independent roots both naming
+present with the same value, so an empty selector matches every alert — in descending priority,
+ties on name, and walks each matched root's children. Nothing stops two independent roots both naming
 `severity=critical`; both fire. The default is a fallback rather than one more candidate: it is
 entered only when no non-default root matched at all, never alongside a real match. See
 [ADR 0034](adr/0034-fan-out-across-independent-routes.md), which extends
 [ADR 0011](adr/0011-nested-routes.md)'s fan-out — there, every matching *child* delivers rather than
-one winning; here, every matching *root* does.
+one winning; here, every matching *root* does. An empty selector matches every alert
+([ADR 0095](adr/0095-an-empty-selector-matches-every-alert.md)): a root without one is entered for
+every alert, which leaves the default nothing to catch, and a child without one receives everything
+its parent does. Such a child cannot be greedy, since replacing its parent on every alert would
+silence it; `models.Route.Replaces` decides whether a child delivers instead of its parent, for the
+router and for every view that draws it.
 
 The last fallback is the **global default destination**. It is one destination with
 `is_default` set, and the first one created gets it. When nothing matched and there is no default
@@ -713,7 +718,8 @@ the picture now resolves targets with the same nearest-route-wins rule as `routi
 its `Kind`, its target and its template resolved. Each `Delivery` already names its own route, root
 or child, so nothing downstream of `Plan` needs to know or care how many roots contributed to the
 list. `routing.ValidateRoute` and `ValidateDelete` are called from both write paths and keep the
-tree acyclic, bounded and free of children that could never fire.
+tree acyclic, bounded and free of children that change nothing, or that would silence their
+parent on every alert.
 
 ## Configuration transfer
 

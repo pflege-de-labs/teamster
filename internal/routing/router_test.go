@@ -479,7 +479,7 @@ func TestPlanPicksEveryMatchingRoot(t *testing.T) {
 		{ID: "default", Name: "default", IsDefault: true, DestinationID: "d1", TemplateID: "t1", Priority: 1},
 		{ID: "critical", Name: "critical", LabelSelector: map[string]string{"severity": "critical"}, DestinationID: "d2", TemplateID: "t2", Priority: 50},
 		{ID: "critical-gold", Name: "critical-gold", LabelSelector: map[string]string{"severity": "critical", "tier": "gold"}, DestinationID: "d3", TemplateID: "t3", Priority: 100},
-		{ID: "empty", Name: "empty", LabelSelector: map[string]string{}, Priority: 200},
+		{ID: "empty", Name: "empty", LabelSelector: map[string]string{}, DestinationID: "d4", Priority: 200},
 	}
 
 	tests := []struct {
@@ -492,18 +492,28 @@ func TestPlanPicksEveryMatchingRoot(t *testing.T) {
 		{
 			// "critical" selects on severity alone, so it matches too -- an
 			// alert carrying an extra label is still every bit as critical.
-			name: "two selectors both matching both deliver, highest priority first", routes: routes,
+			name: "two selectors both matching both deliver, highest priority first", routes: routes[:3],
 			labels:     map[string]string{"severity": "critical", "tier": "gold"},
 			wantReason: ReasonSelector, wantRoutes: []string{"critical-gold", "critical"},
 		},
 		{
-			name: "one selector matches", routes: routes,
+			name: "one selector matches", routes: routes[:3],
 			labels:     map[string]string{"severity": "critical"},
 			wantReason: ReasonSelector, wantRoutes: []string{"critical"},
 		},
 		{
-			name: "an empty selector never matches, even at the highest priority", routes: routes,
+			name: "an empty selector matches every alert, so the default is not needed", routes: routes,
 			labels:     map[string]string{"anything": "at-all"},
+			wantReason: ReasonSelector, wantRoutes: []string{"empty"},
+		},
+		{
+			name: "an empty selector delivers alongside the selectors that match", routes: routes,
+			labels:     map[string]string{"severity": "critical", "tier": "gold"},
+			wantReason: ReasonSelector, wantRoutes: []string{"empty", "critical-gold", "critical"},
+		},
+		{
+			name: "a default without a selector stays a fallback", routes: routes[:2],
+			labels:     map[string]string{"severity": "warning"},
 			wantReason: ReasonDefault, wantRoutes: []string{"default"},
 		},
 		{
@@ -614,6 +624,24 @@ func TestPlanNesting(t *testing.T) {
 			},
 			labels:     map[string]string{"severity": "critical", "team": "payments"},
 			wantRoutes: []string{"child"},
+		},
+		{
+			name: "a child without a selector delivers as well as its parent",
+			routes: []models.Route{parent,
+				{ID: "child", Name: "child", ParentID: "parent", DestinationID: "payments"},
+			},
+			labels:     map[string]string{"severity": "critical"},
+			wantRoutes: []string{"parent", "child"},
+		},
+		{
+			// Validation refuses this; a row stored some other way still must not
+			// silence the parent.
+			name: "a greedy child without a selector does not replace its parent",
+			routes: []models.Route{parent,
+				{ID: "child", Name: "child", ParentID: "parent", Greedy: true, DestinationID: "payments"},
+			},
+			labels:     map[string]string{"severity": "critical"},
+			wantRoutes: []string{"parent", "child"},
 		},
 		{
 			name: "a child whose selector does not match leaves the parent alone",
@@ -840,9 +868,13 @@ func TestValidateRoute(t *testing.T) {
 			wantErr:   "cycle",
 		},
 		{
-			name:      "a child without a selector could never fire",
+			name:      "a child without a selector adds a target to everything its parent gets",
 			candidate: models.Route{ID: "new", Name: "new", ParentID: "root", DestinationID: "search"},
-			wantErr:   "needs a label selector",
+		},
+		{
+			name:      "a child without a selector cannot replace its parent",
+			candidate: models.Route{ID: "new", Name: "new", ParentID: "root", Greedy: true, DestinationID: "search"},
+			wantErr:   "cannot deliver instead of it",
 		},
 		{
 			name:      "a child that inherits everything changes nothing",
