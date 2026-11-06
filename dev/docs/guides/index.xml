@@ -2340,13 +2340,16 @@ the others to match several endpoints. Pick the destination and template. Both r
 the message.&lt;/p&gt;
 &lt;p&gt;To add a condition, make the route a child of the endpoint&amp;rsquo;s route and add a label of its own to
 the selector, or leave the selector empty to receive everything the endpoint&amp;rsquo;s route does. A child
-is as well as its parent unless you mark it greedy; a child without a selector cannot be greedy.&lt;/p&gt;
+is as well as its parent; it cannot be greedy.&lt;/p&gt;
 &lt;/div&gt;
-&lt;div class="hx:overflow-x-auto hx:mt-6 hx:flex hx:rounded-lg hx:border hx:py-2 hx:ltr:pr-4 hx:rtl:pl-4 hx:contrast-more:border-current hx:contrast-more:dark:border-current hx:border-amber-200 hx:bg-amber-100 hx:text-amber-900 hx:dark:border-amber-200/30 hx:dark:bg-amber-900/30 hx:dark:text-amber-200"&gt;
-&lt;div class="hx:ltr:pl-3 hx:ltr:pr-2 hx:rtl:pr-3 hx:rtl:pl-2"&gt;&lt;svg height=1.2em class="hx:inline-block hx:align-middle" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"&gt;&lt;path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/&gt;&lt;/svg&gt;&lt;/div&gt;
+&lt;div class="hx:overflow-x-auto hx:mt-6 hx:flex hx:rounded-lg hx:border hx:py-2 hx:ltr:pr-4 hx:rtl:pl-4 hx:contrast-more:border-current hx:contrast-more:dark:border-current hx:border-blue-200 hx:bg-blue-100 hx:text-blue-900 hx:dark:border-blue-200/30 hx:dark:bg-blue-900/30 hx:dark:text-blue-200"&gt;
+&lt;div class="hx:ltr:pl-3 hx:ltr:pr-2 hx:rtl:pr-3 hx:rtl:pl-2"&gt;&lt;svg height=1.2em class="hx:inline-block hx:align-middle" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"&gt;&lt;path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/&gt;&lt;/svg&gt;&lt;/div&gt;
 &lt;div class="hx:w-full hx:min-w-0 hx:leading-7"&gt;
-&lt;div class="hx:mt-6 hx:leading-7 hx:first:mt-0"&gt;A greedy child replaces the endpoint&amp;rsquo;s route, so the endpoint&amp;rsquo;s own channel stops receiving the
-messages that child matches. The endpoint cannot be deleted while it has child routes. See
+&lt;div class="hx:mt-6 hx:leading-7 hx:first:mt-0"&gt;A child of the endpoint&amp;rsquo;s route always delivers as well as it, so the endpoint&amp;rsquo;s own channel keeps
+receiving its messages. The route has &lt;strong&gt;Child routes deliver as well as this route, never instead
+of it&lt;/strong&gt; ticked and locked, and saving a greedy child under it is refused. A greedy child that
+existed before this rule now delivers as well as the route, and saving it again is refused until
+you clear greedy. The endpoint cannot be deleted while it has child routes. See
 &lt;a href="https://pflege-de-labs.github.io/teamster/dev/docs/concepts/routing/" target="_blank" rel="noopener"&gt;Routing&lt;/a&gt;.&lt;/div&gt;
 &lt;/div&gt;
 &lt;/div&gt;

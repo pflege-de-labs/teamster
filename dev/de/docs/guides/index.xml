@@ -2440,15 +2440,19 @@ Routen stellen die Nachricht nun zu.&lt;/p&gt;
 &lt;p&gt;Für eine zusätzliche Bedingung machen Sie die Route zur untergeordneten Route der Endpunkt-Route
 und nehmen ein eigenes Label in den Selektor auf, oder lassen den Selektor leer, um alles zu
 erhalten, was die Endpunkt-Route erhält. Eine untergeordnete Route gilt zusätzlich zur
-übergeordneten, es sei denn, Sie markieren sie als verdrängend; ohne Selektor kann sie nicht
-verdrängend sein.&lt;/p&gt;
+übergeordneten; sie kann nicht verdrängend sein.&lt;/p&gt;
 &lt;/div&gt;
-&lt;div class="hx:overflow-x-auto hx:mt-6 hx:flex hx:rounded-lg hx:border hx:py-2 hx:ltr:pr-4 hx:rtl:pl-4 hx:contrast-more:border-current hx:contrast-more:dark:border-current hx:border-amber-200 hx:bg-amber-100 hx:text-amber-900 hx:dark:border-amber-200/30 hx:dark:bg-amber-900/30 hx:dark:text-amber-200"&gt;
-&lt;div class="hx:ltr:pl-3 hx:ltr:pr-2 hx:rtl:pr-3 hx:rtl:pl-2"&gt;&lt;svg height=1.2em class="hx:inline-block hx:align-middle" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"&gt;&lt;path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/&gt;&lt;/svg&gt;&lt;/div&gt;
+&lt;div class="hx:overflow-x-auto hx:mt-6 hx:flex hx:rounded-lg hx:border hx:py-2 hx:ltr:pr-4 hx:rtl:pl-4 hx:contrast-more:border-current hx:contrast-more:dark:border-current hx:border-blue-200 hx:bg-blue-100 hx:text-blue-900 hx:dark:border-blue-200/30 hx:dark:bg-blue-900/30 hx:dark:text-blue-200"&gt;
+&lt;div class="hx:ltr:pl-3 hx:ltr:pr-2 hx:rtl:pr-3 hx:rtl:pl-2"&gt;&lt;svg height=1.2em class="hx:inline-block hx:align-middle" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"&gt;&lt;path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/&gt;&lt;/svg&gt;&lt;/div&gt;
 &lt;div class="hx:w-full hx:min-w-0 hx:leading-7"&gt;
-&lt;div class="hx:mt-6 hx:leading-7 hx:first:mt-0"&gt;Eine verdrängende untergeordnete Route ersetzt die Route des Endpunkts, sodass der eigene Kanal des
-Endpunkts die Nachrichten, auf die sie zutrifft, nicht mehr erhält. Der Endpunkt lässt sich nicht
-löschen, solange er untergeordnete Routen hat. Siehe &lt;a href="https://pflege-de-labs.github.io/teamster/dev/de/docs/concepts/routing/" target="_blank" rel="noopener"&gt;Routing&lt;/a&gt;.&lt;/div&gt;
+&lt;div class="hx:mt-6 hx:leading-7 hx:first:mt-0"&gt;Eine untergeordnete Route der Endpunkt-Route stellt immer zusätzlich zu ihr zu, sodass der eigene
+Kanal des Endpunkts seine Nachrichten weiterhin erhält. Bei der Route ist das Häkchen
+&lt;strong&gt;Untergeordnete Routen stellen zusätzlich zu dieser Route zu, nie an ihrer Stelle&lt;/strong&gt; gesetzt und
+gesperrt, und das Speichern einer verdrängenden untergeordneten Route darunter wird abgewiesen.
+Eine verdrängende untergeordnete Route, die schon vorher bestand, stellt jetzt zusätzlich zur Route
+zu; erneutes Speichern wird abgewiesen, bis Sie
+„verdrängend“ abwählen. Der Endpunkt lässt sich nicht löschen, solange er untergeordnete Routen
+hat. Siehe &lt;a href="https://pflege-de-labs.github.io/teamster/dev/de/docs/concepts/routing/" target="_blank" rel="noopener"&gt;Routing&lt;/a&gt;.&lt;/div&gt;
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;p&gt;Schlägt eine Zustellung fehl, lautet die Antwort &lt;code&gt;502&lt;/code&gt;, und ein Absender, der es erneut versucht,

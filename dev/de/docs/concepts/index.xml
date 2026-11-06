@@ -29,14 +29,15 @@ Teamster entfernt alle drei aus den Labels eines Absenders an jedem anderen Webh
 verknüpfte Route, die diese drei Labels selektiert und mit der Vorlage des Endpunkts an sein Ziel
 zustellt. Sie wird mit dem Endpunkt angelegt, aktualisiert und gelöscht, und der Bereich &lt;strong&gt;Routen&lt;/strong&gt;
 kennzeichnet sie mit &lt;strong&gt;Verwaltet vom Webhook &lt;code&gt;&amp;lt;team&amp;gt;/&amp;lt;channel&amp;gt;&lt;/code&gt;&lt;/strong&gt;. Ihr Selektor, Zustellziel,
-Vorlage, übergeordnete Route und Standard-Markierung sind gesperrt; Name, Priorität und die
-Markierung „verdrängend“ nicht. Sie können die Route nicht löschen, solange ihr Endpunkt besteht,
+Vorlage, übergeordnete Route, Standard-Markierung und die Einstellung „untergeordnete Routen stellen
+ebenfalls zu“ (siehe &lt;a href="#nested-routes"&gt;Verschachtelte Routen&lt;/a&gt;) sind gesperrt; Name, Priorität und
+die Markierung „verdrängend“ nicht. Sie können die Route nicht löschen, solange ihr Endpunkt besteht,
 und den Endpunkt nicht, solange die Route untergeordnete Routen hat.&lt;/p&gt;
 &lt;p&gt;Weil die Nachricht durch das Routing läuft, stellt auch jede andere Route zu, die dieselben Labels
 selektiert. Siehe
 &lt;a href="../../guides/teams-v2-webhook/#send-the-messages-to-more-channels"&gt;Die Nachrichten an weitere Kanäle senden&lt;/a&gt;.
-Eine verdrängende untergeordnete Route der verknüpften Route ersetzt diese; der eigene Kanal des
-Endpunkts erhält die Nachricht dann nicht mehr.&lt;/p&gt;
+Eine untergeordnete Route der verknüpften Route stellt immer zusätzlich zu ihr zu; der eigene Kanal
+des Endpunkts erhält die Nachricht also immer.&lt;/p&gt;
 &lt;p&gt;Ein Endpunkt ohne verknüpfte Route, etwa einer aus einem früheren Release, postet direkt an sein
 Ziel. Teamster legt die fehlende Route beim Start an.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="root-routes-and-priority"&gt;Wurzelrouten und Priorität&lt;span class="hx:absolute hx:-mt-20" id="root-routes-and-priority"&gt;&lt;/span&gt;
@@ -62,6 +63,15 @@ eine derselben Art.&lt;/li&gt;
 &lt;li&gt;&lt;strong&gt;Vererbung.&lt;/strong&gt; Eine untergeordnete Route ohne eigenes Zustellziel oder ohne eigene Vorlage
 übernimmt die des nächsten Vorfahren. „Dieselbe Karte an einen weiteren Kanal“ ist eine
 untergeordnete Route, in der ein einziges Feld gesetzt ist.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Ersetzen verhindern.&lt;/strong&gt; Setzen Sie bei einer Route das Häkchen bei
+&lt;strong&gt;Untergeordnete Routen stellen zusätzlich zu dieser Route zu, nie an ihrer Stelle&lt;/strong&gt;, und jede
+untergeordnete Route darunter stellt zusätzlich zu ihr zu. Das Speichern einer verdrängenden
+untergeordneten Route unter einer solchen Route wird mit &lt;code&gt;route &amp;quot;&amp;lt;name&amp;gt;&amp;quot; keeps its own deliveries, so a child route can only deliver as well as it&lt;/code&gt; abgewiesen. Hat die Route bereits
+verdrängende untergeordnete Routen, können Sie das Häkchen trotzdem setzen: Sie stellen dann
+zusätzlich zu ihr zu, und die Routenliste zeigt sie als &lt;em&gt;zusätzlich zur übergeordneten&lt;/em&gt;. Das
+Häkchen schützt nur diese Route; eine verdrängende Enkelroute ersetzt weiterhin ihre eigene
+übergeordnete Route. In der API heißt das Feld &lt;code&gt;no_greedy_children&lt;/code&gt;, und Export und Import
+übernehmen es.&lt;/li&gt;
 &lt;li&gt;Jede zutreffende untergeordnete Route stellt zu, nicht nur die erste.&lt;/li&gt;
 &lt;li&gt;Routen lassen sich höchstens fünf Ebenen tief verschachteln.&lt;/li&gt;
 &lt;/ul&gt;
