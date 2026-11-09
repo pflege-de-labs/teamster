@@ -1179,25 +1179,49 @@ eine eingebaute Nachricht.&lt;/li&gt;
 &lt;/ol&gt;
 &lt;p&gt;Nur wenn überhaupt kein Ziel existiert, wird ein Ereignis nirgendwohin zugestellt.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="seeing-the-routes"&gt;Die Routen ansehen&lt;span class="hx:absolute hx:-mt-20" id="seeing-the-routes"&gt;&lt;/span&gt;
-&lt;a href="#seeing-the-routes" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;&lt;code&gt;/admin/routing&lt;/code&gt; zeichnet den Weg eines Ereignisses: den Webhook, an dem es ankommt, die Routen in
-der Reihenfolge ihrer Auswertung mit ihren untergeordneten Routen daran, und die Kanäle und
-Personen, an die sie zustellen.&lt;/p&gt;
+&lt;a href="#seeing-the-routes" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;&lt;code&gt;/admin/routing&lt;/code&gt; zeichnet den Weg eines Ereignisses. Der Graph füllt die Seite und liest sich von
+links nach rechts: die Webhooks und Teams-V2-Endpunkte, an denen Ereignisse ankommen, die Routen in
+der Reihenfolge ihrer Auswertung, ihre untergeordneten Routen in einer Spalte rechts daneben, und
+die Kanäle und Personen, an die sie zustellen.&lt;/p&gt;
+&lt;p&gt;Verbindungen mit denselben Vorgängern teilen sich eine Spur, wie in einem Liniennetzplan. Jede
+Linie hat die Farbe des Webhooks oder Teams-V2-Endpunkts, von dem ihre Alarme stammen, und eine
+Linie, die Alarme mehrerer Webhooks trägt, verläuft als mehrere Stränge nebeneinander. Auf dem Tab
+&lt;strong&gt;Vorlagen&lt;/strong&gt; ist stattdessen die Vorlage die Farbe.&lt;/p&gt;
 &lt;ul&gt;
-&lt;li&gt;Routenknoten zeigen die Labels, die sie auswählen, oder &lt;em&gt;no selector — matches every alert&lt;/em&gt;, und
-die Vorlage, mit der sie rendern; eine geerbte Vorlage ist gekennzeichnet. Die Routenliste sagt
-bei einem leeren Selektor &lt;strong&gt;trifft auf jeden Alarm zu&lt;/strong&gt; und bei einer Standardroute mit Selektor
+&lt;li&gt;Ein Symbol zeigt, was ein Knoten ist: ein Winkel für einen Webhook, ein doppelter Winkel für
+einen Teams-V2-Endpunkt, eine Gabelung für eine Route, ein Pfeil in einen Balken für ein Ziel,
+eine Person für einen Chat und &lt;code&gt;@&lt;/code&gt; für jeden, der in der Nachricht genannt wird. Fehlende Knoten
+(rot) und Teams ohne installierte Teams-App (gelb) haben eigene Markierungen.&lt;/li&gt;
+&lt;li&gt;Eine Route zeigt die Labels, die sie auswählt, oder &lt;em&gt;no selector — matches every alert&lt;/em&gt;, und die
+Vorlage, mit der sie rendert; eine geerbte Vorlage ist gekennzeichnet. Die Routenliste sagt bei
+einem leeren Selektor &lt;strong&gt;trifft auf jeden Alarm zu&lt;/strong&gt; und bei einer Standardroute mit Selektor
 &lt;strong&gt;fängt auf, was keine andere Route trifft&lt;/strong&gt;.&lt;/li&gt;
-&lt;li&gt;Ein gestrichelter Pfeil zwischen zwei Routen ist eine Verfeinerung, beschriftet mit
-&lt;em&gt;zusätzlich zur übergeordneten&lt;/em&gt; oder &lt;em&gt;statt der übergeordneten&lt;/em&gt;.&lt;/li&gt;
+&lt;li&gt;Eine gestrichelte Linie zwischen zwei Routen ist eine untergeordnete Route, die ihre
+übergeordnete verfeinert. Sie endet in einem Balken, wenn die untergeordnete Route &lt;em&gt;statt&lt;/em&gt; der
+übergeordneten zustellt; sonst stellt sie &lt;em&gt;zusätzlich&lt;/em&gt; zu ihr zu. Eine gepunktete Linie ist ein
+Teams-V2-Endpunkt, der ohne Routing direkt in seinen Kanal postet.&lt;/li&gt;
 &lt;li&gt;Eine Route, die auf ein gelöschtes Ziel oder eine gelöschte Person zeigt, erscheint als
 fehlender Knoten.&lt;/li&gt;
-&lt;li&gt;Ein zweites Bild ordnet Vorlagen den Routen und Webhooks zu, die sie verwenden. Eine Vorlage,
-neben der nichts steht, wird nicht verwendet.&lt;/li&gt;
+&lt;li&gt;Der Tab &lt;strong&gt;Vorlagen&lt;/strong&gt; ordnet Vorlagen den Routen und Webhooks zu, die sie verwenden. Eine Vorlage,
+neben der nichts steht, wird nicht verwendet. Direkt öffnen Sie ihn mit
+&lt;code&gt;/admin/routing?tab=templates&lt;/code&gt;.&lt;/li&gt;
 &lt;/ul&gt;
-&lt;p&gt;Tragen Sie &lt;code&gt;key=value&lt;/code&gt;-Labels auf der Seite ein, um zu fragen, welche Routen ein bestimmtes
-Ereignis nehmen würde. Jede Route, die zustellt, wird genannt und begründet (eine Route ohne
-Selektor sagt, dass sie jeden Alarm nimmt), und ihr Weg wird hervorgehoben, während der Rest
-verblasst.&lt;/p&gt;
+&lt;p&gt;Linien tragen keinen Text. Fahren Sie über einen Knoten oder eine Linie, um zu sehen, was sie ist
+und tut: Selektor, Priorität, Vorlage und Warnungen der Route sowie eine Vorschau ihrer
+Verbindungen. Klicken Sie einen Knoten an, oder fokussieren Sie ihn mit &lt;code&gt;Tab&lt;/code&gt; und drücken Sie
+&lt;code&gt;Enter&lt;/code&gt;, um alles davor und dahinter hervorgehoben zu lassen und dorthin zu zoomen. Klicken Sie auf
+den Hintergrund oder drücken Sie &lt;code&gt;Esc&lt;/code&gt;, um wieder alles zu sehen. Ziehen Sie den Hintergrund zum
+Verschieben, scrollen Sie zum Zoomen und nutzen Sie &lt;strong&gt;Alles zeigen&lt;/strong&gt;, um den ganzen Graphen zu
+sehen. Knoten lassen sich nicht verschieben. Die Info-Schaltfläche (ⓘ) erklärt, wie Sie den Graphen
+lesen: Darüberfahren öffnet sie, ein Klick hält sie fest, &lt;code&gt;Esc&lt;/code&gt; schließt sie.&lt;/p&gt;
+&lt;p&gt;Tragen Sie &lt;code&gt;key=value&lt;/code&gt;-Labels unter &lt;strong&gt;Welche Routen treffen zu?&lt;/strong&gt; ein, um zu fragen, welche Routen
+ein bestimmtes Ereignis nehmen würde. Jede Route, die zustellt, wird genannt und begründet (eine
+Route ohne Selektor sagt, dass sie jeden Alarm nimmt), und ihr Weg bleibt hervorgehoben, während
+der Rest verblasst.&lt;/p&gt;
+&lt;p&gt;Das Label-Feld und die &lt;strong&gt;Legende&lt;/strong&gt; schweben über dem Graphen. Ziehen Sie sie an ihrem Titel,
+klappen Sie sie ein oder aus (&lt;strong&gt;Ein- oder ausklappen&lt;/strong&gt;), oder blenden Sie sie aus (&lt;strong&gt;Ausblenden&lt;/strong&gt;)
+und holen Sie sie über die Schaltflächen oben links zurück. Die Legende startet eingeklappt. Ihr
+Browser merkt sich, wo Sie sie abgelegt haben.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="related"&gt;Verwandte Themen&lt;span class="hx:absolute hx:-mt-20" id="related"&gt;&lt;/span&gt;
 &lt;a href="#related" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;ul&gt;
 &lt;li&gt;Wie eine zugestellte Karte aktualisiert und aufgelöst wird:

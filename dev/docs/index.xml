@@ -1619,22 +1619,40 @@ message.&lt;/li&gt;
 &lt;/ol&gt;
 &lt;p&gt;Only when no destination exists at all is an event delivered nowhere.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="seeing-the-routes"&gt;Seeing the routes&lt;span class="hx:absolute hx:-mt-20" id="seeing-the-routes"&gt;&lt;/span&gt;
-&lt;a href="#seeing-the-routes" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;&lt;code&gt;/admin/routing&lt;/code&gt; draws the path an event takes: the webhook it arrives at, the routes in the order
-they are evaluated with their children hanging off them, and the channels and people they deliver
-to.&lt;/p&gt;
+&lt;a href="#seeing-the-routes" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;&lt;code&gt;/admin/routing&lt;/code&gt; draws the path an event takes. The graph fills the page and reads left to right:
+the webhooks and Teams V2 endpoints events arrive at, the routes in the order they are evaluated,
+their child routes in a column to the right of them, and the channels and people they deliver to.&lt;/p&gt;
+&lt;p&gt;Links with the same parents share one track, as in a metro map. Every line has the colour of the
+webhook or Teams V2 endpoint its alerts come from, and a line that carries alerts from several
+webhooks runs as several strands side by side. On the &lt;strong&gt;Templates&lt;/strong&gt; tab, the colour is the
+template instead.&lt;/p&gt;
 &lt;ul&gt;
-&lt;li&gt;Route nodes show the labels they select, or &lt;em&gt;no selector — matches every alert&lt;/em&gt;, and the
-template they render with, marked when it is inherited. The Routes list says &lt;em&gt;matches every
-alert&lt;/em&gt; for an empty selector, and &lt;em&gt;catches what no other route matches&lt;/em&gt; for a default route
-with one.&lt;/li&gt;
-&lt;li&gt;A dashed arrow between two routes is a refinement, labelled &lt;em&gt;as well as&lt;/em&gt; or &lt;em&gt;instead of&lt;/em&gt;.&lt;/li&gt;
+&lt;li&gt;An icon tells what a node is: a chevron for a webhook, a double chevron for a Teams V2 endpoint,
+a fork for a route, an arrow into a bar for a destination, a person for a chat, and &lt;code&gt;@&lt;/code&gt; for
+anyone named in the message. Missing nodes (red) and teams without the Teams app installed
+(amber) have their own marks.&lt;/li&gt;
+&lt;li&gt;A route shows the labels it selects, or &lt;em&gt;no selector — matches every alert&lt;/em&gt;, and the template it
+renders with, marked when it is inherited. The Routes list says &lt;em&gt;matches every alert&lt;/em&gt; for an
+empty selector, and &lt;em&gt;catches what no other route matches&lt;/em&gt; for a default route with one.&lt;/li&gt;
+&lt;li&gt;A dashed line between two routes is a child refining its parent. It ends in a bar when the child
+delivers &lt;em&gt;instead of&lt;/em&gt; its parent; otherwise it delivers &lt;em&gt;as well as&lt;/em&gt; it. A dotted line is a
+Teams V2 endpoint posting straight to its channel, without routing.&lt;/li&gt;
 &lt;li&gt;A route pointing at a deleted destination or person shows up as a missing node.&lt;/li&gt;
-&lt;li&gt;A second graph pairs templates with the routes and webhooks that use them. A template with
-nothing beside it is unused.&lt;/li&gt;
+&lt;li&gt;The &lt;strong&gt;Templates&lt;/strong&gt; tab pairs templates with the routes and webhooks that use them. A template
+with nothing beside it is unused. Open it directly with &lt;code&gt;/admin/routing?tab=templates&lt;/code&gt;.&lt;/li&gt;
 &lt;/ul&gt;
-&lt;p&gt;Paste &lt;code&gt;key=value&lt;/code&gt; labels into the page to ask which routes a given event would take. Every route
-that delivers is named and explained (a route without a selector says it takes every alert), and
-its path is highlighted while the rest dims.&lt;/p&gt;
+&lt;p&gt;Lines carry no text. Hover a node or a line for what it is and does: the route&amp;rsquo;s selector,
+priority, template and warnings, and a preview of its connections. Click a node, or focus it with
+&lt;code&gt;Tab&lt;/code&gt; and press &lt;code&gt;Enter&lt;/code&gt;, to keep everything upstream and downstream lit and zoom there. Click the
+background or press &lt;code&gt;Esc&lt;/code&gt; to see everything again. Drag the background to pan, scroll to zoom, and
+use &lt;strong&gt;Fit to view&lt;/strong&gt; to see the whole graph. Nodes cannot be moved. The info button (ⓘ) explains how
+to read the graph: hover opens it, click pins it, &lt;code&gt;Esc&lt;/code&gt; closes it.&lt;/p&gt;
+&lt;p&gt;Paste &lt;code&gt;key=value&lt;/code&gt; labels into &lt;strong&gt;Which routes match?&lt;/strong&gt; to ask which routes a given event would take.
+Every route that delivers is named and explained (a route without a selector says it takes every
+alert), and its path stays lit while the rest fades.&lt;/p&gt;
+&lt;p&gt;The label box and the &lt;strong&gt;Legend&lt;/strong&gt; float over the graph. Drag them by their title, fold them, or
+hide them and bring them back from the buttons at the top left. The legend starts folded. Your
+browser remembers where you left them.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="related"&gt;Related&lt;span class="hx:absolute hx:-mt-20" id="related"&gt;&lt;/span&gt;
 &lt;a href="#related" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;ul&gt;
 &lt;li&gt;How a delivered card is updated and resolved:
