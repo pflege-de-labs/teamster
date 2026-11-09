@@ -94,6 +94,16 @@ jobs:
           name: coverage
           path: coverage.out
 
+  # The browser scripts' pure logic (ADR 0098). node:test is built in, so there is nothing to install.
+  js:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - run: make test-js
+
   chart:
     uses: pflege-de-labs/github-workflows/.github/workflows/helm-lint.yml@cef33cface64a7ac3c33a5a8aea652095de518f7 # v1.1.0
     with:
