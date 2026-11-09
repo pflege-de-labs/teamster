@@ -143,6 +143,11 @@ webhook or Teams V2 endpoint its alerts come from, and a line that carries alert
 webhooks runs as several strands side by side. On the **Templates** tab, the colour is the
 template instead.
 
+A line that skips a column, such as a route delivering straight to a channel past its child routes,
+runs through that column in a row of its own, so it never crosses a node's label. Lines of one
+node of the same kind share that row until they split at their last column. A long label is
+shortened with an ellipsis before the next column's lines begin; hover the node for the full name.
+
 * An icon tells what a node is: a chevron for a webhook, a double chevron for a Teams V2 endpoint,
   a fork for a route, an arrow into a bar for a destination, a person for a chat, and `@` for
   anyone named in the message. Missing nodes (red) and teams without the Teams app installed
