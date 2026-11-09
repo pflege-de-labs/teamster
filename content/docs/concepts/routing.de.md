@@ -141,9 +141,17 @@ Nur wenn überhaupt kein Ziel existiert, wird ein Ereignis nirgendwohin zugestel
 ## Die Routen ansehen {#seeing-the-routes}
 
 `/admin/routing` zeichnet den Weg eines Ereignisses. Der Graph füllt die Seite und liest sich von
-links nach rechts: die Webhooks und Teams-V2-Endpunkte, an denen Ereignisse ankommen, die Routen in
-der Reihenfolge ihrer Auswertung, ihre untergeordneten Routen in einer Spalte rechts daneben, und
-die Kanäle und Personen, an die sie zustellen.
+links nach rechts: die Webhooks und Teams-V2-Endpunkte, an denen Ereignisse ankommen, die Routen,
+ihre untergeordneten Routen in einer Spalte rechts daneben, und die Kanäle und Personen, an die sie
+zustellen.
+
+Jede Spalte außer der ersten ist so geordnet, dass sich möglichst wenige Linien kreuzen. Der Knoten
+**Global default** und die Standardroute stehen oben in der Routenspalte, damit die Linien, die
+Ereignisse ohne passende Route nehmen, gerade oben entlang verlaufen. Die Spalte zeigt deshalb nicht
+die Reihenfolge, in der die Routen ausgewertet werden: Die Priorität einer Route steht an ihrer
+Beschriftung (zum Beispiel `· p100`) und in ihrer Hover-Karte, und der Bereich **Routen** listet die
+Routen in der Reihenfolge ihrer Auswertung. In der Zielspalte können Kanäle und Personen gemischt
+stehen.
 
 Verbindungen mit denselben Vorgängern teilen sich eine Spur, wie in einem Liniennetzplan. Jede
 Linie hat die Farbe des Webhooks oder Teams-V2-Endpunkts, von dem ihre Alarme stammen, und eine

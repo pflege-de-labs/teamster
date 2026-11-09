@@ -128,8 +128,15 @@ Only when no destination exists at all is an event delivered nowhere.
 ## Seeing the routes
 
 `/admin/routing` draws the path an event takes. The graph fills the page and reads left to right:
-the webhooks and Teams V2 endpoints events arrive at, the routes in the order they are evaluated,
-their child routes in a column to the right of them, and the channels and people they deliver to.
+the webhooks and Teams V2 endpoints events arrive at, the routes, their child routes in a column to
+the right of them, and the channels and people they deliver to.
+
+Each column except the first is ordered so that as few lines cross as possible. The **Global
+default** node and the default route sit at the top of the routes column, so the lines unmatched
+events take run straight along the top. The column therefore does not show the order in which
+routes are evaluated: read a route's priority from its label (for example `· p100`) or its hover
+card, and see the Routes list for the routes in evaluation order. Channels and people can mix in
+the destinations column.
 
 Links with the same parents share one track, as in a metro map. Every line has the colour of the
 webhook or Teams V2 endpoint its alerts come from, and a line that carries alerts from several
