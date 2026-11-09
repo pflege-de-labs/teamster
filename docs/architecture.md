@@ -594,7 +594,9 @@ and the row keeps children next to their parents. The browser turns them into a 
 (`web/tangle.js`, ported from nitaku's Observable notebook, MIT): links with the same parents share
 one vertical track, the columns are top-aligned, and every link takes the colour of the webhook or
 endpoint it carries alerts from, as parallel strands where it carries several
-([ADR 0097](adr/0097-lay-out-the-routing-graph-as-a-tangled-tree.md)). The page uses `FullLayout`,
+([ADR 0097](adr/0097-lay-out-the-routing-graph-as-a-tangled-tree.md)). Its layout is tested with
+`node:test` against the original's coordinates
+([ADR 0098](adr/0098-test-browser-script-logic-with-node-test.md)). The page uses `FullLayout`,
 which gives the graph everything below the header. The label probe and the legend float over the
 graph, and the template graph is a second tab. A route node shows the labels it filters for, a
 destination node its name together with the Team and channel **names**, resolved through the same
