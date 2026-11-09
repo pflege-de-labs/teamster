@@ -188,6 +188,7 @@ Ein Kanal und eine Route an einen einzelnen verknüpften Chat sehen das ganze Er
 | Funktion | Signatur | Ergibt |
 | --- | --- | --- |
 | `toJSON` | `toJSON <value>` | `value` als JSON kodiert. Lässt das Rendern scheitern, wenn sich der Wert nicht kodieren lässt. |
+| `cardParts` | `cardParts <card>` | Den Inhalt einer Adaptive Card, etwa `.Event.Card`, als `.Texts`, `.Facts` und `.Actions`; siehe unten. |
 | `default` | `default <value> <fallback>` | `value`, wenn es ein nicht leerer String ist, sonst `fallback`, wenn das ein String ist, sonst einen leeren String. Funktioniert auch mit einem fehlenden Map-Schlüssel. |
 
 Die eingebauten Funktionen von `text/template` stehen ebenfalls zur Verfügung: `and`, `or`, `not`,
@@ -215,6 +216,21 @@ aus der Dokumentation von sprig, `.x | default "y"`, ergibt immer `"y"`; schreib
 {{ regexFind "^[a-z]+" .Event.Universal.Attributes.commit_message }}
 {{ splitList "\n" .Event.Universal.Attributes.commit_message | first | trunc 80 }}
 ```
+
+### cardParts {#cardparts}
+
+`{{ $p := cardParts .Event.Card }}` durchsucht die Karte durch Container, Spalten und Tabellen.
+
+| Feld | Enthält |
+| --- | --- |
+| `$p.Texts` | Den Text jedes TextBlocks und RichTextBlocks, in Reihenfolge. |
+| `$p.Facts` | Jeden Fakt eines FactSets, je mit `.Title` und `.Value`. |
+| `$p.Actions` | Jede `Action.OpenUrl`, je mit `.Title` und `.URL`. |
+
+Eine Nachricht ohne Karte ergibt leere Listen. Bilder, Eingaben und andere Aktionen werden nicht
+extrahiert, und Texte und Fakten verlieren ihre Reihenfolge zueinander. Den ersten Text erhalten
+Sie mit `first $p.Texts`, die übrigen mit `rest $p.Texts`; `index $p.Texts 0` scheitert bei einer
+leeren Liste.
 
 ## Siehe auch {#see-also}
 

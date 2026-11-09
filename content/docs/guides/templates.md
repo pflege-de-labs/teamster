@@ -18,6 +18,10 @@ Templates live under **Templates** on **/admin**. Every field a template can rea
 Open a new template and pick one under **Start from a preset**. It fills the name, title, text,
 card and webhooks in one go, which is quicker than starting empty.
 
+Two further presets for Teams V2 payloads are offered here but never stored as defaults. They lay
+out a sender's card differently; see
+[Fix a card that Teams renders badly](../teams-v2-webhook/#fix-a-card-that-teams-renders-badly).
+
 ### Fill in the parts
 
 A template has three optional parts and needs at least one:
@@ -232,6 +236,7 @@ curl -H "Authorization: Bearer <token>" -H 'Content-Type: application/json' \
 | `universal-direct-message.json` | Direct content, for a route with no template |
 | `universal-password-expiry.json` | A message to the people it names |
 | `teamsv2-card.json`, `teamsv2-text.json`, `teamsv2-messagecard.json` | The three Teams V2 shapes |
+| `teamsv2-exception.json` | A Teams V2 card whose long facts Teams renders badly |
 
 ## Migrate templates from before 0.9.0
 
