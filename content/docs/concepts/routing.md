@@ -127,22 +127,43 @@ Only when no destination exists at all is an event delivered nowhere.
 
 ## Seeing the routes
 
-`/admin/routing` draws the path an event takes: the webhook it arrives at, the routes in the order
-they are evaluated with their children hanging off them, and the channels and people they deliver
-to.
+`/admin/routing` draws the path an event takes. The graph fills the page and reads left to right:
+the webhooks and Teams V2 endpoints events arrive at, the routes in the order they are evaluated,
+their child routes in a column to the right of them, and the channels and people they deliver to.
 
-* Route nodes show the labels they select, or *no selector — matches every alert*, and the
-  template they render with, marked when it is inherited. The Routes list says *matches every
-  alert* for an empty selector, and *catches what no other route matches* for a default route
-  with one.
-* A dashed arrow between two routes is a refinement, labelled *as well as* or *instead of*.
+Links with the same parents share one track, as in a metro map. Every line has the colour of the
+webhook or Teams V2 endpoint its alerts come from, and a line that carries alerts from several
+webhooks runs as several strands side by side. On the **Templates** tab, the colour is the
+template instead.
+
+* An icon tells what a node is: a chevron for a webhook, a double chevron for a Teams V2 endpoint,
+  a fork for a route, an arrow into a bar for a destination, a person for a chat, and `@` for
+  anyone named in the message. Missing nodes (red) and teams without the Teams app installed
+  (amber) have their own marks.
+* A route shows the labels it selects, or *no selector — matches every alert*, and the template it
+  renders with, marked when it is inherited. The Routes list says *matches every alert* for an
+  empty selector, and *catches what no other route matches* for a default route with one.
+* A dashed line between two routes is a child refining its parent. It ends in a bar when the child
+  delivers *instead of* its parent; otherwise it delivers *as well as* it. A dotted line is a
+  Teams V2 endpoint posting straight to its channel, without routing.
 * A route pointing at a deleted destination or person shows up as a missing node.
-* A second graph pairs templates with the routes and webhooks that use them. A template with
-  nothing beside it is unused.
+* The **Templates** tab pairs templates with the routes and webhooks that use them. A template
+  with nothing beside it is unused. Open it directly with `/admin/routing?tab=templates`.
 
-Paste `key=value` labels into the page to ask which routes a given event would take. Every route
-that delivers is named and explained (a route without a selector says it takes every alert), and
-its path is highlighted while the rest dims.
+Lines carry no text. Hover a node or a line for what it is and does: the route's selector,
+priority, template and warnings, and a preview of its connections. Click a node, or focus it with
+`Tab` and press `Enter`, to keep everything upstream and downstream lit and zoom there. Click the
+background or press `Esc` to see everything again. Drag the background to pan, scroll to zoom, and
+use **Fit to view** to see the whole graph. Nodes cannot be moved. The info button (ⓘ) explains how
+to read the graph: hover opens it, click pins it, `Esc` closes it.
+
+Paste `key=value` labels into **Which routes match?** to ask which routes a given event would take.
+Every route that delivers is named and explained (a route without a selector says it takes every
+alert), and its path stays lit while the rest fades.
+
+The label box and the **Legend** float over the graph. Drag them by their title, fold them, or
+hide them and bring them back from the buttons at the top left. The legend starts folded. Your
+browser remembers where you left them.
 
 ## Related
 

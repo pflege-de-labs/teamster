@@ -140,25 +140,52 @@ Nur wenn überhaupt kein Ziel existiert, wird ein Ereignis nirgendwohin zugestel
 
 ## Die Routen ansehen {#seeing-the-routes}
 
-`/admin/routing` zeichnet den Weg eines Ereignisses: den Webhook, an dem es ankommt, die Routen in
-der Reihenfolge ihrer Auswertung mit ihren untergeordneten Routen daran, und die Kanäle und
-Personen, an die sie zustellen.
+`/admin/routing` zeichnet den Weg eines Ereignisses. Der Graph füllt die Seite und liest sich von
+links nach rechts: die Webhooks und Teams-V2-Endpunkte, an denen Ereignisse ankommen, die Routen in
+der Reihenfolge ihrer Auswertung, ihre untergeordneten Routen in einer Spalte rechts daneben, und
+die Kanäle und Personen, an die sie zustellen.
 
-* Routenknoten zeigen die Labels, die sie auswählen, oder *no selector — matches every alert*, und
-  die Vorlage, mit der sie rendern; eine geerbte Vorlage ist gekennzeichnet. Die Routenliste sagt
-  bei einem leeren Selektor **trifft auf jeden Alarm zu** und bei einer Standardroute mit Selektor
+Verbindungen mit denselben Vorgängern teilen sich eine Spur, wie in einem Liniennetzplan. Jede
+Linie hat die Farbe des Webhooks oder Teams-V2-Endpunkts, von dem ihre Alarme stammen, und eine
+Linie, die Alarme mehrerer Webhooks trägt, verläuft als mehrere Stränge nebeneinander. Auf dem Tab
+**Vorlagen** ist stattdessen die Vorlage die Farbe.
+
+* Ein Symbol zeigt, was ein Knoten ist: ein Winkel für einen Webhook, ein doppelter Winkel für
+  einen Teams-V2-Endpunkt, eine Gabelung für eine Route, ein Pfeil in einen Balken für ein Ziel,
+  eine Person für einen Chat und `@` für jeden, der in der Nachricht genannt wird. Fehlende Knoten
+  (rot) und Teams ohne installierte Teams-App (gelb) haben eigene Markierungen.
+* Eine Route zeigt die Labels, die sie auswählt, oder *no selector — matches every alert*, und die
+  Vorlage, mit der sie rendert; eine geerbte Vorlage ist gekennzeichnet. Die Routenliste sagt bei
+  einem leeren Selektor **trifft auf jeden Alarm zu** und bei einer Standardroute mit Selektor
   **fängt auf, was keine andere Route trifft**.
-* Ein gestrichelter Pfeil zwischen zwei Routen ist eine Verfeinerung, beschriftet mit
-  *zusätzlich zur übergeordneten* oder *statt der übergeordneten*.
+* Eine gestrichelte Linie zwischen zwei Routen ist eine untergeordnete Route, die ihre
+  übergeordnete verfeinert. Sie endet in einem Balken, wenn die untergeordnete Route *statt* der
+  übergeordneten zustellt; sonst stellt sie *zusätzlich* zu ihr zu. Eine gepunktete Linie ist ein
+  Teams-V2-Endpunkt, der ohne Routing direkt in seinen Kanal postet.
 * Eine Route, die auf ein gelöschtes Ziel oder eine gelöschte Person zeigt, erscheint als
   fehlender Knoten.
-* Ein zweites Bild ordnet Vorlagen den Routen und Webhooks zu, die sie verwenden. Eine Vorlage,
-  neben der nichts steht, wird nicht verwendet.
+* Der Tab **Vorlagen** ordnet Vorlagen den Routen und Webhooks zu, die sie verwenden. Eine Vorlage,
+  neben der nichts steht, wird nicht verwendet. Direkt öffnen Sie ihn mit
+  `/admin/routing?tab=templates`.
 
-Tragen Sie `key=value`-Labels auf der Seite ein, um zu fragen, welche Routen ein bestimmtes
-Ereignis nehmen würde. Jede Route, die zustellt, wird genannt und begründet (eine Route ohne
-Selektor sagt, dass sie jeden Alarm nimmt), und ihr Weg wird hervorgehoben, während der Rest
-verblasst.
+Linien tragen keinen Text. Fahren Sie über einen Knoten oder eine Linie, um zu sehen, was sie ist
+und tut: Selektor, Priorität, Vorlage und Warnungen der Route sowie eine Vorschau ihrer
+Verbindungen. Klicken Sie einen Knoten an, oder fokussieren Sie ihn mit `Tab` und drücken Sie
+`Enter`, um alles davor und dahinter hervorgehoben zu lassen und dorthin zu zoomen. Klicken Sie auf
+den Hintergrund oder drücken Sie `Esc`, um wieder alles zu sehen. Ziehen Sie den Hintergrund zum
+Verschieben, scrollen Sie zum Zoomen und nutzen Sie **Alles zeigen**, um den ganzen Graphen zu
+sehen. Knoten lassen sich nicht verschieben. Die Info-Schaltfläche (ⓘ) erklärt, wie Sie den Graphen
+lesen: Darüberfahren öffnet sie, ein Klick hält sie fest, `Esc` schließt sie.
+
+Tragen Sie `key=value`-Labels unter **Welche Routen treffen zu?** ein, um zu fragen, welche Routen
+ein bestimmtes Ereignis nehmen würde. Jede Route, die zustellt, wird genannt und begründet (eine
+Route ohne Selektor sagt, dass sie jeden Alarm nimmt), und ihr Weg bleibt hervorgehoben, während
+der Rest verblasst.
+
+Das Label-Feld und die **Legende** schweben über dem Graphen. Ziehen Sie sie an ihrem Titel,
+klappen Sie sie ein oder aus (**Ein- oder ausklappen**), oder blenden Sie sie aus (**Ausblenden**)
+und holen Sie sie über die Schaltflächen oben links zurück. Die Legende startet eingeklappt. Ihr
+Browser merkt sich, wo Sie sie abgelegt haben.
 
 ## Verwandte Themen {#related}
 
