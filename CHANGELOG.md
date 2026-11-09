@@ -10,6 +10,13 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 ## [Unreleased]
 
+### Changed
+
+* The routing graph orders each column so that fewer lines cross, and puts the global default and
+  default routes on top, so their line to the default channel runs straight. Routes no longer
+  appear in evaluation order; their priority is on the label
+  ([ADR 0100](docs/adr/0100-order-the-routing-graph-to-cross-fewer-lines.md)).
+
 ## [0.19.0] — 2026-11-09
 
 ### Added

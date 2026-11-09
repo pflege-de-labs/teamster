@@ -1,6 +1,7 @@
 # 0097. Lay out the routing graph as a tangled tree
 
-* Status: Accepted
+* Status: Accepted, amended by [0100](0100-order-the-routing-graph-to-cross-fewer-lines.md):
+  the browser reorders each column
 * Date: 2026-11-09
 
 ## Context
