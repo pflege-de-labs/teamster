@@ -10,6 +10,16 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 ## [Unreleased]
 
+### Changed
+
+* The routing graph fills the page and is drawn as a tangled tree: links with the same parents
+  share a track, every line has the colour of the webhook its alerts come from, and an icon tells
+  webhooks, routes and channels apart. Hovering explains a node or a line, clicking a node lights
+  up everything connected to it and zooms there. The label probe and the legend float over the
+  graph and can be moved, folded and hidden; the help sits behind an info button, and the template
+  graph has its own tab. Nodes can no longer be dragged
+  ([ADR 0097](docs/adr/0097-lay-out-the-routing-graph-as-a-tangled-tree.md)).
+
 ## [0.18.0] — 2026-11-06
 
 ### Added

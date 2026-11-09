@@ -164,7 +164,7 @@ func sidebar(viewer Viewer) templ.Component {
 		}
 		ctx = templ.InitializeContext(ctx)
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<aside id=\"sidebar\" class=\"flex w-56 shrink-0 flex-col border-r border-slate-200 bg-white [.sidebar-closed_&]:hidden\"><nav class=\"flex grow flex-col gap-1 p-4 text-sm\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<aside id=\"sidebar\" class=\"flex w-56 shrink-0 flex-col overflow-y-auto border-r border-slate-200 bg-white [.sidebar-closed_&]:hidden\"><nav class=\"flex grow flex-col gap-1 p-4 text-sm\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

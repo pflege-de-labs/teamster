@@ -1371,22 +1371,30 @@ The rules are three policies in
 ## Routing visualization
 
 `/admin/routing` draws the path an alert takes — webhook, the routes in the order they are
-evaluated with child routes hanging off their parents, then the channels they deliver to — and
-answers "which route would this alert take?": paste `key=value` labels and every route that
-delivers is named, explained, and the paths are picked out in colour while the rest dims.
+evaluated with child routes in a column to the right of their parents, then the channels they
+deliver to — and answers "which routes match?": paste `key=value` labels and every route that
+delivers is named and explained, its paths stay lit and the rest fades.
 
-The picture starts at the webhook a message arrives at. The Alertmanager and universal webhooks feed
-every root route, except that a route whose selector pins `teamster_source` is fed only by that
-webhook. Each Teams V2 endpoint is drawn below them with a dotted arrow straight to its channel.
-That arrow is the fallback for an endpoint whose route is missing; routed messages enter through
-its linked route.
+The graph fills the page. Links with the same parents share one track, as in a metro map, and every
+line has the colour of the webhook its alerts come from; a line that carries alerts from several
+webhooks runs as several strands side by side. The Alertmanager and universal webhooks feed every
+root route, except that a route whose selector pins `teamster_source` is fed only by that webhook.
+Each Teams V2 endpoint is drawn below them with its own colour and a dotted line straight to its
+channel. That line is the fallback for an endpoint whose route is missing; routed messages enter
+through its linked route.
 
-Route nodes show the labels they filter for and name the template they render with, marked when it
-is inherited. A dashed arrow between two routes is a refinement, labelled *as well as* or *instead
-of* depending on whether the child is greedy. A second graph below pairs templates with the routes
-that use them and the webhooks they are the default of; a template with nothing beside it is
-unused. A route pointing at a deleted destination — or a deleted person — shows up as a missing node
-rather than disappearing. A route that delivers to both draws an arrow to each.
+An icon tells what a node is: a chevron for a webhook, a double chevron for a Teams V2 endpoint, a
+fork for a route, an arrow into a bar for a channel, a person for a chat. A dashed line between two
+routes is a refinement; it ends in a bar when the child delivers *instead of* its parent. Hover a
+node or a line for what it is and does: a route's selector, priority and the template it renders
+with, marked when inherited. Click a node to light up everything that leads to it and everything it
+leads to and zoom there; click the background or press Esc to see everything again. The label
+probe and the legend float over the graph: drag them by their title, fold them, or hide them and
+bring them back from the buttons at the top left. The info button explains the picture.
+
+The **Templates** tab pairs templates with the routes that use them and the webhooks they are the
+default of; a template with nothing beside it is unused. A route pointing at a deleted destination
+— or a deleted person — shows up as a missing node rather than disappearing.
 
 ## Backup and migration
 

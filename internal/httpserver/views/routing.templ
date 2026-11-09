@@ -1,44 +1,237 @@
 package views
 
-import "github.com/pflege-de-labs/teamster/internal/i18n"
+import (
+	"slices"
+	"strconv"
 
-templ RoutingPage(viewer Viewer) {
-	@Layout(i18n.T(ctx, "page.routing"), &viewer) {
-		<section class="rounded-lg border border-slate-200 bg-white shadow-sm">
-			<h2 class="border-b border-slate-200 px-6 py-4 text-lg font-semibold">{ i18n.T(ctx, "routing.match_heading") }</h2>
-			<div class="grid gap-8 px-6 py-6 lg:grid-cols-3">
-				<form id="match-form" class="space-y-3 lg:col-span-1">
-					@editorField("labels", i18n.T(ctx, "routing.labels_field"), "severity=critical\nalertname=HighCPU", "6", "match")
+	"github.com/pflege-de-labs/teamster/internal/i18n"
+)
+
+// routingTabs are the views of /admin/routing, in tab bar order.
+func routingTabs() []string {
+	return []string{"flow", "templates"}
+}
+
+// RoutingTab is tab when the page has it, else the first one.
+func RoutingTab(tab string) string {
+	if slices.Contains(routingTabs(), tab) {
+		return tab
+	}
+	return routingTabs()[0]
+}
+
+// The graph fills the page and the controls float over it; see ADR 0097.
+templ RoutingPage(viewer Viewer, tab string) {
+	@FullLayout(i18n.T(ctx, "page.routing"), &viewer) {
+		@kindGlyphs()
+		<div class="flex shrink-0 items-center gap-2 border-b border-slate-200 bg-white px-4">
+			<nav role="tablist" aria-label={ i18n.T(ctx, "nav.routing") } class="flex gap-1" data-admin-tabs>
+				for _, name := range routingTabs() {
+					<a
+						href={ templ.SafeURL("/admin/routing?tab=" + name) }
+						role="tab"
+						id={ "tab-" + name }
+						aria-controls={ "panel-" + name }
+						aria-selected={ strconv.FormatBool(name == tab) }
+						data-tab={ name }
+						class="-mb-px border-b-2 border-transparent px-3 py-2.5 text-sm font-medium text-slate-600 hover:text-sky-700 aria-selected:border-sky-600 aria-selected:text-slate-900"
+					>
+						{ i18n.T(ctx, "routing.tab_"+name) }
+					</a>
+				}
+			</nav>
+			<button
+				type="button"
+				popovertarget="routing-help"
+				data-help-toggle
+				aria-label={ i18n.T(ctx, "routing.help") }
+				title={ i18n.T(ctx, "routing.help") }
+				class="ml-auto rounded-full p-1 text-slate-500 hover:bg-slate-100 hover:text-sky-700"
+			>
+				<svg class="h-5 w-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+					<circle cx="10" cy="10" r="7.5"></circle>
+					<path stroke-linecap="round" d="M10 9v5M10 6.2v.1"></path>
+				</svg>
+			</button>
+		</div>
+		<div
+			id="routing-help"
+			popover
+			class="inset-auto top-32 right-4 m-0 max-w-sm rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-700 shadow-lg"
+		>
+			<ul class="list-disc space-y-2 pl-4">
+				<li>{ i18n.T(ctx, "routing.help_lines") }</li>
+				<li>{ i18n.T(ctx, "routing.help_marks") }</li>
+				<li>{ i18n.T(ctx, "routing.help_use") }</li>
+				<li>{ i18n.T(ctx, "routing.templates_help") }</li>
+			</ul>
+		</div>
+		@routingPanel("flow", tab) {
+			<div id="routing-graph" class="absolute inset-0"></div>
+			@graphToolbar() {
+				@showPanel("match", i18n.T(ctx, "routing.match_heading"))
+				@showPanel("legend", i18n.T(ctx, "routing.legend"))
+			}
+			@floatingPanel("match", i18n.T(ctx, "routing.match_heading"), "top-3 right-3 w-80", false) {
+				<form id="match-form" class="space-y-3">
+					@editorField("labels", i18n.T(ctx, "routing.labels_field"), "severity=critical\nalertname=HighCPU", "4", "match")
 					@submit(i18n.T(ctx, "routing.check"))
 					<div id="match-result" class="empty:hidden"></div>
 				</form>
-				<div class="lg:col-span-2">
-					<div class="mb-3 flex flex-wrap gap-3 text-xs text-slate-600">
-						@legendSwatch("bg-slate-500", i18n.T(ctx, "routing.legend_webhook"))
-						@legendSwatch("bg-violet-500", i18n.T(ctx, "routing.legend_endpoint"))
-						@legendSwatch("bg-sky-500", i18n.T(ctx, "routing.legend_route"))
-						@legendSwatch("bg-emerald-500", i18n.T(ctx, "routing.legend_destination"))
-						@legendSwatch("bg-red-500", i18n.T(ctx, "routing.legend_missing"))
-						@legendSwatch("bg-indigo-600", i18n.T(ctx, "routing.legend_match"))
-					</div>
-					<div id="routing-graph" class="h-[32rem] w-full rounded-md border border-slate-200 bg-slate-50"></div>
-					<p class="mt-2 text-xs text-slate-500">{ i18n.T(ctx, "routing.graph_help") }</p>
-				</div>
-			</div>
-		</section>
-		<section class="mt-8 rounded-lg border border-slate-200 bg-white shadow-sm">
-			<h2 class="border-b border-slate-200 px-6 py-4 text-lg font-semibold">{ i18n.T(ctx, "routing.templates_heading") }</h2>
-			<div class="px-6 py-6">
-				<p class="mb-3 text-xs text-slate-500">{ i18n.T(ctx, "routing.templates_help") }</p>
-				<div id="template-graph" class="h-80 w-full rounded-md border border-slate-200 bg-slate-50"></div>
-			</div>
-		</section>
+			}
+			@floatingPanel("legend", i18n.T(ctx, "routing.legend"), "bottom-3 right-3 w-72", true) {
+				<ul class="space-y-1.5 text-xs text-slate-700">
+					@legendRoots(i18n.T(ctx, "routing.legend_lines"))
+					@legendKind("source", i18n.T(ctx, "routing.legend_webhook"))
+					@legendKind("endpoint", i18n.T(ctx, "routing.legend_endpoint"))
+					@legendKind("route", i18n.T(ctx, "routing.legend_route"))
+					@legendKind("destination", i18n.T(ctx, "routing.legend_destination"))
+					@legendKind("recipient", i18n.T(ctx, "routing.legend_recipient"))
+					@legendKind("addressed", i18n.T(ctx, "routing.legend_addressed"))
+					@legendKind("missing", i18n.T(ctx, "routing.legend_missing"))
+					@legendKind("app_missing", i18n.T(ctx, "routing.legend_app_missing"))
+					@legendLine("4 3", false, i18n.T(ctx, "routing.legend_refines"))
+					@legendLine("4 3", true, i18n.T(ctx, "routing.legend_greedy"))
+					@legendLine("1 3", false, i18n.T(ctx, "routing.legend_direct"))
+					@legendLine("", false, i18n.T(ctx, "routing.legend_match"))
+				</ul>
+			}
+		}
+		@routingPanel("templates", tab) {
+			<div id="template-graph" class="absolute inset-0"></div>
+			@graphToolbar() {
+				@showPanel("template-legend", i18n.T(ctx, "routing.legend"))
+			}
+			@floatingPanel("template-legend", i18n.T(ctx, "routing.legend"), "bottom-3 right-3 w-72", true) {
+				<ul class="space-y-1.5 text-xs text-slate-700">
+					@legendRoots(i18n.T(ctx, "routing.legend_template_lines"))
+					@legendKind("template", i18n.T(ctx, "routing.legend_template"))
+					@legendKind("route", i18n.T(ctx, "routing.legend_route"))
+					@legendKind("source", i18n.T(ctx, "routing.legend_source_default"))
+					@legendKind("missing", i18n.T(ctx, "routing.legend_missing"))
+				</ul>
+			}
+		}
 	}
 }
 
-templ legendSwatch(colour, label string) {
-	<span class="inline-flex items-center gap-1.5">
-		<span class={ "inline-block h-2.5 w-2.5 rounded-full", colour }></span>
+// Every tab is rendered so switching needs no round trip; only one shows.
+templ routingPanel(name, tab string) {
+	<div
+		role="tabpanel"
+		id={ "panel-" + name }
+		aria-labelledby={ "tab-" + name }
+		data-tab-panel={ name }
+		class="relative min-h-0 flex-1 overflow-hidden bg-slate-50"
+		hidden?={ name != tab }
+	>
+		{ children... }
+	</div>
+}
+
+// graphToolbar fits the graph to the view and brings back panels that were hidden.
+templ graphToolbar() {
+	<div class="absolute top-3 left-3 z-10 flex gap-1">
+		<button type="button" data-fit class="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-600 shadow-sm hover:text-sky-700">
+			{ i18n.T(ctx, "routing.fit") }
+		</button>
+		{ children... }
+	</div>
+}
+
+// Hidden until its panel is, so there is always a way back to it.
+templ showPanel(id, title string) {
+	<button type="button" data-panel-show={ id } hidden class="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-600 shadow-sm hover:text-sky-700">
+		{ i18n.T(ctx, "routing.panel_show", title) }
+	</button>
+}
+
+// A panel over the graph, dragged by its header and folded or hidden by its buttons.
+// placement only sets where it starts; routing.js remembers where it was left.
+templ floatingPanel(id, title, placement string, folded bool) {
+	<section
+		data-floating-panel={ id }
+		data-panel-folded?={ folded }
+		aria-label={ title }
+		class={ "absolute z-20 max-h-[calc(100%-1.5rem)] max-w-[calc(100%-1.5rem)] overflow-auto rounded-lg border border-slate-200 bg-white/95 shadow-lg backdrop-blur-sm", placement }
+	>
+		<header data-panel-handle class="flex cursor-move touch-none items-center gap-1 border-b border-slate-200 py-1.5 pr-1.5 pl-3 select-none">
+			<h2 class="grow truncate text-sm font-semibold">{ title }</h2>
+			<button
+				type="button"
+				data-panel-fold
+				aria-expanded="true"
+				aria-label={ i18n.T(ctx, "routing.panel_fold") }
+				title={ i18n.T(ctx, "routing.panel_fold") }
+				class="group rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+			>
+				<svg class="h-4 w-4 transition-transform group-aria-[expanded=false]:-rotate-90" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+					<path stroke-linecap="round" stroke-linejoin="round" d="M4 6l4 4 4-4"></path>
+				</svg>
+			</button>
+			<button
+				type="button"
+				data-panel-hide
+				aria-label={ i18n.T(ctx, "routing.panel_hide") }
+				title={ i18n.T(ctx, "routing.panel_hide") }
+				class="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+			>
+				<svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+					<path stroke-linecap="round" d="M4 4l8 8M12 4l-8 8"></path>
+				</svg>
+			</button>
+		</header>
+		<div data-panel-body class="p-3">
+			{ children... }
+		</div>
+	</section>
+}
+
+// kindGlyphs are the node icons, drawn once for the graph and the legend alike.
+templ kindGlyphs() {
+	<svg width="0" height="0" class="absolute" aria-hidden="true">
+		<defs>
+			<symbol id="glyph-source" viewBox="0 0 16 16"><path d="M6 3.5l4.5 4.5L6 12.5"></path></symbol>
+			<symbol id="glyph-endpoint" viewBox="0 0 16 16"><path d="M3.5 3.5L8 8l-4.5 4.5M8.5 3.5L13 8l-4.5 4.5"></path></symbol>
+			<symbol id="glyph-route" viewBox="0 0 16 16"><path d="M2.5 8H7m0 0l4.5-4M7 8l4.5 4"></path><circle cx="12.5" cy="3.5" r="1.2"></circle><circle cx="12.5" cy="12.5" r="1.2"></circle></symbol>
+			<symbol id="glyph-destination" viewBox="0 0 16 16"><path d="M2.5 8h8m-3-3l3 3-3 3M13 3v10"></path></symbol>
+			<symbol id="glyph-recipient" viewBox="0 0 16 16"><circle cx="8" cy="5.5" r="2.5"></circle><path d="M3 13.5c0-2.8 2.2-4.5 5-4.5s5 1.7 5 4.5"></path></symbol>
+			<symbol id="glyph-addressed" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.5"></circle><path d="M10.5 8v1.2c0 1 .7 1.8 1.6 1.8s1.6-.8 1.6-1.8V8A5.7 5.7 0 1 0 11 12.9"></path></symbol>
+			<symbol id="glyph-template" viewBox="0 0 16 16"><path d="M6 2.5c-1.5 0-2 .7-2 2v1.8c0 .9-.5 1.7-1.5 1.7 1 0 1.5.8 1.5 1.7v1.8c0 1.3.5 2 2 2M10 2.5c1.5 0 2 .7 2 2v1.8c0 .9.5 1.7 1.5 1.7-1 0-1.5.8-1.5 1.7v1.8c0 1.3-.5 2-2 2"></path></symbol>
+			<symbol id="glyph-missing" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5"></circle><path d="M8 5v3.5M8 11v.1"></path></symbol>
+			<symbol id="glyph-app_missing" viewBox="0 0 16 16"><path d="M8 2.5l6 10.5H2z"></path><path d="M8 6.5v3M8 11.3v.1"></path></symbol>
+		</defs>
+	</svg>
+}
+
+// legendRoots is filled by routing.js with one colour per first-column node.
+templ legendRoots(heading string) {
+	<li class="pb-1">
+		<div class="mb-1 font-medium text-slate-500">{ heading }</div>
+		<ul data-legend-roots class="space-y-1"></ul>
+	</li>
+}
+
+templ legendKind(kind, label string) {
+	<li class="flex items-center gap-2">
+		<svg class={ "h-4 w-4 shrink-0 graph-kind-" + kind } fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href={ "#glyph-" + kind }></use></svg>
 		{ label }
-	</span>
+	</li>
+}
+
+// legendLine draws an edge as the graph does: dashed for a step between routes, solid and dark for a highlighted path.
+templ legendLine(dash string, greedy bool, label string) {
+	<li class="flex items-center gap-2">
+		<svg class="h-4 w-6 shrink-0" viewBox="0 0 24 16" fill="none" aria-hidden="true">
+			if dash == "" {
+				<path d="M1 8h21" stroke="#334155" stroke-width="2.5"></path>
+			} else {
+				<path d="M1 8h19" stroke="#94a3b8" stroke-width="1.75" stroke-dasharray={ dash }></path>
+			}
+			if greedy {
+				<path d="M20.5 3.5v9" stroke="#475569" stroke-width="2.5"></path>
+			}
+		</svg>
+		{ label }
+	</li>
 }

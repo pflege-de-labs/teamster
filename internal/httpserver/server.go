@@ -331,7 +331,7 @@ func NewServer(logger *slog.Logger, cfg config.Config, store store.Store, graphC
 	// before anyone has a session, and none of them is sensitive.
 	for _, asset := range []string{
 		"/favicon.ico", "/site.webmanifest", "/styles.css",
-		"/preview.js", "/sources.js", "/pickers.js", "/routing.js", "/language.js", "/timezone.js", "/nav.js", "/tabs.js", "/permissions.js", "/editor.js", "/flags/", "/icons/", "/vendor/",
+		"/preview.js", "/sources.js", "/pickers.js", "/tangle.js", "/routing.js", "/language.js", "/timezone.js", "/nav.js", "/tabs.js", "/permissions.js", "/editor.js", "/flags/", "/icons/", "/vendor/",
 	} {
 		mux.HandleFunc(asset, api.handleAssets)
 	}
