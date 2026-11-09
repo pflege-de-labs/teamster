@@ -1620,12 +1620,22 @@ message.&lt;/li&gt;
 &lt;p&gt;Only when no destination exists at all is an event delivered nowhere.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="seeing-the-routes"&gt;Seeing the routes&lt;span class="hx:absolute hx:-mt-20" id="seeing-the-routes"&gt;&lt;/span&gt;
 &lt;a href="#seeing-the-routes" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;&lt;code&gt;/admin/routing&lt;/code&gt; draws the path an event takes. The graph fills the page and reads left to right:
-the webhooks and Teams V2 endpoints events arrive at, the routes in the order they are evaluated,
-their child routes in a column to the right of them, and the channels and people they deliver to.&lt;/p&gt;
+the webhooks and Teams V2 endpoints events arrive at, the routes, their child routes in a column to
+the right of them, and the channels and people they deliver to.&lt;/p&gt;
+&lt;p&gt;Each column except the first is ordered so that as few lines cross as possible. The &lt;strong&gt;Global
+default&lt;/strong&gt; node and the default route sit at the top of the routes column, so the lines unmatched
+events take run straight along the top. The column therefore does not show the order in which
+routes are evaluated: read a route&amp;rsquo;s priority from its label (for example &lt;code&gt;· p100&lt;/code&gt;) or its hover
+card, and see the Routes list for the routes in evaluation order. Channels and people can mix in
+the destinations column.&lt;/p&gt;
 &lt;p&gt;Links with the same parents share one track, as in a metro map. Every line has the colour of the
 webhook or Teams V2 endpoint its alerts come from, and a line that carries alerts from several
 webhooks runs as several strands side by side. On the &lt;strong&gt;Templates&lt;/strong&gt; tab, the colour is the
 template instead.&lt;/p&gt;
+&lt;p&gt;A line that skips a column, such as a route delivering straight to a channel past its child routes,
+runs through that column in a row of its own, so it never crosses a node&amp;rsquo;s label. Lines of one
+node of the same kind share that row until they split at their last column. A long label is
+shortened with an ellipsis before the next column&amp;rsquo;s lines begin; hover the node for the full name.&lt;/p&gt;
 &lt;ul&gt;
 &lt;li&gt;An icon tells what a node is: a chevron for a webhook, a double chevron for a Teams V2 endpoint,
 a fork for a route, an arrow into a bar for a destination, a person for a chat, and &lt;code&gt;@&lt;/code&gt; for
@@ -1641,12 +1651,14 @@ Teams V2 endpoint posting straight to its channel, without routing.&lt;/li&gt;
 &lt;li&gt;The &lt;strong&gt;Templates&lt;/strong&gt; tab pairs templates with the routes and webhooks that use them. A template
 with nothing beside it is unused. Open it directly with &lt;code&gt;/admin/routing?tab=templates&lt;/code&gt;.&lt;/li&gt;
 &lt;/ul&gt;
-&lt;p&gt;Lines carry no text. Hover a node or a line for what it is and does: the route&amp;rsquo;s selector,
-priority, template and warnings, and a preview of its connections. Click a node, or focus it with
-&lt;code&gt;Tab&lt;/code&gt; and press &lt;code&gt;Enter&lt;/code&gt;, to keep everything upstream and downstream lit and zoom there. Click the
-background or press &lt;code&gt;Esc&lt;/code&gt; to see everything again. Drag the background to pan, scroll to zoom, and
-use &lt;strong&gt;Fit to view&lt;/strong&gt; to see the whole graph. Nodes cannot be moved. The info button (ⓘ) explains how
-to read the graph: hover opens it, click pins it, &lt;code&gt;Esc&lt;/code&gt; closes it.&lt;/p&gt;
+&lt;p&gt;Lines carry no text. Hover a node or a line for what it is and does: the route&amp;rsquo;s selector, priority,
+template and warnings, and a preview of its connections. Click a node, or focus it with &lt;code&gt;Tab&lt;/code&gt; and
+press &lt;code&gt;Enter&lt;/code&gt;, to redraw the graph with only that node, everything leading to it and everything it
+leads to, laid out afresh. Colours stay those of the whole graph. Click a node in the part to draw
+that node&amp;rsquo;s paths. To get the whole graph back, click the background, press &lt;code&gt;Esc&lt;/code&gt; or use &lt;strong&gt;Show the
+whole graph&lt;/strong&gt;, which appears only while a part is drawn. Drag the background to pan, scroll to zoom,
+and use &lt;strong&gt;Fit to view&lt;/strong&gt; to fit what is drawn. Nodes cannot be moved. The info button (ⓘ) explains
+how to read the graph: hover opens it, click pins it, &lt;code&gt;Esc&lt;/code&gt; closes it.&lt;/p&gt;
 &lt;p&gt;Paste &lt;code&gt;key=value&lt;/code&gt; labels into &lt;strong&gt;Which routes match?&lt;/strong&gt; to ask which routes a given event would take.
 Every route that delivers is named and explained (a route without a selector says it takes every
 alert), and its path stays lit while the rest fades.&lt;/p&gt;

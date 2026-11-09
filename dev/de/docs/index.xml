@@ -1180,13 +1180,25 @@ eine eingebaute Nachricht.&lt;/li&gt;
 &lt;p&gt;Nur wenn überhaupt kein Ziel existiert, wird ein Ereignis nirgendwohin zugestellt.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="seeing-the-routes"&gt;Die Routen ansehen&lt;span class="hx:absolute hx:-mt-20" id="seeing-the-routes"&gt;&lt;/span&gt;
 &lt;a href="#seeing-the-routes" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;&lt;code&gt;/admin/routing&lt;/code&gt; zeichnet den Weg eines Ereignisses. Der Graph füllt die Seite und liest sich von
-links nach rechts: die Webhooks und Teams-V2-Endpunkte, an denen Ereignisse ankommen, die Routen in
-der Reihenfolge ihrer Auswertung, ihre untergeordneten Routen in einer Spalte rechts daneben, und
-die Kanäle und Personen, an die sie zustellen.&lt;/p&gt;
+links nach rechts: die Webhooks und Teams-V2-Endpunkte, an denen Ereignisse ankommen, die Routen,
+ihre untergeordneten Routen in einer Spalte rechts daneben, und die Kanäle und Personen, an die sie
+zustellen.&lt;/p&gt;
+&lt;p&gt;Jede Spalte außer der ersten ist so geordnet, dass sich möglichst wenige Linien kreuzen. Der Knoten
+&lt;strong&gt;Global default&lt;/strong&gt; und die Standardroute stehen oben in der Routenspalte, damit die Linien, die
+Ereignisse ohne passende Route nehmen, gerade oben entlang verlaufen. Die Spalte zeigt deshalb nicht
+die Reihenfolge, in der die Routen ausgewertet werden: Die Priorität einer Route steht an ihrer
+Beschriftung (zum Beispiel &lt;code&gt;· p100&lt;/code&gt;) und in ihrer Hover-Karte, und der Bereich &lt;strong&gt;Routen&lt;/strong&gt; listet die
+Routen in der Reihenfolge ihrer Auswertung. In der Zielspalte können Kanäle und Personen gemischt
+stehen.&lt;/p&gt;
 &lt;p&gt;Verbindungen mit denselben Vorgängern teilen sich eine Spur, wie in einem Liniennetzplan. Jede
 Linie hat die Farbe des Webhooks oder Teams-V2-Endpunkts, von dem ihre Alarme stammen, und eine
 Linie, die Alarme mehrerer Webhooks trägt, verläuft als mehrere Stränge nebeneinander. Auf dem Tab
 &lt;strong&gt;Vorlagen&lt;/strong&gt; ist stattdessen die Vorlage die Farbe.&lt;/p&gt;
+&lt;p&gt;Eine Linie, die eine Spalte überspringt, etwa eine Route, die an ihren untergeordneten Routen vorbei
+direkt in einen Kanal zustellt, läuft in einer eigenen Zeile durch diese Spalte und kreuzt so nie
+die Beschriftung eines Knotens. Linien eines Knotens derselben Art teilen sich diese Zeile, bis sie
+sich in ihrer letzten Spalte trennen. Eine lange Beschriftung wird mit einer Ellipse gekürzt, bevor
+die Linien der nächsten Spalte beginnen; fahren Sie über den Knoten, um den vollen Namen zu sehen.&lt;/p&gt;
 &lt;ul&gt;
 &lt;li&gt;Ein Symbol zeigt, was ein Knoten ist: ein Winkel für einen Webhook, ein doppelter Winkel für
 einen Teams-V2-Endpunkt, eine Gabelung für eine Route, ein Pfeil in einen Balken für ein Ziel,
@@ -1209,11 +1221,14 @@ neben der nichts steht, wird nicht verwendet. Direkt öffnen Sie ihn mit
 &lt;p&gt;Linien tragen keinen Text. Fahren Sie über einen Knoten oder eine Linie, um zu sehen, was sie ist
 und tut: Selektor, Priorität, Vorlage und Warnungen der Route sowie eine Vorschau ihrer
 Verbindungen. Klicken Sie einen Knoten an, oder fokussieren Sie ihn mit &lt;code&gt;Tab&lt;/code&gt; und drücken Sie
-&lt;code&gt;Enter&lt;/code&gt;, um alles davor und dahinter hervorgehoben zu lassen und dorthin zu zoomen. Klicken Sie auf
-den Hintergrund oder drücken Sie &lt;code&gt;Esc&lt;/code&gt;, um wieder alles zu sehen. Ziehen Sie den Hintergrund zum
-Verschieben, scrollen Sie zum Zoomen und nutzen Sie &lt;strong&gt;Alles zeigen&lt;/strong&gt;, um den ganzen Graphen zu
-sehen. Knoten lassen sich nicht verschieben. Die Info-Schaltfläche (ⓘ) erklärt, wie Sie den Graphen
-lesen: Darüberfahren öffnet sie, ein Klick hält sie fest, &lt;code&gt;Esc&lt;/code&gt; schließt sie.&lt;/p&gt;
+&lt;code&gt;Enter&lt;/code&gt;, um den Graphen nur mit diesem Knoten, allem, was zu ihm führt, und allem, wohin er führt,
+neu zu zeichnen. Die Farben bleiben die des ganzen Graphen. Klicken Sie in diesem Ausschnitt einen
+Knoten an, wird dessen Pfad gezeichnet. Zurück zum ganzen Graphen kommen Sie, indem Sie auf den
+Hintergrund klicken, &lt;code&gt;Esc&lt;/code&gt; drücken oder &lt;strong&gt;Ganzen Graphen zeigen&lt;/strong&gt; nutzen; die Schaltfläche erscheint
+nur, solange ein Ausschnitt gezeichnet ist. Ziehen Sie den Hintergrund zum Verschieben, scrollen Sie
+zum Zoomen und nutzen Sie &lt;strong&gt;Alles zeigen&lt;/strong&gt;, um das Gezeichnete einzupassen. Knoten lassen sich nicht
+verschieben. Die Info-Schaltfläche (ⓘ) erklärt, wie Sie den Graphen lesen: Darüberfahren öffnet sie,
+ein Klick hält sie fest, &lt;code&gt;Esc&lt;/code&gt; schließt sie.&lt;/p&gt;
 &lt;p&gt;Tragen Sie &lt;code&gt;key=value&lt;/code&gt;-Labels unter &lt;strong&gt;Welche Routen treffen zu?&lt;/strong&gt; ein, um zu fragen, welche Routen
 ein bestimmtes Ereignis nehmen würde. Jede Route, die zustellt, wird genannt und begründet (eine
 Route ohne Selektor sagt, dass sie jeden Alarm nimmt), und ihr Weg bleibt hervorgehoben, während
