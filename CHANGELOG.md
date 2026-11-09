@@ -10,6 +10,14 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 ## [Unreleased]
 
+### Added
+
+* Templates can take a sender's Adaptive Card apart with `cardParts`, which returns its texts,
+  facts and links as plain lists. Two new presets use it for Teams V2 cards that Teams renders
+  badly: **Teams V2 webhook message as text** puts the facts in a code block, **Teams V2 webhook
+  card, facts stacked** shows each fact as a heading over its value. The preview has a matching
+  sample ([ADR 0099](docs/adr/0099-a-template-takes-a-card-apart.md)).
+
 ### Changed
 
 * The routing graph fills the page and is drawn as a tangled tree: links with the same parents

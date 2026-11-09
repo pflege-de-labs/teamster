@@ -4,8 +4,11 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
+
+	"github.com/pflege-de-labs/teamster/internal/cards"
 )
 
 func postPreview(t *testing.T, handler http.Handler, body string) *httptest.ResponseRecorder {
@@ -278,6 +281,37 @@ func TestPreviewRendersTheTeamsV2Sample(t *testing.T) {
 	}
 	if answer.Title != "Build failed / FF0000 / teamsv2" {
 		t.Errorf("title = %q (error %q), want the sample's title, payload and source", answer.Title, answer.Error)
+	}
+}
+
+// The Teams V2 card sample is an Adaptive Card envelope, which a template
+// takes apart with cardParts (ADR 0099).
+func TestPreviewRendersTheTeamsV2CardSample(t *testing.T) {
+	t.Parallel()
+
+	handler := newTestServer(t, newFakeStore(), &fakeMessenger{}).Handler
+	rec := postPreview(t, handler, `{"title":"{{ $p := cardParts .Event.Card }}{{ len $p.Facts }} / {{ (first $p.Actions).URL }}","sample":"teamsv2-card"}`)
+	var answer struct {
+		Title string `json:"title"`
+		Error string `json:"error"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &answer); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if answer.Title != "3 / https://example.test/observations/87018" {
+		t.Errorf("title = %q (error %q), want the sample card's facts and link", answer.Title, answer.Error)
+	}
+}
+
+// A preset that names its sample must name one the preview has, or the editor
+// leaves the preview on whatever sample was shown before.
+func TestPresetSamplesExist(t *testing.T) {
+	t.Parallel()
+
+	for _, p := range append(cards.Presets(), cards.Variants()...) {
+		if p.Sample != "" && !slices.Contains(previewSamples(), p.Sample) {
+			t.Errorf("preset %q names sample %q, which the preview does not have", p.Key, p.Sample)
+		}
 	}
 }
 

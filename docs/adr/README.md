@@ -109,3 +109,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0096](0096-a-route-can-keep-its-children-from-replacing-it.md) | Let a route keep its children from replacing it | Accepted |
 | [0097](0097-lay-out-the-routing-graph-as-a-tangled-tree.md) | Lay out the routing graph as a tangled tree | Accepted |
 | [0098](0098-test-browser-script-logic-with-node-test.md) | Test browser script logic with node:test | Accepted |
+| [0099](0099-a-template-takes-a-card-apart.md) | Let a template take a sender's card apart | Accepted |

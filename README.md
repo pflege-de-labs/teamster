@@ -835,7 +835,15 @@ the message:
 - `.Payload` is the body as it was sent, for fields the parsed form flattens, such as
   `{{ .Payload.themeColor }}` or `{{ range .Payload.sections }}`.
 
-The template preview has a **Teams V2 webhook** sample to try this against.
+The template preview has a **Teams V2 webhook** sample to try this against, and a **Teams V2
+webhook card with long facts** sample.
+
+Some cards render badly in Teams — a FactSet with long values squeezes its titles to a letter a
+line. To change the layout and keep the content, take the card apart with `cardParts` in a
+template and choose that template for the endpoint, or make it the Teams V2 default (see
+[Default templates](#default-templates)). Two presets do this already: **Teams V2 webhook message
+as text** sends the card's first text as the title and the facts in a code block, and **Teams V2
+webhook card, facts stacked** sends a card with each fact as a heading over its value.
 
 Nothing is tracked afterwards. There is no state and no key in these payloads, so a message sent
 this way is never updated or closed — unlike an event with a state, which keeps its card up to date.
@@ -877,7 +885,9 @@ that webhook already has a default:
 
 They are ordinary templates: edit or delete them freely. A deleted preset is not recreated. The
 same presets are under **Start from a preset** in the template editor, which fills the name, title,
-text, card and webhooks in one go.
+text, card and webhooks in one go. The editor also offers the two Teams V2 layouts described under
+[Teams V2 (Power Automate) webhook](#teams-v2-power-automate-webhook), which are never stored on
+their own.
 
 A card body that renders to nothing sends no card rather than failing, as
 `{{ if .Event.Card }}…{{ end }}` does for a payload without a card.
@@ -965,6 +975,12 @@ handles only the universal webhook, and into the Alertmanager one otherwise. See
 Helper functions:
 
 - `toJSON` to JSON-encode structures
+- `cardParts` to take an Adaptive Card apart: `{{ $p := cardParts .Event.Card }}` gives
+  `$p.Texts` (every TextBlock and RichTextBlock, in order), `$p.Facts` (each with `.Title` and
+  `.Value`) and `$p.Actions` (each `Action.OpenUrl` with `.Title` and `.URL`), searched through
+  containers, columns and tables. A message without a card gives empty lists. Use sprig's `first`
+  and `rest` rather than `index $p.Texts 0`, which fails on an empty list
+  ([ADR 0099](docs/adr/0099-a-template-takes-a-card-apart.md))
 - `default` to provide fallbacks, including for a key an event did not set. It takes the value
   first and the fallback second, the reverse of sprig's: write `default .x "y"`, not
   `.x | default "y"`, which always yields `"y"`
@@ -1788,7 +1804,8 @@ and **Start from an example** replaces the card with a complete one to edit down
 a column beside the editor on a wide screen and below it on a narrow one. It renders on the server
 against a sample event and the browser draws the result, as you type or on demand, so a template
 can be checked before any event arrives. The samples are an Alertmanager alert, an open event,
-a closed event, a general message and a Teams V2 webhook payload.
+a closed event, a general message, a Teams V2 webhook payload and a Teams V2 Adaptive Card with
+long facts.
 
 The preview switches between **Rendered**, **Channel JSON** and **Chat JSON**. The two JSON views
 are the exact bodies the bot would send to the Bot Connector for a channel post and for a personal

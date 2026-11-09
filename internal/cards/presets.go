@@ -13,6 +13,8 @@ type Preset struct {
 	Text     string   `json:"text"`
 	Body     string   `json:"body"`
 	Sources  []string `json:"sources"`
+	// Sample is the preview sample to show the preset on, when it is not Key.
+	Sample string `json:"sample,omitempty"`
 }
 
 // Template is the preset as a template to store.
@@ -61,6 +63,71 @@ func PresetFor(source string) (Preset, bool) {
 	}
 	return Preset{}, false
 }
+
+// Variants are presets the editor offers beside the defaults but a new
+// installation is not seeded with: other layouts of a sender's own card for
+// when Teams renders it badly (ADR 0099).
+func Variants() []Preset {
+	return []Preset{
+		{
+			Key:      "teamsv2-text",
+			LabelKey: "preset.teamsv2-text",
+			Name:     "Teams V2 webhook message as text",
+			Title:    teamsV2PartsTitle,
+			Text:     teamsV2TextText,
+			Sources:  []string{models.SourceTeamsV2},
+			Sample:   "teamsv2-card",
+		},
+		{
+			Key:      "teamsv2-stacked",
+			LabelKey: "preset.teamsv2-stacked",
+			Name:     "Teams V2 webhook card, facts stacked",
+			Title:    teamsV2PartsTitle,
+			Text:     `{{ .Event.Text }}`,
+			Body:     teamsV2StackedBody,
+			Sources:  []string{models.SourceTeamsV2},
+			Sample:   "teamsv2-card",
+		},
+	}
+}
+
+// The card's first text is usually its heading, so it becomes the title and
+// the text goes on from the second.
+const teamsV2PartsTitle = `{{ $p := cardParts .Event.Card }}{{ default (first $p.Texts) (default .Event.Title "Teams message") }}`
+
+// Facts go in a code block, which keeps long values on their own lines; a
+// value that contains a fence would end the block early, so it is defused.
+const teamsV2TextText = "{{- $p := cardParts .Event.Card }}\n" +
+	"{{- with .Event.Text }}{{ . }}\n\n{{ end }}\n" +
+	"{{- range rest $p.Texts }}{{ . }}\n\n{{ end }}\n" +
+	"{{- with $p.Facts }}```\n" +
+	"{{ range . }}{{ trimSuffix \":\" .Title }}: {{ replace \"```\" \"'''\" .Value }}\n{{ end }}" +
+	"```\n\n{{ end }}\n" +
+	"{{- range $p.Actions }}[{{ .Title }}]({{ .URL }})\n\n{{ end }}"
+
+// Each fact becomes a heading over its value: a FactSet gives the titles a
+// column Teams squeezes to a letter a line when the values are long.
+const teamsV2StackedBody = `{{ if .Event.Card }}{{ $p := cardParts .Event.Card }}{
+  "type": "AdaptiveCard",
+  "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+  "version": "1.4",
+  "body": [
+    {{- range $i, $t := $p.Texts }}{{ if $i }},{{ end }}
+    { "type": "TextBlock", "wrap": true, "text": {{ toJSON $t }}{{ if not $i }}, "size": "Medium", "weight": "Bolder"{{ end }} }
+    {{- end }}
+    {{- range $i, $f := $p.Facts }}{{ if or $i $p.Texts }},{{ end }}
+    { "type": "TextBlock", "wrap": true, "weight": "Bolder", "spacing": "Medium", "text": {{ toJSON (trimSuffix ":" $f.Title) }} },
+    { "type": "TextBlock", "wrap": true, "spacing": "None", "fontType": "Monospace", "text": {{ toJSON $f.Value }} }
+    {{- end }}
+  ]
+  {{- with $p.Actions }},
+  "actions": [
+    {{- range $i, $a := . }}{{ if $i }},{{ end }}
+    { "type": "Action.OpenUrl", "title": {{ toJSON $a.Title }}, "url": {{ toJSON $a.URL }} }
+    {{- end }}
+  ]
+  {{- end }}
+}{{ end }}`
 
 const alertmanagerTitle = `{{ if eq .Event.State "closed" }}Resolved{{ else }}Firing{{ end }}: ` +
 	`{{ default .Event.Alertmanager.Annotations.summary (default .Event.Alertmanager.CommonAnnotations.summary (default .Event.Labels.alertname "Alert")) }}` +

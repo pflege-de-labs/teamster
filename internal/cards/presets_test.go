@@ -144,49 +144,101 @@ func TestPresetsRender(t *testing.T) {
 	}
 }
 
-// The Teams V2 preset is checked against the payloads a sender actually posts,
-// parsed the way the endpoint parses them.
-func TestTeamsV2PresetRendersTheSamples(t *testing.T) {
+// The Teams V2 presets are checked against the payloads a sender actually
+// posts, parsed the way the endpoint parses them.
+func TestTeamsV2PresetsRenderTheSamples(t *testing.T) {
 	t.Parallel()
 
-	cases := []struct {
-		file     string
-		wantCard bool
+	files := []struct {
+		name    string
+		hasCard bool
 	}{
-		{file: "teamsv2-card.json", wantCard: true},
-		{file: "teamsv2-messagecard.json", wantCard: true},
-		{file: "teamsv2-text.json"},
+		{name: "teamsv2-card.json", hasCard: true},
+		{name: "teamsv2-exception.json", hasCard: true},
+		{name: "teamsv2-messagecard.json", hasCard: true},
+		{name: "teamsv2-text.json"},
 	}
-	p, _ := PresetFor(models.SourceTeamsV2)
-	for _, tc := range cases {
-		t.Run(tc.file, func(t *testing.T) {
+	def, _ := PresetFor(models.SourceTeamsV2)
+	for _, p := range append([]Preset{def}, Variants()...) {
+		for _, file := range files {
+			t.Run(p.Key+"/"+file.name, func(t *testing.T) {
+				t.Parallel()
+
+				msg := renderSample(t, p, file.name)
+				if wantCard := file.hasCard && p.Body != ""; (len(msg.Card) > 0) != wantCard {
+					t.Errorf("card = %s, want one: %v", msg.Card, wantCard)
+				}
+				if msg.Title == "" || (msg.Text == "" && len(msg.Card) == 0) {
+					t.Errorf("message says nothing: %+v", msg)
+				}
+			})
+		}
+	}
+}
+
+// The variants exist for a card whose FactSet Teams squeezes, so on that card
+// neither sends a FactSet, and each keeps the card's link.
+func TestTeamsV2VariantsTakeTheCardApart(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		key       string
+		wantTitle string
+		want      []string
+	}{
+		{key: "teamsv2-text", wantTitle: "Exception builtins.KeyError has occurred while processing background task", want: []string{"<pre><code>", "Function: _push_observation", "https://example.test/observations/87018"}},
+		{key: "teamsv2-stacked", wantTitle: "Exception builtins.KeyError has occurred while processing background task", want: []string{`"Monospace"`, `"Arguments"`, "https://example.test/observations/87018"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.key, func(t *testing.T) {
 			t.Parallel()
 
-			body, err := os.ReadFile(filepath.Join("..", "..", "samples", tc.file))
-			if err != nil {
-				t.Fatal(err)
+			i := slices.IndexFunc(Variants(), func(p Preset) bool { return p.Key == tt.key })
+			if i < 0 {
+				t.Fatalf("no variant %q", tt.key)
 			}
-			parsed, err := teamsv2.Parse(body)
-			if err != nil {
-				t.Fatal(err)
+			p := Variants()[i]
+			if err := templates.Validate(p.Template()); err != nil {
+				t.Fatalf("not a valid template: %v", err)
 			}
-			ev := models.Event{Source: models.SourceTeamsV2, Title: parsed.Title, Text: parsed.Text}
-			if len(parsed.Cards) > 0 {
-				ev.Card = parsed.Cards[0]
+			msg := renderSample(t, p, "teamsv2-exception.json")
+			if msg.Title != tt.wantTitle {
+				t.Errorf("title = %q, want %q", msg.Title, tt.wantTitle)
 			}
-			var payload any
-			_ = json.Unmarshal(body, &payload)
-
-			msg, err := templates.RenderMessage(p.Template(), templates.RenderData{Event: ev, Payload: payload})
-			if err != nil {
-				t.Fatalf("render: %v", err)
+			out := msg.Text + string(msg.Card)
+			if strings.Contains(out, "FactSet") {
+				t.Errorf("message still has a FactSet: %s", out)
 			}
-			if (len(msg.Card) > 0) != tc.wantCard {
-				t.Errorf("card = %s, want one: %v", msg.Card, tc.wantCard)
-			}
-			if msg.Title == "" || (msg.Text == "" && len(msg.Card) == 0) {
-				t.Errorf("message says nothing: %+v", msg)
+			for _, want := range tt.want {
+				if !strings.Contains(out, want) {
+					t.Errorf("message lacks %q: %s", want, out)
+				}
 			}
 		})
 	}
+}
+
+func renderSample(t *testing.T, p Preset, file string) templates.Message {
+	t.Helper()
+
+	body, err := os.ReadFile(filepath.Join("..", "..", "samples", file))
+	if err != nil {
+		t.Fatal(err)
+	}
+	parsed, err := teamsv2.Parse(body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ev := models.Event{Source: models.SourceTeamsV2, Title: parsed.Title, Text: parsed.Text}
+	if len(parsed.Cards) > 0 {
+		ev.Card = parsed.Cards[0]
+	}
+	var payload any
+	_ = json.Unmarshal(body, &payload)
+
+	msg, err := templates.RenderMessage(p.Template(), templates.RenderData{Event: ev, Payload: payload})
+	if err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	return msg
 }
