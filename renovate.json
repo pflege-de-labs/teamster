@@ -167,6 +167,20 @@
       ]
     },
     {
+      "description": "The Tailwind and sqlc CLIs pinned in the Makefile write committed output: the stylesheet and the sqlc-generated Go. The hosted app cannot run `make generate`, so their bumps wait for a person, like templ's. Once the self-hosted Renovate covers this org, replace this with a postUpgradeTasks running make generate.",
+      "matchManagers": [
+        "custom.regex"
+      ],
+      "matchDepNames": [
+        "tailwindlabs/tailwindcss",
+        "sqlc-dev/sqlc"
+      ],
+      "automerge": false,
+      "prBodyNotes": [
+        "Run `make generate` on this branch, commit and push — CI fails with `generated output is stale` until the committed output matches this version."
+      ]
+    },
+    {
       "description": "A vendor manifest bump only moves the version; the checksum still needs `make vendor-record` by hand, so this never merges itself.",
       "matchManagers": [
         "custom.regex"
