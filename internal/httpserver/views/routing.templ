@@ -130,10 +130,14 @@ templ routingPanel(name, tab string) {
 }
 
 // graphToolbar fits the graph to the view and brings back panels that were hidden.
+// Show all is hidden until a click narrows the graph to one node's paths.
 templ graphToolbar() {
 	<div class="absolute top-3 left-3 z-10 flex gap-1">
 		<button type="button" data-fit class="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-600 shadow-sm hover:text-sky-700">
 			{ i18n.T(ctx, "routing.fit") }
+		</button>
+		<button type="button" data-show-all hidden class="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-600 shadow-sm hover:text-sky-700">
+			{ i18n.T(ctx, "routing.show_all") }
 		</button>
 		{ children... }
 	</div>

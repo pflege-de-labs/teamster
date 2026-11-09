@@ -10,6 +10,19 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 ## [Unreleased]
 
+### Changed
+
+* The routing graph orders each column so that fewer lines cross, and puts the global default and
+  default routes on top, so their line to the default channel runs straight. Routes no longer
+  appear in evaluation order; their priority is on the label
+  ([ADR 0100](docs/adr/0100-order-the-routing-graph-to-cross-fewer-lines.md)).
+* Clicking a node on the routing graph draws only what leads to it and from it, laid out afresh,
+  instead of fading the rest. Click the background, press `Esc` or use **Show the whole graph** to
+  go back ([ADR 0101](docs/adr/0101-a-click-draws-only-the-nodes-paths.md)).
+* A line on the routing graph that skips a column runs in a row of its own there, so it no longer
+  crosses the labels of that column, and a label is shortened to end before the next column's lines
+  ([ADR 0102](docs/adr/0102-a-link-that-skips-columns-gets-a-lane.md)).
+
 ## [0.19.0] — 2026-11-09
 
 ### Added

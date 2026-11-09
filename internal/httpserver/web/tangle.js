@@ -1,7 +1,8 @@
 // Tangled tree layout, ported from "Tangled tree visualization II" by nitaku:
 // https://observablehq.com/@nitaku/tangled-tree-visualization-ii
 // Changes: no d3 or lodash, tunable spacing, guarded empty levels, an optional
-// compact mode with rising links. See ADR 0097.
+// compact mode with rising links (ADR 0097), and an ordering pass (ADR 0100) and
+// lanes for links that skip levels (ADR 0102), which are not in the original.
 //
 // Copyright 2018 nitaku
 //
@@ -133,9 +134,11 @@
       if (opts.compact) yOffset = padding;
       yOffset += levelYPadding;
       l.forEach((n) => {
+        // A lane carries no label, so it needs less room than a node.
+        const row = n.rowHeight || nodeHeight;
         n.x = n.level * nodeWidth + xOffset;
-        n.y = nodeHeight + yOffset + n.height / 2;
-        yOffset += nodeHeight + n.height;
+        n.y = row + yOffset + n.height / 2;
+        yOffset += row + n.height;
       });
     });
 
@@ -216,6 +219,87 @@
     );
   }
 
+  // Reorders the levels so that fewer links cross: barycenter sweeps, as in Sugiyama's
+  // method. The first level keeps its order, since callers colour by it, and pinned ids
+  // lead their level. Index stands in for height because compact mode top-aligns levels.
+  // Returns new levels; the input is not modified.
+  function order(input, options) {
+    const pinned = new Set((options && options.pinned) || []);
+    const levels = input.map((level) => level.slice());
+    const parentsOf = new Map();
+    const childrenOf = new Map();
+    levels.forEach((l) => l.forEach((n) => (parentsOf.set(n.id, []), childrenOf.set(n.id, []))));
+    levels.forEach((l) =>
+      l.forEach((n) =>
+        (n.parents || []).forEach((p) => {
+          if (!childrenOf.has(p)) return;
+          parentsOf.get(n.id).push(p);
+          childrenOf.get(p).push(n.id);
+        }),
+      ),
+    );
+    const index = new Map();
+    const reindex = (l) => l.forEach((n, i) => index.set(n.id, i));
+    levels.forEach(reindex);
+
+    function sortBy(l, neighbours) {
+      const key = new Map();
+      l.forEach((n) => {
+        const ns = neighbours.get(n.id);
+        // A node with no neighbours this way keeps its place instead of floating to the top.
+        key.set(n.id, ns.length ? ns.reduce((sum, id) => sum + index.get(id), 0) / ns.length : index.get(n.id));
+      });
+      // Ties keep the previous order, which starts as the server's priority order.
+      l.sort((a, b) => pinned.has(b.id) - pinned.has(a.id) || key.get(a.id) - key.get(b.id) || index.get(a.id) - index.get(b.id));
+      reindex(l);
+    }
+
+    for (let sweep = 0; sweep < 4; sweep++) {
+      if (sweep > 0) for (let i = levels.length - 2; i >= 1; i--) sortBy(levels[i], childrenOf);
+      for (let i = 1; i < levels.length; i++) sortBy(levels[i], parentsOf);
+    }
+    return levels;
+  }
+
+  // Gives a link that skips levels a lane node in every level it passes, so its line
+  // runs in a row of its own instead of through the labels there: the dummy nodes of
+  // Sugiyama's method. Links from one parent in one group share their lanes. A lane
+  // has lane: true, the source it starts at and the targets it leads to.
+  // Returns new levels; the input is not modified.
+  function lanes(input, options) {
+    const group = (options && options.group) || (() => "");
+    const rowHeight = options && options.rowHeight;
+    const levels = input.map((level) => level.map((n) => Object.assign({}, n, { parents: (n.parents || []).slice() })));
+    const levelOf = new Map();
+    levels.forEach((l, i) => l.forEach((n) => levelOf.set(n.id, i)));
+    const made = new Map();
+    levels.forEach((l, i) =>
+      l.forEach((n) => {
+        if (n.lane) return;
+        n.parents = n.parents.map((p) => {
+          if (!levelOf.has(p) || i - levelOf.get(p) < 2) return p;
+          const g = group(p, n.id);
+          let prev = p;
+          for (let k = levelOf.get(p) + 1; k < i; k++) {
+            const id = "~" + p + "~" + g + "@" + k;
+            if (!made.has(id)) {
+              const lane = { id, parents: [prev], lane: true, source: p, targets: [] };
+              if (rowHeight) lane.rowHeight = rowHeight;
+              made.set(id, lane);
+              levels[k].push(lane);
+            }
+            made.get(id).targets.push(n.id);
+            prev = id;
+          }
+          return prev;
+        });
+      }),
+    );
+    return levels;
+  }
+
   global.teamsterTangle = tangle;
+  global.teamsterTangleLanes = lanes;
+  global.teamsterTangleOrder = order;
   global.teamsterTanglePath = tanglePath;
 })(typeof window !== "undefined" ? window : globalThis);

@@ -1,6 +1,9 @@
 # 0097. Lay out the routing graph as a tangled tree
 
-* Status: Accepted
+* Status: Accepted, amended by [0100](0100-order-the-routing-graph-to-cross-fewer-lines.md):
+  the browser reorders each column; and by
+  [0101](0101-a-click-draws-only-the-nodes-paths.md): a click draws only the node's paths; and by
+  [0102](0102-a-link-that-skips-columns-gets-a-lane.md): a link that skips columns gets a lane
 * Date: 2026-11-09
 
 ## Context

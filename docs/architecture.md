@@ -590,7 +590,12 @@ smaller graph — templates against the routes that use them and the webhooks th
 of (ADR 0054) — which is where a template nothing references shows up as an orphan.
 
 Each node carries a column and a row from Go, where the tests can see them: the column is the step,
-and the row keeps children next to their parents. The browser turns them into a tangled tree
+and the row keeps children next to their parents. The browser takes the row as a starting order
+and reorders every column but the webhooks' with barycenter sweeps, so fewer lines cross, with the
+default routes first ([ADR 0100](adr/0100-order-the-routing-graph-to-cross-fewer-lines.md)). A
+link that skips columns first gets a lane, an unlabelled node in each column it passes, so its line
+runs in a row of its own ([ADR 0102](adr/0102-a-link-that-skips-columns-gets-a-lane.md)). The
+browser then turns the graph into a tangled tree
 (`web/tangle.js`, ported from nitaku's Observable notebook, MIT): links with the same parents share
 one vertical track, the columns are top-aligned, and every link takes the colour of the webhook or
 endpoint it carries alerts from, as parallel strands where it carries several
@@ -609,8 +614,9 @@ every route that matched or delivers, the routes they were reached through, and 
 land in stay lit while everything else fades — so a fan-out across several
 independent routes reads off the same picture as a fan-out through nested children does.
 
-Clicking a node lights up the same way, without asking the server: everything upstream of it
-along the links and everything downstream, and the view zooms to that part.
+Clicking a node takes the same part without asking the server, everything upstream of it along
+the links and everything downstream, and draws only that part, ordered and laid out afresh with the
+whole graph's colours ([ADR 0101](adr/0101-a-click-draws-only-the-nodes-paths.md)).
 
 `POST /api/routing/match` returns every route that matched and **why** — `selector`, `default`,
 `global-default`, `none` or `no-routes`. That reason comes from `routing.Plan`, which holds the
