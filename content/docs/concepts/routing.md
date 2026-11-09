@@ -157,12 +157,14 @@ template instead.
 * The **Templates** tab pairs templates with the routes and webhooks that use them. A template
   with nothing beside it is unused. Open it directly with `/admin/routing?tab=templates`.
 
-Lines carry no text. Hover a node or a line for what it is and does: the route's selector,
-priority, template and warnings, and a preview of its connections. Click a node, or focus it with
-`Tab` and press `Enter`, to keep everything upstream and downstream lit and zoom there. Click the
-background or press `Esc` to see everything again. Drag the background to pan, scroll to zoom, and
-use **Fit to view** to see the whole graph. Nodes cannot be moved. The info button (ⓘ) explains how
-to read the graph: hover opens it, click pins it, `Esc` closes it.
+Lines carry no text. Hover a node or a line for what it is and does: the route's selector, priority,
+template and warnings, and a preview of its connections. Click a node, or focus it with `Tab` and
+press `Enter`, to redraw the graph with only that node, everything leading to it and everything it
+leads to, laid out afresh. Colours stay those of the whole graph. Click a node in the part to draw
+that node's paths. To get the whole graph back, click the background, press `Esc` or use **Show the
+whole graph**, which appears only while a part is drawn. Drag the background to pan, scroll to zoom,
+and use **Fit to view** to fit what is drawn. Nodes cannot be moved. The info button (ⓘ) explains
+how to read the graph: hover opens it, click pins it, `Esc` closes it.
 
 Paste `key=value` labels into **Which routes match?** to ask which routes a given event would take.
 Every route that delivers is named and explained (a route without a selector says it takes every

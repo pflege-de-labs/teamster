@@ -179,11 +179,14 @@ Linie, die Alarme mehrerer Webhooks trägt, verläuft als mehrere Stränge neben
 Linien tragen keinen Text. Fahren Sie über einen Knoten oder eine Linie, um zu sehen, was sie ist
 und tut: Selektor, Priorität, Vorlage und Warnungen der Route sowie eine Vorschau ihrer
 Verbindungen. Klicken Sie einen Knoten an, oder fokussieren Sie ihn mit `Tab` und drücken Sie
-`Enter`, um alles davor und dahinter hervorgehoben zu lassen und dorthin zu zoomen. Klicken Sie auf
-den Hintergrund oder drücken Sie `Esc`, um wieder alles zu sehen. Ziehen Sie den Hintergrund zum
-Verschieben, scrollen Sie zum Zoomen und nutzen Sie **Alles zeigen**, um den ganzen Graphen zu
-sehen. Knoten lassen sich nicht verschieben. Die Info-Schaltfläche (ⓘ) erklärt, wie Sie den Graphen
-lesen: Darüberfahren öffnet sie, ein Klick hält sie fest, `Esc` schließt sie.
+`Enter`, um den Graphen nur mit diesem Knoten, allem, was zu ihm führt, und allem, wohin er führt,
+neu zu zeichnen. Die Farben bleiben die des ganzen Graphen. Klicken Sie in diesem Ausschnitt einen
+Knoten an, wird dessen Pfad gezeichnet. Zurück zum ganzen Graphen kommen Sie, indem Sie auf den
+Hintergrund klicken, `Esc` drücken oder **Ganzen Graphen zeigen** nutzen; die Schaltfläche erscheint
+nur, solange ein Ausschnitt gezeichnet ist. Ziehen Sie den Hintergrund zum Verschieben, scrollen Sie
+zum Zoomen und nutzen Sie **Alles zeigen**, um das Gezeichnete einzupassen. Knoten lassen sich nicht
+verschieben. Die Info-Schaltfläche (ⓘ) erklärt, wie Sie den Graphen lesen: Darüberfahren öffnet sie,
+ein Klick hält sie fest, `Esc` schließt sie.
 
 Tragen Sie `key=value`-Labels unter **Welche Routen treffen zu?** ein, um zu fragen, welche Routen
 ein bestimmtes Ereignis nehmen würde. Jede Route, die zustellt, wird genannt und begründet (eine
