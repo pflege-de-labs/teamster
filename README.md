@@ -1404,10 +1404,10 @@ An icon tells what a node is: a chevron for a webhook, a double chevron for a Te
 fork for a route, an arrow into a bar for a channel, a person for a chat. A dashed line between two
 routes is a refinement; it ends in a bar when the child delivers *instead of* its parent. Hover a
 node or a line for what it is and does: a route's selector, priority and the template it renders
-with, marked when inherited. Click a node to light up everything that leads to it and everything it
-leads to and zoom there; click the background or press Esc to see everything again. The label
-probe and the legend float over the graph: drag them by their title, fold them, or hide them and
-bring them back from the buttons at the top left. The info button explains the picture.
+with, marked when inherited. Click a node to draw only what leads to it and what it leads to; click
+the background, press Esc or use **Show the whole graph** to see everything again. The label probe
+and the legend float over the graph: drag them by their title, fold them, or hide them and bring
+them back from the buttons at the top left. The info button explains the picture.
 
 The **Templates** tab pairs templates with the routes that use them and the webhooks they are the
 default of; a template with nothing beside it is unused. A route pointing at a deleted destination

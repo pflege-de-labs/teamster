@@ -16,6 +16,9 @@ reasoning behind it in the [ADRs](docs/adr/).
   default routes on top, so their line to the default channel runs straight. Routes no longer
   appear in evaluation order; their priority is on the label
   ([ADR 0100](docs/adr/0100-order-the-routing-graph-to-cross-fewer-lines.md)).
+* Clicking a node on the routing graph draws only what leads to it and from it, laid out afresh,
+  instead of fading the rest. Click the background, press `Esc` or use **Show the whole graph** to
+  go back ([ADR 0101](docs/adr/0101-a-click-draws-only-the-nodes-paths.md)).
 
 ## [0.19.0] — 2026-11-09
 

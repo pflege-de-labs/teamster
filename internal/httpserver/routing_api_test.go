@@ -463,7 +463,7 @@ func TestRoutingPageRenders(t *testing.T) {
 		`id="routing-graph"`, `id="template-graph"`, `id="match-form"`, `id="match-result"`,
 		`name="labels"`, `src="/vendor/d3.min.js"`, `src="/tangle.js"`, `src="/routing.js"`,
 		`href="/admin/routing"`, `data-floating-panel="match"`, `data-floating-panel="legend"`,
-		`data-legend-roots`, `popovertarget="routing-help"`, `id="glyph-route"`,
+		`data-legend-roots`, `popovertarget="routing-help"`, `id="glyph-route"`, `data-show-all hidden`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the routing page is missing %q", want)

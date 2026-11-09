@@ -190,7 +190,69 @@
     return li;
   }
 
+  // A click redraws the graph with only what leads to the node and from it, laid
+  // out afresh, so its paths read without the rest of the graph crossing them.
   function drawGraph(container, nodes, rawLinks) {
+    const left = Math.min(...nodes.map((n) => n.x));
+    const roots = nodes.filter((n) => n.x === left).sort((a, b) => a.y - b.y);
+    // Colours come from the whole graph, so a redrawn part keeps them.
+    const colours = new Map(roots.map((n, i) => [n.id, i < palette.length ? palette[i] : otherColour]));
+
+    // The legend names the colours, since only the graph knows which roots there are.
+    const legend = container.parentElement.querySelector("[data-legend-roots]");
+    if (legend) {
+      legend.replaceChildren(...roots.slice(0, palette.length).map((n) => legendRoot(colours.get(n.id), n.label)));
+      if (roots.length > palette.length) legend.appendChild(legendRoot(otherColour, "+" + (roots.length - palette.length) + " more"));
+    }
+
+    // Everything an alert could take to reach the node, and everything it reaches from it.
+    function reachOf(id) {
+      const ids = new Set([id]);
+      const links = [];
+      [["source", "target"], ["target", "source"]].forEach(([from, to]) => {
+        const queue = [id];
+        const seen = new Set(queue);
+        while (queue.length) {
+          const at = queue.shift();
+          rawLinks.forEach((l) => {
+            if (l[from] !== at) return;
+            if (!links.includes(l)) links.push(l);
+            ids.add(l[to]);
+            if (!seen.has(l[to])) {
+              seen.add(l[to]);
+              queue.push(l[to]);
+            }
+          });
+        }
+      });
+      return { nodes: nodes.filter((n) => ids.has(n.id)), links };
+    }
+
+    const showAll = container.parentElement.querySelector("[data-show-all]");
+    let focus = null;
+    let current = null;
+    function show(id) {
+      focus = id;
+      const part = id ? reachOf(id) : { nodes, links: rawLinks };
+      current = render(container, part.nodes, part.links, { colours, focus: id, onSelect: show, onReset: () => show(null) });
+      if (showAll) showAll.hidden = !id;
+    }
+    if (showAll) showAll.addEventListener("click", () => show(null));
+    show(null);
+
+    return {
+      edgeData: rawLinks,
+      reset: () => (focus ? show(null) : current.reset()),
+      fitAll: () => current.fitAll(),
+      resized: () => current.resized(),
+      highlight(set) {
+        if (focus) show(null);
+        current.highlight(set);
+      },
+    };
+  }
+
+  function render(container, nodes, rawLinks, view) {
     const byID = new Map(nodes.map((n) => [n.id, n]));
     const { levels, links: kept } = levelsOf(nodes, rawLinks);
     // The global default and default routes go first, so their line to the default channel runs straight.
@@ -264,8 +326,7 @@
       .text((d) => d.text.toUpperCase());
 
     // Which first-column nodes reach each node: a webhook, endpoint or template.
-    const roots = tangle.levels[0].map((n) => n.id);
-    const colourOf = new Map(roots.map((id, i) => [id, i < palette.length ? palette[i] : otherColour]));
+    const colourOf = view.colours;
     const rootsOf = new Map();
     tangle.levels.forEach((level, i) =>
       level.forEach((n) => {
@@ -283,7 +344,8 @@
     function strandsOf(l) {
       const colours = [];
       rootsOf.get(l.target.id).forEach((r) => {
-        const colour = colourOf.get(r);
+        // A part drawn without its webhook starts at a node the whole graph gave no colour.
+        const colour = colourOf.get(r) || otherColour;
         if (!colours.includes(colour)) colours.push(colour);
       });
       if (colours.length === 0) colours.push(otherColour);
@@ -431,12 +493,12 @@
       })
       .on("click", (event, d) => {
         event.stopPropagation();
-        focusOn(d.id);
+        view.onSelect(d.id);
       })
       .on("keydown", (event, d) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
-          focusOn(d.id);
+          view.onSelect(d.id);
         }
       })
       .on("focus", function (event, d) {
@@ -446,7 +508,7 @@
         d3.select(this).select("text").attr("text-decoration", null);
       });
 
-    svg.on("click", () => reset());
+    svg.on("click", () => (view.focus ? view.onReset() : reset()));
 
     const parentsOf = new Map();
     const childrenOf = new Map();
@@ -479,7 +541,7 @@
     }
 
     let lit = null;
-    let selected = null;
+    let selected = view.focus;
 
     function paint(preview) {
       const shown = preview === undefined ? lit : preview;
@@ -550,13 +612,6 @@
       moved = false;
     }
 
-    function focusOn(id) {
-      selected = id;
-      lit = connected(id);
-      paint();
-      fit(boxOf(lit.nodes), true);
-    }
-
     function reset() {
       if (!lit) return;
       lit = null;
@@ -565,19 +620,15 @@
       fit(boxOf(null), true);
     }
 
-    // The legend names the colours, since only the graph knows which roots there are.
-    const legend = container.parentElement.querySelector("[data-legend-roots]");
-    if (legend) {
-      legend.replaceChildren(
-        ...roots.slice(0, palette.length).map((id) => legendRoot(colourOf.get(id), byID.get(id).label)),
-      );
-      if (roots.length > palette.length) legend.appendChild(legendRoot(otherColour, "+" + (roots.length - palette.length) + " more"));
+    fit(boxOf(null), false);
+    if (view.focus) {
+      paint();
+      // The redraw replaced the node a keyboard user was on.
+      const focused = node.filter((d) => d.id === view.focus).node();
+      if (focused) focused.focus({ preventScroll: true });
     }
 
-    fit(boxOf(null), false);
-
     return {
-      edgeData: rawLinks,
       reset,
       fitAll: () => fit(boxOf(null), true),
       // A resize keeps a view the user chose and refits one they did not.

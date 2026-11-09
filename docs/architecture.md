@@ -612,8 +612,9 @@ every route that matched or delivers, the routes they were reached through, and 
 land in stay lit while everything else fades — so a fan-out across several
 independent routes reads off the same picture as a fan-out through nested children does.
 
-Clicking a node lights up the same way, without asking the server: everything upstream of it
-along the links and everything downstream, and the view zooms to that part.
+Clicking a node takes the same part without asking the server, everything upstream of it along
+the links and everything downstream, and draws only that part, ordered and laid out afresh with the
+whole graph's colours ([ADR 0101](adr/0101-a-click-draws-only-the-nodes-paths.md)).
 
 `POST /api/routing/match` returns every route that matched and **why** — `selector`, `default`,
 `global-default`, `none` or `no-routes`. That reason comes from `routing.Plan`, which holds the
