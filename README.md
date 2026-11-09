@@ -1761,6 +1761,7 @@ make icons          # copy the favicon set the binary serves from images/
 make vendor         # verify the browser libraries under web/vendor against manifest.json
 make vendor-record  # re-record a checksum after bumping a version in manifest.json
 make test           # go test ./...
+make test-js        # the browser scripts' layout logic, with Node's built-in test runner
 make coverage       # coverage report, fails below 75%
 make coverage-html  # writes coverage.html
 make lint           # golangci-lint

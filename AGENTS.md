@@ -20,6 +20,7 @@ Teamster is a Go webhook bridge that routes alerts to Microsoft Teams.
 A change is done when all of these hold:
 
 * `make coverage` passes — total statement coverage is at least 75%
+* `make test-js` passes
 * `make lint` is clean (`golangci-lint`, `gofmt`, `goimports`)
 * [Architecture documentation](docs/architecture.md) reflects the change
 * An [ADR](docs/adr/) exists for every architectural decision the change makes
@@ -118,6 +119,10 @@ An accepted migration is never edited. It has already run somewhere.
   its origin. Basic auth credentials travel with a cross-site post.
 * Tests are table-driven and call `t.Parallel()`. Tests that need `t.Setenv` cannot be parallel —
   keep those cases in their own test function.
+* Pure logic in the browser scripts — layout, graph walks, parsing — is tested with Node's built-in
+  `node:test` under `internal/httpserver/webtest/`, never inside `web/`, which is served as is.
+  `make test-js` runs it; there is no `package.json` and nothing to install
+  ([ADR 0098](docs/adr/0098-test-browser-script-logic-with-node-test.md)).
 * No package-level mutable state. Dependencies are injected through constructors, as in
   `httpserver.NewServer(cfg, store, graphClient)`.
 

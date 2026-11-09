@@ -18,7 +18,7 @@ VERSION      ?= $(shell git describe --tags --always --dirty --match 'v[0-9]*' 2
 # Images are tagged by commit, as CI tags them; VERSION is what the binary reports.
 IMAGE_TAG    ?= $(shell git rev-parse --short=7 HEAD 2>/dev/null || echo dev)
 
-.PHONY: all build run test test-postgres db-up db-down nats-up nats-down test-nats coverage coverage-html fmt lint tidy hooks tools generate icons manifest preview-manifest vendor vendor-record image image-run chart-lint clean
+.PHONY: all build run test test-js test-postgres db-up db-down nats-up nats-down test-nats coverage coverage-html fmt lint tidy hooks tools generate icons manifest preview-manifest vendor vendor-record image image-run chart-lint clean
 
 # The admin UI wears logo 1; logo 2 is the README header.
 ICON_SOURCE := images/favicons/logo-teamster-1
@@ -112,6 +112,10 @@ run:
 # data race here is a production bug rather than a test artefact.
 test:
 	go test -race ./...
+
+# The pure logic of the browser scripts, with Node's built-in runner and nothing to install; see ADR 0098.
+test-js:
+	node --test internal/httpserver/webtest/
 
 # -coverpkg attributes coverage across packages, so code exercised through
 # another package's tests counts; the generated output — templ's and sqlc's —
