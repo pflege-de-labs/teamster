@@ -4,8 +4,11 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
+
+	"github.com/pflege-de-labs/teamster/internal/cards"
 )
 
 func postPreview(t *testing.T, handler http.Handler, body string) *httptest.ResponseRecorder {
@@ -297,6 +300,18 @@ func TestPreviewRendersTheTeamsV2CardSample(t *testing.T) {
 	}
 	if answer.Title != "3 / https://example.test/observations/87018" {
 		t.Errorf("title = %q (error %q), want the sample card's facts and link", answer.Title, answer.Error)
+	}
+}
+
+// A preset that names its sample must name one the preview has, or the editor
+// leaves the preview on whatever sample was shown before.
+func TestPresetSamplesExist(t *testing.T) {
+	t.Parallel()
+
+	for _, p := range append(cards.Presets(), cards.Variants()...) {
+		if p.Sample != "" && !slices.Contains(previewSamples(), p.Sample) {
+			t.Errorf("preset %q names sample %q, which the preview does not have", p.Key, p.Sample)
+		}
 	}
 }
 

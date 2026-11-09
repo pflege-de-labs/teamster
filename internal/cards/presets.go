@@ -13,6 +13,8 @@ type Preset struct {
 	Text     string   `json:"text"`
 	Body     string   `json:"body"`
 	Sources  []string `json:"sources"`
+	// Sample is the preview sample to show the preset on, when it is not Key.
+	Sample string `json:"sample,omitempty"`
 }
 
 // Template is the preset as a template to store.
@@ -74,6 +76,7 @@ func Variants() []Preset {
 			Title:    teamsV2PartsTitle,
 			Text:     teamsV2TextText,
 			Sources:  []string{models.SourceTeamsV2},
+			Sample:   "teamsv2-card",
 		},
 		{
 			Key:      "teamsv2-stacked",
@@ -83,6 +86,7 @@ func Variants() []Preset {
 			Text:     `{{ .Event.Text }}`,
 			Body:     teamsV2StackedBody,
 			Sources:  []string{models.SourceTeamsV2},
+			Sample:   "teamsv2-card",
 		},
 	}
 }

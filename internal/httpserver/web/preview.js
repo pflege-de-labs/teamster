@@ -134,8 +134,9 @@
       form.querySelectorAll('input[name="sources"]').forEach((box) => {
         box.checked = (chosen.sources || []).includes(box.value);
       });
-      if (sample && [...sample.options].some((o) => o.value === chosen.key)) {
-        sample.value = chosen.key;
+      const shown = chosen.sample || chosen.key;
+      if (sample && [...sample.options].some((o) => o.value === shown)) {
+        sample.value = shown;
         sample.dispatchEvent(new Event("change"));
       }
       preset.value = "";
