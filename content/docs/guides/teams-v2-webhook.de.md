@@ -134,7 +134,40 @@ In einer solchen Vorlage gilt:
 * `.Payload` ist der Body wie gesendet, für Felder, die die geparste Form einebnet, etwa
   `{{ .Payload.themeColor }}` oder `{{ range .Payload.sections }}`.
 
-Die Vorschau der Vorlage bietet ein Beispiel **Teams-V2-Webhook**, um sie daran auszuprobieren.
+Die Vorschau der Vorlage bietet ein Beispiel **Teams-V2-Webhook**, um sie daran auszuprobieren, und
+ein Beispiel **Karte des Teams-V2-Webhooks mit langen Fakten**.
+
+## Eine Karte korrigieren, die Teams schlecht darstellt {#fix-a-card-that-teams-renders-badly}
+
+Teams quetscht die Titelspalte eines FactSets auf einen Buchstaben pro Zeile, wenn die Werte lang
+sind. Die Karte des Absenders können Sie nicht ändern, aber eine Vorlage kann sie mit `cardParts`
+zerlegen und denselben Inhalt anders anordnen. Zwei vorgefertigte Vorlagen tun das:
+
+| Vorgefertigte Vorlage | Sendet |
+| --- | --- |
+| **Nachricht des Teams-V2-Webhooks als Text** | Den ersten Text der Karte als Titel, die übrigen Texte, die Fakten in einem Codeblock und die Links |
+| **Karte des Teams-V2-Webhooks, Fakten untereinander** | Eine Karte, in der jeder Fakt als Überschrift über seinem Wert steht |
+
+{{% steps %}}
+
+### Die Vorlage anlegen
+
+Öffnen Sie unter **Vorlagen** auf **/admin** eine neue Vorlage und wählen Sie unter **Mit einer
+Vorlage beginnen** eine der beiden. Prüfen Sie sie in der Vorschau mit dem Beispiel **Karte des
+Teams-V2-Webhooks mit langen Fakten**.
+
+### Die Vorlage verwenden
+
+Wählen Sie die Vorlage im Formular des Endpunkts. Um alle Endpunkte ohne eigene Vorlage zu
+korrigieren, wählen Sie sie stattdessen unter **Standardvorlage je Webhook** als Vorlage für Teams
+V2; siehe [Vorlagen schreiben](../templates/#set-the-default-template-per-webhook).
+
+{{% /steps %}}
+
+Die vorgefertigten Vorlagen werden nicht von selbst gespeichert: Der Teams-V2-Standard einer neuen
+Installation reicht die Karte weiterhin unverändert durch. Nur Texte, Fakten und
+`Action.OpenUrl`-Links der Karte bleiben erhalten; siehe
+[`cardParts`](../../reference/template-data/#cardparts).
 
 ## Die Nachrichten an weitere Kanäle senden {#send-the-messages-to-more-channels}
 

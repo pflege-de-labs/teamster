@@ -186,6 +186,7 @@ A channel, and a route to one linked chat, sees the whole event.
 | Function | Signature | Returns |
 | --- | --- | --- |
 | `toJSON` | `toJSON <value>` | `value` encoded as JSON. Fails the render if it cannot be encoded. |
+| `cardParts` | `cardParts <card>` | The content of an Adaptive Card, such as `.Event.Card`, as `.Texts`, `.Facts` and `.Actions`; see below. |
 | `default` | `default <value> <fallback>` | `value` when it is a non-empty string, otherwise `fallback` when that is a string, otherwise an empty string. Works on a missing map key. |
 
 The built-in functions of `text/template` are available as well: `and`, `or`, `not`, `len`,
@@ -212,6 +213,20 @@ order of `default`: the value comes first. The pipeline form from sprig's docume
 {{ regexFind "^[a-z]+" .Event.Universal.Attributes.commit_message }}
 {{ splitList "\n" .Event.Universal.Attributes.commit_message | first | trunc 80 }}
 ```
+
+### cardParts
+
+`{{ $p := cardParts .Event.Card }}` searches the card through containers, columns and tables.
+
+| Field | Holds |
+| --- | --- |
+| `$p.Texts` | The text of every TextBlock and RichTextBlock, in order. |
+| `$p.Facts` | Every fact of a FactSet, each with `.Title` and `.Value`. |
+| `$p.Actions` | Every `Action.OpenUrl`, each with `.Title` and `.URL`. |
+
+A message without a card gives empty lists. Images, inputs and other actions are not extracted, and
+texts and facts lose their order relative to each other. Take the first text with `first $p.Texts`
+and the others with `rest $p.Texts`; `index $p.Texts 0` fails on an empty list.
 
 ## See also
 

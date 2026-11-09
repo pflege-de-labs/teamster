@@ -19,6 +19,10 @@ führt [Vorlagendaten](../../reference/template-data/) auf.
 Öffnen Sie eine neue Vorlage und wählen Sie eine unter **Mit einer Vorlage beginnen**. Das füllt
 Name, Titel, Text, Karte und Webhooks in einem Schritt und geht schneller, als leer zu beginnen.
 
+Zwei weitere vorgefertigte Vorlagen für Teams-V2-Nutzdaten werden hier angeboten, aber nie als
+Standard gespeichert. Sie ordnen die Karte eines Absenders anders an; siehe
+[Eine Karte korrigieren, die Teams schlecht darstellt](../teams-v2-webhook/#fix-a-card-that-teams-renders-badly).
+
 ### Die Teile ausfüllen {#fill-in-the-parts}
 
 Eine Vorlage hat drei optionale Teile und braucht mindestens einen davon:
@@ -245,6 +249,7 @@ curl -H "Authorization: Bearer <token>" -H 'Content-Type: application/json' \
 | `universal-direct-message.json` | Direkten Inhalt, für eine Route ohne Vorlage |
 | `universal-password-expiry.json` | Eine Nachricht an die Personen, die sie nennt |
 | `teamsv2-card.json`, `teamsv2-text.json`, `teamsv2-messagecard.json` | Die drei Formen des Teams-V2-Webhooks |
+| `teamsv2-exception.json` | Eine Teams-V2-Karte, deren lange Fakten Teams schlecht darstellt |
 
 ## Vorlagen aus der Zeit vor 0.9.0 umstellen {#migrate-templates-from-before-090}
 

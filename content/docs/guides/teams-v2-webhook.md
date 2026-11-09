@@ -129,7 +129,38 @@ In such a template:
 * `.Payload` is the body as sent, for fields the parsed form flattens, such as
   `{{ .Payload.themeColor }}` or `{{ range .Payload.sections }}`.
 
-The template preview has a **Teams V2 webhook** sample to try it against.
+The template preview has a **Teams V2 webhook** sample to try it against, and a **Teams V2 webhook
+card with long facts** sample.
+
+## Fix a card that Teams renders badly
+
+Teams squeezes the title column of a FactSet to one letter per line when the values are long. You
+cannot change the sender's card, but a template can take it apart with `cardParts` and lay the same
+content out differently. Two presets do this:
+
+| Preset | Sends |
+| --- | --- |
+| **Teams V2 webhook message as text** | The card's first text as the title, the other texts, the facts in a code block, and the links |
+| **Teams V2 webhook card, facts stacked** | A card with each fact as a heading over its value |
+
+{{% steps %}}
+
+### Create the template
+
+Open a new template under **Templates** on **/admin** and pick one of the presets under **Start
+from a preset**. Check it in the preview against **Teams V2 webhook card with long facts**.
+
+### Use it
+
+Choose the template in the endpoint's form. To fix every endpoint without a template of its own,
+choose it as the Teams V2 template under **Default template per webhook** instead; see
+[Write templates](../templates/#set-the-default-template-per-webhook).
+
+{{% /steps %}}
+
+The presets are never stored on their own: a new installation's Teams V2 default still passes the
+card through. Only the card's texts, facts and `Action.OpenUrl` links survive; see
+[`cardParts`](../../reference/template-data/#cardparts).
 
 ## Send the messages to more channels
 
