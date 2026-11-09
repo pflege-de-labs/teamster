@@ -592,8 +592,10 @@ of (ADR 0054) — which is where a template nothing references shows up as an or
 Each node carries a column and a row from Go, where the tests can see them: the column is the step,
 and the row keeps children next to their parents. The browser takes the row as a starting order
 and reorders every column but the webhooks' with barycenter sweeps, so fewer lines cross, with the
-default routes first ([ADR 0100](adr/0100-order-the-routing-graph-to-cross-fewer-lines.md)). It
-then turns the graph into a tangled tree
+default routes first ([ADR 0100](adr/0100-order-the-routing-graph-to-cross-fewer-lines.md)). A
+link that skips columns first gets a lane, an unlabelled node in each column it passes, so its line
+runs in a row of its own ([ADR 0102](adr/0102-a-link-that-skips-columns-gets-a-lane.md)). The
+browser then turns the graph into a tangled tree
 (`web/tangle.js`, ported from nitaku's Observable notebook, MIT): links with the same parents share
 one vertical track, the columns are top-aligned, and every link takes the colour of the webhook or
 endpoint it carries alerts from, as parallel strands where it carries several

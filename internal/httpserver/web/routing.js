@@ -21,6 +21,8 @@
     bigc: 40,
     compact: true,
   };
+  // A lane's row only has to fit the strands of the line passing through it.
+  const laneHeight = 16;
   // Below this the 12px labels stop being readable, so a tall graph scrolls instead.
   const minScale = 0.9;
   const maxScale = 1.6;
@@ -62,11 +64,6 @@
     p.className = "flex h-full items-center justify-center text-sm text-slate-500";
     p.textContent = message;
     container.appendChild(p);
-  }
-
-  function clip(text, max) {
-    if (!text) return "";
-    return text.length > max ? text.slice(0, max - 1) + "…" : text;
   }
 
   // What the node filters for, or why it filters for nothing.
@@ -257,8 +254,20 @@
     const { levels, links: kept } = levelsOf(nodes, rawLinks);
     // The global default and default routes go first, so their line to the default channel runs straight.
     const pinned = nodes.filter((n) => n.kind === "route" && (n.synthetic || n.default)).map((n) => n.id);
-    const tangle = window.teamsterTangle(window.teamsterTangleOrder(levels, { pinned }), geometry);
+    const kindOf = (from, to) => {
+      const raw = kept.get(from + ">" + to);
+      return raw ? raw.kind + (raw.greedy ? "!" : "") : "";
+    };
+    const laned = window.teamsterTangleLanes(levels, { group: kindOf, rowHeight: laneHeight });
+    const tangle = window.teamsterTangle(window.teamsterTangleOrder(laned, { pinned }), geometry);
     const keyOf = (l) => l.target.id + ">" + l.source.id;
+    // The server's links a drawn segment carries: a lane stands for every link it leads to.
+    tangle.links.forEach((l) => {
+      const from = l.target.lane ? l.target.source : l.target.id;
+      l.raw = (l.source.lane ? l.source.targets : [l.source.id]).map((to) => from + ">" + to);
+    });
+    const rawOf = (l) => kept.get(l.raw[0]) || {};
+    const drawn = tangle.nodes.filter((n) => !n.lane);
 
     container.replaceChildren();
     const svg = d3.select(container).append("svg").attr("class", "block h-full w-full").style("cursor", "grab");
@@ -301,13 +310,14 @@
     // One heading per level, above its first node: a child column is a different step.
     let routeLevels = 0;
     const headingData = tangle.levels.map((level) => {
-      const first = byID.get(level[0].id);
+      const first = byID.get(level.find((n) => !n.lane).id);
       let text = headings[first.kind] || first.kind;
       if (first.kind === "route" && container === flowContainer) {
         routeLevels += 1;
         if (routeLevels > 1) text = "Child routes";
       }
-      return { text, x: level[0].x, y: level[0].y - level[0].height / 2 - 30 };
+      const top = level[0].y - level[0].height / 2 - (level[0].rowHeight || geometry.nodeHeight);
+      return { text, x: level[0].x, y: top - 1 };
     });
     root
       .append("g")
@@ -374,12 +384,12 @@
       .attr("transform", (d) => "translate(" + d.offset + "," + d.offset + ")")
       .attr("stroke", (d) => d.colour)
       .attr("stroke-width", 1.5)
-      .attr("stroke-dasharray", (d) => dashOf(kept.get(keyOf(d.l)) || {}));
+      .attr("stroke-dasharray", (d) => dashOf(rawOf(d.l)));
     // "Instead of" ends in a bar, so ADR 0096's distinction stays visible without hovering.
     link
       .filter((l) => {
-        const raw = kept.get(keyOf(l));
-        return raw && raw.kind === "refines" && raw.greedy;
+        const raw = rawOf(l);
+        return !l.source.lane && raw.kind === "refines" && raw.greedy;
       })
       .append("path")
       .attr("d", (l) => "M" + (l.xs - 3) + " " + (l.ys - 5) + "v10")
@@ -390,14 +400,17 @@
       .attr("d", window.teamsterTanglePath)
       .attr("stroke", "transparent")
       .attr("stroke-width", 10)
-      .on("mouseenter", (event, l) => showCard(event, linkCard(byID.get(l.target.id), byID.get(l.source.id), kept.get(keyOf(l)) || {})))
+      .on("mouseenter", (event, l) => {
+        const ends = l.raw.map((key) => byID.get(key.slice(key.indexOf(">") + 1)).label);
+        showCard(event, linkCard(byID.get(l.raw[0].split(">")[0]), { label: ends.join(", ") }, rawOf(l)));
+      })
       .on("mousemove", moveCard)
       .on("mouseleave", hideCard);
 
     const node = root
       .append("g")
       .selectAll("g")
-      .data(tangle.nodes)
+      .data(drawn)
       .join("g")
       .attr("transform", (d) => "translate(" + d.x + "," + d.y + ")")
       .attr("tabindex", 0)
@@ -447,10 +460,16 @@
       .attr("stroke", surface)
       .attr("stroke-width", 4)
       .attr("paint-order", "stroke")
-      .text((d) => {
+      .each(function (d) {
         const n = byID.get(d.id);
         const suffix = n.kind === "route" && !n.synthetic ? (n.default ? " · default" : " · p" + (n.priority || 0)) : "";
-        return clip(n.label, 28 - suffix.length) + suffix;
+        // A label ends before the tracks of the next column start.
+        let text = n.label || "";
+        this.textContent = text + suffix;
+        while (text.length > 1 && this.getComputedTextLength() > geometry.nodeWidth - 33) {
+          text = text.slice(0, -1);
+          this.textContent = text.trimEnd() + "…" + suffix;
+        }
       });
 
     // A status glyph after the label, so a warning is never colour alone.
@@ -546,7 +565,8 @@
     function paint(preview) {
       const shown = preview === undefined ? lit : preview;
       const on = (d) => !shown || shown.nodes.has(d.id);
-      const onLink = (l) => !shown || shown.links.has(keyOf(l));
+      // A click lights segments, a match lights the server's links, which a lane segment stands for.
+      const onLink = (l) => !shown || shown.links.has(keyOf(l)) || l.raw.some((key) => shown.links.has(key));
       // Faded context stays legible enough to orient by; faded links get out of the way.
       node.attr("opacity", (d) => (on(d) ? 1 : 0.3));
       label.attr("font-weight", (d) => (d.id === selected ? 700 : 500));

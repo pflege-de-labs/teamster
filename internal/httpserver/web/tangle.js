@@ -1,8 +1,8 @@
 // Tangled tree layout, ported from "Tangled tree visualization II" by nitaku:
 // https://observablehq.com/@nitaku/tangled-tree-visualization-ii
 // Changes: no d3 or lodash, tunable spacing, guarded empty levels, an optional
-// compact mode with rising links (ADR 0097), and an ordering pass that is not in
-// the original (ADR 0100).
+// compact mode with rising links (ADR 0097), and an ordering pass (ADR 0100) and
+// lanes for links that skip levels (ADR 0102), which are not in the original.
 //
 // Copyright 2018 nitaku
 //
@@ -134,9 +134,11 @@
       if (opts.compact) yOffset = padding;
       yOffset += levelYPadding;
       l.forEach((n) => {
+        // A lane carries no label, so it needs less room than a node.
+        const row = n.rowHeight || nodeHeight;
         n.x = n.level * nodeWidth + xOffset;
-        n.y = nodeHeight + yOffset + n.height / 2;
-        yOffset += nodeHeight + n.height;
+        n.y = row + yOffset + n.height / 2;
+        yOffset += row + n.height;
       });
     });
 
@@ -259,7 +261,45 @@
     return levels;
   }
 
+  // Gives a link that skips levels a lane node in every level it passes, so its line
+  // runs in a row of its own instead of through the labels there: the dummy nodes of
+  // Sugiyama's method. Links from one parent in one group share their lanes. A lane
+  // has lane: true, the source it starts at and the targets it leads to.
+  // Returns new levels; the input is not modified.
+  function lanes(input, options) {
+    const group = (options && options.group) || (() => "");
+    const rowHeight = options && options.rowHeight;
+    const levels = input.map((level) => level.map((n) => Object.assign({}, n, { parents: (n.parents || []).slice() })));
+    const levelOf = new Map();
+    levels.forEach((l, i) => l.forEach((n) => levelOf.set(n.id, i)));
+    const made = new Map();
+    levels.forEach((l, i) =>
+      l.forEach((n) => {
+        if (n.lane) return;
+        n.parents = n.parents.map((p) => {
+          if (!levelOf.has(p) || i - levelOf.get(p) < 2) return p;
+          const g = group(p, n.id);
+          let prev = p;
+          for (let k = levelOf.get(p) + 1; k < i; k++) {
+            const id = "~" + p + "~" + g + "@" + k;
+            if (!made.has(id)) {
+              const lane = { id, parents: [prev], lane: true, source: p, targets: [] };
+              if (rowHeight) lane.rowHeight = rowHeight;
+              made.set(id, lane);
+              levels[k].push(lane);
+            }
+            made.get(id).targets.push(n.id);
+            prev = id;
+          }
+          return prev;
+        });
+      }),
+    );
+    return levels;
+  }
+
   global.teamsterTangle = tangle;
+  global.teamsterTangleLanes = lanes;
   global.teamsterTangleOrder = order;
   global.teamsterTanglePath = tanglePath;
 })(typeof window !== "undefined" ? window : globalThis);

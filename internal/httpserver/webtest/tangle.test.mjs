@@ -7,6 +7,7 @@ await import(new URL("../web/tangle.js", import.meta.url));
 const tangle = globalThis.teamsterTangle;
 const tanglePath = globalThis.teamsterTanglePath;
 const order = globalThis.teamsterTangleOrder;
+const lanes = globalThis.teamsterTangleLanes;
 
 // Webhooks, routes, child routes and destinations, with a level skip and shared parents.
 const levels = [
@@ -222,5 +223,64 @@ test("the order", async (t) => {
     const before = JSON.stringify(crossed);
     order(crossed, { pinned: ["global-default"] });
     assert.equal(JSON.stringify(crossed), before);
+  });
+});
+
+test("the lanes", async (t) => {
+  // A route delivering two levels on, past a child route, and an endpoint posting three levels on.
+  const skipping = [
+    [{ id: "am" }, { id: "endpoint" }],
+    [{ id: "route", parents: ["am"] }],
+    [{ id: "child", parents: ["route"] }],
+    [
+      { id: "oncall", parents: ["child", "route"] },
+      { id: "alerts", parents: ["route", "endpoint"] },
+    ],
+  ];
+  const got = lanes(skipping, { rowHeight: 16 });
+  const byID = new Map(got.flat().map((n) => [n.id, n]));
+
+  await t.test("puts a lane in every level a link passes", () => {
+    got.forEach((level, i) =>
+      level.forEach((n) =>
+        n.parents.forEach((p) => {
+          const at = got.findIndex((l) => l.some((m) => m.id === p));
+          assert.equal(at, i - 1, p + ">" + n.id);
+        }),
+      ),
+    );
+  });
+
+  await t.test("shares a lane between the links of one parent", () => {
+    const fromRoute = got[2].filter((n) => n.lane && n.source === "route");
+    assert.equal(fromRoute.length, 1);
+    assert.deepEqual(fromRoute[0].targets, ["oncall", "alerts"]);
+    assert.equal(fromRoute[0].rowHeight, 16);
+  });
+
+  await t.test("keeps groups apart", () => {
+    const grouped = lanes(skipping, { group: (from, to) => (to === "oncall" ? "a" : "b") });
+    assert.equal(grouped[2].filter((n) => n.lane && n.source === "route").length, 2);
+  });
+
+  await t.test("chains a lane through every level", () => {
+    const end = byID.get(byID.get("alerts").parents.find((p) => byID.get(p).source === "endpoint"));
+    assert.equal(byID.get(end.parents[0]).lane, true);
+    assert.equal(byID.get(byID.get(end.parents[0]).parents[0]).id, "endpoint");
+  });
+
+  await t.test("leaves the input as it was", () => {
+    const before = JSON.stringify(skipping);
+    lanes(skipping);
+    assert.equal(JSON.stringify(skipping), before);
+  });
+
+  await t.test("lays out with lanes in shorter rows", () => {
+    const layout = tangle(order(got), { compact: true, nodeHeight: 29 });
+    layout.nodes.forEach((n) => assert.ok(Number.isFinite(n.y), n.id));
+    const level = layout.levels[2];
+    const lane = level.find((n) => n.lane);
+    const child = level.find((n) => n.id === "child");
+    assert.ok(Math.abs(lane.y - child.y) >= 16);
   });
 });
