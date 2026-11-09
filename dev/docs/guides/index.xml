@@ -2324,7 +2324,42 @@ HTML.&lt;/li&gt;
 &lt;li&gt;&lt;code&gt;.Payload&lt;/code&gt; is the body as sent, for fields the parsed form flattens, such as
 &lt;code&gt;{{ .Payload.themeColor }}&lt;/code&gt; or &lt;code&gt;{{ range .Payload.sections }}&lt;/code&gt;.&lt;/li&gt;
 &lt;/ul&gt;
-&lt;p&gt;The template preview has a &lt;strong&gt;Teams V2 webhook&lt;/strong&gt; sample to try it against.&lt;/p&gt;
+&lt;p&gt;The template preview has a &lt;strong&gt;Teams V2 webhook&lt;/strong&gt; sample to try it against, and a &lt;strong&gt;Teams V2 webhook
+card with long facts&lt;/strong&gt; sample.&lt;/p&gt;
+&lt;h2 data-hextra-search-id="fix-a-card-that-teams-renders-badly"&gt;Fix a card that Teams renders badly&lt;span class="hx:absolute hx:-mt-20" id="fix-a-card-that-teams-renders-badly"&gt;&lt;/span&gt;
+&lt;a href="#fix-a-card-that-teams-renders-badly" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Teams squeezes the title column of a FactSet to one letter per line when the values are long. You
+cannot change the sender&amp;rsquo;s card, but a template can take it apart with &lt;code&gt;cardParts&lt;/code&gt; and lay the same
+content out differently. Two presets do this:&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Preset&lt;/th&gt;
+&lt;th&gt;Sends&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;strong&gt;Teams V2 webhook message as text&lt;/strong&gt;&lt;/td&gt;
+&lt;td&gt;The card&amp;rsquo;s first text as the title, the other texts, the facts in a code block, and the links&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;strong&gt;Teams V2 webhook card, facts stacked&lt;/strong&gt;&lt;/td&gt;
+&lt;td&gt;A card with each fact as a heading over its value&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;div class="hextra-steps hx:ml-4 hx:mb-12 hx:ltr:border-l hx:rtl:border-r hx:border-gray-200 hx:ltr:pl-6 hx:rtl:pr-6 hx:dark:border-neutral-800 [counter-reset:step]"&gt;
+&lt;h3 data-hextra-search-id="create-the-template"&gt;Create the template&lt;span class="hx:absolute hx:-mt-20" id="create-the-template"&gt;&lt;/span&gt;
+&lt;a href="#create-the-template" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Open a new template under &lt;strong&gt;Templates&lt;/strong&gt; on &lt;strong&gt;/admin&lt;/strong&gt; and pick one of the presets under &lt;strong&gt;Start
+from a preset&lt;/strong&gt;. Check it in the preview against &lt;strong&gt;Teams V2 webhook card with long facts&lt;/strong&gt;.&lt;/p&gt;
+&lt;h3 data-hextra-search-id="use-it"&gt;Use it&lt;span class="hx:absolute hx:-mt-20" id="use-it"&gt;&lt;/span&gt;
+&lt;a href="#use-it" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Choose the template in the endpoint&amp;rsquo;s form. To fix every endpoint without a template of its own,
+choose it as the Teams V2 template under &lt;strong&gt;Default template per webhook&lt;/strong&gt; instead; see
+&lt;a href="../templates/#set-the-default-template-per-webhook"&gt;Write templates&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;p&gt;The presets are never stored on their own: a new installation&amp;rsquo;s Teams V2 default still passes the
+card through. Only the card&amp;rsquo;s texts, facts and &lt;code&gt;Action.OpenUrl&lt;/code&gt; links survive; see
+&lt;a href="../../reference/template-data/#cardparts"&gt;&lt;code&gt;cardParts&lt;/code&gt;&lt;/a&gt;.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="send-the-messages-to-more-channels"&gt;Send the messages to more channels&lt;span class="hx:absolute hx:-mt-20" id="send-the-messages-to-more-channels"&gt;&lt;/span&gt;
 &lt;a href="#send-the-messages-to-more-channels" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Every endpoint has a route that sends its messages to the endpoint&amp;rsquo;s own destination. Add routes
 that select the same messages to deliver them somewhere else as well.&lt;/p&gt;
@@ -2404,6 +2439,9 @@ handles, and set the default each webhook falls back to.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="start-from-a-preset"&gt;Start from a preset&lt;span class="hx:absolute hx:-mt-20" id="start-from-a-preset"&gt;&lt;/span&gt;
 &lt;a href="#start-from-a-preset" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Open a new template and pick one under &lt;strong&gt;Start from a preset&lt;/strong&gt;. It fills the name, title, text,
 card and webhooks in one go, which is quicker than starting empty.&lt;/p&gt;
+&lt;p&gt;Two further presets for Teams V2 payloads are offered here but never stored as defaults. They lay
+out a sender&amp;rsquo;s card differently; see
+&lt;a href="../teams-v2-webhook/#fix-a-card-that-teams-renders-badly"&gt;Fix a card that Teams renders badly&lt;/a&gt;.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="fill-in-the-parts"&gt;Fill in the parts&lt;span class="hx:absolute hx:-mt-20" id="fill-in-the-parts"&gt;&lt;/span&gt;
 &lt;a href="#fill-in-the-parts" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;A template has three optional parts and needs at least one:&lt;/p&gt;
 &lt;table&gt;
@@ -2719,6 +2757,10 @@ data-copied-label="Copied!"
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;teamsv2-card.json&lt;/code&gt;, &lt;code&gt;teamsv2-text.json&lt;/code&gt;, &lt;code&gt;teamsv2-messagecard.json&lt;/code&gt;&lt;/td&gt;
 &lt;td&gt;The three Teams V2 shapes&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;teamsv2-exception.json&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;A Teams V2 card whose long facts Teams renders badly&lt;/td&gt;
 &lt;/tr&gt;
 &lt;/tbody&gt;
 &lt;/table&gt;

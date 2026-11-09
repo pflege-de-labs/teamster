@@ -1999,6 +1999,11 @@ niemanden nennen. Bleibt ein Alarm übrig, werden &lt;code&gt;Annotations&lt;/co
 &lt;td&gt;&lt;code&gt;value&lt;/code&gt; als JSON kodiert. Lässt das Rendern scheitern, wenn sich der Wert nicht kodieren lässt.&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
+&lt;td&gt;&lt;code&gt;cardParts&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;cardParts &amp;lt;card&amp;gt;&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;Den Inhalt einer Adaptive Card, etwa &lt;code&gt;.Event.Card&lt;/code&gt;, als &lt;code&gt;.Texts&lt;/code&gt;, &lt;code&gt;.Facts&lt;/code&gt; und &lt;code&gt;.Actions&lt;/code&gt;; siehe unten.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
 &lt;td&gt;&lt;code&gt;default&lt;/code&gt;&lt;/td&gt;
 &lt;td&gt;&lt;code&gt;default &amp;lt;value&amp;gt; &amp;lt;fallback&amp;gt;&lt;/code&gt;&lt;/td&gt;
 &lt;td&gt;&lt;code&gt;value&lt;/code&gt;, wenn es ein nicht leerer String ist, sonst &lt;code&gt;fallback&lt;/code&gt;, wenn das ein String ist, sonst einen leeren String. Funktioniert auch mit einem fehlenden Map-Schlüssel.&lt;/td&gt;
@@ -2056,6 +2061,34 @@ data-copied-label="Kopiert!"
 &lt;/button&gt;
 &lt;/div&gt;
 &lt;/div&gt;
+&lt;h3 data-hextra-search-id="cardparts"&gt;cardParts&lt;span class="hx:absolute hx:-mt-20" id="cardparts"&gt;&lt;/span&gt;
+&lt;a href="#cardparts" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;&lt;code&gt;{{ $p := cardParts .Event.Card }}&lt;/code&gt; durchsucht die Karte durch Container, Spalten und Tabellen.&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Feld&lt;/th&gt;
+&lt;th&gt;Enthält&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;$p.Texts&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;Den Text jedes TextBlocks und RichTextBlocks, in Reihenfolge.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;$p.Facts&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;Jeden Fakt eines FactSets, je mit &lt;code&gt;.Title&lt;/code&gt; und &lt;code&gt;.Value&lt;/code&gt;.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;$p.Actions&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;Jede &lt;code&gt;Action.OpenUrl&lt;/code&gt;, je mit &lt;code&gt;.Title&lt;/code&gt; und &lt;code&gt;.URL&lt;/code&gt;.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;Eine Nachricht ohne Karte ergibt leere Listen. Bilder, Eingaben und andere Aktionen werden nicht
+extrahiert, und Texte und Fakten verlieren ihre Reihenfolge zueinander. Den ersten Text erhalten
+Sie mit &lt;code&gt;first $p.Texts&lt;/code&gt;, die übrigen mit &lt;code&gt;rest $p.Texts&lt;/code&gt;; &lt;code&gt;index $p.Texts 0&lt;/code&gt; scheitert bei einer
+leeren Liste.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="see-also"&gt;Siehe auch&lt;span class="hx:absolute hx:-mt-20" id="see-also"&gt;&lt;/span&gt;
 &lt;a href="#see-also" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;ul&gt;
 &lt;li&gt;&lt;a href="../../guides/templates/"&gt;Vorlagen schreiben&lt;/a&gt;&lt;/li&gt;

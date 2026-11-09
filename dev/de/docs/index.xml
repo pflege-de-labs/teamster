@@ -3612,6 +3612,11 @@ niemanden nennen. Bleibt ein Alarm übrig, werden &lt;code&gt;Annotations&lt;/co
 &lt;td&gt;&lt;code&gt;value&lt;/code&gt; als JSON kodiert. Lässt das Rendern scheitern, wenn sich der Wert nicht kodieren lässt.&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
+&lt;td&gt;&lt;code&gt;cardParts&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;cardParts &amp;lt;card&amp;gt;&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;Den Inhalt einer Adaptive Card, etwa &lt;code&gt;.Event.Card&lt;/code&gt;, als &lt;code&gt;.Texts&lt;/code&gt;, &lt;code&gt;.Facts&lt;/code&gt; und &lt;code&gt;.Actions&lt;/code&gt;; siehe unten.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
 &lt;td&gt;&lt;code&gt;default&lt;/code&gt;&lt;/td&gt;
 &lt;td&gt;&lt;code&gt;default &amp;lt;value&amp;gt; &amp;lt;fallback&amp;gt;&lt;/code&gt;&lt;/td&gt;
 &lt;td&gt;&lt;code&gt;value&lt;/code&gt;, wenn es ein nicht leerer String ist, sonst &lt;code&gt;fallback&lt;/code&gt;, wenn das ein String ist, sonst einen leeren String. Funktioniert auch mit einem fehlenden Map-Schlüssel.&lt;/td&gt;
@@ -3669,6 +3674,34 @@ data-copied-label="Kopiert!"
 &lt;/button&gt;
 &lt;/div&gt;
 &lt;/div&gt;
+&lt;h3 data-hextra-search-id="cardparts"&gt;cardParts&lt;span class="hx:absolute hx:-mt-20" id="cardparts"&gt;&lt;/span&gt;
+&lt;a href="#cardparts" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;&lt;code&gt;{{ $p := cardParts .Event.Card }}&lt;/code&gt; durchsucht die Karte durch Container, Spalten und Tabellen.&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Feld&lt;/th&gt;
+&lt;th&gt;Enthält&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;$p.Texts&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;Den Text jedes TextBlocks und RichTextBlocks, in Reihenfolge.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;$p.Facts&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;Jeden Fakt eines FactSets, je mit &lt;code&gt;.Title&lt;/code&gt; und &lt;code&gt;.Value&lt;/code&gt;.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;$p.Actions&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;Jede &lt;code&gt;Action.OpenUrl&lt;/code&gt;, je mit &lt;code&gt;.Title&lt;/code&gt; und &lt;code&gt;.URL&lt;/code&gt;.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;Eine Nachricht ohne Karte ergibt leere Listen. Bilder, Eingaben und andere Aktionen werden nicht
+extrahiert, und Texte und Fakten verlieren ihre Reihenfolge zueinander. Den ersten Text erhalten
+Sie mit &lt;code&gt;first $p.Texts&lt;/code&gt;, die übrigen mit &lt;code&gt;rest $p.Texts&lt;/code&gt;; &lt;code&gt;index $p.Texts 0&lt;/code&gt; scheitert bei einer
+leeren Liste.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="see-also"&gt;Siehe auch&lt;span class="hx:absolute hx:-mt-20" id="see-also"&gt;&lt;/span&gt;
 &lt;a href="#see-also" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;ul&gt;
 &lt;li&gt;&lt;a href="../../guides/templates/"&gt;Vorlagen schreiben&lt;/a&gt;&lt;/li&gt;
@@ -7548,7 +7581,44 @@ ist bereits HTML.&lt;/li&gt;
 &lt;li&gt;&lt;code&gt;.Payload&lt;/code&gt; ist der Body wie gesendet, für Felder, die die geparste Form einebnet, etwa
 &lt;code&gt;{{ .Payload.themeColor }}&lt;/code&gt; oder &lt;code&gt;{{ range .Payload.sections }}&lt;/code&gt;.&lt;/li&gt;
 &lt;/ul&gt;
-&lt;p&gt;Die Vorschau der Vorlage bietet ein Beispiel &lt;strong&gt;Teams-V2-Webhook&lt;/strong&gt;, um sie daran auszuprobieren.&lt;/p&gt;
+&lt;p&gt;Die Vorschau der Vorlage bietet ein Beispiel &lt;strong&gt;Teams-V2-Webhook&lt;/strong&gt;, um sie daran auszuprobieren, und
+ein Beispiel &lt;strong&gt;Karte des Teams-V2-Webhooks mit langen Fakten&lt;/strong&gt;.&lt;/p&gt;
+&lt;h2 data-hextra-search-id="fix-a-card-that-teams-renders-badly"&gt;Eine Karte korrigieren, die Teams schlecht darstellt&lt;span class="hx:absolute hx:-mt-20" id="fix-a-card-that-teams-renders-badly"&gt;&lt;/span&gt;
+&lt;a href="#fix-a-card-that-teams-renders-badly" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Teams quetscht die Titelspalte eines FactSets auf einen Buchstaben pro Zeile, wenn die Werte lang
+sind. Die Karte des Absenders können Sie nicht ändern, aber eine Vorlage kann sie mit &lt;code&gt;cardParts&lt;/code&gt;
+zerlegen und denselben Inhalt anders anordnen. Zwei vorgefertigte Vorlagen tun das:&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Vorgefertigte Vorlage&lt;/th&gt;
+&lt;th&gt;Sendet&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;strong&gt;Nachricht des Teams-V2-Webhooks als Text&lt;/strong&gt;&lt;/td&gt;
+&lt;td&gt;Den ersten Text der Karte als Titel, die übrigen Texte, die Fakten in einem Codeblock und die Links&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;strong&gt;Karte des Teams-V2-Webhooks, Fakten untereinander&lt;/strong&gt;&lt;/td&gt;
+&lt;td&gt;Eine Karte, in der jeder Fakt als Überschrift über seinem Wert steht&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;div class="hextra-steps hx:ml-4 hx:mb-12 hx:ltr:border-l hx:rtl:border-r hx:border-gray-200 hx:ltr:pl-6 hx:rtl:pr-6 hx:dark:border-neutral-800 [counter-reset:step]"&gt;
+&lt;h3 data-hextra-search-id="die-vorlage-anlegen"&gt;Die Vorlage anlegen&lt;span class="hx:absolute hx:-mt-20" id="die-vorlage-anlegen"&gt;&lt;/span&gt;
+&lt;a href="#die-vorlage-anlegen" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Öffnen Sie unter &lt;strong&gt;Vorlagen&lt;/strong&gt; auf &lt;strong&gt;/admin&lt;/strong&gt; eine neue Vorlage und wählen Sie unter &lt;strong&gt;Mit einer
+Vorlage beginnen&lt;/strong&gt; eine der beiden. Prüfen Sie sie in der Vorschau mit dem Beispiel &lt;strong&gt;Karte des
+Teams-V2-Webhooks mit langen Fakten&lt;/strong&gt;.&lt;/p&gt;
+&lt;h3 data-hextra-search-id="die-vorlage-verwenden"&gt;Die Vorlage verwenden&lt;span class="hx:absolute hx:-mt-20" id="die-vorlage-verwenden"&gt;&lt;/span&gt;
+&lt;a href="#die-vorlage-verwenden" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Wählen Sie die Vorlage im Formular des Endpunkts. Um alle Endpunkte ohne eigene Vorlage zu
+korrigieren, wählen Sie sie stattdessen unter &lt;strong&gt;Standardvorlage je Webhook&lt;/strong&gt; als Vorlage für Teams
+V2; siehe &lt;a href="../templates/#set-the-default-template-per-webhook"&gt;Vorlagen schreiben&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;p&gt;Die vorgefertigten Vorlagen werden nicht von selbst gespeichert: Der Teams-V2-Standard einer neuen
+Installation reicht die Karte weiterhin unverändert durch. Nur Texte, Fakten und
+&lt;code&gt;Action.OpenUrl&lt;/code&gt;-Links der Karte bleiben erhalten; siehe
+&lt;a href="../../reference/template-data/#cardparts"&gt;&lt;code&gt;cardParts&lt;/code&gt;&lt;/a&gt;.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="send-the-messages-to-more-channels"&gt;Die Nachrichten an weitere Kanäle senden&lt;span class="hx:absolute hx:-mt-20" id="send-the-messages-to-more-channels"&gt;&lt;/span&gt;
 &lt;a href="#send-the-messages-to-more-channels" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Jeder Endpunkt hat eine Route, die seine Nachrichten an das eigene Ziel des Endpunkts sendet.
 Fügen Sie Routen hinzu, die dieselben Nachrichten auswählen, um sie zusätzlich anderswohin
@@ -7634,6 +7704,9 @@ führt &lt;a href="../../reference/template-data/"&gt;Vorlagendaten&lt;/a&gt; au
 &lt;h3 data-hextra-search-id="start-from-a-preset"&gt;Mit einer Vorlage beginnen&lt;span class="hx:absolute hx:-mt-20" id="start-from-a-preset"&gt;&lt;/span&gt;
 &lt;a href="#start-from-a-preset" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Öffnen Sie eine neue Vorlage und wählen Sie eine unter &lt;strong&gt;Mit einer Vorlage beginnen&lt;/strong&gt;. Das füllt
 Name, Titel, Text, Karte und Webhooks in einem Schritt und geht schneller, als leer zu beginnen.&lt;/p&gt;
+&lt;p&gt;Zwei weitere vorgefertigte Vorlagen für Teams-V2-Nutzdaten werden hier angeboten, aber nie als
+Standard gespeichert. Sie ordnen die Karte eines Absenders anders an; siehe
+&lt;a href="../teams-v2-webhook/#fix-a-card-that-teams-renders-badly"&gt;Eine Karte korrigieren, die Teams schlecht darstellt&lt;/a&gt;.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="fill-in-the-parts"&gt;Die Teile ausfüllen&lt;span class="hx:absolute hx:-mt-20" id="fill-in-the-parts"&gt;&lt;/span&gt;
 &lt;a href="#fill-in-the-parts" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Eine Vorlage hat drei optionale Teile und braucht mindestens einen davon:&lt;/p&gt;
 &lt;table&gt;
@@ -7961,6 +8034,10 @@ data-copied-label="Kopiert!"
 &lt;tr&gt;
 &lt;td&gt;&lt;code&gt;teamsv2-card.json&lt;/code&gt;, &lt;code&gt;teamsv2-text.json&lt;/code&gt;, &lt;code&gt;teamsv2-messagecard.json&lt;/code&gt;&lt;/td&gt;
 &lt;td&gt;Die drei Formen des Teams-V2-Webhooks&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;teamsv2-exception.json&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;Eine Teams-V2-Karte, deren lange Fakten Teams schlecht darstellt&lt;/td&gt;
 &lt;/tr&gt;
 &lt;/tbody&gt;
 &lt;/table&gt;
