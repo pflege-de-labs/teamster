@@ -10,6 +10,8 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 ## [Unreleased]
 
+## [0.20.0] — 2026-11-09
+
 ### Changed
 
 * The routing graph orders each column so that fewer lines cross, and puts the global default and
@@ -559,7 +561,8 @@ Adaptive Cards posted to Teams channels, alert state in SQLite so a resolve upda
 an admin UI for templates, destinations and routes. Released as a signed container image and
 binaries with SBOMs ([ADR 0006](docs/adr/0006-release-rebuild-sbom-signing.md)).
 
-[Unreleased]: https://github.com/pflege-de-labs/teamster/compare/v0.19.0...HEAD
+[Unreleased]: https://github.com/pflege-de-labs/teamster/compare/v0.20.0...HEAD
+[0.20.0]: https://github.com/pflege-de-labs/teamster/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/pflege-de-labs/teamster/compare/v0.18.0...v0.19.0
 [0.18.0]: https://github.com/pflege-de-labs/teamster/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/pflege-de-labs/teamster/compare/v0.16.0...v0.17.0

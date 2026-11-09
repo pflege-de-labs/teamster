@@ -8,6 +8,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.19.0] — 2026-11-09
+
+App version 0.20.0: the routing graph orders its columns to cross fewer lines, draws only a clicked
+node's paths, and gives a line that skips a column a row of its own; see the
+[service changelog](../../CHANGELOG.md).
+
 ## [0.18.0] — 2026-11-09
 
 App version 0.19.0: templates can take a sender's Adaptive Card apart with `cardParts`, and the
@@ -222,7 +228,8 @@ an Ingress or HTTPRoute, configuration and credentials from values, `extraObject
 an optional startupProbe, and `helm test`
 ([ADR 0016](../../docs/adr/0016-helm-chart.md)).
 
-[Unreleased]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.18.0...HEAD
+[Unreleased]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.19.0...HEAD
+[0.19.0]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.18.0...teamster-0.19.0
 [0.18.0]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.17.0...teamster-0.18.0
 [0.17.0]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.16.0...teamster-0.17.0
 [0.16.0]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.15.0...teamster-0.16.0
