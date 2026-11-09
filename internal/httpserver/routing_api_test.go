@@ -461,12 +461,40 @@ func TestRoutingPageRenders(t *testing.T) {
 	body := rec.Body.String()
 	for _, want := range []string{
 		`id="routing-graph"`, `id="template-graph"`, `id="match-form"`, `id="match-result"`,
-		`name="labels"`, `src="/vendor/d3.min.js"`, `src="/routing.js"`,
-		`href="/admin/routing"`,
+		`name="labels"`, `src="/vendor/d3.min.js"`, `src="/tangle.js"`, `src="/routing.js"`,
+		`href="/admin/routing"`, `data-floating-panel="match"`, `data-floating-panel="legend"`,
+		`data-legend-roots`, `popovertarget="routing-help"`, `id="glyph-route"`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the routing page is missing %q", want)
 		}
+	}
+}
+
+func TestRoutingPageOpensTheAskedTab(t *testing.T) {
+	t.Parallel()
+
+	handler := newTestServer(t, routingStore(), &fakeMessenger{}).Handler
+	tests := []struct {
+		name, query, open, closed string
+	}{
+		{name: "default", query: "", open: "flow", closed: "templates"},
+		{name: "flow", query: "?tab=flow", open: "flow", closed: "templates"},
+		{name: "templates", query: "?tab=templates", open: "templates", closed: "flow"},
+		{name: "unknown falls back", query: "?tab=nope", open: "flow", closed: "templates"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			body := do(t, handler, http.MethodGet, "/admin/routing"+tc.query, "").Body.String()
+			if !strings.Contains(body, `id="tab-`+tc.open+`" aria-controls="panel-`+tc.open+`" aria-selected="true"`) {
+				t.Errorf("tab %q is not selected", tc.open)
+			}
+			if !strings.Contains(body, `data-tab-panel="`+tc.closed+`" class="relative min-h-0 flex-1 overflow-hidden bg-slate-50" hidden`) {
+				t.Errorf("panel %q is not hidden", tc.closed)
+			}
+		})
 	}
 }
 

@@ -578,8 +578,8 @@ per level of nesting below them, and the destinations last. There is one origin 
 unreachable. Below them, each Teams V2 endpoint is an origin of its own (`endpoint:<id>`), linked
 straight to its destination by a `direct` edge (ADR 0030, ADR 0094).
 Every edge means "an alert can go this way" and says which step it is — `enters`, `refines`,
-`delivers` or `direct` — so a dashed refinement edge can be labelled *as well as* or *instead of*
-according to the child's greedy flag.
+`delivers` or `direct` — so a refinement edge can tell *as well as* from *instead of* according to
+the child's greedy flag.
 A non-greedy child leaves its parent's delivery edge in place, which is what makes a fan-out
 visible as two paths.
 
@@ -589,8 +589,14 @@ marked inherited when it comes from an ancestor. `GET /api/routing/templates` an
 smaller graph — templates against the routes that use them and the webhooks they are the default
 of (ADR 0054) — which is where a template nothing references shows up as an orphan.
 
-Each node carries the position it is drawn at, so the layout is decided in Go where the tests can
-see it and the browser only draws, zooms and drags. A route node shows the labels it filters for, a
+Each node carries a column and a row from Go, where the tests can see them: the column is the step,
+and the row keeps children next to their parents. The browser turns them into a tangled tree
+(`web/tangle.js`, ported from nitaku's Observable notebook, MIT): links with the same parents share
+one vertical track, the columns are top-aligned, and every link takes the colour of the webhook or
+endpoint it carries alerts from, as parallel strands where it carries several
+([ADR 0097](adr/0097-lay-out-the-routing-graph-as-a-tangled-tree.md)). The page uses `FullLayout`,
+which gives the graph everything below the header. The label probe and the legend float over the
+graph, and the template graph is a second tab. A route node shows the labels it filters for, a
 destination node its name together with the Team and channel **names**, resolved through the same
 `directoryCache` the pickers use. That lookup is best effort: an unreachable Graph falls back to the
 stored ids rather than failing the request.
@@ -598,8 +604,11 @@ stored ids rather than failing the request.
 Matching a label set highlights every path that message takes, not one winning route: the webhook
 its `teamster_source` names (or both routed webhooks when it names none),
 every route that matched or delivers, the routes they were reached through, and the channels they
-land in are drawn in the match colour while everything else dims — so a fan-out across several
+land in stay lit while everything else fades — so a fan-out across several
 independent routes reads off the same picture as a fan-out through nested children does.
+
+Clicking a node lights up the same way, without asking the server: everything upstream of it
+along the links and everything downstream, and the view zooms to that part.
 
 `POST /api/routing/match` returns every route that matched and **why** — `selector`, `default`,
 `global-default`, `none` or `no-routes`. That reason comes from `routing.Plan`, which holds the

@@ -107,3 +107,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0094](0094-a-teams-v2-message-is-routed.md) | A Teams V2 message is routed | Accepted, amended by [0096](0096-a-route-can-keep-its-children-from-replacing-it.md) |
 | [0095](0095-an-empty-selector-matches-every-alert.md) | Let an empty selector match every alert | Accepted |
 | [0096](0096-a-route-can-keep-its-children-from-replacing-it.md) | Let a route keep its children from replacing it | Accepted |
+| [0097](0097-lay-out-the-routing-graph-as-a-tangled-tree.md) | Lay out the routing graph as a tangled tree | Accepted |
