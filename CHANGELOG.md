@@ -19,6 +19,9 @@ reasoning behind it in the [ADRs](docs/adr/).
 * Clicking a node on the routing graph draws only what leads to it and from it, laid out afresh,
   instead of fading the rest. Click the background, press `Esc` or use **Show the whole graph** to
   go back ([ADR 0101](docs/adr/0101-a-click-draws-only-the-nodes-paths.md)).
+* A line on the routing graph that skips a column runs in a row of its own there, so it no longer
+  crosses the labels of that column, and a label is shortened to end before the next column's lines
+  ([ADR 0102](docs/adr/0102-a-link-that-skips-columns-gets-a-lane.md)).
 
 ## [0.19.0] — 2026-11-09
 

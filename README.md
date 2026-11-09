@@ -1395,10 +1395,11 @@ The graph fills the page. Links with the same parents share one track, as in a m
 line has the colour of the webhook its alerts come from; a line that carries alerts from several
 webhooks runs as several strands side by side. Within a column, nodes are ordered so that as few
 lines cross as possible, with the global default and default routes on top; a route's priority is on
-its label. The Alertmanager and universal webhooks feed every root route, except that a route whose
-selector pins `teamster_source` is fed only by that webhook. Each Teams V2 endpoint is drawn below
-them with its own colour and a dotted line straight to its channel. That line is the fallback for an
-endpoint whose route is missing; routed messages enter through its linked route.
+its label. A line that skips a column runs in a row of its own there, so it never crosses a label.
+The Alertmanager and universal webhooks feed every root route, except that a route whose selector
+pins `teamster_source` is fed only by that webhook. Each Teams V2 endpoint is drawn below them with
+its own colour and a dotted line straight to its channel. That line is the fallback for an endpoint
+whose route is missing; routed messages enter through its linked route.
 
 An icon tells what a node is: a chevron for a webhook, a double chevron for a Teams V2 endpoint, a
 fork for a route, an arrow into a bar for a channel, a person for a chat. A dashed line between two

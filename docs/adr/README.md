@@ -112,3 +112,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0099](0099-a-template-takes-a-card-apart.md) | Let a template take a sender's card apart | Accepted |
 | [0100](0100-order-the-routing-graph-to-cross-fewer-lines.md) | Order the routing graph to cross fewer lines | Accepted |
 | [0101](0101-a-click-draws-only-the-nodes-paths.md) | A click draws only the node's paths | Accepted |
+| [0102](0102-a-link-that-skips-columns-gets-a-lane.md) | A link that skips columns gets a lane | Accepted |
