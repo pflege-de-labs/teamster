@@ -113,7 +113,7 @@
     return null;
   }
 
-  // Server columns become levels and server rows the order within them; the
+  // Server columns become levels and server rows the starting order within them; the
   // tangled tree only needs every link to point to a later level.
   function levelsOf(nodes, links) {
     const columns = Array.from(new Set(nodes.map((n) => n.x))).sort((a, b) => a - b);
@@ -193,7 +193,9 @@
   function drawGraph(container, nodes, rawLinks) {
     const byID = new Map(nodes.map((n) => [n.id, n]));
     const { levels, links: kept } = levelsOf(nodes, rawLinks);
-    const tangle = window.teamsterTangle(levels, geometry);
+    // The global default and default routes go first, so their line to the default channel runs straight.
+    const pinned = nodes.filter((n) => n.kind === "route" && (n.synthetic || n.default)).map((n) => n.id);
+    const tangle = window.teamsterTangle(window.teamsterTangleOrder(levels, { pinned }), geometry);
     const keyOf = (l) => l.target.id + ">" + l.source.id;
 
     container.replaceChildren();

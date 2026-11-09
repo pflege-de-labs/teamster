@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 await import(new URL("../web/tangle.js", import.meta.url));
 const tangle = globalThis.teamsterTangle;
 const tanglePath = globalThis.teamsterTanglePath;
+const order = globalThis.teamsterTangleOrder;
 
 // Webhooks, routes, child routes and destinations, with a level skip and shared parents.
 const levels = [
@@ -154,4 +155,72 @@ test("the path of a link", async (t) => {
       assert.deepEqual(sweeps, tc.sweeps);
     });
   }
+});
+
+// Pairs of links between the same two levels whose ends swap places.
+function crossings(levels) {
+  const at = new Map();
+  levels.forEach((l, li) => l.forEach((n, i) => at.set(n.id, [li, i])));
+  const links = levels.flat().flatMap((n) => (n.parents || []).map((p) => [at.get(p), at.get(n.id)]));
+  let count = 0;
+  links.forEach(([a, b], i) =>
+    links.slice(i + 1).forEach(([c, d]) => {
+      if (a[0] === c[0] && b[0] === d[0] && (a[1] - c[1]) * (b[1] - d[1]) < 0) count++;
+    }),
+  );
+  return count;
+}
+
+const ids = (levels) => levels.map((l) => l.map((n) => n.id));
+
+test("the order", async (t) => {
+  // Two webhooks whose routes and channels the server listed the other way round.
+  const crossed = [
+    [{ id: "am" }, { id: "uni" }],
+    [
+      { id: "uni-route", parents: ["uni"] },
+      { id: "am-route", parents: ["am"] },
+      { id: "global-default", parents: ["am", "uni"] },
+    ],
+    [
+      { id: "default", parents: ["global-default"] },
+      { id: "uni-channel", parents: ["uni-route"] },
+      { id: "am-channel", parents: ["am-route"] },
+    ],
+  ];
+
+  await t.test("crosses fewer links", () => {
+    assert.ok(crossings(crossed) > 0);
+    assert.equal(crossings(order(crossed)), 0);
+  });
+
+  await t.test("keeps the first level, which colours the lines", () => {
+    assert.deepEqual(ids(order(crossed))[0], ["am", "uni"]);
+  });
+
+  await t.test("puts pinned nodes first, and what they feed follows", () => {
+    const got = ids(order(crossed, { pinned: ["global-default"] }));
+    assert.deepEqual(got[1], ["global-default", "am-route", "uni-route"]);
+    assert.deepEqual(got[2], ["default", "am-channel", "uni-channel"]);
+  });
+
+  await t.test("keeps the server's order between equals", () => {
+    const tied = [[{ id: "am" }], [{ id: "p100", parents: ["am"] }, { id: "p50", parents: ["am"] }, { id: "p10", parents: ["am"] }]];
+    assert.deepEqual(ids(order(tied))[1], ["p100", "p50", "p10"]);
+  });
+
+  await t.test("keeps a node without links where it was", () => {
+    const lonely = [[{ id: "am" }, { id: "uni" }], [{ id: "orphan" }, { id: "b", parents: ["uni"] }, { id: "a", parents: ["am"] }]];
+    assert.deepEqual(ids(order(lonely))[1], ["orphan", "a", "b"]);
+  });
+
+  await t.test("never crosses more than the server's order", () => {
+    assert.ok(crossings(order(levels)) <= crossings(levels));
+  });
+
+  await t.test("leaves the input as it was", () => {
+    const before = JSON.stringify(crossed);
+    order(crossed, { pinned: ["global-default"] });
+    assert.equal(JSON.stringify(crossed), before);
+  });
 });
