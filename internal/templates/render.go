@@ -226,6 +226,7 @@ func funcs() template.FuncMap {
 // (value, fallback) order, the reverse of sprig's.
 func helpers() template.FuncMap {
 	return template.FuncMap{
+		"cardParts": cardParts,
 		"toJSON": func(v any) (string, error) {
 			b, err := json.Marshal(v)
 			if err != nil {

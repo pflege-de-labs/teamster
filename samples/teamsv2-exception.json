@@ -1,0 +1,35 @@
+{
+  "type": "message",
+  "attachments": [
+    {
+      "contentType": "application/vnd.microsoft.card.adaptive",
+      "contentUrl": null,
+      "content": {
+        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "type": "AdaptiveCard",
+        "version": "1.4",
+        "body": [
+          {"type": "TextBlock", "text": "Exception builtins.KeyError has occurred while processing background task", "weight": "bolder", "size": "medium", "wrap": true},
+          {
+            "type": "Container",
+            "items": [
+              {
+                "type": "FactSet",
+                "facts": [
+                  {"title": "Function:", "value": "_push_observation_to_issue_tracker_background"},
+                  {"title": "Arguments:", "value": "{'observation': <Observation: pgr / CVE-2026-87018>, 'user': None, 'issue_id': '4711'}"},
+                  {"title": "User:", "value": "service-account"},
+                  {"title": "Exception class:", "value": "builtins.KeyError"},
+                  {"title": "Exception:", "value": "'issue_tracker'"}
+                ]
+              }
+            ]
+          }
+        ],
+        "actions": [
+          {"type": "Action.OpenUrl", "title": "Open observation", "url": "https://example.test/observations/87018"}
+        ]
+      }
+    }
+  ]
+}

@@ -281,6 +281,25 @@ func TestPreviewRendersTheTeamsV2Sample(t *testing.T) {
 	}
 }
 
+// The Teams V2 card sample is an Adaptive Card envelope, which a template
+// takes apart with cardParts (ADR 0099).
+func TestPreviewRendersTheTeamsV2CardSample(t *testing.T) {
+	t.Parallel()
+
+	handler := newTestServer(t, newFakeStore(), &fakeMessenger{}).Handler
+	rec := postPreview(t, handler, `{"title":"{{ $p := cardParts .Event.Card }}{{ len $p.Facts }} / {{ (first $p.Actions).URL }}","sample":"teamsv2-card"}`)
+	var answer struct {
+		Title string `json:"title"`
+		Error string `json:"error"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &answer); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if answer.Title != "3 / https://example.test/observations/87018" {
+		t.Errorf("title = %q (error %q), want the sample card's facts and link", answer.Title, answer.Error)
+	}
+}
+
 func TestPreviewShowsWhatDeliverySends(t *testing.T) {
 	t.Parallel()
 

@@ -52,7 +52,7 @@ func (s *Server) adminPage(r *http.Request, notice, errText string) views.Page {
 		PreviewSamples:  previewSamples(),
 		Snippets:        cards.Snippets(),
 		Starter:         cards.Starter,
-		Presets:         cards.Presets(),
+		Presets:         append(cards.Presets(), cards.Variants()...),
 		Vocabulary:      templates.EditorVocabulary(),
 		Viewer:          s.viewerFor(r),
 		CanEdit:         s.allow(r, authz.ActionEdit, authz.Resource{Type: "Template"}),

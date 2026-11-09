@@ -87,8 +87,12 @@ func (s *Server) previewPayloads(msg templates.Message) previewPayloads {
 }
 
 func previewSamples() []string {
-	return []string{models.SourceAlertmanager, previewAlertmanagerGroup, "open", "closed", "message", teamsV2Source}
+	return []string{models.SourceAlertmanager, previewAlertmanagerGroup, "open", "closed", "message", teamsV2Source, previewTeamsV2Card}
 }
+
+// previewTeamsV2Card is the sample of a Teams V2 Adaptive Card whose long facts
+// Teams renders badly, for trying a template that takes it apart (ADR 0099).
+const previewTeamsV2Card = "teamsv2-card"
 
 // previewTeamsV2Body is what a Teams V2 sender posts, for previewing a
 // template meant for an endpoint (ADR 0040).
@@ -96,17 +100,28 @@ const previewTeamsV2Body = `{"@type":"MessageCard","themeColor":"FF0000","summar
 	`"title":"Build failed","text":"Pipeline **main** failed at step *test*.",` +
 	`"sections":[{"facts":[{"name":"Branch","value":"main"},{"name":"Commit","value":"4f2a91c"}]}]}`
 
+// previewTeamsV2CardBody is samples/teamsv2-exception.json in short.
+const previewTeamsV2CardBody = `{"type":"message","attachments":[{"contentType":"application/vnd.microsoft.card.adaptive",` +
+	`"content":{"type":"AdaptiveCard","version":"1.4","body":[` +
+	`{"type":"TextBlock","text":"Exception builtins.KeyError has occurred while processing background task","weight":"bolder","size":"medium","wrap":true},` +
+	`{"type":"Container","items":[{"type":"FactSet","facts":[` +
+	`{"title":"Function:","value":"_push_observation_to_issue_tracker_background"},` +
+	`{"title":"Arguments:","value":"{'observation': <Observation: pgr / CVE-2026-87018>, 'user': None, 'issue_id': '4711'}"},` +
+	`{"title":"Exception class:","value":"builtins.KeyError"}]}]}],` +
+	`"actions":[{"type":"Action.OpenUrl","title":"Open observation","url":"https://example.test/observations/87018"}]}}]}`
+
 // previewData is what a sample renders against: an event, and for a Teams V2
 // sample the payload a template reaches through .Payload.
 func previewData(name string) templates.RenderData {
 	now := time.Now().UTC().Format(time.RFC3339)
-	if name != teamsV2Source {
+	body, ok := map[string]string{teamsV2Source: previewTeamsV2Body, previewTeamsV2Card: previewTeamsV2CardBody}[name]
+	if !ok {
 		return templates.RenderData{Event: previewEvent(name), Now: now, Recipient: previewRecipient()}
 	}
-	// A constant, and TestPreviewRendersTheTeamsV2Sample proves it parses.
-	msg, _ := teamsv2.Parse([]byte(previewTeamsV2Body))
+	// Constants, and the preview tests prove both parse.
+	msg, _ := teamsv2.Parse([]byte(body))
 	var payload any
-	_ = json.Unmarshal([]byte(previewTeamsV2Body), &payload)
+	_ = json.Unmarshal([]byte(body), &payload)
 	ev := models.Event{Source: teamsV2Source, Labels: models.WithSourceLabel(nil, teamsV2Source), Title: msg.Title, Text: msg.Text}
 	if len(msg.Cards) > 0 {
 		ev.Card = msg.Cards[0]

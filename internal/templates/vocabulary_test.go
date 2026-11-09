@@ -29,6 +29,7 @@ func TestEditorVocabulary(t *testing.T) {
 		{"attributes are an attribute map", v.AttributeMaps, ".Event.Universal.Attributes"},
 		{"our own function", v.Functions, "default"},
 		{"another of ours", v.Functions, "toJSON"},
+		{"the card taker-apart", v.Functions, "cardParts"},
 		{"a sprig function", v.Functions, "regexFind"},
 		{"a text/template builtin", v.Functions, "printf"},
 		{"an action keyword", v.Keywords, "range"},

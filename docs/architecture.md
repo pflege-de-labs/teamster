@@ -637,8 +637,10 @@ own template when it handles the event's source, and the source's default otherw
 neither exists does a message fall through to the paths below. A default that no longer handles its
 source is skipped. `cards.Presets()` holds one ready-made template per source. The editor offers
 them as starting points, and `Store.SeedTemplates` stores them once per installation at start-up,
-making each its source's default where none is set. A card body that renders to nothing means no
-card, so a template can send a card for some payloads and text alone for others.
+making each its source's default where none is set. The editor also offers
+`cards.Variants()`, other layouts of a source's payload that are never seeded. A card body that
+renders to nothing means no card, so a template can send a card for some payloads and text alone
+for others.
 
 A route with no template skips rendering entirely: `directMessage` builds the same `title, text,
 card` shape straight from `models.Event.Title`/`Text`/`Card`, the fields a `/webhook/universal`
@@ -1254,8 +1256,11 @@ it as before; without JavaScript it is the plain field it always was. The card p
 through the editor by a cancelable `teamster:insert` event on the field.
 
 Template functions are sprig's hermetic set without `ago`, `randInt` and the crypto functions,
-under teamster's own `toJSON` and `default` (`templates.funcs`,
-[ADR 0091](adr/0091-sprig-template-functions.md)).
+under teamster's own `toJSON`, `default` and `cardParts` (`templates.funcs`,
+[ADR 0091](adr/0091-sprig-template-functions.md)). `cardParts` walks an Adaptive Card's `body`,
+descending into `items`, `columns`, `rows` and `cells`, and returns its texts, facts and
+`Action.OpenUrl` links as flat lists, so a template can lay out a sender's card anew
+([ADR 0099](adr/0099-a-template-takes-a-card-apart.md)).
 
 Inside `{{ … }}` the editor completes the fields of the template data, template functions and
 actions — all three from `templates.EditorVocabulary`, which the admin page embeds as JSON — and,
