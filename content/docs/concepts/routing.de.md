@@ -158,6 +158,12 @@ Linie hat die Farbe des Webhooks oder Teams-V2-Endpunkts, von dem ihre Alarme st
 Linie, die Alarme mehrerer Webhooks trägt, verläuft als mehrere Stränge nebeneinander. Auf dem Tab
 **Vorlagen** ist stattdessen die Vorlage die Farbe.
 
+Eine Linie, die eine Spalte überspringt, etwa eine Route, die an ihren untergeordneten Routen vorbei
+direkt in einen Kanal zustellt, läuft in einer eigenen Zeile durch diese Spalte und kreuzt so nie
+die Beschriftung eines Knotens. Linien eines Knotens derselben Art teilen sich diese Zeile, bis sie
+sich in ihrer letzten Spalte trennen. Eine lange Beschriftung wird mit einer Ellipse gekürzt, bevor
+die Linien der nächsten Spalte beginnen; fahren Sie über den Knoten, um den vollen Namen zu sehen.
+
 * Ein Symbol zeigt, was ein Knoten ist: ein Winkel für einen Webhook, ein doppelter Winkel für
   einen Teams-V2-Endpunkt, eine Gabelung für eine Route, ein Pfeil in einen Balken für ein Ziel,
   eine Person für einen Chat und `@` für jeden, der in der Nachricht genannt wird. Fehlende Knoten
