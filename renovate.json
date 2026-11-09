@@ -84,6 +84,27 @@
       "automerge": false
     },
     {
+      "description": "Node only runs make test-js, and the js job runs it on the bumped version, so minor and patch bumps merge themselves (ADR 0098).",
+      "matchManagers": [
+        "nodenv"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "automerge": true
+    },
+    {
+      "description": "A major Node bump can change node:test, so it waits for a person.",
+      "matchManagers": [
+        "nodenv"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "automerge": false
+    },
+    {
       "description": "A major action bump can rename inputs, so it waits for a person.",
       "matchManagers": [
         "github-actions"
