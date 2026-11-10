@@ -1397,12 +1397,13 @@ data-copied-label="Copied!"
 &lt;a href="#sign-in" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Open &lt;a href="http://localhost:8080/admin" target="_blank" rel="noopener"&gt;http://localhost:8080/admin&lt;/a&gt; and sign in with the admin username and password from
 &lt;code&gt;config.yaml&lt;/code&gt;.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="add-a-destination"&gt;Add a destination&lt;span class="hx:absolute hx:-mt-20" id="add-a-destination"&gt;&lt;/span&gt;
-&lt;a href="#add-a-destination" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;On the &lt;strong&gt;Destinations&lt;/strong&gt; tab, give the destination a name, pick the &lt;strong&gt;Team&lt;/strong&gt; and the &lt;strong&gt;Channel&lt;/strong&gt;,
+&lt;a href="#add-a-destination" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Open &lt;strong&gt;Configuration → Destinations&lt;/strong&gt;, give the destination a name, pick the &lt;strong&gt;Team&lt;/strong&gt; and the
+&lt;strong&gt;Channel&lt;/strong&gt;,
 and save it.&lt;/p&gt;
 &lt;p&gt;The first destination you create becomes the &lt;strong&gt;global default destination&lt;/strong&gt;: whatever no route
 claims goes there.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="add-a-route"&gt;Add a route&lt;span class="hx:absolute hx:-mt-20" id="add-a-route"&gt;&lt;/span&gt;
-&lt;a href="#add-a-route" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;On the &lt;strong&gt;Routes&lt;/strong&gt; tab, create a route:&lt;/p&gt;
+&lt;a href="#add-a-route" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Open &lt;strong&gt;Configuration → Routes&lt;/strong&gt; and create a route:&lt;/p&gt;
 &lt;table&gt;
 &lt;thead&gt;
 &lt;tr&gt;
@@ -2668,8 +2669,9 @@ overview&lt;/strong&gt; (&lt;code&gt;/admin/access&lt;/code&gt;); see
 &lt;a href="../../guides/roles/#share-several-records-at-once"&gt;Share several records at once&lt;/a&gt;. &lt;strong&gt;My access&lt;/strong&gt;
 (&lt;code&gt;/admin/me&lt;/code&gt;) lists what has been shared with you, and through whom.&lt;/p&gt;
 &lt;p&gt;Sharing adds to roles; it does not replace them. Editors keep editing everything. Someone with no
-role but a shared record sees &lt;code&gt;/admin&lt;/code&gt; with just what was shared. Pages built from the whole
-configuration stay closed to them: the routing graph, previews and the export.&lt;/p&gt;
+role but a shared record lands on &lt;strong&gt;Configuration → Templates&lt;/strong&gt; and sees just what was shared.
+Pages built from the whole configuration stay closed to them: the routing graph, previews and the
+export.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="groups"&gt;Groups&lt;span class="hx:absolute hx:-mt-20" id="groups"&gt;&lt;/span&gt;
 &lt;a href="#groups" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;A group collects users, other groups, and the groups your identity provider sends in
 &lt;code&gt;auth.groups-claim&lt;/code&gt;. You grant permissions on a record to a group the same way as to a user, so
@@ -2762,7 +2764,8 @@ placeholders, and upload it to Teams admin center. Then a team owner or Teams ad
 &lt;p&gt;Graph finds the app by its bot, so it matches &lt;code&gt;bot.client-id&lt;/code&gt;; the manifest&amp;rsquo;s own &lt;code&gt;id&lt;/code&gt; does not
 matter here.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="check-where-the-app-is-installed"&gt;Check where the app is installed&lt;span class="hx:absolute hx:-mt-20" id="check-where-the-app-is-installed"&gt;&lt;/span&gt;
-&lt;a href="#check-where-the-app-is-installed" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;&lt;strong&gt;Teams&lt;/strong&gt; (&lt;code&gt;/admin/teams&lt;/code&gt;) lists every team, its destinations and the routes that use them. Teams
+&lt;a href="#check-where-the-app-is-installed" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;&lt;strong&gt;Delivery → Teams&lt;/strong&gt; (&lt;code&gt;/admin/teams&lt;/code&gt;) lists every team, its destinations and the routes that use
+them. Teams
 that destinations use but that lack the app come first, with the steps to install it. The Team
 picker, the destinations list and the routing graph also warn about a team without the app.&lt;/p&gt;
 &lt;table&gt;
@@ -2803,7 +2806,8 @@ through its stored conversation id, and whether an app upgrade re-sends install 
 &lt;h2 data-hextra-search-id="link-a-persons-chat"&gt;Link a person&amp;rsquo;s chat&lt;span class="hx:absolute hx:-mt-20" id="link-a-persons-chat"&gt;&lt;/span&gt;
 &lt;a href="#link-a-persons-chat" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;A route can deliver to one person&amp;rsquo;s chat instead of a channel. That person links their chat first.&lt;/p&gt;
 &lt;p&gt;With &lt;a href="#install-the-bot-for-everyone"&gt;&lt;code&gt;bot.global-install&lt;/code&gt;&lt;/a&gt; on, skip this: signing in finds your chat
-from your Entra account, and &lt;strong&gt;Notifications&lt;/strong&gt; says whether it did. If the bot has no chat with you
+from your Entra account, and &lt;strong&gt;My notifications&lt;/strong&gt; says whether it did. If the bot has no chat with
+you
 yet, &lt;strong&gt;Set up my chat now&lt;/strong&gt; installs it
 (&lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0065-your-own-chat-is-found-from-your-sign-in.md" target="_blank" rel="noopener"&gt;ADR 0065&lt;/a&gt;).
 Behind Keycloak, the user&amp;rsquo;s Entra object id has to reach Teamster; see
@@ -2811,7 +2815,7 @@ Behind Keycloak, the user&amp;rsquo;s Entra object id has to reach Teamster; see
 &lt;p&gt;Otherwise:&lt;/p&gt;
 &lt;div class="hextra-steps hx:ml-4 hx:mb-12 hx:ltr:border-l hx:rtl:border-r hx:border-gray-200 hx:ltr:pl-6 hx:rtl:pr-6 hx:dark:border-neutral-800 [counter-reset:step]"&gt;
 &lt;h3 data-hextra-search-id="get-a-link-code"&gt;Get a link code&lt;span class="hx:absolute hx:-mt-20" id="get-a-link-code"&gt;&lt;/span&gt;
-&lt;a href="#get-a-link-code" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Sign in to the admin UI with any role, &lt;code&gt;viewer&lt;/code&gt; and up, and open &lt;strong&gt;Notifications&lt;/strong&gt;
+&lt;a href="#get-a-link-code" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Sign in to the admin UI with any role, &lt;code&gt;viewer&lt;/code&gt; and up, and open &lt;strong&gt;My notifications&lt;/strong&gt;
 (&lt;code&gt;/admin/notifications&lt;/code&gt;). Ask for a code.&lt;/p&gt;
 &lt;p&gt;A script gets one from &lt;code&gt;POST /api/recipients/link&lt;/code&gt; with a signed-in session:&lt;/p&gt;
 &lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
@@ -2842,7 +2846,7 @@ anyone&amp;rsquo;s. A route delivers to one channel or one person, never both.&l
 old chat it was displaced.&lt;/p&gt;
 &lt;p&gt;In a person&amp;rsquo;s chat, a repeated open event edits the message already there, and a close arrives as a
 new message.&lt;/p&gt;
-&lt;p&gt;&lt;strong&gt;Notifications&lt;/strong&gt; shows whether your chat is linked, the display name captured at link time, when
+&lt;p&gt;&lt;strong&gt;My notifications&lt;/strong&gt; shows whether your chat is linked, the display name captured at link time, when
 the link was made and when it last changed. A service-url refresh also updates &amp;ldquo;last changed&amp;rdquo;, so a
 change there alone does not prove a takeover. &lt;strong&gt;Cancel my code&lt;/strong&gt; invalidates every code you still
 hold. Every response on that page is sent &lt;code&gt;Cache-Control: no-store&lt;/code&gt;.&lt;/p&gt;
@@ -2889,15 +2893,17 @@ log, and that &lt;code&gt;bot.tenant-type&lt;/code&gt; matches the registration.
 &lt;li&gt;&lt;strong&gt;Send &lt;code&gt;unlink&lt;/code&gt;&lt;/strong&gt; (or &lt;code&gt;stop&lt;/code&gt;, or &lt;code&gt;unsubscribe&lt;/code&gt;) to the bot. The bot confirms. A new link code
 reconnects.&lt;/li&gt;
 &lt;li&gt;&lt;strong&gt;Uninstall the app.&lt;/strong&gt; Teams reports the removal and the link retires itself.&lt;/li&gt;
-&lt;li&gt;&lt;strong&gt;Unlink in the admin UI:&lt;/strong&gt; your own chat from &lt;strong&gt;Notifications&lt;/strong&gt;, or anyone&amp;rsquo;s from &lt;strong&gt;Recipients&lt;/strong&gt;.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Unlink in the admin UI:&lt;/strong&gt; your own chat from &lt;strong&gt;My notifications&lt;/strong&gt;, or anyone&amp;rsquo;s from &lt;strong&gt;Delivery →
+Recipients&lt;/strong&gt;.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;p&gt;Each removes the recipient and any alert cards still tracked for it.&lt;/p&gt;
 &lt;p&gt;With &lt;code&gt;bot.global-install&lt;/code&gt; on, only the last works, and only for an admin on &lt;strong&gt;Recipients&lt;/strong&gt;. The bot
-answers &lt;code&gt;unlink&lt;/code&gt; by saying IT manages the chat, &lt;strong&gt;Notifications&lt;/strong&gt; has no Unlink button, and a
+answers &lt;code&gt;unlink&lt;/code&gt; by saying IT manages the chat, &lt;strong&gt;My notifications&lt;/strong&gt; has no Unlink button, and a
 removed app is reinstalled by the next run
 (&lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0061-no-opt-out-when-installed-for-everyone.md" target="_blank" rel="noopener"&gt;ADR 0061&lt;/a&gt;).&lt;/p&gt;
 &lt;h2 data-hextra-search-id="manage-recipients"&gt;Manage recipients&lt;span class="hx:absolute hx:-mt-20" id="manage-recipients"&gt;&lt;/span&gt;
-&lt;a href="#manage-recipients" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;&lt;strong&gt;Recipients&lt;/strong&gt; (&lt;code&gt;/admin/recipients&lt;/code&gt;) lists everybody with a linked chat: display name (or subject),
+&lt;a href="#manage-recipients" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;&lt;strong&gt;Delivery → Recipients&lt;/strong&gt; (&lt;code&gt;/admin/recipients&lt;/code&gt;) lists everybody with a linked chat: display name (or
+subject),
 when they linked, and which routes deliver to them. Viewing needs &lt;code&gt;viewer&lt;/code&gt;; unlinking needs
 &lt;code&gt;editor&lt;/code&gt;.&lt;/p&gt;
 &lt;p&gt;Unlinking removes the recipient even if a route still names them. That route then shows a &amp;ldquo;missing
@@ -2940,7 +2946,8 @@ data-copied-label="Copied!"
 &lt;p&gt;Set &lt;code&gt;bot.app-id&lt;/code&gt; to the manifest&amp;rsquo;s &lt;code&gt;id&lt;/code&gt;, or &lt;code&gt;bot.catalog-app-id&lt;/code&gt; to the catalog id. Teamster
 refuses to start with neither.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="start-the-first-run"&gt;Start the first run&lt;span class="hx:absolute hx:-mt-20" id="start-the-first-run"&gt;&lt;/span&gt;
-&lt;a href="#start-the-first-run" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Open &lt;strong&gt;People&lt;/strong&gt; (&lt;code&gt;/admin/people&lt;/code&gt;, admins only) and click &lt;strong&gt;Install for all users&lt;/strong&gt;, or call
+&lt;a href="#start-the-first-run" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Open &lt;strong&gt;Administration → People&lt;/strong&gt; (&lt;code&gt;/admin/people&lt;/code&gt;, admins only) and click &lt;strong&gt;Install for all users&lt;/strong&gt;,
+or call
 &lt;code&gt;POST /api/people/install&lt;/code&gt;. &lt;code&gt;GET /api/people/runs/latest&lt;/code&gt; reports progress.&lt;/p&gt;
 &lt;/div&gt;
 &lt;p&gt;After that:&lt;/p&gt;
@@ -7082,7 +7089,8 @@ else for the webhooks granted to them. Granting webhook access is covered in
 &lt;a href="../roles/#let-someone-use-the-webhooks"&gt;Manage roles and access&lt;/a&gt;.&lt;/p&gt;
 &lt;div class="hextra-steps hx:ml-4 hx:mb-12 hx:ltr:border-l hx:rtl:border-r hx:border-gray-200 hx:ltr:pl-6 hx:rtl:pr-6 hx:dark:border-neutral-800 [counter-reset:step]"&gt;
 &lt;h3 data-hextra-search-id="create-it"&gt;Create it&lt;span class="hx:absolute hx:-mt-20" id="create-it"&gt;&lt;/span&gt;
-&lt;a href="#create-it" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Open &lt;strong&gt;/admin/tokens&lt;/strong&gt;. Name the token after the sender, for example &lt;code&gt;alertmanager-prod&lt;/code&gt;, and tick
+&lt;a href="#create-it" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Open &lt;strong&gt;Access → Access tokens&lt;/strong&gt; (&lt;strong&gt;/admin/tokens&lt;/strong&gt;). Name the token after the sender, for example
+&lt;code&gt;alertmanager-prod&lt;/code&gt;, and tick
 the webhooks it may send to. Tick only the one the sender uses.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="copy-it"&gt;Copy it&lt;span class="hx:absolute hx:-mt-20" id="copy-it"&gt;&lt;/span&gt;
 &lt;a href="#copy-it" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;The token, starting with &lt;code&gt;tst_&lt;/code&gt;, is shown once. Teamster stores only a digest, so it cannot show
@@ -7309,9 +7317,10 @@ credential, as it was before.&lt;/p&gt;
 &lt;a href="#move-the-sender" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;div class="hextra-steps hx:ml-4 hx:mb-12 hx:ltr:border-l hx:rtl:border-r hx:border-gray-200 hx:ltr:pl-6 hx:rtl:pr-6 hx:dark:border-neutral-800 [counter-reset:step]"&gt;
 &lt;h3 data-hextra-search-id="create-the-destination"&gt;Create the destination&lt;span class="hx:absolute hx:-mt-20" id="create-the-destination"&gt;&lt;/span&gt;
 &lt;a href="#create-the-destination" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;The channel the sender posts into must exist as a destination in Teamster. Create it under
-&lt;strong&gt;Destinations&lt;/strong&gt; on &lt;strong&gt;/admin&lt;/strong&gt; if it does not.&lt;/p&gt;
+&lt;strong&gt;Configuration → Destinations&lt;/strong&gt; if it does not.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="create-the-endpoint"&gt;Create the endpoint&lt;span class="hx:absolute hx:-mt-20" id="create-the-endpoint"&gt;&lt;/span&gt;
-&lt;a href="#create-the-endpoint" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Under &lt;strong&gt;Teams V2 webhooks&lt;/strong&gt; on &lt;strong&gt;/admin&lt;/strong&gt;, pick the destination and give the URL two readable
+&lt;a href="#create-the-endpoint" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Under &lt;strong&gt;Configuration → Webhooks&lt;/strong&gt;, in &lt;strong&gt;Teams V2 webhooks&lt;/strong&gt;, pick the destination and give the URL
+two readable
 segments for the team and the channel. Segments are lower case letters, digits and hyphens, up to
 64 characters, starting and ending with a letter or digit.&lt;/p&gt;
 &lt;p&gt;The page that answers the form shows the full URL, token included, once. Teamster stores only a
@@ -7455,7 +7464,7 @@ content out differently. Two presets do this:&lt;/p&gt;
 &lt;/table&gt;
 &lt;div class="hextra-steps hx:ml-4 hx:mb-12 hx:ltr:border-l hx:rtl:border-r hx:border-gray-200 hx:ltr:pl-6 hx:rtl:pr-6 hx:dark:border-neutral-800 [counter-reset:step]"&gt;
 &lt;h3 data-hextra-search-id="create-the-template"&gt;Create the template&lt;span class="hx:absolute hx:-mt-20" id="create-the-template"&gt;&lt;/span&gt;
-&lt;a href="#create-the-template" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Open a new template under &lt;strong&gt;Templates&lt;/strong&gt; on &lt;strong&gt;/admin&lt;/strong&gt; and pick one of the presets under &lt;strong&gt;Start
+&lt;a href="#create-the-template" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Open a new template under &lt;strong&gt;Configuration → Templates&lt;/strong&gt; and pick one of the presets under &lt;strong&gt;Start
 from a preset&lt;/strong&gt;. Check it in the preview against &lt;strong&gt;Teams V2 webhook card with long facts&lt;/strong&gt;.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="use-it"&gt;Use it&lt;span class="hx:absolute hx:-mt-20" id="use-it"&gt;&lt;/span&gt;
 &lt;a href="#use-it" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Choose the template in the endpoint&amp;rsquo;s form. To fix every endpoint without a template of its own,
@@ -7470,7 +7479,7 @@ card through. Only the card&amp;rsquo;s texts, facts and &lt;code&gt;Action.Open
 that select the same messages to deliver them somewhere else as well.&lt;/p&gt;
 &lt;div class="hextra-steps hx:ml-4 hx:mb-12 hx:ltr:border-l hx:rtl:border-r hx:border-gray-200 hx:ltr:pl-6 hx:rtl:pr-6 hx:dark:border-neutral-800 [counter-reset:step]"&gt;
 &lt;h3 data-hextra-search-id="find-the-endpoints-route"&gt;Find the endpoint&amp;rsquo;s route&lt;span class="hx:absolute hx:-mt-20" id="find-the-endpoints-route"&gt;&lt;/span&gt;
-&lt;a href="#find-the-endpoints-route" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Open the &lt;strong&gt;Routes&lt;/strong&gt; panel on &lt;strong&gt;/admin&lt;/strong&gt;. The route named &lt;code&gt;webhook &amp;lt;team&amp;gt;/&amp;lt;channel&amp;gt;&lt;/code&gt; is marked
+&lt;a href="#find-the-endpoints-route" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Open &lt;strong&gt;Configuration → Routes&lt;/strong&gt;. The route named &lt;code&gt;webhook &amp;lt;team&amp;gt;/&amp;lt;channel&amp;gt;&lt;/code&gt; is marked
 &lt;strong&gt;Managed by webhook &lt;code&gt;&amp;lt;team&amp;gt;/&amp;lt;channel&amp;gt;&lt;/code&gt;&lt;/strong&gt;. Its selector is &lt;code&gt;teamster_source=teamsv2&lt;/code&gt;,
 &lt;code&gt;teamster_team=&amp;lt;team&amp;gt;&lt;/code&gt; and &lt;code&gt;teamster_channel=&amp;lt;channel&amp;gt;&lt;/code&gt;. The endpoint&amp;rsquo;s form links to it as
 &lt;strong&gt;Route of this webhook&lt;/strong&gt;.&lt;/p&gt;
@@ -7537,7 +7546,8 @@ Use the &lt;a href="../universal-webhook/"&gt;universal webhook&lt;/a&gt; for th
 &lt;/table&gt;</description></item><item><title>Write templates</title><link>https://pflege-de-labs.github.io/teamster/dev/docs/guides/templates/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/dev/docs/guides/templates/</guid><description>
 &lt;p&gt;Write a template that turns an event into a Teams message, choose which webhook&amp;rsquo;s events it
 handles, and set the default each webhook falls back to.&lt;/p&gt;
-&lt;p&gt;Templates live under &lt;strong&gt;Templates&lt;/strong&gt; on &lt;strong&gt;/admin&lt;/strong&gt;. Every field a template can read is listed in
+&lt;p&gt;Templates live under &lt;strong&gt;Configuration → Templates&lt;/strong&gt; (&lt;code&gt;/admin/templates&lt;/code&gt;). Every field a template can
+read is listed in
 &lt;a href="../../reference/template-data/"&gt;Template data&lt;/a&gt;.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="write-a-template"&gt;Write a template&lt;span class="hx:absolute hx:-mt-20" id="write-a-template"&gt;&lt;/span&gt;
 &lt;a href="#write-a-template" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;div class="hextra-steps hx:ml-4 hx:mb-12 hx:ltr:border-l hx:rtl:border-r hx:border-gray-200 hx:ltr:pl-6 hx:rtl:pr-6 hx:dark:border-neutral-800 [counter-reset:step]"&gt;
@@ -8694,9 +8704,9 @@ so a role of your own means adding a policy for &lt;code&gt;Role::&amp;quot;audi
 Adding policies is safe. Removing or renaming &lt;code&gt;admin&lt;/code&gt;, &lt;code&gt;editor&lt;/code&gt; or &lt;code&gt;viewer&lt;/code&gt; breaks the admin UI.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="check-who-may-do-what"&gt;Check who may do what&lt;span class="hx:absolute hx:-mt-20" id="check-who-may-do-what"&gt;&lt;/span&gt;
 &lt;a href="#check-who-may-do-what" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;ul&gt;
-&lt;li&gt;&lt;strong&gt;Access overview&lt;/strong&gt; (&lt;strong&gt;/admin/access&lt;/strong&gt;) appears in the menu for admins and for anyone a grant
-names, directly or through a group, provider group or role. Creating a record makes you its
-owner, which is such a grant. No role but admin may &lt;code&gt;share&lt;/code&gt;, so an editor who owns nothing and
+&lt;li&gt;&lt;strong&gt;Access → Access overview&lt;/strong&gt; (&lt;strong&gt;/admin/access&lt;/strong&gt;) appears in the sidebar for admins and for anyone
+a grant names, directly or through a group, provider group or role. Creating a record makes you
+its owner, which is such a grant. No role but admin may &lt;code&gt;share&lt;/code&gt;, so an editor who owns nothing and
 holds no grant sees neither the entry nor the page. There they
 &lt;a href="#share-several-records-at-once"&gt;share several records at once&lt;/a&gt;, and &lt;strong&gt;Grants you may change&lt;/strong&gt;
 lists the grants on the records they may share, with each record&amp;rsquo;s name linking to it.&lt;/li&gt;
@@ -8902,8 +8912,8 @@ says the access applies once they, or someone in that provider group, sign in.&l
 &lt;p&gt;Each principal who already holds something is a row with their actions ticked. Change the boxes and
 press &lt;strong&gt;Save&lt;/strong&gt; to replace what they hold; with no box ticked, it is all taken away. &lt;strong&gt;Revoke&lt;/strong&gt;
 removes the row.&lt;/p&gt;
-&lt;p&gt;Nobody can give more than they hold. Someone with no role but a shared record sees &lt;strong&gt;/admin&lt;/strong&gt; with
-just what was shared.&lt;/p&gt;
+&lt;p&gt;Nobody can give more than they hold. Someone with no role but a shared record lands on
+&lt;strong&gt;Configuration → Templates&lt;/strong&gt; and sees just what was shared.&lt;/p&gt;
 &lt;p&gt;&lt;code&gt;create&lt;/code&gt; on a whole collection is granted through the API:&lt;/p&gt;
 &lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
 &lt;div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;curl -u &amp;lt;admin-user&amp;gt;:&amp;lt;admin-password&amp;gt; -X POST http://localhost:8080/api/sharing &lt;span class="se"&gt;\
@@ -8961,8 +8971,8 @@ data-copied-label="Copied!"
 &lt;p&gt;&lt;code&gt;DELETE&lt;/code&gt; on the same path enables the user again. &lt;code&gt;GET /api/users?q=&amp;lt;text&amp;gt;&lt;/code&gt; searches the list.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="limit-a-role-to-some-teams-and-channels"&gt;Limit a role to some Teams and channels&lt;span class="hx:absolute hx:-mt-20" id="limit-a-role-to-some-teams-and-channels"&gt;&lt;/span&gt;
 &lt;a href="#limit-a-role-to-some-teams-and-channels" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;div class="hextra-steps hx:ml-4 hx:mb-12 hx:ltr:border-l hx:rtl:border-r hx:border-gray-200 hx:ltr:pl-6 hx:rtl:pr-6 hx:dark:border-neutral-800 [counter-reset:step]"&gt;
-&lt;h3 data-hextra-search-id="open-permissions"&gt;Open Permissions&lt;span class="hx:absolute hx:-mt-20" id="open-permissions"&gt;&lt;/span&gt;
-&lt;a href="#open-permissions" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Open &lt;strong&gt;Permissions&lt;/strong&gt; (&lt;strong&gt;/admin/permissions&lt;/strong&gt;) as an admin and pick a role.&lt;/p&gt;
+&lt;h3 data-hextra-search-id="open-permissions"&gt;Open Channel scopes&lt;span class="hx:absolute hx:-mt-20" id="open-permissions"&gt;&lt;/span&gt;
+&lt;a href="#open-permissions" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Open &lt;strong&gt;Access → Channel scopes&lt;/strong&gt; (&lt;strong&gt;/admin/permissions&lt;/strong&gt;) as an admin and pick a role.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="tick-what-it-may-reach"&gt;Tick what it may reach&lt;span class="hx:absolute hx:-mt-20" id="tick-what-it-may-reach"&gt;&lt;/span&gt;
 &lt;a href="#tick-what-it-may-reach" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Tick Teams and channels in the tree. Ticking a Team grants all its channels, including ones added
 later. Ticking channels individually grants only those.&lt;/p&gt;
@@ -9018,7 +9028,8 @@ data-copied-label="Copied!"
 &lt;/button&gt;
 &lt;/div&gt;
 &lt;/div&gt;
-&lt;p&gt;Or &lt;code&gt;TEAMSTER_AUDIT_DATABASE=true&lt;/code&gt;. Admins then read the trail at &lt;strong&gt;/admin/audit&lt;/strong&gt;, newest first,
+&lt;p&gt;Or &lt;code&gt;TEAMSTER_AUDIT_DATABASE=true&lt;/code&gt;. Admins then read the trail at &lt;strong&gt;Administration → Audit trail&lt;/strong&gt;
+(&lt;strong&gt;/admin/audit&lt;/strong&gt;), newest first,
 filtered by actor, action, type, id and time.&lt;/p&gt;
 &lt;p&gt;Scripts read the same trail with &lt;code&gt;GET /api/audit&lt;/code&gt;:&lt;/p&gt;
 &lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;

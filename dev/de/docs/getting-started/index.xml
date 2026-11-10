@@ -113,12 +113,12 @@ Server.&lt;/p&gt;
 &lt;a href="#sign-in" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Öffnen Sie &lt;a href="http://localhost:8080/admin" target="_blank" rel="noopener"&gt;http://localhost:8080/admin&lt;/a&gt; und melden Sie sich mit dem Admin-Benutzernamen und
 -Passwort aus &lt;code&gt;config.yaml&lt;/code&gt; an.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="add-a-destination"&gt;Ein Ziel anlegen&lt;span class="hx:absolute hx:-mt-20" id="add-a-destination"&gt;&lt;/span&gt;
-&lt;a href="#add-a-destination" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Geben Sie dem Ziel im Bereich &lt;strong&gt;Ziele&lt;/strong&gt; einen Namen, wählen Sie &lt;strong&gt;Team&lt;/strong&gt; und &lt;strong&gt;Kanal&lt;/strong&gt; und
-speichern Sie es.&lt;/p&gt;
+&lt;a href="#add-a-destination" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Öffnen Sie &lt;strong&gt;Konfiguration → Ziele&lt;/strong&gt;, geben Sie dem Ziel einen Namen, wählen Sie &lt;strong&gt;Team&lt;/strong&gt; und
+&lt;strong&gt;Kanal&lt;/strong&gt; und speichern Sie es.&lt;/p&gt;
 &lt;p&gt;Das erste Ziel, das Sie anlegen, wird zum &lt;strong&gt;globalen Standard&lt;/strong&gt;: Alles, was keine Route
 beansprucht, geht dorthin.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="add-a-route"&gt;Eine Route anlegen&lt;span class="hx:absolute hx:-mt-20" id="add-a-route"&gt;&lt;/span&gt;
-&lt;a href="#add-a-route" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Legen Sie im Bereich &lt;strong&gt;Routen&lt;/strong&gt; eine Route an:&lt;/p&gt;
+&lt;a href="#add-a-route" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Öffnen Sie &lt;strong&gt;Konfiguration → Routen&lt;/strong&gt; und legen Sie eine Route an:&lt;/p&gt;
 &lt;table&gt;
 &lt;thead&gt;
 &lt;tr&gt;

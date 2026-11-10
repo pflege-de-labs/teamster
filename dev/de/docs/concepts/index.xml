@@ -382,9 +382,9 @@ nutzen Sie die &lt;strong&gt;Zugriffsübersicht&lt;/strong&gt; (&lt;code&gt;/adm
 &lt;a href="../../guides/roles/#share-several-records-at-once"&gt;Mehrere Datensätze auf einmal teilen&lt;/a&gt;. &lt;strong&gt;Mein
 Zugriff&lt;/strong&gt; (&lt;code&gt;/admin/me&lt;/code&gt;) listet, was mit Ihnen geteilt wurde, und über wen.&lt;/p&gt;
 &lt;p&gt;Teilen ergänzt Rollen, es ersetzt sie nicht. Bearbeiter dürfen weiterhin alles bearbeiten. Wer
-keine Rolle hat, aber einen geteilten Datensatz, sieht unter &lt;code&gt;/admin&lt;/code&gt; nur das Geteilte. Seiten,
-die aus der gesamten Konfiguration entstehen, bleiben für diese Person geschlossen: das
-Routing-Bild, Vorschauen und der Export.&lt;/p&gt;
+keine Rolle hat, aber einen geteilten Datensatz, landet auf &lt;strong&gt;Konfiguration → Vorlagen&lt;/strong&gt; und sieht
+nur das Geteilte. Seiten, die aus der gesamten Konfiguration entstehen, bleiben für diese Person
+geschlossen: das Routing-Bild, Vorschauen und der Export.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="groups"&gt;Gruppen&lt;span class="hx:absolute hx:-mt-20" id="groups"&gt;&lt;/span&gt;
 &lt;a href="#groups" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Eine Gruppe fasst Benutzer, andere Gruppen und die Gruppen zusammen, die Ihr Identitätsanbieter in
 &lt;code&gt;auth.groups-claim&lt;/code&gt; sendet. Berechtigungen an einem Datensatz vergeben Sie an eine Gruppe genauso

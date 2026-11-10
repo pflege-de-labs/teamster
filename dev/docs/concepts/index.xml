@@ -345,8 +345,9 @@ overview&lt;/strong&gt; (&lt;code&gt;/admin/access&lt;/code&gt;); see
 &lt;a href="../../guides/roles/#share-several-records-at-once"&gt;Share several records at once&lt;/a&gt;. &lt;strong&gt;My access&lt;/strong&gt;
 (&lt;code&gt;/admin/me&lt;/code&gt;) lists what has been shared with you, and through whom.&lt;/p&gt;
 &lt;p&gt;Sharing adds to roles; it does not replace them. Editors keep editing everything. Someone with no
-role but a shared record sees &lt;code&gt;/admin&lt;/code&gt; with just what was shared. Pages built from the whole
-configuration stay closed to them: the routing graph, previews and the export.&lt;/p&gt;
+role but a shared record lands on &lt;strong&gt;Configuration → Templates&lt;/strong&gt; and sees just what was shared.
+Pages built from the whole configuration stay closed to them: the routing graph, previews and the
+export.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="groups"&gt;Groups&lt;span class="hx:absolute hx:-mt-20" id="groups"&gt;&lt;/span&gt;
 &lt;a href="#groups" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;A group collects users, other groups, and the groups your identity provider sends in
 &lt;code&gt;auth.groups-claim&lt;/code&gt;. You grant permissions on a record to a group the same way as to a user, so

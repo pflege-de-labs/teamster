@@ -1357,12 +1357,12 @@ Server.&lt;/p&gt;
 &lt;a href="#sign-in" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Öffnen Sie &lt;a href="http://localhost:8080/admin" target="_blank" rel="noopener"&gt;http://localhost:8080/admin&lt;/a&gt; und melden Sie sich mit dem Admin-Benutzernamen und
 -Passwort aus &lt;code&gt;config.yaml&lt;/code&gt; an.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="add-a-destination"&gt;Ein Ziel anlegen&lt;span class="hx:absolute hx:-mt-20" id="add-a-destination"&gt;&lt;/span&gt;
-&lt;a href="#add-a-destination" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Geben Sie dem Ziel im Bereich &lt;strong&gt;Ziele&lt;/strong&gt; einen Namen, wählen Sie &lt;strong&gt;Team&lt;/strong&gt; und &lt;strong&gt;Kanal&lt;/strong&gt; und
-speichern Sie es.&lt;/p&gt;
+&lt;a href="#add-a-destination" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Öffnen Sie &lt;strong&gt;Konfiguration → Ziele&lt;/strong&gt;, geben Sie dem Ziel einen Namen, wählen Sie &lt;strong&gt;Team&lt;/strong&gt; und
+&lt;strong&gt;Kanal&lt;/strong&gt; und speichern Sie es.&lt;/p&gt;
 &lt;p&gt;Das erste Ziel, das Sie anlegen, wird zum &lt;strong&gt;globalen Standard&lt;/strong&gt;: Alles, was keine Route
 beansprucht, geht dorthin.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="add-a-route"&gt;Eine Route anlegen&lt;span class="hx:absolute hx:-mt-20" id="add-a-route"&gt;&lt;/span&gt;
-&lt;a href="#add-a-route" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Legen Sie im Bereich &lt;strong&gt;Routen&lt;/strong&gt; eine Route an:&lt;/p&gt;
+&lt;a href="#add-a-route" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Öffnen Sie &lt;strong&gt;Konfiguration → Routen&lt;/strong&gt; und legen Sie eine Route an:&lt;/p&gt;
 &lt;table&gt;
 &lt;thead&gt;
 &lt;tr&gt;
@@ -2618,7 +2618,8 @@ die App nicht selbst in einem Team installieren.&lt;/p&gt;
 &lt;p&gt;Graph findet die App über ihren Bot, also über &lt;code&gt;bot.client-id&lt;/code&gt;; die eigene &lt;code&gt;id&lt;/code&gt; des Manifests
 spielt hier keine Rolle.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="check-where-the-app-is-installed"&gt;Prüfen, wo die App installiert ist&lt;span class="hx:absolute hx:-mt-20" id="check-where-the-app-is-installed"&gt;&lt;/span&gt;
-&lt;a href="#check-where-the-app-is-installed" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;&lt;strong&gt;Teams&lt;/strong&gt; (&lt;code&gt;/admin/teams&lt;/code&gt;) listet jedes Team mit seinen Zielen und den Routen, die sie verwenden.
+&lt;a href="#check-where-the-app-is-installed" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;&lt;strong&gt;Zustellung → Teams&lt;/strong&gt; (&lt;code&gt;/admin/teams&lt;/code&gt;) listet jedes Team mit seinen Zielen und den Routen, die sie
+verwenden.
 Teams, die von Zielen verwendet werden, denen aber die App fehlt, stehen oben, zusammen mit den
 Schritten zur Installation. Auch die Team-Auswahl, die Liste der Ziele und das Routing-Bild warnen
 vor einem Team ohne die App.&lt;/p&gt;
@@ -2663,7 +2664,7 @@ Installationsereignisse erneut sendet.&lt;/div&gt;
 &lt;a href="#link-a-persons-chat" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Eine Route kann statt an einen Kanal in den Chat einer einzelnen Person zustellen. Diese Person
 verknüpft ihren Chat zuerst.&lt;/p&gt;
 &lt;p&gt;Ist &lt;a href="#install-the-bot-for-everyone"&gt;&lt;code&gt;bot.global-install&lt;/code&gt;&lt;/a&gt; eingeschaltet, entfällt das: Die
-Anmeldung findet Ihren Chat über Ihr Entra-Konto, und &lt;strong&gt;Benachrichtigungen&lt;/strong&gt; zeigt, ob das geklappt
+Anmeldung findet Ihren Chat über Ihr Entra-Konto, und &lt;strong&gt;Meine Benachrichtigungen&lt;/strong&gt; zeigt, ob das geklappt
 hat. Hat der Bot noch keinen Chat mit Ihnen, installiert ihn &lt;strong&gt;Meinen Chat jetzt einrichten&lt;/strong&gt;
 (&lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0065-your-own-chat-is-found-from-your-sign-in.md" target="_blank" rel="noopener"&gt;ADR 0065&lt;/a&gt;).
 Hinter Keycloak muss die Entra-Object-ID des Benutzers bei Teamster ankommen; siehe
@@ -2672,7 +2673,7 @@ Hinter Keycloak muss die Entra-Object-ID des Benutzers bei Teamster ankommen; si
 &lt;div class="hextra-steps hx:ml-4 hx:mb-12 hx:ltr:border-l hx:rtl:border-r hx:border-gray-200 hx:ltr:pl-6 hx:rtl:pr-6 hx:dark:border-neutral-800 [counter-reset:step]"&gt;
 &lt;h3 data-hextra-search-id="get-a-link-code"&gt;Einen Verknüpfungscode anfordern&lt;span class="hx:absolute hx:-mt-20" id="get-a-link-code"&gt;&lt;/span&gt;
 &lt;a href="#get-a-link-code" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Melden Sie sich mit einer beliebigen Rolle ab &lt;code&gt;viewer&lt;/code&gt; an der Verwaltungsoberfläche an und öffnen
-Sie &lt;strong&gt;Benachrichtigungen&lt;/strong&gt; (&lt;code&gt;/admin/notifications&lt;/code&gt;). Fordern Sie einen Code an.&lt;/p&gt;
+Sie &lt;strong&gt;Meine Benachrichtigungen&lt;/strong&gt; (&lt;code&gt;/admin/notifications&lt;/code&gt;). Fordern Sie einen Code an.&lt;/p&gt;
 &lt;p&gt;Ein Skript bekommt einen über &lt;code&gt;POST /api/recipients/link&lt;/code&gt; mit einer angemeldeten Sitzung:&lt;/p&gt;
 &lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
 &lt;div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-json" data-lang="json"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;{&lt;/span&gt; &lt;span class="nt"&gt;&amp;#34;code&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="s2"&gt;&amp;#34;AB3D-EFGH-J2MN&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="nt"&gt;&amp;#34;expires_at&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="s2"&gt;&amp;#34;2026-09-16T10:30:00Z&amp;#34;&lt;/span&gt; &lt;span class="p"&gt;}&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class="hextra-code-copy-btn-container hx:opacity-0 hx:transition hx:group-hover/code:opacity-100 hx:flex hx:gap-1 hx:absolute hx:m-[11px] hx:right-0 hx:top-0"&gt;
@@ -2704,7 +2705,7 @@ nie an beides.&lt;/p&gt;
 und der alte Chat erfährt, dass er abgelöst wurde.&lt;/p&gt;
 &lt;p&gt;Im Chat einer Person bearbeitet ein wiederholtes Öffnen-Ereignis die schon vorhandene Nachricht,
 und ein Schließen kommt als neue Nachricht an.&lt;/p&gt;
-&lt;p&gt;&lt;strong&gt;Benachrichtigungen&lt;/strong&gt; zeigt, ob Ihr Chat verknüpft ist, den beim Verknüpfen erfassten
+&lt;p&gt;&lt;strong&gt;Meine Benachrichtigungen&lt;/strong&gt; zeigt, ob Ihr Chat verknüpft ist, den beim Verknüpfen erfassten
 Anzeigenamen, wann die Verknüpfung entstand und wann sie zuletzt geändert wurde. Auch eine
 Aktualisierung der Service-URL ändert „zuletzt geändert“; eine Änderung dort allein beweist also
 keine Übernahme. &lt;strong&gt;Meinen Code widerrufen&lt;/strong&gt; macht jeden Code ungültig, den Sie noch haben. Jede
@@ -2754,18 +2755,18 @@ nicht unterstützt.&lt;/p&gt;
 Verknüpfungscode verbindet wieder.&lt;/li&gt;
 &lt;li&gt;&lt;strong&gt;Die App deinstallieren.&lt;/strong&gt; Teams meldet das Entfernen, und die Verknüpfung erlischt von selbst.&lt;/li&gt;
 &lt;li&gt;&lt;strong&gt;In der Verwaltungsoberfläche die Verknüpfung aufheben:&lt;/strong&gt; den eigenen Chat unter
-&lt;strong&gt;Benachrichtigungen&lt;/strong&gt;, den jeder Person unter &lt;strong&gt;Empfänger&lt;/strong&gt;.&lt;/li&gt;
+&lt;strong&gt;Meine Benachrichtigungen&lt;/strong&gt;, den jeder Person unter &lt;strong&gt;Zustellung → Empfänger&lt;/strong&gt;.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;p&gt;Jeder Weg entfernt den Empfänger und alle noch für ihn verfolgten Alarmkarten.&lt;/p&gt;
 &lt;p&gt;Ist &lt;code&gt;bot.global-install&lt;/code&gt; eingeschaltet, funktioniert nur der letzte Weg, und nur für einen
-Administrator unter &lt;strong&gt;Empfänger&lt;/strong&gt;. Der Bot beantwortet &lt;code&gt;unlink&lt;/code&gt; mit dem Hinweis, dass die IT den
-Chat verwaltet, &lt;strong&gt;Benachrichtigungen&lt;/strong&gt; hat keine Schaltfläche &lt;strong&gt;Verknüpfung aufheben&lt;/strong&gt;, und eine
-entfernte App installiert der nächste Lauf wieder
+Administrator unter &lt;strong&gt;Zustellung → Empfänger&lt;/strong&gt;. Der Bot beantwortet &lt;code&gt;unlink&lt;/code&gt; mit dem Hinweis, dass
+die IT den Chat verwaltet, &lt;strong&gt;Meine Benachrichtigungen&lt;/strong&gt; hat keine Schaltfläche &lt;strong&gt;Verknüpfung
+aufheben&lt;/strong&gt;, und eine entfernte App installiert der nächste Lauf wieder
 (&lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0061-no-opt-out-when-installed-for-everyone.md" target="_blank" rel="noopener"&gt;ADR 0061&lt;/a&gt;).&lt;/p&gt;
 &lt;h2 data-hextra-search-id="manage-recipients"&gt;Empfänger verwalten&lt;span class="hx:absolute hx:-mt-20" id="manage-recipients"&gt;&lt;/span&gt;
-&lt;a href="#manage-recipients" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;&lt;strong&gt;Empfänger&lt;/strong&gt; (&lt;code&gt;/admin/recipients&lt;/code&gt;) listet alle mit verknüpftem Chat: Anzeigename (oder Subject),
-wann sie verknüpft haben und welche Routen an sie zustellen. Zum Ansehen genügt &lt;code&gt;viewer&lt;/code&gt;; zum
-Aufheben einer Verknüpfung braucht es &lt;code&gt;editor&lt;/code&gt;.&lt;/p&gt;
+&lt;a href="#manage-recipients" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;&lt;strong&gt;Zustellung → Empfänger&lt;/strong&gt; (&lt;code&gt;/admin/recipients&lt;/code&gt;) listet alle mit verknüpftem Chat: Anzeigename
+(oder Subject), wann sie verknüpft haben und welche Routen an sie zustellen. Zum Ansehen genügt
+&lt;code&gt;viewer&lt;/code&gt;; zum Aufheben einer Verknüpfung braucht es &lt;code&gt;editor&lt;/code&gt;.&lt;/p&gt;
 &lt;p&gt;Das Aufheben entfernt den Empfänger auch dann, wenn eine Route ihn noch nennt. Diese Route zeigt
 dann in &lt;code&gt;/admin/routing&lt;/code&gt; einen fehlenden Empfänger.&lt;/p&gt;
 &lt;p&gt;Ein dauerhafter Sendefehler, etwa bei einer Person, die den Bot deinstalliert oder blockiert hat,
@@ -2807,7 +2808,7 @@ data-copied-label="Kopiert!"
 &lt;p&gt;Setzen Sie &lt;code&gt;bot.app-id&lt;/code&gt; auf die &lt;code&gt;id&lt;/code&gt; des Manifests oder &lt;code&gt;bot.catalog-app-id&lt;/code&gt; auf die Katalog-ID.
 Ohne eines von beiden startet Teamster nicht.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="start-the-first-run"&gt;Den ersten Lauf starten&lt;span class="hx:absolute hx:-mt-20" id="start-the-first-run"&gt;&lt;/span&gt;
-&lt;a href="#start-the-first-run" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Öffnen Sie &lt;strong&gt;Personen&lt;/strong&gt; (&lt;code&gt;/admin/people&lt;/code&gt;, nur für Administratoren) und klicken Sie auf
+&lt;a href="#start-the-first-run" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Öffnen Sie &lt;strong&gt;Verwaltung → Personen&lt;/strong&gt; (&lt;code&gt;/admin/people&lt;/code&gt;, nur für Administratoren) und klicken Sie auf
 &lt;strong&gt;Für alle installieren&lt;/strong&gt;, oder rufen Sie &lt;code&gt;POST /api/people/install&lt;/code&gt; auf.
 &lt;code&gt;GET /api/people/runs/latest&lt;/code&gt; meldet den Fortschritt.&lt;/p&gt;
 &lt;/div&gt;
@@ -3071,9 +3072,9 @@ nutzen Sie die &lt;strong&gt;Zugriffsübersicht&lt;/strong&gt; (&lt;code&gt;/adm
 &lt;a href="../../guides/roles/#share-several-records-at-once"&gt;Mehrere Datensätze auf einmal teilen&lt;/a&gt;. &lt;strong&gt;Mein
 Zugriff&lt;/strong&gt; (&lt;code&gt;/admin/me&lt;/code&gt;) listet, was mit Ihnen geteilt wurde, und über wen.&lt;/p&gt;
 &lt;p&gt;Teilen ergänzt Rollen, es ersetzt sie nicht. Bearbeiter dürfen weiterhin alles bearbeiten. Wer
-keine Rolle hat, aber einen geteilten Datensatz, sieht unter &lt;code&gt;/admin&lt;/code&gt; nur das Geteilte. Seiten,
-die aus der gesamten Konfiguration entstehen, bleiben für diese Person geschlossen: das
-Routing-Bild, Vorschauen und der Export.&lt;/p&gt;
+keine Rolle hat, aber einen geteilten Datensatz, landet auf &lt;strong&gt;Konfiguration → Vorlagen&lt;/strong&gt; und sieht
+nur das Geteilte. Seiten, die aus der gesamten Konfiguration entstehen, bleiben für diese Person
+geschlossen: das Routing-Bild, Vorschauen und der Export.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="groups"&gt;Gruppen&lt;span class="hx:absolute hx:-mt-20" id="groups"&gt;&lt;/span&gt;
 &lt;a href="#groups" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Eine Gruppe fasst Benutzer, andere Gruppen und die Gruppen zusammen, die Ihr Identitätsanbieter in
 &lt;code&gt;auth.groups-claim&lt;/code&gt; sendet. Berechtigungen an einem Datensatz vergeben Sie an eine Gruppe genauso
@@ -7230,7 +7231,8 @@ auf die Webhooks freigeben, beschreibt
 &lt;a href="../roles/#let-someone-use-the-webhooks"&gt;Rollen und Zugriff verwalten&lt;/a&gt;.&lt;/p&gt;
 &lt;div class="hextra-steps hx:ml-4 hx:mb-12 hx:ltr:border-l hx:rtl:border-r hx:border-gray-200 hx:ltr:pl-6 hx:rtl:pr-6 hx:dark:border-neutral-800 [counter-reset:step]"&gt;
 &lt;h3 data-hextra-search-id="create-it"&gt;Das Token erstellen&lt;span class="hx:absolute hx:-mt-20" id="create-it"&gt;&lt;/span&gt;
-&lt;a href="#create-it" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Öffnen Sie &lt;strong&gt;/admin/tokens&lt;/strong&gt;. Benennen Sie das Token nach dem Absender, zum Beispiel
+&lt;a href="#create-it" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Öffnen Sie &lt;strong&gt;Zugriff → Zugriffstoken&lt;/strong&gt; (&lt;strong&gt;/admin/tokens&lt;/strong&gt;). Benennen Sie das Token nach dem
+Absender, zum Beispiel
 &lt;code&gt;alertmanager-prod&lt;/code&gt;, und kreuzen Sie die Webhooks an, an die es senden darf. Kreuzen Sie nur den an,
 den der Absender verwendet.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="copy-it"&gt;Das Token kopieren&lt;span class="hx:absolute hx:-mt-20" id="copy-it"&gt;&lt;/span&gt;
@@ -7472,10 +7474,11 @@ Berechtigungsnachweis, wie zuvor auch.&lt;/p&gt;
 &lt;a href="#move-the-sender" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;div class="hextra-steps hx:ml-4 hx:mb-12 hx:ltr:border-l hx:rtl:border-r hx:border-gray-200 hx:ltr:pl-6 hx:rtl:pr-6 hx:dark:border-neutral-800 [counter-reset:step]"&gt;
 &lt;h3 data-hextra-search-id="create-the-destination"&gt;Das Ziel anlegen&lt;span class="hx:absolute hx:-mt-20" id="create-the-destination"&gt;&lt;/span&gt;
 &lt;a href="#create-the-destination" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Der Kanal, in den der Absender postet, muss in Teamster als Ziel existieren. Legen Sie ihn unter
-&lt;strong&gt;Ziele&lt;/strong&gt; auf &lt;strong&gt;/admin&lt;/strong&gt; an, falls nicht.&lt;/p&gt;
+&lt;strong&gt;Konfiguration → Ziele&lt;/strong&gt; an, falls nicht.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="create-the-endpoint"&gt;Den Endpunkt anlegen&lt;span class="hx:absolute hx:-mt-20" id="create-the-endpoint"&gt;&lt;/span&gt;
-&lt;a href="#create-the-endpoint" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Wählen Sie unter &lt;strong&gt;Teams-V2-Webhooks&lt;/strong&gt; auf &lt;strong&gt;/admin&lt;/strong&gt; das Ziel und geben Sie der URL zwei lesbare
-Segmente für das Team und den Kanal. Segmente bestehen aus Kleinbuchstaben, Ziffern und
+&lt;a href="#create-the-endpoint" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Wählen Sie unter &lt;strong&gt;Konfiguration → Webhooks&lt;/strong&gt; im Bereich &lt;strong&gt;Teams-V2-Webhooks&lt;/strong&gt; das Ziel und geben
+Sie der URL zwei lesbare Segmente für das Team und den Kanal. Segmente bestehen aus
+Kleinbuchstaben, Ziffern und
 Bindestrichen, sind bis zu 64 Zeichen lang und beginnen und enden mit einem Buchstaben oder einer
 Ziffer.&lt;/p&gt;
 &lt;p&gt;Die Seite, die auf das Formular antwortet, zeigt die vollständige URL samt Token einmal an.
@@ -7622,7 +7625,7 @@ zerlegen und denselben Inhalt anders anordnen. Zwei vorgefertigte Vorlagen tun d
 &lt;/table&gt;
 &lt;div class="hextra-steps hx:ml-4 hx:mb-12 hx:ltr:border-l hx:rtl:border-r hx:border-gray-200 hx:ltr:pl-6 hx:rtl:pr-6 hx:dark:border-neutral-800 [counter-reset:step]"&gt;
 &lt;h3 data-hextra-search-id="die-vorlage-anlegen"&gt;Die Vorlage anlegen&lt;span class="hx:absolute hx:-mt-20" id="die-vorlage-anlegen"&gt;&lt;/span&gt;
-&lt;a href="#die-vorlage-anlegen" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Öffnen Sie unter &lt;strong&gt;Vorlagen&lt;/strong&gt; auf &lt;strong&gt;/admin&lt;/strong&gt; eine neue Vorlage und wählen Sie unter &lt;strong&gt;Mit einer
+&lt;a href="#die-vorlage-anlegen" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Öffnen Sie unter &lt;strong&gt;Konfiguration → Vorlagen&lt;/strong&gt; eine neue Vorlage und wählen Sie unter &lt;strong&gt;Mit einer
 Vorlage beginnen&lt;/strong&gt; eine der beiden. Prüfen Sie sie in der Vorschau mit dem Beispiel &lt;strong&gt;Karte des
 Teams-V2-Webhooks mit langen Fakten&lt;/strong&gt;.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="die-vorlage-verwenden"&gt;Die Vorlage verwenden&lt;span class="hx:absolute hx:-mt-20" id="die-vorlage-verwenden"&gt;&lt;/span&gt;
@@ -7640,7 +7643,7 @@ Fügen Sie Routen hinzu, die dieselben Nachrichten auswählen, um sie zusätzlic
 zuzustellen.&lt;/p&gt;
 &lt;div class="hextra-steps hx:ml-4 hx:mb-12 hx:ltr:border-l hx:rtl:border-r hx:border-gray-200 hx:ltr:pl-6 hx:rtl:pr-6 hx:dark:border-neutral-800 [counter-reset:step]"&gt;
 &lt;h3 data-hextra-search-id="find-the-endpoints-route"&gt;Die Route des Endpunkts finden&lt;span class="hx:absolute hx:-mt-20" id="find-the-endpoints-route"&gt;&lt;/span&gt;
-&lt;a href="#find-the-endpoints-route" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Öffnen Sie den Bereich &lt;strong&gt;Routen&lt;/strong&gt; unter &lt;strong&gt;/admin&lt;/strong&gt;. Die Route mit dem Namen
+&lt;a href="#find-the-endpoints-route" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Öffnen Sie &lt;strong&gt;Konfiguration → Routen&lt;/strong&gt;. Die Route mit dem Namen
 &lt;code&gt;webhook &amp;lt;team&amp;gt;/&amp;lt;channel&amp;gt;&lt;/code&gt; ist mit &lt;strong&gt;Verwaltet vom Webhook &lt;code&gt;&amp;lt;team&amp;gt;/&amp;lt;channel&amp;gt;&lt;/code&gt;&lt;/strong&gt; gekennzeichnet.
 Ihr Selektor ist &lt;code&gt;teamster_source=teamsv2&lt;/code&gt;, &lt;code&gt;teamster_team=&amp;lt;team&amp;gt;&lt;/code&gt; und
 &lt;code&gt;teamster_channel=&amp;lt;channel&amp;gt;&lt;/code&gt;. Das Formular des Endpunkts verweist als &lt;strong&gt;Route dieses Webhooks&lt;/strong&gt;
@@ -7712,8 +7715,8 @@ nie aktualisiert oder geschlossen. Dafür gibt es den &lt;a href="../universal-w
 &lt;p&gt;Schreiben Sie eine Vorlage, die aus einem Ereignis eine Teams-Nachricht macht, legen Sie fest,
 welche Webhooks sie verarbeitet, und bestimmen Sie die Standardvorlage, auf die jeder Webhook
 zurückfällt.&lt;/p&gt;
-&lt;p&gt;Vorlagen finden Sie unter &lt;strong&gt;Vorlagen&lt;/strong&gt; auf &lt;strong&gt;/admin&lt;/strong&gt;. Jedes Feld, das eine Vorlage lesen kann,
-führt &lt;a href="../../reference/template-data/"&gt;Vorlagendaten&lt;/a&gt; auf.&lt;/p&gt;
+&lt;p&gt;Vorlagen finden Sie unter &lt;strong&gt;Konfiguration → Vorlagen&lt;/strong&gt; (&lt;code&gt;/admin/templates&lt;/code&gt;). Jedes Feld, das eine
+Vorlage lesen kann, führt &lt;a href="../../reference/template-data/"&gt;Vorlagendaten&lt;/a&gt; auf.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="write-a-template"&gt;Eine Vorlage schreiben&lt;span class="hx:absolute hx:-mt-20" id="write-a-template"&gt;&lt;/span&gt;
 &lt;a href="#write-a-template" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;div class="hextra-steps hx:ml-4 hx:mb-12 hx:ltr:border-l hx:rtl:border-r hx:border-gray-200 hx:ltr:pl-6 hx:rtl:pr-6 hx:dark:border-neutral-800 [counter-reset:step]"&gt;
 &lt;h3 data-hextra-search-id="start-from-a-preset"&gt;Mit einer Vorlage beginnen&lt;span class="hx:absolute hx:-mt-20" id="start-from-a-preset"&gt;&lt;/span&gt;
@@ -8908,7 +8911,8 @@ zu bauen. Richtlinien hinzuzufügen ist unbedenklich. Wer &lt;code&gt;admin&lt;/
 oder umbenennt, macht die Verwaltungsoberfläche unbrauchbar.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="check-who-may-do-what"&gt;Prüfen, wer was darf&lt;span class="hx:absolute hx:-mt-20" id="check-who-may-do-what"&gt;&lt;/span&gt;
 &lt;a href="#check-who-may-do-what" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;ul&gt;
-&lt;li&gt;&lt;strong&gt;Zugriffsübersicht&lt;/strong&gt; (&lt;strong&gt;/admin/access&lt;/strong&gt;) erscheint im Menü für Administratoren und für alle, die
+&lt;li&gt;&lt;strong&gt;Zugriff → Zugriffsübersicht&lt;/strong&gt; (&lt;strong&gt;/admin/access&lt;/strong&gt;) erscheint in der Seitenleiste für
+Administratoren und für alle, die
 eine Berechtigung nennt, direkt oder über eine Gruppe, Anbietergruppe oder Rolle. Wer einen
 Datensatz anlegt, wird sein Eigentümer und hat damit eine solche Berechtigung. Außer der Rolle
 Administrator darf keine Rolle teilen (&lt;code&gt;share&lt;/code&gt;); ein Bearbeiter, der nichts besitzt und keine
@@ -9128,7 +9132,7 @@ jemand aus der Anbietergruppe anmeldet.&lt;/p&gt;
 Häkchen und klicken Sie auf &lt;strong&gt;Speichern&lt;/strong&gt;, um zu ersetzen, was er hat; ohne Häkchen wird ihm alles
 entzogen. &lt;strong&gt;Entziehen&lt;/strong&gt; entfernt die Zeile.&lt;/p&gt;
 &lt;p&gt;Niemand kann mehr vergeben, als er selbst hat. Wer keine Rolle, aber einen geteilten Datensatz hat,
-sieht &lt;strong&gt;/admin&lt;/strong&gt; nur mit dem, was geteilt wurde.&lt;/p&gt;
+landet auf &lt;strong&gt;Konfiguration → Vorlagen&lt;/strong&gt; und sieht nur das, was geteilt wurde.&lt;/p&gt;
 &lt;p&gt;&lt;code&gt;create&lt;/code&gt; auf eine ganze Sammlung wird über die API erteilt:&lt;/p&gt;
 &lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
 &lt;div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;curl -u &amp;lt;admin-user&amp;gt;:&amp;lt;admin-password&amp;gt; -X POST http://localhost:8080/api/sharing &lt;span class="se"&gt;\
@@ -9192,8 +9196,9 @@ data-copied-label="Kopiert!"
 Liste.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="limit-a-role-to-some-teams-and-channels"&gt;Eine Rolle auf bestimmte Teams und Kanäle beschränken&lt;span class="hx:absolute hx:-mt-20" id="limit-a-role-to-some-teams-and-channels"&gt;&lt;/span&gt;
 &lt;a href="#limit-a-role-to-some-teams-and-channels" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;div class="hextra-steps hx:ml-4 hx:mb-12 hx:ltr:border-l hx:rtl:border-r hx:border-gray-200 hx:ltr:pl-6 hx:rtl:pr-6 hx:dark:border-neutral-800 [counter-reset:step]"&gt;
-&lt;h3 data-hextra-search-id="open-permissions"&gt;Berechtigungen öffnen&lt;span class="hx:absolute hx:-mt-20" id="open-permissions"&gt;&lt;/span&gt;
-&lt;a href="#open-permissions" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Öffnen Sie als Administrator &lt;strong&gt;Berechtigungen&lt;/strong&gt; (&lt;strong&gt;/admin/permissions&lt;/strong&gt;) und wählen Sie eine Rolle.&lt;/p&gt;
+&lt;h3 data-hextra-search-id="open-permissions"&gt;Kanalbereiche öffnen&lt;span class="hx:absolute hx:-mt-20" id="open-permissions"&gt;&lt;/span&gt;
+&lt;a href="#open-permissions" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Öffnen Sie als Administrator &lt;strong&gt;Zugriff → Kanalbereiche&lt;/strong&gt; (&lt;strong&gt;/admin/permissions&lt;/strong&gt;) und wählen Sie
+eine Rolle.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="tick-what-it-may-reach"&gt;Ankreuzen, was sie erreichen darf&lt;span class="hx:absolute hx:-mt-20" id="tick-what-it-may-reach"&gt;&lt;/span&gt;
 &lt;a href="#tick-what-it-may-reach" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Kreuzen Sie im Baum Teams und Kanäle an. Ein angekreuztes Team berechtigt alle seine Kanäle, auch
 später hinzugefügte. Einzeln angekreuzte Kanäle berechtigen nur diese.&lt;/p&gt;
@@ -9253,7 +9258,8 @@ data-copied-label="Kopiert!"
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;p&gt;Oder &lt;code&gt;TEAMSTER_AUDIT_DATABASE=true&lt;/code&gt;. Administratoren lesen das Protokoll dann unter
-&lt;strong&gt;/admin/audit&lt;/strong&gt;, das neueste Ereignis zuerst, gefiltert nach &lt;strong&gt;Wer&lt;/strong&gt;, &lt;strong&gt;Aktion&lt;/strong&gt;,
+&lt;strong&gt;Verwaltung → Änderungsprotokoll&lt;/strong&gt; (&lt;strong&gt;/admin/audit&lt;/strong&gt;), das neueste Ereignis zuerst, gefiltert nach
+&lt;strong&gt;Wer&lt;/strong&gt;, &lt;strong&gt;Aktion&lt;/strong&gt;,
 &lt;strong&gt;Ressourcentyp&lt;/strong&gt;, &lt;strong&gt;Ressourcen-ID&lt;/strong&gt; und Zeit.&lt;/p&gt;
 &lt;p&gt;Skripte lesen dasselbe Protokoll mit &lt;code&gt;GET /api/audit&lt;/code&gt;:&lt;/p&gt;
 &lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
