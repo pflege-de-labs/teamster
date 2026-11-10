@@ -49,10 +49,11 @@ Four groups, each a `<details>` element with a heading:
 * The current item is marked server-side with `aria-current="page"` by **path prefix**
   (`/admin/templates/abc` marks Templates), replacing nav.js's exact-path match. The handler passes
   the current path through `Viewer` (or context) to the sidebar.
-* The group holding the current item renders `open`. Other groups' open state is remembered in
-  `localStorage` (`teamster.nav.<group>`) and applied by the head script before first paint, as
-  ADR 0054 does for the folded sidebar; nav.js stores it on `toggle`. Without storage, every group is
-  open.
+* Every group renders `open`. A group the user closed is remembered in `localStorage`
+  (`teamster.nav.<group>` = `closed`) and closed again by an inline script directly after the
+  sidebar's `<nav>` — the `<head>` script of ADR 0054 runs before the `<details>` exist. The group
+  holding the current item is never closed. nav.js stores the state on `toggle`. Without storage,
+  every group is open.
 * Labels: new keys `nav.group.configuration|delivery|access|administration`, `nav.routes`,
   `nav.templates`, `nav.destinations`, `nav.webhooks`, `nav.grants` ("Delivery permissions"),
   `nav.my_notifications`; `nav.permissions` becomes "Channel scopes". English and German.
@@ -86,7 +87,7 @@ its form post as `POST /admin/<resource>`. Literal sub-paths (`/delete`, `/rotat
 
 | From | To | Status |
 |---|---|---|
-| `GET /admin` | first page this viewer's sidebar shows (Routing for every built-in role) | 302 |
+| `GET /admin` | `/admin/routing` when the viewer may `view` `Page`, else `/admin/templates` (someone who only holds shared records) | 302 |
 | `GET /admin?tab=<t>` | `/admin/<t>` | 301 |
 | `GET /admin?edit=<t>&id=<id>` | `/admin/<t>?edit=<id>` | 301 |
 | `?notice=` / `?error=` on any of the above | carried over | — |
@@ -107,7 +108,8 @@ Errors still travel as `?error=` and the form's input is still lost on a failed 
 * `recordPaths` already lists `/admin/templates` etc. for the POSTs; the GET pages share those paths,
   so someone a record was shared with reaches the page and its handler filters the list, as `/admin`
   does today. `/admin/grants` stays under `ActionAdminister` on `Grant` via `requestAuthorization`.
-* `requestAuthorization` maps the new GET pages to `read` on `Page`, as `/admin` is today.
+* `requestAuthorization` already maps `GET /admin/<resource>` to `view` on that resource's type
+  (prefix cases for `/admin/templates` etc.); no change. `/admin` itself stays `view` on `Page`.
 * Tests pin, per role (viewer, editor, admin, record-shared user, no role): GET of each page →
   200 / 403 / no-access page, and that a viewer still gets 403 on each POST.
 
