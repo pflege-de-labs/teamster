@@ -1,8 +1,10 @@
 package views
 
+import "github.com/pflege-de-labs/teamster/internal/i18n"
+
 // RecordHead is what the record frame needs: the way back to the list, the title, and the mode.
 type RecordHead struct {
-	ListHref, ListLabel, Title string
+	Href, ListHref, ListLabel, Title string // Href is the canonical record URL, whatever URL served the page
 	Editing                    bool // server-decided: ?edit present or a failed save
 }
 
@@ -17,9 +19,16 @@ templ recordPage(h RecordHead, actions, view, edit templ.Component) {
 			<a href={ templ.SafeURL(h.ListHref) } class="text-sm text-sky-700 hover:underline">{ h.ListLabel }</a>
 			<h2 class="text-lg font-semibold">{ h.Title }</h2>
 		</div>
-		<div data-record class="px-6 py-6">
+		<div data-record={ h.Href } class="px-6 py-6">
 			<div data-mode="view" hidden?={ h.Editing } class="space-y-4">
 				<div class="flex items-center gap-2">
+					if edit != nil {
+						<a
+							href={ templ.SafeURL(h.Href + "?edit") }
+							data-record-edit
+							class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:border-sky-400 hover:bg-sky-50 hover:text-sky-700"
+						>{ i18n.T(ctx, "action.edit") }</a>
+					}
 					@actions
 				</div>
 				@view

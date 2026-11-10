@@ -17,7 +17,6 @@
   "destinations.make_default": "Zum globalen Standard machen",
   "destinations.name_placeholder": "Betriebskanal",
   "destinations.new": "Neues Ziel",
-  "destinations.panel": "Ziele",
   "destinations.team": "Team",
   "destinations.unused": "Noch keine Route und kein Webhook postet hierher.",
   "destinations.used_by": "Verwendet von",

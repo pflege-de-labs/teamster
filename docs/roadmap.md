@@ -133,12 +133,11 @@ exactly once. It makes NATS a delivery dependency
 
 ## Milestone 26 — Record pages for every resource
 
-Destinations have list, record and new pages
-([ADR 0104](adr/0104-give-each-record-a-page-of-its-own.md)). The rest follow on the same frame,
-one pull request each, in this order: templates, webhooks, routes (a tree in the list; the new page
-takes `?parent=<id>`), groups, access tokens (secret shown once), recipients and users (unlink or
-disable only), delivery permissions (list and new only). Each keeps its old `?edit=` link working
-with a 301.
+The other resources get list, record and new pages on the frame of
+[ADR 0104](adr/0104-give-each-record-a-page-of-its-own.md), one pull request each, in this
+order: templates, webhooks, routes (a tree in the list; the new page takes `?parent=<id>`), groups,
+access tokens (secret shown once), recipients and users (unlink or disable only), delivery
+permissions (list and new only). Each keeps its old `?edit=` link working with a 301.
 
 ## Follow-ups from shipped work
 

@@ -176,12 +176,6 @@ func (s *Server) adminPage(r *http.Request, notice, errText string) views.Page {
 		page.Error = failureText(ctx, "load admin page", err)
 	}
 	s.fillAccess(r, &page)
-	teams := make([]string, len(page.Destinations))
-	for i, d := range page.Destinations {
-		teams[i] = d.TeamID
-	}
-	page.InstallStates = s.installStates(ctx, teams)
-
 	return page
 }
 
@@ -411,12 +405,17 @@ func postedDestination(r *http.Request) models.Destination {
 	}
 }
 
+var errTeamChannelRequired = errors.New("a destination needs a Team and a channel")
+
 // storeDestination saves the posted destination and returns it with the notice to show.
 func (s *Server) storeDestination(r *http.Request) (models.Destination, string, error) {
 	ctx := r.Context()
 	destination := postedDestination(r)
 	if err := s.mayRecord(r, writeAction(destination.ID), typeDestination, destination.ID); err != nil {
 		return destination, "", err
+	}
+	if destination.TeamID == "" || destination.ChannelID == "" {
+		return destination, "", userError{errTeamChannelRequired}
 	}
 	// Typing a channel id the picker would not have offered reaches here, which
 	// is why the check is on the write rather than on the list.

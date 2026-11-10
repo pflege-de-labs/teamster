@@ -149,9 +149,7 @@ type Login struct {
 type Page struct {
 	Templates    []models.Template
 	Destinations []models.Destination
-	// InstallStates is each destination team's state for the bot's app.
-	InstallStates map[string]string
-	Recipients    []models.Recipient
+	Recipients   []models.Recipient
 	// CanAddress offers the target that delivers to the people a message
 	// names (ADR 0062).
 	CanAddress       bool

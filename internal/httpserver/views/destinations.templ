@@ -54,7 +54,7 @@ templ DestinationListPage(p DestinationList) {
 					for _, row := range p.Rows {
 						<li class="py-3">
 							<div class="flex items-center gap-2">
-								<a href={ templ.SafeURL("/admin/destinations/" + row.Destination.ID) } class="truncate font-medium text-sky-700 hover:underline">{ row.Destination.Name }</a>
+								<a href={ templ.SafeURL("/admin/destinations/" + url.PathEscape(row.Destination.ID)) } class="truncate font-medium text-sky-700 hover:underline">{ row.Destination.Name }</a>
 								if row.Destination.IsDefault {
 									<span class="rounded bg-sky-100 px-1.5 py-0.5 text-xs font-medium text-sky-800">{ i18n.T(ctx, "destinations.badge_global_default") }</span>
 								}
@@ -95,13 +95,6 @@ templ DestinationNewPage(p DestinationNew) {
 }
 
 templ destinationActions(p DestinationRecord) {
-	if p.CanUpdate {
-		<a
-			href="?edit"
-			data-record-edit
-			class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:border-sky-400 hover:bg-sky-50 hover:text-sky-700"
-		>{ i18n.T(ctx, "action.edit") }</a>
-	}
 	if p.CanMakeDefault {
 		@makeDefaultButton(p.Destination.ID, p.Destination.Name)
 	}

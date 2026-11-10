@@ -140,7 +140,7 @@ func TestDestinationRecord(t *testing.T) {
 			store: func() *fakeStore { return sessionAs(seededUIStore(), authz.RoleAdmin) },
 			path:  record,
 			want: []string{
-				"Ops channel", "team", "chan", "Install unknown", `href="?edit"`, `data-record-edit`, "Make global default",
+				"Ops channel", "team", "chan", "Install unknown", `href="/admin/destinations/dest?edit"`, `data-record-edit`, "Make global default",
 				`action="/admin/destinations/delete"`, `data-mode="edit" hidden`,
 			},
 			unwanted: []string{`data-mode="view" hidden`, "global default</span>"},
@@ -153,10 +153,13 @@ func TestDestinationRecord(t *testing.T) {
 			unwanted: []string{"Make global default"},
 		},
 		{
-			name:     "admin editing",
-			store:    func() *fakeStore { return sessionAs(seededUIStore(), authz.RoleAdmin) },
-			path:     record + "?edit",
-			want:     []string{`data-mode="view" hidden`, `name="channel_id"`, `data-record-cancel`},
+			name:  "admin editing",
+			store: func() *fakeStore { return sessionAs(seededUIStore(), authz.RoleAdmin) },
+			path:  record + "?edit",
+			want: []string{
+				`data-mode="view" hidden`, `name="channel_id"`, `data-record-cancel`, `value="chan"`, `value="Ops channel"`,
+				"Update destination", `data-record="/admin/destinations/dest"`, `href="/admin/destinations/dest?edit"`,
+			},
 			unwanted: []string{`data-mode="edit" hidden`},
 		},
 		{
@@ -335,7 +338,7 @@ func TestDestinationNewPage(t *testing.T) {
 		want int
 		body []string
 	}{
-		{"editor", authz.RoleEditor, http.StatusOK, []string{`action="/admin/destinations"`, `href="/admin/destinations" data-record-cancel`, "New destination", `name="channel_id"`}},
+		{"editor", authz.RoleEditor, http.StatusOK, []string{`action="/admin/destinations"`, `href="/admin/destinations" data-record-cancel`, "New destination", `name="channel_id"`, "Save destination"}},
 		{"viewer", authz.RoleViewer, http.StatusForbidden, nil},
 	}
 	for _, tt := range tests {
@@ -352,6 +355,73 @@ func TestDestinationNewPage(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// A channel-scoped role's list hides a destination, so its page and its failed save must too.
+func TestDestinationPagesKeepOutOfScopeOut(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		role   authz.Role
+		method string
+		path   string
+		form   url.Values
+		want   int
+	}{
+		{"viewer GET outside", authz.RoleViewer, http.MethodGet, "/admin/destinations/outside", nil, http.StatusNotFound},
+		{"editor GET outside", authz.RoleEditor, http.MethodGet, "/admin/destinations/outside", nil, http.StatusNotFound},
+		{"editor GET outside editing", authz.RoleEditor, http.MethodGet, "/admin/destinations/outside?edit", nil, http.StatusNotFound},
+		{"viewer GET inside", authz.RoleViewer, http.MethodGet, "/admin/destinations/inside", nil, http.StatusOK},
+		{"editor GET inside", authz.RoleEditor, http.MethodGet, "/admin/destinations/inside", nil, http.StatusOK},
+		{
+			"editor update outside", authz.RoleEditor, http.MethodPost, "/admin/destinations",
+			url.Values{"id": {"outside"}, "name": {"Taken"}, "team_id": {"payments"}, "channel_id": {"alerts"}}, http.StatusNotFound,
+		},
+		{
+			"editor update outside into scope", authz.RoleEditor, http.MethodPost, "/admin/destinations",
+			url.Values{"id": {"outside"}, "name": {"Taken"}, "team_id": {"platform"}, "channel_id": {"alerts"}}, http.StatusNotFound,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			st := scopedStore(t, tt.role)
+			h := newTestServer(t, st, &fakeMessenger{}).Handler
+			var rec *httptest.ResponseRecorder
+			if tt.method == http.MethodGet {
+				rec = asRole(t, h, tt.method, tt.path, "")
+			} else {
+				rec = sessionPost(t, h, tt.path, tt.form)
+			}
+			if rec.Code != tt.want {
+				t.Fatalf("%s = %d, want %d", tt.method, rec.Code, tt.want)
+			}
+			if tt.want == http.StatusNotFound && strings.Contains(rec.Body.String(), "Payments alerts") {
+				t.Errorf("404 body leaks the destination")
+			}
+			if got := st.destinations["outside"]; got.Name != "Payments alerts" || got.TeamID != "payments" {
+				t.Errorf("out-of-scope destination was written: %+v", got)
+			}
+		})
+	}
+}
+
+// The 422 is served at the list URL, so the page must carry the record's own.
+func TestDestinationFailedSaveCarriesTheRecordURL(t *testing.T) {
+	t.Parallel()
+
+	rec := sessionPost(t, newTestServer(t, scopedStore(t, authz.RoleEditor), &fakeMessenger{}).Handler, "/admin/destinations",
+		url.Values{"id": {"inside"}, "name": {"Typed"}, "team_id": {"platform"}, "channel_id": {""}})
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("POST = %d, want 422", rec.Code)
+	}
+	for _, w := range []string{`data-record="/admin/destinations/inside"`, `href="/admin/destinations/inside?edit"`} {
+		if !strings.Contains(rec.Body.String(), w) {
+			t.Errorf("page is missing %q", w)
+		}
 	}
 }
 
@@ -387,6 +457,16 @@ func TestDestinationSave(t *testing.T) {
 			form: url.Values{"id": {"inside"}, "name": {"Moved"}, "team_id": {"payments"}, "channel_id": {"alerts"}},
 			body: []string{`value="Moved"`, "not granted", `data-mode="view" hidden`, `value="inside"`, "Platform alerts"},
 		},
+		{
+			name: "update with an empty channel", headers: same, want: http.StatusUnprocessableEntity,
+			form: url.Values{"id": {"inside"}, "name": {"Typed"}, "team_id": {"platform"}, "channel_id": {""}},
+			body: []string{`value="Typed"`, "needs a Team and a channel", `value="inside"`},
+		},
+		{
+			name: "create with an empty team", headers: same, want: http.StatusUnprocessableEntity,
+			form: url.Values{"name": {"Typed"}, "team_id": {""}, "channel_id": {"incidents"}},
+			body: []string{`value="Typed"`, `value="incidents"`, "needs a Team and a channel"},
+		},
 		{name: "cross-origin", headers: map[string]string{"Sec-Fetch-Site": "cross-site"}, want: http.StatusForbidden, form: url.Values{"name": {"x"}}},
 	}
 	for _, tt := range tests {
@@ -404,6 +484,11 @@ func TestDestinationSave(t *testing.T) {
 			for _, w := range tt.body {
 				if !strings.Contains(rec.Body.String(), w) {
 					t.Errorf("page is missing %q", w)
+				}
+			}
+			if tt.want == http.StatusUnprocessableEntity {
+				if got := st.destinations["inside"]; got.Name != "Platform alerts" || len(st.destinations) != 2 {
+					t.Errorf("a refused save wrote: %d destinations, inside = %+v", len(st.destinations), got)
 				}
 			}
 		})

@@ -56,14 +56,8 @@ func (s *Server) handleDestinationRecord(w http.ResponseWriter, r *http.Request)
 		http.NotFound(w, r)
 		return
 	}
-	d, err := s.store.GetDestination(ctx, id)
-	if errors.Is(err, store.ErrNotFound) {
-		http.NotFound(w, r)
-		return
-	}
-	if err != nil {
-		logError(ctx, "get destination", err)
-		http.Error(w, "could not load the destination", http.StatusInternalServerError)
+	d, ok := s.readableDestination(w, r, id)
+	if !ok {
 		return
 	}
 
@@ -73,6 +67,28 @@ func (s *Server) handleDestinationRecord(w http.ResponseWriter, r *http.Request)
 	if err := views.DestinationRecordPage(rec).Render(ctx, w); err != nil {
 		logError(ctx, "render destination record", err)
 	}
+}
+
+// readableDestination loads a destination the session's scope lets it see; otherwise it has answered 404 or 500.
+func (s *Server) readableDestination(w http.ResponseWriter, r *http.Request, id string) (models.Destination, bool) {
+	ctx := r.Context()
+	d, err := s.store.GetDestination(ctx, id)
+	if err == nil {
+		var visible []models.Destination
+		if visible, err = s.listDestinations(r, []models.Destination{d}); err == nil && len(visible) == 0 {
+			err = store.ErrNotFound // a channel-scoped role's list hides it, so the page must too
+		}
+	}
+	if errors.Is(err, store.ErrNotFound) {
+		http.NotFound(w, r)
+		return d, false
+	}
+	if err != nil {
+		logError(ctx, "get destination", err)
+		http.Error(w, "could not load the destination", http.StatusInternalServerError)
+		return d, false
+	}
+	return d, true
 }
 
 // destinationRecord builds the record page of d for the session: access, usages and sharing.
@@ -91,7 +107,7 @@ func (s *Server) destinationRecord(r *http.Request, d models.Destination) views.
 	}
 	_, edit := q["edit"]
 	rec.Head = views.RecordHead{
-		ListHref: "/admin/destinations", ListLabel: i18n.T(ctx, "nav.destinations"), Title: d.Name,
+		Href: "/admin/destinations/" + url.PathEscape(id), ListHref: "/admin/destinations", ListLabel: i18n.T(ctx, "nav.destinations"), Title: d.Name,
 		Editing: edit && rec.CanUpdate,
 	}
 
@@ -151,9 +167,15 @@ func (s *Server) handleDestinationSave(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx := r.Context()
 	// An id the session cannot read answers like a missing one, before anything is written or rendered.
-	if id := r.PostFormValue("id"); id != "" && !s.can(r, authz.ActionRead, typeDestination, id) {
-		http.NotFound(w, r)
-		return
+	if id := r.PostFormValue("id"); id != "" {
+		if !s.can(r, authz.ActionRead, typeDestination, id) {
+			http.NotFound(w, r)
+			return
+		}
+		// Otherwise moving an out-of-scope record into scope would pass the delivery check.
+		if _, ok := s.readableDestination(w, r, id); !ok {
+			return
+		}
 	}
 	saved, notice, err := s.storeDestination(r)
 	if err == nil {
@@ -176,14 +198,8 @@ func (s *Server) handleDestinationSave(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	stored, err := s.store.GetDestination(ctx, form.ID)
-	if errors.Is(err, store.ErrNotFound) {
-		http.NotFound(w, r)
-		return
-	}
-	if err != nil {
-		logError(ctx, "get destination", err)
-		http.Error(w, "could not load the destination", http.StatusInternalServerError)
+	stored, ok := s.readableDestination(w, r, form.ID)
+	if !ok {
 		return
 	}
 	rec := s.destinationRecord(r, stored)

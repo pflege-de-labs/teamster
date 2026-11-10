@@ -17,7 +17,6 @@
   "destinations.make_default": "Make global default",
   "destinations.name_placeholder": "Ops channel",
   "destinations.new": "New destination",
-  "destinations.panel": "Destinations",
   "destinations.team": "Team",
   "destinations.unused": "No route or webhook posts here yet.",
   "destinations.used_by": "Used by",

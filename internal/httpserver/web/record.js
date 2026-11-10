@@ -1,13 +1,8 @@
 // Swaps a record page between its view and edit parts without a reload, warns about unsaved
 // edits, and swaps the Team and channel IDs in the summary for their names.
 (function (global) {
-  global.teamsterRecordURL = (href, editing) => {
-    const u = new URL(href);
-    const rest = u.search.slice(1).split("&").filter((p) => p && p.split("=")[0] !== "edit");
-    if (editing) rest.push("edit");
-    u.search = rest.join("&");
-    return u.toString();
-  };
+  // The page may be served at another URL (a failed save), so URLs come from data-record.
+  global.teamsterRecordURL = (href, editing) => (editing ? href + "?edit" : href);
   global.teamsterNameOf = (items, id) => items.find((i) => i.id === id)?.name ?? null;
   if (typeof document === "undefined") return;
 
@@ -22,7 +17,7 @@
     const show = (editing) => {
       view.hidden = editing;
       edit.hidden = !editing;
-      history.replaceState(null, "", global.teamsterRecordURL(location.href, editing));
+      history.replaceState(null, "", global.teamsterRecordURL(record.dataset.record, editing));
     };
     // A new page's Cancel also carries the attribute, but has no record to swap.
     if (view && edit && form) {
@@ -33,10 +28,9 @@
         if (el.hasAttribute("data-record-cancel") && dirty) {
           // Reload so the pickers rebuild from the stored IDs.
           dirty = false;
-          location.replace(global.teamsterRecordURL(location.href, false));
+          location.replace(global.teamsterRecordURL(record.dataset.record, false));
           return;
         }
-        if (el.hasAttribute("data-record-cancel")) form.reset();
         show(el.hasAttribute("data-record-edit"));
         if (!edit.hidden) form.querySelector("input:not([type=hidden]), select, textarea")?.focus();
       });
@@ -61,12 +55,12 @@
     }
   }
 
-  async function names(selector, attr, url) {
-    for (const el of document.querySelectorAll(selector)) {
+  async function names(selector, attr, key, url) {
+    for (const el of document.querySelectorAll("[data-record] " + selector)) {
       try {
         const res = await fetch(url(el));
         if (!res.ok) continue;
-        const items = Object.values(await res.json())[0];
+        const items = (await res.json())[key];
         const name = global.teamsterNameOf(items, el.dataset[attr]);
         if (name === null) continue;
         const id = document.createElement("span");
@@ -80,6 +74,6 @@
     }
   }
   const teams = "/api/graph/teams";
-  names("[data-team-id]:not([data-channel-id])", "teamId", () => teams);
-  names("[data-channel-id]", "channelId", (el) => teams + "/" + encodeURIComponent(el.dataset.teamId) + "/channels");
+  names("[data-team-id]:not([data-channel-id])", "teamId", "teams", () => teams);
+  names("[data-channel-id]", "channelId", "channels", (el) => teams + "/" + encodeURIComponent(el.dataset.teamId) + "/channels");
 })(typeof window !== "undefined" ? window : globalThis);
