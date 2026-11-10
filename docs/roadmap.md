@@ -131,6 +131,15 @@ both the budget and the pause, and it is the same queue 24.1 weighs for sending 
 exactly once. It makes NATS a delivery dependency
 ([ADR 0071](adr/0071-publish-audit-events-to-nats-jetstream.md)).
 
+## Milestone 26 — Record pages for every resource
+
+Destinations have list, record and new pages
+([ADR 0104](adr/0104-give-each-record-a-page-of-its-own.md)). The rest follow on the same frame,
+one pull request each, in this order: templates, webhooks, routes (a tree in the list; the new page
+takes `?parent=<id>`), groups, access tokens (secret shown once), recipients and users (unlink or
+disable only), delivery permissions (list and new only). Each keeps its old `?edit=` link working
+with a 301.
+
 ## Follow-ups from shipped work
 
 Smaller items left open when a milestone shipped. Each is picked up on its own.
@@ -177,6 +186,7 @@ Smaller items left open when a milestone shipped. Each is picked up on its own.
 | 7 | 24.1 Broadcasts exactly once | 24 | — |
 | 8 | 24.2 Announcements, the rest | 24 | — |
 | 9 | 25 Pacing across replicas | — | the 24.1 decision for 25.2 |
+| 10 | 26 Record pages for every resource | — | — |
 
 Follow-ups are unordered and can be pulled in between milestones.
 
