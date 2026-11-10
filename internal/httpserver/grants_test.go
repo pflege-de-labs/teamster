@@ -241,7 +241,7 @@ func TestGrantsPanelIsAdminOnly(t *testing.T) {
 	}
 
 	editor := sessionAs(seededUIStore(), authz.RoleEditor)
-	page = asRole(t, newTestServer(t, editor, &fakeMessenger{}).Handler, http.MethodGet, "/admin", "").Body.String()
+	page = asRole(t, newTestServer(t, editor, &fakeMessenger{}).Handler, http.MethodGet, "/admin/templates", "").Body.String()
 	if strings.Contains(page, "Delivery permissions") {
 		t.Error("an editor is shown the grants panel")
 	}

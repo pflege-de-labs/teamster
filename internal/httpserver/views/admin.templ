@@ -1,6 +1,7 @@
 package views
 
 import (
+	"net/url"
 	"slices"
 	"strconv"
 	"github.com/pflege-de-labs/teamster/internal/i18n"
@@ -281,7 +282,7 @@ templ webhooks(page Page) {
 				@selectField("template_id", i18n.T(ctx, "webhooks.template"), webhookTemplateOptions(ctx, page), page.editingWebhookEndpoint().TemplateID)
 				<p class="text-xs text-slate-500">{ i18n.T(ctx, "webhooks.hint") }</p>
 				if id := page.endpointRouteID(); id != "" {
-					<p class="text-sm"><a href={ templ.SafeURL("/admin?edit=routes&id=" + id + "#routes") } class="underline hover:text-slate-900">{ i18n.T(ctx, "webhooks.route_link") }</a></p>
+					<p class="text-sm"><a href={ templ.SafeURL("/admin/routes?edit=" + url.QueryEscape(id)) } class="underline hover:text-slate-900">{ i18n.T(ctx, "webhooks.route_link") }</a></p>
 				}
 				<div class="flex items-center gap-2">
 					@submit(submitLabel(ctx, page.EditWebhookEndpoint != nil, "noun.webhook"))
@@ -364,7 +365,7 @@ templ routes(page Page) {
 				@textField("name", i18n.T(ctx, "templates.name"), i18n.T(ctx, "routes.name_placeholder"), page.editingRoute().Name)
 				if page.routeManaged() {
 					<p class="text-sm text-slate-700">
-						<a href={ templ.SafeURL("/admin?edit=webhooks&id=" + page.EditRoute.WebhookEndpointID + "#webhooks") } class="underline hover:text-slate-900">{ i18n.T(ctx, "routes.managed_by", page.managingWebhook()) }</a>
+						<a href={ templ.SafeURL("/admin/webhooks?edit=" + url.QueryEscape(page.EditRoute.WebhookEndpointID)) } class="underline hover:text-slate-900">{ i18n.T(ctx, "routes.managed_by", page.managingWebhook()) }</a>
 					</p>
 					// Disabled fields do not post, so the form carries the locked values itself.
 					<input type="hidden" name="parent_id" value={ page.EditRoute.ParentID }/>

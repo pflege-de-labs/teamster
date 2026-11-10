@@ -1,7 +1,6 @@
 package httpserver
 
 import (
-	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -22,28 +21,47 @@ import (
 	"github.com/pflege-de-labs/teamster/internal/templates"
 )
 
-// handleAdminPage renders the admin UI. Notices arrive as query parameters
-// because a form post answers with a redirect, which carries no body.
+// handleAdminPage sends the old /admin?tab= and ?edit= URLs, already in Teams chats, to their pages.
 func (s *Server) handleAdminPage(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		w.Header().Set("Allow", http.MethodGet)
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		w.Header().Set("Allow", "GET, HEAD")
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 
-	page := s.adminPage(r, r.URL.Query().Get("notice"), r.URL.Query().Get("error"))
-	page.Tab = cmp.Or(r.URL.Query().Get("tab"), r.URL.Query().Get("edit"))
-	// Until old URLs redirect, an unknown tab, or grants without the right to manage them, shows templates.
-	known := slices.Contains([]string{"templates", "destinations", "webhooks", "routes"}, page.Tab)
-	if !known && (page.Tab != "grants" || !page.CanManage) {
-		page.Tab = "templates"
+	markChecked(r) // a redirect reads no record, so the witness need not wait for one
+	q := r.URL.Query()
+	section, edit := q.Get("tab"), ""
+	if e := q.Get("edit"); e != "" {
+		section, edit = e, q.Get("id")
+	}
+	if !slices.Contains([]string{"templates", "destinations", "webhooks", "routes", "grants"}, section) {
+		// Which landing page exists for the viewer decides, so this is not permanent.
+		target := "/admin/templates"
+		if s.allow(r, authz.ActionView, authz.Resource{Type: "Page"}) {
+			target = "/admin/routing"
+		}
+		http.Redirect(w, r, target, http.StatusFound)
+		return
 	}
 
-	if selected := r.URL.Query().Get("edit"); selected != "" {
-		s.loadForEditing(r, &page, selected, r.URL.Query().Get("id"))
+	target := url.URL{Path: adminTabPath(section)}
+	out := url.Values{}
+	if edit != "" {
+		out.Set("edit", edit)
 	}
+	for _, key := range []string{"notice", "error"} {
+		if v := q.Get(key); v != "" {
+			out.Set(key, v)
+		}
+	}
+	target.RawQuery = out.Encode()
+	http.Redirect(w, r, target.String(), http.StatusMovedPermanently)
+}
 
-	s.renderAdmin(w, r, page)
+// recordEditPath is the page that edits one record.
+func recordEditPath(section, id string) string {
+	return adminTabPath(section) + "?edit=" + url.QueryEscape(id)
 }
 
 // handleResourcePage renders one resource on its own page; ?edit= names the record to edit.
@@ -224,7 +242,7 @@ func (s *Server) loadForEditing(r *http.Request, page *views.Page, section, id s
 		page.Error = visibleError(ctx, "load record for editing", err)
 		return
 	}
-	if page.Sharing, err = s.sharingFor(r, typ, id, "/admin?edit="+section+"&id="+url.QueryEscape(id)); err != nil {
+	if page.Sharing, err = s.sharingFor(r, typ, id, recordEditPath(section, id)); err != nil {
 		page.Error = failureText(ctx, "load sharing", err)
 	}
 }

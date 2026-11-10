@@ -126,7 +126,7 @@ func TestTheLayoutAdvertisesSamplesOnlyToEditors(t *testing.T) {
 			t.Parallel()
 
 			handler := mustServer(t, samplesConfig(tt.enabled), sessionAs(newFakeStore(), tt.roles...), &fakeMessenger{}).Handler
-			for _, path := range []string{"/admin", "/admin/routing"} {
+			for _, path := range []string{"/admin/templates", "/admin/routing"} {
 				rec := asRole(t, handler, http.MethodGet, path, "")
 				if rec.Code != http.StatusOK {
 					t.Fatalf("GET %s = %d", path, rec.Code)

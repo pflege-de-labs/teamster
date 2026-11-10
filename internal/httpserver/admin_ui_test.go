@@ -11,7 +11,9 @@ import (
 
 	"github.com/pflege-de-labs/teamster/internal/authz"
 	"github.com/pflege-de-labs/teamster/internal/cards"
+	"github.com/pflege-de-labs/teamster/internal/config"
 	"github.com/pflege-de-labs/teamster/internal/models"
+	"github.com/pflege-de-labs/teamster/internal/routing"
 )
 
 func postForm(t *testing.T, handler http.Handler, path string, form url.Values, headers map[string]string) *httptest.ResponseRecorder {
@@ -82,7 +84,7 @@ func TestAdminPageReportsStoreFailures(t *testing.T) {
 	t.Parallel()
 
 	srv, logs := newLoggedTestServer(t, newFakeStore().fail("ListRoutes"), &fakeMessenger{})
-	rec := do(t, srv.Handler, http.MethodGet, "/admin", "")
+	rec := do(t, srv.Handler, http.MethodGet, "/admin/templates", "")
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("GET /admin = %d, want 200 with the error rendered", rec.Code)
@@ -377,7 +379,7 @@ func TestAdminPagePrefillsTheFormBeingEdited(t *testing.T) {
 	}{
 		{
 			name:  "template",
-			query: "/admin?edit=templates&id=tmpl",
+			query: "/admin/templates?edit=tmpl",
 			wantHTML: []string{
 				`<input type="hidden" name="id" value="tmpl">`,
 				`value="Critical card"`,
@@ -387,7 +389,7 @@ func TestAdminPagePrefillsTheFormBeingEdited(t *testing.T) {
 		},
 		{
 			name:  "destination",
-			query: "/admin?edit=destinations&id=dest",
+			query: "/admin/destinations?edit=dest",
 			wantHTML: []string{
 				`<input type="hidden" name="id" value="dest">`,
 				`value="Ops channel"`,
@@ -398,7 +400,7 @@ func TestAdminPagePrefillsTheFormBeingEdited(t *testing.T) {
 		},
 		{
 			name:  "route",
-			query: "/admin?edit=routes&id=route",
+			query: "/admin/routes?edit=route",
 			wantHTML: []string{
 				`<input type="hidden" name="id" value="route">`,
 				`value="Critical to ops"`,
@@ -437,7 +439,7 @@ func TestAdminPageChecksTheDefaultRouteBox(t *testing.T) {
 	route.IsDefault = true
 	st.routes["route"] = route
 
-	body := do(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin?edit=routes&id=route", "").Body.String()
+	body := do(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin/routes?edit=route", "").Body.String()
 	if !strings.Contains(body, `name="is_default" value="true" checked`) {
 		t.Error("the default flag did not survive into the form")
 	}
@@ -449,9 +451,9 @@ func TestAdminPageOffersAnEditLinkPerRow(t *testing.T) {
 	body := pagesOf(t, newTestServer(t, seededUIStore(), &fakeMessenger{}).Handler, "/admin/templates", "/admin/destinations", "/admin/routes")
 
 	for _, want := range []string{
-		`href="/admin?edit=templates&amp;id=tmpl#templates"`,
-		`href="/admin?edit=destinations&amp;id=dest#destinations"`,
-		`href="/admin?edit=routes&amp;id=route#routes"`,
+		`href="/admin/templates?edit=tmpl"`,
+		`href="/admin/destinations?edit=dest"`,
+		`href="/admin/routes?edit=route"`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("list is missing the edit link %q", want)
@@ -474,9 +476,8 @@ func TestAdminPageHandlesBadEditRequests(t *testing.T) {
 		query     string
 		wantError bool
 	}{
-		{name: "unknown id", query: "/admin?edit=templates&id=missing", wantError: true},
-		{name: "unknown section is ignored", query: "/admin?edit=nonsense&id=tmpl"},
-		{name: "section without an id is ignored", query: "/admin?edit=templates"},
+		{name: "unknown id", query: "/admin/templates?edit=missing", wantError: true},
+		{name: "section without an id is ignored", query: "/admin/templates"},
 	}
 
 	for _, tt := range tests {
@@ -509,7 +510,7 @@ func TestEditRoundTripUpdatesInPlace(t *testing.T) {
 	st := seededUIStore()
 	handler := newTestServer(t, st, &fakeMessenger{}).Handler
 
-	if body := do(t, handler, http.MethodGet, "/admin?edit=templates&id=tmpl", "").Body.String(); !strings.Contains(body, `value="tmpl"`) {
+	if body := do(t, handler, http.MethodGet, "/admin/templates?edit=tmpl", "").Body.String(); !strings.Contains(body, `value="tmpl"`) {
 		t.Fatal("the edit page did not offer the id back")
 	}
 
@@ -596,7 +597,7 @@ func TestTemplateFormOffersTheCardPalette(t *testing.T) {
 	t.Parallel()
 
 	st := sessionAs(seededUIStore(), authz.RoleEditor)
-	body := asRole(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin", "").Body.String()
+	body := asRole(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin/templates", "").Body.String()
 
 	for _, want := range []string{
 		`class="snippet`, `id="card-starter"`, `id="preview-live"`,
@@ -622,39 +623,59 @@ func TestTheCardPaletteIsPartOfTheForm(t *testing.T) {
 	t.Parallel()
 
 	st := sessionAs(seededUIStore(), authz.RoleViewer)
-	body := asRole(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin", "").Body.String()
+	body := asRole(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin/templates", "").Body.String()
 
 	if strings.Contains(body, `id="card-starter"`) {
 		t.Error("a viewer is offered the card palette")
 	}
 }
 
-func TestAdminPageFallsBackToTemplates(t *testing.T) {
+func TestAdminRedirects(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name string
-		role authz.Role
-		path string
-		want string
+		name     string
+		noRole   bool
+		path     string
+		wantCode int
+		wantLoc  string
 	}{
-		{name: "no tab", role: authz.RoleAdmin, path: "/admin", want: `id="templates"`},
-		{name: "the tab asked for", role: authz.RoleAdmin, path: "/admin?tab=routes", want: `id="routes"`},
-		{name: "the section being edited", role: authz.RoleAdmin, path: "/admin?edit=destinations&id=dest", want: `id="destinations"`},
-		{name: "an unknown tab", role: authz.RoleAdmin, path: "/admin?tab=nope", want: `id="templates"`},
-		{name: "an admin has grants", role: authz.RoleAdmin, path: "/admin?tab=grants", want: `id="grants"`},
-		{name: "an editor has no grants", role: authz.RoleEditor, path: "/admin?tab=grants", want: `id="templates"`},
+		{name: "bare admin", path: "/admin", wantCode: http.StatusFound, wantLoc: "/admin/routing"},
+		{name: "a share holder without a role", noRole: true, path: "/admin", wantCode: http.StatusFound, wantLoc: "/admin/templates"},
+		{name: "tab", path: "/admin?tab=webhooks", wantCode: http.StatusMovedPermanently, wantLoc: "/admin/webhooks"},
+		{name: "tab with a notice", path: "/admin?tab=grants&notice=Saved.", wantCode: http.StatusMovedPermanently, wantLoc: "/admin/grants?notice=Saved."},
+		{name: "edit", path: "/admin?edit=webhooks&id=abc", wantCode: http.StatusMovedPermanently, wantLoc: "/admin/webhooks?edit=abc"},
+		{name: "edit with an error", path: "/admin?edit=routes&id=a%2Fb&error=x", wantCode: http.StatusMovedPermanently, wantLoc: "/admin/routes?edit=a%2Fb&error=x"},
+		{name: "unknown tab", path: "/admin?tab=bogus", wantCode: http.StatusFound, wantLoc: "/admin/routing"},
+		{name: "unknown edit", path: "/admin?edit=bogus&id=x", wantCode: http.StatusFound, wantLoc: "/admin/routing"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			st := sessionAs(seededUIStore(), tt.role)
-			body := asRole(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, tt.path, "").Body.String()
-			if !strings.Contains(body, tt.want) {
-				t.Errorf("page lacks %s", tt.want)
+			st := sessionAs(seededUIStore(), authz.RoleAdmin)
+			if tt.noRole {
+				st = sessionAs(seededUIStore())
+				grantTo(st, models.PrincipalUser, "tester", "Template", "tmpl", "read")
+			}
+			rec := asRole(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, tt.path, "")
+			if rec.Code != tt.wantCode || rec.Header().Get("Location") != tt.wantLoc {
+				t.Errorf("GET %s = %d %q, want %d %q", tt.path, rec.Code, rec.Header().Get("Location"), tt.wantCode, tt.wantLoc)
 			}
 		})
+	}
+}
+
+func TestHintCardLinksToWebhookPage(t *testing.T) {
+	t.Parallel()
+
+	srv := &Server{store: newFakeStore(), cfg: config.Config{Server: config.ServerConfig{ExternalURL: "https://t.example.com"}}}
+	msg, err := srv.renderMessage(t.Context(), models.Event{Source: models.SourceTeamsV2, Title: "hi"}, routing.Delivery{WebhookEndpointID: "hook"})
+	if err != nil {
+		t.Fatalf("renderMessage: %v", err)
+	}
+	if !strings.Contains(string(msg.Notice), "/admin/webhooks?edit=hook") {
+		t.Errorf("notice = %s, want a link to /admin/webhooks?edit=hook", msg.Notice)
 	}
 }
 

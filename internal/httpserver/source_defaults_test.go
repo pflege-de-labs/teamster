@@ -214,7 +214,7 @@ func TestTheSourceDefaultsForm(t *testing.T) {
 		t.Errorf("POST another source's template redirected to %s, want an error", rec.Header().Get("Location"))
 	}
 
-	page := do(t, handler, http.MethodGet, "/admin", "").Body.String()
+	page := do(t, handler, http.MethodGet, "/admin/templates", "").Body.String()
 	for _, want := range []string{`action="/admin/templates/source-defaults"`, `name="template_teamsv2"`, "Default for Alertmanager", `id="template-preset"`, `data-preset=`} {
 		if !strings.Contains(page, want) {
 			t.Errorf("page does not contain %s", want)

@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"regexp"
 	"strings"
 	"time"
@@ -140,7 +139,7 @@ func (s *Server) teamsV2Message(ctx context.Context, endpoint models.WebhookEndp
 		if endpoint.TemplateID != "" {
 			return graph.Message{Title: msg.Title, Text: msg.Text, Cards: msg.Cards}, nil
 		}
-		hint, err := templates.HintCard(s.cfg.Server.ExternalURL, "/admin?edit=webhooks&id="+url.QueryEscape(endpoint.ID)+"#webhooks")
+		hint, err := templates.HintCard(s.cfg.Server.ExternalURL, recordEditPath("webhooks", endpoint.ID))
 		if err != nil {
 			return graph.Message{}, fmt.Errorf("hint: %w", err)
 		}

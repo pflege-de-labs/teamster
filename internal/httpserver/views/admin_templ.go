@@ -11,6 +11,7 @@ import templruntime "github.com/a-h/templ/runtime"
 
 import (
 	"github.com/pflege-de-labs/teamster/internal/i18n"
+	"net/url"
 	"slices"
 	"strconv"
 )
@@ -131,7 +132,7 @@ func templates(page Page) templ.Component {
 					var templ_7745c5c3_Var5 string
 					templ_7745c5c3_Var5, templ_7745c5c3_Err = templruntime.NewAttributeExpression(page.EditTemplate.ID).Resolve(ctx)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 35, Col: 65}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 36, Col: 65}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 					if templ_7745c5c3_Err != nil {
@@ -157,7 +158,7 @@ func templates(page Page) templ.Component {
 				var templ_7745c5c3_Var6 string
 				templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "templates.sources"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 40, Col: 76}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 41, Col: 76}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 				if templ_7745c5c3_Err != nil {
@@ -175,7 +176,7 @@ func templates(page Page) templ.Component {
 					var templ_7745c5c3_Var7 string
 					templ_7745c5c3_Var7, templ_7745c5c3_Err = templruntime.NewAttributeExpression(o.Value).Resolve(ctx)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 44, Col: 62}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 45, Col: 62}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
 					if templ_7745c5c3_Err != nil {
@@ -198,7 +199,7 @@ func templates(page Page) templ.Component {
 					var templ_7745c5c3_Var8 string
 					templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(o.Label)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 45, Col: 18}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 46, Col: 18}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 					if templ_7745c5c3_Err != nil {
@@ -216,7 +217,7 @@ func templates(page Page) templ.Component {
 				var templ_7745c5c3_Var9 string
 				templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "templates.sources_hint"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 49, Col: 84}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 50, Col: 84}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 				if templ_7745c5c3_Err != nil {
@@ -267,7 +268,7 @@ func templates(page Page) templ.Component {
 				var templ_7745c5c3_Var10 string
 				templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "preview.button"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 70, Col: 38}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 71, Col: 38}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 				if templ_7745c5c3_Err != nil {
@@ -280,7 +281,7 @@ func templates(page Page) templ.Component {
 				var templ_7745c5c3_Var11 string
 				templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "preview.live"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 74, Col: 36}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 75, Col: 36}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 				if templ_7745c5c3_Err != nil {
@@ -293,7 +294,7 @@ func templates(page Page) templ.Component {
 				var templ_7745c5c3_Var12 string
 				templ_7745c5c3_Var12, templ_7745c5c3_Err = templruntime.NewAttributeExpression(i18n.T(ctx, "templates.sample_event")).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 78, Col: 57}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 79, Col: 57}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var12)
 				if templ_7745c5c3_Err != nil {
@@ -311,7 +312,7 @@ func templates(page Page) templ.Component {
 					var templ_7745c5c3_Var13 string
 					templ_7745c5c3_Var13, templ_7745c5c3_Err = templruntime.NewAttributeExpression(name).Resolve(ctx)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 82, Col: 28}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 83, Col: 28}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var13)
 					if templ_7745c5c3_Err != nil {
@@ -324,7 +325,7 @@ func templates(page Page) templ.Component {
 					var templ_7745c5c3_Var14 string
 					templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "sample."+name))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 82, Col: 60}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 83, Col: 60}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 					if templ_7745c5c3_Err != nil {
@@ -350,7 +351,7 @@ func templates(page Page) templ.Component {
 				var templ_7745c5c3_Var15 string
 				templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "preview.empty"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 89, Col: 36}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 90, Col: 36}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 				if templ_7745c5c3_Err != nil {
@@ -393,7 +394,7 @@ func templates(page Page) templ.Component {
 					var templ_7745c5c3_Var16 string
 					templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(t.Name)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 106, Col: 52}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 107, Col: 52}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 					if templ_7745c5c3_Err != nil {
@@ -411,7 +412,7 @@ func templates(page Page) templ.Component {
 						var templ_7745c5c3_Var17 string
 						templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "templates.default_for", names))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 108, Col: 144}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 109, Col: 144}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 						if templ_7745c5c3_Err != nil {
@@ -429,7 +430,7 @@ func templates(page Page) templ.Component {
 					var templ_7745c5c3_Var18 string
 					templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(templateShape(ctx, t))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 112, Col: 32}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 113, Col: 32}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 					if templ_7745c5c3_Err != nil {
@@ -442,7 +443,7 @@ func templates(page Page) templ.Component {
 					var templ_7745c5c3_Var19 string
 					templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(sourcesText(ctx, t))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 112, Col: 59}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 113, Col: 59}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 					if templ_7745c5c3_Err != nil {
@@ -455,7 +456,7 @@ func templates(page Page) templ.Component {
 					var templ_7745c5c3_Var20 string
 					templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "templates.updated", stamp(ctx, t.UpdatedAt)))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 112, Col: 124}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 113, Col: 124}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 					if templ_7745c5c3_Err != nil {
@@ -531,7 +532,7 @@ func sourceDefaults(page Page) templ.Component {
 		var templ_7745c5c3_Var22 string
 		templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "templates.source_defaults"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 136, Col: 78}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 137, Col: 78}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 		if templ_7745c5c3_Err != nil {
@@ -544,7 +545,7 @@ func sourceDefaults(page Page) templ.Component {
 		var templ_7745c5c3_Var23 string
 		templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "templates.source_defaults_hint"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 137, Col: 83}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 138, Col: 83}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 		if templ_7745c5c3_Err != nil {
@@ -590,7 +591,7 @@ func sourceDefaults(page Page) templ.Component {
 				var templ_7745c5c3_Var24 string
 				templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(source.Label)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 151, Col: 20}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 152, Col: 20}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 				if templ_7745c5c3_Err != nil {
@@ -604,7 +605,7 @@ func sourceDefaults(page Page) templ.Component {
 					var templ_7745c5c3_Var25 string
 					templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(page.templateName(id))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 153, Col: 30}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 154, Col: 30}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 					if templ_7745c5c3_Err != nil {
@@ -618,7 +619,7 @@ func sourceDefaults(page Page) templ.Component {
 					var templ_7745c5c3_Var26 string
 					templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "templates.source_default_builtin"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 155, Col: 77}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 156, Col: 77}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 					if templ_7745c5c3_Err != nil {
@@ -673,7 +674,7 @@ func presetPicker(page Page) templ.Component {
 		var templ_7745c5c3_Var28 string
 		templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "templates.preset"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 168, Col: 69}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 169, Col: 69}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 		if templ_7745c5c3_Err != nil {
@@ -686,7 +687,7 @@ func presetPicker(page Page) templ.Component {
 		var templ_7745c5c3_Var29 string
 		templ_7745c5c3_Var29, templ_7745c5c3_Err = templruntime.NewAttributeExpression(i18n.T(ctx, "templates.preset_help")).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 171, Col: 47}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 172, Col: 47}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var29)
 		if templ_7745c5c3_Err != nil {
@@ -699,7 +700,7 @@ func presetPicker(page Page) templ.Component {
 		var templ_7745c5c3_Var30 string
 		templ_7745c5c3_Var30, templ_7745c5c3_Err = templruntime.NewAttributeExpression(i18n.T(ctx, "templates.preset_confirm")).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 172, Col: 57}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 173, Col: 57}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var30)
 		if templ_7745c5c3_Err != nil {
@@ -712,7 +713,7 @@ func presetPicker(page Page) templ.Component {
 		var templ_7745c5c3_Var31 string
 		templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "templates.preset_none"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 175, Col: 58}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 176, Col: 58}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
 		if templ_7745c5c3_Err != nil {
@@ -730,7 +731,7 @@ func presetPicker(page Page) templ.Component {
 			var templ_7745c5c3_Var32 string
 			templ_7745c5c3_Var32, templ_7745c5c3_Err = templruntime.NewAttributeExpression(preset.Key).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 177, Col: 30}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 178, Col: 30}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var32)
 			if templ_7745c5c3_Err != nil {
@@ -743,7 +744,7 @@ func presetPicker(page Page) templ.Component {
 			var templ_7745c5c3_Var33 string
 			templ_7745c5c3_Var33, templ_7745c5c3_Err = templruntime.NewAttributeExpression(presetJSON(preset)).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 177, Col: 65}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 178, Col: 65}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var33)
 			if templ_7745c5c3_Err != nil {
@@ -756,7 +757,7 @@ func presetPicker(page Page) templ.Component {
 			var templ_7745c5c3_Var34 string
 			templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, preset.LabelKey))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 177, Col: 98}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 178, Col: 98}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
 			if templ_7745c5c3_Err != nil {
@@ -817,7 +818,7 @@ func destinations(page Page) templ.Component {
 					var templ_7745c5c3_Var37 string
 					templ_7745c5c3_Var37, templ_7745c5c3_Err = templruntime.NewAttributeExpression(page.EditDestination.ID).Resolve(ctx)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 188, Col: 67}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 189, Col: 67}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var37)
 					if templ_7745c5c3_Err != nil {
@@ -847,7 +848,7 @@ func destinations(page Page) templ.Component {
 				var templ_7745c5c3_Var38 string
 				templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "picker.channel_needs_team"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 193, Col: 117}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 194, Col: 117}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var38))
 				if templ_7745c5c3_Err != nil {
@@ -860,7 +861,7 @@ func destinations(page Page) templ.Component {
 				var templ_7745c5c3_Var39 string
 				templ_7745c5c3_Var39, templ_7745c5c3_Err = templruntime.NewAttributeExpression(i18n.T(ctx, "install.group_installed")).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 198, Col: 66}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 199, Col: 66}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var39)
 				if templ_7745c5c3_Err != nil {
@@ -873,7 +874,7 @@ func destinations(page Page) templ.Component {
 				var templ_7745c5c3_Var40 string
 				templ_7745c5c3_Var40, templ_7745c5c3_Err = templruntime.NewAttributeExpression(i18n.T(ctx, "install.group_missing")).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 199, Col: 62}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 200, Col: 62}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var40)
 				if templ_7745c5c3_Err != nil {
@@ -886,7 +887,7 @@ func destinations(page Page) templ.Component {
 				var templ_7745c5c3_Var41 string
 				templ_7745c5c3_Var41, templ_7745c5c3_Err = templruntime.NewAttributeExpression(i18n.T(ctx, "install.group_unknown")).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 200, Col: 62}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 201, Col: 62}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var41)
 				if templ_7745c5c3_Err != nil {
@@ -899,7 +900,7 @@ func destinations(page Page) templ.Component {
 				var templ_7745c5c3_Var42 string
 				templ_7745c5c3_Var42, templ_7745c5c3_Err = templruntime.NewAttributeExpression(i18n.T(ctx, "install.hint_missing")).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 201, Col: 60}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 202, Col: 60}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var42)
 				if templ_7745c5c3_Err != nil {
@@ -912,7 +913,7 @@ func destinations(page Page) templ.Component {
 				var templ_7745c5c3_Var43 string
 				templ_7745c5c3_Var43, templ_7745c5c3_Err = templruntime.NewAttributeExpression(i18n.T(ctx, "install.hint_unknown")).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 202, Col: 60}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 203, Col: 60}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var43)
 				if templ_7745c5c3_Err != nil {
@@ -925,7 +926,7 @@ func destinations(page Page) templ.Component {
 				var templ_7745c5c3_Var44 string
 				templ_7745c5c3_Var44, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "install.hint_link"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 205, Col: 80}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 206, Col: 80}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var44))
 				if templ_7745c5c3_Err != nil {
@@ -982,7 +983,7 @@ func destinations(page Page) templ.Component {
 					var templ_7745c5c3_Var45 string
 					templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.JoinStringErrs(d.Name)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 227, Col: 52}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 228, Col: 52}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var45))
 					if templ_7745c5c3_Err != nil {
@@ -1000,7 +1001,7 @@ func destinations(page Page) templ.Component {
 						var templ_7745c5c3_Var46 string
 						templ_7745c5c3_Var46, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "destinations.badge_global_default"))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 229, Col: 140}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 230, Col: 140}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var46))
 						if templ_7745c5c3_Err != nil {
@@ -1019,7 +1020,7 @@ func destinations(page Page) templ.Component {
 						var templ_7745c5c3_Var47 string
 						templ_7745c5c3_Var47, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "destinations.badge_app_missing"))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 232, Col: 158}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 233, Col: 158}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var47))
 						if templ_7745c5c3_Err != nil {
@@ -1037,7 +1038,7 @@ func destinations(page Page) templ.Component {
 					var templ_7745c5c3_Var48 string
 					templ_7745c5c3_Var48, templ_7745c5c3_Err = templ.JoinStringErrs(d.TeamID)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 235, Col: 68}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 236, Col: 68}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var48))
 					if templ_7745c5c3_Err != nil {
@@ -1050,7 +1051,7 @@ func destinations(page Page) templ.Component {
 					var templ_7745c5c3_Var49 string
 					templ_7745c5c3_Var49, templ_7745c5c3_Err = templ.JoinStringErrs(d.ChannelID)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 235, Col: 95}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 236, Col: 95}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var49))
 					if templ_7745c5c3_Err != nil {
@@ -1128,7 +1129,7 @@ func makeDefaultButton(id, name string) templ.Component {
 		var templ_7745c5c3_Var51 string
 		templ_7745c5c3_Var51, templ_7745c5c3_Err = templruntime.NewAttributeExpression(id).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 260, Col: 43}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 261, Col: 43}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var51)
 		if templ_7745c5c3_Err != nil {
@@ -1141,7 +1142,7 @@ func makeDefaultButton(id, name string) templ.Component {
 		var templ_7745c5c3_Var52 string
 		templ_7745c5c3_Var52, templ_7745c5c3_Err = templruntime.NewAttributeExpression(i18n.T(ctx, "destinations.make_default") + " " + name).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 263, Col: 69}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 264, Col: 69}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var52)
 		if templ_7745c5c3_Err != nil {
@@ -1154,7 +1155,7 @@ func makeDefaultButton(id, name string) templ.Component {
 		var templ_7745c5c3_Var53 string
 		templ_7745c5c3_Var53, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "destinations.make_default"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 266, Col: 45}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 267, Col: 45}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var53))
 		if templ_7745c5c3_Err != nil {
@@ -1210,7 +1211,7 @@ func webhooks(page Page) templ.Component {
 					var templ_7745c5c3_Var56 string
 					templ_7745c5c3_Var56, templ_7745c5c3_Err = templruntime.NewAttributeExpression(page.EditWebhookEndpoint.ID).Resolve(ctx)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 276, Col: 71}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 277, Col: 71}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var56)
 					if templ_7745c5c3_Err != nil {
@@ -1244,7 +1245,7 @@ func webhooks(page Page) templ.Component {
 				var templ_7745c5c3_Var57 string
 				templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "webhooks.hint"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 282, Col: 68}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 283, Col: 68}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var57))
 				if templ_7745c5c3_Err != nil {
@@ -1260,9 +1261,9 @@ func webhooks(page Page) templ.Component {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var58 string
-					templ_7745c5c3_Var58, templ_7745c5c3_Err = templruntime.NewAttributeExpression(templ.SafeURL("/admin?edit=routes&id=" + id + "#routes")).ResolveURL(ctx)
+					templ_7745c5c3_Var58, templ_7745c5c3_Err = templruntime.NewAttributeExpression(templ.SafeURL("/admin/routes?edit=" + url.QueryEscape(id))).ResolveURL(ctx)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 284, Col: 90}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 285, Col: 92}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var58)
 					if templ_7745c5c3_Err != nil {
@@ -1275,7 +1276,7 @@ func webhooks(page Page) templ.Component {
 					var templ_7745c5c3_Var59 string
 					templ_7745c5c3_Var59, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "webhooks.route_link"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 284, Col: 168}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 285, Col: 170}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var59))
 					if templ_7745c5c3_Err != nil {
@@ -1343,7 +1344,7 @@ func webhooks(page Page) templ.Component {
 					var templ_7745c5c3_Var60 string
 					templ_7745c5c3_Var60, templ_7745c5c3_Err = templ.JoinStringErrs(e.TeamSlug)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 308, Col: 63}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 309, Col: 63}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var60))
 					if templ_7745c5c3_Err != nil {
@@ -1356,7 +1357,7 @@ func webhooks(page Page) templ.Component {
 					var templ_7745c5c3_Var61 string
 					templ_7745c5c3_Var61, templ_7745c5c3_Err = templ.JoinStringErrs(e.ChannelSlug)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 308, Col: 81}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 309, Col: 81}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var61))
 					if templ_7745c5c3_Err != nil {
@@ -1369,7 +1370,7 @@ func webhooks(page Page) templ.Component {
 					var templ_7745c5c3_Var62 string
 					templ_7745c5c3_Var62, templ_7745c5c3_Err = templ.JoinStringErrs(page.destinationName(e.DestinationID))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 310, Col: 48}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 311, Col: 48}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var62))
 					if templ_7745c5c3_Err != nil {
@@ -1387,7 +1388,7 @@ func webhooks(page Page) templ.Component {
 						var templ_7745c5c3_Var63 string
 						templ_7745c5c3_Var63, templ_7745c5c3_Err = templ.JoinStringErrs(page.templateName(e.TemplateID))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 312, Col: 46}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 313, Col: 46}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var63))
 						if templ_7745c5c3_Err != nil {
@@ -1464,7 +1465,7 @@ func revealedWebhookURL(url string) templ.Component {
 		var templ_7745c5c3_Var65 string
 		templ_7745c5c3_Var65, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "webhooks.new_url"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 337, Col: 81}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 338, Col: 81}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var65))
 		if templ_7745c5c3_Err != nil {
@@ -1477,7 +1478,7 @@ func revealedWebhookURL(url string) templ.Component {
 		var templ_7745c5c3_Var66 string
 		templ_7745c5c3_Var66, templ_7745c5c3_Err = templ.JoinStringErrs(url)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 338, Col: 65}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 339, Col: 65}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var66))
 		if templ_7745c5c3_Err != nil {
@@ -1517,7 +1518,7 @@ func rotateButton(id, name string) templ.Component {
 		var templ_7745c5c3_Var68 string
 		templ_7745c5c3_Var68, templ_7745c5c3_Err = templruntime.NewAttributeExpression(id).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 346, Col: 43}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 347, Col: 43}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var68)
 		if templ_7745c5c3_Err != nil {
@@ -1530,7 +1531,7 @@ func rotateButton(id, name string) templ.Component {
 		var templ_7745c5c3_Var69 string
 		templ_7745c5c3_Var69, templ_7745c5c3_Err = templruntime.NewAttributeExpression(i18n.T(ctx, "webhooks.rotate") + " " + name).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 349, Col: 59}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 350, Col: 59}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var69)
 		if templ_7745c5c3_Err != nil {
@@ -1543,7 +1544,7 @@ func rotateButton(id, name string) templ.Component {
 		var templ_7745c5c3_Var70 string
 		templ_7745c5c3_Var70, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "webhooks.rotate"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 352, Col: 35}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 353, Col: 35}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var70))
 		if templ_7745c5c3_Err != nil {
@@ -1599,7 +1600,7 @@ func routes(page Page) templ.Component {
 					var templ_7745c5c3_Var73 string
 					templ_7745c5c3_Var73, templ_7745c5c3_Err = templruntime.NewAttributeExpression(page.EditRoute.ID).Resolve(ctx)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 362, Col: 61}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 363, Col: 61}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var73)
 					if templ_7745c5c3_Err != nil {
@@ -1620,9 +1621,9 @@ func routes(page Page) templ.Component {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var74 string
-					templ_7745c5c3_Var74, templ_7745c5c3_Err = templruntime.NewAttributeExpression(templ.SafeURL("/admin?edit=webhooks&id=" + page.EditRoute.WebhookEndpointID + "#webhooks")).ResolveURL(ctx)
+					templ_7745c5c3_Var74, templ_7745c5c3_Err = templruntime.NewAttributeExpression(templ.SafeURL("/admin/webhooks?edit=" + url.QueryEscape(page.EditRoute.WebhookEndpointID))).ResolveURL(ctx)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 367, Col: 106}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 368, Col: 106}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var74)
 					if templ_7745c5c3_Err != nil {
@@ -1635,7 +1636,7 @@ func routes(page Page) templ.Component {
 					var templ_7745c5c3_Var75 string
 					templ_7745c5c3_Var75, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "routes.managed_by", page.managingWebhook()))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 367, Col: 206}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 368, Col: 206}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var75))
 					if templ_7745c5c3_Err != nil {
@@ -1648,7 +1649,7 @@ func routes(page Page) templ.Component {
 					var templ_7745c5c3_Var76 string
 					templ_7745c5c3_Var76, templ_7745c5c3_Err = templruntime.NewAttributeExpression(page.EditRoute.ParentID).Resolve(ctx)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 370, Col: 74}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 371, Col: 74}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var76)
 					if templ_7745c5c3_Err != nil {
@@ -1661,7 +1662,7 @@ func routes(page Page) templ.Component {
 					var templ_7745c5c3_Var77 string
 					templ_7745c5c3_Var77, templ_7745c5c3_Err = templruntime.NewAttributeExpression(selectorJSON(page)).Resolve(ctx)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 371, Col: 74}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 372, Col: 74}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var77)
 					if templ_7745c5c3_Err != nil {
@@ -1674,7 +1675,7 @@ func routes(page Page) templ.Component {
 					var templ_7745c5c3_Var78 string
 					templ_7745c5c3_Var78, templ_7745c5c3_Err = templruntime.NewAttributeExpression(routeTargetValue(page.editingRoute())).Resolve(ctx)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 372, Col: 85}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 373, Col: 85}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var78)
 					if templ_7745c5c3_Err != nil {
@@ -1687,7 +1688,7 @@ func routes(page Page) templ.Component {
 					var templ_7745c5c3_Var79 string
 					templ_7745c5c3_Var79, templ_7745c5c3_Err = templruntime.NewAttributeExpression(page.EditRoute.TemplateID).Resolve(ctx)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 373, Col: 78}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 374, Col: 78}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var79)
 					if templ_7745c5c3_Err != nil {
@@ -1737,7 +1738,7 @@ func routes(page Page) templ.Component {
 				var templ_7745c5c3_Var80 string
 				templ_7745c5c3_Var80, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "routes.target_hint"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 382, Col: 73}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 383, Col: 73}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var80))
 				if templ_7745c5c3_Err != nil {
@@ -1766,7 +1767,7 @@ func routes(page Page) templ.Component {
 				var templ_7745c5c3_Var81 string
 				templ_7745c5c3_Var81, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "routes.priority"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 388, Col: 71}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 389, Col: 71}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var81))
 				if templ_7745c5c3_Err != nil {
@@ -1779,7 +1780,7 @@ func routes(page Page) templ.Component {
 				var templ_7745c5c3_Var82 string
 				templ_7745c5c3_Var82, templ_7745c5c3_Err = templruntime.NewAttributeExpression(strconv.Itoa(page.editingRoute().Priority)).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 392, Col: 56}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 393, Col: 56}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var82)
 				if templ_7745c5c3_Err != nil {
@@ -1881,7 +1882,7 @@ func routes(page Page) templ.Component {
 					var templ_7745c5c3_Var85 string
 					templ_7745c5c3_Var85, templ_7745c5c3_Err = templ.JoinStringErrs(r.Route.Name)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 418, Col: 58}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 419, Col: 58}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var85))
 					if templ_7745c5c3_Err != nil {
@@ -1899,7 +1900,7 @@ func routes(page Page) templ.Component {
 						var templ_7745c5c3_Var86 string
 						templ_7745c5c3_Var86, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "routes.badge_default"))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 420, Col: 127}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 421, Col: 127}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var86))
 						if templ_7745c5c3_Err != nil {
@@ -1918,7 +1919,7 @@ func routes(page Page) templ.Component {
 						var templ_7745c5c3_Var87 string
 						templ_7745c5c3_Var87, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "routes.badge_instead"))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 423, Col: 131}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 424, Col: 131}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var87))
 						if templ_7745c5c3_Err != nil {
@@ -1937,7 +1938,7 @@ func routes(page Page) templ.Component {
 						var templ_7745c5c3_Var88 string
 						templ_7745c5c3_Var88, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "routes.badge_as_well"))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 426, Col: 135}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 427, Col: 135}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var88))
 						if templ_7745c5c3_Err != nil {
@@ -1955,7 +1956,7 @@ func routes(page Page) templ.Component {
 					var templ_7745c5c3_Var89 string
 					templ_7745c5c3_Var89, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "routes.priority_badge", r.Route.Priority))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 428, Col: 102}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 429, Col: 102}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var89))
 					if templ_7745c5c3_Err != nil {
@@ -1973,7 +1974,7 @@ func routes(page Page) templ.Component {
 						var templ_7745c5c3_Var90 string
 						templ_7745c5c3_Var90, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "routes.badge_both"))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 430, Col: 126}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 431, Col: 126}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var90))
 						if templ_7745c5c3_Err != nil {
@@ -2014,7 +2015,7 @@ func routes(page Page) templ.Component {
 					var templ_7745c5c3_Var91 string
 					templ_7745c5c3_Var91, templ_7745c5c3_Err = templ.JoinStringErrs(selectorText(ctx, r.Route))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 442, Col: 91}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 443, Col: 91}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var91))
 					if templ_7745c5c3_Err != nil {
@@ -2092,7 +2093,7 @@ func globalDefaultRoute(page Page) templ.Component {
 		var templ_7745c5c3_Var93 string
 		templ_7745c5c3_Var93, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "routes.global_default"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 469, Col: 84}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 470, Col: 84}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var93))
 		if templ_7745c5c3_Err != nil {
@@ -2105,7 +2106,7 @@ func globalDefaultRoute(page Page) templ.Component {
 		var templ_7745c5c3_Var94 string
 		templ_7745c5c3_Var94, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "routes.badge_synthetic"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 470, Col: 127}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 471, Col: 127}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var94))
 		if templ_7745c5c3_Err != nil {
@@ -2118,7 +2119,7 @@ func globalDefaultRoute(page Page) templ.Component {
 		var templ_7745c5c3_Var95 string
 		templ_7745c5c3_Var95, templ_7745c5c3_Err = templ.JoinStringErrs(page.destinationName(page.GlobalDefault.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 473, Col: 49}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 474, Col: 49}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var95))
 		if templ_7745c5c3_Err != nil {
@@ -2136,7 +2137,7 @@ func globalDefaultRoute(page Page) templ.Component {
 			var templ_7745c5c3_Var96 string
 			templ_7745c5c3_Var96, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "routes.global_default_builtin"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 476, Col: 72}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 477, Col: 72}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var96))
 			if templ_7745c5c3_Err != nil {
@@ -2154,7 +2155,7 @@ func globalDefaultRoute(page Page) templ.Component {
 			var templ_7745c5c3_Var97 string
 			templ_7745c5c3_Var97, templ_7745c5c3_Err = templ.JoinStringErrs(page.templateName(page.GlobalDefaultTemplateID))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 478, Col: 60}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 479, Col: 60}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var97))
 			if templ_7745c5c3_Err != nil {
@@ -2172,7 +2173,7 @@ func globalDefaultRoute(page Page) templ.Component {
 		var templ_7745c5c3_Var98 string
 		templ_7745c5c3_Var98, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "routes.global_default_hint"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 481, Col: 82}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 482, Col: 82}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var98))
 		if templ_7745c5c3_Err != nil {
@@ -2235,7 +2236,7 @@ func inheritable(name string, inherited bool) templ.Component {
 			var templ_7745c5c3_Var100 string
 			templ_7745c5c3_Var100, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "routes.inherited", name))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 496, Col: 77}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 497, Col: 77}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var100))
 			if templ_7745c5c3_Err != nil {
@@ -2253,7 +2254,7 @@ func inheritable(name string, inherited bool) templ.Component {
 			var templ_7745c5c3_Var101 string
 			templ_7745c5c3_Var101, templ_7745c5c3_Err = templ.JoinStringErrs(name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 498, Col: 14}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 499, Col: 14}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var101))
 			if templ_7745c5c3_Err != nil {
@@ -2294,7 +2295,7 @@ func readOnlyNotice(page Page) templ.Component {
 			var templ_7745c5c3_Var103 string
 			templ_7745c5c3_Var103, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "admin.read_only", page.Viewer.roleLabel(ctx)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 506, Col: 63}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 507, Col: 63}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var103))
 			if templ_7745c5c3_Err != nil {
@@ -2349,7 +2350,7 @@ func grants(page Page) templ.Component {
 				var templ_7745c5c3_Var106 string
 				templ_7745c5c3_Var106, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "grants.moved"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 517, Col: 66}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 518, Col: 66}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var106))
 				if templ_7745c5c3_Err != nil {
@@ -2362,7 +2363,7 @@ func grants(page Page) templ.Component {
 				var templ_7745c5c3_Var107 string
 				templ_7745c5c3_Var107, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "nav.permissions"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 522, Col: 36}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 523, Col: 36}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var107))
 				if templ_7745c5c3_Err != nil {
@@ -2409,7 +2410,7 @@ func previewViews() templ.Component {
 		var templ_7745c5c3_Var109 string
 		templ_7745c5c3_Var109, templ_7745c5c3_Err = templruntime.NewAttributeExpression(i18n.T(ctx, "preview.view")).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 534, Col: 42}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 535, Col: 42}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var109)
 		if templ_7745c5c3_Err != nil {
@@ -2422,7 +2423,7 @@ func previewViews() templ.Component {
 		var templ_7745c5c3_Var110 string
 		templ_7745c5c3_Var110, templ_7745c5c3_Err = templruntime.NewAttributeExpression(i18n.T(ctx, "preview.json_note")).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 536, Col: 46}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 537, Col: 46}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var110)
 		if templ_7745c5c3_Err != nil {
@@ -2435,7 +2436,7 @@ func previewViews() templ.Component {
 		var templ_7745c5c3_Var111 string
 		templ_7745c5c3_Var111, templ_7745c5c3_Err = templruntime.NewAttributeExpression(i18n.T(ctx, "preview.copy")).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 537, Col: 41}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 538, Col: 41}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var111)
 		if templ_7745c5c3_Err != nil {
@@ -2448,7 +2449,7 @@ func previewViews() templ.Component {
 		var templ_7745c5c3_Var112 string
 		templ_7745c5c3_Var112, templ_7745c5c3_Err = templruntime.NewAttributeExpression(i18n.T(ctx, "preview.copied")).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 538, Col: 45}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 539, Col: 45}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var112)
 		if templ_7745c5c3_Err != nil {
@@ -2466,7 +2467,7 @@ func previewViews() templ.Component {
 			var templ_7745c5c3_Var113 string
 			templ_7745c5c3_Var113, templ_7745c5c3_Err = templruntime.NewAttributeExpression(view).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 543, Col: 28}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 544, Col: 28}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var113)
 			if templ_7745c5c3_Err != nil {
@@ -2479,7 +2480,7 @@ func previewViews() templ.Component {
 			var templ_7745c5c3_Var114 string
 			templ_7745c5c3_Var114, templ_7745c5c3_Err = templruntime.NewAttributeExpression(strconv.FormatBool(view == "rendered")).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 544, Col: 57}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 545, Col: 57}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var114)
 			if templ_7745c5c3_Err != nil {
@@ -2492,7 +2493,7 @@ func previewViews() templ.Component {
 			var templ_7745c5c3_Var115 string
 			templ_7745c5c3_Var115, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "preview.view_"+view))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 547, Col: 39}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 548, Col: 39}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var115))
 			if templ_7745c5c3_Err != nil {
@@ -2538,7 +2539,7 @@ func cardPalette(page Page) templ.Component {
 		var templ_7745c5c3_Var117 string
 		templ_7745c5c3_Var117, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "palette.insert"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 558, Col: 82}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 559, Col: 82}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var117))
 		if templ_7745c5c3_Err != nil {
@@ -2556,7 +2557,7 @@ func cardPalette(page Page) templ.Component {
 			var templ_7745c5c3_Var118 string
 			templ_7745c5c3_Var118, templ_7745c5c3_Err = templruntime.NewAttributeExpression(i18n.T(ctx, snippet.HelpKey)).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 563, Col: 40}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 564, Col: 40}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var118)
 			if templ_7745c5c3_Err != nil {
@@ -2569,7 +2570,7 @@ func cardPalette(page Page) templ.Component {
 			var templ_7745c5c3_Var119 string
 			templ_7745c5c3_Var119, templ_7745c5c3_Err = templruntime.NewAttributeExpression(snippet.Body).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 564, Col: 31}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 565, Col: 31}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var119)
 			if templ_7745c5c3_Err != nil {
@@ -2582,7 +2583,7 @@ func cardPalette(page Page) templ.Component {
 			var templ_7745c5c3_Var120 string
 			templ_7745c5c3_Var120, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, snippet.LabelKey))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 566, Col: 35}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 567, Col: 35}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var120))
 			if templ_7745c5c3_Err != nil {
@@ -2600,7 +2601,7 @@ func cardPalette(page Page) templ.Component {
 		var templ_7745c5c3_Var121 string
 		templ_7745c5c3_Var121, templ_7745c5c3_Err = templruntime.NewAttributeExpression(i18n.T(ctx, "palette.starter_help")).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 573, Col: 46}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 574, Col: 46}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var121)
 		if templ_7745c5c3_Err != nil {
@@ -2613,7 +2614,7 @@ func cardPalette(page Page) templ.Component {
 		var templ_7745c5c3_Var122 string
 		templ_7745c5c3_Var122, templ_7745c5c3_Err = templruntime.NewAttributeExpression(page.Starter).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 574, Col: 30}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 575, Col: 30}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var122)
 		if templ_7745c5c3_Err != nil {
@@ -2626,7 +2627,7 @@ func cardPalette(page Page) templ.Component {
 		var templ_7745c5c3_Var123 string
 		templ_7745c5c3_Var123, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "palette.starter"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 576, Col: 35}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `admin.templ`, Line: 577, Col: 35}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var123))
 		if templ_7745c5c3_Err != nil {

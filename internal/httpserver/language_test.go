@@ -55,11 +55,11 @@ func TestPagesRenderInTheRequestedLanguage(t *testing.T) {
 		{
 			// Nothing this build carries: the configured fallback, not whichever
 			// catalog sorts first.
-			name: "a language we do not have", path: "/admin", language: "fr-CA,fr;q=0.9",
+			name: "a language we do not have", path: "/admin/templates", language: "fr-CA,fr;q=0.9",
 			want: []string{"Templates", `lang="en"`},
 		},
 		{
-			name: "no preference at all", path: "/admin",
+			name: "no preference at all", path: "/admin/templates",
 			want: []string{"Templates", `lang="en"`},
 		},
 	}
@@ -101,7 +101,7 @@ func TestLoginAndNoAccessAreTranslated(t *testing.T) {
 	}
 
 	noRole := sessionAs(seededUIStore())
-	body := pageIn(t, newTestServer(t, noRole, &fakeMessenger{}).Handler, "/admin", "de")
+	body := pageIn(t, newTestServer(t, noRole, &fakeMessenger{}).Handler, "/admin/templates", "de")
 	if !strings.Contains(body, "keine Teamster-Rolle") {
 		t.Errorf("the no-access page is not translated:\n%s", body)
 	}
@@ -113,7 +113,7 @@ func TestValuesAreSubstitutedIntoTranslatedSentences(t *testing.T) {
 	t.Parallel()
 
 	st := sessionAs(seededUIStore(), authz.RoleViewer)
-	body := pageIn(t, newTestServer(t, st, &fakeMessenger{}).Handler, "/admin", "de")
+	body := pageIn(t, newTestServer(t, st, &fakeMessenger{}).Handler, "/admin/templates", "de")
 
 	if !strings.Contains(body, "Angemeldet mit der Rolle Betrachter") {
 		t.Errorf("the read-only notice did not substitute the role:\n%s", body)
@@ -130,7 +130,7 @@ func TestASentenceIsNotBuiltByConcatenation(t *testing.T) {
 	t.Parallel()
 
 	st := sessionAs(seededUIStore(), authz.RoleEditor)
-	body := pageIn(t, newTestServer(t, st, &fakeMessenger{}).Handler, "/admin", "de")
+	body := pageIn(t, newTestServer(t, st, &fakeMessenger{}).Handler, "/admin/templates", "de")
 
 	if !strings.Contains(body, "Vorlage speichern") {
 		t.Errorf("the submit button is not in German word order:\n%s", body)

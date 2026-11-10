@@ -38,7 +38,7 @@ func TestHeaderNamesTheSignedInUser(t *testing.T) {
 	}{
 		{
 			name: "an editor on the configuration page", who: "jens", roles: []authz.Role{authz.RoleEditor},
-			path: "/admin", want: []string{"jens", "Editor"},
+			path: "/admin/templates", want: []string{"jens", "Editor"},
 		},
 		{
 			name: "and on the routing page", who: "jens", roles: []authz.Role{authz.RoleEditor},
@@ -48,22 +48,22 @@ func TestHeaderNamesTheSignedInUser(t *testing.T) {
 			// Roles nest, so the highest built-in one says it all; a role the
 			// deployment defined is on the user info page instead.
 			name: "several roles", who: "jens", roles: []authz.Role{"auditor", authz.RoleViewer, authz.RoleAdmin},
-			path: "/admin", want: []string{"jens", "Administrator"}, unwanted: []string{"auditor"},
+			path: "/admin/templates", want: []string{"jens", "Administrator"}, unwanted: []string{"auditor"},
 		},
 		{
 			// Keycloak puts its own roles into the same claim.
 			name: "provider roles beside the application role", who: "jens",
 			roles: []authz.Role{"offline_access", "uma_authorization", authz.RoleViewer},
-			path:  "/admin", want: []string{"Viewer"}, unwanted: []string{"offline_access", "uma_authorization"},
+			path:  "/admin/templates", want: []string{"Viewer"}, unwanted: []string{"offline_access", "uma_authorization"},
 		},
 		{
 			name: "translated", who: "jens", roles: []authz.Role{authz.RoleEditor},
-			path: "/admin", language: "de", want: []string{"Bearbeiter", "Abmelden"},
+			path: "/admin/templates", language: "de", want: []string{"Bearbeiter", "Abmelden"},
 		},
 		{
 			// A provider that sends no name still signed somebody in.
 			name: "a provider that sent no name", roles: []authz.Role{authz.RoleViewer},
-			path: "/admin", want: []string{"Signed in", "Viewer"},
+			path: "/admin/templates", want: []string{"Signed in", "Viewer"},
 		},
 	}
 
@@ -127,7 +127,7 @@ func TestSidebarLinksThePages(t *testing.T) {
 			t.Parallel()
 
 			st := signedInAs(seededUIStore(), "jens", tt.roles...)
-			body := asRole(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin", "").Body.String()
+			body := asRole(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin/templates", "").Body.String()
 
 			if !strings.Contains(body, `id="sidebar"`) || !strings.Contains(body, `id="nav-toggle"`) {
 				t.Fatal("the page has no sidebar and burger")
@@ -152,7 +152,7 @@ func TestHeaderSaysWhenThereIsNoRole(t *testing.T) {
 	t.Parallel()
 
 	st := signedInAs(seededUIStore(), "jens")
-	body := asRole(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin", "").Body.String()
+	body := asRole(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin/templates", "").Body.String()
 
 	if !strings.Contains(body, "jens") || !strings.Contains(body, "no role") {
 		t.Error("the header does not say that the user holds no role")
@@ -185,7 +185,7 @@ func TestBurgerIsRenderedBeforeFirstPaint(t *testing.T) {
 	t.Parallel()
 
 	st := signedInAs(seededUIStore(), "jens", authz.RoleEditor)
-	body := asRole(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin", "").Body.String()
+	body := asRole(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin/templates", "").Body.String()
 
 	head, _, _ := strings.Cut(body, "</head>")
 	if !strings.Contains(head, `classList.add("js")`) || !strings.Contains(head, `"sidebar-closed"`) {
@@ -222,7 +222,7 @@ func TestSidebarShowsTheVersion(t *testing.T) {
 				Version: tt.version,
 			}
 			st := signedInAs(seededUIStore(), "jens", authz.RoleEditor)
-			body := asRole(t, mustServer(t, cfg, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin", "").Body.String()
+			body := asRole(t, mustServer(t, cfg, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin/templates", "").Body.String()
 
 			if got := strings.Contains(body, "Version "+tt.version); got != tt.want {
 				t.Errorf("the sidebar shows the version: %v, want %v", got, tt.want)

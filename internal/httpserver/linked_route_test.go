@@ -220,14 +220,14 @@ func TestLinkedRouteForms(t *testing.T) {
 
 	handler := newTestServer(t, linkedRouteStore(), &fakeMessenger{}).Handler
 
-	route := do(t, handler, http.MethodGet, "/admin?edit=routes&id=wroute", "").Body.String()
-	for _, want := range []string{"Managed by webhook platform/alerts", `href="/admin?edit=webhooks&amp;id=hook#webhooks"`, "disabled"} {
+	route := do(t, handler, http.MethodGet, "/admin/routes?edit=wroute", "").Body.String()
+	for _, want := range []string{"Managed by webhook platform/alerts", `href="/admin/webhooks?edit=hook"`, "disabled"} {
 		if !strings.Contains(route, want) {
 			t.Errorf("route form lacks %q", want)
 		}
 	}
-	endpoint := do(t, handler, http.MethodGet, "/admin?edit=webhooks&id=hook", "").Body.String()
-	if !strings.Contains(endpoint, `href="/admin?edit=routes&amp;id=wroute#routes"`) {
+	endpoint := do(t, handler, http.MethodGet, "/admin/webhooks?edit=hook", "").Body.String()
+	if !strings.Contains(endpoint, `href="/admin/routes?edit=wroute"`) {
 		t.Error("endpoint form does not link to its route")
 	}
 }

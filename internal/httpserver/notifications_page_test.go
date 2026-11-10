@@ -648,12 +648,12 @@ func TestNotificationsRoutesAreGatedOnBotConfiguration(t *testing.T) {
 func TestNotificationsNavLinkFollowsBotConfiguration(t *testing.T) {
 	t.Parallel()
 
-	without := asRole(t, newTestServer(t, sessionAs(newFakeStore(), authz.RoleViewer), &fakeMessenger{}).Handler, http.MethodGet, "/admin", "").Body.String()
+	without := asRole(t, newTestServer(t, sessionAs(newFakeStore(), authz.RoleViewer), &fakeMessenger{}).Handler, http.MethodGet, "/admin/templates", "").Body.String()
 	if strings.Contains(without, `href="/admin/notifications"`) {
 		t.Error("the nav offers notifications when the bot is not configured")
 	}
 
-	with := asRole(t, notificationsServer(t, sessionAs(newFakeStore(), authz.RoleViewer), &fakeMessenger{}).Handler, http.MethodGet, "/admin", "").Body.String()
+	with := asRole(t, notificationsServer(t, sessionAs(newFakeStore(), authz.RoleViewer), &fakeMessenger{}).Handler, http.MethodGet, "/admin/templates", "").Body.String()
 	if !strings.Contains(with, `href="/admin/notifications"`) {
 		t.Error("the nav does not offer notifications when the bot is configured")
 	}

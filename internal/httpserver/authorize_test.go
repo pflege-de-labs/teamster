@@ -48,7 +48,7 @@ func TestRolesDecideWhatARequestMayDo(t *testing.T) {
 		wantStatus int
 	}{
 		{name: "a viewer may read the templates", roles: []authz.Role{authz.RoleViewer}, method: http.MethodGet, path: "/api/templates", wantStatus: http.StatusOK},
-		{name: "a viewer may read the page", roles: []authz.Role{authz.RoleViewer}, method: http.MethodGet, path: "/admin", wantStatus: http.StatusOK},
+		{name: "a viewer may read the page", roles: []authz.Role{authz.RoleViewer}, method: http.MethodGet, path: "/admin/templates", wantStatus: http.StatusOK},
 		{name: "a viewer may see the routing graph", roles: []authz.Role{authz.RoleViewer}, method: http.MethodGet, path: "/api/routing/graph", wantStatus: http.StatusOK},
 		{
 			// Asking which route an alert would take changes nothing, so it is a
@@ -149,7 +149,7 @@ func TestEditorSeesControls(t *testing.T) {
 	t.Parallel()
 
 	st := sessionAs(seededUIStore(), authz.RoleEditor)
-	body := asRole(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin", "").Body.String()
+	body := asRole(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin/templates", "").Body.String()
 
 	if !strings.Contains(body, `action="/admin/templates"`) {
 		t.Error("an editor is not offered the template form")
@@ -321,7 +321,7 @@ func TestNoRoleGetsAPageExplainingWhy(t *testing.T) {
 	st := sessionAs(seededUIStore())
 	handler := newTestServer(t, st, &fakeMessenger{}).Handler
 
-	page := asRole(t, handler, http.MethodGet, "/admin", "")
+	page := asRole(t, handler, http.MethodGet, "/admin/templates", "")
 	if page.Code != http.StatusForbidden {
 		t.Fatalf("GET /admin with no role = %d, want 403", page.Code)
 	}

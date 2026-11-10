@@ -48,12 +48,12 @@ func TestAGrantWithoutARole(t *testing.T) {
 	st := sharedStore()
 	api, h := capturedServer(t, st)
 
-	page := call(t, h, http.MethodGet, "/admin", "")
+	page := call(t, h, http.MethodGet, "/admin/templates", "")
 	body := page.Body.String()
 	if page.Code != http.StatusOK || !strings.Contains(body, "Shared card") || strings.Contains(body, "Private card") {
 		t.Fatalf("GET /admin = %d, want the shared template and not the other", page.Code)
 	}
-	if !strings.Contains(body, "edit=templates&amp;id=t1") || strings.Contains(body, `action="/admin/templates/delete"`) {
+	if !strings.Contains(body, "/admin/templates?edit=t1") || strings.Contains(body, `action="/admin/templates/delete"`) {
 		t.Error("the page should offer editing the shared template and no delete")
 	}
 
@@ -121,7 +121,7 @@ func TestWithoutAnyGrantNothingChanges(t *testing.T) {
 	st := sessionAs(newFakeStore())
 	st.templates["t1"] = models.Template{ID: "t1", Name: "Card", Body: "{}"}
 	h := newTestServer(t, st, &fakeMessenger{}).Handler
-	if rec := call(t, h, http.MethodGet, "/admin", ""); rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), "</html>") {
+	if rec := call(t, h, http.MethodGet, "/admin/templates", ""); rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), "</html>") {
 		t.Errorf("GET /admin with nothing = %d, want the no-access page", rec.Code)
 	}
 	if rec := call(t, h, http.MethodGet, "/api/templates/t1", ""); rec.Code != http.StatusForbidden {
@@ -245,7 +245,7 @@ func TestSharingForms(t *testing.T) {
 	st.groups["g-sre"] = models.Group{ID: "g-sre", Name: "SRE"}
 	h := newTestServer(t, st, &fakeMessenger{}).Handler
 
-	page := call(t, h, http.MethodGet, "/admin?edit=templates&id=t1", "").Body.String()
+	page := call(t, h, http.MethodGet, "/admin/templates?edit=t1", "").Body.String()
 	for _, want := range []string{`id="sharing"`, `action="/admin/sharing/grant"`, `value="group:g-sre"`, `name="actions" value="own"`} {
 		if !strings.Contains(page, want) {
 			t.Errorf("the edit page lacks %q", want)
@@ -254,9 +254,9 @@ func TestSharingForms(t *testing.T) {
 
 	loc := postFormAs(t, h, "/admin/sharing/grant", url.Values{
 		"principal_type": {"group"}, "principal_id": {"g-sre"}, "resource_type": {"Template"}, "resource_id": {"t1"},
-		"actions": {"read", "update"}, "return": {"/admin?edit=templates&id=t1"},
+		"actions": {"read", "update"}, "return": {"/admin/templates?edit=t1"},
 	}).Header().Get("Location")
-	if !strings.HasPrefix(loc, "/admin?edit=templates") || strings.Contains(loc, "error=") {
+	if !strings.HasPrefix(loc, "/admin/templates?edit=t1") || strings.Contains(loc, "error=") {
 		t.Fatalf("grant redirected to %s", loc)
 	}
 	rows, _ := st.ListPermissionsFor(t.Context(), "Template", "t1")
@@ -288,13 +288,13 @@ func TestSafeReturn(t *testing.T) {
 	t.Parallel()
 
 	tests := map[string]string{
-		"/admin?edit=routes&id=1": "/admin?edit=routes&id=1",
-		"/admin/groups?id=g":      "/admin/groups?id=g",
-		"https://evil.example/":   "/admin",
-		"//evil.example/admin":    "/admin",
-		"/elsewhere":              "/admin",
-		"/admin\r\nX: y":          "/admin",
-		"":                        "/admin",
+		"/admin/routes?edit=1":  "/admin/routes?edit=1",
+		"/admin/groups?id=g":    "/admin/groups?id=g",
+		"https://evil.example/": "/admin",
+		"//evil.example/admin":  "/admin",
+		"/elsewhere":            "/admin",
+		"/admin\r\nX: y":        "/admin",
+		"":                      "/admin",
 	}
 	for in, want := range tests {
 		if got := safeReturn(in); got != want {
@@ -425,7 +425,7 @@ func TestDeferredEndpointsAllCheck(t *testing.T) {
 	api, h := capturedServer(t, st)
 
 	gets := []string{
-		"/admin", "/admin?edit=templates&id=t1", "/admin?edit=routes&id=r1", "/admin?edit=webhooks&id=w1", "/admin?edit=destinations&id=d1",
+		"/admin", "/admin/templates?edit=t1", "/admin/routes?edit=r1", "/admin/webhooks?edit=w1", "/admin/destinations?edit=d1",
 		"/api/templates", "/api/templates/t1", "/api/destinations", "/api/destinations/d1", "/api/routes", "/api/routes/r1",
 		"/api/webhooks", "/api/webhooks/w1", "/api/groups", "/api/groups/g1", "/admin/groups", "/admin/groups?id=g1",
 		"/api/sharing?type=Template&id=t1", "/admin/access", "/admin/access?class=Template&id=t1",

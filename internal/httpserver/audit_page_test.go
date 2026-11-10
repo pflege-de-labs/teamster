@@ -244,7 +244,7 @@ func TestAuditIsTheAdminsAlone(t *testing.T) {
 			if disabled := strings.Contains(rec.Body.String(), "Nothing is recorded here"); disabled != (!tt.stored && tt.wantCode == http.StatusOK) {
 				t.Errorf("the page says nothing is recorded = %v", disabled)
 			}
-			nav := asRole(t, handler, http.MethodGet, "/admin", "").Body.String()
+			nav := asRole(t, handler, http.MethodGet, "/admin/templates", "").Body.String()
 			if got := strings.Contains(nav, `href="/admin/audit"`); got != tt.wantNav {
 				t.Errorf("nav offers the audit trail = %v, want %v", got, tt.wantNav)
 			}

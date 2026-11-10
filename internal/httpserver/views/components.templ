@@ -1,6 +1,10 @@
 package views
 
-import "github.com/pflege-de-labs/teamster/internal/i18n"
+import (
+	"net/url"
+
+	"github.com/pflege-de-labs/teamster/internal/i18n"
+)
 
 templ textField(name, label, placeholder, value string) {
 	<label class="block">
@@ -93,10 +97,9 @@ templ checkboxField(name, label string, checked bool) {
 	</label>
 }
 
-// The fragment lands the browser on the section whose form was just filled in.
 templ editLink(section, id, name string) {
 	<a
-		href={ templ.SafeURL("/admin?edit=" + section + "&id=" + id + "#" + section) }
+		href={ templ.SafeURL("/admin/" + section + "?edit=" + url.QueryEscape(id)) }
 		aria-label={ i18n.T(ctx, "action.edit") + " " + name }
 		class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:border-sky-400 hover:bg-sky-50 hover:text-sky-700"
 	>
@@ -105,7 +108,7 @@ templ editLink(section, id, name string) {
 }
 
 templ cancelEdit(tab string) {
-	<a href={ templ.SafeURL("/admin?tab=" + tab) } class="px-3 py-2 text-sm text-slate-600 underline hover:text-slate-900">{ i18n.T(ctx, "action.cancel") }</a>
+	<a href={ templ.SafeURL("/admin/" + tab) } class="px-3 py-2 text-sm text-slate-600 underline hover:text-slate-900">{ i18n.T(ctx, "action.cancel") }</a>
 }
 
 templ submit(label string) {

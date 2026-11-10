@@ -20,7 +20,7 @@ func TestAdminPageAndAssets(t *testing.T) {
 		wantStatus int
 		wantBody   string
 	}{
-		{name: "admin page is rendered", path: "/admin", wantStatus: http.StatusOK, wantBody: "teamster admin"},
+		{name: "admin page is rendered", path: "/admin/templates", wantStatus: http.StatusOK, wantBody: "teamster admin"},
 		{name: "root redirects to the admin page", path: "/", wantStatus: http.StatusFound},
 		{name: "stylesheet is served", path: "/styles.css", wantStatus: http.StatusOK, wantBody: "tailwindcss"},
 	}
@@ -102,7 +102,7 @@ func TestRenderedPageReferencesOnlyExistingAssets(t *testing.T) {
 
 	handler := newTestServer(t, newFakeStore(), &fakeMessenger{}).Handler
 
-	page := do(t, handler, http.MethodGet, "/admin", "")
+	page := do(t, handler, http.MethodGet, "/admin/templates", "")
 	if page.Code != http.StatusOK {
 		t.Fatalf("GET /admin = %d, want 200", page.Code)
 	}
@@ -114,6 +114,9 @@ func TestRenderedPageReferencesOnlyExistingAssets(t *testing.T) {
 
 	for _, ref := range refs {
 		path := ref[1]
+		if path == "/admin" { // the home link redirects by design
+			continue
+		}
 		if rec := do(t, handler, http.MethodGet, path, ""); rec.Code != http.StatusOK {
 			t.Errorf("the page references %s, which returns %d", path, rec.Code)
 		}

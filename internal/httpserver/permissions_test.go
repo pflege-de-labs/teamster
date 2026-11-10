@@ -209,7 +209,7 @@ func TestPermissionsPageIsAdminOnly(t *testing.T) {
 		}
 		// And it is not in the navigation either, because offering a link that
 		// answers 403 is its own kind of broken.
-		if page := asRole(t, handler, http.MethodGet, "/admin", "").Body.String(); strings.Contains(page, `href="/admin/permissions"`) {
+		if page := asRole(t, handler, http.MethodGet, "/admin/templates", "").Body.String(); strings.Contains(page, `href="/admin/permissions"`) {
 			t.Errorf("a %s is offered the permissions tab", role)
 		}
 	}
