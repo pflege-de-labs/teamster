@@ -36,9 +36,9 @@ Adding policies is safe. Removing or renaming `admin`, `editor` or `viewer` brea
 
 ## Check who may do what
 
-* **Access overview** (**/admin/access**) appears in the menu for admins and for anyone a grant
-  names, directly or through a group, provider group or role. Creating a record makes you its
-  owner, which is such a grant. No role but admin may `share`, so an editor who owns nothing and
+* **Access → Access overview** (**/admin/access**) appears in the sidebar for admins and for anyone
+  a grant names, directly or through a group, provider group or role. Creating a record makes you
+  its owner, which is such a grant. No role but admin may `share`, so an editor who owns nothing and
   holds no grant sees neither the entry nor the page. There they
   [share several records at once](#share-several-records-at-once), and **Grants you may change**
   lists the grants on the records they may share, with each record's name linking to it.
@@ -151,8 +151,8 @@ Each principal who already holds something is a row with their actions ticked. C
 press **Save** to replace what they hold; with no box ticked, it is all taken away. **Revoke**
 removes the row.
 
-Nobody can give more than they hold. Someone with no role but a shared record sees **/admin** with
-just what was shared.
+Nobody can give more than they hold. Someone with no role but a shared record lands on
+**Configuration → Templates** and sees just what was shared.
 
 `create` on a whole collection is granted through the API:
 
@@ -210,9 +210,9 @@ curl -u <admin-user>:<admin-password> -X POST http://localhost:8080/api/users/di
 
 {{% steps %}}
 
-### Open Permissions
+### Open Channel scopes {#open-permissions}
 
-Open **Permissions** (**/admin/permissions**) as an admin and pick a role.
+Open **Access → Channel scopes** (**/admin/permissions**) as an admin and pick a role.
 
 ### Tick what it may reach
 

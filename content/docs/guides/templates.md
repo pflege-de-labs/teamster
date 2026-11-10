@@ -6,7 +6,8 @@ weight: 16
 Write a template that turns an event into a Teams message, choose which webhook's events it
 handles, and set the default each webhook falls back to.
 
-Templates live under **Templates** on **/admin**. Every field a template can read is listed in
+Templates live under **Configuration → Templates** (`/admin/templates`). Every field a template can
+read is listed in
 [Template data](../../reference/template-data/).
 
 ## Write a template

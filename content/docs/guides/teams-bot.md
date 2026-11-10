@@ -72,7 +72,8 @@ matter here.
 
 ## Check where the app is installed
 
-**Teams** (`/admin/teams`) lists every team, its destinations and the routes that use them. Teams
+**Delivery → Teams** (`/admin/teams`) lists every team, its destinations and the routes that use
+them. Teams
 that destinations use but that lack the app come first, with the steps to install it. The Team
 picker, the destinations list and the routing graph also warn about a team without the app.
 
@@ -100,7 +101,8 @@ through its stored conversation id, and whether an app upgrade re-sends install 
 A route can deliver to one person's chat instead of a channel. That person links their chat first.
 
 With [`bot.global-install`](#install-the-bot-for-everyone) on, skip this: signing in finds your chat
-from your Entra account, and **Notifications** says whether it did. If the bot has no chat with you
+from your Entra account, and **My notifications** says whether it did. If the bot has no chat with
+you
 yet, **Set up my chat now** installs it
 ([ADR 0065](https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0065-your-own-chat-is-found-from-your-sign-in.md)).
 Behind Keycloak, the user's Entra object id has to reach Teamster; see
@@ -112,7 +114,7 @@ Otherwise:
 
 ### Get a link code
 
-Sign in to the admin UI with any role, `viewer` and up, and open **Notifications**
+Sign in to the admin UI with any role, `viewer` and up, and open **My notifications**
 (`/admin/notifications`). Ask for a code.
 
 A script gets one from `POST /api/recipients/link` with a signed-in session:
@@ -146,7 +148,7 @@ old chat it was displaced.
 In a person's chat, a repeated open event edits the message already there, and a close arrives as a
 new message.
 
-**Notifications** shows whether your chat is linked, the display name captured at link time, when
+**My notifications** shows whether your chat is linked, the display name captured at link time, when
 the link was made and when it last changed. A service-url refresh also updates "last changed", so a
 change there alone does not prove a takeover. **Cancel my code** invalidates every code you still
 hold. Every response on that page is sent `Cache-Control: no-store`.
@@ -181,18 +183,20 @@ A person has three ways out:
 * **Send `unlink`** (or `stop`, or `unsubscribe`) to the bot. The bot confirms. A new link code
   reconnects.
 * **Uninstall the app.** Teams reports the removal and the link retires itself.
-* **Unlink in the admin UI:** your own chat from **Notifications**, or anyone's from **Recipients**.
+* **Unlink in the admin UI:** your own chat from **My notifications**, or anyone's from **Delivery →
+  Recipients**.
 
 Each removes the recipient and any alert cards still tracked for it.
 
 With `bot.global-install` on, only the last works, and only for an admin on **Recipients**. The bot
-answers `unlink` by saying IT manages the chat, **Notifications** has no Unlink button, and a
+answers `unlink` by saying IT manages the chat, **My notifications** has no Unlink button, and a
 removed app is reinstalled by the next run
 ([ADR 0061](https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0061-no-opt-out-when-installed-for-everyone.md)).
 
 ## Manage recipients
 
-**Recipients** (`/admin/recipients`) lists everybody with a linked chat: display name (or subject),
+**Delivery → Recipients** (`/admin/recipients`) lists everybody with a linked chat: display name (or
+subject),
 when they linked, and which routes deliver to them. Viewing needs `viewer`; unlinking needs
 `editor`.
 
@@ -240,7 +244,8 @@ refuses to start with neither.
 
 ### Start the first run
 
-Open **People** (`/admin/people`, admins only) and click **Install for all users**, or call
+Open **Administration → People** (`/admin/people`, admins only) and click **Install for all users**,
+or call
 `POST /api/people/install`. `GET /api/people/runs/latest` reports progress.
 
 {{% /steps %}}

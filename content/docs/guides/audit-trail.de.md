@@ -21,7 +21,8 @@ audit:
 ```
 
 Oder `TEAMSTER_AUDIT_DATABASE=true`. Administratoren lesen das Protokoll dann unter
-**/admin/audit**, das neueste Ereignis zuerst, gefiltert nach **Wer**, **Aktion**,
+**Verwaltung → Änderungsprotokoll** (**/admin/audit**), das neueste Ereignis zuerst, gefiltert nach
+**Wer**, **Aktion**,
 **Ressourcentyp**, **Ressourcen-ID** und Zeit.
 
 Skripte lesen dasselbe Protokoll mit `GET /api/audit`:

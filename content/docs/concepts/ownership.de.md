@@ -63,9 +63,9 @@ nutzen Sie die **Zugriffsübersicht** (`/admin/access`); siehe
 Zugriff** (`/admin/me`) listet, was mit Ihnen geteilt wurde, und über wen.
 
 Teilen ergänzt Rollen, es ersetzt sie nicht. Bearbeiter dürfen weiterhin alles bearbeiten. Wer
-keine Rolle hat, aber einen geteilten Datensatz, sieht unter `/admin` nur das Geteilte. Seiten,
-die aus der gesamten Konfiguration entstehen, bleiben für diese Person geschlossen: das
-Routing-Bild, Vorschauen und der Export.
+keine Rolle hat, aber einen geteilten Datensatz, landet auf **Konfiguration → Vorlagen** und sieht
+nur das Geteilte. Seiten, die aus der gesamten Konfiguration entstehen, bleiben für diese Person
+geschlossen: das Routing-Bild, Vorschauen und der Export.
 
 ## Gruppen {#groups}
 

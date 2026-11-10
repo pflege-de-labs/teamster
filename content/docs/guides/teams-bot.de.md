@@ -77,7 +77,8 @@ spielt hier keine Rolle.
 
 ## Prüfen, wo die App installiert ist {#check-where-the-app-is-installed}
 
-**Teams** (`/admin/teams`) listet jedes Team mit seinen Zielen und den Routen, die sie verwenden.
+**Zustellung → Teams** (`/admin/teams`) listet jedes Team mit seinen Zielen und den Routen, die sie
+verwenden.
 Teams, die von Zielen verwendet werden, denen aber die App fehlt, stehen oben, zusammen mit den
 Schritten zur Installation. Auch die Team-Auswahl, die Liste der Ziele und das Routing-Bild warnen
 vor einem Team ohne die App.
@@ -109,7 +110,7 @@ Eine Route kann statt an einen Kanal in den Chat einer einzelnen Person zustelle
 verknüpft ihren Chat zuerst.
 
 Ist [`bot.global-install`](#install-the-bot-for-everyone) eingeschaltet, entfällt das: Die
-Anmeldung findet Ihren Chat über Ihr Entra-Konto, und **Benachrichtigungen** zeigt, ob das geklappt
+Anmeldung findet Ihren Chat über Ihr Entra-Konto, und **Meine Benachrichtigungen** zeigt, ob das geklappt
 hat. Hat der Bot noch keinen Chat mit Ihnen, installiert ihn **Meinen Chat jetzt einrichten**
 ([ADR 0065](https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0065-your-own-chat-is-found-from-your-sign-in.md)).
 Hinter Keycloak muss die Entra-Object-ID des Benutzers bei Teamster ankommen; siehe
@@ -122,7 +123,7 @@ Andernfalls:
 ### Einen Verknüpfungscode anfordern {#get-a-link-code}
 
 Melden Sie sich mit einer beliebigen Rolle ab `viewer` an der Verwaltungsoberfläche an und öffnen
-Sie **Benachrichtigungen** (`/admin/notifications`). Fordern Sie einen Code an.
+Sie **Meine Benachrichtigungen** (`/admin/notifications`). Fordern Sie einen Code an.
 
 Ein Skript bekommt einen über `POST /api/recipients/link` mit einer angemeldeten Sitzung:
 
@@ -157,7 +158,7 @@ und der alte Chat erfährt, dass er abgelöst wurde.
 Im Chat einer Person bearbeitet ein wiederholtes Öffnen-Ereignis die schon vorhandene Nachricht,
 und ein Schließen kommt als neue Nachricht an.
 
-**Benachrichtigungen** zeigt, ob Ihr Chat verknüpft ist, den beim Verknüpfen erfassten
+**Meine Benachrichtigungen** zeigt, ob Ihr Chat verknüpft ist, den beim Verknüpfen erfassten
 Anzeigenamen, wann die Verknüpfung entstand und wann sie zuletzt geändert wurde. Auch eine
 Aktualisierung der Service-URL ändert „zuletzt geändert“; eine Änderung dort allein beweist also
 keine Übernahme. **Meinen Code widerrufen** macht jeden Code ungültig, den Sie noch haben. Jede
@@ -195,21 +196,21 @@ Eine Person hat drei Wege hinaus:
   Verknüpfungscode verbindet wieder.
 * **Die App deinstallieren.** Teams meldet das Entfernen, und die Verknüpfung erlischt von selbst.
 * **In der Verwaltungsoberfläche die Verknüpfung aufheben:** den eigenen Chat unter
-  **Benachrichtigungen**, den jeder Person unter **Empfänger**.
+  **Meine Benachrichtigungen**, den jeder Person unter **Zustellung → Empfänger**.
 
 Jeder Weg entfernt den Empfänger und alle noch für ihn verfolgten Alarmkarten.
 
 Ist `bot.global-install` eingeschaltet, funktioniert nur der letzte Weg, und nur für einen
-Administrator unter **Empfänger**. Der Bot beantwortet `unlink` mit dem Hinweis, dass die IT den
-Chat verwaltet, **Benachrichtigungen** hat keine Schaltfläche **Verknüpfung aufheben**, und eine
-entfernte App installiert der nächste Lauf wieder
+Administrator unter **Zustellung → Empfänger**. Der Bot beantwortet `unlink` mit dem Hinweis, dass
+die IT den Chat verwaltet, **Meine Benachrichtigungen** hat keine Schaltfläche **Verknüpfung
+aufheben**, und eine entfernte App installiert der nächste Lauf wieder
 ([ADR 0061](https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0061-no-opt-out-when-installed-for-everyone.md)).
 
 ## Empfänger verwalten {#manage-recipients}
 
-**Empfänger** (`/admin/recipients`) listet alle mit verknüpftem Chat: Anzeigename (oder Subject),
-wann sie verknüpft haben und welche Routen an sie zustellen. Zum Ansehen genügt `viewer`; zum
-Aufheben einer Verknüpfung braucht es `editor`.
+**Zustellung → Empfänger** (`/admin/recipients`) listet alle mit verknüpftem Chat: Anzeigename
+(oder Subject), wann sie verknüpft haben und welche Routen an sie zustellen. Zum Ansehen genügt
+`viewer`; zum Aufheben einer Verknüpfung braucht es `editor`.
 
 Das Aufheben entfernt den Empfänger auch dann, wenn eine Route ihn noch nennt. Diese Route zeigt
 dann in `/admin/routing` einen fehlenden Empfänger.
@@ -256,7 +257,7 @@ Ohne eines von beiden startet Teamster nicht.
 
 ### Den ersten Lauf starten {#start-the-first-run}
 
-Öffnen Sie **Personen** (`/admin/people`, nur für Administratoren) und klicken Sie auf
+Öffnen Sie **Verwaltung → Personen** (`/admin/people`, nur für Administratoren) und klicken Sie auf
 **Für alle installieren**, oder rufen Sie `POST /api/people/install` auf.
 `GET /api/people/runs/latest` meldet den Fortschritt.
 

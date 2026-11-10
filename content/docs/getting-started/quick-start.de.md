@@ -100,15 +100,15 @@ Server.
 
 ### Ein Ziel anlegen {#add-a-destination}
 
-Geben Sie dem Ziel im Bereich **Ziele** einen Namen, wählen Sie **Team** und **Kanal** und
-speichern Sie es.
+Öffnen Sie **Konfiguration → Ziele**, geben Sie dem Ziel einen Namen, wählen Sie **Team** und
+**Kanal** und speichern Sie es.
 
 Das erste Ziel, das Sie anlegen, wird zum **globalen Standard**: Alles, was keine Route
 beansprucht, geht dorthin.
 
 ### Eine Route anlegen {#add-a-route}
 
-Legen Sie im Bereich **Routen** eine Route an:
+Öffnen Sie **Konfiguration → Routen** und legen Sie eine Route an:
 
 | Feld | Wert |
 | --- | --- |
