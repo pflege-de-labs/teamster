@@ -10,15 +10,11 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 ## [Unreleased]
 
-### Changed
+### Added
 
-* The admin sidebar has four collapsible groups: Configuration, Delivery, Access and Administration.
-  A group you close stays closed
-  ([ADR 0103](docs/adr/0103-group-the-admin-sidebar-and-give-each-resource-a-page.md)).
-* Routes, templates, destinations, webhooks and delivery permissions each have a page of their own
-  instead of tabs on `/admin`. Old `/admin?tab=` and `/admin?edit=` links redirect to them.
-* Notifications moved to the user menu as **My notifications**; "Permissions" is now **Channel
-  scopes** and the grants page **Delivery permissions**.
+* The admin UI shows a progress bar under the header while a page takes longer than a moment to
+  load, so following a link to a slow page — **Teams**, which asks Microsoft Graph first — visibly
+  does something.
 
 ## [0.20.0] — 2026-11-09
 
