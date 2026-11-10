@@ -120,9 +120,9 @@ templ destinationView(p DestinationRecord) {
 			}
 		</dd>
 		<dt class="text-slate-500">{ i18n.T(ctx, "destinations.team") }</dt>
-		<dd class="font-mono text-xs">{ p.Destination.TeamID }</dd>
+		<dd class="font-mono text-xs" data-team-id={ p.Destination.TeamID }>{ p.Destination.TeamID }</dd>
 		<dt class="text-slate-500">{ i18n.T(ctx, "destinations.channel") }</dt>
-		<dd class="font-mono text-xs">{ p.Destination.ChannelID }</dd>
+		<dd class="font-mono text-xs" data-team-id={ p.Destination.TeamID } data-channel-id={ p.Destination.ChannelID }>{ p.Destination.ChannelID }</dd>
 		<dt class="text-slate-500">{ i18n.T(ctx, "destinations.install") }</dt>
 		<dd>{ i18n.T(ctx, "install.state_" + p.InstallState) }</dd>
 	</dl>
