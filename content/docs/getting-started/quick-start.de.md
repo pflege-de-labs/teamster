@@ -100,8 +100,9 @@ Server.
 
 ### Ein Ziel anlegen {#add-a-destination}
 
-Öffnen Sie **Konfiguration → Ziele**, geben Sie dem Ziel einen Namen, wählen Sie **Team** und
-**Kanal** und speichern Sie es.
+Öffnen Sie **Konfiguration → Ziele**, klicken Sie auf **Neues Ziel**, geben Sie dem Ziel einen
+Namen, wählen Sie **Team** und **Kanal** und speichern Sie es. Teamster öffnet die Seite des neuen
+Ziels.
 
 Das erste Ziel, das Sie anlegen, wird zum **globalen Standard**: Alles, was keine Route
 beansprucht, geht dorthin.

@@ -128,7 +128,7 @@ and
 ## Share a record
 
 Whoever creates a template, destination, route, webhook endpoint or group owns it. To share one,
-edit it and use **Who may do what**:
+open it and use **Who may do what**:
 
 1. Under **Give to**, choose a user, a group, a provider group or a role from the list. Someone who
    has not signed in yet is not listed: open **Someone not listed**, pick the kind and enter their

@@ -143,7 +143,7 @@ und
 ## Einen Datensatz teilen {#share-a-record}
 
 Wer eine Vorlage, ein Ziel, eine Route, einen Webhook-Endpunkt oder eine Gruppe anlegt, ist ihr
-Eigentümer. Um einen Datensatz zu teilen, bearbeiten Sie ihn und nutzen **Wer was darf**:
+Eigentümer. Um einen Datensatz zu teilen, öffnen Sie ihn und nutzen **Wer was darf**:
 
 1. Wählen Sie unter **Geben an** einen Benutzer, eine Gruppe, eine Anbietergruppe oder eine Rolle
    aus der Liste. Wer sich noch nicht angemeldet hat, steht nicht darin: Öffnen Sie **Nicht
