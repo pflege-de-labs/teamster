@@ -657,7 +657,7 @@ the only step it skips is the template lookup. A payload with none of the three 
 `templates.Default` instead. That message has a best-effort title, the state and description, and
 the event as a fenced JSON block. Every message without a template also carries
 `templates.Message.Notice`, a hint card that says no template is defined and links to
-`<server.external-url>/admin?tab=templates` when that setting is configured. `channelMessage` appends
+`<server.external-url>/admin/templates` when that setting is configured. `channelMessage` appends
 the hint after the message's own card. A chat has room for only one card, so `chatMessage` uses the
 hint as the card when there is none and turns it into a line of Markdown otherwise. See
 [ADR 0039](adr/0039-built-in-default-message.md).
@@ -1224,8 +1224,8 @@ the request to prove its origin, because basic auth credentials travel with a cr
 there is no session to hold a CSRF token. See
 [ADR 0008](adr/0008-templ-tailwind-admin-ui.md).
 
-Every signed-in page shares `layout.templ`. The pages are listed in a sidebar (`sidebar` in
-`usermenu.templ`). The header holds a `<details>` user menu under the user's name and the highest
+Every signed-in page shares `layout.templ`. The pages are listed in a sidebar of four collapsible groups (`sidebar` in
+`usermenu.templ`; see below). The header holds a `<details>` user menu under the user's name and the highest
 built-in role, translated. It holds a link to `/admin/userinfo`, the languages as flag buttons
 (served from `web/flags/`, named by their alt text), the time zone switch and the sign-out form.
 `localized` puts the zone from the `teamster_timezone` cookie, UTC by default, into the context,
@@ -1236,7 +1236,7 @@ and `stamp(ctx, t)` formats every time on a page in it with the zone's abbreviat
 sidebar is always open and the menu opens natively.
 An inline script in `<head>` marks `<html>` with `js` and, when the sidebar was folded,
 `sidebar-closed`, so the burger and the sidebar are in their final state on first paint.
-`web/nav.js` toggles that class and remembers the choice, marks the current page, and closes the
+`web/nav.js` toggles that class and remembers the choice, and closes the
 menu on an outside click or Escape. The bottom of the sidebar shows the build version,
 `config.Config.Version`, which `cli.Run` stamps from `main.version`. See
 [ADR 0042](adr/0042-sidebar-navigation-and-user-menu.md) and
@@ -1246,12 +1246,22 @@ menu on an outside click or Escape. The bottom of the sidebar shows the build ve
 its own — `/admin/recipients`, like `/admin/permissions` — posts to its own `/delete` endpoint and
 lands back on itself with the notice, not on the unrelated configuration page.
 
-`/admin` shows its sections as tabs: templates, destinations, webhooks, routes and, for an admin,
-grants. The server renders every panel and hides all but one, chosen from `tab`, then `edit`, then
-templates; an unknown or unavailable tab falls back to the first. The tabs are links, so they work
-without JavaScript. `web/tabs.js` switches them in place and rewrites the URL's `tab`. It also maps
-a `#section` fragment to its tab, so older links and cards already sent keep working. Each
-`formPost` names its tab and answers `/admin?tab=…`, so a save lands back where it was made.
+The sidebar has four `<details>` groups: Configuration, Delivery, Access and Administration. A group
+with no visible item is not rendered. The server marks the current item `aria-current="page"` by
+path prefix. Groups render open; `nav.js` stores a closed one as `teamster.nav.<group>` in
+`localStorage`, and an inline script right after the sidebar's `<nav>` closes it before paint,
+except the group holding the current page. Notifications is a user menu entry, **My notifications**.
+
+Each configuration resource has its own page: `/admin/routes`, `/admin/templates`,
+`/admin/destinations`, `/admin/webhooks` and, for an admin, `/admin/grants`. `?edit=<id>` opens a
+record in the page's form. The page renders the one panel `views.Page.Tab` names, and `Admin`
+renders nothing else. An explicit dispatcher answers `GET` and `POST` and a 405 with `Allow` for
+other methods, because the admin mux's catch-all `/` asset route would answer 404. `/admin` answers
+302 to `/admin/routing`, or `/admin/templates` for someone who only holds shared records.
+The old tab and edit query links of `/admin` answer 301 to the page and `?edit=<id>`, carrying
+`notice` and `error`, because Teams hint cards already carry those links. Each `formPost` names its
+page and answers `/admin/<page>`, so a save lands back where it was made. See
+[ADR 0103](adr/0103-group-the-admin-sidebar-and-give-each-resource-a-page.md).
 
 ### Editor completion
 
@@ -1803,8 +1813,8 @@ PR found missing from it. A person can unlink themselves there; an admin can unl
 
 `GET /admin/notifications` is a page like any other under `requireSession`, offered to `viewer` and
 up: linking or unlinking a chat is a person managing their own membership, not administering
-anyone else's, which is why it is not folded into `/admin` or gated behind `CanManage` the way the
-configuration and permissions panels are. It, its two POST actions and the sidebar link to it
+anyone else's, which is why it is not folded into the configuration pages or gated behind `CanManage` the way the
+configuration and permissions panels are. It, its two POST actions and the user menu entry for it
 (`usermenu.templ`, gated on `Viewer.NotificationsEnabled`) are registered/rendered only when
 `config.BotConfig.Configured()` reports the bot is on — see the bot configuration section above for
 why: a code minted here can never be redeemed on a deployment that never registered the endpoint it
