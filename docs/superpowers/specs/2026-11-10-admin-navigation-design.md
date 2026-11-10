@@ -5,7 +5,8 @@
 
 ## Goal
 
-The admin sidebar is one flat list of up to 14 links, and `/admin` ("Configuration") is a single page
+The admin sidebar is one flat list of up to 14 links, and `/admin` ("Configuration") is a single
+page
 with five tabs, each stacking a create/edit form, the list of records and a sharing panel. An admin
 cannot tell configuration from permission management or global administration, and cannot link to a
 record.
@@ -37,7 +38,7 @@ design.
 Four groups, each a `<details>` element with a heading:
 
 | Group | Items (visible when) |
-|---|---|
+| --- | --- |
 | Configuration | Routing `/admin/routing`, Routes `/admin/routes`, Templates `/admin/templates`, Destinations `/admin/destinations`, Webhooks `/admin/webhooks` |
 | Delivery | Teams `/admin/teams`, Recipients `/admin/recipients`, Broadcasts `/admin/broadcasts` (CanBroadcast) |
 | Access | Access overview `/admin/access` (CanShare), Delivery permissions `/admin/grants` (CanManage), Channel scopes `/admin/permissions` (CanManage), Groups `/admin/groups`, Users `/admin/users` (CanManage), Access tokens `/admin/tokens` (CanTokens) |
@@ -62,7 +63,7 @@ Four groups, each a `<details>` element with a heading:
 ### Pages
 
 | GET | Renders | Singletons kept on the page |
-|---|---|---|
+| --- | --- | --- |
 | `/admin/routes` | routes panel | global default route |
 | `/admin/templates` | templates panel | webhook source defaults |
 | `/admin/destinations` | destinations panel | default destination |
@@ -86,7 +87,7 @@ its form post as `POST /admin/<resource>`. Literal sub-paths (`/delete`, `/rotat
 ### Redirects
 
 | From | To | Status |
-|---|---|---|
+| --- | --- | --- |
 | `GET /admin` | `/admin/routing` when the viewer may `view` `Page`, else `/admin/templates` (someone who only holds shared records) | 302 |
 | `GET /admin?tab=<t>` | `/admin/<t>` | 301 |
 | `GET /admin?edit=<t>&id=<id>` | `/admin/<t>?edit=<id>` | 301 |
@@ -105,7 +106,8 @@ Errors still travel as `?error=` and the form's input is still lost on a failed 
 
 ### Authorization
 
-* `recordPaths` already lists `/admin/templates` etc. for the POSTs; the GET pages share those paths,
+* `recordPaths` already lists `/admin/templates` etc. for the POSTs; the GET pages share those
+  paths,
   so someone a record was shared with reaches the page and its handler filters the list, as `/admin`
   does today. `/admin/grants` stays under `ActionAdminister` on `Grant` via `requestAuthorization`.
 * `requestAuthorization` already maps `GET /admin/<resource>` to `view` on that resource's type
@@ -137,7 +139,7 @@ Table-driven, parallel, in `internal/httpserver`:
 Applies to:
 
 | Resource | List | View | New | Edit in place |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | Templates, Destinations, Webhooks, Routes, Groups | ✓ | ✓ | ✓ | ✓ |
 | Access tokens | ✓ | ✓ | ✓ (secret shown once) | — |
 | Recipients, Users | ✓ | ✓ | — | — (unlink / disable only) |
