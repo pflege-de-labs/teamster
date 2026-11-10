@@ -160,18 +160,18 @@ func (s *Server) handleDestinationByID(w http.ResponseWriter, r *http.Request) {
 		writeRecordError(w, r, err)
 		return
 	}
+	item, err := s.destinationInScope(r, id)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if errors.Is(err, store.ErrNotFound) {
+			status = http.StatusNotFound
+		}
+		writeError(w, r, status, err)
+		return
+	}
 
 	switch r.Method {
 	case http.MethodGet:
-		item, err := s.store.GetDestination(ctx, id)
-		if err != nil {
-			status := http.StatusInternalServerError
-			if errors.Is(err, store.ErrNotFound) {
-				status = http.StatusNotFound
-			}
-			writeError(w, r, status, err)
-			return
-		}
 		writeJSON(w, http.StatusOK, item)
 	case http.MethodPut:
 		var d models.Destination
