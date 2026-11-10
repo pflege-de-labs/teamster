@@ -48,3 +48,17 @@ templ listPage(title, newLabel, newHref string, canCreate bool) {
 		</div>
 	</section>
 }
+
+// newPage is the frame every resource's new-record page shares: the way back
+// to the list, a title, and the form as children.
+templ newPage(listHref, listLabel, title string) {
+	<section class="rounded-lg border border-slate-200 bg-white shadow-sm">
+		<div class="border-b border-slate-200 px-6 py-4">
+			<a href={ templ.SafeURL(listHref) } class="text-sm text-sky-700 hover:underline">{ listLabel }</a>
+			<h2 class="text-lg font-semibold">{ title }</h2>
+		</div>
+		<div class="px-6 py-6">
+			{ children... }
+		</div>
+	</section>
+}

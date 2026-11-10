@@ -173,7 +173,7 @@ func TestFormsCreateAndUpdate(t *testing.T) {
 		{
 			name:       "create a destination",
 			path:       "/admin/destinations",
-			wantTab:    "destinations",
+			wantTab:    "destinations/generated",
 			form:       url.Values{"name": {"Second"}, "team_id": {"t2"}, "channel_id": {"c2"}},
 			wantNotice: "Destination created.",
 			check: func(t *testing.T, st *fakeStore) {

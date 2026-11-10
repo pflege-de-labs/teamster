@@ -2,6 +2,7 @@ package httpserver
 
 import (
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -323,11 +324,118 @@ func TestDestinationOldEditLink(t *testing.T) {
 	}
 }
 
-func TestDestinationNewIsNotARecord(t *testing.T) {
+func TestDestinationNewPage(t *testing.T) {
 	t.Parallel()
 
-	rec := asRole(t, newTestServer(t, sessionAs(seededUIStore(), authz.RoleAdmin), &fakeMessenger{}).Handler, http.MethodGet, "/admin/destinations/new", "")
-	if rec.Code == http.StatusOK && strings.Contains(rec.Body.String(), "data-record") {
-		t.Error("/admin/destinations/new renders a record")
+	tests := []struct {
+		name string
+		role authz.Role
+		want int
+		body []string
+	}{
+		{"editor", authz.RoleEditor, http.StatusOK, []string{`action="/admin/destinations"`, `href="/admin/destinations" data-record-cancel`, "New destination", `name="channel_id"`}},
+		{"viewer", authz.RoleViewer, http.StatusForbidden, nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			rec := asRole(t, newTestServer(t, sessionAs(seededUIStore(), tt.role), &fakeMessenger{}).Handler, http.MethodGet, "/admin/destinations/new", "")
+			if rec.Code != tt.want {
+				t.Fatalf("GET = %d, want %d", rec.Code, tt.want)
+			}
+			for _, w := range tt.body {
+				if !strings.Contains(rec.Body.String(), w) {
+					t.Errorf("page is missing %q", w)
+				}
+			}
+		})
+	}
+}
+
+func TestDestinationSave(t *testing.T) {
+	t.Parallel()
+
+	same := map[string]string{"Sec-Fetch-Site": "same-origin"}
+	tests := []struct {
+		name     string
+		form     url.Values
+		headers  map[string]string
+		want     int
+		location string
+		body     []string
+	}{
+		{
+			name: "create", headers: same, want: http.StatusSeeOther,
+			form:     url.Values{"name": {"New"}, "team_id": {"platform"}, "channel_id": {"incidents"}},
+			location: "/admin/destinations/generated?notice=Destination+created.",
+		},
+		{
+			name: "update", headers: same, want: http.StatusSeeOther,
+			form:     url.Values{"id": {"inside"}, "name": {"Renamed"}, "team_id": {"platform"}, "channel_id": {"alerts"}},
+			location: "/admin/destinations/inside?notice=Destination+updated.",
+		},
+		{
+			name: "create refused", headers: same, want: http.StatusUnprocessableEntity,
+			form: url.Values{"name": {"Sneaky"}, "team_id": {"payments"}, "channel_id": {"alerts"}},
+			body: []string{"Sneaky", "not granted", `action="/admin/destinations"`, "New destination"},
+		},
+		{
+			name: "update refused", headers: same, want: http.StatusUnprocessableEntity,
+			form: url.Values{"id": {"inside"}, "name": {"Moved"}, "team_id": {"payments"}, "channel_id": {"alerts"}},
+			body: []string{`value="Moved"`, "not granted", `data-mode="view" hidden`, `value="inside"`, "Platform alerts"},
+		},
+		{name: "cross-origin", headers: map[string]string{"Sec-Fetch-Site": "cross-site"}, want: http.StatusForbidden, form: url.Values{"name": {"x"}}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			st := scopedStore(t, authz.RoleEditor)
+			rec := postForm(t, newTestServer(t, st, &fakeMessenger{}).Handler, "/admin/destinations", tt.form, tt.headers)
+			if rec.Code != tt.want {
+				t.Fatalf("POST = %d, want %d (%s)", rec.Code, tt.want, rec.Body.String())
+			}
+			if got := rec.Header().Get("Location"); tt.location != "" && got != tt.location {
+				t.Errorf("Location = %q, want %q", got, tt.location)
+			}
+			for _, w := range tt.body {
+				if !strings.Contains(rec.Body.String(), w) {
+					t.Errorf("page is missing %q", w)
+				}
+			}
+		})
+	}
+}
+
+func TestDestinationDelete(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name, id, location string
+	}{
+		{"success", "other", "/admin/destinations?notice=Destination+deleted."},
+		{"refused", "dest", "/admin/destinations/dest?error="},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			rec := postForm(t, newTestServer(t, twoDestinations(), &fakeMessenger{}).Handler, "/admin/destinations/delete",
+				url.Values{"id": {tt.id}}, map[string]string{"Sec-Fetch-Site": "same-origin"})
+			if got := rec.Header().Get("Location"); rec.Code != http.StatusSeeOther || !strings.HasPrefix(got, tt.location) {
+				t.Errorf("POST = %d to %q, want 303 to %q", rec.Code, got, tt.location)
+			}
+		})
+	}
+}
+
+func TestDestinationMakeDefault(t *testing.T) {
+	t.Parallel()
+
+	rec := postForm(t, newTestServer(t, twoDestinations(), &fakeMessenger{}).Handler, "/admin/destinations/default",
+		url.Values{"id": {"other"}}, map[string]string{"Sec-Fetch-Site": "same-origin"})
+	if got, want := rec.Header().Get("Location"), "/admin/destinations/other?notice="; rec.Code != http.StatusSeeOther || !strings.HasPrefix(got, want) {
+		t.Errorf("POST = %d to %q, want 303 to %q", rec.Code, got, want)
 	}
 }

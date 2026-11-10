@@ -35,6 +35,14 @@ type DestinationRecord struct {
 	Head                                 RecordHead
 }
 
+// DestinationNew is the page at /admin/destinations/new.
+type DestinationNew struct {
+	Viewer          Viewer
+	Error           string
+	Form            models.Destination
+	BrokerAvailable bool
+}
+
 templ DestinationListPage(p DestinationList) {
 	@Layout(i18n.T(ctx, "page.destinations"), &p.Viewer) {
 		@notice(p.Error, p.Notice)
@@ -73,6 +81,15 @@ templ DestinationRecordPage(p DestinationRecord) {
 		}
 		if p.Sharing != nil {
 			@sharingPanel(*p.Sharing)
+		}
+	}
+}
+
+templ DestinationNewPage(p DestinationNew) {
+	@Layout(i18n.T(ctx, "page.destinations"), &p.Viewer) {
+		@notice(p.Error, "")
+		@newPage("/admin/destinations", i18n.T(ctx, "nav.destinations"), i18n.T(ctx, "destinations.new")) {
+			@destinationForm(p.Form, p.BrokerAvailable, "/admin/destinations")
 		}
 	}
 }

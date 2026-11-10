@@ -3,6 +3,7 @@ package httpserver
 import (
 	"errors"
 	"net/http"
+	"net/url"
 
 	"github.com/pflege-de-labs/teamster/internal/authz"
 	"github.com/pflege-de-labs/teamster/internal/httpserver/views"
@@ -66,6 +67,18 @@ func (s *Server) handleDestinationRecord(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	rec := s.destinationRecord(r, d)
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := views.DestinationRecordPage(rec).Render(ctx, w); err != nil {
+		logError(ctx, "render destination record", err)
+	}
+}
+
+// destinationRecord builds the record page of d for the session: access, usages and sharing.
+func (s *Server) destinationRecord(r *http.Request, d models.Destination) views.DestinationRecord {
+	ctx := r.Context()
+	id := d.ID
 	q := r.URL.Query()
 	_, brokerAvailable := s.brokerSession(r)
 	rec := views.DestinationRecord{
@@ -107,9 +120,85 @@ func (s *Server) handleDestinationRecord(w http.ResponseWriter, r *http.Request)
 	if err != nil {
 		rec.Error = failureText(ctx, "load destination page", err)
 	}
+	return rec
+}
 
+// handleDestinationNew serves GET /admin/destinations/new; the middleware lets a viewer read, so create is checked here.
+func (s *Server) handleDestinationNew(w http.ResponseWriter, r *http.Request) {
+	if err := s.mayRecord(r, authz.ActionCreate, typeDestination, ""); err != nil {
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return
+	}
+	_, brokerAvailable := s.brokerSession(r)
+	s.renderDestinationNew(w, r, http.StatusOK, views.DestinationNew{
+		Viewer: s.viewerFor(r), Error: r.URL.Query().Get("error"), BrokerAvailable: brokerAvailable,
+	})
+}
+
+func (s *Server) renderDestinationNew(w http.ResponseWriter, r *http.Request, status int, p views.DestinationNew) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(status)
+	if err := views.DestinationNewPage(p).Render(r.Context(), w); err != nil {
+		logError(r.Context(), "render new destination", err)
+	}
+}
+
+// handleDestinationSave serves POST /admin/destinations: a saved record redirects to its page, a refused one
+// re-renders the form with what was typed.
+func (s *Server) handleDestinationSave(w http.ResponseWriter, r *http.Request) {
+	if !formGuard("/admin/destinations", w, r) {
+		return
+	}
+	ctx := r.Context()
+	saved, notice, err := s.storeDestination(r)
+	if err == nil {
+		redirectTo("/admin/destinations/"+url.PathEscape(saved.ID), w, r, notice, "")
+		return
+	}
+
+	form := postedDestination(r)
+	message := visibleError(ctx, "save destination", err)
+	// Errors written for the reader are theirs to fix; the rest is ours.
+	status := http.StatusUnprocessableEntity
+	if !userFacing(err) {
+		status = http.StatusInternalServerError
+	}
+
+	if form.ID == "" {
+		_, brokerAvailable := s.brokerSession(r)
+		s.renderDestinationNew(w, r, status, views.DestinationNew{
+			Viewer: s.viewerFor(r), Error: message, Form: form, BrokerAvailable: brokerAvailable,
+		})
+		return
+	}
+	stored, err := s.store.GetDestination(ctx, form.ID)
+	if errors.Is(err, store.ErrNotFound) {
+		http.NotFound(w, r)
+		return
+	}
+	if err != nil {
+		logError(ctx, "get destination", err)
+		http.Error(w, "could not load the destination", http.StatusInternalServerError)
+		return
+	}
+	rec := s.destinationRecord(r, stored)
+	rec.Form, rec.Error, rec.Notice = form, message, ""
+	rec.Head.Editing = rec.CanUpdate
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(status)
 	if err := views.DestinationRecordPage(rec).Render(ctx, w); err != nil {
 		logError(ctx, "render destination record", err)
+	}
+}
+
+// destinationTarget is where a destination post lands: the record it named, or
+// the list once the record is gone.
+func destinationTarget(toListOnSuccess bool) func(*http.Request, bool) string {
+	return func(r *http.Request, failed bool) string {
+		id := r.PostFormValue("id")
+		if id == "" || (toListOnSuccess && !failed) {
+			return "/admin/destinations"
+		}
+		return "/admin/destinations/" + url.PathEscape(id)
 	}
 }

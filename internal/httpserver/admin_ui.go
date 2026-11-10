@@ -304,17 +304,23 @@ func adminTabPath(tab string) string {
 // formPostTo is formPost for endpoints whose target is not a resource page,
 // such as the notifications page's own unlink control.
 func (s *Server) formPostTo(target string, handler func(*http.Request) (string, error)) http.HandlerFunc {
+	return s.formPostFunc(func(*http.Request, bool) string { return target }, handler)
+}
+
+// formPostFunc is formPostTo for a target that depends on the post, such as the
+// record whose id was submitted; failed says which way the handler went.
+func (s *Server) formPostFunc(target func(r *http.Request, failed bool) string, handler func(*http.Request) (string, error)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !formGuard(target, w, r) {
+		if !formGuard(target(r, false), w, r) {
 			return
 		}
 
 		notice, err := handler(r)
 		if err != nil {
-			redirectTo(target, w, r, "", visibleError(r.Context(), "form post", err))
+			redirectTo(target(r, true), w, r, "", visibleError(r.Context(), "form post", err))
 			return
 		}
-		redirectTo(target, w, r, notice, "")
+		redirectTo(target(r, false), w, r, notice, "")
 	}
 }
 
@@ -395,16 +401,22 @@ func (s *Server) saveTemplate(r *http.Request) (string, error) {
 	return "Template updated.", nil
 }
 
-func (s *Server) saveDestination(r *http.Request) (string, error) {
-	ctx := r.Context()
-	if err := s.mayRecord(r, writeAction(r.PostFormValue("id")), typeDestination, r.PostFormValue("id")); err != nil {
-		return "", err
-	}
-	destination := models.Destination{
+// postedDestination is the destination as the form submitted it.
+func postedDestination(r *http.Request) models.Destination {
+	return models.Destination{
 		ID:        r.PostFormValue("id"),
 		Name:      r.PostFormValue("name"),
 		TeamID:    r.PostFormValue("team_id"),
 		ChannelID: r.PostFormValue("channel_id"),
+	}
+}
+
+// storeDestination saves the posted destination and returns it with the notice to show.
+func (s *Server) storeDestination(r *http.Request) (models.Destination, string, error) {
+	ctx := r.Context()
+	destination := postedDestination(r)
+	if err := s.mayRecord(r, writeAction(destination.ID), typeDestination, destination.ID); err != nil {
+		return destination, "", err
 	}
 	// Typing a channel id the picker would not have offered reaches here, which
 	// is why the check is on the write rather than on the list.
@@ -413,22 +425,24 @@ func (s *Server) saveDestination(r *http.Request) (string, error) {
 		allowed, err = s.mayRepointDestination(r, destination)
 	}
 	if err != nil {
-		return "", err
+		return destination, "", err
 	}
 	if !allowed {
-		return "", errDeliveryRefused
+		return destination, "", errDeliveryRefused
 	}
 
 	if destination.ID == "" {
-		if _, err := s.createDestination(r, destination); err != nil {
-			return "", err
+		created, err := s.createDestination(r, destination)
+		if err != nil {
+			return destination, "", err
 		}
-		return "Destination created.", nil
+		return created, "Destination created.", nil
 	}
-	if _, err := s.store.UpdateDestination(ctx, destination); err != nil {
-		return "", err
+	updated, err := s.store.UpdateDestination(ctx, destination)
+	if err != nil {
+		return destination, "", err
 	}
-	return "Destination updated.", nil
+	return updated, "Destination updated.", nil
 }
 
 func (s *Server) saveRoute(r *http.Request) (string, error) {
