@@ -9,9 +9,6 @@
     return u.toString();
   };
   global.teamsterNameOf = (items, id) => items.find((i) => i.id === id)?.name ?? null;
-  // Compares serialised submittable state, so buttons never count and script-set hidden values do.
-  global.teamsterFormDirty = (baseline, current) => baseline !== current;
-  global.teamsterFormState = (formData) => new URLSearchParams(formData).toString();
   if (typeof document === "undefined") return;
 
   const record = document.querySelector("[data-record]");
@@ -20,10 +17,8 @@
     const edit = record.querySelector('[data-mode="edit"]');
     const form = edit && edit.querySelector("form");
     let submitting = false;
-    const state = () => global.teamsterFormState(new FormData(form));
-    const baseline = form ? state() : "";
-    // Hidden inputs are written by pickers.js, so reset() does not bring them back.
-    const hiddens = form ? [...form.elements].filter((f) => f.name).map((f) => [f, f.value]) : [];
+    // Events only, because pickers.js rewrites fields without firing any.
+    let dirty = false;
     const show = (editing) => {
       view.hidden = editing;
       edit.hidden = !editing;
@@ -35,14 +30,21 @@
         const el = event.target.closest?.("[data-record-edit], [data-record-cancel]");
         if (!el || !record.contains(el)) return;
         event.preventDefault();
-        if (el.hasAttribute("data-record-cancel")) {
-          form.reset();
-          hiddens.forEach(([f, v]) => {
-            if (f.type === "hidden") f.value = v;
-          });
+        if (el.hasAttribute("data-record-cancel") && dirty) {
+          // Reload so the pickers rebuild from the stored IDs.
+          dirty = false;
+          location.replace(global.teamsterRecordURL(location.href, false));
+          return;
         }
+        if (el.hasAttribute("data-record-cancel")) form.reset();
         show(el.hasAttribute("data-record-edit"));
         if (!edit.hidden) form.querySelector("input:not([type=hidden]), select, textarea")?.focus();
+      });
+      form.addEventListener("input", () => {
+        dirty = true;
+      });
+      form.addEventListener("change", () => {
+        dirty = true;
       });
       form.addEventListener("submit", (event) => {
         submitting = true;
@@ -52,7 +54,7 @@
         }, 0);
       });
       window.addEventListener("beforeunload", (event) => {
-        if (submitting || edit.hidden || !global.teamsterFormDirty(baseline, state())) return;
+        if (submitting || edit.hidden || !dirty) return;
         event.preventDefault();
         event.returnValue = "";
       });
