@@ -10,6 +10,12 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 ## [Unreleased]
 
+### Added
+
+* The admin UI shows a progress bar under the header while a page takes longer than a moment to
+  load, so following a link to a slow page — **Teams**, which asks Microsoft Graph first — visibly
+  does something.
+
 ## [0.20.0] — 2026-11-09
 
 ### Changed
