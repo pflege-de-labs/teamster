@@ -344,6 +344,27 @@ func TestSidebarCurrent(t *testing.T) {
 	}
 }
 
+func TestSidebarAppliesGroupStateBeforePaint(t *testing.T) {
+	t.Parallel()
+
+	st := signedInAs(seededUIStore(), "jens", authz.RoleAdmin)
+	body := asRole(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin/teams", "").Body.String()
+
+	_, rest, _ := strings.Cut(body, `id="sidebar"`)
+	side, _, _ := strings.Cut(rest, "</aside>")
+	nav, after, ok := strings.Cut(side, "</nav>")
+	if !ok || !strings.Contains(after, "<script>") || !strings.Contains(after, "teamster.nav.") {
+		t.Errorf("no state script after the nav: %q", after)
+	}
+	if got := strings.Count(nav, "data-current"); got != 1 {
+		t.Fatalf("%d groups are current, want 1", got)
+	}
+	i := strings.Index(nav, "data-current")
+	if open := strings.LastIndex(nav[:i], "<details"); !strings.Contains(nav[open:i], `data-group="delivery"`) {
+		t.Errorf("current group is not delivery: %s", nav[open:i])
+	}
+}
+
 func TestNotificationsInUserMenu(t *testing.T) {
 	t.Parallel()
 

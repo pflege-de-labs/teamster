@@ -22,6 +22,18 @@
     });
   }
 
+  document.querySelectorAll("#sidebar details[data-group]").forEach((group) => {
+    group.addEventListener("toggle", () => {
+      try {
+        const key = "teamster.nav." + group.dataset.group;
+        if (group.open) localStorage.removeItem(key);
+        else localStorage.setItem(key, "closed");
+      } catch (e) {
+        // Not remembered, but still toggled.
+      }
+    });
+  });
+
   const menu = document.getElementById("user-menu");
   if (menu) {
     document.addEventListener("click", (event) => {

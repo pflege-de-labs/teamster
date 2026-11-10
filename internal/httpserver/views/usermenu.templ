@@ -61,7 +61,13 @@ templ sidebar(viewer Viewer) {
 	<aside id="sidebar" class="flex w-56 shrink-0 flex-col overflow-y-auto border-r border-slate-200 bg-white [.sidebar-closed_&]:hidden">
 		<nav class="flex grow flex-col gap-3 p-4 text-sm">
 			for _, group := range viewer.navGroups() {
-				<details open data-group={ group.Key }>
+				<details
+					open
+					data-group={ group.Key }
+					if group.holds(viewer) {
+						data-current
+					}
+				>
 					<summary class="cursor-pointer px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
 						{ i18n.T(ctx, "nav.group."+group.Key) }
 					</summary>
@@ -73,6 +79,14 @@ templ sidebar(viewer Viewer) {
 				</details>
 			}
 		</nav>
+		<script>
+			// Runs here, once the groups exist, so a closed group never paints open.
+			try {
+				document.querySelectorAll("#sidebar details[data-group]:not([data-current])").forEach((d) => {
+					d.open = localStorage.getItem("teamster.nav." + d.dataset.group) !== "closed";
+				});
+			} catch (e) {}
+		</script>
 		if version := versionOf(ctx); version != "" {
 			<div class="px-7 py-4 text-xs text-slate-400">{ i18n.T(ctx, "app.version", version) }</div>
 		}

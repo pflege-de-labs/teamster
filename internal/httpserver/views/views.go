@@ -102,6 +102,16 @@ func (v Viewer) current(href string) bool {
 	return v.Path == href || strings.HasPrefix(v.Path, href+"/")
 }
 
+// holds reports whether the group contains the current page.
+func (g navGroup) holds(v Viewer) bool {
+	for _, item := range g.Items {
+		if v.current(item.Href) {
+			return true
+		}
+	}
+	return false
+}
+
 // roleLabel names the highest built-in role, translated, and says so plainly
 // when there is none — that is the case where the page is empty and the reason
 // needs to be in front of them. Other claim values are on the user info page.
