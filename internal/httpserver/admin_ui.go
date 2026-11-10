@@ -1,7 +1,6 @@
 package httpserver
 
 import (
-	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -9,6 +8,7 @@ import (
 	"maps"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -21,23 +21,74 @@ import (
 	"github.com/pflege-de-labs/teamster/internal/templates"
 )
 
-// handleAdminPage renders the admin UI. Notices arrive as query parameters
-// because a form post answers with a redirect, which carries no body.
+// handleAdminPage sends the old /admin?tab= and ?edit= URLs, already in Teams chats, to their pages.
 func (s *Server) handleAdminPage(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		w.Header().Set("Allow", http.MethodGet)
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		w.Header().Set("Allow", "GET, HEAD")
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 
-	page := s.adminPage(r, r.URL.Query().Get("notice"), r.URL.Query().Get("error"))
-	page.Tab = cmp.Or(r.URL.Query().Get("tab"), r.URL.Query().Get("edit"))
-
-	if selected := r.URL.Query().Get("edit"); selected != "" {
-		s.loadForEditing(r, &page, selected, r.URL.Query().Get("id"))
+	markChecked(r) // a redirect reads no record, so the witness need not wait for one
+	q := r.URL.Query()
+	section, edit := q.Get("tab"), ""
+	if e := q.Get("edit"); e != "" {
+		section, edit = e, q.Get("id")
+	}
+	if !slices.Contains([]string{"templates", "destinations", "webhooks", "routes", "grants"}, section) {
+		// Which landing page exists for the viewer decides, so this is not permanent.
+		target := "/admin/templates"
+		if s.allow(r, authz.ActionView, authz.Resource{Type: "Page"}) {
+			target = "/admin/routing"
+		}
+		http.Redirect(w, r, target, http.StatusFound)
+		return
 	}
 
-	s.renderAdmin(w, r, page)
+	target := url.URL{Path: adminTabPath(section)}
+	out := url.Values{}
+	if edit != "" {
+		out.Set("edit", edit)
+	}
+	for _, key := range []string{"notice", "error"} {
+		if v := q.Get(key); v != "" {
+			out.Set(key, v)
+		}
+	}
+	target.RawQuery = out.Encode()
+	http.Redirect(w, r, target.String(), http.StatusMovedPermanently)
+}
+
+// recordEditPath is the page that edits one record.
+func recordEditPath(section, id string) string {
+	return adminTabPath(section) + "?edit=" + url.QueryEscape(id)
+}
+
+// handleResourcePage renders one resource on its own page; ?edit= names the record to edit.
+func (s *Server) handleResourcePage(tab string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		page := s.adminPage(r, r.URL.Query().Get("notice"), r.URL.Query().Get("error"))
+		page.Tab = tab
+		s.loadForEditing(r, &page, tab, r.URL.Query().Get("edit"))
+		s.renderAdmin(w, r, page)
+	}
+}
+
+// resourceRoute is a resource's page on GET and its form on POST. The mux cannot
+// answer 405 itself: the catch-all asset route would claim every other method.
+func (s *Server) resourceRoute(tab string, post http.HandlerFunc) http.HandlerFunc {
+	page := s.handleResourcePage(tab)
+	return func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet, http.MethodHead:
+			page(w, r)
+		case http.MethodPost:
+			post(w, r)
+		default:
+			w.Header().Set("Allow", "GET, HEAD, POST")
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	}
 }
 
 // adminPage collects everything the admin page draws. It is separate from the
@@ -191,7 +242,7 @@ func (s *Server) loadForEditing(r *http.Request, page *views.Page, section, id s
 		page.Error = visibleError(ctx, "load record for editing", err)
 		return
 	}
-	if page.Sharing, err = s.sharingFor(r, typ, id, "/admin?edit="+section+"&id="+url.QueryEscape(id)); err != nil {
+	if page.Sharing, err = s.sharingFor(r, typ, id, recordEditPath(section, id)); err != nil {
 		page.Error = failureText(ctx, "load sharing", err)
 	}
 }
@@ -218,20 +269,20 @@ func formGuard(target string, w http.ResponseWriter, r *http.Request) bool {
 }
 
 // formPost guards the state-changing form endpoints that redirect back to
-// the /admin tab they were posted from. Basic auth credentials ride along on any cross-site form post, so
+// the page they were posted from. Basic auth credentials ride along on any cross-site form post, so
 // the request has to prove it came from this origin; there is no session to
 // hang a CSRF token on.
 func (s *Server) formPost(tab string, handler func(*http.Request) (string, error)) http.HandlerFunc {
 	return s.formPostTo(adminTabPath(tab), handler)
 }
 
-// adminTabPath is /admin opened on one of its tabs.
+// adminTabPath is the page of one configuration resource.
 func adminTabPath(tab string) string {
-	return "/admin?tab=" + url.QueryEscape(tab)
+	return "/admin/" + tab
 }
 
-// formPostTo is formPost for the endpoints that land somewhere other than
-// /admin -- the notifications page's own unlink control, most immediately.
+// formPostTo is formPost for endpoints whose target is not a resource page,
+// such as the notifications page's own unlink control.
 func (s *Server) formPostTo(target string, handler func(*http.Request) (string, error)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !formGuard(target, w, r) {
@@ -270,7 +321,7 @@ func sameOrigin(r *http.Request) bool {
 }
 
 func redirectTo(target string, w http.ResponseWriter, r *http.Request, notice, message string) {
-	// A target may carry a query of its own, such as the tab to land on.
+	// A target may carry a query of its own, such as the routing tab to land on.
 	dest, err := url.Parse(target)
 	if err != nil {
 		dest = &url.URL{Path: "/admin"}

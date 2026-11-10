@@ -120,7 +120,7 @@ func TestPeoplePageIsTheAdmins(t *testing.T) {
 			if len(st.runs) != 0 {
 				t.Error("a non-admin requested a run")
 			}
-			if page := asRole(t, handler, http.MethodGet, "/admin", "").Body.String(); strings.Contains(page, `href="/admin/people"`) {
+			if page := asRole(t, handler, http.MethodGet, "/admin/templates", "").Body.String(); strings.Contains(page, `href="/admin/people"`) {
 				t.Error("the nav offers the people page to a non-admin")
 			}
 		})
@@ -136,7 +136,7 @@ func TestPeoplePageNeedsGlobalInstall(t *testing.T) {
 	if rec := asRole(t, handler, http.MethodPost, "/api/people/install", ""); rec.Code == http.StatusAccepted {
 		t.Error("a run was accepted without global install")
 	}
-	if page := asRole(t, handler, http.MethodGet, "/admin", "").Body.String(); strings.Contains(page, `href="/admin/people"`) {
+	if page := asRole(t, handler, http.MethodGet, "/admin/templates", "").Body.String(); strings.Contains(page, `href="/admin/people"`) {
 		t.Error("the nav offers the people page without global install")
 	}
 }

@@ -29,6 +29,11 @@ templ userMenu(viewer Viewer) {
 			<a href="/admin/me" class="block rounded-md px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
 				{ i18n.T(ctx, "header.my_access") }
 			</a>
+			if viewer.NotificationsEnabled {
+				<a href="/admin/notifications" class="block rounded-md px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
+					{ i18n.T(ctx, "nav.my_notifications") }
+				</a>
+			}
 			<a href="/admin/userinfo" class="block rounded-md px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
 				{ i18n.T(ctx, "header.userinfo") }
 			</a>
@@ -50,48 +55,50 @@ templ userMenu(viewer Viewer) {
 	</details>
 }
 
-// sidebar lists the pages. It shows without JavaScript; nav.js adds the burger
-// that folds it away.
+// sidebar lists the pages in groups. It shows without JavaScript; nav.js adds
+// the burger that folds it away.
 templ sidebar(viewer Viewer) {
 	<aside id="sidebar" class="flex w-56 shrink-0 flex-col overflow-y-auto border-r border-slate-200 bg-white [.sidebar-closed_&]:hidden">
-		<nav class="flex grow flex-col gap-1 p-4 text-sm">
-			@navLink("/admin", "nav.configuration")
-			@navLink("/admin/routing", "nav.routing")
-			if viewer.NotificationsEnabled {
-				@navLink("/admin/notifications", "nav.notifications")
-			}
-			@navLink("/admin/teams", "nav.teams")
-			@navLink("/admin/recipients", "nav.recipients")
-			@navLink("/admin/groups", "nav.groups")
-			if viewer.CanManage {
-				@navLink("/admin/permissions", "nav.permissions")
-				@navLink("/admin/users", "nav.users")
-				if viewer.PeopleEnabled {
-					@navLink("/admin/people", "nav.people")
-				}
-			}
-			if viewer.CanShare {
-				@navLink("/admin/access", "nav.access")
-			}
-			if viewer.CanTokens {
-				@navLink("/admin/tokens", "nav.tokens")
-			}
-			if viewer.CanBroadcast {
-				@navLink("/admin/broadcasts", "nav.broadcasts")
-			}
-			if viewer.CanAudit {
-				@navLink("/admin/audit", "nav.audit")
+		<nav class="flex grow flex-col gap-3 p-4 text-sm">
+			for _, group := range viewer.navGroups() {
+				<details
+					open
+					data-group={ group.Key }
+					if group.holds(viewer) {
+						data-current
+					}
+				>
+					<summary class="cursor-pointer px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+						{ i18n.T(ctx, "nav.group."+group.Key) }
+					</summary>
+					<div class="mt-1 flex flex-col gap-1">
+						for _, item := range group.Items {
+							@navLink(item.Href, item.Key, viewer.current(item.Href))
+						}
+					</div>
+				</details>
 			}
 		</nav>
+		<script>
+			// Runs here, once the groups exist, so a closed group never paints open.
+			try {
+				document.querySelectorAll("#sidebar details[data-group]:not([data-current])").forEach((d) => {
+					d.open = localStorage.getItem("teamster.nav." + d.dataset.group) !== "closed";
+				});
+			} catch (e) {}
+		</script>
 		if version := versionOf(ctx); version != "" {
 			<div class="px-7 py-4 text-xs text-slate-400">{ i18n.T(ctx, "app.version", version) }</div>
 		}
 	</aside>
 }
 
-templ navLink(href, key string) {
+templ navLink(href, key string, current bool) {
 	<a
 		href={ templ.SafeURL(href) }
+		if current {
+			aria-current="page"
+		}
 		class="rounded-md px-3 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 aria-[current=page]:bg-slate-100 aria-[current=page]:font-medium aria-[current=page]:text-slate-900"
 	>
 		{ i18n.T(ctx, key) }

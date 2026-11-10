@@ -58,7 +58,7 @@ func TestChoosingALanguage(t *testing.T) {
 	}
 
 	// And it decides the page, even against a contrary Accept-Language.
-	req := httptest.NewRequest(http.MethodGet, "/admin", nil)
+	req := httptest.NewRequest(http.MethodGet, "/admin/templates", nil)
 	req.Header.Set("Accept-Language", "en")
 	req.AddCookie(cookie)
 	req.AddCookie(&http.Cookie{Name: sessionCookie, Value: testSessionID})
@@ -83,7 +83,7 @@ func TestChoosingTheBrowserDefault(t *testing.T) {
 		t.Fatalf("cookie = %+v, want it cleared", cookie)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/admin", nil)
+	req := httptest.NewRequest(http.MethodGet, "/admin/templates", nil)
 	req.Header.Set("Accept-Language", "de")
 	req.AddCookie(&http.Cookie{Name: sessionCookie, Value: testSessionID})
 	page := httptest.NewRecorder()
@@ -212,7 +212,7 @@ func TestUserMenuOffersLanguagesAsFlags(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			req := httptest.NewRequest(http.MethodGet, "/admin", nil)
+			req := httptest.NewRequest(http.MethodGet, "/admin/templates", nil)
 			req.AddCookie(&http.Cookie{Name: sessionCookie, Value: testSessionID})
 			if tt.cookie != "" {
 				req.AddCookie(&http.Cookie{Name: languageCookie, Value: tt.cookie})

@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"maps"
 	"net/http"
-	"net/url"
 	"sort"
 	"strings"
 	"time"
@@ -737,7 +736,7 @@ func (s *Server) renderMessageFor(ctx context.Context, ev models.Event, delivery
 		if err == nil && delivery.TemplateID == "" {
 			path := templatesPanelPath
 			if delivery.WebhookEndpointID != "" {
-				path = "/admin?edit=webhooks&id=" + url.QueryEscape(delivery.WebhookEndpointID) + "#webhooks"
+				path = recordEditPath("webhooks", delivery.WebhookEndpointID)
 			}
 			msg.Notice, err = templates.HintCard(s.cfg.Server.ExternalURL, path)
 		}
@@ -810,7 +809,7 @@ func (s *Server) sourceDefaultTemplate(ctx context.Context, source string) (mode
 }
 
 // templatesPanelPath is where the hint card sends someone to create a template.
-const templatesPanelPath = "/admin?tab=templates"
+const templatesPanelPath = "/admin/templates"
 
 // untemplatedMessage is the payload's own content when it has any, and the
 // built-in default when it has none.

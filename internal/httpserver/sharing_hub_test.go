@@ -209,7 +209,7 @@ func TestMyAccessListsWhatWasShared(t *testing.T) {
 
 	h := newTestServer(t, sharedStore(), &fakeMessenger{}).Handler
 	body := call(t, h, http.MethodGet, "/admin/me", "").Body.String()
-	for _, want := range []string{"Shared card", `href="/admin?edit=templates&amp;id=t1"`, "read, update"} {
+	for _, want := range []string{"Shared card", `href="/admin/templates?edit=t1"`, "read, update"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("/admin/me lacks %q", want)
 		}

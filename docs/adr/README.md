@@ -56,7 +56,7 @@ Architectural decisions are recorded here, one file per decision, in
 | [0039](0039-built-in-default-message.md) | Send a built-in default message when nothing says what a message looks like | Accepted |
 | [0040](0040-teams-v2-endpoint-templates.md) | A Teams V2 endpoint may name a template | Accepted |
 | [0041](0041-editor-completion-from-sampled-labels.md) | Complete templates and routes from labels sampled off incoming alerts | Accepted |
-| [0042](0042-sidebar-navigation-and-user-menu.md) | Move page links to a sidebar and account controls to a user menu | Accepted, partly superseded by 0054 |
+| [0042](0042-sidebar-navigation-and-user-menu.md) | Move page links to a sidebar and account controls to a user menu | Accepted, partly superseded by 0054 and 0103 |
 | [0043](0043-session-keeps-sign-in-identity.md) | Keep what the identity provider said on the session row | Accepted, partly superseded by [0074](0074-local-groups-and-provider-groups.md) |
 | [0044](0044-webhook-access-tokens.md) | Authenticate the alert webhooks with issued Bearer tokens | Accepted, partly superseded by [0077](0077-scoped-tokens-answer-to-their-creator.md) |
 | [0045](0045-channel-delivery-through-the-bot.md) | Deliver channel messages through the Bot Framework bot | Accepted, amended by [0049](0049-a-channel-post-is-one-teams-message.md), [0059](0059-install-the-teams-app-for-every-member.md); superseded in part by [0069](0069-the-bot-answers-commands-in-team-channels.md) |
@@ -113,3 +113,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0100](0100-order-the-routing-graph-to-cross-fewer-lines.md) | Order the routing graph to cross fewer lines | Accepted |
 | [0101](0101-a-click-draws-only-the-nodes-paths.md) | A click draws only the node's paths | Accepted |
 | [0102](0102-a-link-that-skips-columns-gets-a-lane.md) | A link that skips columns gets a lane | Accepted |
+| [0103](0103-group-the-admin-sidebar-and-give-each-resource-a-page.md) | Group the admin sidebar and give each resource a page | Accepted |

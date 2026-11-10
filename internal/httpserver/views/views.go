@@ -9,7 +9,6 @@ package views
 import (
 	"context"
 	"encoding/json"
-	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -52,6 +51,65 @@ type Viewer struct {
 	// PeopleEnabled is whether the app is installed for everyone, which is
 	// when /admin/people exists; the nav shows it to admins only.
 	PeopleEnabled bool
+	// Path is the request path, for marking the current nav item.
+	Path string
+}
+
+type navItem struct{ Href, Key string }
+
+type navGroup struct {
+	Key   string
+	Items []navItem
+}
+
+// navGroups is the sidebar: the groups this viewer sees, none of them empty.
+func (v Viewer) navGroups() []navGroup {
+	groups := []navGroup{
+		{"configuration", []navItem{
+			{"/admin/routing", "nav.routing"}, {"/admin/routes", "nav.routes"}, {"/admin/templates", "nav.templates"},
+			{"/admin/destinations", "nav.destinations"}, {"/admin/webhooks", "nav.webhooks"},
+		}},
+		{"delivery", []navItem{{"/admin/teams", "nav.teams"}, {"/admin/recipients", "nav.recipients"}}},
+		{"access", nil},
+		{"administration", nil},
+	}
+	add := func(g int, ok bool, href, key string) {
+		if ok {
+			groups[g].Items = append(groups[g].Items, navItem{href, key})
+		}
+	}
+	add(1, v.CanBroadcast, "/admin/broadcasts", "nav.broadcasts")
+	add(2, v.CanShare, "/admin/access", "nav.access")
+	add(2, v.CanManage, "/admin/grants", "nav.grants")
+	add(2, v.CanManage, "/admin/permissions", "nav.permissions")
+	add(2, true, "/admin/groups", "nav.groups")
+	add(2, v.CanManage, "/admin/users", "nav.users")
+	add(2, v.CanTokens, "/admin/tokens", "nav.tokens")
+	add(3, v.CanManage && v.PeopleEnabled, "/admin/people", "nav.people")
+	add(3, v.CanAudit, "/admin/audit", "nav.audit")
+
+	shown := groups[:0]
+	for _, g := range groups {
+		if len(g.Items) > 0 {
+			shown = append(shown, g)
+		}
+	}
+	return shown
+}
+
+// current marks an item by path prefix, so a record page keeps its list lit.
+func (v Viewer) current(href string) bool {
+	return v.Path == href || strings.HasPrefix(v.Path, href+"/")
+}
+
+// holds reports whether the group contains the current page.
+func (g navGroup) holds(v Viewer) bool {
+	for _, item := range g.Items {
+		if v.current(item.Href) {
+			return true
+		}
+	}
+	return false
 }
 
 // roleLabel names the highest built-in role, translated, and says so plainly
@@ -158,25 +216,8 @@ type Page struct {
 	// and from there into the browser history and this server's own access log.
 	NewWebhookURL string
 
-	// Tab is the section asked for; activeTab settles what is shown.
+	// Tab is the resource whose page this is.
 	Tab string
-}
-
-// tabs are the sections of /admin, in the order the tab bar shows them.
-func (p Page) tabs() []string {
-	tabs := []string{"templates", "destinations", "webhooks", "routes"}
-	if p.CanManage {
-		tabs = append(tabs, "grants")
-	}
-	return tabs
-}
-
-// activeTab is Tab when this viewer has that tab, else the first one.
-func (p Page) activeTab() string {
-	if slices.Contains(p.tabs(), p.Tab) {
-		return p.Tab
-	}
-	return p.tabs()[0]
 }
 
 // A routeRow is a route as the list draws it: its place in the tree, and where

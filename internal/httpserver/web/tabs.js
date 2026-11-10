@@ -1,4 +1,4 @@
-// Switches the /admin tabs in place. The server already rendered the right one,
+// Switches the routing page's tabs in place. The server already rendered the right one,
 // so this only saves the round trip and keeps the URL naming the open tab.
 (function () {
   const bar = document.querySelector("[data-admin-tabs]");
@@ -31,7 +31,7 @@
     });
   }
 
-  // Links written before the tabs, such as /admin#templates in cards already sent.
+  // Hash links to a section inside a tab; the old /admin#<section> cards are handled by nav.js.
   function fromHash() {
     const section = location.hash.slice(1);
     const panel = section && document.getElementById(section)?.closest("[data-tab-panel]");

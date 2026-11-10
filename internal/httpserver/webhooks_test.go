@@ -358,7 +358,7 @@ func TestUntemplatedMessageGetsTheBuiltInDefault(t *testing.T) {
 		externalURL string
 		wantLink    string
 	}{
-		{name: "with an external URL", externalURL: "https://teamster.example.com/", wantLink: `href="https://teamster.example.com/admin?tab=templates"`},
+		{name: "with an external URL", externalURL: "https://teamster.example.com/", wantLink: `href="https://teamster.example.com/admin/templates"`},
 		{name: "without one"},
 	}
 
@@ -1069,12 +1069,12 @@ func TestTheNoticeRidesAlong(t *testing.T) {
 		{
 			name: "a card and a notice", rendered: templates.Message{Text: "<p>hi</p>", Card: card, Notice: notice},
 			wantCards: []string{`{"card":true}`, `{"notice":true}`}, wantChat: `{"card":true}`,
-			wantText: "(https://teamster.example.com/admin?tab=templates)", wantSummary: "hi",
+			wantText: "(https://teamster.example.com/admin/templates)", wantSummary: "hi",
 		},
 		{
 			// A channel post is one Teams message, so beside text the notice is text too.
 			name: "text and a notice", rendered: templates.Message{Text: "<p>hi</p>", Notice: notice},
-			wantCards: []string{}, wantChat: `{"notice":true}`, wantChannelText: "https://teamster.example.com/admin?tab=templates",
+			wantCards: []string{}, wantChat: `{"notice":true}`, wantChannelText: "https://teamster.example.com/admin/templates",
 			wantSummary: "hi",
 		},
 	}
@@ -1193,7 +1193,7 @@ func TestHintLinksTheEndpoint(t *testing.T) {
 	tests := []struct {
 		name, endpoint, want string
 	}{
-		{"endpoint", "hook", `/admin?edit=webhooks\u0026id=hook#webhooks`},
+		{"endpoint", "hook", `/admin/webhooks?edit=hook`},
 		{"none", "", templatesPanelPath},
 	}
 	for _, tt := range tests {

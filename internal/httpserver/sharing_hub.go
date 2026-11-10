@@ -35,7 +35,7 @@ func recordHref(typ, id string) string {
 	if typ == typeGroup {
 		return "/admin/groups?id=" + url.QueryEscape(id)
 	}
-	return "/admin?edit=" + recordSections[typ] + "&id=" + url.QueryEscape(id)
+	return recordEditPath(recordSections[typ], id)
 }
 
 // recordIndex names every record of the permissioned types, and says which the

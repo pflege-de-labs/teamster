@@ -180,7 +180,7 @@ func TestAccessPage(t *testing.T) {
 	if rec := call(t, failing, http.MethodGet, "/admin/access", ""); rec.Code != http.StatusServiceUnavailable && !strings.Contains(rec.Body.String(), "Something went wrong") {
 		t.Errorf("a failing store = %d", rec.Code)
 	}
-	if body := call(t, h, http.MethodGet, "/admin", "").Body.String(); !strings.Contains(body, `href="/admin/access"`) || !strings.Contains(body, `href="/admin/me"`) {
+	if body := call(t, h, http.MethodGet, "/admin/templates", "").Body.String(); !strings.Contains(body, `href="/admin/access"`) || !strings.Contains(body, `href="/admin/me"`) {
 		t.Error("the nav does not offer the access pages")
 	}
 }
@@ -318,7 +318,7 @@ func TestAccessMenuFollowsShare(t *testing.T) {
 			if tt.setup != nil {
 				tt.setup(t, st, h)
 			}
-			if got := strings.Contains(call(t, h, http.MethodGet, "/admin", "").Body.String(), `href="/admin/access"`); got != tt.want {
+			if got := strings.Contains(call(t, h, http.MethodGet, "/admin/templates", "").Body.String(), `href="/admin/access"`); got != tt.want {
 				t.Errorf("menu offers the access page = %v, want %v", got, tt.want)
 			}
 			if got := call(t, h, http.MethodGet, "/admin/access", "").Code == http.StatusOK; got != tt.want {

@@ -24,7 +24,7 @@ func TestAdminPageListsWebhookEndpoints(t *testing.T) {
 
 	handler := newTestServer(t, webhookUIStore(), &fakeMessenger{}).Handler
 
-	rec := do(t, handler, http.MethodGet, "/admin", "")
+	rec := do(t, handler, http.MethodGet, "/admin/webhooks", "")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", rec.Code)
 	}
@@ -66,7 +66,7 @@ func TestCreatingAWebhookShowsTheURLOnce(t *testing.T) {
 	}
 
 	// Asking for the page again must not show it a second time.
-	again := do(t, handler, http.MethodGet, "/admin", "")
+	again := do(t, handler, http.MethodGet, "/admin/webhooks", "")
 	if strings.Contains(again.Body.String(), token) {
 		t.Error("the token is still on the page after the post that generated it")
 	}
@@ -409,7 +409,7 @@ func TestWebhookFormSavesATemplate(t *testing.T) {
 		t.Errorf("TemplateID = %q, want tmpl", saved.TemplateID)
 	}
 
-	body := do(t, handler, http.MethodGet, "/admin", "").Body.String()
+	body := do(t, handler, http.MethodGet, "/admin/webhooks", "").Body.String()
 	if !strings.Contains(body, `name="template_id"`) || !strings.Contains(body, "· Critical card") {
 		t.Error("page does not offer the template picker or name the endpoint's template")
 	}

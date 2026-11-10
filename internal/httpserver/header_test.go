@@ -38,7 +38,7 @@ func TestHeaderNamesTheSignedInUser(t *testing.T) {
 	}{
 		{
 			name: "an editor on the configuration page", who: "jens", roles: []authz.Role{authz.RoleEditor},
-			path: "/admin", want: []string{"jens", "Editor"},
+			path: "/admin/templates", want: []string{"jens", "Editor"},
 		},
 		{
 			name: "and on the routing page", who: "jens", roles: []authz.Role{authz.RoleEditor},
@@ -48,22 +48,22 @@ func TestHeaderNamesTheSignedInUser(t *testing.T) {
 			// Roles nest, so the highest built-in one says it all; a role the
 			// deployment defined is on the user info page instead.
 			name: "several roles", who: "jens", roles: []authz.Role{"auditor", authz.RoleViewer, authz.RoleAdmin},
-			path: "/admin", want: []string{"jens", "Administrator"}, unwanted: []string{"auditor"},
+			path: "/admin/templates", want: []string{"jens", "Administrator"}, unwanted: []string{"auditor"},
 		},
 		{
 			// Keycloak puts its own roles into the same claim.
 			name: "provider roles beside the application role", who: "jens",
 			roles: []authz.Role{"offline_access", "uma_authorization", authz.RoleViewer},
-			path:  "/admin", want: []string{"Viewer"}, unwanted: []string{"offline_access", "uma_authorization"},
+			path:  "/admin/templates", want: []string{"Viewer"}, unwanted: []string{"offline_access", "uma_authorization"},
 		},
 		{
 			name: "translated", who: "jens", roles: []authz.Role{authz.RoleEditor},
-			path: "/admin", language: "de", want: []string{"Bearbeiter", "Abmelden"},
+			path: "/admin/templates", language: "de", want: []string{"Bearbeiter", "Abmelden"},
 		},
 		{
 			// A provider that sends no name still signed somebody in.
 			name: "a provider that sent no name", roles: []authz.Role{authz.RoleViewer},
-			path: "/admin", want: []string{"Signed in", "Viewer"},
+			path: "/admin/templates", want: []string{"Signed in", "Viewer"},
 		},
 	}
 
@@ -112,12 +112,12 @@ func TestSidebarLinksThePages(t *testing.T) {
 		{
 			name:  "an admin manages permissions",
 			roles: []authz.Role{authz.RoleAdmin},
-			want:  []string{`href="/admin"`, `href="/admin/routing"`, `href="/admin/recipients"`, `href="/admin/permissions"`},
+			want:  []string{`href="/admin/routing"`, `href="/admin/recipients"`, `href="/admin/permissions"`},
 		},
 		{
 			name:     "an editor does not",
 			roles:    []authz.Role{authz.RoleEditor},
-			want:     []string{`href="/admin"`, `href="/admin/routing"`, `href="/admin/recipients"`},
+			want:     []string{`href="/admin/routing"`, `href="/admin/recipients"`},
 			unwanted: []string{`href="/admin/permissions"`, `href="/admin/notifications"`},
 		},
 	}
@@ -127,7 +127,7 @@ func TestSidebarLinksThePages(t *testing.T) {
 			t.Parallel()
 
 			st := signedInAs(seededUIStore(), "jens", tt.roles...)
-			body := asRole(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin", "").Body.String()
+			body := asRole(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin/templates", "").Body.String()
 
 			if !strings.Contains(body, `id="sidebar"`) || !strings.Contains(body, `id="nav-toggle"`) {
 				t.Fatal("the page has no sidebar and burger")
@@ -152,7 +152,7 @@ func TestHeaderSaysWhenThereIsNoRole(t *testing.T) {
 	t.Parallel()
 
 	st := signedInAs(seededUIStore(), "jens")
-	body := asRole(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin", "").Body.String()
+	body := asRole(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin/templates", "").Body.String()
 
 	if !strings.Contains(body, "jens") || !strings.Contains(body, "no role") {
 		t.Error("the header does not say that the user holds no role")
@@ -185,7 +185,7 @@ func TestBurgerIsRenderedBeforeFirstPaint(t *testing.T) {
 	t.Parallel()
 
 	st := signedInAs(seededUIStore(), "jens", authz.RoleEditor)
-	body := asRole(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin", "").Body.String()
+	body := asRole(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin/templates", "").Body.String()
 
 	head, _, _ := strings.Cut(body, "</head>")
 	if !strings.Contains(head, `classList.add("js")`) || !strings.Contains(head, `"sidebar-closed"`) {
@@ -222,11 +222,161 @@ func TestSidebarShowsTheVersion(t *testing.T) {
 				Version: tt.version,
 			}
 			st := signedInAs(seededUIStore(), "jens", authz.RoleEditor)
-			body := asRole(t, mustServer(t, cfg, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin", "").Body.String()
+			body := asRole(t, mustServer(t, cfg, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin/templates", "").Body.String()
 
 			if got := strings.Contains(body, "Version "+tt.version); got != tt.want {
 				t.Errorf("the sidebar shows the version: %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+// botServer is a server with the bot configured and installed for everyone.
+func botServer(t *testing.T, st *fakeStore) *http.Server {
+	t.Helper()
+
+	cfg := config.Config{
+		Server:  config.ServerConfig{Addr: ":0"},
+		Webhook: config.WebhookConfig{Token: "token"},
+		Admin:   config.AdminConfig{Username: "admin", Password: "pass"},
+		Bot:     notificationsBotConfig(),
+	}
+	cfg.Bot.GlobalInstall = true
+	return mustServer(t, cfg, st, &fakeMessenger{})
+}
+
+// sidebarOf cuts the sidebar out of a page.
+func sidebarOf(body string) string {
+	_, rest, _ := strings.Cut(body, `id="sidebar"`)
+	side, _, _ := strings.Cut(rest, "</aside>")
+	return side
+}
+
+func TestSidebarGroups(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		role   authz.Role
+		groups []string
+		hrefs  []string
+		absent []string
+	}{
+		{
+			name:   "an admin sees every group in order",
+			role:   authz.RoleAdmin,
+			groups: []string{"configuration", "delivery", "access", "administration"},
+			hrefs: []string{
+				"/admin/routing", "/admin/routes", "/admin/templates", "/admin/destinations", "/admin/webhooks",
+				"/admin/teams", "/admin/recipients", "/admin/broadcasts",
+				"/admin/access", "/admin/grants", "/admin/permissions", "/admin/groups", "/admin/users", "/admin/tokens",
+				"/admin/people",
+			},
+		},
+		{
+			name:   "a viewer has no administration or permission pages",
+			role:   authz.RoleViewer,
+			groups: []string{"configuration", "delivery", "access"},
+			absent: []string{`data-group="administration"`, `href="/admin/grants"`, `href="/admin/permissions"`, `href="/admin/users"`},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			st := signedInAs(seededUIStore(), "jens", tt.role)
+			side := sidebarOf(asRole(t, botServer(t, st).Handler, http.MethodGet, "/admin/templates", "").Body.String())
+
+			if got := strings.Count(side, "data-group="); got != len(tt.groups) {
+				t.Errorf("sidebar has %d groups, want %d", got, len(tt.groups))
+			}
+			last := -1
+			for _, g := range tt.groups {
+				i := strings.Index(side, `data-group="`+g+`"`)
+				if i < 0 || i < last {
+					t.Errorf("group %s missing or out of order", g)
+				}
+				last = i
+			}
+			last = -1
+			for _, h := range tt.hrefs {
+				i := strings.Index(side, `href="`+h+`"`)
+				if i < 0 || i < last {
+					t.Errorf("link %s missing or out of order", h)
+				}
+				last = i
+			}
+			for _, a := range tt.absent {
+				if strings.Contains(side, a) {
+					t.Errorf("sidebar contains %s", a)
+				}
+			}
+		})
+	}
+}
+
+func TestSidebarCurrent(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct{ path, current string }{
+		{"/admin/routes", "/admin/routes"},
+		{"/admin/templates", "/admin/templates"},
+		{"/admin/routing", "/admin/routing"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.path, func(t *testing.T) {
+			t.Parallel()
+
+			st := signedInAs(seededUIStore(), "jens", authz.RoleAdmin)
+			side := sidebarOf(asRole(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, tt.path, "").Body.String())
+
+			if got := strings.Count(side, `aria-current="page"`); got != 1 {
+				t.Fatalf("%d links are current, want 1", got)
+			}
+			i := strings.Index(side, `aria-current="page"`)
+			open := strings.LastIndex(side[:i], "<a")
+			if !strings.Contains(side[open:i], `href="`+tt.current+`"`) {
+				t.Errorf("current link is not %s: %s", tt.current, side[open:i])
+			}
+		})
+	}
+}
+
+func TestSidebarAppliesGroupStateBeforePaint(t *testing.T) {
+	t.Parallel()
+
+	st := signedInAs(seededUIStore(), "jens", authz.RoleAdmin)
+	body := asRole(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin/teams", "").Body.String()
+
+	_, rest, _ := strings.Cut(body, `id="sidebar"`)
+	side, _, _ := strings.Cut(rest, "</aside>")
+	nav, after, ok := strings.Cut(side, "</nav>")
+	if !ok || !strings.Contains(after, "<script>") || !strings.Contains(after, "teamster.nav.") {
+		t.Errorf("no state script after the nav: %q", after)
+	}
+	if got := strings.Count(nav, "data-current"); got != 1 {
+		t.Fatalf("%d groups are current, want 1", got)
+	}
+	i := strings.Index(nav, "data-current")
+	if open := strings.LastIndex(nav[:i], "<details"); !strings.Contains(nav[open:i], `data-group="delivery"`) {
+		t.Errorf("current group is not delivery: %s", nav[open:i])
+	}
+}
+
+func TestNotificationsInUserMenu(t *testing.T) {
+	t.Parallel()
+
+	st := signedInAs(seededUIStore(), "jens", authz.RoleEditor)
+	body := asRole(t, botServer(t, st).Handler, http.MethodGet, "/admin/templates", "").Body.String()
+
+	link := `href="/admin/notifications"`
+	if strings.Contains(sidebarOf(body), link) {
+		t.Error("the sidebar still links notifications")
+	}
+	_, menu, _ := strings.Cut(body, `id="user-menu"`)
+	if !strings.Contains(menu, link) {
+		t.Error("the user menu lacks the notifications link")
 	}
 }

@@ -37,8 +37,9 @@ signal kills it immediately.
 - Routes (label selector -> destination + template)
 - Access tokens for the senders (see [Authenticating a sender](#authenticating-a-sender))
 
-`/admin` puts templates, destinations, webhooks and routes on tabs; `/admin?tab=routes` opens one
-directly.
+The admin sidebar groups the pages (Configuration, Delivery, Access, Administration); routes,
+templates, destinations and webhooks each have a page, such as `/admin/routes`
+([ADR 0103](docs/adr/0103-group-the-admin-sidebar-and-give-each-resource-a-page.md)).
 
 ## Configuration
 
@@ -170,7 +171,8 @@ defaults to Microsoft's public endpoint and must stay `https`: it is the trust a
 activity is checked against, so turning the feature on with it cleared or pointed at plain `http` is
 rejected at startup rather than registering a route that would never validate anything. Turning the
 feature on also registers `POST /bot/messages`, the endpoint the bot receives Teams activities on,
-and `/admin/notifications` and its actions, described below, along with the sidebar link to them;
+and `/admin/notifications` and its actions, described below, along with the **My notifications**
+user menu entry;
 leaving it off registers none of that, so an unconfigured deployment exposes nothing new and offers
 nobody a page that instructs them to talk to a bot that does not exist. Once a chat is linked, point
 a route at that person and alerts arrive there — see the routing notes for how a route addresses a
@@ -186,9 +188,9 @@ Entra, see [Finding each user's own Teams chat](docs/keycloak.md#finding-each-us
 
 Otherwise:
 
-1. Any signed-in person — `viewer` and up — opens **Notifications** (`/admin/notifications`) in the
-   admin UI and asks for a code. The same thing is available to a script as `POST
-   /api/recipients/link`, which returns the code as JSON:
+1. Any signed-in person — `viewer` and up — opens **My notifications** (`/admin/notifications`, in
+   the user menu) in the admin UI and asks for a code. The same thing is available to a script as
+   `POST /api/recipients/link`, which returns the code as JSON:
 
    ```json
    { "code": "AB3D-EFGH-J2MN", "expires_at": "2026-09-16T10:30:00Z" }
@@ -1340,7 +1342,7 @@ it is the way back in, and nobody can disable themselves. The API is `GET /api/u
 
 ### Limiting a role to Teams and channels
 
-An admin can narrow where a role may deliver on **Permissions** (`/admin/permissions`): pick a role,
+An admin can narrow where a role may deliver on **Channel scopes** (`/admin/permissions`): pick a role,
 then tick Teams and channels in a collapsible tree, with one toggle at the top for all of them.
 Ticking a Team grants its channels, including ones added later; ticking channels individually grants
 only those. Saving replaces what that role had, in one transaction.

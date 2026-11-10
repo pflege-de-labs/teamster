@@ -104,7 +104,7 @@ func TestGraphEndpointsReportFailures(t *testing.T) {
 		}
 	}
 
-	if rec := do(t, handler, http.MethodGet, "/admin", ""); rec.Code != http.StatusOK {
+	if rec := do(t, handler, http.MethodGet, "/admin/templates", ""); rec.Code != http.StatusOK {
 		t.Error("a Graph failure took the admin page down with it")
 	}
 }

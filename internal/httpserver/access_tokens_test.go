@@ -169,7 +169,7 @@ func TestTokensAreSelfService(t *testing.T) {
 	if rec := call(t, handler, http.MethodPost, "/api/tokens", `{"name":"a","scope":["alertmanager"]}`); rec.Code != http.StatusForbidden {
 		t.Errorf("minting beyond the grant = %d", rec.Code)
 	}
-	if body := call(t, handler, http.MethodGet, "/admin", "").Body.String(); !strings.Contains(body, `href="/admin/tokens"`) {
+	if body := call(t, handler, http.MethodGet, "/admin/templates", "").Body.String(); !strings.Contains(body, `href="/admin/tokens"`) {
 		t.Error("the nav does not offer tokens to someone who may use a webhook")
 	}
 }
@@ -184,7 +184,7 @@ func TestTokensPage(t *testing.T) {
 	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "alertmanager") {
 		t.Fatalf("GET /admin/tokens = %d, want the page listing the token", rec.Code)
 	}
-	if rec := do(t, handler, http.MethodGet, "/admin", ""); !strings.Contains(rec.Body.String(), `href="/admin/tokens"`) {
+	if rec := do(t, handler, http.MethodGet, "/admin/templates", ""); !strings.Contains(rec.Body.String(), `href="/admin/tokens"`) {
 		t.Error("an admin's sidebar has no link to the tokens page")
 	}
 

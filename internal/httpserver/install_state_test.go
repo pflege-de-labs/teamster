@@ -143,7 +143,7 @@ func TestTeamsPage(t *testing.T) {
 		t.Error("the team a destination uses without the app is not listed first")
 	}
 
-	if rec := do(t, handler, http.MethodGet, "/admin", ""); !strings.Contains(rec.Body.String(), "Teams app missing") {
+	if rec := do(t, handler, http.MethodGet, "/admin/destinations", ""); !strings.Contains(rec.Body.String(), "Teams app missing") {
 		t.Error("the destination in a team without the app carries no badge")
 	}
 	if rec := do(t, handler, http.MethodGet, "/api/routing/graph", ""); !strings.Contains(rec.Body.String(), `"app_missing":true`) {

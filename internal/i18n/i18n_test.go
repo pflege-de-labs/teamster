@@ -196,7 +196,7 @@ func TestOverridesWinOverTheBuiltInText(t *testing.T) {
 		t.Errorf("Lookup() = %q, want the override", got)
 	}
 	// Entry by entry: an override holding one string changes one string.
-	if got := b.Lookup(language.German, "nav.configuration"); got == "" || got == "nav.configuration" {
+	if got := b.Lookup(language.German, "nav.recipients"); got == "" || got == "nav.recipients" {
 		t.Errorf("Lookup() = %q, want the built-in text kept", got)
 	}
 }
@@ -220,7 +220,7 @@ func TestAnOverrideCanAddALanguage(t *testing.T) {
 		t.Errorf("Lookup() = %q, want the added string", got)
 	}
 	// Everything it does not carry still falls back to the source.
-	if got := b.Lookup(language.French, "nav.configuration"); got != "Configuration" {
+	if got := b.Lookup(language.French, "nav.recipients"); got != "Recipients" {
 		t.Errorf("Lookup() = %q, want the English text", got)
 	}
 }
@@ -256,7 +256,7 @@ func TestT(t *testing.T) {
 	b := bundle(t, "", language.English)
 	ctx := WithLanguage(context.Background(), b, language.German)
 
-	if got := T(ctx, "nav.configuration"); got != "Konfiguration" {
+	if got := T(ctx, "nav.recipients"); got != "Empfänger" {
 		t.Errorf("T() = %q, want the German text", got)
 	}
 	if got := T(ctx, "permissions.save_failed", "Graph antwortet nicht"); got != "Speichern fehlgeschlagen: Graph antwortet nicht" {
@@ -267,7 +267,7 @@ func TestT(t *testing.T) {
 	}
 
 	// A component rendered outside a request still renders.
-	if got := T(context.Background(), "nav.configuration"); got != "nav.configuration" {
+	if got := T(context.Background(), "nav.recipients"); got != "nav.recipients" {
 		t.Errorf("T() without a language = %q, want the key", got)
 	}
 	if got := LanguageOf(context.Background()); got != "en" {
