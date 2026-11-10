@@ -98,7 +98,8 @@ Open <http://localhost:8080/admin> and sign in with the admin username and passw
 
 ### Add a destination
 
-On the **Destinations** tab, give the destination a name, pick the **Team** and the **Channel**,
+Open **Configuration → Destinations**, give the destination a name, pick the **Team** and the
+**Channel**,
 and save it.
 
 The first destination you create becomes the **global default destination**: whatever no route
@@ -106,7 +107,7 @@ claims goes there.
 
 ### Add a route
 
-On the **Routes** tab, create a route:
+Open **Configuration → Routes** and create a route:
 
 | Field | Value |
 | --- | --- |

@@ -59,8 +59,9 @@ overview** (`/admin/access`); see
 (`/admin/me`) lists what has been shared with you, and through whom.
 
 Sharing adds to roles; it does not replace them. Editors keep editing everything. Someone with no
-role but a shared record sees `/admin` with just what was shared. Pages built from the whole
-configuration stay closed to them: the routing graph, previews and the export.
+role but a shared record lands on **Configuration → Templates** and sees just what was shared.
+Pages built from the whole configuration stay closed to them: the routing graph, previews and the
+export.
 
 ## Groups
 

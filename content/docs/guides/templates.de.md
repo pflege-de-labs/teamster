@@ -7,8 +7,8 @@ Schreiben Sie eine Vorlage, die aus einem Ereignis eine Teams-Nachricht macht, l
 welche Webhooks sie verarbeitet, und bestimmen Sie die Standardvorlage, auf die jeder Webhook
 zurückfällt.
 
-Vorlagen finden Sie unter **Vorlagen** auf **/admin**. Jedes Feld, das eine Vorlage lesen kann,
-führt [Vorlagendaten](../../reference/template-data/) auf.
+Vorlagen finden Sie unter **Konfiguration → Vorlagen** (`/admin/templates`). Jedes Feld, das eine
+Vorlage lesen kann, führt [Vorlagendaten](../../reference/template-data/) auf.
 
 ## Eine Vorlage schreiben {#write-a-template}
 

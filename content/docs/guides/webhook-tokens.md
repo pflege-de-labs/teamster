@@ -20,7 +20,8 @@ else for the webhooks granted to them. Granting webhook access is covered in
 
 ### Create it
 
-Open **/admin/tokens**. Name the token after the sender, for example `alertmanager-prod`, and tick
+Open **Access → Access tokens** (**/admin/tokens**). Name the token after the sender, for example
+`alertmanager-prod`, and tick
 the webhooks it may send to. Tick only the one the sender uses.
 
 ### Copy it

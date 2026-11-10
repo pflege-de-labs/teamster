@@ -17,12 +17,13 @@ Berechtigungsnachweis, wie zuvor auch.
 ### Das Ziel anlegen {#create-the-destination}
 
 Der Kanal, in den der Absender postet, muss in Teamster als Ziel existieren. Legen Sie ihn unter
-**Ziele** auf **/admin** an, falls nicht.
+**Konfiguration → Ziele** an, falls nicht.
 
 ### Den Endpunkt anlegen {#create-the-endpoint}
 
-Wählen Sie unter **Teams-V2-Webhooks** auf **/admin** das Ziel und geben Sie der URL zwei lesbare
-Segmente für das Team und den Kanal. Segmente bestehen aus Kleinbuchstaben, Ziffern und
+Wählen Sie unter **Konfiguration → Webhooks** im Bereich **Teams-V2-Webhooks** das Ziel und geben
+Sie der URL zwei lesbare Segmente für das Team und den Kanal. Segmente bestehen aus
+Kleinbuchstaben, Ziffern und
 Bindestrichen, sind bis zu 64 Zeichen lang und beginnen und enden mit einem Buchstaben oder einer
 Ziffer.
 
@@ -152,7 +153,7 @@ zerlegen und denselben Inhalt anders anordnen. Zwei vorgefertigte Vorlagen tun d
 
 ### Die Vorlage anlegen
 
-Öffnen Sie unter **Vorlagen** auf **/admin** eine neue Vorlage und wählen Sie unter **Mit einer
+Öffnen Sie unter **Konfiguration → Vorlagen** eine neue Vorlage und wählen Sie unter **Mit einer
 Vorlage beginnen** eine der beiden. Prüfen Sie sie in der Vorschau mit dem Beispiel **Karte des
 Teams-V2-Webhooks mit langen Fakten**.
 
@@ -179,7 +180,7 @@ zuzustellen.
 
 ### Die Route des Endpunkts finden {#find-the-endpoints-route}
 
-Öffnen Sie den Bereich **Routen** unter **/admin**. Die Route mit dem Namen
+Öffnen Sie **Konfiguration → Routen**. Die Route mit dem Namen
 `webhook <team>/<channel>` ist mit **Verwaltet vom Webhook `<team>/<channel>`** gekennzeichnet.
 Ihr Selektor ist `teamster_source=teamsv2`, `teamster_team=<team>` und
 `teamster_channel=<channel>`. Das Formular des Endpunkts verweist als **Route dieses Webhooks**

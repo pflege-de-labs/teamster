@@ -19,7 +19,8 @@ audit:
   database: true
 ```
 
-Or `TEAMSTER_AUDIT_DATABASE=true`. Admins then read the trail at **/admin/audit**, newest first,
+Or `TEAMSTER_AUDIT_DATABASE=true`. Admins then read the trail at **Administration → Audit trail**
+(**/admin/audit**), newest first,
 filtered by actor, action, type, id and time.
 
 Scripts read the same trail with `GET /api/audit`:

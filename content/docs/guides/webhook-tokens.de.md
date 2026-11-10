@@ -21,7 +21,8 @@ auf die Webhooks freigeben, beschreibt
 
 ### Das Token erstellen {#create-it}
 
-Öffnen Sie **/admin/tokens**. Benennen Sie das Token nach dem Absender, zum Beispiel
+Öffnen Sie **Zugriff → Zugriffstoken** (**/admin/tokens**). Benennen Sie das Token nach dem
+Absender, zum Beispiel
 `alertmanager-prod`, und kreuzen Sie die Webhooks an, an die es senden darf. Kreuzen Sie nur den an,
 den der Absender verwendet.
 

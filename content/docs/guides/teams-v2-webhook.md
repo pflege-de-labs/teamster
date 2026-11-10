@@ -16,11 +16,12 @@ credential, as it was before.
 ### Create the destination
 
 The channel the sender posts into must exist as a destination in Teamster. Create it under
-**Destinations** on **/admin** if it does not.
+**Configuration → Destinations** if it does not.
 
 ### Create the endpoint
 
-Under **Teams V2 webhooks** on **/admin**, pick the destination and give the URL two readable
+Under **Configuration → Webhooks**, in **Teams V2 webhooks**, pick the destination and give the URL
+two readable
 segments for the team and the channel. Segments are lower case letters, digits and hyphens, up to
 64 characters, starting and ending with a letter or digit.
 
@@ -147,7 +148,7 @@ content out differently. Two presets do this:
 
 ### Create the template
 
-Open a new template under **Templates** on **/admin** and pick one of the presets under **Start
+Open a new template under **Configuration → Templates** and pick one of the presets under **Start
 from a preset**. Check it in the preview against **Teams V2 webhook card with long facts**.
 
 ### Use it
@@ -171,7 +172,7 @@ that select the same messages to deliver them somewhere else as well.
 
 ### Find the endpoint's route
 
-Open the **Routes** panel on **/admin**. The route named `webhook <team>/<channel>` is marked
+Open **Configuration → Routes**. The route named `webhook <team>/<channel>` is marked
 **Managed by webhook `<team>/<channel>`**. Its selector is `teamster_source=teamsv2`,
 `teamster_team=<team>` and `teamster_channel=<channel>`. The endpoint's form links to it as
 **Route of this webhook**.

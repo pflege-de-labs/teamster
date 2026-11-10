@@ -41,7 +41,8 @@ oder umbenennt, macht die Verwaltungsoberfläche unbrauchbar.
 
 ## Prüfen, wer was darf {#check-who-may-do-what}
 
-* **Zugriffsübersicht** (**/admin/access**) erscheint im Menü für Administratoren und für alle, die
+* **Zugriff → Zugriffsübersicht** (**/admin/access**) erscheint in der Seitenleiste für
+  Administratoren und für alle, die
   eine Berechtigung nennt, direkt oder über eine Gruppe, Anbietergruppe oder Rolle. Wer einen
   Datensatz anlegt, wird sein Eigentümer und hat damit eine solche Berechtigung. Außer der Rolle
   Administrator darf keine Rolle teilen (`share`); ein Bearbeiter, der nichts besitzt und keine
@@ -168,7 +169,7 @@ Häkchen und klicken Sie auf **Speichern**, um zu ersetzen, was er hat; ohne Hä
 entzogen. **Entziehen** entfernt die Zeile.
 
 Niemand kann mehr vergeben, als er selbst hat. Wer keine Rolle, aber einen geteilten Datensatz hat,
-sieht **/admin** nur mit dem, was geteilt wurde.
+landet auf **Konfiguration → Vorlagen** und sieht nur das, was geteilt wurde.
 
 `create` auf eine ganze Sammlung wird über die API erteilt:
 
@@ -232,9 +233,10 @@ Liste.
 
 {{% steps %}}
 
-### Berechtigungen öffnen {#open-permissions}
+### Kanalbereiche öffnen {#open-permissions}
 
-Öffnen Sie als Administrator **Berechtigungen** (**/admin/permissions**) und wählen Sie eine Rolle.
+Öffnen Sie als Administrator **Zugriff → Kanalbereiche** (**/admin/permissions**) und wählen Sie
+eine Rolle.
 
 ### Ankreuzen, was sie erreichen darf {#tick-what-it-may-reach}
 
