@@ -4,8 +4,11 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/pflege-de-labs/teamster/internal/authz"
+	"github.com/pflege-de-labs/teamster/internal/config"
+	"github.com/pflege-de-labs/teamster/internal/graph"
 	"github.com/pflege-de-labs/teamster/internal/models"
 )
 
@@ -79,5 +82,32 @@ func TestDestinationList(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestDestinationListAppBadge(t *testing.T) {
+	t.Parallel()
+
+	st := newFakeStore()
+	st.destinations["d1"] = models.Destination{ID: "d1", Name: "Ops alerts", TeamID: "t1", ChannelID: "c"}
+	st.botTeams["t1"] = models.BotTeam{TeamID: "t1", ServiceURL: "https://smba.example/", UpdatedAt: time.Now()}
+	msg := &fakeMessenger{teams: []graph.Team{{ID: "t1", Name: "Ops"}, {ID: "t2", Name: "Dev"}}}
+	cfg := config.Config{
+		Server:  config.ServerConfig{Addr: ":0"},
+		Webhook: config.WebhookConfig{Token: "token"},
+		Admin:   config.AdminConfig{Username: "admin", Password: "pass"},
+		Bot:     config.BotConfig{ClientID: "bot-1"},
+	}
+	const badge = `href="/admin/teams" class="rounded bg-amber-100`
+
+	installed := do(t, mustServer(t, cfg, st, msg).Handler, http.MethodGet, "/admin/destinations", "").Body.String()
+	if strings.Contains(installed, badge) {
+		t.Error("an installed team carries the app-missing badge")
+	}
+
+	st.destinations["d2"] = models.Destination{ID: "d2", Name: "Dev alerts", TeamID: "t2", ChannelID: "c"}
+	missing := do(t, mustServer(t, cfg, st, msg).Handler, http.MethodGet, "/admin/destinations", "").Body.String()
+	if !strings.Contains(missing, badge) || !strings.Contains(missing, "Teams app missing") {
+		t.Error("a team without the app carries no badge linking to /admin/teams")
 	}
 }
