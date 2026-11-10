@@ -1,4 +1,5 @@
-// Tests which clicks and submits nav.js treats as leaving the page.
+// Tests the pure logic in web/nav.js: which clicks leave the page, and the legacy
+// /admin#section redirect (ADR 0103).
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
@@ -37,3 +38,21 @@ test("leaves", () => {
   ];
   for (const c of cases) assert.equal(leaves(c.event, c.el, here), c.want, c.name);
 });
+
+const target = globalThis.teamsterNavLegacyTarget;
+
+const cases = [
+  ["/admin/routing", "#templates", "/admin/templates"],
+  ["/admin/routing", "#destinations", "/admin/destinations"],
+  ["/admin/routing", "#webhooks", "/admin/webhooks"],
+  ["/admin/routing", "#routes", "/admin/routes"],
+  ["/admin/routing", "#grants", "/admin/grants"],
+  ["/admin/routing", "#flow", null],
+  ["/admin/routing", "", null],
+  ["/admin/templates", "#templates", null],
+  ["/admin/routing", "#templatesX", null],
+];
+
+for (const [path, hash, want] of cases) {
+  test(`${path}${hash || " (no hash)"}`, () => assert.equal(target(path, hash), want));
+}
