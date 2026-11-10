@@ -1342,7 +1342,7 @@ it is the way back in, and nobody can disable themselves. The API is `GET /api/u
 
 ### Limiting a role to Teams and channels
 
-An admin can narrow where a role may deliver on **Permissions** (`/admin/permissions`): pick a role,
+An admin can narrow where a role may deliver on **Channel scopes** (`/admin/permissions`): pick a role,
 then tick Teams and channels in a collapsible tree, with one toggle at the top for all of them.
 Ticking a Team grants its channels, including ones added later; ticking channels individually grants
 only those. Saving replaces what that role had, in one transaction.

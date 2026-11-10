@@ -1239,7 +1239,7 @@ final state on first paint. `web/nav.js` toggles that class and remembers the ch
 menu on an outside click or Escape. The bottom of the sidebar shows the build version,
 `config.Config.Version`, which `cli.Run` stamps from `main.version`. See
 [ADR 0042](adr/0042-sidebar-navigation-and-user-menu.md) and
-[ADR 0055](adr/0054-apply-sidebar-state-before-first-paint.md).
+[ADR 0054](adr/0054-apply-sidebar-state-before-first-paint.md).
 
 `formPost` takes the redirect target as a parameter rather than always answering `/admin`: a page of
 its own — `/admin/recipients`, like `/admin/permissions` — posts to its own `/delete` endpoint and
@@ -1258,8 +1258,9 @@ renders nothing else. An explicit dispatcher answers `GET` and `POST` and a 405 
 other methods, because the admin mux's catch-all `/` asset route would answer 404. `/admin` answers
 302 to `/admin/routing`, or `/admin/templates` for someone who only holds shared records.
 The old tab and edit query links of `/admin` answer 301 to the page and `?edit=<id>`, carrying
-`notice` and `error`, because Teams hint cards already carry those links. Each `formPost` names its
-page and answers `/admin/<page>`, so a save lands back where it was made. See
+`notice` and `error`, because Teams hint cards already carry those links. `/admin#<section>` links
+of the oldest cards reach `/admin/routing#<section>` and `nav.js` moves them to the page. Each
+`formPost` names its page and answers `/admin/<page>`, so a save lands back where it was made. See
 [ADR 0103](adr/0103-group-the-admin-sidebar-and-give-each-resource-a-page.md).
 
 ### Editor completion

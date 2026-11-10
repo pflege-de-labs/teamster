@@ -80,12 +80,12 @@ func (s *Server) resourceRoute(tab string, post http.HandlerFunc) http.HandlerFu
 	page := s.handleResourcePage(tab)
 	return func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
-		case http.MethodGet:
+		case http.MethodGet, http.MethodHead:
 			page(w, r)
 		case http.MethodPost:
 			post(w, r)
 		default:
-			w.Header().Set("Allow", "GET, POST")
+			w.Header().Set("Allow", "GET, HEAD, POST")
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
 	}
@@ -269,7 +269,7 @@ func formGuard(target string, w http.ResponseWriter, r *http.Request) bool {
 }
 
 // formPost guards the state-changing form endpoints that redirect back to
-// the /admin tab they were posted from. Basic auth credentials ride along on any cross-site form post, so
+// the page they were posted from. Basic auth credentials ride along on any cross-site form post, so
 // the request has to prove it came from this origin; there is no session to
 // hang a CSRF token on.
 func (s *Server) formPost(tab string, handler func(*http.Request) (string, error)) http.HandlerFunc {
@@ -281,8 +281,8 @@ func adminTabPath(tab string) string {
 	return "/admin/" + tab
 }
 
-// formPostTo is formPost for the endpoints that land somewhere other than
-// /admin -- the notifications page's own unlink control, most immediately.
+// formPostTo is formPost for endpoints whose target is not a resource page,
+// such as the notifications page's own unlink control.
 func (s *Server) formPostTo(target string, handler func(*http.Request) (string, error)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !formGuard(target, w, r) {
@@ -321,7 +321,7 @@ func sameOrigin(r *http.Request) bool {
 }
 
 func redirectTo(target string, w http.ResponseWriter, r *http.Request, notice, message string) {
-	// A target may carry a query of its own, such as the tab to land on.
+	// A target may carry a query of its own, such as the routing tab to land on.
 	dest, err := url.Parse(target)
 	if err != nil {
 		dest = &url.URL{Path: "/admin"}

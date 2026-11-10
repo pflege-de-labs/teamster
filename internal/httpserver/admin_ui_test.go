@@ -110,6 +110,31 @@ func TestAdminPageRejectsNonGet(t *testing.T) {
 	}
 }
 
+func TestResourcePageAnswersHead(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		method string
+		want   int
+	}{
+		{name: "GET", method: http.MethodGet, want: http.StatusOK},
+		{name: "HEAD", method: http.MethodHead, want: http.StatusOK},
+		{name: "PUT", method: http.MethodPut, want: http.StatusMethodNotAllowed},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			h := newTestServer(t, newFakeStore(), &fakeMessenger{}).Handler
+			rec := do(t, h, tt.method, "/admin/templates", "")
+			if rec.Code != tt.want {
+				t.Errorf("%s /admin/templates = %d, want %d", tt.method, rec.Code, tt.want)
+			}
+		})
+	}
+}
+
 func TestFormsCreateAndUpdate(t *testing.T) {
 	t.Parallel()
 

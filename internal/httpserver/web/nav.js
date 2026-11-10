@@ -1,5 +1,17 @@
 // Adds the burger that folds the sidebar away, remembering the choice, and closes the user menu on a click outside or Escape.
-(function () {
+(function (global) {
+  // Cards sent by v0.6-v0.8 link /admin#<section>, and a fragment never reaches the server's redirect.
+  global.teamsterNavLegacyTarget = (pathname, hash) =>
+    pathname === "/admin/routing" && /^#(templates|destinations|webhooks|routes|grants)$/.test(hash)
+      ? "/admin/" + hash.slice(1)
+      : null;
+  if (typeof document === "undefined") return;
+  const legacy = global.teamsterNavLegacyTarget(location.pathname, location.hash);
+  if (legacy) {
+    location.replace(legacy);
+    return;
+  }
+
   const toggle = document.getElementById("nav-toggle");
   const sidebar = document.getElementById("sidebar");
   if (toggle && sidebar) {
@@ -23,11 +35,13 @@
   }
 
   document.querySelectorAll("#sidebar details[data-group]").forEach((group) => {
-    group.addEventListener("toggle", () => {
+    // Click, not toggle: the parser-opened current group would fire toggle and drop its stored state.
+    group.querySelector("summary").addEventListener("click", () => {
       try {
         const key = "teamster.nav." + group.dataset.group;
-        if (group.open) localStorage.removeItem(key);
-        else localStorage.setItem(key, "closed");
+        // group.open is still the pre-click value here.
+        if (group.open) localStorage.setItem(key, "closed");
+        else localStorage.removeItem(key);
       } catch (e) {
         // Not remembered, but still toggled.
       }
@@ -46,4 +60,4 @@
       }
     });
   }
-})();
+})(typeof window !== "undefined" ? window : globalThis);

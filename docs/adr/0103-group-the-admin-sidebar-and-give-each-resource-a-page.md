@@ -26,7 +26,9 @@ sidebar of ADR 0042: its flat list of pages is replaced; the burger, user menu a
 * **Current item** is marked on the server with `aria-current="page"`, matched by path prefix.
 * **Redirects.** `/admin?tab=<t>` and `/admin?edit=<t>&id=<id>` answer 301 to the new URLs and keep
   `notice` and `error`. `/admin` answers 302 to `/admin/routing`, or to `/admin/templates` for
-  someone who only holds shared records.
+  someone who only holds shared records. A fragment never reaches the server, so `nav.js` sends
+  `/admin/routing#templates` (and `#destinations`, `#webhooks`, `#routes`, `#grants`) from the
+  oldest cards, `/admin#<section>`, to `/admin/<section>`.
 * **Group state.** Groups render open. `nav.js` stores a closed group in `localStorage`
   (`teamster.nav.<group>`); an inline script right after the sidebar's `<nav>` closes it again
   before paint, because the `<head>` script of
