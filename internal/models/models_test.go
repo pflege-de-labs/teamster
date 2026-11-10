@@ -122,13 +122,13 @@ func TestAddressesOf(t *testing.T) {
 func TestWithSourceLabelStripsEndpointLabels(t *testing.T) {
 	t.Parallel()
 
-	in := map[string]string{TeamLabel: "x", ChannelLabel: "y", SourceLabel: "forged"}
+	in := map[string]string{TeamLabel: "x", ChannelLabel: "y", ReceiverLabel: "r", SourceLabel: "forged"}
 	tests := []struct {
 		name, source string
 		want         map[string]string
 	}{
 		{"universal", SourceUniversal, map[string]string{SourceLabel: SourceUniversal}},
-		{"alertmanager", SourceAlertmanager, map[string]string{SourceLabel: SourceAlertmanager}},
+		{"alertmanager", SourceAlertmanager, map[string]string{ReceiverLabel: "r", SourceLabel: SourceAlertmanager}},
 		{"teamsv2", SourceTeamsV2, map[string]string{TeamLabel: "x", ChannelLabel: "y", SourceLabel: SourceTeamsV2}},
 	}
 	for _, tt := range tests {

@@ -154,7 +154,7 @@ func previewEvent(name string) models.Event {
 		return alertmanagerEvent(models.AlertmanagerPayload{
 			Receiver: "teamster", Status: "firing", GroupKey: `{}:{service="api"}`,
 			GroupLabels:       map[string]string{"service": "api"},
-			CommonLabels:      map[string]string{"service": "api", "severity": "critical", models.SourceLabel: models.SourceAlertmanager},
+			CommonLabels:      map[string]string{"service": "api", "severity": "critical", models.SourceLabel: models.SourceAlertmanager, models.ReceiverLabel: "teamster"},
 			CommonAnnotations: map[string]string{"summary": "api is degraded"},
 			ExternalURL:       "http://alertmanager.example",
 			Alerts: []models.AlertmanagerAlert{
@@ -189,10 +189,11 @@ func previewEvent(name string) models.Event {
 			Key:    "9f9f5f4a1f",
 			State:  models.StateOpen,
 			Labels: map[string]string{
-				"alertname":        "HighCPU",
-				"severity":         "critical",
-				"service":          "api",
-				models.SourceLabel: models.SourceAlertmanager,
+				"alertname":          "HighCPU",
+				"severity":           "critical",
+				"service":            "api",
+				models.SourceLabel:   models.SourceAlertmanager,
+				models.ReceiverLabel: "teamster",
 			},
 			Alertmanager: &models.AlertmanagerEvent{
 				Alerts:       []models.AlertmanagerAlert{alert},

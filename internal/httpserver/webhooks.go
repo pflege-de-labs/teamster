@@ -108,6 +108,21 @@ func alertmanagerEvent(payload models.AlertmanagerPayload) models.Event {
 	return ev
 }
 
+// routedLabels are what routing sees: the sender's labels plus the ones only
+// the server sets. Applied after the key, so keys derived from labels stay put.
+func routedLabels(ev models.Event) map[string]string {
+	labels := models.WithSourceLabel(ev.Labels, ev.Source)
+	if ev.Alertmanager == nil {
+		return labels
+	}
+	delete(labels, models.ReceiverLabel)
+	// The Prometheus Operator prefixes "<namespace>/<config>/", which differs per cluster.
+	if receiver := ev.Alertmanager.Receiver; receiver != "" {
+		labels[models.ReceiverLabel] = receiver[strings.LastIndex(receiver, "/")+1:]
+	}
+	return labels
+}
+
 // alertmanagerKey is the event key of the group Alertmanager calls groupKey.
 func alertmanagerKey(groupKey string) string {
 	sum := sha256.Sum256([]byte(models.SourceAlertmanager + groupKey))
@@ -186,7 +201,7 @@ func (s *Server) closeLegacyAlertCards(ctx context.Context, payload models.Alert
 }
 
 func (s *Server) closeLegacyAlertCard(ctx context.Context, ev models.Event) error {
-	ev.Labels = models.WithSourceLabel(ev.Labels, ev.Source)
+	ev.Labels = routedLabels(ev)
 	result, err := s.router.Plan(ctx, ev.Labels)
 	if err != nil {
 		return fmt.Errorf("route: %w", err)
@@ -280,7 +295,7 @@ func (s *Server) processEvent(ctx context.Context, ev models.Event) (report, err
 	}
 	// After the key, so a card posted before the label existed is still the
 	// one a later update or close finds.
-	ev.Labels = models.WithSourceLabel(ev.Labels, ev.Source)
+	ev.Labels = routedLabels(ev)
 	// Before routing, so an event no route matches yet still teaches the
 	// editor the labels a route for it would select on.
 	if s.samples != nil {
