@@ -188,9 +188,9 @@ Entra, see [Finding each user's own Teams chat](docs/keycloak.md#finding-each-us
 
 Otherwise:
 
-1. Any signed-in person — `viewer` and up — opens **My notifications** (`/admin/notifications`, in the user menu) in the
-   admin UI and asks for a code. The same thing is available to a script as `POST
-   /api/recipients/link`, which returns the code as JSON:
+1. Any signed-in person — `viewer` and up — opens **My notifications** (`/admin/notifications`, in
+   the user menu) in the admin UI and asks for a code. The same thing is available to a script as
+   `POST /api/recipients/link`, which returns the code as JSON:
 
    ```json
    { "code": "AB3D-EFGH-J2MN", "expires_at": "2026-09-16T10:30:00Z" }

@@ -1224,19 +1224,18 @@ the request to prove its origin, because basic auth credentials travel with a cr
 there is no session to hold a CSRF token. See
 [ADR 0008](adr/0008-templ-tailwind-admin-ui.md).
 
-Every signed-in page shares `layout.templ`. The pages are listed in a sidebar of four collapsible groups (`sidebar` in
-`usermenu.templ`; see below). The header holds a `<details>` user menu under the user's name and the highest
-built-in role, translated. It holds a link to `/admin/userinfo`, the languages as flag buttons
-(served from `web/flags/`, named by their alt text), the time zone switch and the sign-out form.
-`localized` puts the zone from the `teamster_timezone` cookie, UTC by default, into the context,
-and `stamp(ctx, t)` formats every time on a page in it with the zone's abbreviation. The
-**Browser time** button stays hidden until `web/timezone.js` has filled in the browser's IANA zone;
-`POST /admin/timezone` checks the zone with `time.LoadLocation` before storing it
-([ADR 0067](adr/0067-times-in-the-admin-ui-follow-a-chosen-zone.md)). Without JavaScript the
-sidebar is always open and the menu opens natively.
-An inline script in `<head>` marks `<html>` with `js` and, when the sidebar was folded,
-`sidebar-closed`, so the burger and the sidebar are in their final state on first paint.
-`web/nav.js` toggles that class and remembers the choice, and closes the
+Every signed-in page shares `layout.templ`. The pages are listed in a sidebar of four collapsible
+groups (`sidebar` in `usermenu.templ`; see below). The header holds a `<details>` user menu under
+the user's name and the highest built-in role, translated. It holds a link to `/admin/userinfo`, the
+languages as flag buttons (served from `web/flags/`, named by their alt text), the time zone switch
+and the sign-out form. `localized` puts the zone from the `teamster_timezone` cookie, UTC by
+default, into the context, and `stamp(ctx, t)` formats every time on a page in it with the zone's
+abbreviation. The **Browser time** button stays hidden until `web/timezone.js` has filled in the
+browser's IANA zone; `POST /admin/timezone` checks the zone with `time.LoadLocation` before storing
+it ([ADR 0067](adr/0067-times-in-the-admin-ui-follow-a-chosen-zone.md)). Without JavaScript the
+sidebar is always open and the menu opens natively. An inline script in `<head>` marks `<html>` with
+`js` and, when the sidebar was folded, `sidebar-closed`, so the burger and the sidebar are in their
+final state on first paint. `web/nav.js` toggles that class and remembers the choice, and closes the
 menu on an outside click or Escape. The bottom of the sidebar shows the build version,
 `config.Config.Version`, which `cli.Run` stamps from `main.version`. See
 [ADR 0042](adr/0042-sidebar-navigation-and-user-menu.md) and
@@ -1812,10 +1811,10 @@ PR found missing from it. A person can unlink themselves there; an admin can unl
 ### Self-service: `/admin/notifications`
 
 `GET /admin/notifications` is a page like any other under `requireSession`, offered to `viewer` and
-up: linking or unlinking a chat is a person managing their own membership, not administering
-anyone else's, which is why it is not folded into the configuration pages or gated behind `CanManage` the way the
-configuration and permissions panels are. It, its two POST actions and the user menu entry for it
-(`usermenu.templ`, gated on `Viewer.NotificationsEnabled`) are registered/rendered only when
+up: linking or unlinking a chat is a person managing their own membership, not administering anyone
+else's, which is why it is not folded into the configuration pages or gated behind `CanManage` the
+way the configuration and permissions panels are. It, its two POST actions and the user menu entry
+for it (`usermenu.templ`, gated on `Viewer.NotificationsEnabled`) are registered/rendered only when
 `config.BotConfig.Configured()` reports the bot is on — see the bot configuration section above for
 why: a code minted here can never be redeemed on a deployment that never registered the endpoint it
 would be typed into.
