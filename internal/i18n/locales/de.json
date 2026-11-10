@@ -47,6 +47,7 @@
   "login.username": "Benutzername",
   "login.with_provider": "Mit dem Identitätsanbieter anmelden",
   "nav.configuration": "Konfiguration",
+  "nav.loading": "Seite wird geladen…",
   "nav.notifications": "Benachrichtigungen",
   "nav.permissions": "Berechtigungen",
   "nav.recipients": "Empfänger",

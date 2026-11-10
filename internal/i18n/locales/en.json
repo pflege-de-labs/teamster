@@ -47,6 +47,7 @@
   "login.username": "Username",
   "login.with_provider": "Sign in with your identity provider",
   "nav.configuration": "Configuration",
+  "nav.loading": "Loading page…",
   "nav.notifications": "Notifications",
   "nav.permissions": "Permissions",
   "nav.recipients": "Recipients",
