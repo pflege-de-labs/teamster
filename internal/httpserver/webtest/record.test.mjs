@@ -24,3 +24,17 @@ test("teamsterNameOf", () => {
   assert.equal(nameOf(items, "z"), null);
   assert.equal(nameOf([], "a"), null);
 });
+
+test("teamsterFormDirty", () => {
+  const { teamsterFormState: state, teamsterFormDirty: dirty } = globalThis;
+  const fd = (o) => Object.entries(o);
+  const base = state(fd({ name: "a", team_id: "t1" }));
+  assert.equal(dirty(base, state(fd({ name: "a", team_id: "t1" }))), false, "unchanged");
+  assert.equal(dirty(base, state(fd({ name: "b", team_id: "t1" }))), true, "text field");
+  assert.equal(dirty(base, state(fd({ name: "a", team_id: "t2" }))), true, "hidden value");
+  // A real FormData leaves out buttons and disabled fields, which is what keeps them from counting.
+  const form = new FormData();
+  form.append("name", "a");
+  form.append("team_id", "t1");
+  assert.equal(dirty(base, state(form)), false, "FormData");
+});

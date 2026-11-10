@@ -9,6 +9,9 @@
     return u.toString();
   };
   global.teamsterNameOf = (items, id) => items.find((i) => i.id === id)?.name ?? null;
+  // Compares serialised submittable state, so buttons never count and script-set hidden values do.
+  global.teamsterFormDirty = (baseline, current) => baseline !== current;
+  global.teamsterFormState = (formData) => new URLSearchParams(formData).toString();
   if (typeof document === "undefined") return;
 
   const record = document.querySelector("[data-record]");
@@ -17,6 +20,10 @@
     const edit = record.querySelector('[data-mode="edit"]');
     const form = edit && edit.querySelector("form");
     let submitting = false;
+    const state = () => global.teamsterFormState(new FormData(form));
+    const baseline = form ? state() : "";
+    // Hidden inputs are written by pickers.js, so reset() does not bring them back.
+    const hiddens = form ? [...form.elements].filter((f) => f.name).map((f) => [f, f.value]) : [];
     const show = (editing) => {
       view.hidden = editing;
       edit.hidden = !editing;
@@ -28,29 +35,28 @@
         const el = event.target.closest?.("[data-record-edit], [data-record-cancel]");
         if (!el || !record.contains(el)) return;
         event.preventDefault();
-        if (el.hasAttribute("data-record-cancel")) form.reset();
+        if (el.hasAttribute("data-record-cancel")) {
+          form.reset();
+          hiddens.forEach(([f, v]) => {
+            if (f.type === "hidden") f.value = v;
+          });
+        }
         show(el.hasAttribute("data-record-edit"));
         if (!edit.hidden) form.querySelector("input:not([type=hidden]), select, textarea")?.focus();
       });
-      form.addEventListener("submit", () => {
+      form.addEventListener("submit", (event) => {
         submitting = true;
+        // Another handler may cancel the submit, after which leaving is unsaved again.
+        setTimeout(() => {
+          if (event.defaultPrevented) submitting = false;
+        }, 0);
       });
       window.addEventListener("beforeunload", (event) => {
-        if (submitting || edit.hidden || !dirty(form)) return;
+        if (submitting || edit.hidden || !global.teamsterFormDirty(baseline, state())) return;
         event.preventDefault();
         event.returnValue = "";
       });
     }
-  }
-
-  function dirty(form) {
-    return [...form.elements].some((f) =>
-      f.options
-        ? [...f.options].some((o) => o.selected !== o.defaultSelected)
-        : f.type === "checkbox" || f.type === "radio"
-          ? f.checked !== f.defaultChecked
-          : f.value !== f.defaultValue,
-    );
   }
 
   async function names(selector, attr, url) {
