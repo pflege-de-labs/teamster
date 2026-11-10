@@ -77,7 +77,10 @@ func (s *Server) handleResourcePage(tab string) http.HandlerFunc {
 // resourceRoute is a resource's page on GET and its form on POST. The mux cannot
 // answer 405 itself: the catch-all asset route would claim every other method.
 func (s *Server) resourceRoute(tab string, post http.HandlerFunc) http.HandlerFunc {
-	page := s.handleResourcePage(tab)
+	return methodRoute(s.handleResourcePage(tab), post)
+}
+
+func methodRoute(page, post http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet, http.MethodHead:

@@ -1,0 +1,48 @@
+package views
+
+import (
+	"github.com/pflege-de-labs/teamster/internal/i18n"
+	"github.com/pflege-de-labs/teamster/internal/models"
+)
+
+// DestinationRow is a destination and whether the Teams app is installed in its team.
+type DestinationRow struct {
+	Destination  models.Destination
+	InstallState string // "installed" | "missing" | "unknown"
+}
+
+// DestinationList is the page at /admin/destinations.
+type DestinationList struct {
+	Viewer        Viewer
+	Notice, Error string
+	Rows          []DestinationRow
+	CanCreate     bool
+}
+
+templ DestinationListPage(p DestinationList) {
+	@Layout(i18n.T(ctx, "page.destinations"), &p.Viewer) {
+		@notice(p.Error, p.Notice)
+		@listPage(i18n.T(ctx, "page.destinations"), i18n.T(ctx, "destinations.new"), "/admin/destinations/new", p.CanCreate) {
+			if len(p.Rows) == 0 {
+				@empty(i18n.T(ctx, "destinations.empty"))
+			} else {
+				<ul class="divide-y divide-slate-200">
+					for _, row := range p.Rows {
+						<li class="py-3">
+							<div class="flex items-center gap-2">
+								<a href={ templ.SafeURL("/admin/destinations/" + row.Destination.ID) } class="truncate font-medium text-sky-700 hover:underline">{ row.Destination.Name }</a>
+								if row.Destination.IsDefault {
+									<span class="rounded bg-sky-100 px-1.5 py-0.5 text-xs font-medium text-sky-800">{ i18n.T(ctx, "destinations.badge_global_default") }</span>
+								}
+								if row.InstallState == "missing" {
+									<a href="/admin/teams" class="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-900">{ i18n.T(ctx, "destinations.badge_app_missing") }</a>
+								}
+							</div>
+							<div class="truncate text-xs text-slate-500">team { row.Destination.TeamID } · channel { row.Destination.ChannelID }</div>
+						</li>
+					}
+				</ul>
+			}
+		}
+	}
+}

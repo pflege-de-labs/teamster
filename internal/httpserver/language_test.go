@@ -145,12 +145,10 @@ func TestPaletteSamplesAndPickersAreTranslated(t *testing.T) {
 	st := sessionAs(seededUIStore(), authz.RoleEditor)
 	handler := newTestServer(t, st, &fakeMessenger{}).Handler
 
-	german := pageIn(t, handler, "/admin/templates", "de") + pageIn(t, handler, "/admin/destinations", "de")
+	german := pageIn(t, handler, "/admin/templates", "de")
 	for _, want := range []string{
-		"Fakten",                    // a palette button
-		"Offen oder geschlossen",    // another, with its own help text
-		`data-picker-label="Kanal"`, // what the channel picker will call itself
-		"— Team auswählen —",        // and what it shows before a choice is made
+		"Fakten",                 // a palette button
+		"Offen oder geschlossen", // another, with its own help text
 	} {
 		if !strings.Contains(german, want) {
 			t.Errorf("the German page is missing %q", want)
@@ -165,8 +163,8 @@ func TestPaletteSamplesAndPickersAreTranslated(t *testing.T) {
 		t.Error("a sample event rendered its catalog key instead of its text")
 	}
 
-	english := pageIn(t, handler, "/admin/templates", "en") + pageIn(t, handler, "/admin/destinations", "en")
-	for _, want := range []string{"Facts", "open event", `data-picker-label="Channel"`, "— choose a team —"} {
+	english := pageIn(t, handler, "/admin/templates", "en")
+	for _, want := range []string{"Facts", "open event"} {
 		if !strings.Contains(english, want) {
 			t.Errorf("the English page is missing %q", want)
 		}

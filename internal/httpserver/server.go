@@ -275,7 +275,7 @@ func NewServer(logger *slog.Logger, cfg config.Config, store store.Store, graphC
 	adminMux.HandleFunc("/admin/templates", api.resourceRoute("templates", api.formPost("templates", api.saveTemplate)))
 	adminMux.HandleFunc("/admin/templates/delete", api.formPost("templates", api.deleteTemplate))
 	adminMux.HandleFunc("/admin/templates/source-defaults", api.formPost("templates", api.saveSourceDefaults))
-	adminMux.HandleFunc("/admin/destinations", api.resourceRoute("destinations", api.formPost("destinations", api.saveDestination)))
+	adminMux.HandleFunc("/admin/destinations", methodRoute(api.handleDestinationList, api.formPost("destinations", api.saveDestination)))
 	adminMux.HandleFunc("/admin/destinations/delete", api.formPost("destinations", api.deleteDestination))
 	adminMux.HandleFunc("/admin/destinations/default", api.formPost("destinations", api.setDefaultDestination))
 	adminMux.HandleFunc("/admin/routes", api.resourceRoute("routes", api.formPost("routes", api.saveRoute)))

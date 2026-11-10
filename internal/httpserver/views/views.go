@@ -349,13 +349,6 @@ func (p Page) editingTemplate() models.Template {
 	return *p.EditTemplate
 }
 
-func (p Page) editingDestination() models.Destination {
-	if p.EditDestination == nil {
-		return models.Destination{}
-	}
-	return *p.EditDestination
-}
-
 func (p Page) editingRoute() models.Route {
 	if p.EditRoute == nil {
 		return models.Route{Priority: 100}

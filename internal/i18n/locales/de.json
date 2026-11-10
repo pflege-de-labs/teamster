@@ -15,6 +15,7 @@
   "destinations.empty": "Noch keine Ziele. Tragen Sie Team und Kanal ein, in den gepostet werden soll.",
   "destinations.make_default": "Zum globalen Standard machen",
   "destinations.name_placeholder": "Betriebskanal",
+  "destinations.new": "Neues Ziel",
   "destinations.panel": "Ziele",
   "destinations.team": "Team",
   "error.internal": "Etwas ist schiefgelaufen. Referenz: {0}",

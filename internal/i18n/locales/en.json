@@ -15,6 +15,7 @@
   "destinations.empty": "No destinations yet. Add the Team and channel to post into.",
   "destinations.make_default": "Make global default",
   "destinations.name_placeholder": "Ops channel",
+  "destinations.new": "New destination",
   "destinations.panel": "Destinations",
   "destinations.team": "Team",
   "error.internal": "Something went wrong. Reference: {0}",

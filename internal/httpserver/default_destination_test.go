@@ -106,16 +106,11 @@ func TestAdminPageShowsTheGlobalDefault(t *testing.T) {
 	body := pagesOf(t, newTestServer(t, twoDestinations(), &fakeMessenger{}).Handler, "/admin/destinations", "/admin/routes")
 	for _, want := range []string{
 		"global default",
-		`action="/admin/destinations/default"`,
 		`data-synthetic-route="global-default"`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("page does not contain %q", want)
 		}
-	}
-	// Only the destinations that are not already the default offer the switch.
-	if got := strings.Count(body, `action="/admin/destinations/default"`); got != 1 {
-		t.Errorf("switch forms = %d, want 1", got)
 	}
 }
 
