@@ -2,6 +2,7 @@ package httpserver
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
@@ -11,6 +12,7 @@ import (
 	"github.com/pflege-de-labs/teamster/internal/config"
 	"github.com/pflege-de-labs/teamster/internal/graph"
 	"github.com/pflege-de-labs/teamster/internal/models"
+	"github.com/pflege-de-labs/teamster/internal/store"
 )
 
 func TestDestinationList(t *testing.T) {
@@ -415,7 +417,7 @@ func TestDestinationDelete(t *testing.T) {
 		name, id, location string
 	}{
 		{"success", "other", "/admin/destinations?notice=Destination+deleted."},
-		{"refused", "dest", "/admin/destinations/dest?error="},
+		{"refused", "dest", "/admin/destinations/dest?error=" + url.QueryEscape(store.ErrDefaultDestination.Error())},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -437,5 +439,88 @@ func TestDestinationMakeDefault(t *testing.T) {
 		url.Values{"id": {"other"}}, map[string]string{"Sec-Fetch-Site": "same-origin"})
 	if got, want := rec.Header().Get("Location"), "/admin/destinations/other?notice="; rec.Code != http.StatusSeeOther || !strings.HasPrefix(got, want) {
 		t.Errorf("POST = %d to %q, want 303 to %q", rec.Code, got, want)
+	}
+}
+
+// sessionPost posts a form as the signed-in session, without the local administrator's basic auth.
+func sessionPost(t *testing.T, h http.Handler, path string, form url.Values) *httptest.ResponseRecorder {
+	t.Helper()
+
+	req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Sec-Fetch-Site", "same-origin")
+	req.AddCookie(&http.Cookie{Name: sessionCookie, Value: testSessionID})
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	return rec
+}
+
+func TestDestinationSaveFailurePaths(t *testing.T) {
+	t.Parallel()
+
+	shared := func(actions ...string) *fakeStore {
+		st := sharedStore()
+		st.destinations["dest"] = models.Destination{ID: "dest", Name: "Shared channel", TeamID: "teamS", ChannelID: "chanS"}
+		st.destinations["priv"] = models.Destination{ID: "priv", Name: "Private channel", TeamID: "teamP", ChannelID: "chanP"}
+		if len(actions) > 0 {
+			grantTo(st, models.PrincipalUser, "tester", "Destination", "dest", actions...)
+		}
+		return st
+	}
+	form := func(id string) url.Values {
+		return url.Values{"id": {id}, "name": {"Typed"}, "team_id": {"teamS"}, "channel_id": {"chanS"}}
+	}
+	tests := []struct {
+		name     string
+		store    *fakeStore
+		form     url.Values
+		want     int
+		body     []string
+		unwanted []string
+	}{
+		{
+			name: "unreadable id", store: shared("read"), form: form("priv"), want: http.StatusNotFound,
+			unwanted: []string{"Private channel", "teamP", "chanP"},
+		},
+		{name: "missing id", store: shared("read"), form: form("nope"), want: http.StatusNotFound},
+		{
+			name: "read without update", store: shared("read"), form: form("dest"), want: http.StatusUnprocessableEntity,
+			body: []string{"Shared channel"}, unwanted: []string{`name="channel_id"`, "data-record-edit"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			rec := sessionPost(t, newTestServer(t, tt.store, &fakeMessenger{}).Handler, "/admin/destinations", tt.form)
+			if rec.Code != tt.want {
+				t.Fatalf("POST = %d, want %d", rec.Code, tt.want)
+			}
+			for _, w := range tt.body {
+				if !strings.Contains(rec.Body.String(), w) {
+					t.Errorf("page is missing %q", w)
+				}
+			}
+			for _, u := range tt.unwanted {
+				if strings.Contains(rec.Body.String(), u) {
+					t.Errorf("page has %q", u)
+				}
+			}
+			if got := tt.store.destinations["dest"].Name; got != "Shared channel" {
+				t.Errorf("destination was written: name = %q", got)
+			}
+		})
+	}
+}
+
+func TestDestinationSaveUnexpectedFailure(t *testing.T) {
+	t.Parallel()
+
+	st := sessionAs(seededUIStore(), authz.RoleAdmin)
+	st.fail("UpdateDestination")
+	rec := sessionPost(t, newTestServer(t, st, &fakeMessenger{}).Handler, "/admin/destinations",
+		url.Values{"id": {"dest"}, "name": {"x"}, "team_id": {"team"}, "channel_id": {"chan"}})
+	if rec.Code != http.StatusInternalServerError || strings.Contains(rec.Body.String(), "exploded") {
+		t.Errorf("POST = %d, want 500 with the generic text (%s)", rec.Code, rec.Body.String())
 	}
 }

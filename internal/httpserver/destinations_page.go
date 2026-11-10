@@ -150,6 +150,11 @@ func (s *Server) handleDestinationSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ctx := r.Context()
+	// An id the session cannot read answers like a missing one, before anything is written or rendered.
+	if id := r.PostFormValue("id"); id != "" && !s.can(r, authz.ActionRead, typeDestination, id) {
+		http.NotFound(w, r)
+		return
+	}
 	saved, notice, err := s.storeDestination(r)
 	if err == nil {
 		redirectTo("/admin/destinations/"+url.PathEscape(saved.ID), w, r, notice, "")
