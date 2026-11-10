@@ -58,6 +58,7 @@ func viewerOf(r *http.Request) views.Viewer {
 // the authorizer can answer.
 func (s *Server) viewerFor(r *http.Request) views.Viewer {
 	viewer := viewerOf(r)
+	viewer.Path = r.URL.Path
 	viewer.CanManage = s.allow(r, authz.ActionAdminister, authz.Resource{Type: "Grant"})
 	// Whoever holds a grant may be able to share a record, which is what the access page is for.
 	viewer.CanShare = viewer.CanManage || s.policies(r).HasGrants(principalFor(r))

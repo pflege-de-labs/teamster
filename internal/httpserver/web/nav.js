@@ -1,5 +1,4 @@
-// Adds the burger that folds the sidebar away, remembering the choice, marks the
-// current page in it, and closes the user menu on a click outside or Escape.
+// Adds the burger that folds the sidebar away, remembering the choice, and closes the user menu on a click outside or Escape.
 (function () {
   const toggle = document.getElementById("nav-toggle");
   const sidebar = document.getElementById("sidebar");
@@ -21,10 +20,6 @@
         // Not remembered, but still toggled.
       }
     });
-
-    for (const link of sidebar.querySelectorAll("a[href]")) {
-      if (link.pathname === location.pathname) link.setAttribute("aria-current", "page");
-    }
   }
 
   const menu = document.getElementById("user-menu");

@@ -424,7 +424,8 @@ func TestAdminPagePrefillsTheFormBeingEdited(t *testing.T) {
 					t.Errorf("prefilled page does not contain %q", want)
 				}
 			}
-			if !strings.Contains(body, `href="/admin"`) {
+			list, _, _ := strings.Cut(tt.query, "?")
+			if !strings.Contains(body, `<a href="`+list+`" class="px-3 py-2`) {
 				t.Error("no cancel link back to the unfiltered page")
 			}
 		})
