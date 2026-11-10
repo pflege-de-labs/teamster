@@ -103,7 +103,7 @@ func TestDeletingTheGlobalDefaultIsRefused(t *testing.T) {
 func TestAdminPageShowsTheGlobalDefault(t *testing.T) {
 	t.Parallel()
 
-	body := do(t, newTestServer(t, twoDestinations(), &fakeMessenger{}).Handler, http.MethodGet, "/admin", "").Body.String()
+	body := pagesOf(t, newTestServer(t, twoDestinations(), &fakeMessenger{}).Handler, "/admin/destinations", "/admin/routes")
 	for _, want := range []string{
 		"global default",
 		`action="/admin/destinations/default"`,
@@ -122,7 +122,7 @@ func TestAdminPageShowsTheGlobalDefault(t *testing.T) {
 func TestAdminPageOmitsTheSyntheticRouteWithoutADefault(t *testing.T) {
 	t.Parallel()
 
-	body := do(t, newTestServer(t, seededUIStore(), &fakeMessenger{}).Handler, http.MethodGet, "/admin", "").Body.String()
+	body := do(t, newTestServer(t, seededUIStore(), &fakeMessenger{}).Handler, http.MethodGet, "/admin/routes", "").Body.String()
 	if strings.Contains(body, `data-synthetic-route`) {
 		t.Error("page draws a global default route though no destination is the default")
 	}
@@ -132,7 +132,7 @@ func TestAdminPageReportsAGlobalDefaultReadFailure(t *testing.T) {
 	t.Parallel()
 
 	st := twoDestinations().fail("GetDefaultDestination")
-	body := do(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin", "").Body.String()
+	body := do(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin/routes", "").Body.String()
 	if strings.Contains(body, `data-synthetic-route`) {
 		t.Error("page draws a global default it could not read")
 	}

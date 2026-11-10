@@ -125,7 +125,9 @@ func TestViewerSeesNoControls(t *testing.T) {
 	t.Parallel()
 
 	st := sessionAs(seededUIStore(), authz.RoleViewer)
-	body := asRole(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin", "").Body.String()
+	handler := newTestServer(t, st, &fakeMessenger{}).Handler
+	body := asRole(t, handler, http.MethodGet, "/admin/templates", "").Body.String() +
+		asRole(t, handler, http.MethodGet, "/admin/routes", "").Body.String()
 
 	for _, unwanted := range []string{
 		`action="/admin/templates"`, `action="/admin/routes"`, `action="/admin/templates/delete"`,

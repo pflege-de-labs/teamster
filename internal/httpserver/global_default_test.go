@@ -82,7 +82,7 @@ func TestTheGlobalDefaultTemplateForm(t *testing.T) {
 	st.templates["tmpl"] = models.Template{ID: "tmpl", Name: "Critical card", Body: "{}"}
 	handler := newTestServer(t, st, &fakeMessenger{}).Handler
 
-	page := do(t, handler, http.MethodGet, "/admin", "").Body.String()
+	page := do(t, handler, http.MethodGet, "/admin/routes", "").Body.String()
 	for _, want := range []string{`action="/admin/routes/global-default"`, "built-in default message"} {
 		if !strings.Contains(page, want) {
 			t.Errorf("page does not contain %s", want)
@@ -96,7 +96,7 @@ func TestTheGlobalDefaultTemplateForm(t *testing.T) {
 	if st.globalDefaultTemplate != "tmpl" {
 		t.Errorf("stored = %q, want tmpl", st.globalDefaultTemplate)
 	}
-	if page := do(t, handler, http.MethodGet, "/admin", "").Body.String(); !strings.Contains(page, `<option value="tmpl" selected>`) {
+	if page := do(t, handler, http.MethodGet, "/admin/routes", "").Body.String(); !strings.Contains(page, `<option value="tmpl" selected>`) {
 		t.Error("page does not show the chosen template selected")
 	}
 

@@ -48,7 +48,7 @@ func TestAdminPageRendersTheStoredConfiguration(t *testing.T) {
 	t.Parallel()
 
 	handler := newTestServer(t, seededUIStore(), &fakeMessenger{}).Handler
-	body := do(t, handler, http.MethodGet, "/admin", "").Body.String()
+	body := pagesOf(t, handler, "/admin/templates", "/admin/destinations", "/admin/routes")
 
 	// Names, not identifiers: a route stores IDs but the page resolves them.
 	for _, want := range []string{
@@ -69,7 +69,7 @@ func TestAdminPageRendersEmptyStates(t *testing.T) {
 	t.Parallel()
 
 	handler := newTestServer(t, newFakeStore(), &fakeMessenger{}).Handler
-	body := do(t, handler, http.MethodGet, "/admin", "").Body.String()
+	body := pagesOf(t, handler, "/admin/templates", "/admin/destinations", "/admin/webhooks", "/admin/routes")
 
 	for _, want := range []string{"No templates yet", "No destinations yet", "No routes yet", "none defined yet"} {
 		if !strings.Contains(body, want) {
@@ -212,8 +212,8 @@ func TestFormsCreateAndUpdate(t *testing.T) {
 			if !strings.Contains(location, url.QueryEscape(tt.wantNotice)) {
 				t.Errorf("Location = %q, want the notice %q", location, tt.wantNotice)
 			}
-			if parsed, err := url.Parse(location); err != nil || parsed.Path != "/admin" || parsed.Query().Get("tab") != tt.wantTab {
-				t.Errorf("Location = %q, want /admin on tab %q", location, tt.wantTab)
+			if parsed, err := url.Parse(location); err != nil || parsed.Path != "/admin/"+tt.wantTab {
+				t.Errorf("Location = %q, want the %s page", location, tt.wantTab)
 			}
 			tt.check(t, st)
 		})
@@ -360,7 +360,7 @@ func TestFormsRejectNonPost(t *testing.T) {
 	t.Parallel()
 
 	handler := newTestServer(t, newFakeStore(), &fakeMessenger{}).Handler
-	for _, path := range []string{"/admin/templates", "/admin/destinations/delete", "/admin/routes"} {
+	for _, path := range []string{"/admin/templates/delete", "/admin/destinations/delete", "/admin/routes/global-default"} {
 		if rec := do(t, handler, http.MethodGet, path, ""); rec.Code != http.StatusMethodNotAllowed {
 			t.Errorf("GET %s = %d, want 405", path, rec.Code)
 		}
@@ -446,7 +446,7 @@ func TestAdminPageChecksTheDefaultRouteBox(t *testing.T) {
 func TestAdminPageOffersAnEditLinkPerRow(t *testing.T) {
 	t.Parallel()
 
-	body := do(t, newTestServer(t, seededUIStore(), &fakeMessenger{}).Handler, http.MethodGet, "/admin", "").Body.String()
+	body := pagesOf(t, newTestServer(t, seededUIStore(), &fakeMessenger{}).Handler, "/admin/templates", "/admin/destinations", "/admin/routes")
 
 	for _, want := range []string{
 		`href="/admin?edit=templates&amp;id=tmpl#templates"`,
@@ -540,7 +540,7 @@ func TestAdminPageDrawsTheRouteTree(t *testing.T) {
 		LabelSelector: map[string]string{"team": "payments"}, DestinationID: "escalation",
 	}
 
-	body := do(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin", "").Body.String()
+	body := do(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin/routes", "").Body.String()
 
 	parent := strings.Index(body, "Critical to ops")
 	child := strings.Index(body, "Payments escalation")
@@ -629,23 +629,21 @@ func TestTheCardPaletteIsPartOfTheForm(t *testing.T) {
 	}
 }
 
-func TestAdminPageOpensOneTab(t *testing.T) {
+func TestAdminPageFallsBackToTemplates(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name    string
-		role    authz.Role
-		path    string
-		want    string
-		noGrant bool
+		name string
+		role authz.Role
+		path string
+		want string
 	}{
-		{name: "templates first", role: authz.RoleAdmin, path: "/admin", want: "templates"},
-		{name: "the tab asked for", role: authz.RoleAdmin, path: "/admin?tab=routes", want: "routes"},
-		{name: "the section being edited", role: authz.RoleAdmin, path: "/admin?edit=destinations&id=dest", want: "destinations"},
-		{name: "tab wins over edit", role: authz.RoleAdmin, path: "/admin?tab=webhooks&edit=routes&id=route", want: "webhooks"},
-		{name: "an unknown tab falls back", role: authz.RoleAdmin, path: "/admin?tab=nope", want: "templates"},
-		{name: "an admin has grants", role: authz.RoleAdmin, path: "/admin?tab=grants", want: "grants"},
-		{name: "an editor has no grants tab", role: authz.RoleEditor, path: "/admin?tab=grants", want: "templates", noGrant: true},
+		{name: "no tab", role: authz.RoleAdmin, path: "/admin", want: `id="templates"`},
+		{name: "the tab asked for", role: authz.RoleAdmin, path: "/admin?tab=routes", want: `id="routes"`},
+		{name: "the section being edited", role: authz.RoleAdmin, path: "/admin?edit=destinations&id=dest", want: `id="destinations"`},
+		{name: "an unknown tab", role: authz.RoleAdmin, path: "/admin?tab=nope", want: `id="templates"`},
+		{name: "an admin has grants", role: authz.RoleAdmin, path: "/admin?tab=grants", want: `id="grants"`},
+		{name: "an editor has no grants", role: authz.RoleEditor, path: "/admin?tab=grants", want: `id="templates"`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -653,19 +651,136 @@ func TestAdminPageOpensOneTab(t *testing.T) {
 
 			st := sessionAs(seededUIStore(), tt.role)
 			body := asRole(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, tt.path, "").Body.String()
-
-			if !strings.Contains(body, `data-tab-panel="`+tt.want+`">`) {
-				t.Errorf("panel %q is not shown", tt.want)
-			}
-			if !strings.Contains(body, `aria-selected="true" data-tab="`+tt.want+`"`) {
-				t.Errorf("tab %q is not selected", tt.want)
-			}
-			if got := strings.Count(body, `aria-selected="true"`); got != 1 {
-				t.Errorf("%d tabs selected, want 1", got)
-			}
-			if has := strings.Contains(body, `data-tab="grants"`); has == tt.noGrant {
-				t.Errorf("grants tab present = %v, want %v", has, !tt.noGrant)
+			if !strings.Contains(body, tt.want) {
+				t.Errorf("page lacks %s", tt.want)
 			}
 		})
 	}
+}
+
+var resourcePages = []string{"templates", "destinations", "webhooks", "routes", "grants"}
+
+func TestResourcePages(t *testing.T) {
+	t.Parallel()
+
+	for _, page := range resourcePages {
+		t.Run(page, func(t *testing.T) {
+			t.Parallel()
+
+			rec := do(t, newTestServer(t, seededUIStore(), &fakeMessenger{}).Handler, http.MethodGet, "/admin/"+page, "")
+			body := rec.Body.String()
+			if rec.Code != http.StatusOK {
+				t.Fatalf("GET /admin/%s = %d, want 200", page, rec.Code)
+			}
+			for _, other := range resourcePages {
+				if has := strings.Contains(body, `id="`+other+`"`); has != (other == page) {
+					t.Errorf("section %q present = %v, want %v", other, has, other == page)
+				}
+			}
+			if strings.Contains(body, `role="tablist"`) {
+				t.Error("the page still has a tab bar")
+			}
+			if !strings.Contains(body, "— Teamster</title>") {
+				t.Error("page has no resource title")
+			}
+		})
+	}
+}
+
+func TestResourcePageEdit(t *testing.T) {
+	t.Parallel()
+
+	body := do(t, newTestServer(t, seededUIStore(), &fakeMessenger{}).Handler, http.MethodGet, "/admin/templates?edit=tmpl", "").Body.String()
+	if !strings.Contains(body, `name="id" value="tmpl"`) {
+		t.Error("the form does not edit the template asked for")
+	}
+}
+
+func TestResourcePageMethods(t *testing.T) {
+	t.Parallel()
+
+	rec := do(t, newTestServer(t, seededUIStore(), &fakeMessenger{}).Handler, http.MethodPut, "/admin/templates", "")
+	allow := rec.Header().Get("Allow")
+	if rec.Code != http.StatusMethodNotAllowed || !strings.Contains(allow, "GET") || !strings.Contains(allow, "POST") {
+		t.Errorf("PUT = %d Allow %q, want 405 allowing GET and POST", rec.Code, allow)
+	}
+}
+
+func TestFormPostLandsOnResourcePage(t *testing.T) {
+	t.Parallel()
+
+	rec := postForm(t, newTestServer(t, seededUIStore(), &fakeMessenger{}).Handler,
+		"/admin/templates", url.Values{"name": {"Card"}, "body": {"{}"}}, nil)
+	location, err := url.Parse(rec.Header().Get("Location"))
+	if rec.Code != http.StatusSeeOther || err != nil || location.Path != "/admin/templates" {
+		t.Errorf("POST = %d Location %q, want 303 to /admin/templates", rec.Code, rec.Header().Get("Location"))
+	}
+}
+
+func TestResourcePageAccess(t *testing.T) {
+	t.Parallel()
+
+	type result struct{ templates, other, grants int }
+	tests := []struct {
+		name  string
+		store func() *fakeStore
+		want  result
+	}{
+		{name: "viewer", store: func() *fakeStore { return sessionAs(seededUIStore(), authz.RoleViewer) }, want: result{200, 200, 403}},
+		{name: "editor", store: func() *fakeStore { return sessionAs(seededUIStore(), authz.RoleEditor) }, want: result{200, 200, 403}},
+		{name: "admin", store: func() *fakeStore { return sessionAs(seededUIStore(), authz.RoleAdmin) }, want: result{200, 200, 200}},
+		{name: "a share only", store: sharedStore, want: result{200, 200, 403}},
+		{name: "nothing", store: func() *fakeStore { return sessionAs(seededUIStore()) }, want: result{403, 403, 403}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			h := newTestServer(t, tt.store(), &fakeMessenger{}).Handler
+			for _, page := range resourcePages {
+				want := tt.want.other
+				switch page {
+				case "templates":
+					want = tt.want.templates
+				case "grants":
+					want = tt.want.grants
+				}
+				if rec := asRole(t, h, http.MethodGet, "/admin/"+page, ""); rec.Code != want {
+					t.Errorf("GET /admin/%s = %d, want %d", page, rec.Code, want)
+				}
+			}
+		})
+	}
+}
+
+func TestResourcePageShowsOnlyShared(t *testing.T) {
+	t.Parallel()
+
+	h := newTestServer(t, sharedStore(), &fakeMessenger{}).Handler
+	body := asRole(t, h, http.MethodGet, "/admin/templates", "").Body.String()
+	if !strings.Contains(body, "Shared card") || strings.Contains(body, "Private card") {
+		t.Error("the page should list the shared template and not the other")
+	}
+}
+
+func TestResourcePagePostsStayClosedToViewers(t *testing.T) {
+	t.Parallel()
+
+	h := newTestServer(t, sessionAs(seededUIStore(), authz.RoleViewer), &fakeMessenger{}).Handler
+	for _, page := range resourcePages[:4] {
+		if rec := asRole(t, h, http.MethodPost, "/admin/"+page, "x=1"); rec.Code != http.StatusForbidden {
+			t.Errorf("viewer POST /admin/%s = %d, want 403", page, rec.Code)
+		}
+	}
+}
+
+// pagesOf is the bodies of several pages as one, for assertions about a whole configuration.
+func pagesOf(t *testing.T, handler http.Handler, paths ...string) string {
+	t.Helper()
+
+	var all strings.Builder
+	for _, path := range paths {
+		all.WriteString(do(t, handler, http.MethodGet, path, "").Body.String())
+	}
+	return all.String()
 }

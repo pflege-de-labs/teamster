@@ -9,7 +9,6 @@ package views
 import (
 	"context"
 	"encoding/json"
-	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -158,25 +157,8 @@ type Page struct {
 	// and from there into the browser history and this server's own access log.
 	NewWebhookURL string
 
-	// Tab is the section asked for; activeTab settles what is shown.
+	// Tab is the resource whose page this is.
 	Tab string
-}
-
-// tabs are the sections of /admin, in the order the tab bar shows them.
-func (p Page) tabs() []string {
-	tabs := []string{"templates", "destinations", "webhooks", "routes"}
-	if p.CanManage {
-		tabs = append(tabs, "grants")
-	}
-	return tabs
-}
-
-// activeTab is Tab when this viewer has that tab, else the first one.
-func (p Page) activeTab() string {
-	if slices.Contains(p.tabs(), p.Tab) {
-		return p.Tab
-	}
-	return p.tabs()[0]
 }
 
 // A routeRow is a route as the list draws it: its place in the tree, and where

@@ -118,7 +118,7 @@ func TestGrantsHideWhatIsOutOfScope(t *testing.T) {
 		t.Errorf("destinations = %+v, want only the one in the granted Team", listed)
 	}
 
-	page := asRole(t, handler, http.MethodGet, "/admin", "").Body.String()
+	page := asRole(t, handler, http.MethodGet, "/admin/destinations", "").Body.String()
 	if strings.Contains(page, "Payments alerts") {
 		t.Error("the page shows a destination outside the grants")
 	}
@@ -234,7 +234,7 @@ func TestGrantsPanelIsAdminOnly(t *testing.T) {
 
 	admin := sessionAs(seededUIStore(), authz.RoleAdmin)
 	admin.grants["g1"] = models.Grant{ID: "g1", Role: "editor", TeamID: "platform"}
-	page := asRole(t, newTestServer(t, admin, &fakeMessenger{}).Handler, http.MethodGet, "/admin", "").Body.String()
+	page := asRole(t, newTestServer(t, admin, &fakeMessenger{}).Handler, http.MethodGet, "/admin/grants", "").Body.String()
 	// The panel is now the way to the page that holds the tree.
 	if !strings.Contains(page, "Delivery permissions") || !strings.Contains(page, `href="/admin/permissions"`) {
 		t.Error("an admin is not offered the permissions page")

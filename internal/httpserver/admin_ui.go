@@ -9,6 +9,7 @@ import (
 	"maps"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -32,12 +33,44 @@ func (s *Server) handleAdminPage(w http.ResponseWriter, r *http.Request) {
 
 	page := s.adminPage(r, r.URL.Query().Get("notice"), r.URL.Query().Get("error"))
 	page.Tab = cmp.Or(r.URL.Query().Get("tab"), r.URL.Query().Get("edit"))
+	// Until old URLs redirect, an unknown tab, or grants without the right to manage them, shows templates.
+	known := slices.Contains([]string{"templates", "destinations", "webhooks", "routes"}, page.Tab)
+	if !known && (page.Tab != "grants" || !page.CanManage) {
+		page.Tab = "templates"
+	}
 
 	if selected := r.URL.Query().Get("edit"); selected != "" {
 		s.loadForEditing(r, &page, selected, r.URL.Query().Get("id"))
 	}
 
 	s.renderAdmin(w, r, page)
+}
+
+// handleResourcePage renders one resource on its own page; ?edit= names the record to edit.
+func (s *Server) handleResourcePage(tab string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		page := s.adminPage(r, r.URL.Query().Get("notice"), r.URL.Query().Get("error"))
+		page.Tab = tab
+		s.loadForEditing(r, &page, tab, r.URL.Query().Get("edit"))
+		s.renderAdmin(w, r, page)
+	}
+}
+
+// resourceRoute is a resource's page on GET and its form on POST. The mux cannot
+// answer 405 itself: the catch-all asset route would claim every other method.
+func (s *Server) resourceRoute(tab string, post http.HandlerFunc) http.HandlerFunc {
+	page := s.handleResourcePage(tab)
+	return func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			page(w, r)
+		case http.MethodPost:
+			post(w, r)
+		default:
+			w.Header().Set("Allow", "GET, POST")
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	}
 }
 
 // adminPage collects everything the admin page draws. It is separate from the
@@ -225,9 +258,9 @@ func (s *Server) formPost(tab string, handler func(*http.Request) (string, error
 	return s.formPostTo(adminTabPath(tab), handler)
 }
 
-// adminTabPath is /admin opened on one of its tabs.
+// adminTabPath is the page of one configuration resource.
 func adminTabPath(tab string) string {
-	return "/admin?tab=" + url.QueryEscape(tab)
+	return "/admin/" + tab
 }
 
 // formPostTo is formPost for the endpoints that land somewhere other than

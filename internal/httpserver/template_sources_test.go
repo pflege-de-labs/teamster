@@ -35,7 +35,7 @@ func TestTheTemplateFormSavesSources(t *testing.T) {
 		t.Errorf("POST unknown source = %d, want 400", rec.Code)
 	}
 
-	page := do(t, handler, http.MethodGet, "/admin", "").Body.String()
+	page := pagesOf(t, handler, "/admin/templates", "/admin/webhooks", "/admin/routes")
 	for _, want := range []string{`name="sources" value="alertmanager"`, `data-sources="alertmanager,teamsv2"`, "any webhook"} {
 		if !strings.Contains(page, want) {
 			t.Errorf("page does not contain %s", want)
@@ -109,7 +109,7 @@ func TestAWebhookEndpointNeedsATeamsV2Template(t *testing.T) {
 		t.Errorf("POST with a Teams V2 template = %d, want 201 (%s)", rec.Code, rec.Body.String())
 	}
 
-	page := do(t, handler, http.MethodGet, "/admin", "").Body.String()
+	page := do(t, handler, http.MethodGet, "/admin/webhooks", "").Body.String()
 	start := strings.Index(page, `action="/admin/webhooks"`)
 	end := strings.Index(page[start:], "</form>")
 	form := page[start : start+end]

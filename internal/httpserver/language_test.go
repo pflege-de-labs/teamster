@@ -39,13 +39,13 @@ func TestPagesRenderInTheRequestedLanguage(t *testing.T) {
 		absent   []string
 	}{
 		{
-			name: "the configuration page in English", path: "/admin", language: "en",
-			want:   []string{"Templates", "Destinations", "Routes", `lang="en"`},
+			name: "the configuration page in English", path: "/admin/routes", language: "en",
+			want:   []string{"Routes", `lang="en"`},
 			absent: []string{"Vorlagen"},
 		},
 		{
-			name: "and in German", path: "/admin", language: "de",
-			want:   []string{"Vorlagen", "Ziele", "Routen", `lang="de"`},
+			name: "and in German", path: "/admin/routes", language: "de",
+			want:   []string{"Routen", `lang="de"`},
 			absent: []string{">Templates<"},
 		},
 		{
@@ -145,7 +145,7 @@ func TestPaletteSamplesAndPickersAreTranslated(t *testing.T) {
 	st := sessionAs(seededUIStore(), authz.RoleEditor)
 	handler := newTestServer(t, st, &fakeMessenger{}).Handler
 
-	german := pageIn(t, handler, "/admin", "de")
+	german := pageIn(t, handler, "/admin/templates", "de") + pageIn(t, handler, "/admin/destinations", "de")
 	for _, want := range []string{
 		"Fakten",                    // a palette button
 		"Offen oder geschlossen",    // another, with its own help text
@@ -165,7 +165,7 @@ func TestPaletteSamplesAndPickersAreTranslated(t *testing.T) {
 		t.Error("a sample event rendered its catalog key instead of its text")
 	}
 
-	english := pageIn(t, handler, "/admin", "en")
+	english := pageIn(t, handler, "/admin/templates", "en") + pageIn(t, handler, "/admin/destinations", "en")
 	for _, want := range []string{"Facts", "open event", `data-picker-label="Channel"`, "— choose a team —"} {
 		if !strings.Contains(english, want) {
 			t.Errorf("the English page is missing %q", want)

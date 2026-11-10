@@ -160,17 +160,17 @@ func TestTheRouteFormOffersOnlyYourOwnChat(t *testing.T) {
 		wantGone  []string
 	}{
 		{
-			name: "an editor sees their own chat", role: authz.RoleEditor, query: "/admin",
+			name: "an editor sees their own chat", role: authz.RoleEditor, query: "/admin/routes",
 			wantShown: []string{`value="recipient:mine"`, `value="destination:dest"`},
 			wantGone:  []string{`value="recipient:theirs"`},
 		},
 		{
-			name: "an admin sees everyone", role: authz.RoleAdmin, query: "/admin",
+			name: "an admin sees everyone", role: authz.RoleAdmin, query: "/admin/routes",
 			wantShown: []string{`value="recipient:mine"`, `value="recipient:theirs"`},
 		},
 		{
 			// Editing still shows who the route names, even when the save is refused.
-			name: "an edited route keeps its person", role: authz.RoleEditor, query: "/admin?edit=routes&id=their-route",
+			name: "an edited route keeps its person", role: authz.RoleEditor, query: "/admin/routes?edit=their-route",
 			wantShown: []string{`<option value="recipient:theirs" selected>`},
 		},
 	}
@@ -236,7 +236,7 @@ func TestAnyoneMayKeepAnAddressedRoute(t *testing.T) {
 			}
 			handler := mustServer(t, cfg, st, &fakeMessenger{}).Handler
 
-			page := asRole(t, handler, http.MethodGet, "/admin", "").Body.String()
+			page := asRole(t, handler, http.MethodGet, "/admin/routes", "").Body.String()
 			if got := strings.Contains(page, `value="addressed"`); got != tt.wantOption {
 				t.Errorf("option offered = %v, want %v", got, tt.wantOption)
 			}
