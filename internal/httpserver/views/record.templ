@@ -1,5 +1,38 @@
 package views
 
+// RecordHead is what the record frame needs: the way back to the list, the title, and the mode.
+type RecordHead struct {
+	ListHref, ListLabel, Title string
+	Editing                    bool // server-decided: ?edit present or a failed save
+}
+
+// UsedBy is a record that points at the one on show.
+type UsedBy struct{ Href, Label string }
+
+// recordPage is the frame every resource's record shares: view and edit in one
+// page, so that edit mode needs no round trip once the script takes over.
+templ recordPage(h RecordHead, actions, view, edit templ.Component) {
+	<section class="rounded-lg border border-slate-200 bg-white shadow-sm">
+		<div class="border-b border-slate-200 px-6 py-4">
+			<a href={ templ.SafeURL(h.ListHref) } class="text-sm text-sky-700 hover:underline">{ h.ListLabel }</a>
+			<h2 class="text-lg font-semibold">{ h.Title }</h2>
+		</div>
+		<div data-record class="px-6 py-6">
+			<div data-mode="view" hidden?={ h.Editing } class="space-y-4">
+				<div class="flex items-center gap-2">
+					@actions
+				</div>
+				@view
+			</div>
+			if edit != nil {
+				<div data-mode="edit" hidden?={ !h.Editing }>
+					@edit
+				</div>
+			}
+		</div>
+	</section>
+}
+
 // listPage is the frame every resource's list page shares: a title, the way to
 // a new record, and the rows as children.
 templ listPage(title, newLabel, newHref string, canCreate bool) {

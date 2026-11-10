@@ -179,21 +179,6 @@ templ presetPicker(page Page) {
 	</label>
 }
 
-// Switching the global default is its own form, like rotating a webhook token,
-// because it changes where every unclaimed message goes.
-templ makeDefaultButton(id, name string) {
-	<form method="post" action="/admin/destinations/default">
-		<input type="hidden" name="id" value={ id }/>
-		<button
-			type="submit"
-			aria-label={ i18n.T(ctx, "destinations.make_default") + " " + name }
-			class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:border-sky-400 hover:bg-sky-50 hover:text-sky-700"
-		>
-			{ i18n.T(ctx, "destinations.make_default") }
-		</button>
-	</form>
-}
-
 templ webhooks(page Page) {
 	@panel(i18n.T(ctx, "webhooks.panel"), "webhooks") {
 		if page.mayCreate("WebhookEndpoint") || (page.EditWebhookEndpoint != nil && page.mayUpdate("WebhookEndpoint", page.EditWebhookEndpoint.ID)) {

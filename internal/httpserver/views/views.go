@@ -205,7 +205,6 @@ type Page struct {
 
 	// A nil Edit* means the matching form creates rather than updates.
 	EditTemplate        *models.Template
-	EditDestination     *models.Destination
 	EditRoute           *models.Route
 	EditWebhookEndpoint *models.WebhookEndpoint
 
@@ -585,6 +584,14 @@ func webhookTemplateOptions(ctx context.Context, p Page) []option {
 		}
 	}
 	return out
+}
+
+// RouteLabel names a route: its name, or the matcher the routes panel shows.
+func RouteLabel(ctx context.Context, route models.Route) string {
+	if route.Name != "" {
+		return route.Name
+	}
+	return selectorText(ctx, route)
 }
 
 // selectorText renders a route's label selector the way an operator writes it.

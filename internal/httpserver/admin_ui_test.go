@@ -387,7 +387,7 @@ func TestFormsRejectNonPost(t *testing.T) {
 	t.Parallel()
 
 	handler := newTestServer(t, newFakeStore(), &fakeMessenger{}).Handler
-	for _, path := range []string{"/admin/templates/delete", "/admin/destinations/delete", "/admin/routes/global-default"} {
+	for _, path := range []string{"/admin/templates/delete", "/admin/routes/global-default"} {
 		if rec := do(t, handler, http.MethodGet, path, ""); rec.Code != http.StatusMethodNotAllowed {
 			t.Errorf("GET %s = %d, want 405", path, rec.Code)
 		}

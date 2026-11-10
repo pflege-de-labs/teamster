@@ -111,3 +111,223 @@ func TestDestinationListAppBadge(t *testing.T) {
 		t.Error("a team without the app carries no badge linking to /admin/teams")
 	}
 }
+
+func TestDestinationRecord(t *testing.T) {
+	t.Parallel()
+
+	const record = "/admin/destinations/dest"
+	asDefault := func(role authz.Role) func() *fakeStore {
+		return func() *fakeStore {
+			st := sessionAs(seededUIStore(), role)
+			d := st.destinations["dest"]
+			d.IsDefault = true
+			st.destinations["dest"] = d
+			return st
+		}
+	}
+	tests := []struct {
+		name     string
+		store    func() *fakeStore
+		path     string
+		want     []string
+		unwanted []string
+	}{
+		{
+			name:  "admin",
+			store: func() *fakeStore { return sessionAs(seededUIStore(), authz.RoleAdmin) },
+			path:  record,
+			want: []string{
+				"Ops channel", "team", "chan", "Install unknown", `href="?edit"`, `data-record-edit`, "Make global default",
+				`action="/admin/destinations/delete"`, `data-mode="edit" hidden`,
+			},
+			unwanted: []string{`data-mode="view" hidden`, "global default</span>"},
+		},
+		{
+			name:     "admin on the default",
+			store:    asDefault(authz.RoleAdmin),
+			path:     record,
+			want:     []string{"global default</span>", `data-record-edit`, `action="/admin/destinations/delete"`},
+			unwanted: []string{"Make global default"},
+		},
+		{
+			name:     "admin editing",
+			store:    func() *fakeStore { return sessionAs(seededUIStore(), authz.RoleAdmin) },
+			path:     record + "?edit",
+			want:     []string{`data-mode="view" hidden`, `name="channel_id"`, `data-record-cancel`},
+			unwanted: []string{`data-mode="edit" hidden`},
+		},
+		{
+			name:     "viewer",
+			store:    func() *fakeStore { return sessionAs(seededUIStore(), authz.RoleViewer) },
+			path:     record + "?edit",
+			want:     []string{"Ops channel"},
+			unwanted: []string{"data-record-edit", `data-mode="edit"`, "Make global default", `/admin/destinations/delete`},
+		},
+		{
+			name:     "editor",
+			store:    func() *fakeStore { return sessionAs(seededUIStore(), authz.RoleEditor) },
+			path:     record,
+			want:     []string{"data-record-edit", `action="/admin/destinations/delete"`},
+			unwanted: []string{"Make global default"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			rec := asRole(t, newTestServer(t, tt.store(), &fakeMessenger{}).Handler, http.MethodGet, tt.path, "")
+			body := rec.Body.String()
+			if rec.Code != http.StatusOK {
+				t.Fatalf("GET = %d, want 200", rec.Code)
+			}
+			for _, w := range tt.want {
+				if !strings.Contains(body, w) {
+					t.Errorf("page is missing %q", w)
+				}
+			}
+			for _, u := range tt.unwanted {
+				if strings.Contains(body, u) {
+					t.Errorf("page has %q", u)
+				}
+			}
+		})
+	}
+}
+
+func TestDestinationRecordNotFound(t *testing.T) {
+	t.Parallel()
+
+	shared := func() *fakeStore {
+		st := sharedStore()
+		st.destinations["dest"] = models.Destination{ID: "dest", Name: "Shared channel", TeamID: "team", ChannelID: "c"}
+		st.destinations["priv"] = models.Destination{ID: "priv", Name: "Private channel", TeamID: "team", ChannelID: "p"}
+		grantTo(st, models.PrincipalUser, "tester", "Destination", "dest", "read")
+		return st
+	}
+	tests := []struct {
+		name  string
+		store func() *fakeStore
+		path  string
+		want  int
+	}{
+		{"missing", func() *fakeStore { return sessionAs(seededUIStore(), authz.RoleAdmin) }, "/admin/destinations/nope", http.StatusNotFound},
+		{"not shared", shared, "/admin/destinations/priv", http.StatusNotFound},
+		{"delete is a post", func() *fakeStore { return sessionAs(seededUIStore(), authz.RoleAdmin) }, "/admin/destinations/delete", http.StatusNotFound},
+		{"default is a post", func() *fakeStore { return sessionAs(seededUIStore(), authz.RoleAdmin) }, "/admin/destinations/default", http.StatusNotFound},
+		{"shared", shared, "/admin/destinations/dest", http.StatusOK},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			rec := asRole(t, newTestServer(t, tt.store(), &fakeMessenger{}).Handler, http.MethodGet, tt.path, "")
+			if rec.Code != tt.want {
+				t.Fatalf("GET %s = %d, want %d", tt.path, rec.Code, tt.want)
+			}
+			if tt.want == http.StatusOK && strings.Contains(rec.Body.String(), "Make global default") {
+				t.Error("a share-only user is offered Make default")
+			}
+		})
+	}
+}
+
+func TestDestinationPagesWithoutAccess(t *testing.T) {
+	t.Parallel()
+
+	h := newTestServer(t, sessionAs(seededUIStore()), &fakeMessenger{}).Handler
+	for _, path := range []string{"/admin/destinations", "/admin/destinations/dest"} {
+		rec := asRole(t, h, http.MethodGet, path, "")
+		if rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), "access") {
+			t.Errorf("GET %s = %d, want the 403 no-access page", path, rec.Code)
+		}
+	}
+}
+
+func TestDestinationRecordUsedBy(t *testing.T) {
+	t.Parallel()
+
+	build := func() *fakeStore {
+		st := sharedStore()
+		st.destinations["dest"] = models.Destination{ID: "dest", Name: "Shared channel", TeamID: "team", ChannelID: "c"}
+		st.routes["r1"] = models.Route{ID: "r1", Name: "Readable route", DestinationID: "dest", LabelSelector: map[string]string{"a": "b"}}
+		st.routes["r2"] = models.Route{ID: "r2", DestinationID: "dest", LabelSelector: map[string]string{"severity": "critical"}}
+		st.routes["child"] = models.Route{ID: "child", Name: "Inheriting child", ParentID: "r1"}
+		st.webhooks["w1"] = models.WebhookEndpoint{ID: "w1", TeamSlug: "ops", ChannelSlug: "alerts", DestinationID: "dest"}
+		grantTo(st, models.PrincipalUser, "tester", "Destination", "dest", "read")
+		grantTo(st, models.PrincipalUser, "tester", "Route", "r1", "read")
+		return st
+	}
+	admin := build()
+	admin.sessions[testSessionID] = sessionAs(newFakeStore(), authz.RoleAdmin).sessions[testSessionID]
+
+	tests := []struct {
+		name     string
+		store    *fakeStore
+		want     []string
+		unwanted []string
+	}{
+		{
+			name:     "admin",
+			store:    admin,
+			want:     []string{`href="/admin/routes?edit=r1"`, "Readable route", `href="/admin/routes?edit=r2"`, "severity=critical", `href="/admin/webhooks?edit=w1"`, "ops/alerts", `href="/admin/routing"`},
+			unwanted: []string{"Inheriting child"},
+		},
+		{
+			name:     "share only",
+			store:    build(),
+			want:     []string{"Readable route", `href="/admin/routing"`},
+			unwanted: []string{"severity=critical", "ops/alerts", "Inheriting child"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			rec := asRole(t, newTestServer(t, tt.store, &fakeMessenger{}).Handler, http.MethodGet, "/admin/destinations/dest", "")
+			body := rec.Body.String()
+			if rec.Code != http.StatusOK {
+				t.Fatalf("GET = %d, want 200", rec.Code)
+			}
+			for _, w := range tt.want {
+				if !strings.Contains(body, w) {
+					t.Errorf("page is missing %q", w)
+				}
+			}
+			for _, u := range tt.unwanted {
+				if strings.Contains(body, u) {
+					t.Errorf("page has %q", u)
+				}
+			}
+		})
+	}
+}
+
+func TestDestinationOldEditLink(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct{ name, from, to string }{
+		{"list", "/admin/destinations?edit=abc&notice=x", "/admin/destinations/abc?edit&notice=x"},
+		{"tab", "/admin?edit=destinations&id=abc", "/admin/destinations/abc?edit"},
+		{"tab escapes the id", "/admin?edit=destinations&id=a%2Fb&error=e", "/admin/destinations/a%2Fb?edit&error=e"},
+		{"tab list", "/admin?tab=destinations", "/admin/destinations"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			rec := asRole(t, newTestServer(t, sessionAs(seededUIStore(), authz.RoleAdmin), &fakeMessenger{}).Handler, http.MethodGet, tt.from, "")
+			if rec.Code != http.StatusMovedPermanently || rec.Header().Get("Location") != tt.to {
+				t.Errorf("GET %s = %d to %q, want 301 to %q", tt.from, rec.Code, rec.Header().Get("Location"), tt.to)
+			}
+		})
+	}
+}
+
+func TestDestinationNewIsNotARecord(t *testing.T) {
+	t.Parallel()
+
+	rec := asRole(t, newTestServer(t, sessionAs(seededUIStore(), authz.RoleAdmin), &fakeMessenger{}).Handler, http.MethodGet, "/admin/destinations/new", "")
+	if rec.Code == http.StatusOK && strings.Contains(rec.Body.String(), "data-record") {
+		t.Error("/admin/destinations/new renders a record")
+	}
+}

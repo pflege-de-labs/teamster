@@ -45,6 +45,10 @@ func (s *Server) handleAdminPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if section == "destinations" && edit != "" {
+		http.Redirect(w, r, destinationEditURL(edit, q), http.StatusMovedPermanently)
+		return
+	}
 	target := url.URL{Path: adminTabPath(section)}
 	out := url.Values{}
 	if edit != "" {
@@ -59,8 +63,26 @@ func (s *Server) handleAdminPage(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, target.String(), http.StatusMovedPermanently)
 }
 
+// destinationEditURL is the record page in edit mode, carrying a notice or error along.
+func destinationEditURL(id string, q url.Values) string {
+	carried := url.Values{}
+	for _, key := range []string{"notice", "error"} {
+		if v := q.Get(key); v != "" {
+			carried.Set(key, v)
+		}
+	}
+	target := recordEditPath("destinations", id) + "?edit"
+	if len(carried) > 0 {
+		target += "&" + carried.Encode()
+	}
+	return target
+}
+
 // recordEditPath is the page that edits one record.
 func recordEditPath(section, id string) string {
+	if section == "destinations" {
+		return "/admin/destinations/" + url.PathEscape(id)
+	}
 	return adminTabPath(section) + "?edit=" + url.QueryEscape(id)
 }
 
@@ -204,7 +226,7 @@ func (s *Server) loadForEditing(r *http.Request, page *views.Page, section, id s
 		return
 	}
 	typ, ok := map[string]string{
-		"templates": typeTemplate, "destinations": typeDestination, "routes": typeRoute, "webhooks": typeWebhookEndpoint,
+		"templates": typeTemplate, "routes": typeRoute, "webhooks": typeWebhookEndpoint,
 	}[section]
 	if !ok {
 		return
@@ -220,11 +242,6 @@ func (s *Server) loadForEditing(r *http.Request, page *views.Page, section, id s
 		var template models.Template
 		if template, err = s.store.GetTemplate(ctx, id); err == nil {
 			page.EditTemplate = &template
-		}
-	case "destinations":
-		var destination models.Destination
-		if destination, err = s.store.GetDestination(ctx, id); err == nil {
-			page.EditDestination = &destination
 		}
 	case "routes":
 		var route models.Route
