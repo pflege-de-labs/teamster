@@ -13,7 +13,8 @@ already posted into Teams by the hint cards, so they must keep working.
 
 ## Decision
 
-We will group the sidebar and give every configuration resource its own page.
+We will group the sidebar and give every configuration resource its own page. This amends the
+sidebar of ADR 0042: its flat list of pages is replaced; the burger, user menu and role line stand.
 
 * **Four groups**, each a `<details>` element: Configuration, Delivery, Access, Administration. A
   group with no visible item is not rendered. Notifications moves to the user menu as **My

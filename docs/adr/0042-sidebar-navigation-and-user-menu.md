@@ -1,6 +1,8 @@
 # 0042. Move page links to a sidebar and account controls to a user menu
 
-* Status: Accepted; revealing the burger from `nav.js` superseded by [0054](0054-apply-sidebar-state-before-first-paint.md)
+* Status: Accepted; revealing the burger from `nav.js` superseded by
+  [0054](0054-apply-sidebar-state-before-first-paint.md); the flat page list partly superseded by
+  [0103](0103-group-the-admin-sidebar-and-give-each-resource-a-page.md)
 * Date: 2026-09-28
 
 ## Context
