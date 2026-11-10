@@ -62,7 +62,9 @@ templ page(title string, viewer *Viewer, full bool) {
 			</script>
 		</head>
 		<body class={ "bg-slate-50 text-slate-900", templ.KV("min-h-screen", !full), templ.KV("flex h-screen flex-col", full) }>
-			<header class="shrink-0 border-b border-slate-200 bg-white">
+			<header class="relative shrink-0 border-b border-slate-200 bg-white">
+				// Shown by nav.js while a slow page loads, so a click visibly did something.
+				<div id="nav-progress" role="progressbar" aria-label={ i18n.T(ctx, "nav.loading") } hidden class="nav-progress absolute inset-x-0 -bottom-px h-0.5 overflow-hidden bg-sky-100"></div>
 				<div class="flex items-center gap-3 px-6 py-4">
 					if viewer != nil {
 						<button

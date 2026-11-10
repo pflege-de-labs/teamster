@@ -30,3 +30,25 @@
     color: #c98500;
   }
 }
+
+/* Indeterminate bar under the header while the next page loads (nav.js). */
+@layer components {
+  .nav-progress::after {
+    content: "";
+    position: absolute;
+    inset-block: 0;
+    width: 30%;
+    background-color: var(--color-sky-500);
+    animation: nav-progress 1.2s ease-in-out infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .nav-progress::after {
+      width: 100%;
+      animation: none;
+    }
+  }
+}
+@keyframes nav-progress {
+  from { left: -30%; }
+  to { left: 100%; }
+}
