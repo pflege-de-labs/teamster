@@ -218,6 +218,27 @@ func (s *Server) destinationInScope(r *http.Request, id string) (models.Destinat
 	return d, nil
 }
 
+// endpointInScope is destinationInScope for webhook endpoints: one posting into a channel a role's scope
+// hides reads as missing.
+func (s *Server) endpointInScope(r *http.Request, id string) (models.WebhookEndpoint, error) {
+	e, err := s.store.GetWebhookEndpoint(r.Context(), id)
+	if err != nil {
+		return models.WebhookEndpoint{}, err
+	}
+	// A grant holder's grant names this record, so only a role's scoping applies.
+	if !s.allow(r, authz.ActionRead, authz.Resource{Type: typeWebhookEndpoint}) {
+		return e, nil
+	}
+	visible, err := s.visibleWebhookEndpoints(r, []models.WebhookEndpoint{e})
+	if err != nil {
+		return models.WebhookEndpoint{}, err
+	}
+	if len(visible) == 0 {
+		return models.WebhookEndpoint{}, store.ErrNotFound
+	}
+	return e, nil
+}
+
 // listDestinations keeps the channel scoping a role reads under, and shows a
 // grant holder the destinations shared with them.
 func (s *Server) listDestinations(r *http.Request, items []models.Destination) ([]models.Destination, error) {
