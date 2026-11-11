@@ -1492,7 +1492,9 @@ webhooks or `/api`. Minting and revoking are in the audit trail
 
 ### Connecting an assistant
 
-Point the client at `/mcp` with the token as a bearer credential. For Claude Code:
+Point the client at `/mcp` on the admin UI's host, with the token as a bearer credential. Where the
+webhooks have a hostname of their own (`server.webhook-url`), that host does not serve `/mcp`; the
+tokens page shows the right URL. For Claude Code:
 
 ```bash
 claude mcp add --transport http teamster https://teamster.example.com/mcp \
@@ -1526,7 +1528,7 @@ confirm ([ADR 0108](docs/adr/0108-claude-code-plugin-marketplace.md)):
 /plugin install teamster@teamster
 ```
 
-Claude Code asks for the **Teamster URL**, the base URL without `/mcp`, and the **MCP token**
+Claude Code asks for the **Teamster URL**, the admin UI's base URL without `/mcp`, and the **MCP token**
 minted at `/admin/tokens`; the token is kept in Claude Code's secure credential storage.
 
 ## Audit trail

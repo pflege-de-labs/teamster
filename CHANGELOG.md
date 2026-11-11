@@ -10,6 +10,14 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 ## [Unreleased]
 
+### Fixed
+
+* The MCP section of `/admin/tokens` showed the endpoint on the webhook host (`server.webhook-url`),
+  which a deployment with separate hostnames does not route `/mcp` to. It now shows the admin UI's
+  host, `server.external-url` when set.
+* An MCP client that was refused looked for OAuth metadata under `/.well-known/` and was redirected
+  to the login page, which it reported as a failure to connect. Those paths now answer 404.
+
 ## [0.21.0] — 2026-11-11
 
 ### Added

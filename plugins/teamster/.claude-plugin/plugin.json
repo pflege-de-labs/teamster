@@ -7,7 +7,7 @@
     "base_url": {
       "type": "string",
       "title": "Teamster URL",
-      "description": "Base URL of your Teamster server, for example https://teamster.example.com (without /mcp).",
+      "description": "Base URL of your Teamster admin UI, for example https://teamster.example.com (without /mcp). Not the webhook host, where that is a separate one.",
       "required": true
     },
     "api_token": {

@@ -246,7 +246,7 @@ func (s *Server) renderTokens(w http.ResponseWriter, r *http.Request, page views
 	page.Self = principalSubject(r)
 	if s.cfg.MCP.Enabled {
 		page.MCPEnabled = true
-		page.MCPURL = s.webhookBaseURL(r) + "/mcp"
+		page.MCPURL = s.adminBaseURL(r) + "/mcp"
 		mcpTokens, err := s.store.ListMCPTokens(ctx)
 		if err != nil && page.Error == "" {
 			page.Error = failureText(ctx, "list MCP tokens", err)
@@ -364,6 +364,19 @@ func (s *Server) webhookBaseURL(r *http.Request) string {
 	if s.cfg.Server.WebhookURL != "" {
 		return strings.TrimSuffix(s.cfg.Server.WebhookURL, "/")
 	}
+	return requestBaseURL(r)
+}
+
+// adminBaseURL is where the admin UI is published, and with it /api and /mcp;
+// the webhook host may route only the webhook paths.
+func (s *Server) adminBaseURL(r *http.Request) string {
+	if s.cfg.Server.ExternalURL != "" {
+		return strings.TrimSuffix(s.cfg.Server.ExternalURL, "/")
+	}
+	return requestBaseURL(r)
+}
+
+func requestBaseURL(r *http.Request) string {
 	scheme := "http"
 	if isTLS(r) {
 		scheme = "https"
