@@ -41,6 +41,9 @@ reasoning behind it in the [ADRs](docs/adr/).
 * A role limited to some Teams could read, delete or move into its own Teams a destination outside
   them by its id. `/api/destinations/{id}` now answers 404 for it, as the list already leaves it
   out, and the destination form refuses the move.
+* The same held for Teams V2 webhooks: such a role could read, repoint into its own Teams, replace
+  the token of or delete an endpoint posting outside them by its id, and take over that channel's
+  messages. `/api/webhooks/{id}` now answers 404 for it, and the webhook form refuses the move.
 
 ## [0.20.0] — 2026-11-09
 
