@@ -12,6 +12,9 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 ### Added
 
+* Alertmanager events carry the label `teamster_receiver`, the receiver Alertmanager sent them
+  through, so a route can follow the channel an Alertmanager route tree picked
+  ([ADR 0104](docs/adr/0104-the-alertmanager-receiver-is-a-label.md)).
 * The admin UI shows a progress bar under the header while a page takes longer than a moment to
   load, so following a link to a slow page — **Teams**, which asks Microsoft Graph first — visibly
   does something.

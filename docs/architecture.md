@@ -434,7 +434,7 @@ POST /teamsv2/{team}/{channel}/{token}
             │
    teamsv2.Parse: V2 envelope | plain text | legacy MessageCard
             │
-   processEvent: labels teamster_source, teamster_team, teamster_channel
+   processEvent: labels teamster_source, teamster_team, teamster_channel (teamster_receiver for Alertmanager)
             │
    routing.Plan ── linked route + any further matching roots ──► deliverOnce each ──► 200 | 502
             │
@@ -710,6 +710,10 @@ derived so that keys stay as they were. Teams V2 messages are routed as well
 and carry `teamster_source=teamsv2`
 ([ADR 0052](adr/0052-the-receiving-webhook-is-a-label.md),
 [ADR 0094](adr/0094-a-teams-v2-message-is-routed.md)).
+An Alertmanager event also carries `teamster_receiver`, set by `routedLabels` from the
+payload's receiver without the Prometheus Operator's `<namespace>/<config>/` prefix; other sources
+have it removed
+([ADR 0104](adr/0104-the-alertmanager-receiver-is-a-label.md)).
 
 A child is evaluated only once its parent matched, and applies when its own selector matches. Every
 matching child delivers; a greedy one delivers *instead of* its parent, a non-greedy one *as well
