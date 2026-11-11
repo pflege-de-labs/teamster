@@ -178,6 +178,13 @@ func (s *Server) createDestination(r *http.Request, d models.Destination) (model
 // from a grant on this destination rather than from a role may keep its
 // channel: their grant is the scope. Moving it takes the delivery scope.
 func (s *Server) mayRepointDestination(r *http.Request, d models.Destination) (bool, error) {
+	// Moving an out-of-scope destination into scope is reaching it, not creating one.
+	if _, err := s.destinationInScope(r, d.ID); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return false, nil
+		}
+		return false, err
+	}
 	if !s.allow(r, authz.ActionEdit, authz.Resource{Type: typeDestination}) {
 		existing, err := s.store.GetDestination(r.Context(), d.ID)
 		if err != nil && !errors.Is(err, store.ErrNotFound) {
@@ -188,6 +195,27 @@ func (s *Server) mayRepointDestination(r *http.Request, d models.Destination) (b
 		}
 	}
 	return s.mayDeliverTo(r, d.TeamID, d.ChannelID)
+}
+
+// destinationInScope loads a destination and treats one outside the role's
+// channel scoping as missing, so an id reveals no more than the list does.
+func (s *Server) destinationInScope(r *http.Request, id string) (models.Destination, error) {
+	d, err := s.store.GetDestination(r.Context(), id)
+	if err != nil {
+		return models.Destination{}, err
+	}
+	// A grant holder's grant names this record, so only a role's scoping applies.
+	if !s.allow(r, authz.ActionRead, authz.Resource{Type: typeDestination}) {
+		return d, nil
+	}
+	visible, err := s.visibleDestinations(r, []models.Destination{d})
+	if err != nil {
+		return models.Destination{}, err
+	}
+	if len(visible) == 0 {
+		return models.Destination{}, store.ErrNotFound
+	}
+	return d, nil
 }
 
 // listDestinations keeps the channel scoping a role reads under, and shows a
