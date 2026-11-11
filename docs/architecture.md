@@ -22,8 +22,8 @@ that runs more than one instance. SQLite is the option with no other runtime dep
 | `internal/graph` | Microsoft Graph client: OAuth2 client credentials, list Teams and channels. It posts nothing: Graph does not let an application post or edit channel messages (ADR 0045). It also reads directory users and the organization app catalog, and installs the Teams app in a user's personal scope. Every app-only call retries while Graph throttles (429/503), waiting as long as `Retry-After` says, up to 30 seconds ([ADR 0085](adr/0085-pace-bot-connector-calls.md)). `BrokerClient` is the delegated-Teams half (ADR 0037): the same Graph endpoints, called with a per-request Entra bearer token instead of the app-only credential. |
 | `internal/people` | Resolves an object id, UPN or mail address to a directory user, opens the bot's chat with them, installing the Teams app through Graph when allowed, and reconciles installs for the whole tenant. See [Installing the app for everyone](#installing-the-app-for-everyone). |
 | `internal/bot` | Bot Framework Connector client: a second, separate OAuth2 client credentials flow. It starts channel posts, sends to a person's chat, and edits both. `CreatePersonalConversation` opens the bot's 1:1 chat with a user by Entra object id, which works only once the app is installed for them. Every call is paced and a throttled one retried; see [Pacing](#pacing), [Bot configuration](#bot-configuration) and [Inbound bot messages](#inbound-bot-messages). |
-| `internal/store` | `Store` interface, its SQLite and Postgres backends sharing one adapter; `internal/store/migrations` owns the schema for templates, destinations, routes, recipients, webhook endpoints, access tokens, active events, broker tokens and event samples. |
-| `internal/models` | Shared data types: `Event` and its extensions, `Route`, `Template`, `Destination`, `Recipient`, `ActiveEvent`, `AccessToken`, `BrokerToken`, `EventSample` and the two webhook payload shapes. See [Events](#events). |
+| `internal/store` | `Store` interface, its SQLite and Postgres backends sharing one adapter; `internal/store/migrations` owns the schema for templates, destinations, routes, recipients, webhook endpoints, access tokens, MCP tokens, active events, broker tokens and event samples. |
+| `internal/models` | Shared data types: `Event` and its extensions, `Route`, `Template`, `Destination`, `Recipient`, `ActiveEvent`, `AccessToken`, `MCPToken`, `BrokerToken`, `EventSample` and the two webhook payload shapes. See [Events](#events). |
 | `internal/httpserver/web` | Embedded static assets: icons, the web manifest, the Tailwind stylesheet built from `views/styles.css`, the page scripts, and the vendored libraries under `vendor/` (ADR 0031). |
 | `internal/cryptutil` | AES-256-GCM sealing for the one thing this service encrypts at rest: the live Keycloak token behind delegated Teams/Channels (ADR 0037). |
 
@@ -381,6 +381,16 @@ snapshot or registry is a `503`. Scoped tokens keep their digest in `scoped_toke
 `token_hash` holds a placeholder no digest equals, so the previous release, which matches
 `token_hash` alone, refuses them instead of admitting them unscoped.
 See [ADR 0044](adr/0044-webhook-access-tokens.md).
+
+An MCP token is a different credential, in `mcp_tokens` ([ADR 0106](adr/0106-mcp-tokens-answer-to-their-creator.md)).
+It is `tmcp_` and 256 random bits, stored as a SHA-256 digest, and is minted at `/admin/tokens`
+while `mcp.enabled` is on. `mcpAuth` reads `Authorization: Bearer` only, looks the digest up, and
+rebuilds the creator with `tokenCreator`, as for a scoped webhook token. It then serves the request
+as that user, with `via` set to `mcp`. A disabled or unknown creator is `403`, an unreadable
+registry `503`. The token's `access` (`read` or `write`) and `mcp.read-only` only narrow what the
+creator may do. Names are unique per creator. `authorize` lets any signed-in principal reach
+`/admin/tokens`, `/admin/tokens/mcp/new` and `/admin/tokens/mcp/delete` while `mcp.enabled` is on,
+and the handlers scope the list. Minting and revoking are audited. No `/mcp` endpoint serves yet.
 
 Naming people is checked before anything is routed
 ([ADR 0082](adr/0082-naming-people-takes-permission.md)). `authorizeWebhook` returns a `sender`:
@@ -1107,6 +1117,10 @@ release refuses it.
 SQLite and `0026` in Postgres ([ADR 0082](adr/0082-naming-people-takes-permission.md)). A sign-in
 without the object id keeps the one an earlier sign-in recorded. The previous release reads
 neither, and names people as it did.
+
+`mcp_tokens` came with MCP tokens, by `0034` in SQLite and `0031` in Postgres
+([ADR 0106](adr/0106-mcp-tokens-answer-to-their-creator.md)). It is unique on the digest and on
+`(created_by, name)`. The previous release ignores it.
 
 `broadcasts` came with broadcasts, by `0030` in SQLite and `0027` in Postgres
 ([ADR 0083](adr/0083-broadcasts-run-in-the-background.md)). It is indexed by state and request

@@ -544,5 +544,17 @@
   "sharing.action.use": "send to",
   "sharing.action.administer": "administer",
   "sharing.action.message": "message people",
-  "sharing.action.broadcast": "broadcast"
+  "sharing.action.broadcast": "broadcast",
+  "tokens.mcp.heading": "MCP access tokens",
+  "tokens.mcp.explainer": "An MCP token lets an AI client call Teamster's MCP server as you, and never further than you may go yourself. Give each client its own, so one can be revoked without breaking the others.",
+  "tokens.mcp.name_placeholder": "claude-code-laptop",
+  "tokens.mcp.access": "Access",
+  "tokens.mcp.access.read": "read only",
+  "tokens.mcp.access.write": "read and write",
+  "tokens.mcp.access.of": "Access: {0}",
+  "tokens.mcp.empty": "No MCP tokens yet.",
+  "tokens.mcp.snippet": "Claude Code, pointed at {0}:",
+  "tokens.mcp.access_invalid": "An MCP token's access is read only, or read and write.",
+  "tokens.mcp.created": "MCP token created.",
+  "tokens.mcp.revoked": "MCP token revoked. Clients using it are refused from now on."
 }

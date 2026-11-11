@@ -158,6 +158,9 @@ func TestWrapRecordsChanges(t *testing.T) {
 				tok, err := st.CreateAccessToken(ctx, models.AccessToken{Name: "ci", TokenHash: "secret", CreatedBy: "alice"})
 				must(t, err)
 				must(t, st.DeleteAccessToken(ctx, tok.ID))
+				mcp, err := st.CreateMCPToken(ctx, models.MCPToken{Name: "ci", TokenHash: "secret", CreatedBy: "alice", Access: models.MCPAccessRead})
+				must(t, err)
+				must(t, st.DeleteMCPToken(ctx, mcp.ID))
 				d, err := st.CreateDestination(ctx, models.Destination{Name: "d", TeamID: "t", ChannelID: "c"})
 				must(t, err)
 				ep, err := st.CreateWebhookEndpoint(ctx, models.WebhookEndpoint{TeamSlug: "a", ChannelSlug: "b", DestinationID: d.ID, TokenHash: "secret"})
@@ -170,6 +173,8 @@ func TestWrapRecordsChanges(t *testing.T) {
 			want: []step{
 				{"access_token.create", TypeAccessToken, nil, nil},
 				{"access_token.delete", TypeAccessToken, nil, nil},
+				{"mcp_token.create", TypeMCPToken, nil, nil},
+				{"mcp_token.delete", TypeMCPToken, nil, nil},
 				{"destination.create", TypeDestination, nil, nil},
 				{"webhook_endpoint.create", TypeWebhookEndpoint, nil, nil},
 				{"webhook_endpoint.update", TypeWebhookEndpoint, nil, nil},

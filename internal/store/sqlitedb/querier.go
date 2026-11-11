@@ -69,6 +69,7 @@ type Querier interface {
 	CreateGroup(ctx context.Context, arg CreateGroupParams) error
 	CreateLinkFlow(ctx context.Context, arg CreateLinkFlowParams) error
 	CreateLoginFlow(ctx context.Context, arg CreateLoginFlowParams) error
+	CreateMCPToken(ctx context.Context, arg CreateMCPTokenParams) error
 	CreateRecipient(ctx context.Context, arg CreateRecipientParams) error
 	CreateRoute(ctx context.Context, arg CreateRouteParams) error
 	CreateSession(ctx context.Context, arg CreateSessionParams) error
@@ -120,6 +121,7 @@ type Querier interface {
 	// guess only ever has to beat one live code rather than every one ever handed
 	// out before the hourly sweep catches up.
 	DeleteLinkFlowsForSubject(ctx context.Context, subject string) error
+	DeleteMCPToken(ctx context.Context, id string) (int64, error)
 	DeletePermission(ctx context.Context, id string) (int64, error)
 	DeletePermissionsForPrincipal(ctx context.Context, arg DeletePermissionsForPrincipalParams) error
 	DeletePermissionsForResource(ctx context.Context, arg DeletePermissionsForResourceParams) error
@@ -153,6 +155,7 @@ type Querier interface {
 	GetDirectoryUser(ctx context.Context, aadObjectID string) (DirectoryUser, error)
 	GetDirectoryUserByConversation(ctx context.Context, conversationID string) (DirectoryUser, error)
 	GetGroup(ctx context.Context, id string) (UserGroup, error)
+	GetMCPTokenByHash(ctx context.Context, tokenHash string) (McpToken, error)
 	GetPermission(ctx context.Context, id string) (Permission, error)
 	GetRecipient(ctx context.Context, id string) (Recipient, error)
 	// GetRecipientByConversation resolves the chat an inbound activity came from
@@ -224,6 +227,7 @@ type Querier interface {
 	ListGrants(ctx context.Context) ([]Grant, error)
 	ListGroupMembers(ctx context.Context, groupID string) ([]UserGroupMember, error)
 	ListGroups(ctx context.Context) ([]UserGroup, error)
+	ListMCPTokens(ctx context.Context) ([]McpToken, error)
 	ListPermissions(ctx context.Context) ([]Permission, error)
 	ListPermissionsForResource(ctx context.Context, arg ListPermissionsForResourceParams) ([]Permission, error)
 	// ListReachableDirectoryUsers is everyone a broadcast reaches through the
@@ -310,6 +314,7 @@ type Querier interface {
 	// ordinary equality, not a NULL comparison, so a card whose send returned no
 	// id is still reachable here.
 	TouchActiveEventRecipient(ctx context.Context, arg TouchActiveEventRecipientParams) error
+	TouchMCPToken(ctx context.Context, arg TouchMCPTokenParams) error
 	UnlinkRoute(ctx context.Context, id string) error
 	UpdateBrokerToken(ctx context.Context, arg UpdateBrokerTokenParams) error
 	UpdateDestination(ctx context.Context, arg UpdateDestinationParams) error

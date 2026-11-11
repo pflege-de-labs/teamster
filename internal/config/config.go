@@ -22,6 +22,7 @@ type Config struct {
 	Graph    GraphConfig    `embed:"" prefix:"graph-"`
 	Bot      BotConfig      `embed:"" prefix:"bot-"`
 	Samples  SamplesConfig  `embed:"" prefix:"samples-"`
+	MCP      MCPConfig      `embed:"" prefix:"mcp-"`
 	Audit    AuditConfig    `embed:"" prefix:"audit-"`
 	Log      LogConfig      `embed:"" prefix:"log-"`
 
@@ -293,6 +294,12 @@ func validateAudit(cfg AuditConfig) error {
 		return fmt.Errorf("audit-queue-size must be positive, not %d", cfg.QueueSize)
 	}
 	return nil
+}
+
+// MCPConfig switches on the MCP endpoint, which is opt-in.
+type MCPConfig struct {
+	Enabled  bool `help:"Serve the MCP endpoint at /mcp and let users mint MCP tokens."`
+	ReadOnly bool `help:"Refuse every MCP tool that writes, whoever the user is." name:"read-only"`
 }
 
 // SamplesConfig bounds what is remembered of incoming events so the admin UI

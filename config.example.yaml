@@ -260,6 +260,13 @@ samples:
   lru-size: 4096
   flush-interval: "5m"
 
+# The MCP endpoint at /mcp, for AI assistants acting as a signed-in user. Off
+# unless enabled.
+# mcp:
+#   enabled: false
+#   # Refuse every tool that writes, whoever the user is.
+#   read-only: false
+
 # Who changed the configuration, and how (ADR 0070). Off unless database or a
 # sink is set; database alone is the simplest setup.
 audit:
