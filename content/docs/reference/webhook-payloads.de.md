@@ -127,6 +127,7 @@ mehr gelesen.
 | Label | Gesetzt von | Bedeutung |
 | --- | --- | --- |
 | `teamster_source` | Teamster | Der Webhook, an dem das Ereignis ankam: `alertmanager`, `universal` oder `teamsv2`. Ein vom Absender gesetzter Wert wird überschrieben. |
+| `teamster_receiver` | Teamster | Der Alertmanager-`receiver` nach seinem letzten `/`. Nur an `/webhook/alertmanager` gesetzt, ohne Receiver nicht vorhanden. Ein vom Absender gesetzter Wert wird überschrieben. |
 | `teamster_team`, `teamster_channel` | Teamster | Die URL-Segmente einer Teams-V2-Nachricht. An jedem anderen Webhook werden sie aus den Labels eines Absenders entfernt. |
 | `teamster_recipient` | Dem Absender | Personen, an die eine adressierte Route zustellt, durch Kommas getrennt. Wird nur verwendet, wenn die Nutzdaten kein `recipients` enthalten. |
 

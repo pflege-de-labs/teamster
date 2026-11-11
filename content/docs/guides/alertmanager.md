@@ -108,6 +108,8 @@ for a group of two alerts. A `200 {"status":"ok"}` means the notification was de
 * Routes select on `commonLabels`, the labels all alerts in the group share. For a group of one
   alert, those are the alert's labels.
 * Every event carries the label `teamster_source: alertmanager`. A route can select on it.
+* Every event also carries `teamster_receiver`, the receiver Alertmanager sent it through. See
+  [Send each receiver to its own channel](#send-each-receiver-to-its-own-channel).
 * Templates find the group's alerts in `.Event.Alertmanager.Alerts`. The flat `Annotations`,
   `StartsAt`, `EndsAt` and `GeneratorURL` are set only for a group of one alert. See
   [List the alerts of a group](../templates/#list-the-alerts-of-a-group) and
@@ -115,6 +117,23 @@ for a group of two alerts. A `200 {"status":"ok"}` means the notification was de
 * To send an alert to people rather than a channel, set the label `teamster_recipient`. The
   addresses of all alerts in the group are joined. Each person gets only the alerts that name them
   and the alerts that name nobody. See [Send messages to individual people](../direct-messages/).
+
+## Send each receiver to its own channel
+
+Alertmanager keeps routing, muting and inhibition. Teamster picks the channel from the receiver:
+
+1. Point every Alertmanager receiver you want in Teams at `/webhook/alertmanager`, each with the
+   same token.
+2. In Teamster, add one route per receiver that selects `{"teamster_receiver": "<receiver>"}` and
+   delivers to its channel.
+
+Teamster sets `teamster_receiver` to the part of the notification's `receiver` after the last `/`.
+The Prometheus Operator names receivers `<namespace>/<config>/<name>`, so you select on `<name>`.
+A value the sender sets is overwritten. A notification without a receiver gets no label.
+
+To split one receiver by cluster, add `cluster` to the Alertmanager `group_by`, so alerts from
+different clusters do not share a card. Then add child routes under the receiver's route that
+select `{"cluster": "<cluster>"}`. See [Nested routes](../../concepts/routing/#nested-routes).
 
 ## After upgrading from a release with one card per alert
 

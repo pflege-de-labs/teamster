@@ -30,6 +30,15 @@ angekommen ist: `alertmanager` oder `universal`. Einen vom Absender gesetzten We
 Eine Route kann daher nach der Quelle auswählen, zum Beispiel mit
 `{"teamster_source": "alertmanager"}`.
 
+### Das Label `teamster_receiver` {#the-teamster_receiver-label}
+
+Ein Alertmanager-Ereignis erhält das Label `teamster_receiver`: den `receiver` der Benachrichtigung
+nach dem letzten `/`, denn der Prometheus Operator sendet `<namespace>/<config>/<name>`. Es
+überschreibt einen vom Absender gesetzten Wert und fehlt, wenn die Benachrichtigung keinen Receiver
+hat. Andere Webhooks tragen es nie. Eine Route kann danach auswählen, um jedem Alertmanager-Receiver
+einen eigenen Kanal zu geben. Siehe
+[Jeden Receiver an einen eigenen Kanal senden](../../guides/alertmanager/#send-each-receiver-to-its-own-channel).
+
 ### Die Labels `teamster_team` und `teamster_channel` {#the-teamster_team-and-teamster_channel-labels}
 
 Eine Teams-V2-Nachricht kommt mit `teamster_source=teamsv2` an, dazu mit den beiden URL-Segmenten,
