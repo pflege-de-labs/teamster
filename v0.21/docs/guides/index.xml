@@ -4672,7 +4672,10 @@ the UI. See &lt;a href="../roles/"&gt;Manage roles and access&lt;/a&gt;.&lt;/li&
 &lt;code&gt;list_sampled_labels&lt;/code&gt; needs &lt;a href="../../reference/configuration/#event-samples"&gt;event samples&lt;/a&gt;
 on, and a user who may edit templates or routes.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="connect-an-assistant"&gt;Connect an assistant&lt;span class="hx:absolute hx:-mt-20" id="connect-an-assistant"&gt;&lt;/span&gt;
-&lt;a href="#connect-an-assistant" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Point the client at &lt;code&gt;/mcp&lt;/code&gt; on your Teamster URL, with the token as a bearer credential.&lt;/p&gt;
+&lt;a href="#connect-an-assistant" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Point the client at &lt;code&gt;/mcp&lt;/code&gt; on the admin UI&amp;rsquo;s host (&lt;code&gt;server.external-url&lt;/code&gt; when set), with the token
+as a bearer credential. Where the webhooks have a hostname of their own (&lt;code&gt;server.webhook-url&lt;/code&gt;),
+that host does not serve &lt;code&gt;/mcp&lt;/code&gt;. The MCP section of &lt;code&gt;/admin/tokens&lt;/code&gt; shows the right URL in its
+&lt;code&gt;claude mcp add&lt;/code&gt; snippet.&lt;/p&gt;
 &lt;div class="hextra-scrollbar hx:overflow-x-auto hx:overflow-y-hidden hx:overscroll-x-contain"&gt;
 &lt;div class="hx:mt-4 hx:flex hx:w-max hx:min-w-full hx:border-b hx:border-gray-200 hx:pb-px hx:dark:border-neutral-800" role="tablist"&gt;&lt;button class="hextra-tabs-toggle hx:cursor-pointer hx:data-[state=selected]:border-primary-500 hx:data-[state=selected]:text-primary-600 hx:data-[state=selected]:dark:border-primary-500 hx:data-[state=selected]:dark:text-primary-600 hx:mr-2 hx:rounded-t hx:p-2 hx:font-medium hx:leading-5 hx:transition-colors hx:-mb-0.5 hx:select-none hx:border-b-2 hx:border-transparent hx:text-gray-600 hx:hover:border-gray-200 hx:hover:text-black hx:dark:text-gray-200 hx:dark:hover:border-neutral-800 hx:dark:hover:text-white hx:hextra-focus-visible-inset" id="tabs-tab-tabs-01-0" role="tab" type="button" aria-controls="tabs-panel-tabs-01-0" aria-selected="true" tabindex="0" data-state="selected"&gt;&lt;span class="hx:inline-flex hx:items-center hx:gap-1.5"&gt;&lt;span&gt;Claude Code&lt;/span&gt;&lt;/span&gt;&lt;/button&gt;&lt;button class="hextra-tabs-toggle hx:cursor-pointer hx:data-[state=selected]:border-primary-500 hx:data-[state=selected]:text-primary-600 hx:data-[state=selected]:dark:border-primary-500 hx:data-[state=selected]:dark:text-primary-600 hx:mr-2 hx:rounded-t hx:p-2 hx:font-medium hx:leading-5 hx:transition-colors hx:-mb-0.5 hx:select-none hx:border-b-2 hx:border-transparent hx:text-gray-600 hx:hover:border-gray-200 hx:hover:text-black hx:dark:text-gray-200 hx:dark:hover:border-neutral-800 hx:dark:hover:text-white hx:hextra-focus-visible-inset" id="tabs-tab-tabs-01-1" role="tab" type="button" aria-controls="tabs-panel-tabs-01-1" aria-selected="false" tabindex="-1"&gt;&lt;span class="hx:inline-flex hx:items-center hx:gap-1.5"&gt;&lt;span&gt;Any MCP client&lt;/span&gt;&lt;/span&gt;&lt;/button&gt;&lt;/div&gt;
 &lt;/div&gt;
@@ -4711,7 +4714,8 @@ data-copied-label="Copied!"
 &lt;/div&gt;
 &lt;p&gt;Claude Code asks for two values:&lt;/p&gt;
 &lt;ul&gt;
-&lt;li&gt;&lt;strong&gt;Teamster URL&lt;/strong&gt;: the base URL without &lt;code&gt;/mcp&lt;/code&gt;, for example &lt;code&gt;https://teamster.example.com&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Teamster URL&lt;/strong&gt;: the admin UI&amp;rsquo;s base URL without &lt;code&gt;/mcp&lt;/code&gt;, for example
+&lt;code&gt;https://teamster.example.com&lt;/code&gt;, not a separate webhook host.&lt;/li&gt;
 &lt;li&gt;&lt;strong&gt;MCP token&lt;/strong&gt;: the &lt;code&gt;tmcp_&lt;/code&gt; token you minted. The plugin keeps it in Claude Code&amp;rsquo;s secure
 credential storage.&lt;/li&gt;
 &lt;/ul&gt;
