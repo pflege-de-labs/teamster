@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/pflege-de-labs/teamster/internal/audit"
+	"github.com/pflege-de-labs/teamster/internal/authz"
 	"github.com/pflege-de-labs/teamster/internal/config"
 	"github.com/pflege-de-labs/teamster/internal/models"
 )
@@ -185,5 +187,53 @@ func TestNewMCPToken(t *testing.T) {
 	b, _ := newMCPToken()
 	if !strings.HasPrefix(a, mcpTokenPrefix) || len(a) != len(mcpTokenPrefix)+64 || a == b {
 		t.Errorf("tokens %q, %q: want distinct, %s-prefixed, 256 bits", a, b, mcpTokenPrefix)
+	}
+}
+
+// The snippet must point at the admin host: a split deployment's webhook host routes only the webhook paths.
+func TestMCPURLIsOnTheAdminHost(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		externalURL string
+		want        string
+	}{
+		{name: "the host the admin UI is read on", want: "http://example.com/mcp"},
+		{name: "the configured admin URL", externalURL: "https://admin.example.org/", want: "https://admin.example.org/mcp"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := testConfig()
+			cfg.MCP.Enabled = true
+			cfg.Server.WebhookURL = "https://hooks.example.org"
+			cfg.Server.ExternalURL = tt.externalURL
+			h := mustServer(t, cfg, sessionAs(tokenStore(), authz.RoleEditor), &fakeMessenger{}).Handler
+			body := postFormAs(t, h, "/admin/tokens/mcp/new", url.Values{"name": {"laptop"}, "access": {"read"}}).Body.String()
+			if !strings.Contains(body, "claude mcp add --transport http teamster "+tt.want+" ") {
+				t.Errorf("snippet does not point at %s", tt.want)
+			}
+			if strings.Contains(body, "hooks.example.org/mcp") {
+				t.Error("snippet points at the webhook host")
+			}
+		})
+	}
+}
+
+// An MCP client probes for OAuth metadata after a 401; a login redirect would read as a broken server.
+func TestWellKnownIsNotFound(t *testing.T) {
+	t.Parallel()
+
+	cfg := testConfig()
+	cfg.MCP.Enabled = true
+	h := mustServer(t, cfg, newFakeStore(), &fakeMessenger{}).Handler
+	for _, path := range []string{"/.well-known/oauth-protected-resource", "/.well-known/oauth-protected-resource/mcp", "/.well-known/oauth-authorization-server"} {
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
+		if rec.Code != http.StatusNotFound || rec.Header().Get("Location") != "" {
+			t.Errorf("GET %s = %d Location %q, want 404 without a redirect", path, rec.Code, rec.Header().Get("Location"))
+		}
 	}
 }

@@ -362,6 +362,8 @@ func NewServer(logger *slog.Logger, cfg config.Config, store store.Store, graphC
 	if cfg.MCP.Enabled {
 		mux.Handle("/mcp", api.mcpAuth(mcp.NewStreamableHTTPHandler(api.mcpServerFor, &mcp.StreamableHTTPOptions{Stateless: true, DisableLocalhostProtection: true})))
 	}
+	// Clients probe here for OAuth metadata (MCP's after a 401); a login redirect would read as a broken server.
+	mux.Handle("/.well-known/", http.NotFoundHandler())
 	mux.Handle("/admin/login", authMux)
 	mux.Handle("/admin/auth/", authMux)
 	mux.Handle("/admin/logout", authMux)
