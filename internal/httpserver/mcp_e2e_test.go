@@ -12,6 +12,7 @@ import (
 
 	"github.com/pflege-de-labs/teamster/internal/audit"
 	"github.com/pflege-de-labs/teamster/internal/config"
+	"github.com/pflege-de-labs/teamster/internal/graph"
 	"github.com/pflege-de-labs/teamster/internal/metrics"
 	"github.com/pflege-de-labs/teamster/internal/models"
 )
@@ -56,8 +57,14 @@ func TestMCPEndToEnd(t *testing.T) {
 		Server: config.ServerConfig{Addr: ":0"},
 		Admin:  config.AdminConfig{Username: "admin", Password: "pass"},
 		MCP:    config.MCPConfig{Enabled: true},
+
+		Samples: config.SamplesConfig{Enabled: true},
 	}
-	srv, err := NewServer(quietLog, cfg, audit.Wrap(st, audit.NewRecorder(quietLog, nil, 1, audit.NewDBSink(st))), &fakeMessenger{}, nil, &fakeMessenger{}, metrics.Disabled(), nil)
+	graphClient := &fakeMessenger{
+		teams:    []graph.Team{{ID: "platform", Name: "Platform"}},
+		channels: map[string][]graph.Channel{"platform": {{ID: "alerts", Name: "Alerts"}}},
+	}
+	srv, err := NewServer(quietLog, cfg, audit.Wrap(st, audit.NewRecorder(quietLog, nil, 1, audit.NewDBSink(st))), graphClient, nil, &fakeMessenger{}, metrics.Disabled(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -126,6 +133,37 @@ func TestMCPEndToEnd(t *testing.T) {
 		}
 	})
 
+	t.Run("list_channels returns the team's channels", func(t *testing.T) {
+		if out := text(t, call("list_channels", map[string]any{"id": "platform"})); !strings.Contains(out, "alerts") {
+			t.Errorf("list_channels = %s, want the alerts channel", out)
+		}
+	})
+
+	// A path mismatch between a tool and its endpoint hid behind the stub admin API once.
+	t.Run("every read tool is answered by the real admin API", func(t *testing.T) {
+		tests := []struct {
+			tool string
+			args map[string]any
+		}{
+			{"list_templates", nil},
+			{"get_template", map[string]any{"id": "tpl-1"}},
+			{"list_destinations", nil},
+			{"get_destination", map[string]any{"id": "d1"}},
+			{"list_routes", nil},
+			{"get_route", map[string]any{"id": "r1"}},
+			{"preview_template", map[string]any{"body": `{"type":"AdaptiveCard"}`, "sample": "{}"}},
+			{"match_route", map[string]any{"labels": map[string]string{"team": "db"}}},
+			{"list_teams", nil},
+			{"list_channels", map[string]any{"id": "platform"}},
+			{"list_sampled_labels", nil},
+		}
+		for _, tt := range tests {
+			if res := call(tt.tool, tt.args); res.IsError {
+				t.Errorf("%s: %s", tt.tool, text(t, res))
+			}
+		}
+	})
+
 	t.Run("match_route returns the matching route", func(t *testing.T) {
 		out := text(t, call("match_route", map[string]any{"labels": map[string]string{"team": "db"}}))
 		if !strings.Contains(out, "r1") {
@@ -171,4 +209,50 @@ func TestMCPEndToEnd(t *testing.T) {
 			t.Errorf("call after revocation = %v, want the SDK's Unauthorized (401) error", err)
 		}
 	})
+}
+
+func TestMCPAcceptsAForeignHostOnLoopback(t *testing.T) {
+	t.Parallel()
+
+	// httptest listens on 127.0.0.1, so a foreign Host is the sidecar-proxy case the SDK guard would 403.
+	st := scopedStore(t, "editor")
+	st.users["tester"] = models.User{Subject: "tester", Name: "Tester", Source: "oidc", Roles: []string{"editor"}}
+	const secret = "tmcp_host"
+	if _, err := st.CreateMCPToken(t.Context(), models.MCPToken{Name: "h", TokenHash: hashToken(secret), CreatedBy: "tester", Access: models.MCPAccessRead}); err != nil {
+		t.Fatal(err)
+	}
+	_, srv := mcpTestServer(t, st, config.MCPConfig{Enabled: true})
+	ts := httptest.NewServer(srv.Handler)
+	t.Cleanup(ts.Close)
+
+	tests := []struct {
+		name string
+		host string
+	}{
+		{"loopback host", ""},
+		{"foreign host", "teamster.example.com"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			body := `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"t","version":"1"}}}`
+			req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, ts.URL+"/mcp", strings.NewReader(body))
+			if err != nil {
+				t.Fatal(err)
+			}
+			req.Host = tt.host
+			req.Header.Set("Authorization", "Bearer "+secret)
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Accept", "application/json, text/event-stream")
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				t.Errorf("status = %d, want 200", resp.StatusCode)
+			}
+		})
+	}
 }

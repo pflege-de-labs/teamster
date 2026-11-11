@@ -46,7 +46,6 @@ func (s *Server) callAPI(ctx context.Context, method, path string, body any) (in
 	if !strings.HasPrefix(path, "/api/") {
 		return 0, nil, fmt.Errorf("mcp: refusing to dispatch %q outside /api/", path)
 	}
-	// Handlers read the decoded path, so a dot segment or doubled slash could reach another route.
 	var reader io.Reader
 	if body != nil {
 		raw, err := json.Marshal(body)

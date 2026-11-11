@@ -117,7 +117,7 @@ func (s *Server) addMCPTools(srv *mcp.Server, r *http.Request) {
 	if t := (mcpTool{"list_teams", "List the Teams the application can post to.", http.MethodGet, "/api/graph/teams", false}); add(t) {
 		register(s, srv, t, func(noInput) (string, any) { return "", nil })
 	}
-	if t := (mcpTool{"list_channels", "List the channels of one Team, by the id list_teams returned.", http.MethodGet, "/api/graph/teams/{id}", false}); add(t) {
+	if t := (mcpTool{"list_channels", "List the channels of one Team, by the id list_teams returned.", http.MethodGet, "/api/graph/teams/{id}/channels", false}); add(t) {
 		register(s, srv, t, func(in idInput) (string, any) { return in.ID, nil }, "id")
 	}
 	if s.cfg.Samples.Enabled && s.mayComplete(r) {
