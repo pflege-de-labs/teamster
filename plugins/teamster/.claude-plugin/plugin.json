@@ -1,6 +1,6 @@
 {
   "name": "teamster",
-  "version": "0.21.0",
+  "version": "0.21.1",
   "description": "Connects Claude Code to a Teamster MCP endpoint and teaches the workflow for routing alerts to Microsoft Teams.",
   "author": { "name": "pflege.de labs" },
   "userConfig": {

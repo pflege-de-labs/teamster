@@ -8,6 +8,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.20.1] — 2026-11-11
+
+App version 0.21.1: the MCP snippet on `/admin/tokens` points at the admin UI's host instead of the
+webhook host, and `/.well-known/` answers 404 instead of redirecting to the login page; see the
+[service changelog](../../CHANGELOG.md).
+
 ## [0.20.0] — 2026-11-11
 
 App version 0.21.0: an opt-in MCP endpoint (`mcp.enabled`) with MCP tokens and a Claude Code
@@ -234,7 +240,8 @@ an Ingress or HTTPRoute, configuration and credentials from values, `extraObject
 an optional startupProbe, and `helm test`
 ([ADR 0016](../../docs/adr/0016-helm-chart.md)).
 
-[Unreleased]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.20.0...HEAD
+[Unreleased]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.20.1...HEAD
+[0.20.1]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.20.0...teamster-0.20.1
 [0.20.0]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.19.0...teamster-0.20.0
 [0.19.0]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.18.0...teamster-0.19.0
 [0.18.0]: https://github.com/pflege-de-labs/teamster/compare/teamster-0.17.0...teamster-0.18.0
