@@ -308,124 +308,144 @@ func TestTokenMessageLevels(t *testing.T) {
 func TestMCPTokenMinting(t *testing.T) {
 	t.Parallel()
 
-	same := map[string]string{"Sec-Fetch-Site": "same-origin"}
-	seeded := func(role ...authz.Role) *fakeStore {
-		st := sessionAs(tokenStore(), role...)
-		st.mcpTokens["mine"] = models.MCPToken{ID: "mine", Name: "mine", TokenHash: "h1", CreatedBy: "tester", Access: models.MCPAccessRead}
-		st.mcpTokens["theirs"] = models.MCPToken{ID: "theirs", Name: "theirs", TokenHash: "h2", CreatedBy: "someone", Access: models.MCPAccessWrite}
-		return st
+	type result struct {
+		rec *httptest.ResponseRecorder
+		st  *fakeStore
 	}
-	server := func(st *fakeStore, enabled bool) http.Handler {
-		cfg := config.Config{
-			Server:  config.ServerConfig{Addr: ":0"},
-			Webhook: config.WebhookConfig{Token: "token"},
-			Admin:   config.AdminConfig{Username: "admin", Password: "pass"},
-			MCP:     config.MCPConfig{Enabled: enabled},
-		}
-		return mustServer(t, cfg, st, &fakeMessenger{}).Handler
+	tests := []struct {
+		name    string
+		roles   []authz.Role
+		enabled bool
+		method  string
+		path    string
+		form    url.Values
+		want    int
+		check   func(t *testing.T, r result)
+	}{
+		{name: "a viewer mints a read token and sees the secret once", roles: []authz.Role{authz.RoleViewer}, enabled: true, method: http.MethodPost, path: "/admin/tokens/mcp/new",
+			form: url.Values{"name": {"laptop"}, "access": {"read"}}, want: http.StatusOK, check: func(t *testing.T, r result) {
+				body := r.rec.Body.String()
+				if !strings.Contains(body, "tmcp_") || !strings.Contains(body, "claude mcp add") {
+					t.Error("the page lacks the secret or the snippet")
+				}
+				if stored, ok := mcpByName(r.st, "laptop"); !ok || stored.CreatedBy != "tester" || stored.Access != models.MCPAccessRead {
+					t.Errorf("stored %+v, want a read token created by the viewer", stored)
+				}
+			}},
+		{name: "a role-less user opens the section, the nav offers it, and only their own are listed", enabled: true, method: http.MethodGet, path: "/admin/tokens", want: http.StatusOK,
+			check: func(t *testing.T, r result) {
+				body := r.rec.Body.String()
+				if !strings.Contains(body, "/admin/tokens/mcp/new") || !strings.Contains(body, `href="/admin/tokens"`) || !strings.Contains(body, ">mine<") || strings.Contains(body, ">theirs<") {
+					t.Error("want the MCP section, the nav link and only their own token")
+				}
+			}},
+		{name: "a role-less user may mint", enabled: true, method: http.MethodPost, path: "/admin/tokens/mcp/new",
+			form: url.Values{"name": {"x"}, "access": {"read"}}, want: http.StatusOK},
+		{name: "the exception does not reach webhook tokens", roles: []authz.Role{authz.RoleViewer}, enabled: true, method: http.MethodPost, path: "/admin/tokens/new",
+			form: url.Values{"name": {"w"}, "scope": {"universal"}}, want: http.StatusForbidden},
+		{name: "a taken name by the same creator is refused", roles: []authz.Role{authz.RoleEditor}, enabled: true, method: http.MethodPost, path: "/admin/tokens/mcp/new",
+			form: url.Values{"name": {"mine"}, "access": {"read"}}, want: http.StatusSeeOther, check: func(t *testing.T, r result) {
+				if !strings.Contains(r.rec.Header().Get("Location"), "already+exists") {
+					t.Errorf("Location %q, want the name-taken error", r.rec.Header().Get("Location"))
+				}
+			}},
+		{name: "another creator's name may be reused", roles: []authz.Role{authz.RoleEditor}, enabled: true, method: http.MethodPost, path: "/admin/tokens/mcp/new",
+			form: url.Values{"name": {"theirs"}, "access": {"read"}}, want: http.StatusOK},
+		{name: "an unknown access level stores nothing", roles: []authz.Role{authz.RoleEditor}, enabled: true, method: http.MethodPost, path: "/admin/tokens/mcp/new",
+			form: url.Values{"name": {"root"}, "access": {"admin"}}, want: http.StatusSeeOther, check: func(t *testing.T, r result) {
+				if !strings.Contains(r.rec.Header().Get("Location"), "error=") {
+					t.Error("want an error redirect")
+				}
+				if _, ok := mcpByName(r.st, "root"); ok {
+					t.Error("a token with an unknown access level was stored")
+				}
+			}},
+		{name: "an editor revokes their own", roles: []authz.Role{authz.RoleEditor}, enabled: true, method: http.MethodPost, path: "/admin/tokens/mcp/delete",
+			form: url.Values{"id": {"mine"}}, want: http.StatusSeeOther, check: func(t *testing.T, r result) {
+				if _, ok := r.st.mcpTokens["mine"]; ok {
+					t.Error("their own token is still there")
+				}
+			}},
+		{name: "an editor may not revoke another's", roles: []authz.Role{authz.RoleEditor}, enabled: true, method: http.MethodPost, path: "/admin/tokens/mcp/delete",
+			form: url.Values{"id": {"theirs"}}, want: http.StatusSeeOther, check: func(t *testing.T, r result) {
+				if _, ok := r.st.mcpTokens["theirs"]; !ok || !strings.Contains(r.rec.Header().Get("Location"), "error=") {
+					t.Error("want the token kept and an error shown")
+				}
+			}},
+		{name: "an unknown id is an error", roles: []authz.Role{authz.RoleEditor}, enabled: true, method: http.MethodPost, path: "/admin/tokens/mcp/delete",
+			form: url.Values{"id": {"nope"}}, want: http.StatusSeeOther, check: func(t *testing.T, r result) {
+				if !strings.Contains(r.rec.Header().Get("Location"), "error=") || len(r.st.mcpTokens) != 2 {
+					t.Error("want an error and both tokens kept")
+				}
+			}},
+		{name: "an empty id is an error", roles: []authz.Role{authz.RoleEditor}, enabled: true, method: http.MethodPost, path: "/admin/tokens/mcp/delete",
+			form: url.Values{}, want: http.StatusSeeOther, check: func(t *testing.T, r result) {
+				if !strings.Contains(r.rec.Header().Get("Location"), "error=") || len(r.st.mcpTokens) != 2 {
+					t.Error("want an error and both tokens kept")
+				}
+			}},
+		{name: "a webhook admin lists everyone's", roles: []authz.Role{authz.RoleAdmin}, enabled: true, method: http.MethodGet, path: "/admin/tokens", want: http.StatusOK,
+			check: func(t *testing.T, r result) {
+				if body := r.rec.Body.String(); !strings.Contains(body, ">theirs<") || !strings.Contains(body, ">mine<") {
+					t.Error("an admin does not see everyone's MCP tokens")
+				}
+			}},
+		{name: "a webhook admin revokes another's", roles: []authz.Role{authz.RoleAdmin}, enabled: true, method: http.MethodPost, path: "/admin/tokens/mcp/delete",
+			form: url.Values{"id": {"theirs"}}, want: http.StatusSeeOther, check: func(t *testing.T, r result) {
+				if _, ok := r.st.mcpTokens["theirs"]; ok {
+					t.Error("an admin could not revoke another's token")
+				}
+			}},
+		{name: "disabled, minting is not found and stores nothing", roles: []authz.Role{authz.RoleAdmin}, method: http.MethodPost, path: "/admin/tokens/mcp/new",
+			form: url.Values{"name": {"late"}, "access": {"read"}}, want: http.StatusNotFound, check: func(t *testing.T, r result) {
+				if _, ok := mcpByName(r.st, "late"); ok {
+					t.Error("a token was minted while disabled")
+				}
+			}},
+		{name: "disabled, the page has no MCP section", roles: []authz.Role{authz.RoleAdmin}, method: http.MethodGet, path: "/admin/tokens", want: http.StatusOK,
+			check: func(t *testing.T, r result) {
+				if strings.Contains(r.rec.Body.String(), "/admin/tokens/mcp/new") {
+					t.Error("the MCP section shows while disabled")
+				}
+			}},
 	}
-	mint := func(h http.Handler, name, access string) *httptest.ResponseRecorder {
-		return postFormAs(t, h, "/admin/tokens/mcp/new", url.Values{"name": {name}, "access": {access}})
-	}
-	byName := func(st *fakeStore, name string) (models.MCPToken, bool) {
-		for _, tok := range st.mcpTokens {
-			if tok.Name == name {
-				return tok, true
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			st := sessionAs(tokenStore(), tt.roles...)
+			st.mcpTokens["mine"] = models.MCPToken{ID: "mine", Name: "mine", TokenHash: "h1", CreatedBy: "tester", Access: models.MCPAccessRead}
+			st.mcpTokens["theirs"] = models.MCPToken{ID: "theirs", Name: "theirs", TokenHash: "h2", CreatedBy: "someone", Access: models.MCPAccessWrite}
+			cfg := config.Config{
+				Server:  config.ServerConfig{Addr: ":0"},
+				Webhook: config.WebhookConfig{Token: "token"},
+				Admin:   config.AdminConfig{Username: "admin", Password: "pass"},
+				MCP:     config.MCPConfig{Enabled: tt.enabled},
 			}
-		}
-		return models.MCPToken{}, false
+			h := mustServer(t, cfg, st, &fakeMessenger{}).Handler
+			var rec *httptest.ResponseRecorder
+			if tt.method == http.MethodPost {
+				rec = postFormAs(t, h, tt.path, tt.form)
+			} else {
+				rec = call(t, h, tt.method, tt.path, "")
+			}
+			if rec.Code != tt.want {
+				t.Fatalf("%s %s = %d %s, want %d", tt.method, tt.path, rec.Code, rec.Body.String(), tt.want)
+			}
+			if rec.Header().Get("Location") != "" && strings.Contains(rec.Header().Get("Location"), "tmcp_") {
+				t.Error("the secret is in a redirect")
+			}
+			if tt.check != nil {
+				tt.check(t, result{rec, st})
+			}
+		})
 	}
+}
 
-	t.Run("a viewer mints a read token and sees it once", func(t *testing.T) {
-		t.Parallel()
-		st := seeded(authz.RoleViewer)
-		rec := mint(server(st, true), "laptop", "read")
-		if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "tmcp_") || !strings.Contains(rec.Body.String(), "claude mcp add") {
-			t.Fatalf("mint = %d %s, want the page with the secret and the snippet", rec.Code, rec.Body.String())
+func mcpByName(st *fakeStore, name string) (models.MCPToken, bool) {
+	for _, tok := range st.mcpTokens {
+		if tok.Name == name {
+			return tok, true
 		}
-		stored, ok := byName(st, "laptop")
-		if !ok || stored.CreatedBy != "tester" || stored.Access != models.MCPAccessRead {
-			t.Errorf("stored %+v, want a read token created by the viewer", stored)
-		}
-		if strings.Contains(rec.Header().Get("Location"), "tmcp_") {
-			t.Error("the secret is in a redirect")
-		}
-	})
-	t.Run("a role-less user opens the section and the nav offers it", func(t *testing.T) {
-		t.Parallel()
-		h := server(seeded(), true)
-		rec := call(t, h, http.MethodGet, "/admin/tokens", "")
-		body := rec.Body.String()
-		if rec.Code != http.StatusOK || !strings.Contains(body, "/admin/tokens/mcp/new") || !strings.Contains(body, ">mine<") || strings.Contains(body, ">theirs<") {
-			t.Errorf("GET /admin/tokens = %d, want the MCP section listing only their own", rec.Code)
-		}
-		if rec := mint(h, "x", "read"); rec.Code != http.StatusOK {
-			t.Errorf("a role-less user mints = %d, want 200", rec.Code)
-		}
-	})
-	t.Run("the exception does not reach webhook tokens", func(t *testing.T) {
-		t.Parallel()
-		st := seeded(authz.RoleViewer)
-		rec := postForm(t, server(st, true), "/admin/tokens/new", url.Values{"name": {"w"}, "scope": {"universal"}}, same)
-		if rec.Code != http.StatusForbidden {
-			t.Errorf("viewer mints a webhook token = %d, want 403", rec.Code)
-		}
-	})
-	t.Run("a taken name redirects with the error", func(t *testing.T) {
-		t.Parallel()
-		rec := mint(server(seeded(authz.RoleEditor), true), "mine", "read")
-		if rec.Code != http.StatusSeeOther || !strings.Contains(rec.Header().Get("Location"), "already+exists") {
-			t.Errorf("taken name = %d %s, want a redirect naming the clash", rec.Code, rec.Header().Get("Location"))
-		}
-	})
-	t.Run("an unknown access level stores nothing", func(t *testing.T) {
-		t.Parallel()
-		st := seeded(authz.RoleEditor)
-		rec := mint(server(st, true), "root", "admin")
-		if rec.Code != http.StatusSeeOther || !strings.Contains(rec.Header().Get("Location"), "error=") {
-			t.Errorf("bad access = %d %s, want a redirect with an error", rec.Code, rec.Header().Get("Location"))
-		}
-		if _, ok := byName(st, "root"); ok {
-			t.Error("a token with an unknown access level was stored")
-		}
-	})
-	t.Run("an editor revokes their own but not another's", func(t *testing.T) {
-		t.Parallel()
-		st := seeded(authz.RoleEditor)
-		h := server(st, true)
-		postFormAs(t, h, "/admin/tokens/mcp/delete", url.Values{"id": {"mine"}})
-		if _, ok := st.mcpTokens["mine"]; ok {
-			t.Error("their own token is still there")
-		}
-		rec := postFormAs(t, h, "/admin/tokens/mcp/delete", url.Values{"id": {"theirs"}})
-		if _, ok := st.mcpTokens["theirs"]; !ok || !strings.Contains(rec.Header().Get("Location"), "error=") {
-			t.Errorf("another's token: %s, want it kept and an error shown", rec.Header().Get("Location"))
-		}
-	})
-	t.Run("a webhook admin lists and revokes everyone's", func(t *testing.T) {
-		t.Parallel()
-		st := seeded(authz.RoleAdmin)
-		h := server(st, true)
-		if body := call(t, h, http.MethodGet, "/admin/tokens", "").Body.String(); !strings.Contains(body, ">theirs<") || !strings.Contains(body, ">mine<") {
-			t.Error("an admin does not see everyone's MCP tokens")
-		}
-		postFormAs(t, h, "/admin/tokens/mcp/delete", url.Values{"id": {"theirs"}})
-		if _, ok := st.mcpTokens["theirs"]; ok {
-			t.Error("an admin could not revoke another's token")
-		}
-	})
-	t.Run("disabled, the section and routes are absent", func(t *testing.T) {
-		t.Parallel()
-		st := seeded(authz.RoleAdmin)
-		h := server(st, false)
-		if rec := mint(h, "late", "read"); rec.Code != http.StatusNotFound {
-			t.Errorf("mint while disabled = %d, want 404", rec.Code)
-		}
-		if _, ok := byName(st, "late"); ok {
-			t.Error("a token was minted while disabled")
-		}
-		if body := call(t, h, http.MethodGet, "/admin/tokens", "").Body.String(); strings.Contains(body, "/admin/tokens/mcp/new") {
-			t.Error("the MCP section shows while disabled")
-		}
-	})
+	}
+	return models.MCPToken{}, false
 }

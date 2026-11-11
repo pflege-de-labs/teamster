@@ -76,7 +76,7 @@ A new table, because the existing one cannot hold these tokens safely:
 ```sql
 CREATE TABLE mcp_tokens (
   id           TEXT PRIMARY KEY,
-  name         TEXT NOT NULL UNIQUE,
+  name         TEXT NOT NULL,
   token_hash   TEXT NOT NULL UNIQUE,
   created_by   TEXT NOT NULL,
   created_at   TIMESTAMP NOT NULL,
@@ -84,6 +84,8 @@ CREATE TABLE mcp_tokens (
   access       TEXT NOT NULL CHECK (access IN ('read', 'write'))
 );
 ```
+
+Names are unique per creator (a unique index on `(created_by, name)`), so one user's choice never reveals or blocks another's.
 
 SQLite `0034`, Postgres `0031`, both purely additive.
 

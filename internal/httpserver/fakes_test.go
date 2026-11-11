@@ -664,7 +664,7 @@ func (f *fakeStore) CreateMCPToken(ctx context.Context, t models.MCPToken) (mode
 		return models.MCPToken{}, err
 	}
 	for _, existing := range f.mcpTokens {
-		if existing.Name == t.Name || existing.TokenHash == t.TokenHash {
+		if (existing.Name == t.Name && existing.CreatedBy == t.CreatedBy) || existing.TokenHash == t.TokenHash {
 			return models.MCPToken{}, store.ErrConflict
 		}
 	}

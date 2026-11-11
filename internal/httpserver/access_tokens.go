@@ -11,6 +11,7 @@ import (
 
 	"github.com/pflege-de-labs/teamster/internal/authz"
 	"github.com/pflege-de-labs/teamster/internal/httpserver/views"
+	"github.com/pflege-de-labs/teamster/internal/i18n"
 	"github.com/pflege-de-labs/teamster/internal/models"
 	"github.com/pflege-de-labs/teamster/internal/store"
 )
@@ -54,16 +55,20 @@ func (s *Server) manageTokens(r *http.Request) bool {
 	return s.allow(r, authz.ActionAdminister, authz.WebhookResource(authz.WebhooksAll))
 }
 
+// tokenOwned says whether the caller may see and revoke a token made by createdBy:
+// their own, or anyone's for a webhook admin.
+func (s *Server) tokenOwned(r *http.Request) func(createdBy string) bool {
+	manage, subject := s.manageTokens(r), principalSubject(r)
+	return func(createdBy string) bool { return manage || createdBy == subject }
+}
+
 // visibleTokens are everyone's for a webhook admin, and the caller's own otherwise.
 func (s *Server) visibleTokens(r *http.Request, tokens []models.AccessToken) []models.AccessToken {
 	markChecked(r)
-	if s.manageTokens(r) {
-		return tokens
-	}
-	subject := principalSubject(r)
+	owned := s.tokenOwned(r)
 	out := []models.AccessToken{}
 	for _, t := range tokens {
-		if t.CreatedBy == subject {
+		if owned(t.CreatedBy) {
 			out = append(out, t)
 		}
 	}
@@ -78,11 +83,12 @@ func (s *Server) revokeToken(r *http.Request, id string) error {
 		return err
 	}
 	markChecked(r)
+	owned := s.tokenOwned(r)
 	for _, t := range tokens {
 		if t.ID != id {
 			continue
 		}
-		if t.CreatedBy != principalSubject(r) && !s.manageTokens(r) {
+		if !owned(t.CreatedBy) {
 			return userError{errTokenNotYours}
 		}
 		return s.store.DeleteAccessToken(ctx, id)
@@ -257,13 +263,10 @@ func (s *Server) renderTokens(w http.ResponseWriter, r *http.Request, page views
 // visibleMCPTokens are everyone's for a webhook admin, and the caller's own otherwise.
 func (s *Server) visibleMCPTokens(r *http.Request, tokens []models.MCPToken) []models.MCPToken {
 	markChecked(r)
-	if s.manageTokens(r) {
-		return tokens
-	}
-	subject := principalSubject(r)
+	owned := s.tokenOwned(r)
 	out := []models.MCPToken{}
 	for _, t := range tokens {
-		if t.CreatedBy == subject {
+		if owned(t.CreatedBy) {
 			out = append(out, t)
 		}
 	}
@@ -307,11 +310,12 @@ func (s *Server) revokeMCPToken(r *http.Request, id string) error {
 		return err
 	}
 	markChecked(r)
+	owned := s.tokenOwned(r)
 	for _, t := range tokens {
 		if t.ID != id {
 			continue
 		}
-		if t.CreatedBy != principalSubject(r) && !s.manageTokens(r) {
+		if !owned(t.CreatedBy) {
 			return userError{errTokenNotYours}
 		}
 		return s.store.DeleteMCPToken(ctx, id)
@@ -326,20 +330,21 @@ func (s *Server) handleMCPTokenForm(w http.ResponseWriter, r *http.Request) {
 	}
 	created, token, err := s.issueMCPToken(r, r.PostFormValue("name"), r.PostFormValue("access"))
 	if err != nil {
+		text := visibleError(r.Context(), "issue MCP token", err)
 		if errors.Is(err, errMCPAccess) {
-			err = userError{err}
+			text = i18n.T(r.Context(), "tokens.mcp.access_invalid")
 		}
-		redirectTo("/admin/tokens", w, r, "", visibleError(r.Context(), "issue MCP token", err))
+		redirectTo("/admin/tokens", w, r, "", text)
 		return
 	}
-	s.renderTokens(w, r, views.Tokens{Notice: "MCP token created.", NewMCPToken: token, NewMCPTokenName: created.Name})
+	s.renderTokens(w, r, views.Tokens{Notice: i18n.T(r.Context(), "tokens.mcp.created"), NewMCPToken: token, NewMCPTokenName: created.Name})
 }
 
 func (s *Server) revokeMCPTokenForm(r *http.Request) (string, error) {
 	if err := s.revokeMCPToken(r, r.PostFormValue("id")); err != nil {
 		return "", err
 	}
-	return "MCP token revoked. Clients using it are refused from now on.", nil
+	return i18n.T(r.Context(), "tokens.mcp.revoked"), nil
 }
 
 // levelsUpTo are the message levels a token may be given by someone holding limit.

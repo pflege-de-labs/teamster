@@ -2,7 +2,7 @@
 -- The previous release ignores this table: a new table is additive.
 -- An MCP token is a credential for /mcp, kept apart from access_tokens so
 -- neither table can authenticate the other's callers. token_hash is a SHA-256
--- digest, never the token. access is the most the token may do.
+-- digest, never the token. Names are unique per creator. access is the most the token may do.
 CREATE TABLE mcp_tokens (
 	id TEXT PRIMARY KEY,
 	name TEXT NOT NULL,
@@ -13,7 +13,7 @@ CREATE TABLE mcp_tokens (
 	access TEXT NOT NULL CHECK (access IN ('read', 'write'))
 );
 
-CREATE UNIQUE INDEX mcp_tokens_name ON mcp_tokens (name);
+CREATE UNIQUE INDEX mcp_tokens_name ON mcp_tokens (created_by, name);
 
 CREATE UNIQUE INDEX mcp_tokens_hash ON mcp_tokens (token_hash);
 

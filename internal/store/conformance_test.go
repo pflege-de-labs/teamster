@@ -946,7 +946,14 @@ func TestConformanceMCPTokens(t *testing.T) {
 		if created.ID == "" || created.CreatedAt.IsZero() {
 			t.Errorf("CreateMCPToken() = %+v, want an id and a creation time", created)
 		}
-		if _, err := st.CreateMCPToken(ctx, models.MCPToken{Name: "laptop", TokenHash: "m2", Access: models.MCPAccessRead}); !errors.Is(err, store.ErrConflict) {
+		other, err := st.CreateMCPToken(ctx, models.MCPToken{Name: "laptop", TokenHash: "m4", CreatedBy: "someone", Access: models.MCPAccessRead})
+		if err != nil {
+			t.Fatalf("a second creator reusing a name: %v", err)
+		}
+		if err := st.DeleteMCPToken(ctx, other.ID); err != nil {
+			t.Fatalf("DeleteMCPToken: %v", err)
+		}
+		if _, err := st.CreateMCPToken(ctx, models.MCPToken{Name: "laptop", TokenHash: "m2", CreatedBy: "tester", Access: models.MCPAccessRead}); !errors.Is(err, store.ErrConflict) {
 			t.Errorf("a taken name = %v, want ErrConflict", err)
 		}
 		if _, err := st.CreateMCPToken(ctx, models.MCPToken{Name: "bad", TokenHash: "m3", Access: "admin"}); err == nil {

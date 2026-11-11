@@ -81,7 +81,7 @@ templ TokensPage(page Tokens) {
 				</form>
 				<div>
 					if page.NewToken != "" {
-						@revealedToken(page)
+						@revealedToken(page.NewTokenName, page.NewToken, i18n.T(ctx, "tokens.snippet"), alertmanagerSnippet(page.WebhookURL, page.NewToken))
 					}
 					if len(page.Tokens) == 0 {
 						@empty(i18n.T(ctx, "tokens.empty"))
@@ -125,12 +125,7 @@ templ mcpSection(page Tokens) {
 			</form>
 			<div>
 				if page.NewMCPToken != "" {
-					<div class="mb-4 space-y-2 rounded-md border border-amber-300 bg-amber-50 px-4 py-3">
-						<p class="text-sm font-medium text-amber-900">{ i18n.T(ctx, "tokens.new_token", page.NewMCPTokenName) }</p>
-						<code class="block break-all text-xs text-amber-900">{ page.NewMCPToken }</code>
-						<p class="text-xs text-amber-900">{ i18n.T(ctx, "tokens.mcp.snippet", page.MCPURL) }</p>
-						<pre class="overflow-x-auto rounded bg-white/60 p-2 text-xs text-amber-900"><code>{ mcpSnippet(page.MCPURL, page.NewMCPToken) }</code></pre>
-					</div>
+					@revealedToken(page.NewMCPTokenName, page.NewMCPToken, i18n.T(ctx, "tokens.mcp.snippet", page.MCPURL), mcpSnippet(page.MCPURL, page.NewMCPToken))
 				}
 				if len(page.MCPTokens) == 0 {
 					@empty(i18n.T(ctx, "tokens.mcp.empty"))
@@ -221,12 +216,12 @@ templ tokenItem(t models.AccessToken, mayRevoke bool) {
 	</li>
 }
 
-templ revealedToken(page Tokens) {
+templ revealedToken(name, token, hint, snippet string) {
 	<div class="mb-4 space-y-2 rounded-md border border-amber-300 bg-amber-50 px-4 py-3">
-		<p class="text-sm font-medium text-amber-900">{ i18n.T(ctx, "tokens.new_token", page.NewTokenName) }</p>
-		<code class="block break-all text-xs text-amber-900">{ page.NewToken }</code>
-		<p class="text-xs text-amber-900">{ i18n.T(ctx, "tokens.snippet") }</p>
-		<pre class="overflow-x-auto rounded bg-white/60 p-2 text-xs text-amber-900"><code>{ alertmanagerSnippet(page.WebhookURL, page.NewToken) }</code></pre>
+		<p class="text-sm font-medium text-amber-900">{ i18n.T(ctx, "tokens.new_token", name) }</p>
+		<code class="block break-all text-xs text-amber-900">{ token }</code>
+		<p class="text-xs text-amber-900">{ hint }</p>
+		<pre class="overflow-x-auto rounded bg-white/60 p-2 text-xs text-amber-900"><code>{ snippet }</code></pre>
 	</div>
 }
 

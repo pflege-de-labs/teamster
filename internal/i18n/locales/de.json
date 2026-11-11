@@ -553,5 +553,8 @@
   "tokens.mcp.access.write": "lesen und schreiben",
   "tokens.mcp.access.of": "Zugriff: {0}",
   "tokens.mcp.empty": "Noch keine MCP-Token.",
-  "tokens.mcp.snippet": "Claude Code, auf {0} gerichtet:"
+  "tokens.mcp.snippet": "Claude Code, auf {0} gerichtet:",
+  "tokens.mcp.access_invalid": "Der Zugriff eines MCP-Tokens ist nur lesen oder lesen und schreiben.",
+  "tokens.mcp.created": "MCP-Token erstellt.",
+  "tokens.mcp.revoked": "MCP-Token widerrufen. Clients, die es verwenden, werden ab jetzt abgewiesen."
 }
