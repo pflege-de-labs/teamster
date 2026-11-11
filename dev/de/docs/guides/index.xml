@@ -2470,7 +2470,7 @@ zerlegen und denselben Inhalt anders anordnen. Zwei vorgefertigte Vorlagen tun d
 &lt;/table&gt;
 &lt;div class="hextra-steps hx:ml-4 hx:mb-12 hx:ltr:border-l hx:rtl:border-r hx:border-gray-200 hx:ltr:pl-6 hx:rtl:pr-6 hx:dark:border-neutral-800 [counter-reset:step]"&gt;
 &lt;h3 data-hextra-search-id="die-vorlage-anlegen"&gt;Die Vorlage anlegen&lt;span class="hx:absolute hx:-mt-20" id="die-vorlage-anlegen"&gt;&lt;/span&gt;
-&lt;a href="#die-vorlage-anlegen" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Öffnen Sie unter &lt;strong&gt;Konfiguration → Vorlagen&lt;/strong&gt; eine neue Vorlage und wählen Sie unter &lt;strong&gt;Mit einer
+&lt;a href="#die-vorlage-anlegen" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Klicken Sie unter &lt;strong&gt;Konfiguration → Vorlagen&lt;/strong&gt; auf &lt;strong&gt;Neue Vorlage&lt;/strong&gt; und wählen Sie unter &lt;strong&gt;Mit einer
 Vorlage beginnen&lt;/strong&gt; eine der beiden. Prüfen Sie sie in der Vorschau mit dem Beispiel &lt;strong&gt;Karte des
 Teams-V2-Webhooks mit langen Fakten&lt;/strong&gt;.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="die-vorlage-verwenden"&gt;Die Vorlage verwenden&lt;span class="hx:absolute hx:-mt-20" id="die-vorlage-verwenden"&gt;&lt;/span&gt;
@@ -2560,12 +2560,14 @@ nie aktualisiert oder geschlossen. Dafür gibt es den &lt;a href="../universal-w
 &lt;p&gt;Schreiben Sie eine Vorlage, die aus einem Ereignis eine Teams-Nachricht macht, legen Sie fest,
 welche Webhooks sie verarbeitet, und bestimmen Sie die Standardvorlage, auf die jeder Webhook
 zurückfällt.&lt;/p&gt;
-&lt;p&gt;Vorlagen finden Sie unter &lt;strong&gt;Konfiguration → Vorlagen&lt;/strong&gt; (&lt;code&gt;/admin/templates&lt;/code&gt;). Jedes Feld, das eine
-Vorlage lesen kann, führt &lt;a href="../../reference/template-data/"&gt;Vorlagendaten&lt;/a&gt; auf.&lt;/p&gt;
+&lt;p&gt;Vorlagen finden Sie unter &lt;strong&gt;Konfiguration → Vorlagen&lt;/strong&gt; (&lt;code&gt;/admin/templates&lt;/code&gt;). Die Seite listet jede
+Vorlage; öffnen Sie eine, sehen Sie ihre Seite mit Zusammenfassung, Quelltext, &lt;strong&gt;Verwendet von&lt;/strong&gt;
+(den Routen, Webhooks und Standards, die sie nutzen) und der gerenderten Vorschau. Jedes Feld, das
+eine Vorlage lesen kann, führt &lt;a href="../../reference/template-data/"&gt;Vorlagendaten&lt;/a&gt; auf.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="write-a-template"&gt;Eine Vorlage schreiben&lt;span class="hx:absolute hx:-mt-20" id="write-a-template"&gt;&lt;/span&gt;
 &lt;a href="#write-a-template" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;div class="hextra-steps hx:ml-4 hx:mb-12 hx:ltr:border-l hx:rtl:border-r hx:border-gray-200 hx:ltr:pl-6 hx:rtl:pr-6 hx:dark:border-neutral-800 [counter-reset:step]"&gt;
 &lt;h3 data-hextra-search-id="start-from-a-preset"&gt;Mit einer Vorlage beginnen&lt;span class="hx:absolute hx:-mt-20" id="start-from-a-preset"&gt;&lt;/span&gt;
-&lt;a href="#start-from-a-preset" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Öffnen Sie eine neue Vorlage und wählen Sie eine unter &lt;strong&gt;Mit einer Vorlage beginnen&lt;/strong&gt;. Das füllt
+&lt;a href="#start-from-a-preset" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Klicken Sie auf &lt;strong&gt;Neue Vorlage&lt;/strong&gt; und wählen Sie eine unter &lt;strong&gt;Mit einer Vorlage beginnen&lt;/strong&gt;. Das füllt
 Name, Titel, Text, Karte und Webhooks in einem Schritt und geht schneller, als leer zu beginnen.&lt;/p&gt;
 &lt;p&gt;Zwei weitere vorgefertigte Vorlagen für Teams-V2-Nutzdaten werden hier angeboten, aber nie als
 Standard gespeichert. Sie ordnen die Karte eines Absenders anders an; siehe
@@ -2629,7 +2631,12 @@ stattdessen die Standardvorlage seines Webhooks oder, wenn es keine gibt, die ei
 Nachricht. Dabei wird eine Warnung protokolliert.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;h3 data-hextra-search-id="preview-it"&gt;Die Vorschau ansehen&lt;span class="hx:absolute hx:-mt-20" id="preview-it"&gt;&lt;/span&gt;
-&lt;a href="#preview-it" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Die Vorschau rendert die Vorlage gegen Beispielnutzdaten für jeden Webhook und kann das JSON
+&lt;a href="#preview-it" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Die Seite einer Vorlage zeigt die gerenderte Vorschau gegen ein Beispielereignis. Mit &lt;strong&gt;Bearbeiten&lt;/strong&gt;
+ändern Sie die Vorlage: Die Seite wechselt ohne Neuladen in den Editor, mit den vorgefertigten
+Vorlagen, der Kartenpalette und einer Live-Vorschau. &lt;strong&gt;Abbrechen&lt;/strong&gt; führt zurück zur Seite; ein
+fehlgeschlagenes Speichern behält, was Sie getippt haben. &lt;strong&gt;Löschen&lt;/strong&gt; steht auf der Seite der
+Vorlage.&lt;/p&gt;
+&lt;p&gt;Die Vorschau rendert die Vorlage gegen Beispielnutzdaten für jeden Webhook und kann das JSON
 zeigen, das der Bot für einen Kanalbeitrag und für einen Chat senden würde. Jedes Beispiel außer
 Teams V2 wird für eine Beispielperson, Alex Example, gerendert, bei der jedes Feld von &lt;code&gt;.Recipient&lt;/code&gt;
 gefüllt ist. Für Alertmanager gibt es zwei Beispiele: &lt;strong&gt;Alertmanager-Alarm&lt;/strong&gt;, eine Gruppe mit einem
@@ -2754,7 +2761,7 @@ entfernt Skripte und Bilder, aber keine Links, deren Text und Ziel sich untersch
 &lt;h2 data-hextra-search-id="set-the-default-template-per-webhook"&gt;Die Standardvorlage je Webhook festlegen&lt;span class="hx:absolute hx:-mt-20" id="set-the-default-template-per-webhook"&gt;&lt;/span&gt;
 &lt;a href="#set-the-default-template-per-webhook" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Jeder Webhook hat eine Standardvorlage. Sie wird verwendet, wenn eine Route oder ein
 Teams-V2-Endpunkt keine Vorlage nennt, die seine Ereignisse verarbeitet. Wählen Sie sie unter
-&lt;strong&gt;Standardvorlage je Webhook&lt;/strong&gt; im Bereich der Vorlagen oder über die API:&lt;/p&gt;
+&lt;strong&gt;Standardvorlage je Webhook&lt;/strong&gt; unterhalb der Vorlagen auf der Seite Vorlagen oder über die API:&lt;/p&gt;
 &lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
 &lt;div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;curl -u &amp;lt;admin-user&amp;gt;:&amp;lt;admin-password&amp;gt; -X PUT http://localhost:8080/api/templates/source-defaults &lt;span class="se"&gt;\
 &lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; -d &lt;span class="s1"&gt;&amp;#39;{&amp;#34;templates&amp;#34;: {&amp;#34;alertmanager&amp;#34;: &amp;#34;&amp;lt;template id&amp;gt;&amp;#34;, &amp;#34;universal&amp;#34;: &amp;#34;&amp;lt;template id&amp;gt;&amp;#34;, &amp;#34;teamsv2&amp;#34;: &amp;#34;&amp;#34;}}&amp;#39;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class="hextra-code-copy-btn-container hx:opacity-0 hx:transition hx:group-hover/code:opacity-100 hx:flex hx:gap-1 hx:absolute hx:m-[11px] hx:right-0 hx:top-0"&gt;
