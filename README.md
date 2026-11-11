@@ -36,6 +36,7 @@ signal kills it immediately.
 - Destinations (Team ID, Channel ID)
 - Routes (label selector -> destination + template)
 - Access tokens for the senders (see [Authenticating a sender](#authenticating-a-sender))
+- MCP tokens for AI assistants (see [MCP tokens](#mcp-tokens))
 
 The admin sidebar groups the pages (Configuration, Delivery, Access, Administration); routes,
 templates, destinations and webhooks each have a page, such as `/admin/routes`
@@ -1463,10 +1464,32 @@ The bundle therefore carries the Team and channel names beside the ids, and the 
 the destinations this tenant cannot resolve — see
 [ADR 0013](docs/adr/0013-configuration-transfer.md).
 
+## MCP tokens
+
+Teamster is meant to serve an MCP endpoint for AI assistants. It is off by default, and so is
+everything about it:
+
+```yaml
+mcp:
+  enabled: false   # let users mint MCP tokens at /admin/tokens
+  read-only: false # refuse every tool that writes, whoever the user is
+```
+
+With `mcp.enabled` on, every signed-in user, a viewer included, finds an MCP section on
+**/admin/tokens**. Name a token, choose **read** or **write**, and copy it at once: it starts with
+`tmcp_`, is shown once and stored only as a digest. Names are unique per user. You see and revoke
+your own tokens; webhook admins and admins see and revoke everyone's.
+
+An MCP token acts as the person who minted it, as they are now, and never further: it stops working
+when they are disabled, and **read** cannot write whatever they may do. It does not open the
+webhooks or `/api`. Minting and revoking are in the audit trail. This release only issues the
+tokens; the `/mcp` endpoint that accepts them is the next step
+([ADR 0106](docs/adr/0106-mcp-tokens-answer-to-their-creator.md)).
+
 ## Audit trail
 
 Auditing is off until you configure it. With it on, every change to the configuration is
-recorded: templates, destinations, routes, webhook endpoints, access tokens, grants, the default
+recorded: templates, destinations, routes, webhook endpoints, access tokens, MCP tokens, grants, the default
 template and destination, linked chats, and install runs someone asked for. An event says who made
 the change, how they signed in (`session`, `basic` or `cli`), the request id, and the record before
 and after. Credentials are never included.

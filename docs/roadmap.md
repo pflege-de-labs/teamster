@@ -139,6 +139,19 @@ order: templates, webhooks, routes (a tree in the list; the new page takes `?par
 access tokens (secret shown once), recipients and users (unlink or disable only), delivery
 permissions (list and new only). Each keeps its old `?edit=` link working with a 301.
 
+## Milestone 27 — MCP
+
+Tokens and settings have shipped
+([ADR 0106](adr/0106-mcp-tokens-answer-to-their-creator.md)). Still to come, one pull request each:
+
+* The `/mcp` endpoint, behind `mcpAuth`, with the first tools.
+* A Claude Code plugin that points at it.
+* Cedar caps for MCP: policies that match on `context.via == "mcp"`, so an operator can hold an
+  assistant back further than its user.
+* The MCP OAuth authorization flow: protected resource metadata, browser sign-in and consent, so
+  a client needs no pasted token.
+* Further tools: webhooks, sharing and grants, global defaults, import and export.
+
 ## Follow-ups from shipped work
 
 Smaller items left open when a milestone shipped. Each is picked up on its own.
@@ -152,7 +165,7 @@ Smaller items left open when a milestone shipped. Each is picked up on its own.
 * **Bearer tokens on `/api`.** Scoped tokens could admit scripts to the admin API, with the
   same double check as the webhooks
   ([ADR 0077](adr/0077-scoped-tokens-answer-to-their-creator.md)). Basic auth with the local
-  credentials is the only way in today.
+  credentials is the only way in today. MCP tokens do not open `/api`.
 * **Install the Teams app into a team from Teamster.** Graph allows it; a separate ADR would decide
   whether Teamster should ([ADR 0045](adr/0045-channel-delivery-through-the-bot.md)). Installing
   for people is milestone 23.
@@ -186,6 +199,7 @@ Smaller items left open when a milestone shipped. Each is picked up on its own.
 | 8 | 24.2 Announcements, the rest | 24 | — |
 | 9 | 25 Pacing across replicas | — | the 24.1 decision for 25.2 |
 | 10 | 26 Record pages for every resource | — | — |
+| 11 | 27 MCP | — | — |
 
 Follow-ups are unordered and can be pulled in between milestones.
 
