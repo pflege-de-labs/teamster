@@ -1,0 +1,339 @@
+package views
+
+import (
+	"net/url"
+	"slices"
+
+	"github.com/pflege-de-labs/teamster/internal/cards"
+	"github.com/pflege-de-labs/teamster/internal/i18n"
+	"github.com/pflege-de-labs/teamster/internal/models"
+	render "github.com/pflege-de-labs/teamster/internal/templates"
+)
+
+// TemplateEditor is what the template form offers beside the fields: presets,
+// card snippets, completion, and the samples the preview renders.
+type TemplateEditor struct {
+	Presets        []cards.Preset
+	Snippets       []cards.Snippet
+	Starter        string
+	Vocabulary     render.Vocabulary
+	PreviewSamples []string
+}
+
+// TemplateRow is a template and the webhooks it is the default for.
+type TemplateRow struct {
+	Template   models.Template
+	DefaultFor string
+}
+
+// TemplateList is the page at /admin/templates.
+type TemplateList struct {
+	Viewer         Viewer
+	Notice, Error  string
+	Rows           []TemplateRow
+	CanCreate      bool
+	SourceDefaults SourceDefaults
+}
+
+// SourceDefaults is the page-wide choice of a default template per webhook (ADR 0055).
+type SourceDefaults struct {
+	Templates []models.Template
+	Defaults  map[string]string
+	CanEdit   bool
+}
+
+// TemplateRecord is the page at /admin/templates/{id}.
+type TemplateRecord struct {
+	Viewer               Viewer
+	Notice, Error        string
+	Template             models.Template // as stored
+	Form                 models.Template // values the form shows
+	DefaultFor           string
+	CanUpdate, CanDelete bool
+	CanPreview           bool // the preview API answers roles, not grants
+	UsedBy               []UsedBy
+	Sharing              *Sharing
+	Editor               TemplateEditor
+	Head                 RecordHead
+}
+
+// TemplateNew is the page at /admin/templates/new.
+type TemplateNew struct {
+	Viewer Viewer
+	Error  string
+	Form   models.Template
+	Editor TemplateEditor
+}
+
+templ TemplateListPage(p TemplateList) {
+	@Layout(i18n.T(ctx, "page.templates"), &p.Viewer) {
+		@notice(p.Error, p.Notice)
+		@listPage(i18n.T(ctx, "nav.templates"), i18n.T(ctx, "templates.new"), "/admin/templates/new", p.CanCreate) {
+			if len(p.Rows) == 0 {
+				@empty(i18n.T(ctx, "templates.empty"))
+			} else {
+				<ul class="divide-y divide-slate-200">
+					for _, row := range p.Rows {
+						<li class="py-3">
+							<div class="flex items-center gap-2">
+								<a href={ templ.SafeURL("/admin/templates/" + url.PathEscape(row.Template.ID)) } class="truncate font-medium text-sky-700 hover:underline">{ row.Template.Name }</a>
+								if row.DefaultFor != "" {
+									<span class="shrink-0 rounded bg-sky-100 px-1.5 py-0.5 text-xs font-medium text-sky-800">{ i18n.T(ctx, "templates.default_for", row.DefaultFor) }</span>
+								}
+							</div>
+							<div class="truncate text-xs text-slate-500">
+								{ templateShape(ctx, row.Template) } · { sourcesText(ctx, row.Template) } · { i18n.T(ctx, "templates.updated", stamp(ctx, row.Template.UpdatedAt)) }
+							</div>
+						</li>
+					}
+				</ul>
+			}
+			<div class="mt-8 border-t border-slate-200 pt-6">
+				@sourceDefaults(p.SourceDefaults)
+			</div>
+		}
+	}
+}
+
+// The preview stands beside the record, outside its view and edit parts, so
+// both show the same rendering.
+templ TemplateRecordPage(p TemplateRecord) {
+	@Layout(i18n.T(ctx, "page.templates"), &p.Viewer) {
+		@notice(p.Error, p.Notice)
+		<div class="grid gap-6 lg:grid-cols-2 lg:items-start">
+			<div class="min-w-0">
+				if p.CanUpdate {
+					@recordPage(p.Head, templateActions(p), templateView(p), templateForm(p.Form, p.Editor, "/admin/templates/"+url.PathEscape(p.Template.ID)))
+				} else {
+					@recordPage(p.Head, templateActions(p), templateView(p), nil)
+				}
+			</div>
+			if p.CanPreview {
+				@templatePreview(p.Editor.PreviewSamples, true)
+			}
+		</div>
+		if p.Sharing != nil {
+			@sharingPanel(*p.Sharing)
+		}
+	}
+}
+
+templ TemplateNewPage(p TemplateNew) {
+	@Layout(i18n.T(ctx, "page.templates"), &p.Viewer) {
+		@notice(p.Error, "")
+		<div class="grid gap-6 lg:grid-cols-2 lg:items-start">
+			<div class="min-w-0">
+				@newPage("/admin/templates", i18n.T(ctx, "nav.templates"), i18n.T(ctx, "templates.new")) {
+					@templateForm(p.Form, p.Editor, "/admin/templates")
+				}
+			</div>
+			// A refused save comes back with what was typed, which is worth seeing rendered.
+			@templatePreview(p.Editor.PreviewSamples, p.Form.Title+p.Form.Text+p.Form.Body != "")
+		</div>
+	}
+}
+
+templ templateActions(p TemplateRecord) {
+	if p.CanDelete {
+		@deleteButton("/admin/templates/delete", p.Template.ID, p.Template.Name)
+	}
+}
+
+templ templateView(p TemplateRecord) {
+	<dl class="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2 text-sm">
+		<dt class="text-slate-500">{ i18n.T(ctx, "templates.name") }</dt>
+		<dd class="flex flex-wrap items-center gap-2">
+			<span class="font-medium">{ p.Template.Name }</span>
+			if p.DefaultFor != "" {
+				<span class="rounded bg-sky-100 px-1.5 py-0.5 text-xs font-medium text-sky-800">{ i18n.T(ctx, "templates.default_for", p.DefaultFor) }</span>
+			}
+		</dd>
+		<dt class="text-slate-500">{ i18n.T(ctx, "templates.sources") }</dt>
+		<dd>{ sourcesText(ctx, p.Template) }</dd>
+		<dt class="text-slate-500">{ i18n.T(ctx, "templates.shape") }</dt>
+		<dd>{ templateShape(ctx, p.Template) } <span class="text-xs text-slate-500">· { i18n.T(ctx, "templates.updated", stamp(ctx, p.Template.UpdatedAt)) }</span></dd>
+	</dl>
+	<details class="text-sm">
+		<summary class="cursor-pointer text-sky-700">{ i18n.T(ctx, "templates.source") }</summary>
+		<div class="mt-2 space-y-2">
+			for _, f := range []struct{ label, value string }{
+				{i18n.T(ctx, "templates.title_field"), p.Template.Title},
+				{i18n.T(ctx, "templates.text_field"), p.Template.Text},
+				{i18n.T(ctx, "templates.body_field"), p.Template.Body},
+			} {
+				if f.value != "" {
+					<div>
+						<div class="text-xs text-slate-500">{ f.label }</div>
+						<pre class="overflow-x-auto rounded-md bg-slate-50 p-2 text-xs">{ f.value }</pre>
+					</div>
+				}
+			}
+		</div>
+	</details>
+	if !p.CanUpdate && p.CanPreview {
+		// Without an edit form, the preview reads the stored template from here.
+		<form id="template-form" hidden>
+			<input type="hidden" name="title" value={ p.Template.Title }/>
+			<input type="hidden" name="message_text" value={ p.Template.Text }/>
+			<input type="hidden" name="body" value={ p.Template.Body }/>
+		</form>
+	}
+	<section class="space-y-2">
+		<h3 class="text-sm font-semibold">{ i18n.T(ctx, "destinations.used_by") }</h3>
+		if len(p.UsedBy) == 0 {
+			<p class="text-sm text-slate-500">{ i18n.T(ctx, "templates.unused") }</p>
+		} else {
+			<ul class="space-y-1 text-sm">
+				for _, u := range p.UsedBy {
+					<li><a href={ templ.SafeURL(u.Href) } class="text-sky-700 hover:underline">{ u.Label }</a></li>
+				}
+			</ul>
+		}
+		<a href="/admin/routing" class="text-xs text-sky-700 hover:underline">{ i18n.T(ctx, "nav.routing") }</a>
+	</section>
+}
+
+templ templateForm(form models.Template, ed TemplateEditor, cancelHref string) {
+	<form method="post" action="/admin/templates" id="template-form" class="space-y-3">
+		if form.ID != "" {
+			<input type="hidden" name="id" value={ form.ID }/>
+		}
+		@presetPicker(ed.Presets)
+		@textField("name", i18n.T(ctx, "templates.name"), i18n.T(ctx, "templates.name_placeholder"), form.Name)
+		<fieldset>
+			<legend class="text-sm font-medium">{ i18n.T(ctx, "templates.sources") }</legend>
+			<div class="mt-1 flex flex-wrap gap-4">
+				for _, o := range sourceOptions(ctx) {
+					<label class="flex items-center gap-2 text-sm">
+						<input type="checkbox" name="sources" value={ o.Value } checked?={ slices.Contains(form.Sources, o.Value) } class="h-4 w-4 rounded border-slate-300"/>
+						{ o.Label }
+					</label>
+				}
+			</div>
+			<p class="mt-1 text-xs text-slate-500">{ i18n.T(ctx, "templates.sources_hint") }</p>
+		</fieldset>
+		@editorLine("title", i18n.T(ctx, "templates.title_field"), "{{ .Event.Title }}", form.Title, "template-line")
+		@editorField("message_text", i18n.T(ctx, "templates.text_field"), form.Text, "4", "template")
+		@cardPalette(ed.Snippets, ed.Starter)
+		@editorField("body", i18n.T(ctx, "templates.body_field"), form.Body, "12", "card")
+		@templ.JSONScript("template-vocabulary", ed.Vocabulary)
+		<div class="flex items-center gap-2">
+			@submit(submitLabel(ctx, form.ID != "", "noun.template"))
+			<a href={ templ.SafeURL(cancelHref) } data-record-cancel class="px-3 py-2 text-sm text-slate-600 underline hover:text-slate-900">{ i18n.T(ctx, "action.cancel") }</a>
+		</div>
+	</form>
+}
+
+// templatePreview renders whatever #template-form holds against a sample event;
+// auto draws it once on load, where there is something to draw.
+templ templatePreview(samples []string, auto bool) {
+	<aside class="min-w-0 space-y-3 rounded-lg border border-slate-200 bg-white p-6 shadow-sm lg:sticky lg:top-4">
+		<div class="flex flex-wrap items-center gap-2">
+			<button
+				type="button"
+				id="preview-button"
+				data-preview-auto?={ auto }
+				class="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:border-sky-400 hover:bg-sky-50 hover:text-sky-700"
+			>
+				{ i18n.T(ctx, "preview.button") }
+			</button>
+			<label class="inline-flex items-center gap-1.5 text-sm text-slate-600">
+				<input type="checkbox" id="preview-live" checked class="rounded border-slate-300"/>
+				{ i18n.T(ctx, "preview.live") }
+			</label>
+			<select
+				id="preview-sample"
+				aria-label={ i18n.T(ctx, "templates.sample_event") }
+				class="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm"
+			>
+				for _, name := range samples {
+					<option value={ name }>{ i18n.T(ctx, "sample."+name) }</option>
+				}
+			</select>
+		</div>
+		@previewViews()
+		<div id="preview-output" class="peer space-y-3 empty:hidden"></div>
+		<p class="hidden rounded-md border border-dashed border-slate-300 px-4 py-6 text-center text-sm text-slate-500 peer-empty:block">
+			{ i18n.T(ctx, "preview.empty") }
+		</p>
+	</aside>
+}
+
+// Each webhook's default renders every message from it that its route or
+// endpoint does not (ADR 0055).
+templ sourceDefaults(sd SourceDefaults) {
+	<div class="space-y-2" id="source-defaults">
+		<h3 class="text-sm font-semibold">{ i18n.T(ctx, "templates.source_defaults") }</h3>
+		<p class="text-xs text-slate-500">{ i18n.T(ctx, "templates.source_defaults_hint") }</p>
+		if sd.CanEdit {
+			<form method="post" action="/admin/templates/source-defaults" class="grid items-end gap-3 sm:grid-cols-4">
+				for _, source := range sourceOptions(ctx) {
+					@selectField("template_"+source.Value, source.Label, sourceDefaultOptions(ctx, sd.Templates, source.Value), sd.Defaults[source.Value])
+				}
+				<div>
+					@submit(i18n.T(ctx, "templates.source_defaults_save"))
+				</div>
+			</form>
+		} else {
+			<ul class="text-sm">
+				for _, source := range sourceOptions(ctx) {
+					<li>
+						{ source.Label }:
+						if id := sd.Defaults[source.Value]; id != "" {
+							{ templateName(sd.Templates, id) }
+						} else {
+							<span class="italic">{ i18n.T(ctx, "templates.source_default_builtin") }</span>
+						}
+					</li>
+				}
+			</ul>
+		}
+	</div>
+}
+
+// A preset fills the whole form, so it is chosen before anything is typed;
+// preview.js asks before it overwrites what has been.
+templ presetPicker(presets []cards.Preset) {
+	<label class="block">
+		<span class="text-sm font-medium">{ i18n.T(ctx, "templates.preset") }</span>
+		<select
+			id="template-preset"
+			title={ i18n.T(ctx, "templates.preset_help") }
+			data-confirm={ i18n.T(ctx, "templates.preset_confirm") }
+			class="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-sky-500 focus:outline-none"
+		>
+			<option value="">{ i18n.T(ctx, "templates.preset_none") }</option>
+			for _, preset := range presets {
+				<option value={ preset.Key } data-preset={ presetJSON(preset) }>{ i18n.T(ctx, preset.LabelKey) }</option>
+			}
+		</select>
+	</label>
+}
+
+// The palette inserts card elements at the cursor. The fragments come from Go,
+// where a test renders every one of them, rather than being typed into the page
+// where nothing would check them.
+templ cardPalette(snippets []cards.Snippet, starter string) {
+	<div class="flex flex-wrap items-center gap-2">
+		<span class="text-sm font-medium text-slate-700">{ i18n.T(ctx, "palette.insert") }</span>
+		for _, snippet := range snippets {
+			<button
+				type="button"
+				class="snippet rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:border-sky-400 hover:bg-sky-50 hover:text-sky-700"
+				title={ i18n.T(ctx, snippet.HelpKey) }
+				data-snippet={ snippet.Body }
+			>
+				{ i18n.T(ctx, snippet.LabelKey) }
+			</button>
+		}
+		<button
+			type="button"
+			id="card-starter"
+			class="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:border-sky-400 hover:bg-sky-50 hover:text-sky-700"
+			title={ i18n.T(ctx, "palette.starter_help") }
+			data-snippet={ starter }
+		>
+			{ i18n.T(ctx, "palette.starter") }
+		</button>
+	</div>
+}

@@ -241,12 +241,13 @@ var recordPaths = []string{
 	"/api/templates", "/api/destinations", "/api/routes", "/api/webhooks", "/api/groups", "/api/sharing",
 }
 
-var recordPrefixes = []string{"/admin/destinations/", "/api/templates/", "/api/destinations/", "/api/routes/", "/api/webhooks/", "/api/groups/", "/api/sharing/", "/api/tokens/"}
+var recordPrefixes = []string{"/admin/destinations/", "/admin/templates/", "/api/templates/", "/api/destinations/", "/api/routes/", "/api/webhooks/", "/api/groups/", "/api/sharing/", "/api/tokens/"}
 
 func recordPath(r *http.Request) bool {
 	path := r.URL.Path
 	switch {
-	case path == "/api/templates/preview", path == "/api/templates/source-defaults", path == "/api/routes/global-default",
+	case path == "/api/templates/preview", path == "/api/templates/source-defaults", path == "/admin/templates/source-defaults",
+		path == "/api/routes/global-default",
 		isDefaultDestinationPath(path):
 		return false
 	case slices.Contains(recordPaths, path):

@@ -2,7 +2,6 @@ package views
 
 import (
 	"net/url"
-	"slices"
 	"strconv"
 	"github.com/pflege-de-labs/teamster/internal/i18n"
 )
@@ -18,165 +17,8 @@ templ Admin(page Page) {
 				@routes(page)
 			case "grants":
 				@grants(page)
-			default:
-				@templates(page)
 		}
 	}
-}
-
-templ templates(page Page) {
-	@panel(i18n.T(ctx, "templates.panel"), "templates") {
-		if page.mayCreate("Template") || (page.EditTemplate != nil && page.mayUpdate("Template", page.EditTemplate.ID)) {
-			// Preview beside the editor keeps a change and its effect in view together.
-			<form method="post" action="/admin/templates" id="template-form" class="grid gap-6 lg:col-span-2 lg:grid-cols-2">
-				<div class="min-w-0 space-y-3">
-					if page.EditTemplate != nil {
-						<input type="hidden" name="id" value={ page.EditTemplate.ID }/>
-					}
-					@presetPicker(page)
-					@textField("name", i18n.T(ctx, "templates.name"), i18n.T(ctx, "templates.name_placeholder"), page.editingTemplate().Name)
-					<fieldset>
-						<legend class="text-sm font-medium">{ i18n.T(ctx, "templates.sources") }</legend>
-						<div class="mt-1 flex flex-wrap gap-4">
-							for _, o := range sourceOptions(ctx) {
-								<label class="flex items-center gap-2 text-sm">
-									<input type="checkbox" name="sources" value={ o.Value } checked?={ slices.Contains(page.editingTemplate().Sources, o.Value) } class="h-4 w-4 rounded border-slate-300"/>
-									{ o.Label }
-								</label>
-							}
-						</div>
-						<p class="mt-1 text-xs text-slate-500">{ i18n.T(ctx, "templates.sources_hint") }</p>
-					</fieldset>
-					@editorLine("title", i18n.T(ctx, "templates.title_field"), "{{ .Event.Title }}", page.editingTemplate().Title, "template-line")
-					@editorField("message_text", i18n.T(ctx, "templates.text_field"), page.editingTemplate().Text, "4", "template")
-					@cardPalette(page)
-					@editorField("body", i18n.T(ctx, "templates.body_field"), page.editingTemplate().Body, "12", "card")
-					@templ.JSONScript("template-vocabulary", page.Vocabulary)
-					<div class="flex flex-wrap items-center gap-2">
-						@submit(submitLabel(ctx, page.EditTemplate != nil, "noun.template"))
-						if page.EditTemplate != nil {
-							@cancelEdit("templates")
-						}
-					</div>
-				</div>
-				<div class="min-w-0 space-y-3 lg:sticky lg:top-4 lg:self-start">
-					<div class="flex flex-wrap items-center gap-2">
-						<button
-							type="button"
-							id="preview-button"
-							class="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:border-sky-400 hover:bg-sky-50 hover:text-sky-700"
-						>
-							{ i18n.T(ctx, "preview.button") }
-						</button>
-						<label class="inline-flex items-center gap-1.5 text-sm text-slate-600">
-							<input type="checkbox" id="preview-live" checked class="rounded border-slate-300"/>
-							{ i18n.T(ctx, "preview.live") }
-						</label>
-						<select
-							id="preview-sample"
-							aria-label={ i18n.T(ctx, "templates.sample_event") }
-							class="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm"
-						>
-							for _, name := range page.PreviewSamples {
-								<option value={ name }>{ i18n.T(ctx, "sample."+name) }</option>
-							}
-						</select>
-					</div>
-					@previewViews()
-					<div id="preview-output" class="peer space-y-3 empty:hidden"></div>
-					<p class="hidden rounded-md border border-dashed border-slate-300 px-4 py-6 text-center text-sm text-slate-500 peer-empty:block">
-						{ i18n.T(ctx, "preview.empty") }
-					</p>
-				</div>
-			</form>
-		}
-		if page.Sharing != nil && page.Sharing.ResourceType == "Template" {
-			@sharingPanel(*page.Sharing)
-		}
-		<div class="lg:col-span-2">
-			if len(page.Templates) == 0 {
-				@empty(i18n.T(ctx, "templates.empty"))
-			} else {
-				<ul class="divide-y divide-slate-200">
-					for _, t := range page.Templates {
-						<li class="flex items-center justify-between gap-4 py-3">
-							<div class="min-w-0">
-								<div class="flex items-center gap-2">
-									<span class="truncate font-medium">{ t.Name }</span>
-									if names := page.defaultFor(ctx, t.ID); names != "" {
-										<span class="shrink-0 rounded bg-sky-100 px-1.5 py-0.5 text-xs font-medium text-sky-800">{ i18n.T(ctx, "templates.default_for", names) }</span>
-									}
-								</div>
-								<div class="truncate text-xs text-slate-500">
-									{ templateShape(ctx, t) } · { sourcesText(ctx, t) } · { i18n.T(ctx, "templates.updated", stamp(ctx, t.UpdatedAt)) }
-								</div>
-							</div>
-							<div class="flex shrink-0 items-center gap-2">
-								if page.mayUpdate("Template", t.ID) {
-									@editLink("templates", t.ID, t.Name)
-								}
-								if page.mayDelete("Template", t.ID) {
-									@deleteButton("/admin/templates/delete", t.ID, t.Name)
-								}
-							</div>
-						</li>
-					}
-				</ul>
-			}
-		</div>
-		@sourceDefaults(page)
-	}
-}
-
-// Each webhook's default renders every message from it that its route or
-// endpoint does not (ADR 0055).
-templ sourceDefaults(page Page) {
-	<div class="space-y-2 lg:col-span-2" id="source-defaults">
-		<h3 class="text-sm font-semibold">{ i18n.T(ctx, "templates.source_defaults") }</h3>
-		<p class="text-xs text-slate-500">{ i18n.T(ctx, "templates.source_defaults_hint") }</p>
-		if page.CanEdit {
-			<form method="post" action="/admin/templates/source-defaults" class="grid items-end gap-3 sm:grid-cols-4">
-				for _, source := range sourceOptions(ctx) {
-					@selectField("template_"+source.Value, source.Label, sourceDefaultOptions(ctx, page, source.Value), page.SourceDefaults[source.Value])
-				}
-				<div>
-					@submit(i18n.T(ctx, "templates.source_defaults_save"))
-				</div>
-			</form>
-		} else {
-			<ul class="text-sm">
-				for _, source := range sourceOptions(ctx) {
-					<li>
-						{ source.Label }:
-						if id := page.SourceDefaults[source.Value]; id != "" {
-							{ page.templateName(id) }
-						} else {
-							<span class="italic">{ i18n.T(ctx, "templates.source_default_builtin") }</span>
-						}
-					</li>
-				}
-			</ul>
-		}
-	</div>
-}
-
-// A preset fills the whole form, so it is chosen before anything is typed;
-// preview.js asks before it overwrites what has been.
-templ presetPicker(page Page) {
-	<label class="block">
-		<span class="text-sm font-medium">{ i18n.T(ctx, "templates.preset") }</span>
-		<select
-			id="template-preset"
-			title={ i18n.T(ctx, "templates.preset_help") }
-			data-confirm={ i18n.T(ctx, "templates.preset_confirm") }
-			class="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-sky-500 focus:outline-none"
-		>
-			<option value="">{ i18n.T(ctx, "templates.preset_none") }</option>
-			for _, preset := range page.Presets {
-				<option value={ preset.Key } data-preset={ presetJSON(preset) }>{ i18n.T(ctx, preset.LabelKey) }</option>
-			}
-		</select>
-	</label>
 }
 
 templ webhooks(page Page) {
@@ -458,33 +300,5 @@ templ previewViews() {
 				{ i18n.T(ctx, "preview.view_"+view) }
 			</button>
 		}
-	</div>
-}
-
-// The palette inserts card elements at the cursor. The fragments come from Go,
-// where a test renders every one of them, rather than being typed into the page
-// where nothing would check them.
-templ cardPalette(page Page) {
-	<div class="flex flex-wrap items-center gap-2">
-		<span class="text-sm font-medium text-slate-700">{ i18n.T(ctx, "palette.insert") }</span>
-		for _, snippet := range page.Snippets {
-			<button
-				type="button"
-				class="snippet rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:border-sky-400 hover:bg-sky-50 hover:text-sky-700"
-				title={ i18n.T(ctx, snippet.HelpKey) }
-				data-snippet={ snippet.Body }
-			>
-				{ i18n.T(ctx, snippet.LabelKey) }
-			</button>
-		}
-		<button
-			type="button"
-			id="card-starter"
-			class="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:border-sky-400 hover:bg-sky-50 hover:text-sky-700"
-			title={ i18n.T(ctx, "palette.starter_help") }
-			data-snippet={ page.Starter }
-		>
-			{ i18n.T(ctx, "palette.starter") }
-		</button>
 	</div>
 }

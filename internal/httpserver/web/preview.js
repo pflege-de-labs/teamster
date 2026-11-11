@@ -292,4 +292,6 @@
     }
     output.replaceChildren(...parts);
   }
+  // A record page shows what its template renders without being asked.
+  if (button.hasAttribute("data-preview-auto")) button.click();
 })();

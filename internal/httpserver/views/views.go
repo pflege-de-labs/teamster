@@ -17,7 +17,6 @@ import (
 	"github.com/pflege-de-labs/teamster/internal/cards"
 	"github.com/pflege-de-labs/teamster/internal/i18n"
 	"github.com/pflege-de-labs/teamster/internal/models"
-	render "github.com/pflege-de-labs/teamster/internal/templates"
 )
 
 // A Viewer is who is looking at a page: the name the provider gave them and the
@@ -166,18 +165,6 @@ type Page struct {
 	Notice         string
 	Error          string
 
-	// Sample events the preview can render the template against.
-	PreviewSamples []string
-
-	// Snippets and Starter are what the card palette inserts.
-	Snippets []cards.Snippet
-	Starter  string
-	// Presets are the whole templates a new one can start from.
-	Presets []cards.Preset
-
-	// Vocabulary is what the template editor completes inside {{ }}.
-	Vocabulary render.Vocabulary
-
 	// CanEdit hides what this session may not do. Hiding is not enforcing —
 	// the server refuses the post either way — but showing a viewer a Save
 	// button they cannot use is its own kind of broken.
@@ -202,7 +189,6 @@ type Page struct {
 	BrokerAvailable bool
 
 	// A nil Edit* means the matching form creates rather than updates.
-	EditTemplate        *models.Template
 	EditRoute           *models.Route
 	EditWebhookEndpoint *models.WebhookEndpoint
 
@@ -339,13 +325,6 @@ func templateShape(ctx context.Context, t models.Template) string {
 // The accessors below let a template read a field of the record under edit
 // without repeating a nil check per field.
 
-func (p Page) editingTemplate() models.Template {
-	if p.EditTemplate == nil {
-		return models.Template{}
-	}
-	return *p.EditTemplate
-}
-
 func (p Page) editingRoute() models.Route {
 	if p.EditRoute == nil {
 		return models.Route{Priority: 100}
@@ -426,8 +405,11 @@ func (p Page) destinationName(id string) string {
 	return id
 }
 
-func (p Page) templateName(id string) string {
-	for _, t := range p.Templates {
+func (p Page) templateName(id string) string { return templateName(p.Templates, id) }
+
+// templateName is the name of template id, or the id when it is not among templates.
+func templateName(templates []models.Template, id string) string {
+	for _, t := range templates {
 		if t.ID == id {
 			return t.Name
 		}
@@ -541,9 +523,9 @@ func globalDefaultTemplateOptions(ctx context.Context, p Page) []option {
 
 // sourceDefaultOptions offers the templates that handle source, after the
 // built-in message a source without a default sends.
-func sourceDefaultOptions(ctx context.Context, p Page, source string) []option {
+func sourceDefaultOptions(ctx context.Context, templates []models.Template, source string) []option {
 	out := []option{{Value: "", Label: i18n.T(ctx, "templates.source_default_builtin")}}
-	for _, t := range p.Templates {
+	for _, t := range templates {
 		if t.Handles(source) {
 			out = append(out, option{Value: t.ID, Label: t.Name})
 		}
@@ -551,11 +533,11 @@ func sourceDefaultOptions(ctx context.Context, p Page, source string) []option {
 	return out
 }
 
-// defaultFor lists the sources a template is the default of, for the list's badge.
-func (p Page) defaultFor(ctx context.Context, id string) string {
+// DefaultFor lists the webhooks template id is the default of, for its badge.
+func DefaultFor(ctx context.Context, defaults map[string]string, id string) string {
 	var names []string
 	for _, source := range models.AllSources() {
-		if p.SourceDefaults[source] == id {
+		if defaults[source] == id {
 			names = append(names, i18n.T(ctx, "source."+source))
 		}
 	}

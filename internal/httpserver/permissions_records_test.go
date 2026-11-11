@@ -53,8 +53,12 @@ func TestAGrantWithoutARole(t *testing.T) {
 	if page.Code != http.StatusOK || !strings.Contains(body, "Shared card") || strings.Contains(body, "Private card") {
 		t.Fatalf("GET /admin = %d, want the shared template and not the other", page.Code)
 	}
-	if !strings.Contains(body, "/admin/templates?edit=t1") || strings.Contains(body, `action="/admin/templates/delete"`) {
-		t.Error("the page should offer editing the shared template and no delete")
+	if !strings.Contains(body, `href="/admin/templates/t1"`) {
+		t.Error("the list should link the shared template")
+	}
+	record := call(t, h, http.MethodGet, "/admin/templates/t1", "").Body.String()
+	if !strings.Contains(record, `href="/admin/templates/t1?edit"`) || !strings.Contains(record, `name="id" value="t1"`) || strings.Contains(record, `action="/admin/templates/delete"`) {
+		t.Error("the record page should offer editing the shared template and no delete")
 	}
 
 	var listed []models.Template
@@ -87,16 +91,18 @@ func TestAGrantWithoutARole(t *testing.T) {
 	forms := []struct {
 		path      string
 		form      url.Values
+		wantCode  int
 		wantError bool
 	}{
-		{"/admin/templates", url.Values{"id": {"t1"}, "name": {"Again"}, "body": {"{}"}}, false},
-		{"/admin/templates", url.Values{"id": {"t2"}, "name": {"Mine now"}, "body": {"{}"}}, true},
-		{"/admin/templates/delete", url.Values{"id": {"t1"}}, true},
+		{"/admin/templates", url.Values{"id": {"t1"}, "name": {"Again"}, "body": {"{}"}}, http.StatusSeeOther, false},
+		{"/admin/templates", url.Values{"id": {"t2"}, "name": {"Mine now"}, "body": {"{}"}}, http.StatusNotFound, false},
+		{"/admin/templates/delete", url.Values{"id": {"t1"}}, http.StatusSeeOther, true},
 	}
 	for _, f := range forms {
-		loc := postFormAs(t, h, f.path, f.form).Header().Get("Location")
-		if strings.Contains(loc, "error=") != f.wantError {
-			t.Errorf("POST %s %v redirected to %s", f.path, f.form, loc)
+		rec := postFormAs(t, h, f.path, f.form)
+		loc := rec.Header().Get("Location")
+		if rec.Code != f.wantCode || strings.Contains(loc, "error=") != f.wantError {
+			t.Errorf("POST %s %v = %d to %q", f.path, f.form, rec.Code, loc)
 		}
 	}
 	if st.templates["t2"].Name != "Private card" || st.templates["t1"].Name != "Again" {
@@ -245,7 +251,7 @@ func TestSharingForms(t *testing.T) {
 	st.groups["g-sre"] = models.Group{ID: "g-sre", Name: "SRE"}
 	h := newTestServer(t, st, &fakeMessenger{}).Handler
 
-	page := call(t, h, http.MethodGet, "/admin/templates?edit=t1", "").Body.String()
+	page := call(t, h, http.MethodGet, "/admin/templates/t1", "").Body.String()
 	for _, want := range []string{`id="sharing"`, `action="/admin/sharing/grant"`, `value="group:g-sre"`, `name="actions" value="own"`} {
 		if !strings.Contains(page, want) {
 			t.Errorf("the edit page lacks %q", want)
@@ -254,9 +260,9 @@ func TestSharingForms(t *testing.T) {
 
 	loc := postFormAs(t, h, "/admin/sharing/grant", url.Values{
 		"principal_type": {"group"}, "principal_id": {"g-sre"}, "resource_type": {"Template"}, "resource_id": {"t1"},
-		"actions": {"read", "update"}, "return": {"/admin/templates?edit=t1"},
+		"actions": {"read", "update"}, "return": {"/admin/templates/t1"},
 	}).Header().Get("Location")
-	if !strings.HasPrefix(loc, "/admin/templates?edit=t1") || strings.Contains(loc, "error=") {
+	if !strings.HasPrefix(loc, "/admin/templates/t1") || strings.Contains(loc, "error=") {
 		t.Fatalf("grant redirected to %s", loc)
 	}
 	rows, _ := st.ListPermissionsFor(t.Context(), "Template", "t1")
@@ -425,7 +431,7 @@ func TestDeferredEndpointsAllCheck(t *testing.T) {
 	api, h := capturedServer(t, st)
 
 	gets := []string{
-		"/admin", "/admin/templates?edit=t1", "/admin/routes?edit=r1", "/admin/webhooks?edit=w1", "/admin/destinations?edit=d1",
+		"/admin", "/admin/templates/t1", "/admin/routes?edit=r1", "/admin/webhooks?edit=w1", "/admin/destinations?edit=d1",
 		"/api/templates", "/api/templates/t1", "/api/destinations", "/api/destinations/d1", "/api/routes", "/api/routes/r1",
 		"/api/webhooks", "/api/webhooks/w1", "/api/groups", "/api/groups/g1", "/admin/groups", "/admin/groups?id=g1",
 		"/api/sharing?type=Template&id=t1", "/admin/access", "/admin/access?class=Template&id=t1",
@@ -476,4 +482,29 @@ func capturedServer(t *testing.T, st *fakeStore) (*Server, http.Handler) {
 		t.Fatalf("NewServer: %v", err)
 	}
 	return api, srv.Handler
+}
+
+func TestAGrantDoesNotReachThePageWideTemplateSettings(t *testing.T) {
+	t.Parallel()
+
+	st := sharedStore()
+	grantTo(st, models.PrincipalUser, "tester", "Template", "t1", "read", "update")
+	h := newTestServer(t, st, &fakeMessenger{}).Handler
+
+	// The source defaults choose for every webhook, so no single record's grant decides them.
+	rec := postFormAs(t, h, "/admin/templates/source-defaults", url.Values{"template_" + models.SourceAlertmanager: {"t2"}})
+	if rec.Code != http.StatusForbidden {
+		t.Errorf("POST source-defaults with a grant = %d, want 403", rec.Code)
+	}
+	st.mu.Lock()
+	written := st.sourceDefaults[models.SourceAlertmanager]
+	st.mu.Unlock()
+	if written != "" {
+		t.Errorf("a grant holder set the Alertmanager default to %q", written)
+	}
+
+	// The preview answers roles only, so a grant holder's record page offers none.
+	if page := call(t, h, http.MethodGet, "/admin/templates/t1", "").Body.String(); strings.Contains(page, `id="preview-button"`) {
+		t.Error("the record page runs a preview a grant holder may not ask for")
+	}
 }

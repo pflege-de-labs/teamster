@@ -113,7 +113,7 @@ func TestValuesAreSubstitutedIntoTranslatedSentences(t *testing.T) {
 	t.Parallel()
 
 	st := sessionAs(seededUIStore(), authz.RoleViewer)
-	body := pageIn(t, newTestServer(t, st, &fakeMessenger{}).Handler, "/admin/templates", "de")
+	body := pageIn(t, newTestServer(t, st, &fakeMessenger{}).Handler, "/admin/routes", "de")
 
 	if !strings.Contains(body, "Angemeldet mit der Rolle Betrachter") {
 		t.Errorf("the read-only notice did not substitute the role:\n%s", body)
@@ -130,7 +130,7 @@ func TestASentenceIsNotBuiltByConcatenation(t *testing.T) {
 	t.Parallel()
 
 	st := sessionAs(seededUIStore(), authz.RoleEditor)
-	body := pageIn(t, newTestServer(t, st, &fakeMessenger{}).Handler, "/admin/templates", "de")
+	body := pageIn(t, newTestServer(t, st, &fakeMessenger{}).Handler, "/admin/templates/new", "de")
 
 	if !strings.Contains(body, "Vorlage speichern") {
 		t.Errorf("the submit button is not in German word order:\n%s", body)
@@ -145,7 +145,7 @@ func TestPaletteSamplesAndPickersAreTranslated(t *testing.T) {
 	st := sessionAs(seededUIStore(), authz.RoleEditor)
 	handler := newTestServer(t, st, &fakeMessenger{}).Handler
 
-	german := pageIn(t, handler, "/admin/templates", "de") + pageIn(t, handler, "/admin/destinations/new", "de")
+	german := pageIn(t, handler, "/admin/templates/new", "de") + pageIn(t, handler, "/admin/destinations/new", "de")
 	for _, want := range []string{
 		"Fakten",                    // a palette button
 		"Offen oder geschlossen",    // another, with its own help text
@@ -165,7 +165,7 @@ func TestPaletteSamplesAndPickersAreTranslated(t *testing.T) {
 		t.Error("a sample event rendered its catalog key instead of its text")
 	}
 
-	english := pageIn(t, handler, "/admin/templates", "en") + pageIn(t, handler, "/admin/destinations/new", "en")
+	english := pageIn(t, handler, "/admin/templates/new", "en") + pageIn(t, handler, "/admin/destinations/new", "en")
 	for _, want := range []string{"Facts", "open event", `data-picker-label="Channel"`, "— choose a team —"} {
 		if !strings.Contains(english, want) {
 			t.Errorf("the English page is missing %q", want)

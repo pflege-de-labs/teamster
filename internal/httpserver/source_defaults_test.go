@@ -215,9 +215,15 @@ func TestTheSourceDefaultsForm(t *testing.T) {
 	}
 
 	page := do(t, handler, http.MethodGet, "/admin/templates", "").Body.String()
-	for _, want := range []string{`action="/admin/templates/source-defaults"`, `name="template_teamsv2"`, "Default for Alertmanager", `id="template-preset"`, `data-preset=`} {
+	for _, want := range []string{`action="/admin/templates/source-defaults"`, `name="template_teamsv2"`, "Default for Alertmanager"} {
 		if !strings.Contains(page, want) {
 			t.Errorf("page does not contain %s", want)
+		}
+	}
+	newForm := do(t, handler, http.MethodGet, "/admin/templates/new", "").Body.String()
+	for _, want := range []string{`id="template-preset"`, `data-preset=`} {
+		if !strings.Contains(newForm, want) {
+			t.Errorf("the template form does not contain %s", want)
 		}
 	}
 	// The teamsv2 select offers only the templates that handle it.

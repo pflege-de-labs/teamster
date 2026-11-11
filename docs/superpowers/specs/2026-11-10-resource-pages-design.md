@@ -123,6 +123,25 @@ Each resource has its own view structs (for Destinations: `DestinationList`, `De
   that only inherit the destination are not listed; the section links to the routing graph.
 * **Sharing panel** on the record page, return path `/admin/destinations/<id>`.
 
+## Templates
+
+* **List**: name, *Default for …* badge; what it sends, its sources, last update. The **Default
+  template per webhook** form stays below the list: it is page-wide, not part of a template, and
+  still posts to `/admin/templates/source-defaults`, which is not a record path — no grant reaches
+  it.
+* **Record** summary: name and badge, sources, what it sends, last update; the title, text and card
+  source in a collapsed block.
+* **Preview**: an aside beside the record, outside its view and edit parts, so both modes show one
+  rendering. It renders once on load. It reads `#template-form` — the edit form, or for someone
+  without `update` a hidden form of the stored fields. The preview API answers roles, not grants, so
+  someone who only holds a grant gets no preview.
+* **Actions**: Edit, Delete.
+* **Used by**: routes whose own template this is and webhook endpoints that render with it, each
+  filtered to what the viewer may read; the webhooks it is the default for; the global default
+  route.
+* **New**: the form with presets, card palette and editors, and the preview beside it.
+* The CodeMirror editors are built while the edit part is hidden and measure themselves when shown.
+
 ## Tests
 
 Table-driven, `t.Parallel()`, in `internal/httpserver`:

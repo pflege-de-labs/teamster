@@ -149,7 +149,7 @@ func TestEditorSeesControls(t *testing.T) {
 	t.Parallel()
 
 	st := sessionAs(seededUIStore(), authz.RoleEditor)
-	body := asRole(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin/templates", "").Body.String()
+	body := asRole(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin/templates/new", "").Body.String()
 
 	if !strings.Contains(body, `action="/admin/templates"`) {
 		t.Error("an editor is not offered the template form")

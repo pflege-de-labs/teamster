@@ -214,7 +214,7 @@ func DestinationListPage(p DestinationList) templ.Component {
 				}
 				return nil
 			})
-			templ_7745c5c3_Err = listPage(i18n.T(ctx, "page.destinations"), i18n.T(ctx, "destinations.new"), "/admin/destinations/new", p.CanCreate).Render(templ.WithChildren(ctx, templ_7745c5c3_Var3), templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = listPage(i18n.T(ctx, "nav.destinations"), i18n.T(ctx, "destinations.new"), "/admin/destinations/new", p.CanCreate).Render(templ.WithChildren(ctx, templ_7745c5c3_Var3), templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

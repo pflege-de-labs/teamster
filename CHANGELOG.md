@@ -41,11 +41,15 @@ reasoning behind it in the [ADRs](docs/adr/).
   to its form without a reload, and a failed save keeps what you typed. The record shows the Team
   and channel names, where the destination is used and its sharing. Old `?edit=` links redirect
   ([ADR 0105](docs/adr/0105-give-each-record-a-page-of-its-own.md)).
+* Templates have the same list, record and create pages. The record shows the rendered template
+  beside its summary, its source, and the routes, webhooks and defaults that use it; **Edit** opens
+  the editor with the live preview in place. The default template per webhook stays on the list.
 * Notifications moved to the user menu as **My notifications**; "Permissions" is now **Channel
   scopes** and the grants page **Delivery permissions**.
 
 ### Fixed
 
+* The heading of the destination list read "Destinations — Teamster", the browser tab's title.
 * A template that routes or Teams V2 webhooks still use could be deleted, after which every
   delivery through them failed. Deleting it is now refused with the routes and webhooks that use
   it, by name where you may read them; `DELETE /api/templates/{id}` answers `409 Conflict`.
