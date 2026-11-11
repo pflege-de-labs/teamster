@@ -1,0 +1,186 @@
+package views
+
+import (
+	"net/url"
+
+	"github.com/pflege-de-labs/teamster/internal/i18n"
+	"github.com/pflege-de-labs/teamster/internal/models"
+)
+
+// WebhookChoices are the destinations and templates an endpoint's form offers.
+type WebhookChoices struct {
+	Destinations []models.Destination
+	Templates    []models.Template
+}
+
+// WebhookRow is an endpoint and the names of what it points at.
+type WebhookRow struct {
+	Endpoint                      models.WebhookEndpoint
+	DestinationName, TemplateName string
+}
+
+// WebhookList is the page at /admin/webhooks.
+type WebhookList struct {
+	Viewer        Viewer
+	Notice, Error string
+	Rows          []WebhookRow
+	CanCreate     bool
+}
+
+// WebhookRecord is the page at /admin/webhooks/{id}.
+type WebhookRecord struct {
+	Viewer               Viewer
+	Notice, Error        string
+	Endpoint             models.WebhookEndpoint // as stored
+	Form                 models.WebhookEndpoint // values the form shows
+	Destination          UsedBy                 // Href empty when the viewer may not read it
+	Template             UsedBy                 // Label empty for none
+	RouteHref            string                 // the route Teamster keeps for the endpoint, when readable
+	CanUpdate, CanDelete bool
+	Choices              WebhookChoices
+	Sharing              *Sharing
+	// NewURL is the one sight of a token there will ever be; only its digest is stored.
+	NewURL string
+	Head   RecordHead
+}
+
+// WebhookNew is the page at /admin/webhooks/new.
+type WebhookNew struct {
+	Viewer  Viewer
+	Error   string
+	Form    models.WebhookEndpoint
+	Choices WebhookChoices
+}
+
+templ WebhookListPage(p WebhookList) {
+	@Layout(i18n.T(ctx, "page.webhooks"), &p.Viewer) {
+		@notice(p.Error, p.Notice)
+		@listPage(i18n.T(ctx, "nav.webhooks"), i18n.T(ctx, "webhooks.new"), "/admin/webhooks/new", p.CanCreate) {
+			if len(p.Rows) == 0 {
+				@empty(i18n.T(ctx, "webhooks.empty"))
+			} else {
+				<ul class="divide-y divide-slate-200">
+					for _, row := range p.Rows {
+						<li class="py-3">
+							<a href={ templ.SafeURL("/admin/webhooks/" + url.PathEscape(row.Endpoint.ID)) } class="block truncate font-medium text-sky-700 hover:underline">{ webhookPath(row.Endpoint) }</a>
+							<div class="truncate text-xs text-slate-500">
+								{ row.DestinationName }
+								if row.TemplateName != "" {
+									· { row.TemplateName }
+								}
+							</div>
+						</li>
+					}
+				</ul>
+			}
+		}
+	}
+}
+
+templ WebhookRecordPage(p WebhookRecord) {
+	@Layout(i18n.T(ctx, "page.webhooks"), &p.Viewer) {
+		@notice(p.Error, p.Notice)
+		if p.NewURL != "" {
+			@revealedWebhookURL(p.NewURL)
+		}
+		if p.CanUpdate {
+			@recordPage(p.Head, webhookActions(p), webhookView(p), webhookForm(p.Form, p.Choices, p.Head.Href))
+		} else {
+			@recordPage(p.Head, webhookActions(p), webhookView(p), nil)
+		}
+		if p.Sharing != nil {
+			@sharingPanel(*p.Sharing)
+		}
+	}
+}
+
+templ WebhookNewPage(p WebhookNew) {
+	@Layout(i18n.T(ctx, "page.webhooks"), &p.Viewer) {
+		@notice(p.Error, "")
+		@newPage("/admin/webhooks", i18n.T(ctx, "nav.webhooks"), i18n.T(ctx, "webhooks.new")) {
+			@webhookForm(p.Form, p.Choices, "/admin/webhooks")
+		}
+	}
+}
+
+templ webhookActions(p WebhookRecord) {
+	if p.CanUpdate {
+		@rotateButton(p.Endpoint.ID, webhookPath(p.Endpoint))
+	}
+	if p.CanDelete {
+		@deleteButton("/admin/webhooks/delete", p.Endpoint.ID, webhookPath(p.Endpoint))
+	}
+}
+
+templ webhookView(p WebhookRecord) {
+	<dl class="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2 text-sm">
+		<dt class="text-slate-500">{ i18n.T(ctx, "webhooks.url") }</dt>
+		<dd class="font-mono text-xs">{ webhookPath(p.Endpoint) }/…</dd>
+		<dt class="text-slate-500">{ i18n.T(ctx, "routes.destination") }</dt>
+		<dd>
+			@usedByLink(p.Destination)
+		</dd>
+		<dt class="text-slate-500">{ i18n.T(ctx, "webhooks.template") }</dt>
+		<dd>
+			if p.Template.Label == "" {
+				<span class="text-slate-500">{ i18n.T(ctx, "webhooks.template_none") }</span>
+			} else {
+				@usedByLink(p.Template)
+			}
+		</dd>
+	</dl>
+	if p.RouteHref != "" {
+		<p class="text-sm"><a href={ templ.SafeURL(p.RouteHref) } class="text-sky-700 hover:underline">{ i18n.T(ctx, "webhooks.route_link") }</a></p>
+	}
+	<a href="/admin/routing" class="text-xs text-sky-700 hover:underline">{ i18n.T(ctx, "nav.routing") }</a>
+}
+
+// usedByLink is a link to a record the viewer may read, and its bare name otherwise.
+templ usedByLink(u UsedBy) {
+	if u.Href != "" {
+		<a href={ templ.SafeURL(u.Href) } class="text-sky-700 hover:underline">{ u.Label }</a>
+	} else {
+		{ u.Label }
+	}
+}
+
+templ webhookForm(form models.WebhookEndpoint, choices WebhookChoices, cancelHref string) {
+	<form method="post" action="/admin/webhooks" class="space-y-3">
+		if form.ID != "" {
+			<input type="hidden" name="id" value={ form.ID }/>
+		}
+		@textField("team_slug", i18n.T(ctx, "webhooks.team_slug"), "platform", form.TeamSlug)
+		@textField("channel_slug", i18n.T(ctx, "webhooks.channel_slug"), "alerts", form.ChannelSlug)
+		@selectField("destination_id", i18n.T(ctx, "routes.destination"), destinationOptions(choices.Destinations), form.DestinationID)
+		@selectField("template_id", i18n.T(ctx, "webhooks.template"), webhookTemplateOptions(ctx, choices.Templates), form.TemplateID)
+		<p class="text-xs text-slate-500">{ i18n.T(ctx, "webhooks.hint") }</p>
+		<div class="flex items-center gap-2">
+			@submit(submitLabel(ctx, form.ID != "", "noun.webhook"))
+			<a href={ templ.SafeURL(cancelHref) } data-record-cancel class="px-3 py-2 text-sm text-slate-600 underline hover:text-slate-900">{ i18n.T(ctx, "action.cancel") }</a>
+		</div>
+	</form>
+}
+
+// The URL is shown once, in the answer to the post that generated it. Only a
+// digest is stored, so there is no second chance to read it.
+templ revealedWebhookURL(url string) {
+	<div class="mb-4 rounded-md border border-amber-300 bg-amber-50 px-4 py-3">
+		<p class="text-sm font-medium text-amber-900">{ i18n.T(ctx, "webhooks.new_url") }</p>
+		<code class="mt-1 block break-all text-xs text-amber-900">{ url }</code>
+	</div>
+}
+
+// Rotating is its own form, so that saving an endpoint cannot change the secret
+// a sender is already using by accident.
+templ rotateButton(id, name string) {
+	<form method="post" action="/admin/webhooks/rotate">
+		<input type="hidden" name="id" value={ id }/>
+		<button
+			type="submit"
+			aria-label={ i18n.T(ctx, "webhooks.rotate") + " " + name }
+			class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:border-amber-400 hover:bg-amber-50 hover:text-amber-700"
+		>
+			{ i18n.T(ctx, "webhooks.rotate") }
+		</button>
+	</form>
+}

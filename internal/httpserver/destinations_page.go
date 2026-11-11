@@ -214,10 +214,10 @@ func (s *Server) handleDestinationSave(w http.ResponseWriter, r *http.Request) {
 
 // destinationTarget is where a destination post lands: the record it named, or
 // the list once the record is gone.
-func destinationTarget(toListOnSuccess bool) func(*http.Request, bool) string {
-	return func(r *http.Request, failed bool) string {
+func destinationTarget(toListOnSuccess bool) func(*http.Request, error) string {
+	return func(r *http.Request, err error) string {
 		id := r.PostFormValue("id")
-		if id == "" || (toListOnSuccess && !failed) {
+		if id == "" || (toListOnSuccess && err == nil) {
 			return "/admin/destinations"
 		}
 		return "/admin/destinations/" + url.PathEscape(id)

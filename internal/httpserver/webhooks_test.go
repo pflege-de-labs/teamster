@@ -1230,7 +1230,7 @@ func TestHintLinksTheEndpoint(t *testing.T) {
 	tests := []struct {
 		name, endpoint, want string
 	}{
-		{"endpoint", "hook", `/admin/webhooks?edit=hook`},
+		{"endpoint", "hook", `/admin/webhooks/hook`},
 		{"none", "", templatesPanelPath},
 	}
 	for _, tt := range tests {

@@ -109,7 +109,7 @@ func TestAWebhookEndpointNeedsATeamsV2Template(t *testing.T) {
 		t.Errorf("POST with a Teams V2 template = %d, want 201 (%s)", rec.Code, rec.Body.String())
 	}
 
-	page := do(t, handler, http.MethodGet, "/admin/webhooks", "").Body.String()
+	page := do(t, handler, http.MethodGet, "/admin/webhooks/new", "").Body.String()
 	start := strings.Index(page, `action="/admin/webhooks"`)
 	end := strings.Index(page[start:], "</form>")
 	form := page[start : start+end]

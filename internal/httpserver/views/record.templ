@@ -6,6 +6,7 @@ import "github.com/pflege-de-labs/teamster/internal/i18n"
 type RecordHead struct {
 	Href, ListHref, ListLabel, Title string // Href is the canonical record URL, whatever URL served the page
 	Editing                    bool // server-decided: ?edit present or a failed save
+	Replace                    bool // served in answer to a post that must not be repeated on reload
 }
 
 // UsedBy is a record that points at the one on show.
@@ -19,7 +20,7 @@ templ recordPage(h RecordHead, actions, view, edit templ.Component) {
 			<a href={ templ.SafeURL(h.ListHref) } class="text-sm text-sky-700 hover:underline">{ h.ListLabel }</a>
 			<h2 class="text-lg font-semibold">{ h.Title }</h2>
 		</div>
-		<div data-record={ h.Href } class="px-6 py-6">
+		<div data-record={ h.Href } data-record-replace?={ h.Replace } class="px-6 py-6">
 			<div data-mode="view" hidden?={ h.Editing } class="space-y-4">
 				<div class="flex items-center gap-2">
 					if edit != nil {
