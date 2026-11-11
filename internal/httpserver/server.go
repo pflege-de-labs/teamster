@@ -315,6 +315,10 @@ func NewServer(logger *slog.Logger, cfg config.Config, store store.Store, graphC
 	adminMux.HandleFunc("/admin/tokens", api.handleTokensPage)
 	adminMux.HandleFunc("/admin/tokens/new", api.handleTokenForm)
 	adminMux.HandleFunc("/admin/tokens/delete", api.formPostTo("/admin/tokens", api.revokeAccessTokenForm))
+	if cfg.MCP.Enabled {
+		adminMux.HandleFunc("/admin/tokens/mcp/new", api.handleMCPTokenForm)
+		adminMux.HandleFunc("/admin/tokens/mcp/delete", api.formPostTo("/admin/tokens", api.revokeMCPTokenForm))
+	}
 	adminMux.HandleFunc("/admin/grants", api.resourceRoute("grants", api.formPost("grants", api.saveGrant)))
 	adminMux.HandleFunc("/admin/grants/delete", api.formPost("grants", api.deleteGrant))
 	adminMux.HandleFunc("/", api.handleAssets)

@@ -23,6 +23,13 @@ type Tokens struct {
 	// MessageLevels are the message levels a new token may have, beyond none (ADR 0082).
 	MessageLevels []string
 	Manage        bool
+	// MCPEnabled shows the MCP section; NewMCPToken is set only on the answer
+	// to the post that created it.
+	MCPEnabled      bool
+	MCPTokens       []models.MCPToken
+	MCPURL          string
+	NewMCPToken     string
+	NewMCPTokenName string
 	Self   string
 	Notice string
 	Error  string
@@ -88,7 +95,90 @@ templ TokensPage(page Tokens) {
 				</div>
 			</div>
 		</section>
+		if page.MCPEnabled {
+			@mcpSection(page)
+		}
 	}
+}
+
+templ mcpSection(page Tokens) {
+	<section class="mt-6 rounded-lg border border-slate-200 bg-white shadow-sm">
+		<h2 class="border-b border-slate-200 px-6 py-4 text-lg font-semibold">
+			{ i18n.T(ctx, "tokens.mcp.heading") }
+		</h2>
+		<div class="grid gap-8 px-6 py-6 lg:grid-cols-2">
+			<form method="post" action="/admin/tokens/mcp/new" class="space-y-3">
+				<p class="text-sm text-slate-600">{ i18n.T(ctx, "tokens.mcp.explainer") }</p>
+				@textField("name", i18n.T(ctx, "tokens.name"), i18n.T(ctx, "tokens.mcp.name_placeholder"), "")
+				<fieldset class="space-y-2">
+					<legend class="text-sm font-medium">{ i18n.T(ctx, "tokens.mcp.access") }</legend>
+					<label class="flex items-center gap-2 text-sm">
+						<input type="radio" name="access" value="read" checked class="h-4 w-4 border-slate-300"/>
+						{ i18n.T(ctx, "tokens.mcp.access.read") }
+					</label>
+					<label class="flex items-center gap-2 text-sm">
+						<input type="radio" name="access" value="write" class="h-4 w-4 border-slate-300"/>
+						{ i18n.T(ctx, "tokens.mcp.access.write") }
+					</label>
+				</fieldset>
+				@submit(i18n.T(ctx, "tokens.create"))
+			</form>
+			<div>
+				if page.NewMCPToken != "" {
+					<div class="mb-4 space-y-2 rounded-md border border-amber-300 bg-amber-50 px-4 py-3">
+						<p class="text-sm font-medium text-amber-900">{ i18n.T(ctx, "tokens.new_token", page.NewMCPTokenName) }</p>
+						<code class="block break-all text-xs text-amber-900">{ page.NewMCPToken }</code>
+						<p class="text-xs text-amber-900">{ i18n.T(ctx, "tokens.mcp.snippet", page.MCPURL) }</p>
+						<pre class="overflow-x-auto rounded bg-white/60 p-2 text-xs text-amber-900"><code>{ mcpSnippet(page.MCPURL, page.NewMCPToken) }</code></pre>
+					</div>
+				}
+				if len(page.MCPTokens) == 0 {
+					@empty(i18n.T(ctx, "tokens.mcp.empty"))
+				} else {
+					<ul class="divide-y divide-slate-200">
+						for _, t := range page.MCPTokens {
+							@mcpTokenItem(t, page.Manage || t.CreatedBy == page.Self)
+						}
+					</ul>
+				}
+			</div>
+		</div>
+	</section>
+}
+
+templ mcpTokenItem(t models.MCPToken, mayRevoke bool) {
+	<li class="flex items-center justify-between gap-4 py-3">
+		<div class="min-w-0">
+			<div class="truncate font-medium">{ t.Name }</div>
+			<div class="truncate text-xs text-slate-500">
+				{ i18n.T(ctx, "tokens.created", stamp(ctx, t.CreatedAt), t.CreatedBy) }
+			</div>
+			<div class="truncate text-xs text-slate-500">{ i18n.T(ctx, "tokens.mcp.access.of", i18n.T(ctx, "tokens.mcp.access."+t.Access)) }</div>
+			<div class="truncate text-xs text-slate-500">
+				if t.LastUsedAt.IsZero() {
+					{ i18n.T(ctx, "tokens.never_used") }
+				} else {
+					{ i18n.T(ctx, "tokens.last_used", stamp(ctx, t.LastUsedAt)) }
+				}
+			</div>
+		</div>
+		if mayRevoke {
+			<form method="post" action="/admin/tokens/mcp/delete" class="shrink-0">
+				<input type="hidden" name="id" value={ t.ID }/>
+				<button
+					type="submit"
+					aria-label={ i18n.T(ctx, "tokens.revoke") + " " + t.Name }
+					class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:border-red-400 hover:bg-red-50 hover:text-red-700"
+				>
+					{ i18n.T(ctx, "tokens.revoke") }
+				</button>
+			</form>
+		}
+	</li>
+}
+
+func mcpSnippet(url, token string) string {
+	return "claude mcp add --transport http teamster " + url + " --header \"Authorization: Bearer " + token + "\""
 }
 
 templ tokenItem(t models.AccessToken, mayRevoke bool) {

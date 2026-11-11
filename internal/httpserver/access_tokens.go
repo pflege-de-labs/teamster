@@ -23,6 +23,7 @@ var (
 	errTokenWebhooks  = errors.New("choose the webhooks the token may send to, from those you may use")
 	errTokenNotYours  = errors.New("only its creator, a webhook admin or an admin may revoke a token")
 	errTokenMessages  = errors.New("a token's message level is self or anyone, and no more than you may message yourself")
+	errMCPAccess      = errors.New("an MCP token's access is read or write")
 )
 
 // tokenWebhooks are what a token's scope may name.
@@ -237,11 +238,108 @@ func (s *Server) renderTokens(w http.ResponseWriter, r *http.Request, page views
 	page.Manage = s.manageTokens(r)
 	page.MessageLevels = levelsUpTo(s.messageLevel(r))
 	page.Self = principalSubject(r)
+	if s.cfg.MCP.Enabled {
+		page.MCPEnabled = true
+		page.MCPURL = s.webhookBaseURL(r) + "/mcp"
+		mcpTokens, err := s.store.ListMCPTokens(ctx)
+		if err != nil && page.Error == "" {
+			page.Error = failureText(ctx, "list MCP tokens", err)
+		}
+		page.MCPTokens = s.visibleMCPTokens(r, mcpTokens)
+	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := views.TokensPage(page).Render(ctx, w); err != nil {
 		logError(ctx, "render tokens page", err)
 	}
+}
+
+// visibleMCPTokens are everyone's for a webhook admin, and the caller's own otherwise.
+func (s *Server) visibleMCPTokens(r *http.Request, tokens []models.MCPToken) []models.MCPToken {
+	markChecked(r)
+	if s.manageTokens(r) {
+		return tokens
+	}
+	subject := principalSubject(r)
+	out := []models.MCPToken{}
+	for _, t := range tokens {
+		if t.CreatedBy == subject {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
+// issueMCPToken mints a token that acts as its creator and never further, so
+// any signed-in user may have one (ADR 0077 for the digest-only storage).
+func (s *Server) issueMCPToken(r *http.Request, name, access string) (models.MCPToken, string, error) {
+	name = strings.TrimSpace(name)
+	if name == "" || utf8.RuneCountInString(name) > maxTokenNameLength {
+		return models.MCPToken{}, "", errTokenName
+	}
+	if access != models.MCPAccessRead && access != models.MCPAccessWrite {
+		return models.MCPToken{}, "", errMCPAccess
+	}
+	token, err := newMCPToken()
+	if err != nil {
+		return models.MCPToken{}, "", err
+	}
+	created, err := s.store.CreateMCPToken(r.Context(), models.MCPToken{
+		Name:      name,
+		TokenHash: hashToken(token),
+		CreatedBy: principalSubject(r),
+		Access:    access,
+	})
+	if errors.Is(err, store.ErrConflict) {
+		return models.MCPToken{}, "", errTokenNameTaken
+	}
+	if err != nil {
+		return models.MCPToken{}, "", err
+	}
+	return created, token, nil
+}
+
+// revokeMCPToken deletes a token the caller made, or any for a webhook admin.
+func (s *Server) revokeMCPToken(r *http.Request, id string) error {
+	ctx := r.Context()
+	tokens, err := s.store.ListMCPTokens(ctx)
+	if err != nil {
+		return err
+	}
+	markChecked(r)
+	for _, t := range tokens {
+		if t.ID != id {
+			continue
+		}
+		if t.CreatedBy != principalSubject(r) && !s.manageTokens(r) {
+			return userError{errTokenNotYours}
+		}
+		return s.store.DeleteMCPToken(ctx, id)
+	}
+	return store.ErrNotFound
+}
+
+// handleMCPTokenForm renders rather than redirects, so the secret never lands in a URL.
+func (s *Server) handleMCPTokenForm(w http.ResponseWriter, r *http.Request) {
+	if !formGuard("/admin/tokens", w, r) {
+		return
+	}
+	created, token, err := s.issueMCPToken(r, r.PostFormValue("name"), r.PostFormValue("access"))
+	if err != nil {
+		if errors.Is(err, errMCPAccess) {
+			err = userError{err}
+		}
+		redirectTo("/admin/tokens", w, r, "", visibleError(r.Context(), "issue MCP token", err))
+		return
+	}
+	s.renderTokens(w, r, views.Tokens{Notice: "MCP token created.", NewMCPToken: token, NewMCPTokenName: created.Name})
+}
+
+func (s *Server) revokeMCPTokenForm(r *http.Request) (string, error) {
+	if err := s.revokeMCPToken(r, r.PostFormValue("id")); err != nil {
+		return "", err
+	}
+	return "MCP token revoked. Clients using it are refused from now on.", nil
 }
 
 // levelsUpTo are the message levels a token may be given by someone holding limit.
