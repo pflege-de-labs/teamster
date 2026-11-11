@@ -188,16 +188,8 @@ type Page struct {
 	// Keycloak login behind it for there to be a broker token to ask for.
 	BrokerAvailable bool
 
-	// A nil Edit* means the matching form creates rather than updates.
-	EditRoute           *models.Route
-	EditWebhookEndpoint *models.WebhookEndpoint
-
-	// NewWebhookURL is a secret this page is the only chance to read: only a
-	// digest of the token is stored, so nothing can show it again. It is shown
-	// in the response to the post that generated it rather than carried through
-	// a redirect, because a redirect would put the secret in a query string,
-	// and from there into the browser history and this server's own access log.
-	NewWebhookURL string
+	// A nil EditRoute means the form creates rather than updates.
+	EditRoute *models.Route
 
 	// Tab is the resource whose page this is.
 	Tab string
@@ -347,26 +339,6 @@ func (p Page) managingWebhook() string {
 	return p.EditRoute.LabelSelector[models.TeamLabel] + "/" + p.EditRoute.LabelSelector[models.ChannelLabel]
 }
 
-// endpointRouteID is the route linked to the edited webhook, if any.
-func (p Page) endpointRouteID() string {
-	if p.EditWebhookEndpoint == nil {
-		return ""
-	}
-	for _, r := range p.Routes {
-		if r.WebhookEndpointID == p.EditWebhookEndpoint.ID {
-			return r.ID
-		}
-	}
-	return ""
-}
-
-func (p Page) editingWebhookEndpoint() models.WebhookEndpoint {
-	if p.EditWebhookEndpoint == nil {
-		return models.WebhookEndpoint{}
-	}
-	return *p.EditWebhookEndpoint
-}
-
 // selectorJSON renders a selector back into the JSON the form accepts. A new
 // route gets a worked example rather than an empty box.
 func selectorJSON(p Page) string {
@@ -426,9 +398,9 @@ type option struct {
 	Sources string
 }
 
-func destinationOptions(p Page) []option {
-	out := make([]option, 0, len(p.Destinations))
-	for _, d := range p.Destinations {
+func destinationOptions(destinations []models.Destination) []option {
+	out := make([]option, 0, len(destinations))
+	for _, d := range destinations {
 		out = append(out, option{Value: d.ID, Label: d.Name})
 	}
 	return out
@@ -555,15 +527,20 @@ func presetJSON(p cards.Preset) string {
 
 // webhookTemplateOptions offers only the templates that handle a Teams V2
 // payload, which is all an endpoint receives.
-func webhookTemplateOptions(ctx context.Context, p Page) []option {
-	out := make([]option, 0, len(p.Templates)+1)
+func webhookTemplateOptions(ctx context.Context, templates []models.Template) []option {
+	out := make([]option, 0, len(templates)+1)
 	out = append(out, option{Value: "", Label: i18n.T(ctx, "webhooks.template_none")})
-	for _, t := range p.Templates {
+	for _, t := range templates {
 		if t.Handles(models.SourceTeamsV2) {
 			out = append(out, option{Value: t.ID, Label: t.Name})
 		}
 	}
 	return out
+}
+
+// webhookPath is where an endpoint receives, short of its token.
+func webhookPath(e models.WebhookEndpoint) string {
+	return "/teamsv2/" + e.TeamSlug + "/" + e.ChannelSlug
 }
 
 // RouteLabel names a route: its name, or the matcher the routes panel shows.

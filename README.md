@@ -41,9 +41,9 @@ signal kills it immediately.
 The admin sidebar groups the pages (Configuration, Delivery, Access, Administration); routes,
 templates, destinations and webhooks each have a page, such as `/admin/routes`
 ([ADR 0103](docs/adr/0103-group-the-admin-sidebar-and-give-each-resource-a-page.md)).
-Destinations and templates are a list such as `/admin/destinations`, a record page per record and a
-create page;
-**Edit** on a record switches it to its form in place, and a failed save keeps what you typed
+Destinations, templates and webhooks are a list such as `/admin/destinations`, a record page per
+record and a create page; **Edit** on a record switches it to its form in place, and a failed save
+keeps what you typed
 ([ADR 0105](docs/adr/0105-give-each-record-a-page-of-its-own.md)).
 
 ## Configuration

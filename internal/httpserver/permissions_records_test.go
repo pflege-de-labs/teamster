@@ -431,7 +431,7 @@ func TestDeferredEndpointsAllCheck(t *testing.T) {
 	api, h := capturedServer(t, st)
 
 	gets := []string{
-		"/admin", "/admin/templates/t1", "/admin/routes?edit=r1", "/admin/webhooks?edit=w1", "/admin/destinations?edit=d1",
+		"/admin", "/admin/templates/t1", "/admin/routes?edit=r1", "/admin/webhooks/w1", "/admin/webhooks", "/admin/webhooks?edit=w1", "/admin/destinations?edit=d1",
 		"/api/templates", "/api/templates/t1", "/api/destinations", "/api/destinations/d1", "/api/routes", "/api/routes/r1",
 		"/api/webhooks", "/api/webhooks/w1", "/api/groups", "/api/groups/g1", "/admin/groups", "/admin/groups?id=g1",
 		"/api/sharing?type=Template&id=t1", "/admin/access", "/admin/access?class=Template&id=t1",
