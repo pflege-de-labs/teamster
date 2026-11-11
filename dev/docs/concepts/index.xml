@@ -18,6 +18,12 @@ group shares; for a group of one alert, that alert&amp;rsquo;s labels. For a uni
 &lt;a href="#the-teamster_source-label" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Before routing, Teamster sets the label &lt;code&gt;teamster_source&lt;/code&gt; to the webhook the event arrived at:
 &lt;code&gt;alertmanager&lt;/code&gt; or &lt;code&gt;universal&lt;/code&gt;. It overwrites any value the sender set. A route can therefore
 select on the source, for example &lt;code&gt;{&amp;quot;teamster_source&amp;quot;: &amp;quot;alertmanager&amp;quot;}&lt;/code&gt;.&lt;/p&gt;
+&lt;h3 data-hextra-search-id="the-teamster_receiver-label"&gt;The &lt;code&gt;teamster_receiver&lt;/code&gt; label&lt;span class="hx:absolute hx:-mt-20" id="the-teamster_receiver-label"&gt;&lt;/span&gt;
+&lt;a href="#the-teamster_receiver-label" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;An Alertmanager event gets the label &lt;code&gt;teamster_receiver&lt;/code&gt;: the notification&amp;rsquo;s &lt;code&gt;receiver&lt;/code&gt; after the
+last &lt;code&gt;/&lt;/code&gt;, because the Prometheus Operator sends &lt;code&gt;&amp;lt;namespace&amp;gt;/&amp;lt;config&amp;gt;/&amp;lt;name&amp;gt;&lt;/code&gt;. It overwrites any
+value the sender set, and is absent when the notification has no receiver. Other webhooks never
+carry it. A route can select on it to give each Alertmanager receiver its own channel. See
+&lt;a href="../../guides/alertmanager/#send-each-receiver-to-its-own-channel"&gt;Send each receiver to its own channel&lt;/a&gt;.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="the-teamster_team-and-teamster_channel-labels"&gt;The &lt;code&gt;teamster_team&lt;/code&gt; and &lt;code&gt;teamster_channel&lt;/code&gt; labels&lt;span class="hx:absolute hx:-mt-20" id="the-teamster_team-and-teamster_channel-labels"&gt;&lt;/span&gt;
 &lt;a href="#the-teamster_team-and-teamster_channel-labels" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;A Teams V2 message arrives with &lt;code&gt;teamster_source=teamsv2&lt;/code&gt; and the two URL segments it was posted to
 as &lt;code&gt;teamster_team&lt;/code&gt; and &lt;code&gt;teamster_channel&lt;/code&gt;. Only the URL sets them: Teamster removes all three from

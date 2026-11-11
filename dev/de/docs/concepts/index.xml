@@ -21,6 +21,13 @@ einem universellen Ereignis sind es die Einträge seines &lt;code&gt;labels&lt;/
 angekommen ist: &lt;code&gt;alertmanager&lt;/code&gt; oder &lt;code&gt;universal&lt;/code&gt;. Einen vom Absender gesetzten Wert überschreibt es.
 Eine Route kann daher nach der Quelle auswählen, zum Beispiel mit
 &lt;code&gt;{&amp;quot;teamster_source&amp;quot;: &amp;quot;alertmanager&amp;quot;}&lt;/code&gt;.&lt;/p&gt;
+&lt;h3 data-hextra-search-id="the-teamster_receiver-label"&gt;Das Label &lt;code&gt;teamster_receiver&lt;/code&gt;&lt;span class="hx:absolute hx:-mt-20" id="the-teamster_receiver-label"&gt;&lt;/span&gt;
+&lt;a href="#the-teamster_receiver-label" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Ein Alertmanager-Ereignis erhält das Label &lt;code&gt;teamster_receiver&lt;/code&gt;: den &lt;code&gt;receiver&lt;/code&gt; der Benachrichtigung
+nach dem letzten &lt;code&gt;/&lt;/code&gt;, denn der Prometheus Operator sendet &lt;code&gt;&amp;lt;namespace&amp;gt;/&amp;lt;config&amp;gt;/&amp;lt;name&amp;gt;&lt;/code&gt;. Es
+überschreibt einen vom Absender gesetzten Wert und fehlt, wenn die Benachrichtigung keinen Receiver
+hat. Andere Webhooks tragen es nie. Eine Route kann danach auswählen, um jedem Alertmanager-Receiver
+einen eigenen Kanal zu geben. Siehe
+&lt;a href="../../guides/alertmanager/#send-each-receiver-to-its-own-channel"&gt;Jeden Receiver an einen eigenen Kanal senden&lt;/a&gt;.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="the-teamster_team-and-teamster_channel-labels"&gt;Die Labels &lt;code&gt;teamster_team&lt;/code&gt; und &lt;code&gt;teamster_channel&lt;/code&gt;&lt;span class="hx:absolute hx:-mt-20" id="the-teamster_team-and-teamster_channel-labels"&gt;&lt;/span&gt;
 &lt;a href="#the-teamster_team-and-teamster_channel-labels" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Eine Teams-V2-Nachricht kommt mit &lt;code&gt;teamster_source=teamsv2&lt;/code&gt; an, dazu mit den beiden URL-Segmenten,
 an die sie gepostet wurde, als &lt;code&gt;teamster_team&lt;/code&gt; und &lt;code&gt;teamster_channel&lt;/code&gt;. Nur die URL setzt sie:

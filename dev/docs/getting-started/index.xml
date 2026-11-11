@@ -111,9 +111,8 @@ data-copied-label="Copied!"
 &lt;a href="#sign-in" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Open &lt;a href="http://localhost:8080/admin" target="_blank" rel="noopener"&gt;http://localhost:8080/admin&lt;/a&gt; and sign in with the admin username and password from
 &lt;code&gt;config.yaml&lt;/code&gt;.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="add-a-destination"&gt;Add a destination&lt;span class="hx:absolute hx:-mt-20" id="add-a-destination"&gt;&lt;/span&gt;
-&lt;a href="#add-a-destination" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Open &lt;strong&gt;Configuration → Destinations&lt;/strong&gt;, give the destination a name, pick the &lt;strong&gt;Team&lt;/strong&gt; and the
-&lt;strong&gt;Channel&lt;/strong&gt;,
-and save it.&lt;/p&gt;
+&lt;a href="#add-a-destination" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Open &lt;strong&gt;Configuration → Destinations&lt;/strong&gt;, press &lt;strong&gt;New destination&lt;/strong&gt;, give the destination a name,
+pick the &lt;strong&gt;Team&lt;/strong&gt; and the &lt;strong&gt;Channel&lt;/strong&gt;, and save it. Teamster opens the new destination&amp;rsquo;s page.&lt;/p&gt;
 &lt;p&gt;The first destination you create becomes the &lt;strong&gt;global default destination&lt;/strong&gt;: whatever no route
 claims goes there.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="add-a-route"&gt;Add a route&lt;span class="hx:absolute hx:-mt-20" id="add-a-route"&gt;&lt;/span&gt;

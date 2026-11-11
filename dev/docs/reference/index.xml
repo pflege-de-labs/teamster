@@ -2405,6 +2405,11 @@ data-copied-label="Copied!"
 &lt;td&gt;The webhook the event arrived at: &lt;code&gt;alertmanager&lt;/code&gt;, &lt;code&gt;universal&lt;/code&gt; or &lt;code&gt;teamsv2&lt;/code&gt;. A sender&amp;rsquo;s own value is overwritten.&lt;/td&gt;
 &lt;/tr&gt;
 &lt;tr&gt;
+&lt;td&gt;&lt;code&gt;teamster_receiver&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;Teamster&lt;/td&gt;
+&lt;td&gt;The Alertmanager &lt;code&gt;receiver&lt;/code&gt; after its last &lt;code&gt;/&lt;/code&gt;. Set only on &lt;code&gt;/webhook/alertmanager&lt;/code&gt;, absent without a receiver. A sender&amp;rsquo;s own value is overwritten.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
 &lt;td&gt;&lt;code&gt;teamster_team&lt;/code&gt;, &lt;code&gt;teamster_channel&lt;/code&gt;&lt;/td&gt;
 &lt;td&gt;Teamster&lt;/td&gt;
 &lt;td&gt;The URL segments of a Teams V2 message. Removed from a sender&amp;rsquo;s labels on every other webhook.&lt;/td&gt;

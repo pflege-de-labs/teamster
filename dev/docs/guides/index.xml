@@ -1277,6 +1277,8 @@ delivered once and not tracked. See
 &lt;li&gt;Routes select on &lt;code&gt;commonLabels&lt;/code&gt;, the labels all alerts in the group share. For a group of one
 alert, those are the alert&amp;rsquo;s labels.&lt;/li&gt;
 &lt;li&gt;Every event carries the label &lt;code&gt;teamster_source: alertmanager&lt;/code&gt;. A route can select on it.&lt;/li&gt;
+&lt;li&gt;Every event also carries &lt;code&gt;teamster_receiver&lt;/code&gt;, the receiver Alertmanager sent it through. See
+&lt;a href="#send-each-receiver-to-its-own-channel"&gt;Send each receiver to its own channel&lt;/a&gt;.&lt;/li&gt;
 &lt;li&gt;Templates find the group&amp;rsquo;s alerts in &lt;code&gt;.Event.Alertmanager.Alerts&lt;/code&gt;. The flat &lt;code&gt;Annotations&lt;/code&gt;,
 &lt;code&gt;StartsAt&lt;/code&gt;, &lt;code&gt;EndsAt&lt;/code&gt; and &lt;code&gt;GeneratorURL&lt;/code&gt; are set only for a group of one alert. See
 &lt;a href="../templates/#list-the-alerts-of-a-group"&gt;List the alerts of a group&lt;/a&gt; and
@@ -1285,6 +1287,20 @@ alert, those are the alert&amp;rsquo;s labels.&lt;/li&gt;
 addresses of all alerts in the group are joined. Each person gets only the alerts that name them
 and the alerts that name nobody. See &lt;a href="../direct-messages/"&gt;Send messages to individual people&lt;/a&gt;.&lt;/li&gt;
 &lt;/ul&gt;
+&lt;h2 data-hextra-search-id="send-each-receiver-to-its-own-channel"&gt;Send each receiver to its own channel&lt;span class="hx:absolute hx:-mt-20" id="send-each-receiver-to-its-own-channel"&gt;&lt;/span&gt;
+&lt;a href="#send-each-receiver-to-its-own-channel" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Alertmanager keeps routing, muting and inhibition. Teamster picks the channel from the receiver:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Point every Alertmanager receiver you want in Teams at &lt;code&gt;/webhook/alertmanager&lt;/code&gt;, each with the
+same token.&lt;/li&gt;
+&lt;li&gt;In Teamster, add one route per receiver that selects &lt;code&gt;{&amp;quot;teamster_receiver&amp;quot;: &amp;quot;&amp;lt;receiver&amp;gt;&amp;quot;}&lt;/code&gt; and
+delivers to its channel.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Teamster sets &lt;code&gt;teamster_receiver&lt;/code&gt; to the part of the notification&amp;rsquo;s &lt;code&gt;receiver&lt;/code&gt; after the last &lt;code&gt;/&lt;/code&gt;.
+The Prometheus Operator names receivers &lt;code&gt;&amp;lt;namespace&amp;gt;/&amp;lt;config&amp;gt;/&amp;lt;name&amp;gt;&lt;/code&gt;, so you select on &lt;code&gt;&amp;lt;name&amp;gt;&lt;/code&gt;.
+A value the sender sets is overwritten. A notification without a receiver gets no label.&lt;/p&gt;
+&lt;p&gt;To split one receiver by cluster, add &lt;code&gt;cluster&lt;/code&gt; to the Alertmanager &lt;code&gt;group_by&lt;/code&gt;, so alerts from
+different clusters do not share a card. Then add child routes under the receiver&amp;rsquo;s route that
+select &lt;code&gt;{&amp;quot;cluster&amp;quot;: &amp;quot;&amp;lt;cluster&amp;gt;&amp;quot;}&lt;/code&gt;. See &lt;a href="../../concepts/routing/#nested-routes"&gt;Nested routes&lt;/a&gt;.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="after-upgrading-from-a-release-with-one-card-per-alert"&gt;After upgrading from a release with one card per alert&lt;span class="hx:absolute hx:-mt-20" id="after-upgrading-from-a-release-with-one-card-per-alert"&gt;&lt;/span&gt;
 &lt;a href="#after-upgrading-from-a-release-with-one-card-per-alert" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Releases up to 0.11.0 posted one card per alert. After the upgrade:&lt;/p&gt;
 &lt;ul&gt;
@@ -2210,7 +2226,7 @@ credential, as it was before.&lt;/p&gt;
 &lt;a href="#move-the-sender" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;div class="hextra-steps hx:ml-4 hx:mb-12 hx:ltr:border-l hx:rtl:border-r hx:border-gray-200 hx:ltr:pl-6 hx:rtl:pr-6 hx:dark:border-neutral-800 [counter-reset:step]"&gt;
 &lt;h3 data-hextra-search-id="create-the-destination"&gt;Create the destination&lt;span class="hx:absolute hx:-mt-20" id="create-the-destination"&gt;&lt;/span&gt;
 &lt;a href="#create-the-destination" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;The channel the sender posts into must exist as a destination in Teamster. Create it under
-&lt;strong&gt;Configuration → Destinations&lt;/strong&gt; if it does not.&lt;/p&gt;
+&lt;strong&gt;Configuration → Destinations&lt;/strong&gt; with &lt;strong&gt;New destination&lt;/strong&gt; if it does not.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="create-the-endpoint"&gt;Create the endpoint&lt;span class="hx:absolute hx:-mt-20" id="create-the-endpoint"&gt;&lt;/span&gt;
 &lt;a href="#create-the-endpoint" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Under &lt;strong&gt;Configuration → Webhooks&lt;/strong&gt;, in &lt;strong&gt;Teams V2 webhooks&lt;/strong&gt;, pick the destination and give the URL
 two readable
@@ -3752,7 +3768,7 @@ and
 &lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0083-broadcasts-run-in-the-background.md" target="_blank" rel="noopener"&gt;ADR 0083&lt;/a&gt;.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="share-a-record"&gt;Share a record&lt;span class="hx:absolute hx:-mt-20" id="share-a-record"&gt;&lt;/span&gt;
 &lt;a href="#share-a-record" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Whoever creates a template, destination, route, webhook endpoint or group owns it. To share one,
-edit it and use &lt;strong&gt;Who may do what&lt;/strong&gt;:&lt;/p&gt;
+open it and use &lt;strong&gt;Who may do what&lt;/strong&gt;:&lt;/p&gt;
 &lt;ol&gt;
 &lt;li&gt;Under &lt;strong&gt;Give to&lt;/strong&gt;, choose a user, a group, a provider group or a role from the list. Someone who
 has not signed in yet is not listed: open &lt;strong&gt;Someone not listed&lt;/strong&gt;, pick the kind and enter their

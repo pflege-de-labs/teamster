@@ -1323,6 +1323,9 @@ Jeder andere Status wird einmal zugestellt und nicht verfolgt. Siehe
 &lt;li&gt;Routen wählen nach &lt;code&gt;commonLabels&lt;/code&gt; aus, den Labels, die alle Alarme der Gruppe gemeinsam haben.
 Bei einer Gruppe mit einem Alarm sind das die Labels dieses Alarms.&lt;/li&gt;
 &lt;li&gt;Jedes Ereignis trägt das Label &lt;code&gt;teamster_source: alertmanager&lt;/code&gt;. Eine Route kann danach auswählen.&lt;/li&gt;
+&lt;li&gt;Jedes Ereignis trägt außerdem &lt;code&gt;teamster_receiver&lt;/code&gt;, den Receiver, über den Alertmanager es
+gesendet hat. Siehe
+&lt;a href="#send-each-receiver-to-its-own-channel"&gt;Jeden Receiver an einen eigenen Kanal senden&lt;/a&gt;.&lt;/li&gt;
 &lt;li&gt;Vorlagen finden die Alarme der Gruppe in &lt;code&gt;.Event.Alertmanager.Alerts&lt;/code&gt;. Die flachen Felder
 &lt;code&gt;Annotations&lt;/code&gt;, &lt;code&gt;StartsAt&lt;/code&gt;, &lt;code&gt;EndsAt&lt;/code&gt; und &lt;code&gt;GeneratorURL&lt;/code&gt; sind nur bei einer Gruppe mit einem Alarm
 gesetzt. Siehe &lt;a href="../templates/#list-the-alerts-of-a-group"&gt;Die Alarme einer Gruppe auflisten&lt;/a&gt; und
@@ -1332,6 +1335,23 @@ gesetzt. Siehe &lt;a href="../templates/#list-the-alerts-of-a-group"&gt;Die Alar
 erhält nur die Alarme, die sie nennen, und die Alarme, die niemanden nennen. Siehe
 &lt;a href="../direct-messages/"&gt;Nachrichten an einzelne Personen senden&lt;/a&gt;.&lt;/li&gt;
 &lt;/ul&gt;
+&lt;h2 data-hextra-search-id="send-each-receiver-to-its-own-channel"&gt;Jeden Receiver an einen eigenen Kanal senden&lt;span class="hx:absolute hx:-mt-20" id="send-each-receiver-to-its-own-channel"&gt;&lt;/span&gt;
+&lt;a href="#send-each-receiver-to-its-own-channel" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Alertmanager behält Routing, Stummschaltung und Inhibition. Teamster wählt den Kanal anhand des
+Receivers:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Richten Sie jeden Alertmanager-Receiver, den Sie in Teams haben möchten, auf
+&lt;code&gt;/webhook/alertmanager&lt;/code&gt; aus, jeweils mit demselben Token.&lt;/li&gt;
+&lt;li&gt;Legen Sie in Teamster je Receiver eine Route an, die &lt;code&gt;{&amp;quot;teamster_receiver&amp;quot;: &amp;quot;&amp;lt;receiver&amp;gt;&amp;quot;}&lt;/code&gt;
+selektiert und an dessen Kanal zustellt.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Teamster setzt &lt;code&gt;teamster_receiver&lt;/code&gt; auf den Teil des &lt;code&gt;receiver&lt;/code&gt; der Benachrichtigung nach dem
+letzten &lt;code&gt;/&lt;/code&gt;. Der Prometheus Operator benennt Receiver &lt;code&gt;&amp;lt;namespace&amp;gt;/&amp;lt;config&amp;gt;/&amp;lt;name&amp;gt;&lt;/code&gt;, daher wählen
+Sie nach &lt;code&gt;&amp;lt;name&amp;gt;&lt;/code&gt; aus. Ein vom Absender gesetzter Wert wird überschrieben. Eine Benachrichtigung
+ohne Receiver erhält kein Label.&lt;/p&gt;
+&lt;p&gt;Um einen Receiver nach Cluster aufzuteilen, fügen Sie &lt;code&gt;cluster&lt;/code&gt; zum &lt;code&gt;group_by&lt;/code&gt; von Alertmanager
+hinzu, damit Alarme verschiedener Cluster sich keine Karte teilen. Legen Sie dann unter der Route
+des Receivers untergeordnete Routen an, die &lt;code&gt;{&amp;quot;cluster&amp;quot;: &amp;quot;&amp;lt;cluster&amp;gt;&amp;quot;}&lt;/code&gt; selektieren. Siehe
+&lt;a href="../../concepts/routing/#nested-routes"&gt;Verschachtelte Routen&lt;/a&gt;.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="after-upgrading-from-a-release-with-one-card-per-alert"&gt;Nach dem Upgrade von einem Release mit einer Karte je Alarm&lt;span class="hx:absolute hx:-mt-20" id="after-upgrading-from-a-release-with-one-card-per-alert"&gt;&lt;/span&gt;
 &lt;a href="#after-upgrading-from-a-release-with-one-card-per-alert" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Releases bis 0.11.0 haben je Alarm eine Karte gepostet. Nach dem Upgrade gilt:&lt;/p&gt;
 &lt;ul&gt;
@@ -2299,7 +2319,7 @@ Berechtigungsnachweis, wie zuvor auch.&lt;/p&gt;
 &lt;a href="#move-the-sender" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;div class="hextra-steps hx:ml-4 hx:mb-12 hx:ltr:border-l hx:rtl:border-r hx:border-gray-200 hx:ltr:pl-6 hx:rtl:pr-6 hx:dark:border-neutral-800 [counter-reset:step]"&gt;
 &lt;h3 data-hextra-search-id="create-the-destination"&gt;Das Ziel anlegen&lt;span class="hx:absolute hx:-mt-20" id="create-the-destination"&gt;&lt;/span&gt;
 &lt;a href="#create-the-destination" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Der Kanal, in den der Absender postet, muss in Teamster als Ziel existieren. Legen Sie ihn unter
-&lt;strong&gt;Konfiguration → Ziele&lt;/strong&gt; an, falls nicht.&lt;/p&gt;
+&lt;strong&gt;Konfiguration → Ziele&lt;/strong&gt; mit &lt;strong&gt;Neues Ziel&lt;/strong&gt; an, falls nicht.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="create-the-endpoint"&gt;Den Endpunkt anlegen&lt;span class="hx:absolute hx:-mt-20" id="create-the-endpoint"&gt;&lt;/span&gt;
 &lt;a href="#create-the-endpoint" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Wählen Sie unter &lt;strong&gt;Konfiguration → Webhooks&lt;/strong&gt; im Bereich &lt;strong&gt;Teams-V2-Webhooks&lt;/strong&gt; das Ziel und geben
 Sie der URL zwei lesbare Segmente für das Team und den Kanal. Segmente bestehen aus
@@ -3901,7 +3921,7 @@ und
 &lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0083-broadcasts-run-in-the-background.md" target="_blank" rel="noopener"&gt;ADR 0083&lt;/a&gt;.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="share-a-record"&gt;Einen Datensatz teilen&lt;span class="hx:absolute hx:-mt-20" id="share-a-record"&gt;&lt;/span&gt;
 &lt;a href="#share-a-record" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Wer eine Vorlage, ein Ziel, eine Route, einen Webhook-Endpunkt oder eine Gruppe anlegt, ist ihr
-Eigentümer. Um einen Datensatz zu teilen, bearbeiten Sie ihn und nutzen &lt;strong&gt;Wer was darf&lt;/strong&gt;:&lt;/p&gt;
+Eigentümer. Um einen Datensatz zu teilen, öffnen Sie ihn und nutzen &lt;strong&gt;Wer was darf&lt;/strong&gt;:&lt;/p&gt;
 &lt;ol&gt;
 &lt;li&gt;Wählen Sie unter &lt;strong&gt;Geben an&lt;/strong&gt; einen Benutzer, eine Gruppe, eine Anbietergruppe oder eine Rolle
 aus der Liste. Wer sich noch nicht angemeldet hat, steht nicht darin: Öffnen Sie &lt;strong&gt;Nicht
