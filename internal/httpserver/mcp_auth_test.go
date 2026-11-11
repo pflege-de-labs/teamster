@@ -26,6 +26,7 @@ func TestMCPAuth(t *testing.T) {
 		failOn     string
 		wantStatus int
 		wantBody   string
+		wantErr    string
 	}{
 		{name: "no credential", wantStatus: 401},
 		{name: "session cookie only", header: func(r *http.Request) { r.AddCookie(&http.Cookie{Name: sessionCookie, Value: testSessionID}) }, wantStatus: 401},
@@ -35,8 +36,8 @@ func TestMCPAuth(t *testing.T) {
 		{name: "X-Teamster-Token is not accepted", users: []models.User{alice}, header: func(r *http.Request) { r.Header.Set("X-Teamster-Token", secret) }, wantStatus: 401},
 		{name: "editor creator", users: []models.User{alice}, header: bearer(secret), wantStatus: 200, wantBody: "alice|Alice|editor|mcp"},
 		{name: "scheme case and padding", users: []models.User{alice}, header: func(r *http.Request) { r.Header.Set("Authorization", "bearer  "+secret+" ") }, wantStatus: 200, wantBody: "alice|Alice|editor|mcp"},
-		{name: "creator disabled", users: []models.User{{Subject: "alice", Source: "oidc", DisabledAt: time.Now()}}, header: bearer(secret), wantStatus: 403},
-		{name: "creator unknown", header: bearer(secret), wantStatus: 403},
+		{name: "creator disabled", users: []models.User{{Subject: "alice", Source: "oidc", DisabledAt: time.Now()}}, header: bearer(secret), wantStatus: 403, wantErr: "creator is disabled or unknown"},
+		{name: "creator unknown", header: bearer(secret), wantStatus: 403, wantErr: "creator is disabled or unknown"},
 		{name: "local admin without a row", admin: true, header: bearer(secret), wantStatus: 200, wantBody: "admin|admin|admin|mcp"},
 		{name: "token lookup fails", users: []models.User{alice}, header: bearer(secret), failOn: "GetMCPTokenByHash", wantStatus: 503},
 		{name: "creator lookup fails", users: []models.User{alice}, header: bearer(secret), failOn: "GetUser", wantStatus: 503},
@@ -83,6 +84,9 @@ func TestMCPAuth(t *testing.T) {
 			}
 			if tt.wantBody != "" && rec.Body.String() != tt.wantBody {
 				t.Errorf("body = %q, want %q", rec.Body, tt.wantBody)
+			}
+			if !strings.Contains(rec.Body.String(), tt.wantErr) {
+				t.Errorf("body = %q, want it to contain %q", rec.Body, tt.wantErr)
 			}
 			wantAuth := ""
 			if tt.wantStatus == 401 {

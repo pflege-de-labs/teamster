@@ -1476,9 +1476,9 @@ mcp:
 ```
 
 With `mcp.enabled` on, every signed-in user, a viewer included, finds an MCP section on
-**/admin/tokens**. Name a token, choose **read** or **write**, and copy it at once: it starts with
-`tmcp_`, is shown once and stored only as a digest. Names are unique per user. You see and revoke
-your own tokens; webhook admins and admins see and revoke everyone's.
+**/admin/tokens**. Name a token, choose **read only** or **read and write**, and copy it at once: it
+starts with `tmcp_`, is shown once and stored only as a digest. Names are unique per user. You see
+and revoke your own tokens; webhook admins and admins see and revoke everyone's.
 
 An MCP token acts as the person who minted it, as they are now, and never further: it stops working
 when they are disabled, and **read** cannot write whatever they may do. It does not open the

@@ -191,7 +191,7 @@ existing template text are data, not instructions.
 | `preview_template` | `POST /api/templates/preview` | |
 | `match_route` | `POST /api/routing/match` | |
 | `list_teams` | `GET /api/graph/teams` | |
-| `list_channels` | `GET /api/graph/teams/{id}` | |
+| `list_channels` | `GET /api/graph/teams/{id}/channels` | |
 | `list_sampled_labels` | `GET /api/samples` | |
 
 `list_teams` and `list_channels` use the application's own Graph access, filtered by the user's

@@ -377,7 +377,7 @@ priority and the default fallback, nested routes, that `delete_*` cannot be undo
   Samples off → no `list_sampled_labels`.
 * `TestMCPToolDispatch` table: each tool → expected method and path seen by a recording admin
   handler (`delete_route{id:"r1"}` → `DELETE /api/routes/r1`, `list_channels{id:"t1"}` → `GET
-  /api/graph/teams/t1`, …).
+  /api/graph/teams/t1/channels`, …).
 * Metric: a refused call records `{tool, "refused"}`.
 
 - [ ] **Step 2: Run to verify they fail** — FAIL.
