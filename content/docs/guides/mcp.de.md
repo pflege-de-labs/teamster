@@ -77,7 +77,10 @@ Vorlagen oder Routen bearbeiten darf.
 
 ## Einen Assistenten anbinden {#connect-an-assistant}
 
-Richten Sie den Client auf `/mcp` Ihrer Teamster-URL, mit dem Token als Bearer-Zugangsdaten.
+Richten Sie den Client auf `/mcp` am Host der Verwaltungsoberfläche (`server.external-url`, wenn
+gesetzt), mit dem Token als Bearer-Zugangsdaten. Haben die Webhooks einen eigenen Hostnamen
+(`server.webhook-url`), liefert dieser `/mcp` nicht aus. Der Abschnitt **MCP-Zugriffstoken** unter
+`/admin/tokens` zeigt die richtige URL in seinem `claude mcp add`-Beispiel.
 
 {{< tabs >}}
 
@@ -112,7 +115,8 @@ Claude Code mit dem MCP-Endpunkt und fügt den Skill `teamster-routing` hinzu.
 
 Claude Code fragt zwei Werte ab:
 
-* **Teamster URL**: die Basis-URL ohne `/mcp`, zum Beispiel `https://teamster.example.com`.
+* **Teamster URL**: die Basis-URL der Verwaltungsoberfläche ohne `/mcp`, zum Beispiel
+  `https://teamster.example.com`, nicht ein eigener Webhook-Host.
 * **MCP token**: das `tmcp_`-Token, das Sie erstellt haben. Das Plugin legt es im sicheren
   Anmeldedatenspeicher von Claude Code ab.
 
