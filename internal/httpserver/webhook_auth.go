@@ -37,10 +37,18 @@ var (
 // webhookCredential takes the token from Authorization: Bearer, or from the
 // X-Teamster-Token header the webhooks accepted before ADR 0044.
 func webhookCredential(r *http.Request) string {
+	if token := bearerToken(r); token != "" {
+		return token
+	}
+	return r.Header.Get("X-Teamster-Token")
+}
+
+// bearerToken is the token of an Authorization: Bearer header, or "".
+func bearerToken(r *http.Request) string {
 	if scheme, token, ok := strings.Cut(r.Header.Get("Authorization"), " "); ok && strings.EqualFold(scheme, "Bearer") {
 		return strings.TrimSpace(token)
 	}
-	return r.Header.Get("X-Teamster-Token")
+	return ""
 }
 
 // webhookAuth returns the token the request presented. A store failure is
