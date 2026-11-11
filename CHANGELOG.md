@@ -33,6 +33,9 @@ reasoning behind it in the [ADRs](docs/adr/).
 * Templates have the same list, record and create pages. The record shows the rendered template
   beside its summary, its source, and the routes, webhooks and defaults that use it; **Edit** opens
   the editor with the live preview in place. The default template per webhook stays on the list.
+* Teams V2 webhooks have the same list, record and create pages. The record links the endpoint's
+  destination, template and route, and carries **New token**. A failed save keeps what you typed.
+  Reloading the page that shows a new webhook URL no longer creates a second endpoint.
 * Notifications moved to the user menu as **My notifications**; "Permissions" is now **Channel
   scopes** and the grants page **Delivery permissions**.
 

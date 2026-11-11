@@ -1298,6 +1298,14 @@ default for, and the global default route. The source defaults form stays on the
 `/admin/templates/source-defaults`. The CodeMirror editors are built while the edit part is hidden
 and measure themselves once it is shown.
 
+Webhooks are the third. The record links the endpoint's destination and template when the viewer
+may read them, and the route Teamster keeps for it, in place of Used by. Creating an endpoint and
+replacing its token still answer with a page, never a redirect, because the token would land in
+the browser history and the access log; that page is the record with the URL in a banner. It
+carries `data-record-replace`, and `record.js` replaces the address with the record's, so a
+reload neither shows the token again nor posts again. A failed save is the 422 re-render, a failed
+token replacement a redirect to the record with the error.
+
 ### Editor completion
 
 The template's title, text and card fields, a route's label selector and the routing page's check
