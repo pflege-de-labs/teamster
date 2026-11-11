@@ -141,10 +141,10 @@ permissions (list and new only). Each keeps its old `?edit=` link working with a
 
 ## Milestone 27 — MCP
 
-Tokens and settings have shipped
-([ADR 0106](adr/0106-mcp-tokens-answer-to-their-creator.md)). Still to come, one pull request each:
+Tokens, settings and the `/mcp` endpoint have shipped
+([ADR 0106](adr/0106-mcp-tokens-answer-to-their-creator.md),
+[ADR 0107](adr/0107-mcp-endpoint-over-the-admin-api.md)). Still to come, one pull request each:
 
-* The `/mcp` endpoint, behind `mcpAuth`, with the first tools.
 * A Claude Code plugin that points at it.
 * Cedar caps for MCP: policies that match on `context.via == "mcp"`, so an operator can hold an
   assistant back further than its user.
