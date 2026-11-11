@@ -125,7 +125,8 @@ func TestMCPToolDispatch(t *testing.T) {
 		{"list_templates", nil, "GET", "/api/templates", nil},
 		{"get_template", map[string]any{"id": "t 1"}, "GET", "/api/templates/t%201", nil},
 		{"create_template", map[string]any{"name": "n", "body": "{}"}, "POST", "/api/templates", map[string]any{"name": "n"}},
-		{"update_template", map[string]any{"id": "t1", "name": "n", "body": "{}"}, "PUT", "/api/templates/t1", map[string]any{"id": "t1", "name": "n"}},
+		{"create_template", map[string]any{"name": "n", "text": "hi"}, "POST", "/api/templates", map[string]any{"text": "hi"}},
+		{"update_template", map[string]any{"id": "t1", "name": "n", "body": "{}", "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-02T00:00:00Z"}, "PUT", "/api/templates/t1", map[string]any{"id": "t1", "name": "n"}},
 		{"delete_template", map[string]any{"id": "t1"}, "DELETE", "/api/templates/t1", nil},
 		{"list_destinations", nil, "GET", "/api/destinations", nil},
 		{"get_destination", map[string]any{"id": "d1"}, "GET", "/api/destinations/d1", nil},
@@ -190,6 +191,10 @@ func TestMCPToolFailures(t *testing.T) {
 		{"validation is invalid", "create_route", map[string]any{"name": "n"}, 422, "invalid", 1},
 		{"server error fails", "list_routes", nil, 500, "failed", 1},
 		{"bad id is invalid and never dispatched", "get_route", map[string]any{"id": "a/b"}, 200, "invalid", 0},
+		{"reserved route id", "update_route", map[string]any{"id": "global-default", "name": "n"}, 200, "invalid", 0},
+		{"reserved template id", "get_template", map[string]any{"id": "source-defaults"}, 200, "invalid", 0},
+		{"preview as a template id", "get_template", map[string]any{"id": "preview"}, 200, "invalid", 0},
+		{"normal id dispatches", "get_template", map[string]any{"id": "t1"}, 200, "ok", 1},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

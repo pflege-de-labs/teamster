@@ -104,6 +104,8 @@ type Server struct {
 
 	// adminAPI is /api behind authorization, which MCP tools call in-process.
 	adminAPI http.Handler
+	// adminRoutes is the bare mux behind adminAPI, asked which pattern a path reaches.
+	adminRoutes *http.ServeMux
 
 	// people is nil unless the bot is configured: messages then cannot name
 	// the people an addressed route delivers to (ADR 0063).
@@ -348,6 +350,7 @@ func NewServer(logger *slog.Logger, cfg config.Config, store store.Store, graphC
 		mux.HandleFunc(asset, api.handleAssets)
 	}
 
+	api.adminRoutes = adminMux
 	api.adminAPI = api.authorize(adminMux)
 	mux.Handle("/api/", api.apiAuth(api.adminAPI))
 	// Method-less like /bot/messages, so a wrong method reaches the handler rather than the login redirect.

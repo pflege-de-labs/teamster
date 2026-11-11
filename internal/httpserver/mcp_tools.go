@@ -3,6 +3,7 @@ package httpserver
 import (
 	"context"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/google/jsonschema-go/jsonschema"
@@ -62,10 +63,10 @@ func (s *Server) addMCPTools(srv *mcp.Server, r *http.Request) {
 	}
 	if t := (mcpTool{"create_template", "Create a template. title and text are Go templates over the alert; body is Adaptive Card JSON. " +
 		"sources limits it to webhooks (alertmanager, universal, teamsv2); none means any.", http.MethodPost, "/api/templates", true}); add(t) {
-		register(s, srv, t, func(in models.Template) (string, any) { return "", in }, "name", "body")
+		register(s, srv, t, func(in models.Template) (string, any) { return "", in })
 	}
 	if t := (mcpTool{"update_template", "Replace a template; send every field.", http.MethodPut, "/api/templates/{id}", true}); add(t) {
-		register(s, srv, t, func(in updateTemplateInput) (string, any) { in.Template.ID = in.ID; return in.ID, in.Template }, "id", "name", "body")
+		register(s, srv, t, func(in updateTemplateInput) (string, any) { in.Template.ID = in.ID; return in.ID, in.Template }, "id")
 	}
 	if t := (mcpTool{"delete_template", "Delete a template." + irreversible, http.MethodDelete, "/api/templates/{id}", true}); add(t) {
 		register(s, srv, t, func(in idInput) (string, any) { return in.ID, nil }, "id")
@@ -107,7 +108,7 @@ func (s *Server) addMCPTools(srv *mcp.Server, r *http.Request) {
 
 	if t := (mcpTool{"preview_template", "Render a template body with a sample alert JSON, without saving it.",
 		http.MethodPost, "/api/templates/preview", false}); add(t) {
-		register(s, srv, t, func(in previewRequest) (string, any) { return "", in }, "body")
+		register(s, srv, t, func(in previewRequest) (string, any) { return "", in })
 	}
 	if t := (mcpTool{"match_route", "Dry-run routing: which routes and destinations the given alert labels reach. " + routeHelp,
 		http.MethodPost, "/api/routing/match", false}); add(t) {
@@ -136,6 +137,10 @@ func register[In any](s *Server, srv *mcp.Server, t mcpTool, in func(In) (id str
 				s.metrics.MCPToolCalled(ctx, t.name, "invalid")
 				return toolError("id must be a single plain id"), nil, nil
 			}
+		}
+		if !s.reachesOwnEndpoint(t, path) {
+			s.metrics.MCPToolCalled(ctx, t.name, "invalid")
+			return toolError("id is reserved for another endpoint"), nil, nil
 		}
 		status, raw, err := s.callAPI(ctx, t.method, path, body)
 		if err != nil {
@@ -167,13 +172,23 @@ func toolOutcome(status int) string {
 
 // inputSchema is the schema the SDK infers, so tools cannot drift from the models. Only the
 // listed fields are required: inference demands every field without omitempty, server-set ones included.
+// created_at and updated_at stay optional so a get_* result can be sent back as it is.
 func inputSchema[In any](required []string) *jsonschema.Schema {
 	schema, err := jsonschema.For[In](nil)
 	if err != nil {
 		panic("mcp: input schema: " + err.Error())
 	}
 	schema.Required = required
-	delete(schema.Properties, "created_at")
-	delete(schema.Properties, "updated_at")
 	return schema
+}
+
+// reachesOwnEndpoint guards against an id naming a sibling route such as /api/routes/global-default,
+// which the mux serves with a different handler than the tool's own.
+func (s *Server) reachesOwnEndpoint(t mcpTool, path string) bool {
+	want := t.path
+	if i := strings.Index(want, "{id}"); i >= 0 {
+		want = want[:i]
+	}
+	_, got := s.adminRoutes.Handler(&http.Request{Method: t.method, URL: &url.URL{Path: path}})
+	return got == want
 }
