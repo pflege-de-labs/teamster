@@ -60,6 +60,7 @@ func TestCallAPI(t *testing.T) {
 		{name: "read-only put refused", access: models.MCPAccessRead, method: "PUT", path: "/api/templates/x", body: map[string]string{"name": "x"}, wantStatus: 403},
 		{name: "read-only delete refused", access: models.MCPAccessRead, method: "DELETE", path: "/api/templates/x", wantStatus: 403},
 		{name: "unclean path refused", access: models.MCPAccessWrite, method: "GET", path: "/api/templates/..%2Froutes", wantErr: true},
+		{name: "dot segment hidden behind a query refused", access: models.MCPAccessWrite, method: "GET", path: "/api/templates/..?x", wantErr: true},
 		{name: "dot segment refused", access: models.MCPAccessWrite, method: "GET", path: "/api/templates/../routes", wantErr: true},
 		{name: "read-only create refused", access: models.MCPAccessRead, method: "POST", path: "/api/templates", body: map[string]string{"name": "x", "body": "{}"}, wantStatus: 403},
 		{name: "write create served", access: models.MCPAccessWrite, method: "POST", path: "/api/templates", body: map[string]string{"name": "x", "body": "{}"}, wantStatus: 201, wantCreate: true},

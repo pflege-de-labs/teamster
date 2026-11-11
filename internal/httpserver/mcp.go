@@ -47,9 +47,6 @@ func (s *Server) callAPI(ctx context.Context, method, path string, body any) (in
 		return 0, nil, fmt.Errorf("mcp: refusing to dispatch %q outside /api/", path)
 	}
 	// Handlers read the decoded path, so a dot segment or doubled slash could reach another route.
-	if decoded, err := url.PathUnescape(path); err != nil || pathpkg.Clean(decoded) != decoded {
-		return 0, nil, fmt.Errorf("mcp: refusing unclean path %q", path)
-	}
 	var reader io.Reader
 	if body != nil {
 		raw, err := json.Marshal(body)
@@ -61,6 +58,10 @@ func (s *Server) callAPI(ctx context.Context, method, path string, body any) (in
 	req, err := http.NewRequestWithContext(ctx, method, path, reader)
 	if err != nil {
 		return 0, nil, fmt.Errorf("mcp: build request: %w", err)
+	}
+	// Checked on the parsed path: "/api/x/..?q" is clean as a string but parses to a dot segment.
+	if decoded := req.URL.Path; pathpkg.Clean(decoded) != decoded {
+		return 0, nil, fmt.Errorf("mcp: refusing unclean path %q", path)
 	}
 	if reader != nil {
 		req.Header.Set("Content-Type", "application/json")
@@ -118,7 +119,9 @@ func toolError(msg string) *mcp.CallToolResult {
 	return &mcp.CallToolResult{IsError: true, Content: []mcp.Content{&mcp.TextContent{Text: msg}}}
 }
 
-// mcpServerFor builds the server for one request; tools arrive with Task 6.
-func (s *Server) mcpServerFor(*http.Request) *mcp.Server {
-	return mcp.NewServer(&mcp.Implementation{Name: "teamster"}, &mcp.ServerOptions{Instructions: mcpInstructions})
+// mcpServerFor builds the server for one request, offering the tools its token may use.
+func (s *Server) mcpServerFor(r *http.Request) *mcp.Server {
+	srv := mcp.NewServer(&mcp.Implementation{Name: "teamster"}, &mcp.ServerOptions{Instructions: mcpInstructions})
+	s.addMCPTools(srv, r)
+	return srv
 }

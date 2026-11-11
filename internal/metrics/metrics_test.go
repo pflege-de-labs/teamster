@@ -193,6 +193,7 @@ func TestDisabled(t *testing.T) {
 	m.DeliveryRecorded(context.Background(), "route", OutcomePosted)
 	m.WebhookReceived(context.Background(), "alertmanager", "open")
 	m.RenderFailed(context.Background(), "tmpl", StageRender)
+	m.MCPToolCalled(context.Background(), "list_routes", "ok")
 	if err := m.ObserveActiveEvents(func(context.Context) (int64, error) { return 0, nil }); err != nil {
 		t.Errorf("ObserveActiveEvents: %v", err)
 	}

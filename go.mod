@@ -9,6 +9,7 @@ require (
 	github.com/alecthomas/kong-yaml v0.2.0
 	github.com/cedar-policy/cedar-go v1.9.0
 	github.com/coreos/go-oidc/v3 v3.21.0
+	github.com/google/jsonschema-go v0.4.3
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/jackc/pgx/v5 v5.12.0
@@ -34,7 +35,6 @@ require (
 	github.com/felixge/httpsnoop v1.1.0 // indirect
 	github.com/go-json-experiment/json v0.0.0-20260820222146-c27c302e5fc3 // indirect
 	github.com/gomarkdown/markdown v0.0.0-20260917010721-cc30ffac3c05 // indirect
-	github.com/google/jsonschema-go v0.4.3 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.30.0 // indirect
 	github.com/huandu/xstrings v1.5.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect

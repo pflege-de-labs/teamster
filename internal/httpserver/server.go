@@ -63,6 +63,7 @@ type telemetry interface {
 	DeliveryRecorded(ctx context.Context, route, outcome string)
 	WebhookReceived(ctx context.Context, source, status string)
 	RenderFailed(ctx context.Context, templateID, stage string)
+	MCPToolCalled(ctx context.Context, tool, outcome string)
 	ClientTransport(base http.RoundTripper) http.RoundTripper
 }
 
