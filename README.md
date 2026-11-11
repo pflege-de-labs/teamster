@@ -1476,9 +1476,9 @@ mcp:
 ```
 
 With `mcp.enabled` on, every signed-in user, a viewer included, finds an MCP section on
-**/admin/tokens**. Name a token, choose **read** or **write**, and copy it at once: it starts with
-`tmcp_`, is shown once and stored only as a digest. Names are unique per user. You see and revoke
-your own tokens; webhook admins and admins see and revoke everyone's.
+**/admin/tokens**. Name a token, choose **read only** or **read and write**, and copy it at once: it
+starts with `tmcp_`, is shown once and stored only as a digest. Names are unique per user. You see
+and revoke your own tokens; webhook admins and admins see and revoke everyone's.
 
 An MCP token acts as the person who minted it, as they are now, and never further: it stops working
 when they are disabled, and **read** cannot write whatever they may do. It does not open the
@@ -1491,8 +1491,8 @@ tokens; the `/mcp` endpoint that accepts them is the next step
 Auditing is off until you configure it. With it on, every change to the configuration is
 recorded: templates, destinations, routes, webhook endpoints, access tokens, MCP tokens, grants,
 the default template and destination, linked chats, and install runs someone asked for. An event
-says who made the change, how they signed in (`session`, `basic` or `cli`), the request id, and the
-record before and after. Credentials are never included.
+says who made the change, how they signed in (`session`, `basic`, `token`, `mcp` or `cli`), the request
+id, and the record before and after. Credentials are never included.
 
 Admins read the trail at **/admin/audit**, or with `GET /api/audit`. Both filter by `actor`,
 `action`, `type` and `id`, and `since`/`until` filter by time (RFC 3339). Results are newest first.

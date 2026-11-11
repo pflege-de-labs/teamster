@@ -58,7 +58,7 @@ func (s *Server) mcpAuth(next http.Handler) http.Handler {
 		creator, err := s.tokenCreator(r, token.CreatedBy)
 		if errors.Is(err, errTokenScope) {
 			log.Warn("mcp refused", "token", token.Name, "creator", token.CreatedBy, "reason", err)
-			writeJSONError(w, http.StatusForbidden, errTokenScope.Error())
+			writeJSONError(w, http.StatusForbidden, "the token's creator is disabled or unknown")
 			return
 		}
 		if err != nil {
