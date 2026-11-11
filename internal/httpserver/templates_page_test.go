@@ -497,6 +497,8 @@ func TestTemplateDelete(t *testing.T) {
 			t.Parallel()
 
 			st := sessionAs(seededUIStore(), authz.RoleAdmin)
+			// The seeded route uses tmpl, and a template in use cannot be deleted.
+			delete(st.routes, "route")
 			if tt.failOn != "" {
 				st.fail(tt.failOn)
 			}
