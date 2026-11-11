@@ -242,8 +242,10 @@ func (s *Server) handleWebhookSave(w http.ResponseWriter, r *http.Request) {
 func (s *Server) revealWebhookURL(w http.ResponseWriter, r *http.Request, endpoint models.WebhookEndpoint, token, notice string) {
 	rec := s.webhookRecord(r, endpoint)
 	rec.NewURL = s.webhookURL(r, endpoint, token)
-	rec.Notice, rec.Error = notice, ""
+	rec.Notice = notice
 	rec.Head.Editing = false
 	rec.Head.Replace = true
+	// Back and forward must not bring the token back from the cache.
+	w.Header().Set("Cache-Control", "no-store")
 	s.renderWebhookRecord(w, r, http.StatusOK, rec)
 }

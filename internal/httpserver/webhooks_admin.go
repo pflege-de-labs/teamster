@@ -59,19 +59,18 @@ func (s *Server) storeWebhook(r *http.Request) (models.WebhookEndpoint, string, 
 // handleWebhookRotate replaces the token. It is a separate endpoint because
 // saving an endpoint must not change the secret a sender is already using.
 func (s *Server) handleWebhookRotate(w http.ResponseWriter, r *http.Request) {
-	back := recordTarget("webhooks")(r, true)
-	if !formGuard(back, w, r) {
+	if !formGuard("/admin/webhooks", w, r) {
 		return
 	}
-
+	// The answer is the record page, so whoever may not read the record learns nothing, not even that it exists.
+	endpoint, ok := s.readableEndpoint(w, r, r.PostFormValue("id"))
+	if !ok {
+		return
+	}
 	ctx := r.Context()
-	if err := s.mayRecord(r, authz.ActionUpdate, typeWebhookEndpoint, r.PostFormValue("id")); err != nil {
-		redirectTo(back, w, r, "", visibleError(r.Context(), "save webhook", err))
-		return
-	}
-	endpoint, err := s.store.GetWebhookEndpoint(ctx, r.PostFormValue("id"))
-	if err != nil {
-		redirectTo(back, w, r, "", visibleError(r.Context(), "save webhook", err))
+	back := recordEditPath("webhooks", endpoint.ID)
+	if err := s.mayRecord(r, authz.ActionUpdate, typeWebhookEndpoint, endpoint.ID); err != nil {
+		redirectTo(back, w, r, "", visibleError(ctx, "save webhook", err))
 		return
 	}
 
@@ -106,6 +105,12 @@ func (s *Server) deleteWebhookEndpoint(r *http.Request) (string, error) {
 	endpoint, err := s.store.GetWebhookEndpoint(ctx, r.PostFormValue("id"))
 	if err != nil {
 		return "", err
+	}
+	// Out of scope reads as missing, as on the record page.
+	if visible, err := s.listEndpoints(r, []models.WebhookEndpoint{endpoint}); err != nil {
+		return "", err
+	} else if len(visible) == 0 {
+		return "", store.ErrNotFound
 	}
 	allowed, err := s.mayDeliverToDestination(r, endpoint.DestinationID)
 	if err != nil {

@@ -1303,8 +1303,12 @@ may read them, and the route Teamster keeps for it, in place of Used by. Creatin
 replacing its token still answer with a page, never a redirect, because the token would land in
 the browser history and the access log; that page is the record with the URL in a banner. It
 carries `data-record-replace`, and `record.js` replaces the address with the record's, so a
-reload neither shows the token again nor posts again. A failed save is the 422 re-render, a failed
-token replacement a redirect to the record with the error.
+reload neither shows the token again nor posts again, and `Cache-Control: no-store` keeps it out of
+the back and forward cache. A failed save is the 422 re-render. Token replacement answers 404 for
+an endpoint the session cannot read or whose channel its role cannot see, as the record does, and
+otherwise redirects a failure to the record. Delete reports such an endpoint as not found. A failed
+delete returns to the record only when the session may read it and it exists, so the error is not
+lost to a 404: `formPostFunc` hands the handler's error to the function that picks the target.
 
 ### Editor completion
 

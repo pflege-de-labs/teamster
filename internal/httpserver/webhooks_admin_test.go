@@ -66,7 +66,7 @@ func TestCreatingAWebhookShowsTheURLOnce(t *testing.T) {
 	}
 
 	// Asking for the page again must not show it a second time.
-	again := do(t, handler, http.MethodGet, "/admin/webhooks", "")
+	again := do(t, handler, http.MethodGet, "/admin/webhooks/generated", "")
 	if strings.Contains(again.Body.String(), token) {
 		t.Error("the token is still on the page after the post that generated it")
 	}
@@ -170,12 +170,6 @@ func TestWebhookFormRefusals(t *testing.T) {
 			path:      "/admin/webhooks",
 			form:      url.Values{"team_slug": {"platform"}, "channel_slug": {"alerts"}, "destination_id": {"dest"}, "template_id": {"missing"}},
 			wantError: "names a template that does not exist",
-		},
-		{
-			name:      "rotating one that is not there",
-			path:      "/admin/webhooks/rotate",
-			form:      url.Values{"id": {"missing"}},
-			wantError: "not found",
 		},
 		{
 			name:      "deleting one that is not there",

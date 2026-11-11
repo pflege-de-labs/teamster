@@ -81,10 +81,12 @@ func pagedRecord(section string) bool {
 	return section == "destinations" || section == "templates" || section == "webhooks"
 }
 
-// recordTarget is where a record's delete lands: the list once the record is gone, its page when it is not.
-func recordTarget(section string) func(*http.Request, bool) string {
-	return func(r *http.Request, failed bool) string {
-		if id := r.PostFormValue("id"); id != "" && failed {
+// recordTarget is where a record's delete lands: the list once the record is gone, its page when it is not
+// and the session may read it, so the error is shown rather than lost to a 404.
+func (s *Server) recordTarget(section, typ string) func(*http.Request, error) string {
+	return func(r *http.Request, err error) string {
+		id := r.PostFormValue("id")
+		if id != "" && err != nil && !errors.Is(err, store.ErrNotFound) && s.can(r, authz.ActionRead, typ, id) {
 			return recordEditPath(section, id)
 		}
 		return adminTabPath(section)
@@ -296,23 +298,23 @@ func adminTabPath(tab string) string {
 // formPostTo is formPost for endpoints whose target is not a resource page,
 // such as the notifications page's own unlink control.
 func (s *Server) formPostTo(target string, handler func(*http.Request) (string, error)) http.HandlerFunc {
-	return s.formPostFunc(func(*http.Request, bool) string { return target }, handler)
+	return s.formPostFunc(func(*http.Request, error) string { return target }, handler)
 }
 
 // formPostFunc is formPostTo for a target that depends on the post, such as the
-// record whose id was submitted; failed says which way the handler went.
-func (s *Server) formPostFunc(target func(r *http.Request, failed bool) string, handler func(*http.Request) (string, error)) http.HandlerFunc {
+// record whose id was submitted; err is the handler's, nil before it ran and on success.
+func (s *Server) formPostFunc(target func(r *http.Request, err error) string, handler func(*http.Request) (string, error)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !formGuard(target(r, false), w, r) {
+		if !formGuard(target(r, nil), w, r) {
 			return
 		}
 
 		notice, err := handler(r)
 		if err != nil {
-			redirectTo(target(r, true), w, r, "", visibleError(r.Context(), "form post", err))
+			redirectTo(target(r, err), w, r, "", visibleError(r.Context(), "form post", err))
 			return
 		}
-		redirectTo(target(r, false), w, r, notice, "")
+		redirectTo(target(r, nil), w, r, notice, "")
 	}
 }
 

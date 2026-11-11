@@ -348,6 +348,9 @@ func TestWebhookRotate(t *testing.T) {
 	}
 	token := tokenFromPage(t, rec.Body.String())
 	checkBody(t, rec.Body.String(), []string{"/teamsv2/platform/alerts/" + token, "data-record-replace", "Copy this URL now"}, nil)
+	if got := rec.Header().Get("Cache-Control"); got != "no-store" {
+		t.Errorf("Cache-Control = %q, want no-store so back and forward cannot show the token again", got)
+	}
 	if st.webhooks["hook"].TokenHash != hashToken(token) {
 		t.Error("the stored digest is not the shown token's")
 	}
@@ -463,5 +466,55 @@ func TestWebhookPostsAreCheckedAgainstTheRecord(t *testing.T) {
 				t.Errorf("a session with no grant on the record changed it: %+v", got)
 			}
 		})
+	}
+}
+
+// Rotate answers with the record and delete names what failed, so neither may tell an id
+// the session cannot see from one that does not exist.
+func TestWebhookRotateAndDeleteAnswerLikeMissing(t *testing.T) {
+	t.Parallel()
+
+	scoped := func() *fakeStore {
+		st := scopedStore(t, authz.RoleEditor)
+		st.webhooks["out"] = models.WebhookEndpoint{ID: "out", TeamSlug: "payments", ChannelSlug: "alerts", DestinationID: "outside", TokenHash: "old"}
+		return st
+	}
+	updateOnly := func() *fakeStore {
+		st := sessionAs(webhookUIStore())
+		grantTo(st, models.PrincipalUser, "tester", "WebhookEndpoint", "hook", "update")
+		return st
+	}
+	for _, tt := range []struct {
+		name  string
+		store func() *fakeStore
+		id    string
+	}{
+		{"missing", func() *fakeStore { return sessionAs(webhookUIStore(), authz.RoleAdmin) }, "nope"},
+		{"out of the role's scope", scoped, "out"},
+		{"update granted without read", updateOnly, "hook"},
+	} {
+		t.Run("rotate "+tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			st := tt.store()
+			before := st.webhooks[tt.id].TokenHash
+			rec := postFormAs(t, newTestServer(t, st, &fakeMessenger{}).Handler, "/admin/webhooks/rotate", url.Values{"id": {tt.id}})
+			if rec.Code != http.StatusNotFound {
+				t.Errorf("POST rotate = %d, want 404", rec.Code)
+			}
+			if st.webhooks[tt.id].TokenHash != before {
+				t.Error("the token was replaced")
+			}
+		})
+	}
+
+	missing := postFormAs(t, newTestServer(t, scoped(), &fakeMessenger{}).Handler, "/admin/webhooks/delete", url.Values{"id": {"nope"}}).Header().Get("Location")
+	st := scoped()
+	hidden := postFormAs(t, newTestServer(t, st, &fakeMessenger{}).Handler, "/admin/webhooks/delete", url.Values{"id": {"out"}}).Header().Get("Location")
+	if hidden != missing || !strings.HasPrefix(hidden, "/admin/webhooks?error=") {
+		t.Errorf("delete of a hidden endpoint lands on %q, of a missing one on %q; want the same, on the list", hidden, missing)
+	}
+	if _, ok := st.webhooks["out"]; !ok {
+		t.Error("the hidden endpoint was deleted")
 	}
 }
