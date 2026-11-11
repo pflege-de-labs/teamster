@@ -45,6 +45,10 @@ func (s *Server) handleAdminPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if section == "destinations" && edit != "" {
+		http.Redirect(w, r, destinationEditURL(edit, q), http.StatusMovedPermanently)
+		return
+	}
 	target := url.URL{Path: adminTabPath(section)}
 	out := url.Values{}
 	if edit != "" {
@@ -59,8 +63,26 @@ func (s *Server) handleAdminPage(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, target.String(), http.StatusMovedPermanently)
 }
 
+// destinationEditURL is the record page in edit mode, carrying a notice or error along.
+func destinationEditURL(id string, q url.Values) string {
+	carried := url.Values{}
+	for _, key := range []string{"notice", "error"} {
+		if v := q.Get(key); v != "" {
+			carried.Set(key, v)
+		}
+	}
+	target := recordEditPath("destinations", id) + "?edit"
+	if len(carried) > 0 {
+		target += "&" + carried.Encode()
+	}
+	return target
+}
+
 // recordEditPath is the page that edits one record.
 func recordEditPath(section, id string) string {
+	if section == "destinations" {
+		return "/admin/destinations/" + url.PathEscape(id)
+	}
 	return adminTabPath(section) + "?edit=" + url.QueryEscape(id)
 }
 
@@ -77,7 +99,10 @@ func (s *Server) handleResourcePage(tab string) http.HandlerFunc {
 // resourceRoute is a resource's page on GET and its form on POST. The mux cannot
 // answer 405 itself: the catch-all asset route would claim every other method.
 func (s *Server) resourceRoute(tab string, post http.HandlerFunc) http.HandlerFunc {
-	page := s.handleResourcePage(tab)
+	return methodRoute(s.handleResourcePage(tab), post)
+}
+
+func methodRoute(page, post http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet, http.MethodHead:
@@ -151,12 +176,6 @@ func (s *Server) adminPage(r *http.Request, notice, errText string) views.Page {
 		page.Error = failureText(ctx, "load admin page", err)
 	}
 	s.fillAccess(r, &page)
-	teams := make([]string, len(page.Destinations))
-	for i, d := range page.Destinations {
-		teams[i] = d.TeamID
-	}
-	page.InstallStates = s.installStates(ctx, teams)
-
 	return page
 }
 
@@ -201,7 +220,7 @@ func (s *Server) loadForEditing(r *http.Request, page *views.Page, section, id s
 		return
 	}
 	typ, ok := map[string]string{
-		"templates": typeTemplate, "destinations": typeDestination, "routes": typeRoute, "webhooks": typeWebhookEndpoint,
+		"templates": typeTemplate, "routes": typeRoute, "webhooks": typeWebhookEndpoint,
 	}[section]
 	if !ok {
 		return
@@ -217,11 +236,6 @@ func (s *Server) loadForEditing(r *http.Request, page *views.Page, section, id s
 		var template models.Template
 		if template, err = s.store.GetTemplate(ctx, id); err == nil {
 			page.EditTemplate = &template
-		}
-	case "destinations":
-		var destination models.Destination
-		if destination, err = s.store.GetDestination(ctx, id); err == nil {
-			page.EditDestination = &destination
 		}
 	case "routes":
 		var route models.Route
@@ -284,17 +298,23 @@ func adminTabPath(tab string) string {
 // formPostTo is formPost for endpoints whose target is not a resource page,
 // such as the notifications page's own unlink control.
 func (s *Server) formPostTo(target string, handler func(*http.Request) (string, error)) http.HandlerFunc {
+	return s.formPostFunc(func(*http.Request, bool) string { return target }, handler)
+}
+
+// formPostFunc is formPostTo for a target that depends on the post, such as the
+// record whose id was submitted; failed says which way the handler went.
+func (s *Server) formPostFunc(target func(r *http.Request, failed bool) string, handler func(*http.Request) (string, error)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !formGuard(target, w, r) {
+		if !formGuard(target(r, false), w, r) {
 			return
 		}
 
 		notice, err := handler(r)
 		if err != nil {
-			redirectTo(target, w, r, "", visibleError(r.Context(), "form post", err))
+			redirectTo(target(r, true), w, r, "", visibleError(r.Context(), "form post", err))
 			return
 		}
-		redirectTo(target, w, r, notice, "")
+		redirectTo(target(r, false), w, r, notice, "")
 	}
 }
 
@@ -375,16 +395,27 @@ func (s *Server) saveTemplate(r *http.Request) (string, error) {
 	return "Template updated.", nil
 }
 
-func (s *Server) saveDestination(r *http.Request) (string, error) {
-	ctx := r.Context()
-	if err := s.mayRecord(r, writeAction(r.PostFormValue("id")), typeDestination, r.PostFormValue("id")); err != nil {
-		return "", err
-	}
-	destination := models.Destination{
+// postedDestination is the destination as the form submitted it.
+func postedDestination(r *http.Request) models.Destination {
+	return models.Destination{
 		ID:        r.PostFormValue("id"),
 		Name:      r.PostFormValue("name"),
 		TeamID:    r.PostFormValue("team_id"),
 		ChannelID: r.PostFormValue("channel_id"),
+	}
+}
+
+var errTeamChannelRequired = errors.New("a destination needs a Team and a channel")
+
+// storeDestination saves the posted destination and returns it with the notice to show.
+func (s *Server) storeDestination(r *http.Request) (models.Destination, string, error) {
+	ctx := r.Context()
+	destination := postedDestination(r)
+	if err := s.mayRecord(r, writeAction(destination.ID), typeDestination, destination.ID); err != nil {
+		return destination, "", err
+	}
+	if destination.TeamID == "" || destination.ChannelID == "" {
+		return destination, "", userError{errTeamChannelRequired}
 	}
 	// Typing a channel id the picker would not have offered reaches here, which
 	// is why the check is on the write rather than on the list.
@@ -393,22 +424,24 @@ func (s *Server) saveDestination(r *http.Request) (string, error) {
 		allowed, err = s.mayRepointDestination(r, destination)
 	}
 	if err != nil {
-		return "", err
+		return destination, "", err
 	}
 	if !allowed {
-		return "", errDeliveryRefused
+		return destination, "", errDeliveryRefused
 	}
 
 	if destination.ID == "" {
-		if _, err := s.createDestination(r, destination); err != nil {
-			return "", err
+		created, err := s.createDestination(r, destination)
+		if err != nil {
+			return destination, "", err
 		}
-		return "Destination created.", nil
+		return created, "Destination created.", nil
 	}
-	if _, err := s.store.UpdateDestination(ctx, destination); err != nil {
-		return "", err
+	updated, err := s.store.UpdateDestination(ctx, destination)
+	if err != nil {
+		return destination, "", err
 	}
-	return "Destination updated.", nil
+	return updated, "Destination updated.", nil
 }
 
 func (s *Server) saveRoute(r *http.Request) (string, error) {

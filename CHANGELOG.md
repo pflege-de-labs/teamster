@@ -26,6 +26,10 @@ reasoning behind it in the [ADRs](docs/adr/).
   ([ADR 0103](docs/adr/0103-group-the-admin-sidebar-and-give-each-resource-a-page.md)).
 * Routes, templates, destinations, webhooks and delivery permissions each have a page of their own
   instead of tabs on `/admin`. Old `/admin?tab=` and `/admin?edit=` links redirect to them.
+* Destinations have a list, a read-only record page and a create page. **Edit** switches the record
+  to its form without a reload, and a failed save keeps what you typed. The record shows the Team
+  and channel names, where the destination is used and its sharing. Old `?edit=` links redirect
+  ([ADR 0105](docs/adr/0105-give-each-record-a-page-of-its-own.md)).
 * Notifications moved to the user menu as **My notifications**; "Permissions" is now **Channel
   scopes** and the grants page **Delivery permissions**.
 

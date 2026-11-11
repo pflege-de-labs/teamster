@@ -164,7 +164,9 @@
     if (!teams) {
       if (existing) existing.remove();
       teamInput.type = "text";
-      hideChannelField(channelInput.dataset.pickerRequiresTeam || "");
+      // Hiding the channel here would blank it on save; keep both typeable.
+      showChannelField();
+      showInput(channelInput, "destination-channel-select");
       return;
     }
 

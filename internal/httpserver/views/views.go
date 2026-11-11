@@ -149,9 +149,7 @@ type Login struct {
 type Page struct {
 	Templates    []models.Template
 	Destinations []models.Destination
-	// InstallStates is each destination team's state for the bot's app.
-	InstallStates map[string]string
-	Recipients    []models.Recipient
+	Recipients   []models.Recipient
 	// CanAddress offers the target that delivers to the people a message
 	// names (ADR 0062).
 	CanAddress       bool
@@ -205,7 +203,6 @@ type Page struct {
 
 	// A nil Edit* means the matching form creates rather than updates.
 	EditTemplate        *models.Template
-	EditDestination     *models.Destination
 	EditRoute           *models.Route
 	EditWebhookEndpoint *models.WebhookEndpoint
 
@@ -347,13 +344,6 @@ func (p Page) editingTemplate() models.Template {
 		return models.Template{}
 	}
 	return *p.EditTemplate
-}
-
-func (p Page) editingDestination() models.Destination {
-	if p.EditDestination == nil {
-		return models.Destination{}
-	}
-	return *p.EditDestination
 }
 
 func (p Page) editingRoute() models.Route {
@@ -592,6 +582,14 @@ func webhookTemplateOptions(ctx context.Context, p Page) []option {
 		}
 	}
 	return out
+}
+
+// RouteLabel names a route: its name, or the matcher the routes panel shows.
+func RouteLabel(ctx context.Context, route models.Route) string {
+	if route.Name != "" {
+		return route.Name
+	}
+	return selectorText(ctx, route)
 }
 
 // selectorText renders a route's label selector the way an operator writes it.

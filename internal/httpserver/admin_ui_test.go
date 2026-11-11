@@ -56,7 +56,7 @@ func TestAdminPageRendersTheStoredConfiguration(t *testing.T) {
 	for _, want := range []string{
 		"Critical card", "Ops channel", "Critical to ops",
 		"severity=critical, team=ops", "priority 42",
-		`value="dest"`, `value="tmpl"`,
+		`value="tmpl"`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("rendered page does not contain %q", want)
@@ -173,7 +173,7 @@ func TestFormsCreateAndUpdate(t *testing.T) {
 		{
 			name:       "create a destination",
 			path:       "/admin/destinations",
-			wantTab:    "destinations",
+			wantTab:    "destinations/generated",
 			form:       url.Values{"name": {"Second"}, "team_id": {"t2"}, "channel_id": {"c2"}},
 			wantNotice: "Destination created.",
 			check: func(t *testing.T, st *fakeStore) {
@@ -387,7 +387,7 @@ func TestFormsRejectNonPost(t *testing.T) {
 	t.Parallel()
 
 	handler := newTestServer(t, newFakeStore(), &fakeMessenger{}).Handler
-	for _, path := range []string{"/admin/templates/delete", "/admin/destinations/delete", "/admin/routes/global-default"} {
+	for _, path := range []string{"/admin/templates/delete", "/admin/routes/global-default"} {
 		if rec := do(t, handler, http.MethodGet, path, ""); rec.Code != http.StatusMethodNotAllowed {
 			t.Errorf("GET %s = %d, want 405", path, rec.Code)
 		}
@@ -410,17 +410,6 @@ func TestAdminPagePrefillsTheFormBeingEdited(t *testing.T) {
 				`value="Critical card"`,
 				`{&#34;type&#34;:&#34;AdaptiveCard&#34;}`,
 				"Update template",
-			},
-		},
-		{
-			name:  "destination",
-			query: "/admin/destinations?edit=dest",
-			wantHTML: []string{
-				`<input type="hidden" name="id" value="dest">`,
-				`value="Ops channel"`,
-				`value="team"`,
-				`value="chan"`,
-				"Update destination",
 			},
 		},
 		{
@@ -478,7 +467,6 @@ func TestAdminPageOffersAnEditLinkPerRow(t *testing.T) {
 
 	for _, want := range []string{
 		`href="/admin/templates?edit=tmpl"`,
-		`href="/admin/destinations?edit=dest"`,
 		`href="/admin/routes?edit=route"`,
 	} {
 		if !strings.Contains(body, want) {
@@ -487,7 +475,7 @@ func TestAdminPageOffersAnEditLinkPerRow(t *testing.T) {
 	}
 	// Without a selection every form must still be in create mode, or a visit
 	// to /admin would silently update whichever record came first.
-	for _, want := range []string{"Save template", "Save destination", "Save route"} {
+	for _, want := range []string{"Save template", "Save route"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("form is not in create mode: %q missing", want)
 		}
@@ -705,7 +693,7 @@ func TestHintCardLinksToWebhookPage(t *testing.T) {
 	}
 }
 
-var resourcePages = []string{"templates", "destinations", "webhooks", "routes", "grants"}
+var resourcePages = []string{"templates", "webhooks", "routes", "grants"}
 
 func TestResourcePages(t *testing.T) {
 	t.Parallel()

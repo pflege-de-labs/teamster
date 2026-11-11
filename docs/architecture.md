@@ -1267,6 +1267,25 @@ of the oldest cards reach `/admin/routing#<section>` and `nav.js` moves them to 
 `formPost` names its page and answers `/admin/<page>`, so a save lands back where it was made. See
 [ADR 0103](adr/0103-group-the-admin-sidebar-and-give-each-resource-a-page.md).
 
+Destinations are the first resource with list, record and new pages
+([ADR 0105](adr/0105-give-each-record-a-page-of-its-own.md)). `listPage`, `recordPage` and
+`newPage` in `views/record.templ` are the shared frame. `GET /admin/destinations` lists,
+`/admin/destinations/new` is the create form (403 without `create`) and
+`/admin/destinations/{id}` the read-only record: summary, the routes and webhook endpoints that use
+it (readable ones only), the sharing panel, and Edit, Make default and Delete by right. A record the
+viewer cannot read (a channel-scoped role's list hides it too), or a missing one, answers 404,
+also for an update POST. `?edit` or a failed
+save renders the edit part; a failed save answers 422 with the typed values, an unexpected store
+error 500. A successful save is 303 to the record, a delete 303 to the list.
+`/admin/destinations?edit=<id>` and `/admin?edit=destinations&id=<id>` answer 301 to
+`/admin/destinations/<id>?edit`. `web/record.js` swaps view and edit without a reload, keeps `?edit`
+with `replaceState`, building every URL from the record's `data-record` (a failed save is served at
+the list URL), and warns before leaving with unsaved changes tracked from `input` and `change`
+events, since `pickers.js` rewrites fields itself; Cancel after changes reloads the record so the
+pickers rebuild from stored values. Team and channel names are filled in by script from the cached
+Graph endpoints, the ID kept. When Graph cannot list Teams, both fields stay typeable, and a save
+without a Team or channel is a 422.
+
 ### Editor completion
 
 The template's title, text and card fields, a route's label selector and the routing page's check

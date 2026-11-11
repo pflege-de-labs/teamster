@@ -86,16 +86,11 @@ func TestGrantsLimitTheDestinationForm(t *testing.T) {
 
 	form := url.Values{"name": {"sneaky"}, "team_id": {"payments"}, "channel_id": {"alerts"}}
 	rec := postForm(t, handler, "/admin/destinations", form, map[string]string{"Sec-Fetch-Site": "same-origin"})
-	if rec.Code != http.StatusSeeOther {
-		t.Fatalf("POST = %d, want 303 carrying the error", rec.Code)
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("POST = %d, want 422 carrying the error", rec.Code)
 	}
-
-	location, err := url.Parse(rec.Header().Get("Location"))
-	if err != nil {
-		t.Fatalf("parse Location: %v", err)
-	}
-	if got := location.Query().Get("error"); !strings.Contains(got, "not granted") {
-		t.Errorf("error = %q, want it to say the Team is not granted", got)
+	if got := rec.Body.String(); !strings.Contains(got, "not granted") {
+		t.Errorf("page = %q, want it to say the Team is not granted", got)
 	}
 	if len(st.destinations) != 2 {
 		t.Errorf("stored %d destinations, want the refused one absent", len(st.destinations))

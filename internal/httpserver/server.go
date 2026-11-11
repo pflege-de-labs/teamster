@@ -275,9 +275,11 @@ func NewServer(logger *slog.Logger, cfg config.Config, store store.Store, graphC
 	adminMux.HandleFunc("/admin/templates", api.resourceRoute("templates", api.formPost("templates", api.saveTemplate)))
 	adminMux.HandleFunc("/admin/templates/delete", api.formPost("templates", api.deleteTemplate))
 	adminMux.HandleFunc("/admin/templates/source-defaults", api.formPost("templates", api.saveSourceDefaults))
-	adminMux.HandleFunc("/admin/destinations", api.resourceRoute("destinations", api.formPost("destinations", api.saveDestination)))
-	adminMux.HandleFunc("/admin/destinations/delete", api.formPost("destinations", api.deleteDestination))
-	adminMux.HandleFunc("/admin/destinations/default", api.formPost("destinations", api.setDefaultDestination))
+	adminMux.HandleFunc("/admin/destinations", methodRoute(api.handleDestinationList, api.handleDestinationSave))
+	adminMux.HandleFunc("GET /admin/destinations/new", api.handleDestinationNew)
+	adminMux.HandleFunc("GET /admin/destinations/{id}", api.handleDestinationRecord)
+	adminMux.HandleFunc("POST /admin/destinations/delete", api.formPostFunc(destinationTarget(true), api.deleteDestination))
+	adminMux.HandleFunc("POST /admin/destinations/default", api.formPostFunc(destinationTarget(false), api.setDefaultDestination))
 	adminMux.HandleFunc("/admin/routes", api.resourceRoute("routes", api.formPost("routes", api.saveRoute)))
 	adminMux.HandleFunc("/admin/routes/delete", api.formPost("routes", api.deleteRoute))
 	adminMux.HandleFunc("/admin/routes/global-default", api.formPost("routes", api.saveGlobalDefault))
@@ -331,7 +333,7 @@ func NewServer(logger *slog.Logger, cfg config.Config, store store.Store, graphC
 	// before anyone has a session, and none of them is sensitive.
 	for _, asset := range []string{
 		"/favicon.ico", "/site.webmanifest", "/styles.css",
-		"/preview.js", "/sources.js", "/pickers.js", "/tangle.js", "/routing.js", "/language.js", "/timezone.js", "/nav.js", "/tabs.js", "/permissions.js", "/editor.js", "/flags/", "/icons/", "/vendor/",
+		"/preview.js", "/sources.js", "/pickers.js", "/tangle.js", "/routing.js", "/language.js", "/timezone.js", "/nav.js", "/record.js", "/tabs.js", "/permissions.js", "/editor.js", "/flags/", "/icons/", "/vendor/",
 	} {
 		mux.HandleFunc(asset, api.handleAssets)
 	}
