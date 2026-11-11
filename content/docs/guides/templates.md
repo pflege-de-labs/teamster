@@ -181,7 +181,11 @@ that webhook already has one:
 | Universal webhook (default) | The sender's own card or text when it sent one, otherwise a state-coloured card: summary, state, description, labels and the URL |
 | Teams V2 webhook (default) | The payload's card, a MessageCard converted to one, or its text alone |
 
-They are ordinary templates. Edit or delete them freely; a deleted preset is not recreated.
+They are ordinary templates. Edit them freely; a deleted preset is not recreated.
+
+A template that a route or a Teams V2 webhook still uses cannot be deleted. Teamster names the
+routes and webhooks instead, so you can choose another template there first; those you may not read
+are only counted. `DELETE /api/templates/{id}` answers `409 Conflict` with the same message.
 
 The global default route has its own template, chosen on its row in the Routes panel or with
 `PUT /api/routes/global-default` and `{"template_id": "…"}`. Without one it sends the built-in

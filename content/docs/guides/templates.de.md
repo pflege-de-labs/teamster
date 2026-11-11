@@ -190,8 +190,13 @@ dieser noch keinen hat:
 | Universal webhook (default) | Die eigene Karte oder den eigenen Text des Absenders, falls er eines davon gesendet hat, sonst eine nach Zustand eingefärbte Karte: Zusammenfassung, Zustand, Beschreibung, Labels und die URL |
 | Teams V2 webhook (default) | Die Karte der Nutzdaten, eine daraus umgewandelte MessageCard oder nur deren Text |
 
-Es sind gewöhnliche Vorlagen. Bearbeiten oder löschen Sie sie nach Belieben; eine gelöschte wird
-nicht neu angelegt.
+Es sind gewöhnliche Vorlagen. Bearbeiten Sie sie nach Belieben; eine gelöschte wird nicht neu
+angelegt.
+
+Eine Vorlage, die eine Route oder ein Teams-V2-Webhook noch verwendet, lässt sich nicht löschen.
+Teamster nennt stattdessen die Routen und Webhooks, damit Sie dort zuerst eine andere Vorlage
+wählen; die, die Sie nicht lesen dürfen, werden nur gezählt. `DELETE /api/templates/{id}` antwortet
+mit `409 Conflict` und derselben Meldung.
 
 Die globale Standardroute hat eine eigene Vorlage. Sie wird in ihrer Zeile im Bereich **Routen**
 gewählt oder mit `PUT /api/routes/global-default` und `{"template_id": "…"}`. Ohne Vorlage sendet
