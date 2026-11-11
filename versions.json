@@ -1,6 +1,7 @@
 [
   {"version": "dev", "path": "dev/", "latest": false},
-  {"version": "v0.20", "path": "v0.20/", "latest": true},
+  {"version": "v0.21", "path": "v0.21/", "latest": true},
+  {"version": "v0.20", "path": "v0.20/", "latest": false},
   {"version": "v0.19", "path": "v0.19/", "latest": false},
   {"version": "v0.18", "path": "v0.18/", "latest": false},
   {"version": "v0.17", "path": "v0.17/", "latest": false},
