@@ -1489,10 +1489,10 @@ tokens; the `/mcp` endpoint that accepts them is the next step
 ## Audit trail
 
 Auditing is off until you configure it. With it on, every change to the configuration is
-recorded: templates, destinations, routes, webhook endpoints, access tokens, MCP tokens, grants, the
-default template and destination, linked chats, and install runs someone asked for. An event says who made
-the change, how they signed in (`session`, `basic` or `cli`), the request id, and the record before
-and after. Credentials are never included.
+recorded: templates, destinations, routes, webhook endpoints, access tokens, MCP tokens, grants,
+the default template and destination, linked chats, and install runs someone asked for. An event
+says who made the change, how they signed in (`session`, `basic` or `cli`), the request id, and the
+record before and after. Credentials are never included.
 
 Admins read the trail at **/admin/audit**, or with `GET /api/audit`. Both filter by `actor`,
 `action`, `type` and `id`, and `since`/`until` filter by time (RFC 3339). Results are newest first.
