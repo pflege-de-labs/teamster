@@ -616,6 +616,43 @@ func TestAlertmanagerEvent(t *testing.T) {
 	}
 }
 
+func TestRoutedLabels(t *testing.T) {
+	t.Parallel()
+
+	am := func(receiver string) *models.AlertmanagerEvent { return &models.AlertmanagerEvent{Receiver: receiver} }
+	forged := map[string]string{"team": "db", models.ReceiverLabel: "forged"}
+	tests := []struct {
+		name string
+		ev   models.Event
+		want map[string]string
+	}{
+		{"the operator's prefix is dropped",
+			models.Event{Source: models.SourceAlertmanager, Labels: forged, Alertmanager: am("monitoring/global-alertmanager-config/infra")},
+			map[string]string{"team": "db", models.ReceiverLabel: "infra", models.SourceLabel: models.SourceAlertmanager}},
+		{"a plain receiver overwrites a forged label",
+			models.Event{Source: models.SourceAlertmanager, Labels: forged, Alertmanager: am("teamster")},
+			map[string]string{"team": "db", models.ReceiverLabel: "teamster", models.SourceLabel: models.SourceAlertmanager}},
+		{"no receiver drops a forged label",
+			models.Event{Source: models.SourceAlertmanager, Labels: forged, Alertmanager: am("")},
+			map[string]string{"team": "db", models.SourceLabel: models.SourceAlertmanager}},
+		{"another source drops it",
+			models.Event{Source: models.SourceUniversal, Labels: forged},
+			map[string]string{"team": "db", models.SourceLabel: models.SourceUniversal}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := routedLabels(tt.ev); !maps.Equal(got, tt.want) {
+				t.Errorf("routedLabels = %v, want %v", got, tt.want)
+			}
+			if forged[models.ReceiverLabel] != "forged" {
+				t.Error("routedLabels wrote into the sender's labels")
+			}
+		})
+	}
+}
+
 // A card the per-alert release posted under a fingerprint is closed when its
 // alert resolves, and failing to is not the sender's problem.
 func TestAlertmanagerClosesPerAlertCards(t *testing.T) {

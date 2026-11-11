@@ -504,6 +504,10 @@ const (
 	ChannelLabel = "teamster_channel"
 )
 
+// ReceiverLabel is the Alertmanager receiver a group was sent through, so one
+// Alertmanager route tree can pick the channel (ADR 0104). The server sets it.
+const ReceiverLabel = "teamster_receiver"
+
 // RecipientLabel names the people an addressed route delivers to, comma
 // separated, for a sender with no recipients field of its own, such as
 // Alertmanager (ADR 0063). Unlike SourceLabel the sender sets it.
@@ -549,6 +553,9 @@ func WithSourceLabel(labels map[string]string, source string) map[string]string 
 	if source != SourceTeamsV2 {
 		delete(out, TeamLabel)
 		delete(out, ChannelLabel)
+	}
+	if source != SourceAlertmanager {
+		delete(out, ReceiverLabel)
 	}
 	out[SourceLabel] = source
 	return out

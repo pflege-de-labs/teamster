@@ -468,10 +468,10 @@ changes an installation.
 
 A notification is one message, however many alerts Alertmanager grouped into it: one card per
 `groupKey`, edited as alerts join, change and resolve. It routes on `commonLabels` (for a group of
-one alert, that alert's labels), opens while the group's `status` is `firing` and closes when it is
-`resolved`. A template finds the alerts in `.Event.Alertmanager.Alerts` — see
-[Groups of alerts](#groups-of-alerts). Cards an earlier release posted per alert are closed as
-their alerts resolve
+one alert, that alert's labels) and on `teamster_receiver`, the receiver that sent it. It opens
+while the group's `status` is `firing` and closes when it is `resolved`. A template finds the
+alerts in `.Event.Alertmanager.Alerts` — see [Groups of alerts](#groups-of-alerts). Cards an
+earlier release posted per alert are closed as their alerts resolve
 ([ADR 0084](docs/adr/0084-an-alertmanager-notification-is-one-event.md)).
 
 ### Universal webhook
@@ -1117,6 +1117,11 @@ per event. Counts are therefore approximate. Replicas sharing Postgres add to th
   it — `{"teamster_source": "alertmanager"}`. Teams V2 messages are routed too: each endpoint has
   a linked route selecting `teamsv2` and the URL's `teamster_team` and `teamster_channel`, which
   only the URL can set. Child routes under it deliver as well as it, never instead of it.
+- An Alertmanager event also carries `teamster_receiver`: the receiver Alertmanager sent it
+  through, without the `<namespace>/<config>/` prefix the Prometheus Operator adds. The server
+  sets it, so an Alertmanager route tree can keep picking the channel — one teamster route per
+  receiver, `{"teamster_receiver": "infra"}`
+  ([ADR 0104](docs/adr/0104-the-alertmanager-receiver-is-a-label.md)).
 - A default route is used only if no other root route matches, so a root route without a selector
   leaves it nothing to catch.
 - Where no route matches and there is no default route, the message goes to the **global default
