@@ -29,6 +29,13 @@ func (s *Server) handleWebhookForm(w http.ResponseWriter, r *http.Request) {
 		redirectTo(adminTabPath("webhooks"), w, r, "", visibleError(r.Context(), "save webhook", err))
 		return
 	}
+	// Otherwise moving an out-of-scope endpoint into scope would pass the delivery check.
+	if id := r.PostFormValue("id"); id != "" {
+		if _, err := s.endpointInScope(r, id); err != nil {
+			redirectTo(adminTabPath("webhooks"), w, r, "", visibleError(r.Context(), "save webhook", err))
+			return
+		}
+	}
 	endpoint, err := webhookEndpointFromForm(r)
 	if err != nil {
 		err = userError{err}
