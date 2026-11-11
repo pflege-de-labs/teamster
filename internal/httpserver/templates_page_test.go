@@ -324,8 +324,10 @@ func TestTemplateRecordUsedBy(t *testing.T) {
 	t.Run("unused", func(t *testing.T) {
 		t.Parallel()
 
-		body := asRole(t, newTestServer(t, sessionAs(seededUIStore(), authz.RoleAdmin), &fakeMessenger{}).Handler, http.MethodGet, "/admin/templates/tmpl", "").Body.String()
-		checkBody(t, body, []string{`href="/admin/routes?edit=route"`}, []string{"No route, webhook or default uses"})
+		st := sessionAs(seededUIStore(), authz.RoleAdmin)
+		st.templates["idle"] = models.Template{ID: "idle", Name: "Idle", Body: "{}"}
+		body := asRole(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin/templates/idle", "").Body.String()
+		checkBody(t, body, []string{"No route, webhook or default uses"}, []string{`href="/admin/routes?edit=route"`})
 	})
 }
 

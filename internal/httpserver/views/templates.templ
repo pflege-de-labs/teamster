@@ -50,6 +50,7 @@ type TemplateRecord struct {
 	Form                 models.Template // values the form shows
 	DefaultFor           string
 	CanUpdate, CanDelete bool
+	CanPreview           bool // the preview API answers roles, not grants
 	UsedBy               []UsedBy
 	Sharing              *Sharing
 	Editor               TemplateEditor
@@ -107,7 +108,9 @@ templ TemplateRecordPage(p TemplateRecord) {
 					@recordPage(p.Head, templateActions(p), templateView(p), nil)
 				}
 			</div>
-			@templatePreview(p.Editor.PreviewSamples, true)
+			if p.CanPreview {
+				@templatePreview(p.Editor.PreviewSamples, true)
+			}
 		</div>
 		if p.Sharing != nil {
 			@sharingPanel(*p.Sharing)
@@ -167,7 +170,7 @@ templ templateView(p TemplateRecord) {
 			}
 		</div>
 	</details>
-	if !p.CanUpdate {
+	if !p.CanUpdate && p.CanPreview {
 		// Without an edit form, the preview reads the stored template from here.
 		<form id="template-form" hidden>
 			<input type="hidden" name="title" value={ p.Template.Title }/>

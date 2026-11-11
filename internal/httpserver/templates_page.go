@@ -103,6 +103,8 @@ func (s *Server) templateRecord(r *http.Request, t models.Template) views.Templa
 		Template: t, Form: t, Editor: templateEditor(),
 		CanUpdate: s.can(r, authz.ActionUpdate, typeTemplate, id),
 		CanDelete: s.can(r, authz.ActionDelete, typeTemplate, id),
+		// requestAuthorization's check on /api/templates/preview.
+		CanPreview: s.allow(r, authz.ActionView, authz.Resource{Type: typeTemplate}),
 	}
 	_, edit := q["edit"]
 	rec.Head = views.RecordHead{

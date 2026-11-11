@@ -483,3 +483,28 @@ func capturedServer(t *testing.T, st *fakeStore) (*Server, http.Handler) {
 	}
 	return api, srv.Handler
 }
+
+func TestAGrantDoesNotReachThePageWideTemplateSettings(t *testing.T) {
+	t.Parallel()
+
+	st := sharedStore()
+	grantTo(st, models.PrincipalUser, "tester", "Template", "t1", "read", "update")
+	h := newTestServer(t, st, &fakeMessenger{}).Handler
+
+	// The source defaults choose for every webhook, so no single record's grant decides them.
+	rec := postFormAs(t, h, "/admin/templates/source-defaults", url.Values{"template_" + models.SourceAlertmanager: {"t2"}})
+	if rec.Code != http.StatusForbidden {
+		t.Errorf("POST source-defaults with a grant = %d, want 403", rec.Code)
+	}
+	st.mu.Lock()
+	written := st.sourceDefaults[models.SourceAlertmanager]
+	st.mu.Unlock()
+	if written != "" {
+		t.Errorf("a grant holder set the Alertmanager default to %q", written)
+	}
+
+	// The preview answers roles only, so a grant holder's record page offers none.
+	if page := call(t, h, http.MethodGet, "/admin/templates/t1", "").Body.String(); strings.Contains(page, `id="preview-button"`) {
+		t.Error("the record page runs a preview a grant holder may not ask for")
+	}
+}

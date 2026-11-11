@@ -240,7 +240,8 @@ var recordPrefixes = []string{"/admin/destinations/", "/admin/templates/", "/api
 func recordPath(r *http.Request) bool {
 	path := r.URL.Path
 	switch {
-	case path == "/api/templates/preview", path == "/api/templates/source-defaults", path == "/api/routes/global-default",
+	case path == "/api/templates/preview", path == "/api/templates/source-defaults", path == "/admin/templates/source-defaults",
+		path == "/api/routes/global-default",
 		isDefaultDestinationPath(path):
 		return false
 	case slices.Contains(recordPaths, path):
