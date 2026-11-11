@@ -7,11 +7,12 @@ Halten Sie fest, wer was an der Konfiguration von Teamster geändert hat, lesen 
 Verwaltungsoberfläche, und exportieren Sie es in eine Datei oder nach NATS JetStream für Ihr SIEM.
 
 Das Änderungsprotokoll ist aus, bis Sie es konfigurieren. Ist es an, wird jede Änderung
-aufgezeichnet: Vorlagen, Ziele, Routen, Webhook-Endpunkte, Zugriffstoken, Berechtigungen, Gruppen,
-die Standardvorlage und das Standardziel, verknüpfte Chats und angeforderte Installationsläufe. Ein
-Ereignis nennt, wer die Änderung vorgenommen hat, wie sich die Person angemeldet hat (`session`,
-`basic` oder `cli`), die Request-ID und den Datensatz vorher und nachher. Zugangsdaten sind nie
-enthalten.
+aufgezeichnet: Vorlagen, Ziele, Routen, Webhook-Endpunkte, Zugriffstoken, MCP-Token, Berechtigungen,
+Gruppen, die Standardvorlage und das Standardziel, verknüpfte Chats und angeforderte
+Installationsläufe. Ein Ereignis nennt, wer die Änderung vorgenommen hat, wie sich die Person
+angemeldet hat (`session`, `basic` oder `cli`), die Request-ID und den Datensatz vorher und
+nachher. Eine Änderung, die ein KI-Assistent über [MCP](../mcp/) vornimmt, trägt `via` = `mcp`.
+Zugangsdaten sind nie enthalten.
 
 ## Protokoll in der Datenbank führen {#keep-the-trail-in-the-database}
 

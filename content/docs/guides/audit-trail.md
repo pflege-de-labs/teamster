@@ -7,9 +7,10 @@ Record who changed what in Teamster's configuration, read it in the admin UI, an
 file or NATS JetStream for your SIEM.
 
 Auditing is off until you configure it. With it on, every change is recorded: templates,
-destinations, routes, webhook endpoints, access tokens, grants, groups, the default template and
-destination, linked chats, and install runs someone asked for. An event says who made the change,
-how they signed in (`session`, `basic` or `cli`), the request id, and the record before and after.
+destinations, routes, webhook endpoints, access tokens, MCP tokens, grants, groups, the default
+template and destination, linked chats, and install runs someone asked for. An event says who made
+the change, how they signed in (`session`, `basic` or `cli`), the request id, and the record before
+and after. A change made by an AI assistant over [MCP](../mcp/) carries `via` = `mcp`.
 Credentials are never included.
 
 ## Keep the trail in the database

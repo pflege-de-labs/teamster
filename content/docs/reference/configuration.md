@@ -181,6 +181,15 @@ A key the file sets but Teamster does not know is ignored without a warning.
 | `bot.pacing.retries` | `TEAMSTER_BOT_PACING_RETRIES` | `3` | How often a call refused with `429` or `503` is retried; `0` fails it at once. |
 | `bot.pacing.max-retry-wait` | `TEAMSTER_BOT_PACING_MAX_RETRY_WAIT` | `30s` | Longest wait before a retry, whatever `Retry-After` asks for. |
 
+## MCP
+
+| Key | Environment variable | Default | Description |
+| --- | --- | --- | --- |
+| `mcp.enabled` | `TEAMSTER_MCP_ENABLED` | `false` | Serve the MCP endpoint at `/mcp` and let users mint MCP tokens. |
+| `mcp.read-only` | `TEAMSTER_MCP_READ_ONLY` | `false` | Refuse every MCP tool that writes, whoever the user is. |
+
+See [Connect an AI assistant over MCP](../../guides/mcp/).
+
 ## Event samples
 
 | Key | Environment variable | Default | Description |

@@ -36,6 +36,9 @@ See [Send alerts from Alertmanager](../alertmanager/) or
 
 {{% /steps %}}
 
+MCP tokens for AI assistants are a separate kind, minted on the same page; see
+[Connect an AI assistant over MCP](../mcp/).
+
 You see and revoke the tokens you created. Webhook admins and admins see and revoke everyone's. The
 page lists when each token was last used, to within an hour.
 
