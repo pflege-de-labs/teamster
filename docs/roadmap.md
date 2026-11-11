@@ -141,11 +141,11 @@ permissions (list and new only). Each keeps its old `?edit=` link working with a
 
 ## Milestone 27 — MCP
 
-Tokens, settings and the `/mcp` endpoint have shipped
+Tokens, settings, the `/mcp` endpoint and the Claude Code plugin have shipped
 ([ADR 0106](adr/0106-mcp-tokens-answer-to-their-creator.md),
-[ADR 0107](adr/0107-mcp-endpoint-over-the-admin-api.md)). Still to come, one pull request each:
+[ADR 0107](adr/0107-mcp-endpoint-over-the-admin-api.md),
+[ADR 0108](adr/0108-claude-code-plugin-marketplace.md)). Still to come, one pull request each:
 
-* A Claude Code plugin that points at it.
 * Cedar caps for MCP: policies that match on `context.via == "mcp"`, so an operator can hold an
   assistant back further than its user.
 * The MCP OAuth authorization flow: protected resource metadata, browser sign-in and consent, so

@@ -87,8 +87,9 @@ An accepted migration is never edited. It has already run somewhere.
 * Releases are cut from `main` by tagging `vX.Y.Z`, which triggers the release workflow: it
   re-runs lint and tests on the tagged commit, rebuilds the image and binaries, attaches SBOMs
   and signs everything with cosign. Before tagging, move the changelog's `Unreleased` entries
-  under a heading for the new version; chart releases (`teamster-X.Y.Z`) do the same in the
-  chart changelog.
+  under a heading for the new version and set `version` in
+  `plugins/teamster/.claude-plugin/plugin.json` to it; chart releases (`teamster-X.Y.Z`) do the
+  same in the chart changelog.
 * Before tagging a release, check that every `Unreleased` changelog entry is covered by a merged
   docs pull request on `pages`. The documentation of a minor is frozen from `pages` when the
   release creates its branch, so a missing page is missing from that version.
