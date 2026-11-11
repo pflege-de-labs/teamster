@@ -390,7 +390,16 @@ as that user, with `via` set to `mcp`. A disabled or unknown creator is `403`, a
 registry `503`. The token's `access` (`read` or `write`) and `mcp.read-only` only narrow what the
 creator may do. Names are unique per creator. `authorize` lets any signed-in principal reach
 `/admin/tokens`, `/admin/tokens/mcp/new` and `/admin/tokens/mcp/delete` while `mcp.enabled` is on,
-and the handlers scope the list. Minting and revoking are audited. No `/mcp` endpoint serves yet.
+and the handlers scope the list. Minting and revoking are audited.
+
+`/mcp` is served while `mcp.enabled` is on, by the official Go SDK in stateless mode behind `mcpAuth`
+([ADR 0107](adr/0107-mcp-endpoint-over-the-admin-api.md)). Each tool calls `callAPI`, which runs the
+matching `/api` request in process through `authorize(adminMux)` as the token's creator, so Cedar,
+grants, validation and audit are the admin API's own. `callAPI` admits `/api/` paths only, with a
+clean path, and refuses a write unless the token is `write` and `mcp.read-only` is off; only view
+actions and exactly `GET /api/samples` pass otherwise. `apiPath` refuses an id that is empty,
+contains `/`, or is exactly `.` or `..`, and each tool must hit its own mux pattern. Write tools are
+not offered to a token that may not write. Calls are counted in `teamster.mcp.tool_calls{tool,outcome}`.
 
 Naming people is checked before anything is routed
 ([ADR 0082](adr/0082-naming-people-takes-permission.md)). `authorizeWebhook` returns a `sender`:

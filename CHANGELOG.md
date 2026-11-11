@@ -14,8 +14,12 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 * MCP tokens: with `mcp.enabled` on, every signed-in user can mint a `tmcp_` token at
   `/admin/tokens`, read or write, that acts as its creator and never further. Minting and revoking
-  are audited. The `/mcp` endpoint itself follows
+  are audited
   ([ADR 0106](docs/adr/0106-mcp-tokens-answer-to-their-creator.md)).
+* `/mcp`, an MCP endpoint for AI assistants, with 20 tools over templates, destinations, routes,
+  routing dry-runs and Teams lookups. It runs each tool as the token's creator through the admin
+  API, so permissions, grants and audit apply unchanged; `mcp.read-only` withdraws every write tool
+  ([ADR 0107](docs/adr/0107-mcp-endpoint-over-the-admin-api.md)).
 * Alertmanager events carry the label `teamster_receiver`, the receiver Alertmanager sent them
   through, so a route can follow the channel an Alertmanager route tree picked
   ([ADR 0104](docs/adr/0104-the-alertmanager-receiver-is-a-label.md)).

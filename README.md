@@ -1470,12 +1470,12 @@ the destinations this tenant cannot resolve — see
 
 ## MCP tokens
 
-Teamster is meant to serve an MCP endpoint for AI assistants. It is off by default, and so is
+Teamster serves an MCP endpoint at `/mcp` for AI assistants. It is off by default, and so is
 everything about it:
 
 ```yaml
 mcp:
-  enabled: false   # let users mint MCP tokens at /admin/tokens
+  enabled: false   # serve /mcp and let users mint MCP tokens at /admin/tokens
   read-only: false # refuse every tool that writes, whoever the user is
 ```
 
@@ -1486,9 +1486,32 @@ and revoke your own tokens; webhook admins and admins see and revoke everyone's.
 
 An MCP token acts as the person who minted it, as they are now, and never further: it stops working
 when they are disabled, and **read** cannot write whatever they may do. It does not open the
-webhooks or `/api`. Minting and revoking are in the audit trail. This release only issues the
-tokens; the `/mcp` endpoint that accepts them is the next step
+webhooks or `/api`. Minting and revoking are in the audit trail
 ([ADR 0106](docs/adr/0106-mcp-tokens-answer-to-their-creator.md)).
+
+### Connecting an assistant
+
+Point the client at `/mcp` with the token as a bearer credential. For Claude Code:
+
+```bash
+claude mcp add --transport http teamster https://teamster.example.com/mcp \
+  --header "Authorization: Bearer <token>"
+```
+
+Every call runs through the admin API as the token's creator, so roles, grants and the audit trail
+apply as in the UI; audit events carry `via` = `mcp`. The tools:
+
+- Read: `list_templates`, `get_template`, `list_destinations`, `get_destination`, `list_routes`,
+  `get_route`, `preview_template`, `match_route`, `list_teams`, `list_channels`, and
+  `list_sampled_labels` when sampling is on and the user may edit templates or routes.
+- Write, offered only to a **write** token while `mcp.read-only` is off: `create_template`,
+  `update_template`, `delete_template`, `create_destination`, `update_destination`,
+  `delete_destination`, `create_route`, `update_route`, `delete_route`.
+
+`mcp.read-only: true` withdraws every write tool for the whole deployment, and the endpoint refuses
+a write even if one were called. Label values and other users' text reach the assistant, so prefer
+a **read** token unless it must change things
+([ADR 0107](docs/adr/0107-mcp-endpoint-over-the-admin-api.md)).
 
 ## Audit trail
 

@@ -9,10 +9,12 @@ require (
 	github.com/alecthomas/kong-yaml v0.2.0
 	github.com/cedar-policy/cedar-go v1.9.0
 	github.com/coreos/go-oidc/v3 v3.21.0
+	github.com/google/jsonschema-go v0.4.3
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/jackc/pgx/v5 v5.12.0
 	github.com/miekg/king v1.0.17
+	github.com/modelcontextprotocol/go-sdk v1.8.0
 	github.com/nats-io/nats.go v1.55.0
 	github.com/pressly/goose/v3 v3.29.0
 	github.com/yuin/goldmark/v2 v2.1.15
@@ -46,9 +48,12 @@ require (
 	github.com/nats-io/nkeys v0.4.16 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/pandatix/go-abnf v0.5.3 // indirect
+	github.com/segmentio/asm v1.2.1 // indirect
+	github.com/segmentio/encoding v0.5.4 // indirect
 	github.com/sethvargo/go-retry v0.5.0 // indirect
 	github.com/shopspring/decimal v1.5.0 // indirect
 	github.com/spf13/cast v1.7.0 // indirect
+	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	go.opentelemetry.io/otel/log v1.47.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect

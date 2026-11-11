@@ -41,6 +41,7 @@ type Metrics struct {
 
 	deliveries   metric.Int64Counter
 	receipts     metric.Int64Counter
+	toolCalls    metric.Int64Counter
 	renderFails  metric.Int64Counter
 	activeEvents metric.Int64ObservableGauge
 	registration metric.Registration

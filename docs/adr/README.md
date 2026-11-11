@@ -117,3 +117,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0104](0104-the-alertmanager-receiver-is-a-label.md) | The Alertmanager receiver is a label | Accepted |
 | [0105](0105-give-each-record-a-page-of-its-own.md) | Give each record a page of its own | Accepted |
 | [0106](0106-mcp-tokens-answer-to-their-creator.md) | MCP tokens answer to their creator, in a table of their own | Accepted |
+| [0107](0107-mcp-endpoint-over-the-admin-api.md) | Serve MCP as an in-process adapter over the admin API | Accepted |
