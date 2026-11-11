@@ -114,4 +114,4 @@ Architectural decisions are recorded here, one file per decision, in
 | [0101](0101-a-click-draws-only-the-nodes-paths.md) | A click draws only the node's paths | Accepted |
 | [0102](0102-a-link-that-skips-columns-gets-a-lane.md) | A link that skips columns gets a lane | Accepted |
 | [0103](0103-group-the-admin-sidebar-and-give-each-resource-a-page.md) | Group the admin sidebar and give each resource a page | Accepted |
-| [0105](0105-give-each-record-a-page-of-its-own.md) | Give each record a page of its own | Accepted |
+| [0104](0104-the-alertmanager-receiver-is-a-label.md) | The Alertmanager receiver is a label | Accepted |
