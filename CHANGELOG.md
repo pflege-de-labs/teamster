@@ -26,7 +26,7 @@ reasoning behind it in the [ADRs](docs/adr/).
 * Destinations have a list, a read-only record page and a create page. **Edit** switches the record
   to its form without a reload, and a failed save keeps what you typed. The record shows the Team
   and channel names, where the destination is used and its sharing. Old `?edit=` links redirect
-  ([ADR 0104](docs/adr/0104-give-each-record-a-page-of-its-own.md)).
+  ([ADR 0105](docs/adr/0105-give-each-record-a-page-of-its-own.md)).
 * Notifications moved to the user menu as **My notifications**; "Permissions" is now **Channel
   scopes** and the grants page **Delivery permissions**.
 

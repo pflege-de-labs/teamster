@@ -1264,7 +1264,7 @@ of the oldest cards reach `/admin/routing#<section>` and `nav.js` moves them to 
 [ADR 0103](adr/0103-group-the-admin-sidebar-and-give-each-resource-a-page.md).
 
 Destinations are the first resource with list, record and new pages
-([ADR 0104](adr/0104-give-each-record-a-page-of-its-own.md)). `listPage`, `recordPage` and
+([ADR 0105](adr/0105-give-each-record-a-page-of-its-own.md)). `listPage`, `recordPage` and
 `newPage` in `views/record.templ` are the shared frame. `GET /admin/destinations` lists,
 `/admin/destinations/new` is the create form (403 without `create`) and
 `/admin/destinations/{id}` the read-only record: summary, the routes and webhook endpoints that use

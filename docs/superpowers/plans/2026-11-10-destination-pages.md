@@ -276,11 +276,11 @@ Each has a test in the task that owns the code.
 
 **Files:**
 
-* Create: `docs/adr/0104-give-each-record-a-page-of-its-own.md` (from `0000-template.md`)
+* Create: `docs/adr/0105-give-each-record-a-page-of-its-own.md` (from `0000-template.md`)
 * Modify: `docs/adr/README.md`, `docs/architecture.md`, `README.md`, `CHANGELOG.md`,
   `docs/roadmap.md`
 
-* [ ] **Step 1:** ADR 0104: context (stacked form + list + sharing per page), decision (frame,
+* [ ] **Step 1:** ADR 0105: context (stacked form + list + sharing per page), decision (frame,
   edit in place, 422 failed save, 404 for unreadable records, one PR per resource), alternatives
   (single `views.Page` with modes; generic resource interface; separate `/edit` URL), consequences.
 * [ ] **Step 2:** architecture.md and README describe destinations' pages and the old-link

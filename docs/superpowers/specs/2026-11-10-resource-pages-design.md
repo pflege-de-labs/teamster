@@ -141,7 +141,7 @@ in, old `?edit=` links.
 
 ## Documentation
 
-* ADR 0104 "Give each record a page of its own": the frame, edit in place, the 422 failed-save
+* ADR 0105 "Give each record a page of its own": the frame, edit in place, the 422 failed-save
   path, 404 for unreadable records.
 * `docs/architecture.md`, `README.md`, `CHANGELOG.md`.
 * `docs/roadmap.md`: the remaining resources as one milestone, removed item by item.

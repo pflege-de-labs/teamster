@@ -1,4 +1,4 @@
-# 0104. Give each record a page of its own
+# 0105. Give each record a page of its own
 
 * Status: Accepted
 * Date: 2026-11-10
