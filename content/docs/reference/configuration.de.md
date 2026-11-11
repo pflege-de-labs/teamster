@@ -183,6 +183,15 @@ Einen Schlüssel, den die Datei setzt, Teamster aber nicht kennt, ignoriert Team
 | `bot.pacing.retries` | `TEAMSTER_BOT_PACING_RETRIES` | `3` | Wie oft ein mit `429` oder `503` abgewiesener Aufruf wiederholt wird; `0` lässt ihn sofort fehlschlagen. |
 | `bot.pacing.max-retry-wait` | `TEAMSTER_BOT_PACING_MAX_RETRY_WAIT` | `30s` | Längste Wartezeit vor einer Wiederholung, gleich was `Retry-After` verlangt. |
 
+## MCP {#mcp}
+
+| Schlüssel | Umgebungsvariable | Standard | Beschreibung |
+| --- | --- | --- | --- |
+| `mcp.enabled` | `TEAMSTER_MCP_ENABLED` | `false` | Stellt den MCP-Endpunkt unter `/mcp` bereit und lässt Benutzer MCP-Token erstellen. |
+| `mcp.read-only` | `TEAMSTER_MCP_READ_ONLY` | `false` | Weist jedes MCP-Tool ab, das schreibt, gleich welcher Benutzer es aufruft. |
+
+Siehe [Einen KI-Assistenten über MCP anbinden](../../guides/mcp/).
+
 ## Ereignis-Stichproben {#event-samples}
 
 | Schlüssel | Umgebungsvariable | Standard | Beschreibung |

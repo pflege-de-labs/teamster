@@ -18,6 +18,7 @@ Entra registrations and the bot: without the bot, nothing reaches Teams.
   {{< card link="broadcasts/" title="Send a message to everyone" >}}
   {{< card link="webhook-tokens/" title="Authenticate a webhook sender" >}}
   {{< card link="teams-v2-webhook/" title="Move a sender off a Teams Workflows webhook" >}}
+  {{< card link="mcp/" title="Connect an AI assistant over MCP" >}}
   {{< card link="templates/" title="Write templates" >}}
   {{< card link="signing-in/" title="Configure sign-in to the admin UI" >}}
   {{< card link="keycloak/" title="Configure Keycloak for the admin login" >}}

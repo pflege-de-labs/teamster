@@ -38,6 +38,9 @@ Siehe [Alarme aus Alertmanager senden](../alertmanager/) oder
 
 {{% /steps %}}
 
+MCP-Token für KI-Assistenten sind eine eigene Art, die Sie auf derselben Seite erstellen; siehe
+[Einen KI-Assistenten über MCP anbinden](../mcp/).
+
 Sie sehen und widerrufen die Tokens, die Sie erstellt haben. Webhook-Administratoren und
 Administratoren sehen und widerrufen die aller Personen. Die Seite zeigt auf die Stunde genau, wann
 jedes Token zuletzt verwendet wurde.

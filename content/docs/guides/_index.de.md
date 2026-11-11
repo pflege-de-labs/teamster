@@ -21,6 +21,7 @@ der Konfiguration, den Entra-Registrierungen und dem Bot: Ohne den Bot erreicht 
     link="teams-v2-webhook/"
     title="Einen Absender von einem Teams-Workflows-Webhook umziehen"
   >}}
+  {{< card link="mcp/" title="Einen KI-Assistenten über MCP anbinden" >}}
   {{< card link="templates/" title="Vorlagen schreiben" >}}
   {{< card link="signing-in/" title="Anmeldung an der Verwaltungsoberfläche einrichten" >}}
   {{< card link="keycloak/" title="Keycloak für die Anmeldung an der Verwaltung einrichten" >}}
