@@ -13,6 +13,7 @@ require (
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/jackc/pgx/v5 v5.12.0
 	github.com/miekg/king v1.0.17
+	github.com/modelcontextprotocol/go-sdk v1.8.0
 	github.com/nats-io/nats.go v1.55.0
 	github.com/pressly/goose/v3 v3.29.0
 	github.com/yuin/goldmark/v2 v2.1.15
@@ -33,6 +34,7 @@ require (
 	github.com/felixge/httpsnoop v1.1.0 // indirect
 	github.com/go-json-experiment/json v0.0.0-20260820222146-c27c302e5fc3 // indirect
 	github.com/gomarkdown/markdown v0.0.0-20260917010721-cc30ffac3c05 // indirect
+	github.com/google/jsonschema-go v0.4.3 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.30.0 // indirect
 	github.com/huandu/xstrings v1.5.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
@@ -46,9 +48,12 @@ require (
 	github.com/nats-io/nkeys v0.4.16 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/pandatix/go-abnf v0.5.3 // indirect
+	github.com/segmentio/asm v1.2.1 // indirect
+	github.com/segmentio/encoding v0.5.4 // indirect
 	github.com/sethvargo/go-retry v0.5.0 // indirect
 	github.com/shopspring/decimal v1.5.0 // indirect
 	github.com/spf13/cast v1.7.0 // indirect
+	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	go.opentelemetry.io/otel/log v1.47.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect

@@ -9,6 +9,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/modelcontextprotocol/go-sdk/mcp"
+
 	"github.com/pflege-de-labs/teamster/internal/authz"
 	"github.com/pflege-de-labs/teamster/internal/bot"
 	"github.com/pflege-de-labs/teamster/internal/config"
@@ -98,6 +100,9 @@ type Server struct {
 
 	// samples is nil when nothing samples, as in most tests.
 	samples sampler
+
+	// adminAPI is /api behind authorization, which MCP tools call in-process.
+	adminAPI http.Handler
 
 	// people is nil unless the bot is configured: messages then cannot name
 	// the people an addressed route delivers to (ADR 0063).
@@ -342,7 +347,12 @@ func NewServer(logger *slog.Logger, cfg config.Config, store store.Store, graphC
 		mux.HandleFunc(asset, api.handleAssets)
 	}
 
-	mux.Handle("/api/", api.apiAuth(api.authorize(adminMux)))
+	api.adminAPI = api.authorize(adminMux)
+	mux.Handle("/api/", api.apiAuth(api.adminAPI))
+	// Method-less like /bot/messages, so a wrong method reaches the handler rather than the login redirect.
+	if cfg.MCP.Enabled {
+		mux.Handle("/mcp", api.mcpAuth(mcp.NewStreamableHTTPHandler(api.mcpServerFor, &mcp.StreamableHTTPOptions{Stateless: true})))
+	}
 	mux.Handle("/admin/login", authMux)
 	mux.Handle("/admin/auth/", authMux)
 	mux.Handle("/admin/logout", authMux)
