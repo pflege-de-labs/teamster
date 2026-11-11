@@ -29,8 +29,8 @@ user without a second authorization path.
   `GET /api/samples`, which `authorize` treats as a write because it is not a record. The
   second check holds even if a write tool were registered by mistake.
 * **A tool id never steers a call elsewhere.** `callAPI` serves `/api/` paths only, with a path that
-  is already clean. `apiPath` refuses an id that is empty, contains `/`, or is exactly `.` or `..`, and escapes
-  the rest. Every tool must also land on its own mux pattern, so a reserved sibling id such as
+  is already clean. `apiPath` refuses an id that is empty, contains `/`, or is exactly
+  `.` or `..`, and escapes the rest. Every tool must also land on its own mux pattern, so a reserved sibling id such as
   `global-default` cannot turn `/api/routes/{id}` into `/api/routes/global-default`.
 * **Offered tools follow the user.** `list_sampled_labels` is offered only when samples are on and
   the user may complete labels.
