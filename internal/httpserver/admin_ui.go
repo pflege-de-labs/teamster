@@ -514,12 +514,41 @@ func (s *Server) deleteTemplate(r *http.Request) (string, error) {
 	if err := s.mayRecord(r, authz.ActionDelete, typeTemplate, id); err != nil {
 		return "", err
 	}
-	if err := s.deleteOwned(r.Context(), typeTemplate, id, func(ctx context.Context, tx store.Store) error {
-		return tx.DeleteTemplate(ctx, id)
-	}); err != nil {
+	if err := s.deleteUnusedTemplate(r, id); err != nil {
 		return "", err
 	}
 	return "Template deleted.", nil
+}
+
+// errTemplateInUse refuses deleting a template routes still render with: every delivery of theirs would fail.
+var errTemplateInUse = errors.New("template is still used by routes")
+
+// deleteUnusedTemplate deletes template id unless a route still names it.
+func (s *Server) deleteUnusedTemplate(r *http.Request, id string) error {
+	return s.deleteOwned(r.Context(), typeTemplate, id, func(ctx context.Context, tx store.Store) error {
+		routes, err := tx.ListRoutes(ctx)
+		if err != nil {
+			return err
+		}
+		var users []models.Route
+		for _, route := range routes {
+			if route.TemplateID == id {
+				users = append(users, route)
+			}
+		}
+		if len(users) == 0 {
+			return tx.DeleteTemplate(ctx, id)
+		}
+		var names []string
+		for _, route := range readable(s, r, typeRoute, users, routeID) {
+			names = append(names, views.RouteLabel(ctx, route))
+		}
+		// Routes the session may not read are counted, never named.
+		if hidden := len(users) - len(names); hidden > 0 {
+			names = append(names, fmt.Sprintf("%d more you may not read", hidden))
+		}
+		return fmt.Errorf("%w: %s. Point them at another template first", errTemplateInUse, strings.Join(names, ", "))
+	})
 }
 
 func (s *Server) setDefaultDestination(r *http.Request) (string, error) {
