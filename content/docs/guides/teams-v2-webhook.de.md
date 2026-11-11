@@ -21,14 +21,15 @@ Der Kanal, in den der Absender postet, muss in Teamster als Ziel existieren. Leg
 
 ### Den Endpunkt anlegen {#create-the-endpoint}
 
-Wählen Sie unter **Konfiguration → Webhooks** im Bereich **Teams-V2-Webhooks** das Ziel und geben
+Klicken Sie unter **Konfiguration → Webhooks** auf **Neuer Webhook**, wählen Sie das Ziel und geben
 Sie der URL zwei lesbare Segmente für das Team und den Kanal. Segmente bestehen aus
-Kleinbuchstaben, Ziffern und
-Bindestrichen, sind bis zu 64 Zeichen lang und beginnen und enden mit einem Buchstaben oder einer
-Ziffer.
+Kleinbuchstaben, Ziffern und Bindestrichen, sind bis zu 64 Zeichen lang und beginnen und enden mit
+einem Buchstaben oder einer Ziffer.
 
-Die Seite, die auf das Formular antwortet, zeigt die vollständige URL samt Token einmal an.
-Teamster speichert vom Token nur einen Digest und kann es nicht erneut anzeigen.
+Nach dem Speichern öffnet sich die Seite des Webhooks, mit der vollständigen URL samt Token in einem
+Banner. Sie wird nur einmal angezeigt. Teamster speichert vom Token nur einen Digest und kann es
+nicht erneut anzeigen; kopieren Sie es also jetzt. Beim Neuladen zeigt die Seite den Webhook ohne
+Token und legt keinen zweiten an.
 
 Die URL beginnt mit `server.webhook-url`, wenn es gesetzt ist, sonst mit Schema und Host, unter
 denen Sie die Verwaltungsoberfläche aufrufen. Liegt die Verwaltungsoberfläche auf einem eigenen
@@ -53,8 +54,22 @@ universellen Webhooks, etwa `{"status":"ok"}`.
 
 {{% /steps %}}
 
-Geht die URL verloren oder wird sie bekannt, verwenden Sie **Neues Token** am Endpunkt. Das ersetzt
-das Token, und die alte URL funktioniert sofort nicht mehr.
+Geht die URL verloren oder wird sie bekannt, klicken Sie auf der Seite des Endpunkts auf **Neues
+Token**. Das ersetzt das Token, und die alte URL funktioniert sofort nicht mehr. Die Seite zeigt die
+neue URL einmal an, wie beim Anlegen.
+
+## Einen Endpunkt ändern, freigeben oder löschen {#change-share-or-delete-an-endpoint}
+
+Öffnen Sie den Endpunkt in der Liste unter **Konfiguration → Webhooks**. Seine Seite zeigt den
+URL-Pfad ohne Token, das Ziel und die Vorlage, jeweils mit Link auf ihre Seite, und einen Link auf
+die Route, die Teamster für ihn führt.
+
+* **Bearbeiten** verwandelt die Seite an Ort und Stelle in das Formular. Ändern Sie die Segmente,
+  ändert sich der URL-Pfad; das Token bleibt. Schlägt das Speichern fehl, behält das Formular Ihre
+  Eingaben.
+* **Löschen** entfernt den Endpunkt.
+* Die Seite zeigt auch, mit wem der Endpunkt geteilt ist, und lässt Sie das ändern; siehe
+  [Rollen und Eigentum](../../concepts/ownership/).
 
 ## Was der Absender posten darf {#what-the-sender-may-post}
 
@@ -124,8 +139,8 @@ liegen im Repository.
 
 Standardmäßig werden die Nutzdaten so gepostet, wie sie ankommen, gefolgt von einer kleinen Karte,
 die darauf hinweist, dass keine Vorlage festgelegt ist. Um die Nachricht zu gestalten, wählen Sie
-im Formular des Endpunkts eine **Vorlage**. Angeboten werden nur Vorlagen, die Nutzdaten des
-Teams-V2-Webhooks verarbeiten; siehe [Vorlagen schreiben](../templates/).
+beim Anlegen oder Bearbeiten des Endpunkts eine **Vorlage**. Angeboten werden nur Vorlagen, die
+Nutzdaten des Teams-V2-Webhooks verarbeiten; siehe [Vorlagen schreiben](../templates/).
 
 In einer solchen Vorlage gilt:
 
@@ -183,7 +198,7 @@ zuzustellen.
 Öffnen Sie **Konfiguration → Routen**. Die Route mit dem Namen
 `webhook <team>/<channel>` ist mit **Verwaltet vom Webhook `<team>/<channel>`** gekennzeichnet.
 Ihr Selektor ist `teamster_source=teamsv2`, `teamster_team=<team>` und
-`teamster_channel=<channel>`. Das Formular des Endpunkts verweist als **Route dieses Webhooks**
+`teamster_channel=<channel>`. Die Seite des Endpunkts verweist als **Route dieses Webhooks**
 darauf.
 
 ### Eine Route hinzufügen {#add-a-route}
