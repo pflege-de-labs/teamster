@@ -16,7 +16,7 @@ credential, as it was before.
 ### Create the destination
 
 The channel the sender posts into must exist as a destination in Teamster. Create it under
-**Configuration → Destinations** if it does not.
+**Configuration → Destinations** with **New destination** if it does not.
 
 ### Create the endpoint
 

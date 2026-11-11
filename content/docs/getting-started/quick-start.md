@@ -98,9 +98,8 @@ Open <http://localhost:8080/admin> and sign in with the admin username and passw
 
 ### Add a destination
 
-Open **Configuration → Destinations**, give the destination a name, pick the **Team** and the
-**Channel**,
-and save it.
+Open **Configuration → Destinations**, press **New destination**, give the destination a name,
+pick the **Team** and the **Channel**, and save it. Teamster opens the new destination's page.
 
 The first destination you create becomes the **global default destination**: whatever no route
 claims goes there.

@@ -17,7 +17,7 @@ Berechtigungsnachweis, wie zuvor auch.
 ### Das Ziel anlegen {#create-the-destination}
 
 Der Kanal, in den der Absender postet, muss in Teamster als Ziel existieren. Legen Sie ihn unter
-**Konfiguration → Ziele** an, falls nicht.
+**Konfiguration → Ziele** mit **Neues Ziel** an, falls nicht.
 
 ### Den Endpunkt anlegen {#create-the-endpoint}
 
