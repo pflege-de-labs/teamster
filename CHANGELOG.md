@@ -10,6 +10,8 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 ## [Unreleased]
 
+## [0.21.1] — 2026-11-11
+
 ### Fixed
 
 * The MCP section of `/admin/tokens` showed the endpoint on the webhook host (`server.webhook-url`),
@@ -624,7 +626,8 @@ Adaptive Cards posted to Teams channels, alert state in SQLite so a resolve upda
 an admin UI for templates, destinations and routes. Released as a signed container image and
 binaries with SBOMs ([ADR 0006](docs/adr/0006-release-rebuild-sbom-signing.md)).
 
-[Unreleased]: https://github.com/pflege-de-labs/teamster/compare/v0.21.0...HEAD
+[Unreleased]: https://github.com/pflege-de-labs/teamster/compare/v0.21.1...HEAD
+[0.21.1]: https://github.com/pflege-de-labs/teamster/compare/v0.21.0...v0.21.1
 [0.21.0]: https://github.com/pflege-de-labs/teamster/compare/v0.20.0...v0.21.0
 [0.20.0]: https://github.com/pflege-de-labs/teamster/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/pflege-de-labs/teamster/compare/v0.18.0...v0.19.0
