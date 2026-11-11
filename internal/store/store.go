@@ -239,6 +239,16 @@ type Store interface {
 	TouchAccessToken(ctx context.Context, id string, at time.Time) error
 	DeleteAccessToken(ctx context.Context, id string) error
 
+	ListMCPTokens(ctx context.Context) ([]models.MCPToken, error)
+	// CreateMCPToken reports ErrConflict when the name is taken.
+	CreateMCPToken(ctx context.Context, t models.MCPToken) (models.MCPToken, error)
+	// GetMCPTokenByHash authenticates an MCP request, so it is reachable by an
+	// unauthenticated caller.
+	GetMCPTokenByHash(ctx context.Context, tokenHash string) (models.MCPToken, error)
+	TouchMCPToken(ctx context.Context, id string, at time.Time) error
+	// DeleteMCPToken reports ErrNotFound when there is no such token.
+	DeleteMCPToken(ctx context.Context, id string) error
+
 	CreateLinkFlow(ctx context.Context, f models.LinkFlow) error
 	// TakeLinkFlow redeems a code once, whether or not it had expired.
 	TakeLinkFlow(ctx context.Context, code string) (models.LinkFlow, error)

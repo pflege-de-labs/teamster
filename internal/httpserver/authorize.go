@@ -64,7 +64,7 @@ func (s *Server) viewerFor(r *http.Request) views.Viewer {
 	viewer.CanShare = viewer.CanManage || s.policies(r).HasGrants(principalFor(r))
 	// Without the database trail there is nothing to list.
 	viewer.CanAudit = s.cfg.Audit.Database && s.allow(r, authz.ActionAdminister, authz.Resource{Type: "Audit"})
-	viewer.CanTokens = s.manageTokens(r) || len(s.usableWebhooks(r)) > 0
+	viewer.CanTokens = s.cfg.MCP.Enabled || s.manageTokens(r) || len(s.usableWebhooks(r)) > 0
 	viewer.CanComplete = s.cfg.Samples.Enabled && s.mayComplete(r)
 	viewer.NotificationsEnabled = botConfigured(s.cfg.Bot)
 	viewer.PeopleEnabled = viewer.NotificationsEnabled && s.cfg.Bot.GlobalInstall
@@ -184,6 +184,12 @@ func (s *Server) authorize(next http.Handler) http.Handler {
 
 		_, roles := principalOf(r)
 		action, resource := requestAuthorization(r)
+
+		// An MCP token reaches only its creator's rights, so anyone may mint one; the handlers scope the list.
+		if s.cfg.MCP.Enabled && (r.URL.Path == "/admin/tokens" || r.URL.Path == "/admin/tokens/mcp/new" || r.URL.Path == "/admin/tokens/mcp/delete") {
+			next.ServeHTTP(w, r)
+			return
+		}
 
 		// Samples complete both editors, so editing routes admits as well.
 		if s.allow(r, action, resource) || (r.URL.Path == "/api/samples" && s.mayComplete(r)) {

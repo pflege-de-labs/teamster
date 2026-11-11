@@ -14,6 +14,14 @@ import (
 
 const maxPreviewBytes = 1 << 20 // 1 MiB is far beyond any Adaptive Card template
 
+// previewRequest is the body of POST /api/templates/preview; the MCP tool reuses it.
+type previewRequest struct {
+	Title  string `json:"title"`
+	Text   string `json:"text"`
+	Body   string `json:"body"`
+	Sample string `json:"sample"`
+}
+
 func (s *Server) handlePreview(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", http.MethodPost)
@@ -23,12 +31,7 @@ func (s *Server) handlePreview(w http.ResponseWriter, r *http.Request) {
 
 	r.Body = http.MaxBytesReader(w, r.Body, maxPreviewBytes)
 
-	var req struct {
-		Title  string `json:"title"`
-		Text   string `json:"text"`
-		Body   string `json:"body"`
-		Sample string `json:"sample"`
-	}
+	var req previewRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		var tooLarge *http.MaxBytesError
 		if errors.As(err, &tooLarge) {

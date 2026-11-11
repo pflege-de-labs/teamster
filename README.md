@@ -36,6 +36,7 @@ signal kills it immediately.
 - Destinations (Team ID, Channel ID)
 - Routes (label selector -> destination + template)
 - Access tokens for the senders (see [Authenticating a sender](#authenticating-a-sender))
+- MCP tokens for AI assistants (see [MCP tokens](#mcp-tokens))
 
 The admin sidebar groups the pages (Configuration, Delivery, Access, Administration); routes,
 templates, destinations and webhooks each have a page, such as `/admin/routes`
@@ -867,6 +868,9 @@ and **Teams V2 webhook**. Leave all unticked for any.
 - A route whose selector pins `teamster_source` only offers templates for that webhook.
 - An event that reaches a template not written for its webhook gets its webhook's default template
   instead, or the built-in message when there is none, and a warning is logged.
+- A template that a route or a Teams V2 endpoint still uses cannot be deleted. The refusal names
+  the routes and webhooks to give another template first; those you may not read are only counted.
+  `DELETE /api/templates/{id}` answers `409 Conflict` with the same message.
 
 ### Default templates
 
@@ -889,9 +893,10 @@ that webhook already has a default:
 | Universal webhook (default) | The sender's own card or text when it sent one, otherwise a state-coloured card: summary, state, description, labels and the URL |
 | Teams V2 webhook (default) | The payload's card, a MessageCard converted to one, or its text alone |
 
-They are ordinary templates: edit or delete them freely. A deleted preset is not recreated. The
-same presets are under **Start from a preset** in the template editor, which fills the name, title,
-text, card and webhooks in one go. The editor also offers the two Teams V2 layouts described under
+They are ordinary templates: edit them freely, or delete them once nothing uses them. A deleted
+preset is not recreated. The same presets are under **Start from a preset** in the template editor,
+which fills the name, title, text, card and webhooks in one go. The editor also offers the two
+Teams V2 layouts described under
 [Teams V2 (Power Automate) webhook](#teams-v2-power-automate-webhook), which are never stored on
 their own.
 
@@ -1464,13 +1469,73 @@ The bundle therefore carries the Team and channel names beside the ids, and the 
 the destinations this tenant cannot resolve — see
 [ADR 0013](docs/adr/0013-configuration-transfer.md).
 
+## MCP tokens
+
+Teamster serves an MCP endpoint at `/mcp` for AI assistants. It is off by default, and so is
+everything about it:
+
+```yaml
+mcp:
+  enabled: false   # serve /mcp and let users mint MCP tokens at /admin/tokens
+  read-only: false # refuse every tool that writes, whoever the user is
+```
+
+With `mcp.enabled` on, every signed-in user, a viewer included, finds an MCP section on
+**/admin/tokens**. Name a token, choose **read only** or **read and write**, and copy it at once: it
+starts with `tmcp_`, is shown once and stored only as a digest. Names are unique per user. You see
+and revoke your own tokens; webhook admins and admins see and revoke everyone's.
+
+An MCP token acts as the person who minted it, as they are now, and never further: it stops working
+when they are disabled, and **read** cannot write whatever they may do. It does not open the
+webhooks or `/api`. Minting and revoking are in the audit trail
+([ADR 0106](docs/adr/0106-mcp-tokens-answer-to-their-creator.md)).
+
+### Connecting an assistant
+
+Point the client at `/mcp` with the token as a bearer credential. For Claude Code:
+
+```bash
+claude mcp add --transport http teamster https://teamster.example.com/mcp \
+  --header "Authorization: Bearer <token>"
+```
+
+Every call runs through the admin API as the token's creator, so roles, grants and the audit trail
+apply as in the UI; audit events carry `via` = `mcp`. The tools:
+
+- Read: `list_templates`, `get_template`, `list_destinations`, `get_destination`, `list_routes`,
+  `get_route`, `preview_template`, `match_route`, `list_teams`, `list_channels`, and
+  `list_sampled_labels` when sampling is on and the user may edit templates or routes.
+- Write, offered only to a **write** token while `mcp.read-only` is off: `create_template`,
+  `update_template`, `delete_template`, `create_destination`, `update_destination`,
+  `delete_destination`, `create_route`, `update_route`, `delete_route`.
+
+`mcp.read-only: true` withdraws every write tool for the whole deployment, and the endpoint refuses
+a write even if one were called. Label values and other users' text reach the assistant, so prefer
+a **read** token unless it must change things
+([ADR 0107](docs/adr/0107-mcp-endpoint-over-the-admin-api.md)).
+
+### Installing the Claude Code plugin
+
+This repository is a Claude Code plugin marketplace. The plugin `teamster` adds the MCP server and
+the skill `teamster-routing`, which walks an assistant through routing alerts: read the sampled
+labels, dry-run with `match_route`, pick a destination, preview the template, write the route and
+confirm ([ADR 0108](docs/adr/0108-claude-code-plugin-marketplace.md)):
+
+```text
+/plugin marketplace add pflege-de-labs/teamster
+/plugin install teamster@teamster
+```
+
+Claude Code asks for the **Teamster URL**, the base URL without `/mcp`, and the **MCP token**
+minted at `/admin/tokens`; the token is kept in Claude Code's secure credential storage.
+
 ## Audit trail
 
 Auditing is off until you configure it. With it on, every change to the configuration is
-recorded: templates, destinations, routes, webhook endpoints, access tokens, grants, the default
-template and destination, linked chats, and install runs someone asked for. An event says who made
-the change, how they signed in (`session`, `basic` or `cli`), the request id, and the record before
-and after. Credentials are never included.
+recorded: templates, destinations, routes, webhook endpoints, access tokens, MCP tokens, grants,
+the default template and destination, linked chats, and install runs someone asked for. An event
+says who made the change, how they signed in (`session`, `basic`, `token`, `mcp` or `cli`), the
+request id, and the record before and after. Credentials are never included.
 
 Admins read the trail at **/admin/audit**, or with `GET /api/audit`. Both filter by `actor`,
 `action`, `type` and `id`, and `since`/`until` filter by time (RFC 3339). Results are newest first.

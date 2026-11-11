@@ -185,6 +185,16 @@ type LoginFlow struct {
 	ExpiresAt time.Time
 }
 
+type McpToken struct {
+	ID         string
+	Name       string
+	TokenHash  string
+	CreatedBy  string
+	CreatedAt  time.Time
+	LastUsedAt sql.NullTime
+	Access     string
+}
+
 type Permission struct {
 	ID            string
 	PrincipalType string

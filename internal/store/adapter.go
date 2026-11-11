@@ -823,6 +823,82 @@ func accessTokenOf(row sqlitedb.AccessToken) models.AccessToken {
 	return t
 }
 
+func (s queryAdapter) ListMCPTokens(ctx context.Context) ([]models.MCPToken, error) {
+	rows, err := s.q.ListMCPTokens(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list mcp tokens: %w", err)
+	}
+	out := make([]models.MCPToken, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, mcpTokenOf(row))
+	}
+	return out, nil
+}
+
+func (s queryAdapter) CreateMCPToken(ctx context.Context, t models.MCPToken) (models.MCPToken, error) {
+	t.ID = newID(t.ID)
+	t.CreatedAt = nowUTC()
+	t.LastUsedAt = time.Time{}
+
+	err := s.q.CreateMCPToken(ctx, sqlitedb.CreateMCPTokenParams{
+		ID:        t.ID,
+		Name:      t.Name,
+		TokenHash: t.TokenHash,
+		CreatedBy: t.CreatedBy,
+		CreatedAt: t.CreatedAt,
+		Access:    t.Access,
+	})
+	if err != nil {
+		if isPrimaryKeyConflict(err) {
+			return models.MCPToken{}, ErrConflict
+		}
+		return models.MCPToken{}, fmt.Errorf("create mcp token: %w", err)
+	}
+	return t, nil
+}
+
+func (s queryAdapter) GetMCPTokenByHash(ctx context.Context, tokenHash string) (models.MCPToken, error) {
+	row, err := s.q.GetMCPTokenByHash(ctx, tokenHash)
+	if err != nil {
+		if err := notFound(err); errors.Is(err, ErrNotFound) {
+			return models.MCPToken{}, err
+		}
+		return models.MCPToken{}, fmt.Errorf("get mcp token: %w", err)
+	}
+	return mcpTokenOf(row), nil
+}
+
+func (s queryAdapter) TouchMCPToken(ctx context.Context, id string, at time.Time) error {
+	err := s.q.TouchMCPToken(ctx, sqlitedb.TouchMCPTokenParams{LastUsedAt: nullTime(at.UTC()), ID: id})
+	if err != nil {
+		return fmt.Errorf("touch mcp token: %w", err)
+	}
+	return nil
+}
+
+func (s queryAdapter) DeleteMCPToken(ctx context.Context, id string) error {
+	n, err := s.q.DeleteMCPToken(ctx, id)
+	if err != nil {
+		return fmt.Errorf("delete mcp token: %w", err)
+	}
+	if n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func mcpTokenOf(row sqlitedb.McpToken) models.MCPToken {
+	return models.MCPToken{
+		ID:         row.ID,
+		Name:       row.Name,
+		TokenHash:  row.TokenHash,
+		CreatedBy:  row.CreatedBy,
+		CreatedAt:  row.CreatedAt,
+		LastUsedAt: row.LastUsedAt.Time,
+		Access:     row.Access,
+	}
+}
+
 func (s queryAdapter) ListRoutes(ctx context.Context) ([]models.Route, error) {
 	rows, err := s.q.ListRoutes(ctx)
 	if err != nil {

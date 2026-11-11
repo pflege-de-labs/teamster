@@ -550,5 +550,17 @@
   "sharing.action.use": "senden an",
   "sharing.action.administer": "verwalten",
   "sharing.action.message": "Personen anschreiben",
-  "sharing.action.broadcast": "an alle senden"
+  "sharing.action.broadcast": "an alle senden",
+  "tokens.mcp.heading": "MCP-Zugriffstoken",
+  "tokens.mcp.explainer": "Ein MCP-Token lässt einen KI-Client den MCP-Server von Teamster als Sie aufrufen, nie weiter, als Sie selbst dürfen. Jeder Client bekommt ein eigenes, damit sich eines widerrufen lässt, ohne die anderen zu stören.",
+  "tokens.mcp.name_placeholder": "claude-code-laptop",
+  "tokens.mcp.access": "Zugriff",
+  "tokens.mcp.access.read": "nur lesen",
+  "tokens.mcp.access.write": "lesen und schreiben",
+  "tokens.mcp.access.of": "Zugriff: {0}",
+  "tokens.mcp.empty": "Noch keine MCP-Token.",
+  "tokens.mcp.snippet": "Claude Code, auf {0} gerichtet:",
+  "tokens.mcp.access_invalid": "Der Zugriff eines MCP-Tokens ist nur lesen oder lesen und schreiben.",
+  "tokens.mcp.created": "MCP-Token erstellt.",
+  "tokens.mcp.revoked": "MCP-Token widerrufen. Clients, die es verwenden, werden ab jetzt abgewiesen."
 }

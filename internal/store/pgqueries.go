@@ -871,3 +871,32 @@ func (p pgQueries) ListReachableDirectoryUsers(ctx context.Context, arg sqlitedb
 	}
 	return out, nil
 }
+
+func (p pgQueries) CreateMCPToken(ctx context.Context, arg sqlitedb.CreateMCPTokenParams) error {
+	return p.q.CreateMCPToken(ctx, pgdb.CreateMCPTokenParams(arg))
+}
+
+func (p pgQueries) DeleteMCPToken(ctx context.Context, id string) (int64, error) {
+	return p.q.DeleteMCPToken(ctx, id)
+}
+
+func (p pgQueries) GetMCPTokenByHash(ctx context.Context, tokenHash string) (sqlitedb.McpToken, error) {
+	row, err := p.q.GetMCPTokenByHash(ctx, tokenHash)
+	return sqlitedb.McpToken(row), err
+}
+
+func (p pgQueries) ListMCPTokens(ctx context.Context) ([]sqlitedb.McpToken, error) {
+	rows, err := p.q.ListMCPTokens(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]sqlitedb.McpToken, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, sqlitedb.McpToken(row))
+	}
+	return out, nil
+}
+
+func (p pgQueries) TouchMCPToken(ctx context.Context, arg sqlitedb.TouchMCPTokenParams) error {
+	return p.q.TouchMCPToken(ctx, pgdb.TouchMCPTokenParams(arg))
+}

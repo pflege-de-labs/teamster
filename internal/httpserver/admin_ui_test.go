@@ -255,8 +255,9 @@ func TestFormsDelete(t *testing.T) {
 		path   string
 		id     string
 		remain func(*fakeStore) int
+		unused bool // a route still naming the record would refuse the delete
 	}{
-		{name: "template", path: "/admin/templates/delete", id: "tmpl", remain: func(s *fakeStore) int { return len(s.templates) }},
+		{name: "template", path: "/admin/templates/delete", id: "tmpl", remain: func(s *fakeStore) int { return len(s.templates) }, unused: true},
 		{name: "destination", path: "/admin/destinations/delete", id: "dest", remain: func(s *fakeStore) int { return len(s.destinations) }},
 		{name: "route", path: "/admin/routes/delete", id: "route", remain: func(s *fakeStore) int { return len(s.routes) }},
 	}
@@ -266,6 +267,9 @@ func TestFormsDelete(t *testing.T) {
 			t.Parallel()
 
 			st := seededUIStore()
+			if tt.unused {
+				delete(st.routes, "route")
+			}
 			rec := postForm(t, newTestServer(t, st, &fakeMessenger{}).Handler, tt.path, url.Values{"id": {tt.id}}, nil)
 
 			if rec.Code != http.StatusSeeOther {

@@ -377,3 +377,74 @@ func TestGrantsKeepTheFormFromMovingOutOfScopeDestinations(t *testing.T) {
 		t.Errorf("outside = %+v, want it left where it was", got)
 	}
 }
+
+// A webhook endpoint posting into a channel outside the granted Teams is not
+// there for a scoped role, by id as much as in the list: reading it, pointing
+// it at a channel in scope, replacing its token or deleting it.
+func TestGrantsHideOutOfScopeWebhooksByID(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		role       authz.Role
+		method     string
+		path       string
+		body       string
+		wantStatus int
+	}{
+		{name: "viewer reads inside", role: authz.RoleViewer, method: http.MethodGet, path: "/api/webhooks/in", wantStatus: http.StatusOK},
+		{name: "viewer reads outside", role: authz.RoleViewer, method: http.MethodGet, path: "/api/webhooks/out", wantStatus: http.StatusNotFound},
+		{name: "editor reads outside", role: authz.RoleEditor, method: http.MethodGet, path: "/api/webhooks/out", wantStatus: http.StatusNotFound},
+		{
+			name: "editor points outside into scope", role: authz.RoleEditor, method: http.MethodPut, path: "/api/webhooks/out",
+			body: `{"team_slug":"payments","channel_slug":"alerts","destination_id":"inside"}`, wantStatus: http.StatusNotFound,
+		},
+		{name: "editor replaces the token outside", role: authz.RoleEditor, method: http.MethodPost, path: "/api/webhooks/out/rotate", wantStatus: http.StatusNotFound},
+		{name: "editor deletes outside", role: authz.RoleEditor, method: http.MethodDelete, path: "/api/webhooks/out", wantStatus: http.StatusNotFound},
+		{name: "editor reads missing", role: authz.RoleEditor, method: http.MethodGet, path: "/api/webhooks/nope", wantStatus: http.StatusNotFound},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			st := scopedWebhookStore(t, tt.role)
+			rec := asRole(t, newTestServer(t, st, &fakeMessenger{}).Handler, tt.method, tt.path, tt.body)
+			if rec.Code != tt.wantStatus {
+				t.Errorf("%s %s = %d, want %d (%s)", tt.method, tt.path, rec.Code, tt.wantStatus, rec.Body.String())
+			}
+			if strings.Contains(rec.Body.String(), `"payments"`) {
+				t.Errorf("the answer shows the out-of-scope endpoint: %s", rec.Body.String())
+			}
+			if got := st.webhooks["out"]; got.DestinationID != "outside" || got.TokenHash != "old" {
+				t.Errorf("out = %+v, want it untouched", got)
+			}
+		})
+	}
+}
+
+// The form takes the same way round as the API: naming an out-of-scope id and
+// a destination inside scope must not repoint it.
+func TestGrantsKeepTheFormFromRepointingOutOfScopeWebhooks(t *testing.T) {
+	t.Parallel()
+
+	st := scopedWebhookStore(t, authz.RoleEditor)
+	handler := newTestServer(t, st, &fakeMessenger{}).Handler
+
+	form := url.Values{"id": {"out"}, "team_slug": {"payments"}, "channel_slug": {"alerts"}, "destination_id": {"inside"}}
+	postForm(t, handler, "/admin/webhooks", form, map[string]string{"Sec-Fetch-Site": "same-origin"})
+
+	if got := st.webhooks["out"]; got.DestinationID != "outside" {
+		t.Errorf("out = %+v, want it left where it was", got)
+	}
+}
+
+// scopedWebhookStore is scopedStore with an endpoint posting inside the granted Team and one outside it.
+func scopedWebhookStore(t *testing.T, role authz.Role) *fakeStore {
+	t.Helper()
+
+	st := scopedStore(t, role)
+	st.webhooks["in"] = models.WebhookEndpoint{ID: "in", TeamSlug: "platform", ChannelSlug: "alerts", DestinationID: "inside", TokenHash: "old"}
+	st.webhooks["out"] = models.WebhookEndpoint{ID: "out", TeamSlug: "payments", ChannelSlug: "alerts", DestinationID: "outside", TokenHash: "old"}
+	return st
+}

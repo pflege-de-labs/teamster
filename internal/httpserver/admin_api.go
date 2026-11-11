@@ -90,10 +90,12 @@ func (s *Server) handleTemplateByID(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, http.StatusOK, updated)
 	case http.MethodDelete:
-		if err := s.deleteOwned(ctx, typeTemplate, id, func(ctx context.Context, tx store.Store) error {
-			return tx.DeleteTemplate(ctx, id)
-		}); err != nil {
-			writeError(w, r, http.StatusInternalServerError, err)
+		if err := s.deleteUnusedTemplate(r, id); err != nil {
+			status := http.StatusInternalServerError
+			if errors.Is(err, errTemplateInUse) {
+				status = http.StatusConflict
+			}
+			writeError(w, r, status, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
