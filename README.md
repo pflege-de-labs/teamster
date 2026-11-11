@@ -866,6 +866,9 @@ and **Teams V2 webhook**. Leave all unticked for any.
 - A route whose selector pins `teamster_source` only offers templates for that webhook.
 - An event that reaches a template not written for its webhook gets its webhook's default template
   instead, or the built-in message when there is none, and a warning is logged.
+- A template that a route or a Teams V2 endpoint still uses cannot be deleted. The refusal names
+  the routes and webhooks to give another template first; those you may not read are only counted.
+  `DELETE /api/templates/{id}` answers `409 Conflict` with the same message.
 
 ### Default templates
 
@@ -888,9 +891,10 @@ that webhook already has a default:
 | Universal webhook (default) | The sender's own card or text when it sent one, otherwise a state-coloured card: summary, state, description, labels and the URL |
 | Teams V2 webhook (default) | The payload's card, a MessageCard converted to one, or its text alone |
 
-They are ordinary templates: edit or delete them freely. A deleted preset is not recreated. The
-same presets are under **Start from a preset** in the template editor, which fills the name, title,
-text, card and webhooks in one go. The editor also offers the two Teams V2 layouts described under
+They are ordinary templates: edit them freely, or delete them once nothing uses them. A deleted
+preset is not recreated. The same presets are under **Start from a preset** in the template editor,
+which fills the name, title, text, card and webhooks in one go. The editor also offers the two
+Teams V2 layouts described under
 [Teams V2 (Power Automate) webhook](#teams-v2-power-automate-webhook), which are never stored on
 their own.
 
