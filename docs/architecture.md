@@ -1286,6 +1286,16 @@ pickers rebuild from stored values. Team and channel names are filled in by scri
 Graph endpoints, the ID kept. When Graph cannot list Teams, both fields stay typeable, and a save
 without a Team or channel is a 422.
 
+Templates follow on the same frame. `pagedRecord` names the converted sections, so
+`recordEditPath` and the old-link redirects of `/admin` cover them all. The template record puts the
+preview in an aside next to the record, outside its view and edit parts, so both show one rendering:
+`preview.js` reads `#template-form`, which is the edit form, or for someone without `update` a
+hidden form of the stored fields in the view part. `data-preview-auto` renders once on load. Its
+Used by lists readable routes and webhook endpoints that name the template, the webhooks it is the
+default for, and the global default route. The source defaults form stays on the list and posts to
+`/admin/templates/source-defaults`. The CodeMirror editors are built while the edit part is hidden
+and measure themselves once it is shown.
+
 ### Editor completion
 
 The template's title, text and card fields, a route's label selector and the routing page's check

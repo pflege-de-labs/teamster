@@ -135,7 +135,7 @@ exactly once. It makes NATS a delivery dependency
 
 The other resources get list, record and new pages on the frame of
 [ADR 0105](adr/0105-give-each-record-a-page-of-its-own.md), one pull request each, in this
-order: templates, webhooks, routes (a tree in the list; the new page takes `?parent=<id>`), groups,
+order: webhooks, routes (a tree in the list; the new page takes `?parent=<id>`), groups,
 access tokens (secret shown once), recipients and users (unlink or disable only), delivery
 permissions (list and new only). Each keeps its old `?edit=` link working with a 301.
 
