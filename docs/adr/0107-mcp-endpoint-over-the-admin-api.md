@@ -32,9 +32,10 @@ user without a second authorization path.
   that is already clean. `apiPath` refuses an id that is empty, contains `/`, or is exactly `.` or
   `..`, and escapes the rest. Every tool must also land on its own mux pattern, so a reserved
   sibling id such as `global-default` cannot turn `/api/routes/{id}` into
-  `/api/routes/global-default`. * **Offered tools follow the user.** `list_sampled_labels` is
-  offered only when samples are on and the user may complete labels. * **A metric.**
-  `teamster.mcp.tool_calls{tool,outcome}` counts every call.
+  `/api/routes/global-default`.
+* **Offered tools follow the user.** `list_sampled_labels` is offered only when samples are on and
+  the user may complete labels.
+* **A metric.** `teamster.mcp.tool_calls{tool,outcome}` counts every call.
 
 Alternatives considered:
 
