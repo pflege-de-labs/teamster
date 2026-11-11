@@ -728,6 +728,32 @@ files above are still read for every key it does not set.&lt;/p&gt;
 &lt;/tr&gt;
 &lt;/tbody&gt;
 &lt;/table&gt;
+&lt;h2 data-hextra-search-id="mcp"&gt;MCP&lt;span class="hx:absolute hx:-mt-20" id="mcp"&gt;&lt;/span&gt;
+&lt;a href="#mcp" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Key&lt;/th&gt;
+&lt;th&gt;Environment variable&lt;/th&gt;
+&lt;th&gt;Default&lt;/th&gt;
+&lt;th&gt;Description&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;mcp.enabled&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;TEAMSTER_MCP_ENABLED&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;false&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;Serve the MCP endpoint at &lt;code&gt;/mcp&lt;/code&gt; and let users mint MCP tokens.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;mcp.read-only&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;TEAMSTER_MCP_READ_ONLY&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;false&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;Refuse every MCP tool that writes, whoever the user is.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;See &lt;a href="../../guides/mcp/"&gt;Connect an AI assistant over MCP&lt;/a&gt;.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="event-samples"&gt;Event samples&lt;span class="hx:absolute hx:-mt-20" id="event-samples"&gt;&lt;/span&gt;
 &lt;a href="#event-samples" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;table&gt;
 &lt;thead&gt;
@@ -7125,6 +7151,8 @@ it again. Put it in the sender&amp;rsquo;s secret store.&lt;/p&gt;
 &lt;a href="#configure-the-sender" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;See &lt;a href="../alertmanager/"&gt;Send alerts from Alertmanager&lt;/a&gt; or
 &lt;a href="../universal-webhook/"&gt;Send events with the universal webhook&lt;/a&gt;.&lt;/p&gt;
 &lt;/div&gt;
+&lt;p&gt;MCP tokens for AI assistants are a separate kind, minted on the same page; see
+&lt;a href="../mcp/"&gt;Connect an AI assistant over MCP&lt;/a&gt;.&lt;/p&gt;
 &lt;p&gt;You see and revoke the tokens you created. Webhook admins and admins see and revoke everyone&amp;rsquo;s. The
 page lists when each token was last used, to within an hour.&lt;/p&gt;
 &lt;p&gt;Scripts can do the same through the API, with a session or the local admin credentials:&lt;/p&gt;
@@ -7345,12 +7373,12 @@ credential, as it was before.&lt;/p&gt;
 &lt;a href="#create-the-destination" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;The channel the sender posts into must exist as a destination in Teamster. Create it under
 &lt;strong&gt;Configuration → Destinations&lt;/strong&gt; with &lt;strong&gt;New destination&lt;/strong&gt; if it does not.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="create-the-endpoint"&gt;Create the endpoint&lt;span class="hx:absolute hx:-mt-20" id="create-the-endpoint"&gt;&lt;/span&gt;
-&lt;a href="#create-the-endpoint" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Under &lt;strong&gt;Configuration → Webhooks&lt;/strong&gt;, in &lt;strong&gt;Teams V2 webhooks&lt;/strong&gt;, pick the destination and give the URL
-two readable
-segments for the team and the channel. Segments are lower case letters, digits and hyphens, up to
-64 characters, starting and ending with a letter or digit.&lt;/p&gt;
-&lt;p&gt;The page that answers the form shows the full URL, token included, once. Teamster stores only a
-digest of the token and cannot show it again.&lt;/p&gt;
+&lt;a href="#create-the-endpoint" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Under &lt;strong&gt;Configuration → Webhooks&lt;/strong&gt;, press &lt;strong&gt;New webhook&lt;/strong&gt;, pick the destination and give the URL
+two readable segments for the team and the channel. Segments are lower case letters, digits and
+hyphens, up to 64 characters, starting and ending with a letter or digit.&lt;/p&gt;
+&lt;p&gt;Saving opens the webhook&amp;rsquo;s page, with the full URL, token included, in a banner. It is shown once.
+Teamster stores only a digest of the token and cannot show it again, so copy it now. Reloading the
+page shows the webhook without the token, and does not create a second one.&lt;/p&gt;
 &lt;p&gt;The URL starts with &lt;code&gt;server.webhook-url&lt;/code&gt; when it is set, and otherwise with the scheme and host
 you read the admin UI on. If the admin UI sits on its own hostname, set &lt;code&gt;server.webhook-url&lt;/code&gt; to
 the address senders reach, or the URL names a host they cannot. A URL already handed out with the
@@ -7376,8 +7404,19 @@ data-copied-label="Copied!"
 &lt;p&gt;A &lt;code&gt;200&lt;/code&gt; means the message was delivered. The body is the universal webhook&amp;rsquo;s report, such as
 &lt;code&gt;{&amp;quot;status&amp;quot;:&amp;quot;ok&amp;quot;}&lt;/code&gt;.&lt;/p&gt;
 &lt;/div&gt;
-&lt;p&gt;If the URL is lost or leaks, use &lt;strong&gt;New token&lt;/strong&gt; on the endpoint. It replaces the token, and the old
-URL stops working at once.&lt;/p&gt;
+&lt;p&gt;If the URL is lost or leaks, press &lt;strong&gt;New token&lt;/strong&gt; on the endpoint&amp;rsquo;s page. It replaces the token, and
+the old URL stops working at once. The page shows the new URL once, as it did on creation.&lt;/p&gt;
+&lt;h2 data-hextra-search-id="change-share-or-delete-an-endpoint"&gt;Change, share or delete an endpoint&lt;span class="hx:absolute hx:-mt-20" id="change-share-or-delete-an-endpoint"&gt;&lt;/span&gt;
+&lt;a href="#change-share-or-delete-an-endpoint" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Open the endpoint from the list under &lt;strong&gt;Configuration → Webhooks&lt;/strong&gt;. Its page shows the URL path
+without the token, the destination and the template, each linked to its page, and a link to the
+route Teamster keeps for it.&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Edit&lt;/strong&gt; turns the page into the form, in place. Changing the segments changes the URL path; the
+token stays. If saving fails, the form keeps what you typed.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Delete&lt;/strong&gt; removes the endpoint.&lt;/li&gt;
+&lt;li&gt;The page also shows who the endpoint is shared with and lets you change it; see
+&lt;a href="../../concepts/ownership/"&gt;Ownership and sharing&lt;/a&gt;.&lt;/li&gt;
+&lt;/ul&gt;
 &lt;h2 data-hextra-search-id="what-the-sender-may-post"&gt;What the sender may post&lt;span class="hx:absolute hx:-mt-20" id="what-the-sender-may-post"&gt;&lt;/span&gt;
 &lt;a href="#what-the-sender-may-post" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Teamster recognises the shape from the body:&lt;/p&gt;
 &lt;div class="hextra-scrollbar hx:overflow-x-auto hx:overflow-y-hidden hx:overscroll-x-contain"&gt;
@@ -7454,8 +7493,8 @@ and
 are in the repository.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="shape-the-message-with-a-template"&gt;Shape the message with a template&lt;span class="hx:absolute hx:-mt-20" id="shape-the-message-with-a-template"&gt;&lt;/span&gt;
 &lt;a href="#shape-the-message-with-a-template" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;By default the payload is posted as it came, followed by a small card saying that no template is
-defined. To shape it, pick a &lt;strong&gt;Template&lt;/strong&gt; in the endpoint&amp;rsquo;s form. Only templates that handle Teams
-V2 payloads are offered; see &lt;a href="../templates/"&gt;Write templates&lt;/a&gt;.&lt;/p&gt;
+defined. To shape it, pick a &lt;strong&gt;Template&lt;/strong&gt; when you create or edit the endpoint. Only templates that
+handle Teams V2 payloads are offered; see &lt;a href="../templates/"&gt;Write templates&lt;/a&gt;.&lt;/p&gt;
 &lt;p&gt;In such a template:&lt;/p&gt;
 &lt;ul&gt;
 &lt;li&gt;&lt;code&gt;.Event.Title&lt;/code&gt;, &lt;code&gt;.Event.Text&lt;/code&gt; and &lt;code&gt;.Event.Card&lt;/code&gt; hold the parsed message. &lt;code&gt;.Event.Text&lt;/code&gt; is already
@@ -7507,7 +7546,7 @@ that select the same messages to deliver them somewhere else as well.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="find-the-endpoints-route"&gt;Find the endpoint&amp;rsquo;s route&lt;span class="hx:absolute hx:-mt-20" id="find-the-endpoints-route"&gt;&lt;/span&gt;
 &lt;a href="#find-the-endpoints-route" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Open &lt;strong&gt;Configuration → Routes&lt;/strong&gt;. The route named &lt;code&gt;webhook &amp;lt;team&amp;gt;/&amp;lt;channel&amp;gt;&lt;/code&gt; is marked
 &lt;strong&gt;Managed by webhook &lt;code&gt;&amp;lt;team&amp;gt;/&amp;lt;channel&amp;gt;&lt;/code&gt;&lt;/strong&gt;. Its selector is &lt;code&gt;teamster_source=teamsv2&lt;/code&gt;,
-&lt;code&gt;teamster_team=&amp;lt;team&amp;gt;&lt;/code&gt; and &lt;code&gt;teamster_channel=&amp;lt;channel&amp;gt;&lt;/code&gt;. The endpoint&amp;rsquo;s form links to it as
+&lt;code&gt;teamster_team=&amp;lt;team&amp;gt;&lt;/code&gt; and &lt;code&gt;teamster_channel=&amp;lt;channel&amp;gt;&lt;/code&gt;. The endpoint&amp;rsquo;s page links to it as
 &lt;strong&gt;Route of this webhook&lt;/strong&gt;.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="add-a-route"&gt;Add a route&lt;span class="hx:absolute hx:-mt-20" id="add-a-route"&gt;&lt;/span&gt;
 &lt;a href="#add-a-route" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Create a route with a selector of the three labels, or with &lt;code&gt;teamster_source=teamsv2&lt;/code&gt; and one of
@@ -7806,7 +7845,10 @@ that webhook already has one:&lt;/p&gt;
 &lt;/tr&gt;
 &lt;/tbody&gt;
 &lt;/table&gt;
-&lt;p&gt;They are ordinary templates. Edit or delete them freely; a deleted preset is not recreated.&lt;/p&gt;
+&lt;p&gt;They are ordinary templates. Edit them freely; a deleted preset is not recreated.&lt;/p&gt;
+&lt;p&gt;A template that a route or a Teams V2 webhook still uses cannot be deleted. Teamster names the
+routes and webhooks instead, so you can choose another template there first; those you may not read
+are only counted. &lt;code&gt;DELETE /api/templates/{id}&lt;/code&gt; answers &lt;code&gt;409 Conflict&lt;/code&gt; with the same message.&lt;/p&gt;
 &lt;p&gt;The global default route has its own template, chosen on its row in the Routes panel or with
 &lt;code&gt;PUT /api/routes/global-default&lt;/code&gt; and &lt;code&gt;{&amp;quot;template_id&amp;quot;: &amp;quot;…&amp;quot;}&lt;/code&gt;. Without one it sends the built-in
 message.&lt;/p&gt;
@@ -9040,9 +9082,10 @@ data-copied-label="Copied!"
 &lt;p&gt;Record who changed what in Teamster&amp;rsquo;s configuration, read it in the admin UI, and export it to a
 file or NATS JetStream for your SIEM.&lt;/p&gt;
 &lt;p&gt;Auditing is off until you configure it. With it on, every change is recorded: templates,
-destinations, routes, webhook endpoints, access tokens, grants, groups, the default template and
-destination, linked chats, and install runs someone asked for. An event says who made the change,
-how they signed in (&lt;code&gt;session&lt;/code&gt;, &lt;code&gt;basic&lt;/code&gt; or &lt;code&gt;cli&lt;/code&gt;), the request id, and the record before and after.
+destinations, routes, webhook endpoints, access tokens, MCP tokens, grants, groups, the default
+template and destination, linked chats, and install runs someone asked for. An event says who made
+the change, how they signed in (&lt;code&gt;session&lt;/code&gt;, &lt;code&gt;basic&lt;/code&gt; or &lt;code&gt;cli&lt;/code&gt;), the request id, and the record before
+and after. A change made by an AI assistant over &lt;a href="../mcp/"&gt;MCP&lt;/a&gt; carries &lt;code&gt;via&lt;/code&gt; = &lt;code&gt;mcp&lt;/code&gt;.
 Credentials are never included.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="keep-the-trail-in-the-database"&gt;Keep the trail in the database&lt;span class="hx:absolute hx:-mt-20" id="keep-the-trail-in-the-database"&gt;&lt;/span&gt;
 &lt;a href="#keep-the-trail-in-the-database" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
@@ -9700,7 +9743,140 @@ data-copied-label="Copied!"
 &lt;p&gt;&lt;code&gt;--ignore-missing&lt;/code&gt; skips the assets you did not download. On macOS without GNU coreutils, use
 &lt;code&gt;shasum -a 256 --ignore-missing -c checksums.txt&lt;/code&gt;.&lt;/p&gt;
 &lt;/div&gt;
-&lt;p&gt;The binary reports its version with &lt;code&gt;teamster --version&lt;/code&gt;. See &lt;a href="../../reference/cli/"&gt;CLI&lt;/a&gt;.&lt;/p&gt;</description></item><item><title>Release notes</title><link>https://pflege-de-labs.github.io/teamster/dev/docs/release-notes/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/dev/docs/release-notes/</guid><description>
+&lt;p&gt;The binary reports its version with &lt;code&gt;teamster --version&lt;/code&gt;. See &lt;a href="../../reference/cli/"&gt;CLI&lt;/a&gt;.&lt;/p&gt;</description></item><item><title>Connect an AI assistant over MCP</title><link>https://pflege-de-labs.github.io/teamster/dev/docs/guides/mcp/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/dev/docs/guides/mcp/</guid><description>
+&lt;p&gt;Let an AI assistant such as Claude Code read, and optionally change, your templates, destinations
+and routes through Teamster&amp;rsquo;s MCP endpoint, as the person who gave it a token.&lt;/p&gt;
+&lt;p&gt;MCP is off until an operator turns it on. Nothing below works before that.&lt;/p&gt;
+&lt;h2 data-hextra-search-id="enable-mcp"&gt;Enable MCP&lt;span class="hx:absolute hx:-mt-20" id="enable-mcp"&gt;&lt;/span&gt;
+&lt;a href="#enable-mcp" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
+&lt;div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nt"&gt;mcp&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;enabled&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="kc"&gt;true&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="c"&gt;# serve /mcp and let users mint MCP tokens at /admin/tokens&lt;/span&gt;&lt;span class="w"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nt"&gt;read-only&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="kc"&gt;false&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="c"&gt;# refuse every tool that writes, whoever the user is&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class="hextra-code-copy-btn-container hx:opacity-0 hx:transition hx:group-hover/code:opacity-100 hx:flex hx:gap-1 hx:absolute hx:m-[11px] hx:right-0 hx:top-0"&gt;
+&lt;button
+class="hextra-code-copy-btn hx:group/copybtn hx:cursor-pointer hx:transition-all hx:active:opacity-50 hx:bg-primary-700/5 hx:border hx:border-black/5 hx:text-gray-600 hx:hover:text-gray-900 hx:rounded-md hx:p-1.5 hx:dark:bg-primary-300/10 hx:dark:border-white/10 hx:dark:text-gray-400 hx:dark:hover:text-gray-50"
+title="Copy code"
+aria-label="Copy code"
+data-copied-label="Copied!"
+&gt;
+&lt;div class="hextra-copy-icon hx:group-[.copied]/copybtn:hidden hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;div class="hextra-success-icon hx:hidden hx:group-[.copied]/copybtn:block hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;/button&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;p&gt;Or &lt;code&gt;TEAMSTER_MCP_ENABLED=true&lt;/code&gt; and &lt;code&gt;TEAMSTER_MCP_READ_ONLY=true&lt;/code&gt;. Both default to &lt;code&gt;false&lt;/code&gt;. See
+&lt;a href="../../reference/configuration/#mcp"&gt;Configuration&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;read-only&lt;/code&gt; is a deployment-wide switch. With it on, the endpoint offers no write tool and refuses
+a write even if a client calls one, whatever the token or its user allows.&lt;/p&gt;
+&lt;h2 data-hextra-search-id="mint-a-token"&gt;Mint a token&lt;span class="hx:absolute hx:-mt-20" id="mint-a-token"&gt;&lt;/span&gt;
+&lt;a href="#mint-a-token" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Every signed-in user, a viewer included, can mint an MCP token. It is separate from the
+&lt;a href="../webhook-tokens/"&gt;webhook tokens&lt;/a&gt; on the same page.&lt;/p&gt;
+&lt;div class="hextra-steps hx:ml-4 hx:mb-12 hx:ltr:border-l hx:rtl:border-r hx:border-gray-200 hx:ltr:pl-6 hx:rtl:pr-6 hx:dark:border-neutral-800 [counter-reset:step]"&gt;
+&lt;h3 data-hextra-search-id="create-it"&gt;Create it&lt;span class="hx:absolute hx:-mt-20" id="create-it"&gt;&lt;/span&gt;
+&lt;a href="#create-it" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Open &lt;strong&gt;Access → Access tokens&lt;/strong&gt; (&lt;strong&gt;/admin/tokens&lt;/strong&gt;) and find &lt;strong&gt;MCP access tokens&lt;/strong&gt;. Name the token
+after the client, for example &lt;code&gt;claude-code-laptop&lt;/code&gt;; names are unique per user. Choose the &lt;strong&gt;Access&lt;/strong&gt;:
+&lt;strong&gt;read only&lt;/strong&gt;, or &lt;strong&gt;read and write&lt;/strong&gt;. Select &lt;strong&gt;Create token&lt;/strong&gt;.&lt;/p&gt;
+&lt;h3 data-hextra-search-id="copy-it"&gt;Copy it&lt;span class="hx:absolute hx:-mt-20" id="copy-it"&gt;&lt;/span&gt;
+&lt;a href="#copy-it" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;The token, starting with &lt;code&gt;tmcp_&lt;/code&gt;, is shown once. Teamster stores only a digest, so it cannot show it
+again. Put it in the client&amp;rsquo;s secret store.&lt;/p&gt;
+&lt;/div&gt;
+&lt;p&gt;You see and revoke the tokens you minted, with &lt;strong&gt;Revoke&lt;/strong&gt;. Webhook admins and admins see and revoke
+everyone&amp;rsquo;s. A revoked token is refused from its next request.&lt;/p&gt;
+&lt;p&gt;Minting and revoking are recorded in the &lt;a href="../audit-trail/"&gt;audit trail&lt;/a&gt;.&lt;/p&gt;
+&lt;h2 data-hextra-search-id="what-a-token-can-do"&gt;What a token can do&lt;span class="hx:absolute hx:-mt-20" id="what-a-token-can-do"&gt;&lt;/span&gt;
+&lt;a href="#what-a-token-can-do" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;A token acts as the person who minted it, with their permissions as they are now, and never more.&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;It stops working when its creator is disabled.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Read only&lt;/strong&gt; cannot write, whatever the creator may do. &lt;strong&gt;Read and write&lt;/strong&gt; can change what the
+creator may change, and only while &lt;code&gt;mcp.read-only&lt;/code&gt; is off.&lt;/li&gt;
+&lt;li&gt;It opens &lt;code&gt;/mcp&lt;/code&gt; only. It does not open the webhooks or &lt;code&gt;/api&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;Every call goes through the admin API as the creator, so roles, grants and ownership apply as in
+the UI. See &lt;a href="../roles/"&gt;Manage roles and access&lt;/a&gt;.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The tools:&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Access&lt;/th&gt;
+&lt;th&gt;Tools&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;Read&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;list_templates&lt;/code&gt;, &lt;code&gt;get_template&lt;/code&gt;, &lt;code&gt;list_destinations&lt;/code&gt;, &lt;code&gt;get_destination&lt;/code&gt;, &lt;code&gt;list_routes&lt;/code&gt;, &lt;code&gt;get_route&lt;/code&gt;, &lt;code&gt;preview_template&lt;/code&gt;, &lt;code&gt;match_route&lt;/code&gt;, &lt;code&gt;list_teams&lt;/code&gt;, &lt;code&gt;list_channels&lt;/code&gt;, &lt;code&gt;list_sampled_labels&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;Write&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;create_template&lt;/code&gt;, &lt;code&gt;update_template&lt;/code&gt;, &lt;code&gt;delete_template&lt;/code&gt;, &lt;code&gt;create_destination&lt;/code&gt;, &lt;code&gt;update_destination&lt;/code&gt;, &lt;code&gt;delete_destination&lt;/code&gt;, &lt;code&gt;create_route&lt;/code&gt;, &lt;code&gt;update_route&lt;/code&gt;, &lt;code&gt;delete_route&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;Write tools go only to a &lt;strong&gt;read and write&lt;/strong&gt; token while &lt;code&gt;mcp.read-only&lt;/code&gt; is off.
+&lt;code&gt;list_sampled_labels&lt;/code&gt; needs &lt;a href="../../reference/configuration/#event-samples"&gt;event samples&lt;/a&gt;
+on, and a user who may edit templates or routes.&lt;/p&gt;
+&lt;h2 data-hextra-search-id="connect-an-assistant"&gt;Connect an assistant&lt;span class="hx:absolute hx:-mt-20" id="connect-an-assistant"&gt;&lt;/span&gt;
+&lt;a href="#connect-an-assistant" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Point the client at &lt;code&gt;/mcp&lt;/code&gt; on your Teamster URL, with the token as a bearer credential.&lt;/p&gt;
+&lt;div class="hextra-scrollbar hx:overflow-x-auto hx:overflow-y-hidden hx:overscroll-x-contain"&gt;
+&lt;div class="hx:mt-4 hx:flex hx:w-max hx:min-w-full hx:border-b hx:border-gray-200 hx:pb-px hx:dark:border-neutral-800" role="tablist"&gt;&lt;button class="hextra-tabs-toggle hx:cursor-pointer hx:data-[state=selected]:border-primary-500 hx:data-[state=selected]:text-primary-600 hx:data-[state=selected]:dark:border-primary-500 hx:data-[state=selected]:dark:text-primary-600 hx:mr-2 hx:rounded-t hx:p-2 hx:font-medium hx:leading-5 hx:transition-colors hx:-mb-0.5 hx:select-none hx:border-b-2 hx:border-transparent hx:text-gray-600 hx:hover:border-gray-200 hx:hover:text-black hx:dark:text-gray-200 hx:dark:hover:border-neutral-800 hx:dark:hover:text-white hx:hextra-focus-visible-inset" id="tabs-tab-tabs-01-0" role="tab" type="button" aria-controls="tabs-panel-tabs-01-0" aria-selected="true" tabindex="0" data-state="selected"&gt;&lt;span class="hx:inline-flex hx:items-center hx:gap-1.5"&gt;&lt;span&gt;Claude Code&lt;/span&gt;&lt;/span&gt;&lt;/button&gt;&lt;button class="hextra-tabs-toggle hx:cursor-pointer hx:data-[state=selected]:border-primary-500 hx:data-[state=selected]:text-primary-600 hx:data-[state=selected]:dark:border-primary-500 hx:data-[state=selected]:dark:text-primary-600 hx:mr-2 hx:rounded-t hx:p-2 hx:font-medium hx:leading-5 hx:transition-colors hx:-mb-0.5 hx:select-none hx:border-b-2 hx:border-transparent hx:text-gray-600 hx:hover:border-gray-200 hx:hover:text-black hx:dark:text-gray-200 hx:dark:hover:border-neutral-800 hx:dark:hover:text-white hx:hextra-focus-visible-inset" id="tabs-tab-tabs-01-1" role="tab" type="button" aria-controls="tabs-panel-tabs-01-1" aria-selected="false" tabindex="-1"&gt;&lt;span class="hx:inline-flex hx:items-center hx:gap-1.5"&gt;&lt;span&gt;Any MCP client&lt;/span&gt;&lt;/span&gt;&lt;/button&gt;&lt;/div&gt;
+&lt;/div&gt;
+&lt;div&gt;&lt;div class="hextra-tabs-panel hx:rounded-sm hx:pt-6 hx:hidden hx:data-[state=selected]:block" id="tabs-panel-tabs-01-0" role="tabpanel" aria-labelledby="tabs-tab-tabs-01-0" aria-hidden="false" tabindex="0" data-state="selected"&gt;&lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
+&lt;div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;claude mcp add --transport http teamster https://teamster.example.com/mcp &lt;span class="se"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; --header &lt;span class="s2"&gt;&amp;#34;Authorization: Bearer &amp;lt;token&amp;gt;&amp;#34;&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class="hextra-code-copy-btn-container hx:opacity-0 hx:transition hx:group-hover/code:opacity-100 hx:flex hx:gap-1 hx:absolute hx:m-[11px] hx:right-0 hx:top-0"&gt;
+&lt;button
+class="hextra-code-copy-btn hx:group/copybtn hx:cursor-pointer hx:transition-all hx:active:opacity-50 hx:bg-primary-700/5 hx:border hx:border-black/5 hx:text-gray-600 hx:hover:text-gray-900 hx:rounded-md hx:p-1.5 hx:dark:bg-primary-300/10 hx:dark:border-white/10 hx:dark:text-gray-400 hx:dark:hover:text-gray-50"
+title="Copy code"
+aria-label="Copy code"
+data-copied-label="Copied!"
+&gt;
+&lt;div class="hextra-copy-icon hx:group-[.copied]/copybtn:hidden hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;div class="hextra-success-icon hx:hidden hx:group-[.copied]/copybtn:block hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;/button&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;div class="hextra-tabs-panel hx:rounded-sm hx:pt-6 hx:hidden hx:data-[state=selected]:block" id="tabs-panel-tabs-01-1" role="tabpanel" aria-labelledby="tabs-tab-tabs-01-1" aria-hidden="true"&gt;Use the streamable HTTP transport with the URL &lt;code&gt;https://teamster.example.com/mcp&lt;/code&gt; and the header
+&lt;code&gt;Authorization: Bearer &amp;lt;token&amp;gt;&lt;/code&gt;. The endpoint is stateless: it keeps no session between requests.&lt;/div&gt;&lt;/div&gt;
+&lt;h2 data-hextra-search-id="install-the-claude-code-plugin"&gt;Install the Claude Code plugin&lt;span class="hx:absolute hx:-mt-20" id="install-the-claude-code-plugin"&gt;&lt;/span&gt;
+&lt;a href="#install-the-claude-code-plugin" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;The Teamster repository is a Claude Code plugin marketplace. The plugin &lt;code&gt;teamster&lt;/code&gt; connects Claude
+Code to the MCP endpoint and adds the skill &lt;code&gt;teamster-routing&lt;/code&gt;.&lt;/p&gt;
+&lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
+&lt;div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-text" data-lang="text"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;/plugin marketplace add pflege-de-labs/teamster
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;/plugin install teamster@teamster&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class="hextra-code-copy-btn-container hx:opacity-0 hx:transition hx:group-hover/code:opacity-100 hx:flex hx:gap-1 hx:absolute hx:m-[11px] hx:right-0 hx:top-0"&gt;
+&lt;button
+class="hextra-code-copy-btn hx:group/copybtn hx:cursor-pointer hx:transition-all hx:active:opacity-50 hx:bg-primary-700/5 hx:border hx:border-black/5 hx:text-gray-600 hx:hover:text-gray-900 hx:rounded-md hx:p-1.5 hx:dark:bg-primary-300/10 hx:dark:border-white/10 hx:dark:text-gray-400 hx:dark:hover:text-gray-50"
+title="Copy code"
+aria-label="Copy code"
+data-copied-label="Copied!"
+&gt;
+&lt;div class="hextra-copy-icon hx:group-[.copied]/copybtn:hidden hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;div class="hextra-success-icon hx:hidden hx:group-[.copied]/copybtn:block hx:pointer-events-none hx:h-4 hx:w-4"&gt;&lt;/div&gt;
+&lt;/button&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;p&gt;Claude Code asks for two values:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Teamster URL&lt;/strong&gt;: the base URL without &lt;code&gt;/mcp&lt;/code&gt;, for example &lt;code&gt;https://teamster.example.com&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;MCP token&lt;/strong&gt;: the &lt;code&gt;tmcp_&lt;/code&gt; token you minted. The plugin keeps it in Claude Code&amp;rsquo;s secure
+credential storage.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The skill guides the assistant through routing an alert: read the sampled labels, dry-run with
+&lt;code&gt;match_route&lt;/code&gt;, pick a destination, preview the template, write the route and confirm with
+&lt;code&gt;match_route&lt;/code&gt; again. It asks you before it deletes anything.&lt;/p&gt;
+&lt;h2 data-hextra-search-id="keep-it-safe"&gt;Keep it safe&lt;span class="hx:absolute hx:-mt-20" id="keep-it-safe"&gt;&lt;/span&gt;
+&lt;a href="#keep-it-safe" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Label values, annotations, template text and the names others chose reach the assistant, and anyone
+who can send an event or edit a record can write text there. Treat it as untrusted input.&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Prefer a read only token.&lt;/strong&gt; Mint a &lt;strong&gt;read and write&lt;/strong&gt; token only for an assistant that must
+change things.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Set &lt;code&gt;mcp.read-only&lt;/code&gt;&lt;/strong&gt; on a deployment where no assistant should ever write.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Give each client its own token&lt;/strong&gt;, so you can revoke one without breaking the others.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Audit it.&lt;/strong&gt; Changes made through MCP appear in the audit trail with &lt;code&gt;via&lt;/code&gt; set to &lt;code&gt;mcp&lt;/code&gt;, under
+the name of the token&amp;rsquo;s creator.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;See
+&lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0106-mcp-tokens-answer-to-their-creator.md" target="_blank" rel="noopener"&gt;ADR 0106&lt;/a&gt;
+and
+&lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0107-mcp-endpoint-over-the-admin-api.md" target="_blank" rel="noopener"&gt;ADR 0107&lt;/a&gt;
+for the design.&lt;/p&gt;</description></item><item><title>Release notes</title><link>https://pflege-de-labs.github.io/teamster/dev/docs/release-notes/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://pflege-de-labs.github.io/teamster/dev/docs/release-notes/</guid><description>
 &lt;p&gt;What changed in each release is recorded in two changelogs on GitHub:&lt;/p&gt;
 &lt;ul&gt;
 &lt;li&gt;&lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/CHANGELOG.md" target="_blank" rel="noopener"&gt;Teamster changelog&lt;/a&gt;: the
