@@ -16,81 +16,112 @@ import (
 // somebody guessing which of the two fields was wrong and how.
 var errInvalidSlug = errors.New("a URL segment may hold lower case letters, digits and hyphens, and must start and end with a letter or digit")
 
-// storeWebhook creates or updates the posted endpoint; token is set only for a new one, which needs it shown.
-func (s *Server) storeWebhook(r *http.Request) (models.WebhookEndpoint, string, error) {
-	posted := postedWebhook(r)
-	if err := s.mayRecord(r, writeAction(posted.ID), typeWebhookEndpoint, posted.ID); err != nil {
-		return posted, "", err
+// handleWebhookForm saves an endpoint. Creating one answers by rendering the
+// page rather than by redirecting, because the answer contains the token: a
+// redirect would carry it in a query string, and from there into the browser
+// history and this server's own access log.
+func (s *Server) handleWebhookForm(w http.ResponseWriter, r *http.Request) {
+	if !formGuard(adminTabPath("webhooks"), w, r) {
+		return
 	}
-	if err := validateWebhookEndpoint(posted); err != nil {
-		return posted, "", userError{err}
+
+	if err := s.mayRecord(r, writeAction(r.PostFormValue("id")), typeWebhookEndpoint, r.PostFormValue("id")); err != nil {
+		redirectTo(adminTabPath("webhooks"), w, r, "", visibleError(r.Context(), "save webhook", err))
+		return
 	}
-	allowed, err := s.mayDeliverToDestination(r, posted.DestinationID)
-	if err != nil {
-		return posted, "", err
-	}
-	if !allowed {
-		return posted, "", userError{errDeliveryRefused}
-	}
-	if !s.mayAttachTemplate(r, posted.TemplateID) {
-		return posted, "", userError{errTemplateRefused}
-	}
-	if err := s.endpointTemplateExists(r.Context(), posted); err != nil {
-		if errors.Is(err, errUnknownTemplate) {
-			err = userError{err}
+	// Otherwise moving an out-of-scope endpoint into scope would pass the delivery check.
+	if id := r.PostFormValue("id"); id != "" {
+		if _, err := s.endpointInScope(r, id); err != nil {
+			redirectTo(adminTabPath("webhooks"), w, r, "", visibleError(r.Context(), "save webhook", err))
+			return
 		}
-		return posted, "", err
 	}
-
-	// An existing endpoint keeps its token, so its senders keep working.
-	if posted.ID != "" {
-		_, err := s.updateEndpoint(r, posted)
-		return posted, "", err
-	}
-	token, err := newWebhookToken()
+	endpoint, err := webhookEndpointFromForm(r)
 	if err != nil {
-		return posted, "", err
-	}
-	posted.TokenHash = hashToken(token)
-	created, err := s.createEndpoint(r, posted)
-	return created, token, err
-}
-
-// handleWebhookRotate replaces the token. It is a separate endpoint because
-// saving an endpoint must not change the secret a sender is already using.
-func (s *Server) handleWebhookRotate(w http.ResponseWriter, r *http.Request) {
-	if !formGuard("/admin/webhooks", w, r) {
-		return
-	}
-	// The answer is the record page, so whoever may not read the record learns nothing, not even that it exists.
-	endpoint, ok := s.readableEndpoint(w, r, r.PostFormValue("id"))
-	if !ok {
-		return
-	}
-	ctx := r.Context()
-	back := recordEditPath("webhooks", endpoint.ID)
-	if err := s.mayRecord(r, authz.ActionUpdate, typeWebhookEndpoint, endpoint.ID); err != nil {
-		redirectTo(back, w, r, "", visibleError(ctx, "save webhook", err))
+		err = userError{err}
+		redirectTo(adminTabPath("webhooks"), w, r, "", visibleError(r.Context(), "save webhook", err))
 		return
 	}
 
 	allowed, err := s.mayDeliverToDestination(r, endpoint.DestinationID)
 	if err != nil {
-		redirectTo(back, w, r, "", visibleError(r.Context(), "save webhook", err))
+		redirectTo(adminTabPath("webhooks"), w, r, "", visibleError(r.Context(), "save webhook", err))
 		return
 	}
 	if !allowed {
-		redirectTo(back, w, r, "", errDeliveryRefused.Error())
+		redirectTo(adminTabPath("webhooks"), w, r, "", errDeliveryRefused.Error())
+		return
+	}
+	if !s.mayAttachTemplate(r, endpoint.TemplateID) {
+		redirectTo(adminTabPath("webhooks"), w, r, "", errTemplateRefused.Error())
+		return
+	}
+	if err := s.endpointTemplateExists(r.Context(), endpoint); err != nil {
+		redirectTo(adminTabPath("webhooks"), w, r, "", visibleError(r.Context(), "save webhook", err))
+		return
+	}
+
+	// An existing endpoint keeps its token, so its senders keep working.
+	if endpoint.ID != "" {
+		if _, err := s.updateEndpoint(r, endpoint); err != nil {
+			redirectTo(adminTabPath("webhooks"), w, r, "", visibleError(r.Context(), "save webhook", err))
+			return
+		}
+		redirectTo(adminTabPath("webhooks"), w, r, "Webhook updated.", "")
 		return
 	}
 
 	token, err := newWebhookToken()
 	if err != nil {
-		redirectTo(back, w, r, "", visibleError(r.Context(), "save webhook", err))
+		redirectTo(adminTabPath("webhooks"), w, r, "", visibleError(r.Context(), "save webhook", err))
+		return
+	}
+	endpoint.TokenHash = hashToken(token)
+
+	created, err := s.createEndpoint(r, endpoint)
+	if err != nil {
+		redirectTo(adminTabPath("webhooks"), w, r, "", visibleError(r.Context(), "save webhook", err))
+		return
+	}
+
+	s.revealWebhookURL(w, r, created, token, "Webhook created.")
+}
+
+// handleWebhookRotate replaces the token. It is a separate endpoint because
+// saving an endpoint must not change the secret a sender is already using.
+func (s *Server) handleWebhookRotate(w http.ResponseWriter, r *http.Request) {
+	if !formGuard(adminTabPath("webhooks"), w, r) {
+		return
+	}
+
+	ctx := r.Context()
+	if err := s.mayRecord(r, authz.ActionUpdate, typeWebhookEndpoint, r.PostFormValue("id")); err != nil {
+		redirectTo(adminTabPath("webhooks"), w, r, "", visibleError(r.Context(), "save webhook", err))
+		return
+	}
+	endpoint, err := s.store.GetWebhookEndpoint(ctx, r.PostFormValue("id"))
+	if err != nil {
+		redirectTo(adminTabPath("webhooks"), w, r, "", visibleError(r.Context(), "save webhook", err))
+		return
+	}
+
+	allowed, err := s.mayDeliverToDestination(r, endpoint.DestinationID)
+	if err != nil {
+		redirectTo(adminTabPath("webhooks"), w, r, "", visibleError(r.Context(), "save webhook", err))
+		return
+	}
+	if !allowed {
+		redirectTo(adminTabPath("webhooks"), w, r, "", errDeliveryRefused.Error())
+		return
+	}
+
+	token, err := newWebhookToken()
+	if err != nil {
+		redirectTo(adminTabPath("webhooks"), w, r, "", visibleError(r.Context(), "save webhook", err))
 		return
 	}
 	if err := s.store.RotateWebhookEndpointToken(ctx, endpoint.ID, hashToken(token)); err != nil {
-		redirectTo(back, w, r, "", visibleError(r.Context(), "save webhook", err))
+		redirectTo(adminTabPath("webhooks"), w, r, "", visibleError(r.Context(), "save webhook", err))
 		return
 	}
 
@@ -106,12 +137,6 @@ func (s *Server) deleteWebhookEndpoint(r *http.Request) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	// Out of scope reads as missing, as on the record page.
-	if visible, err := s.listEndpoints(r, []models.WebhookEndpoint{endpoint}); err != nil {
-		return "", err
-	} else if len(visible) == 0 {
-		return "", store.ErrNotFound
-	}
 	allowed, err := s.mayDeliverToDestination(r, endpoint.DestinationID)
 	if err != nil {
 		return "", err
@@ -125,15 +150,27 @@ func (s *Server) deleteWebhookEndpoint(r *http.Request) (string, error) {
 	return "Webhook deleted.", nil
 }
 
-// postedWebhook is the endpoint as the form submitted it, slugs normalised.
-func postedWebhook(r *http.Request) models.WebhookEndpoint {
-	return models.WebhookEndpoint{
+// revealWebhookURL renders the admin page with the one sight of the token there
+// will ever be.
+func (s *Server) revealWebhookURL(w http.ResponseWriter, r *http.Request, endpoint models.WebhookEndpoint, token, notice string) {
+	page := s.adminPage(r, notice, "")
+	page.NewWebhookURL = s.webhookURL(r, endpoint, token)
+	page.Tab = "webhooks"
+	s.renderAdmin(w, r, page)
+}
+
+func webhookEndpointFromForm(r *http.Request) (models.WebhookEndpoint, error) {
+	endpoint := models.WebhookEndpoint{
 		ID:            r.PostFormValue("id"),
 		TeamSlug:      strings.ToLower(strings.TrimSpace(r.PostFormValue("team_slug"))),
 		ChannelSlug:   strings.ToLower(strings.TrimSpace(r.PostFormValue("channel_slug"))),
 		DestinationID: r.PostFormValue("destination_id"),
 		TemplateID:    r.PostFormValue("template_id"),
 	}
+	if err := validateWebhookEndpoint(endpoint); err != nil {
+		return models.WebhookEndpoint{}, err
+	}
+	return endpoint, nil
 }
 
 func validateWebhookEndpoint(endpoint models.WebhookEndpoint) error {
