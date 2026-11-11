@@ -11,7 +11,8 @@ person who made it, and stop working when their access stops, as scoped webhook 
 
 A row in `access_tokens` would not do. The previous release, and this one, match a presented
 webhook token against `access_tokens` alone, so an MCP token stored there would be admitted to both
-webhooks. Every signed-in user must also be able to mint one, including a viewer, who has no
+webhooks: a token with an empty `scope` is a legacy token that opens both, and both releases look
+tokens up there. Every signed-in user must also be able to mint one, including a viewer, who has no
 webhook to use.
 
 ## Decision
@@ -49,6 +50,6 @@ Alternatives considered:
 ## Consequences
 
 * A new table is additive, so the previous release ignores it: SQLite `0034`, Postgres `0031`.
-* With `mcp.enabled` on, a viewer reaches `/admin/tokens` and sees the MCP section only. The
-  webhook-token forms still check the caller as before.
+* With `mcp.enabled` on, a viewer reaches `/admin/tokens` and can mint and revoke their own MCP
+  tokens there. The webhook section stays as it was for them, and its forms still check the caller.
 * This change adds the tokens only. The `/mcp` endpoint that accepts them follows.
