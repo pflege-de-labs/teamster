@@ -24,11 +24,12 @@ user without a second authorization path.
   builds its own server and tool list. There is no session to pin, so no sticky sessions, and a
   revoked token stops working on the next call.
 * **Read-only is enforced twice.** Write tools are left out of the tool list when the token is
-  `read` or `mcp.read-only` is on. Independently, `callAPI` refuses anything but a view action or
-  exactly `GET /api/samples`, which `authorize` treats as a write because it is not a record. The
+  `read` or `mcp.read-only` is on. Independently, while the request is read-only (a `read` token, or
+  `mcp.read-only` on), `callAPI` refuses anything but a view action or exactly
+  `GET /api/samples`, which `authorize` treats as a write because it is not a record. The
   second check holds even if a write tool were registered by mistake.
 * **A tool id never steers a call elsewhere.** `callAPI` serves `/api/` paths only, with a path that
-  is already clean. `apiPath` refuses an id that is empty or contains `/`, `.` or `..` and escapes
+  is already clean. `apiPath` refuses an id that is empty, contains `/`, or is exactly `.` or `..`, and escapes
   the rest. Every tool must also land on its own mux pattern, so a reserved sibling id such as
   `global-default` cannot turn `/api/routes/{id}` into `/api/routes/global-default`.
 * **Offered tools follow the user.** `list_sampled_labels` is offered only when samples are on and

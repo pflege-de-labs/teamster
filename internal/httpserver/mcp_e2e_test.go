@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 
@@ -82,9 +83,16 @@ func TestMCPEndToEnd(t *testing.T) {
 	}
 
 	t.Run("list_destinations shows the granted one only", func(t *testing.T) {
-		out := text(t, call("list_destinations", nil))
-		if !strings.Contains(out, `"d1"`) || strings.Contains(out, `"d2"`) {
-			t.Errorf("list_destinations = %s", out)
+		var got []models.Destination
+		if err := json.Unmarshal([]byte(text(t, call("list_destinations", nil))), &got); err != nil {
+			t.Fatal(err)
+		}
+		ids := []string{}
+		for _, d := range got {
+			ids = append(ids, d.ID)
+		}
+		if !slices.Equal(ids, []string{"d1"}) {
+			t.Errorf("destination ids = %v, want [d1]", ids)
 		}
 	})
 
@@ -128,15 +136,17 @@ func TestMCPEndToEnd(t *testing.T) {
 	t.Run("writes are audited as mcp", func(t *testing.T) {
 		st.mu.Lock()
 		defer st.mu.Unlock()
-		var n int
+		var templates []string
 		for _, e := range st.auditEvents {
-			n++
 			if e.Actor.Via != models.ViaMCP || e.Actor.Subject != "tester" {
 				t.Errorf("audit event %s actor = %+v, want tester via mcp", e.Action, e.Actor)
 			}
+			if strings.HasPrefix(e.Action, "template.") {
+				templates = append(templates, e.Action)
+			}
 		}
-		if n < 3 {
-			t.Errorf("audit events = %d, want the template create, update and delete", n)
+		if want := []string{"template.create", "template.update", "template.delete"}; !slices.Equal(templates, want) {
+			t.Errorf("template audit actions = %v, want %v", templates, want)
 		}
 	})
 

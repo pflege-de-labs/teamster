@@ -397,9 +397,9 @@ and the handlers scope the list. Minting and revoking are audited.
 matching `/api` request in process through `authorize(adminMux)` as the token's creator, so Cedar,
 grants, validation and audit are the admin API's own. `callAPI` admits `/api/` paths only, with a
 clean path, and refuses a write unless the token is `write` and `mcp.read-only` is off; only view
-actions and exactly `GET /api/samples` pass otherwise. `apiPath` refuses ids with `/`, `.`, `..` or
-none, and each tool must hit its own mux pattern. Write tools are not offered to a token that may not
-write. Calls are counted in `teamster.mcp.tool_calls{tool,outcome}`.
+actions and exactly `GET /api/samples` pass otherwise. `apiPath` refuses an id that is empty,
+contains `/`, or is exactly `.` or `..`, and each tool must hit its own mux pattern. Write tools are
+not offered to a token that may not write. Calls are counted in `teamster.mcp.tool_calls{tool,outcome}`.
 
 Naming people is checked before anything is routed
 ([ADR 0082](adr/0082-naming-people-takes-permission.md)). `authorizeWebhook` returns a `sender`:
