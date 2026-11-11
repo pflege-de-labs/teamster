@@ -148,7 +148,7 @@ content out differently. Two presets do this:
 
 ### Create the template
 
-Open a new template under **Configuration → Templates** and pick one of the presets under **Start
+Press **New template** under **Configuration → Templates** and pick one of the presets under **Start
 from a preset**. Check it in the preview against **Teams V2 webhook card with long facts**.
 
 ### Use it

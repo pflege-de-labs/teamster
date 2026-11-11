@@ -153,7 +153,7 @@ zerlegen und denselben Inhalt anders anordnen. Zwei vorgefertigte Vorlagen tun d
 
 ### Die Vorlage anlegen
 
-Öffnen Sie unter **Konfiguration → Vorlagen** eine neue Vorlage und wählen Sie unter **Mit einer
+Klicken Sie unter **Konfiguration → Vorlagen** auf **Neue Vorlage** und wählen Sie unter **Mit einer
 Vorlage beginnen** eine der beiden. Prüfen Sie sie in der Vorschau mit dem Beispiel **Karte des
 Teams-V2-Webhooks mit langen Fakten**.
 

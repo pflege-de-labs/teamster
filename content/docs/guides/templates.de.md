@@ -7,8 +7,10 @@ Schreiben Sie eine Vorlage, die aus einem Ereignis eine Teams-Nachricht macht, l
 welche Webhooks sie verarbeitet, und bestimmen Sie die Standardvorlage, auf die jeder Webhook
 zurückfällt.
 
-Vorlagen finden Sie unter **Konfiguration → Vorlagen** (`/admin/templates`). Jedes Feld, das eine
-Vorlage lesen kann, führt [Vorlagendaten](../../reference/template-data/) auf.
+Vorlagen finden Sie unter **Konfiguration → Vorlagen** (`/admin/templates`). Die Seite listet jede
+Vorlage; öffnen Sie eine, sehen Sie ihre Seite mit Zusammenfassung, Quelltext, **Verwendet von**
+(den Routen, Webhooks und Standards, die sie nutzen) und der gerenderten Vorschau. Jedes Feld, das
+eine Vorlage lesen kann, führt [Vorlagendaten](../../reference/template-data/) auf.
 
 ## Eine Vorlage schreiben {#write-a-template}
 
@@ -16,7 +18,7 @@ Vorlage lesen kann, führt [Vorlagendaten](../../reference/template-data/) auf.
 
 ### Mit einer Vorlage beginnen {#start-from-a-preset}
 
-Öffnen Sie eine neue Vorlage und wählen Sie eine unter **Mit einer Vorlage beginnen**. Das füllt
+Klicken Sie auf **Neue Vorlage** und wählen Sie eine unter **Mit einer Vorlage beginnen**. Das füllt
 Name, Titel, Text, Karte und Webhooks in einem Schritt und geht schneller, als leer zu beginnen.
 
 Zwei weitere vorgefertigte Vorlagen für Teams-V2-Nutzdaten werden hier angeboten, aber nie als
@@ -59,6 +61,12 @@ an, für die die Vorlage geschrieben ist, oder lassen Sie alles frei für jeden 
   Nachricht. Dabei wird eine Warnung protokolliert.
 
 ### Die Vorschau ansehen {#preview-it}
+
+Die Seite einer Vorlage zeigt die gerenderte Vorschau gegen ein Beispielereignis. Mit **Bearbeiten**
+ändern Sie die Vorlage: Die Seite wechselt ohne Neuladen in den Editor, mit den vorgefertigten
+Vorlagen, der Kartenpalette und einer Live-Vorschau. **Abbrechen** führt zurück zur Seite; ein
+fehlgeschlagenes Speichern behält, was Sie getippt haben. **Löschen** steht auf der Seite der
+Vorlage.
 
 Die Vorschau rendert die Vorlage gegen Beispielnutzdaten für jeden Webhook und kann das JSON
 zeigen, das der Bot für einen Kanalbeitrag und für einen Chat senden würde. Jedes Beispiel außer
@@ -163,7 +171,7 @@ entfernt Skripte und Bilder, aber keine Links, deren Text und Ziel sich untersch
 
 Jeder Webhook hat eine Standardvorlage. Sie wird verwendet, wenn eine Route oder ein
 Teams-V2-Endpunkt keine Vorlage nennt, die seine Ereignisse verarbeitet. Wählen Sie sie unter
-**Standardvorlage je Webhook** im Bereich der Vorlagen oder über die API:
+**Standardvorlage je Webhook** unterhalb der Vorlagen auf der Seite Vorlagen oder über die API:
 
 ```bash
 curl -u <admin-user>:<admin-password> -X PUT http://localhost:8080/api/templates/source-defaults \
