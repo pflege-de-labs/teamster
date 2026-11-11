@@ -294,7 +294,7 @@ func TestTemplateRecordUsedBy(t *testing.T) {
 		{
 			name:     "admin",
 			store:    admin,
-			want:     []string{`href="/admin/routes?edit=r1"`, "Readable route", `href="/admin/routes?edit=r2"`, "severity=critical", `href="/admin/webhooks/w1"`, "ops/alerts", `href="/admin/routing"`},
+			want:     []string{`href="/admin/routes?edit=r1"`, "Readable route", `href="/admin/routes?edit=r2"`, "severity=critical", `href="/admin/webhooks?edit=w1"`, "ops/alerts", `href="/admin/routing"`},
 			unwanted: []string{"Other template", "dev/noise", "Default for", "Global default"},
 		},
 		{

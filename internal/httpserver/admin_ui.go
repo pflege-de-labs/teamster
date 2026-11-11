@@ -77,21 +77,7 @@ func recordEditURL(section, id string, q url.Values) string {
 }
 
 // pagedRecord says whether a section's records have a page of their own (ADR 0105).
-func pagedRecord(section string) bool {
-	return section == "destinations" || section == "templates" || section == "webhooks"
-}
-
-// recordTarget is where a record's delete lands: the list once the record is gone, its page when it is not
-// and the session may read it, so the error is shown rather than lost to a 404.
-func (s *Server) recordTarget(section, typ string) func(*http.Request, error) string {
-	return func(r *http.Request, err error) string {
-		id := r.PostFormValue("id")
-		if id != "" && err != nil && !errors.Is(err, store.ErrNotFound) && s.can(r, authz.ActionRead, typ, id) {
-			return recordEditPath(section, id)
-		}
-		return adminTabPath(section)
-	}
-}
+func pagedRecord(section string) bool { return section == "destinations" || section == "templates" }
 
 // recordEditPath is the page that edits one record.
 func recordEditPath(section, id string) string {
@@ -230,7 +216,7 @@ func (s *Server) loadForEditing(r *http.Request, page *views.Page, section, id s
 		return
 	}
 	typ, ok := map[string]string{
-		"routes": typeRoute,
+		"routes": typeRoute, "webhooks": typeWebhookEndpoint,
 	}[section]
 	if !ok {
 		return
@@ -247,6 +233,11 @@ func (s *Server) loadForEditing(r *http.Request, page *views.Page, section, id s
 		if route, err = s.store.GetRoute(ctx, id); err == nil {
 			page.EditRoute = &route
 			page.Recipients = s.keepEditedRecipient(ctx, page.Recipients, route.RecipientID)
+		}
+	case "webhooks":
+		var endpoint models.WebhookEndpoint
+		if endpoint, err = s.store.GetWebhookEndpoint(ctx, id); err == nil {
+			page.EditWebhookEndpoint = &endpoint
 		}
 	default:
 		return
@@ -298,23 +289,23 @@ func adminTabPath(tab string) string {
 // formPostTo is formPost for endpoints whose target is not a resource page,
 // such as the notifications page's own unlink control.
 func (s *Server) formPostTo(target string, handler func(*http.Request) (string, error)) http.HandlerFunc {
-	return s.formPostFunc(func(*http.Request, error) string { return target }, handler)
+	return s.formPostFunc(func(*http.Request, bool) string { return target }, handler)
 }
 
 // formPostFunc is formPostTo for a target that depends on the post, such as the
-// record whose id was submitted; err is the handler's, nil before it ran and on success.
-func (s *Server) formPostFunc(target func(r *http.Request, err error) string, handler func(*http.Request) (string, error)) http.HandlerFunc {
+// record whose id was submitted; failed says which way the handler went.
+func (s *Server) formPostFunc(target func(r *http.Request, failed bool) string, handler func(*http.Request) (string, error)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !formGuard(target(r, nil), w, r) {
+		if !formGuard(target(r, false), w, r) {
 			return
 		}
 
 		notice, err := handler(r)
 		if err != nil {
-			redirectTo(target(r, err), w, r, "", visibleError(r.Context(), "form post", err))
+			redirectTo(target(r, true), w, r, "", visibleError(r.Context(), "form post", err))
 			return
 		}
-		redirectTo(target(r, nil), w, r, notice, "")
+		redirectTo(target(r, false), w, r, notice, "")
 	}
 }
 

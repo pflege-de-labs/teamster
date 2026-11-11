@@ -73,7 +73,7 @@ func TestAdminPageRendersEmptyStates(t *testing.T) {
 	handler := newTestServer(t, newFakeStore(), &fakeMessenger{}).Handler
 	body := pagesOf(t, handler, "/admin/templates", "/admin/destinations", "/admin/webhooks", "/admin/routes")
 
-	for _, want := range []string{"No templates yet", "No destinations yet", "No routes yet", "No Teams V2 webhooks yet"} {
+	for _, want := range []string{"No templates yet", "No destinations yet", "No routes yet", "none defined yet"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("rendered page does not contain %q", want)
 		}
@@ -664,7 +664,7 @@ func TestAdminRedirects(t *testing.T) {
 		{name: "a share holder without a role", noRole: true, path: "/admin", wantCode: http.StatusFound, wantLoc: "/admin/templates"},
 		{name: "tab", path: "/admin?tab=webhooks", wantCode: http.StatusMovedPermanently, wantLoc: "/admin/webhooks"},
 		{name: "tab with a notice", path: "/admin?tab=grants&notice=Saved.", wantCode: http.StatusMovedPermanently, wantLoc: "/admin/grants?notice=Saved."},
-		{name: "edit", path: "/admin?edit=webhooks&id=abc", wantCode: http.StatusMovedPermanently, wantLoc: "/admin/webhooks/abc?edit"},
+		{name: "edit", path: "/admin?edit=webhooks&id=abc", wantCode: http.StatusMovedPermanently, wantLoc: "/admin/webhooks?edit=abc"},
 		{name: "edit with an error", path: "/admin?edit=routes&id=a%2Fb&error=x", wantCode: http.StatusMovedPermanently, wantLoc: "/admin/routes?edit=a%2Fb&error=x"},
 		{name: "unknown tab", path: "/admin?tab=bogus", wantCode: http.StatusFound, wantLoc: "/admin/routing"},
 		{name: "unknown edit", path: "/admin?edit=bogus&id=x", wantCode: http.StatusFound, wantLoc: "/admin/routing"},
@@ -694,15 +694,15 @@ func TestHintCardLinksToWebhookPage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("renderMessage: %v", err)
 	}
-	if !strings.Contains(string(msg.Notice), "/admin/webhooks/hook") {
-		t.Errorf("notice = %s, want a link to /admin/webhooks/hook", msg.Notice)
+	if !strings.Contains(string(msg.Notice), "/admin/webhooks?edit=hook") {
+		t.Errorf("notice = %s, want a link to /admin/webhooks?edit=hook", msg.Notice)
 	}
 }
 
-// resourcePages are the single-page resources; templates, destinations and webhooks have a page per record.
-var resourcePages = []string{"routes", "grants"}
+// resourcePages are the single-page resources; templates and destinations have a page per record.
+var resourcePages = []string{"webhooks", "routes", "grants"}
 
-var postablePages = append([]string{"templates", "webhooks"}, resourcePages...)
+var postablePages = append([]string{"templates"}, resourcePages...)
 
 func TestResourcePages(t *testing.T) {
 	t.Parallel()

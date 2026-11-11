@@ -142,23 +142,6 @@ Each resource has its own view structs (for Destinations: `DestinationList`, `De
 * **New**: the form with presets, card palette and editors, and the preview beside it.
 * The CodeMirror editors are built while the edit part is hidden and measure themselves when shown.
 
-## Webhooks
-
-* **List**: `/teamsv2/<team>/<channel>`; the destination and template names.
-* **Record** summary: the URL path without its token; the destination and the template, each linking
-  to its record when the viewer may read it; the route Teamster keeps for the endpoint. Nothing else
-  points at an endpoint, so there is no Used by.
-* **Actions**: **New token** and Edit (`update`), Delete (`delete`).
-* **New**: team slug, channel slug, destination, template.
-* **The token is shown once.** Creating an endpoint or replacing its token answers with the record
-  page itself, the URL in the amber banner, not with a redirect that would put the token in the
-  browser history and the access log. The page marks itself `data-record-replace`, and `record.js`
-  replaces the address with the record's own, so a reload shows the record instead of posting again
-  — which, for a create, would make a second endpoint.
-* A failed save — a bad slug, a destination the viewer may not deliver to, a template they may not
-  use or that does not handle Teams V2 — is the 422 re-render. A failed token replacement redirects
-  to the record with the error.
-
 ## Tests
 
 Table-driven, `t.Parallel()`, in `internal/httpserver`:
