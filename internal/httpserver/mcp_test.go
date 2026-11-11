@@ -17,13 +17,13 @@ import (
 )
 
 // mcpTestServer returns the Server itself, which NewServer hides behind *http.Server.
-func mcpTestServer(t *testing.T, st *fakeStore, enabled bool) (*Server, *http.Server) {
+func mcpTestServer(t *testing.T, st *fakeStore, mcpCfg config.MCPConfig) (*Server, *http.Server) {
 	t.Helper()
 	var api *Server
 	cfg := config.Config{
 		Server: config.ServerConfig{Addr: ":0"},
 		Admin:  config.AdminConfig{Username: "admin", Password: "pass"},
-		MCP:    config.MCPConfig{Enabled: enabled},
+		MCP:    mcpCfg,
 	}
 	srv, err := NewServer(quietLog, cfg, st, &fakeMessenger{}, nil, &fakeMessenger{}, metrics.Disabled(), nil, func(s *Server) { api = s })
 	if err != nil {
@@ -32,8 +32,8 @@ func mcpTestServer(t *testing.T, st *fakeStore, enabled bool) (*Server, *http.Se
 	return api, srv
 }
 
-func mcpCtx(access string) context.Context {
-	ctx := withPrincipal(context.Background(), "alice", "Alice", models.ViaMCP, []authz.Role{authz.RoleEditor}, nil)
+func mcpCtx(access string, role authz.Role) context.Context {
+	ctx := withPrincipal(context.Background(), "alice", "Alice", models.ViaMCP, []authz.Role{role}, nil)
 	return context.WithValue(ctx, mcpTokenKey, models.MCPToken{Name: "ci", Access: access})
 }
 
@@ -43,6 +43,8 @@ func TestCallAPI(t *testing.T) {
 	tests := []struct {
 		name       string
 		access     string
+		role       authz.Role
+		readOnly   bool
 		method     string
 		path       string
 		body       any
@@ -52,7 +54,13 @@ func TestCallAPI(t *testing.T) {
 		wantCreate bool
 	}{
 		{name: "list", access: models.MCPAccessWrite, method: "GET", path: "/api/templates", wantStatus: 200, wantBody: "tpl-1"},
-		{name: "escaped id stays one segment", access: models.MCPAccessWrite, method: "GET", path: apiPath("/api/templates/%s", "../routes"), wantStatus: 404},
+		{name: "viewer with a write token cannot create", access: models.MCPAccessWrite, role: authz.RoleViewer, method: "POST", path: "/api/templates", body: map[string]string{"name": "x", "body": "{}"}, wantStatus: 403},
+		{name: "read-only deployment refuses a write token", access: models.MCPAccessWrite, readOnly: true, method: "POST", path: "/api/templates", body: map[string]string{"name": "x", "body": "{}"}, wantStatus: 403},
+		{name: "read-only samples allowed", access: models.MCPAccessRead, method: "GET", path: "/api/samples", wantStatus: 200},
+		{name: "read-only put refused", access: models.MCPAccessRead, method: "PUT", path: "/api/templates/x", body: map[string]string{"name": "x"}, wantStatus: 403},
+		{name: "read-only delete refused", access: models.MCPAccessRead, method: "DELETE", path: "/api/templates/x", wantStatus: 403},
+		{name: "unclean path refused", access: models.MCPAccessWrite, method: "GET", path: "/api/templates/..%2Froutes", wantErr: true},
+		{name: "dot segment refused", access: models.MCPAccessWrite, method: "GET", path: "/api/templates/../routes", wantErr: true},
 		{name: "read-only create refused", access: models.MCPAccessRead, method: "POST", path: "/api/templates", body: map[string]string{"name": "x", "body": "{}"}, wantStatus: 403},
 		{name: "write create served", access: models.MCPAccessWrite, method: "POST", path: "/api/templates", body: map[string]string{"name": "x", "body": "{}"}, wantStatus: 201, wantCreate: true},
 		{name: "read-only match served", access: models.MCPAccessRead, method: "POST", path: "/api/routing/match", body: map[string]any{"labels": map[string]string{}}, wantStatus: 200},
@@ -67,9 +75,12 @@ func TestCallAPI(t *testing.T) {
 
 			st := newFakeStore()
 			st.templates["tpl-1"] = models.Template{ID: "tpl-1", Name: "one", Body: "{}"}
-			api, _ := mcpTestServer(t, st, true)
+			api, _ := mcpTestServer(t, st, config.MCPConfig{Enabled: true, ReadOnly: tt.readOnly})
+			if tt.role == "" {
+				tt.role = authz.RoleEditor
+			}
 
-			status, body, err := api.callAPI(mcpCtx(tt.access), tt.method, tt.path, tt.body)
+			status, body, err := api.callAPI(mcpCtx(tt.access, tt.role), tt.method, tt.path, tt.body)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("err = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -92,9 +103,27 @@ func TestCallAPI(t *testing.T) {
 func TestAPIPath(t *testing.T) {
 	t.Parallel()
 
-	got := apiPath("/api/templates/%s/x/%s", "../routes", "a b")
-	if want := "/api/templates/..%2Froutes/x/a%20b"; got != want {
-		t.Errorf("apiPath = %q, want %q", got, want)
+	tests := []struct {
+		name    string
+		ids     []string
+		want    string
+		wantErr bool
+	}{
+		{name: "special characters escaped", ids: []string{"a b?c", "x"}, want: "/api/t/a%20b%3Fc/x"},
+		{name: "slash", ids: []string{"a/b", "x"}, wantErr: true},
+		{name: "dot dot", ids: []string{"..", "x"}, wantErr: true},
+		{name: "dot", ids: []string{".", "x"}, wantErr: true},
+		{name: "empty", ids: []string{"", "x"}, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := apiPath("/api/t/%s/%s", tt.ids...)
+			if (err != nil) != tt.wantErr || got != tt.want {
+				t.Errorf("apiPath = %q, %v; want %q, wantErr %v", got, err, tt.want, tt.wantErr)
+			}
+		})
 	}
 }
 
@@ -163,7 +192,7 @@ func TestMCPEndpointRegistration(t *testing.T) {
 	st.users["alice"] = models.User{Subject: "alice", Name: "Alice", Source: "oidc", Roles: []string{"editor"}}
 	mustCreate(t, st, models.MCPToken{Name: "ci", TokenHash: hashToken(secret), CreatedBy: "alice", Access: models.MCPAccessRead})
 
-	_, off := mcpTestServer(t, st, false)
+	_, off := mcpTestServer(t, st, config.MCPConfig{})
 	rec := post(off, secret)
 	if rec.Header().Get("WWW-Authenticate") == `Bearer realm="mcp"` || strings.Contains(rec.Body.String(), "teamster") {
 		t.Errorf("disabled: served by MCP: %d %s", rec.Code, rec.Body)
@@ -172,7 +201,7 @@ func TestMCPEndpointRegistration(t *testing.T) {
 		t.Errorf("disabled: %d %q, want the catch-all's login redirect", rec.Code, rec.Header().Get("Location"))
 	}
 
-	_, on := mcpTestServer(t, st, true)
+	_, on := mcpTestServer(t, st, config.MCPConfig{Enabled: true})
 	if rec := post(on, ""); rec.Code != http.StatusUnauthorized || rec.Header().Get("WWW-Authenticate") != `Bearer realm="mcp"` {
 		t.Errorf("no token: %d %q", rec.Code, rec.Header().Get("WWW-Authenticate"))
 	}

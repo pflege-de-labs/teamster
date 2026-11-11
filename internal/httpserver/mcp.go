@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	pathpkg "path"
 	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -26,13 +27,17 @@ const mcpInstructions = "Teamster routes alerts to Microsoft Teams. Routes match
 
 const mcpServerError = "Teamster could not complete this; the error is logged."
 
-// apiPath escapes every id, so a tool input such as "../routes" stays one segment.
-func apiPath(format string, ids ...string) string {
+// apiPath escapes every id and refuses one that is not a single plain segment:
+// handlers read ids from the decoded path, so "a/default" would reach another route.
+func apiPath(format string, ids ...string) (string, error) {
 	args := make([]any, len(ids))
 	for i, id := range ids {
+		if id == "" || id == "." || id == ".." || strings.Contains(id, "/") {
+			return "", fmt.Errorf("mcp: %q is not a valid id", id)
+		}
 		args[i] = url.PathEscape(id)
 	}
-	return fmt.Sprintf(format, args...)
+	return fmt.Sprintf(format, args...), nil
 }
 
 // callAPI serves one admin API request in-process as the request's principal.
@@ -40,6 +45,10 @@ func (s *Server) callAPI(ctx context.Context, method, path string, body any) (in
 	// Security invariant: /admin (token management among it) is never reachable from MCP.
 	if !strings.HasPrefix(path, "/api/") {
 		return 0, nil, fmt.Errorf("mcp: refusing to dispatch %q outside /api/", path)
+	}
+	// Handlers read the decoded path, so a dot segment or doubled slash could reach another route.
+	if decoded, err := url.PathUnescape(path); err != nil || pathpkg.Clean(decoded) != decoded {
+		return 0, nil, fmt.Errorf("mcp: refusing unclean path %q", path)
 	}
 	var reader io.Reader
 	if body != nil {
@@ -57,7 +66,10 @@ func (s *Server) callAPI(ctx context.Context, method, path string, body any) (in
 		req.Header.Set("Content-Type", "application/json")
 	}
 
-	if action, _ := requestAuthorization(req); action != authz.ActionView && !mcpWrites(ctx, s.cfg.MCP) {
+	action, _ := requestAuthorization(req)
+	// The sample labels are an editor-level read that match_route's inputs depend on; no other read widens.
+	readOnlyOK := action == authz.ActionView || (req.Method == http.MethodGet && req.URL.Path == "/api/samples")
+	if !readOnlyOK && !mcpWrites(ctx, s.cfg.MCP) {
 		return http.StatusForbidden, []byte(`{"error":"this token or deployment is read-only"}`), nil
 	}
 
