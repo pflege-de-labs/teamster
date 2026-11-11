@@ -71,7 +71,10 @@ on, and a user who may edit templates or routes.
 
 ## Connect an assistant
 
-Point the client at `/mcp` on your Teamster URL, with the token as a bearer credential.
+Point the client at `/mcp` on the admin UI's host (`server.external-url` when set), with the token
+as a bearer credential. Where the webhooks have a hostname of their own (`server.webhook-url`),
+that host does not serve `/mcp`. The MCP section of `/admin/tokens` shows the right URL in its
+`claude mcp add` snippet.
 
 {{< tabs >}}
 
@@ -105,7 +108,8 @@ Code to the MCP endpoint and adds the skill `teamster-routing`.
 
 Claude Code asks for two values:
 
-* **Teamster URL**: the base URL without `/mcp`, for example `https://teamster.example.com`.
+* **Teamster URL**: the admin UI's base URL without `/mcp`, for example
+  `https://teamster.example.com`, not a separate webhook host.
 * **MCP token**: the `tmcp_` token you minted. The plugin keeps it in Claude Code's secure
   credential storage.
 
