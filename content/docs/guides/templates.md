@@ -6,8 +6,9 @@ weight: 16
 Write a template that turns an event into a Teams message, choose which webhook's events it
 handles, and set the default each webhook falls back to.
 
-Templates live under **Configuration → Templates** (`/admin/templates`). Every field a template can
-read is listed in
+Templates live under **Configuration → Templates** (`/admin/templates`). The page lists each
+template; open one to see its page, with a summary, its source, **Used by** (the routes, webhooks
+and defaults that use it) and the rendered preview. Every field a template can read is listed in
 [Template data](../../reference/template-data/).
 
 ## Write a template
@@ -16,7 +17,7 @@ read is listed in
 
 ### Start from a preset
 
-Open a new template and pick one under **Start from a preset**. It fills the name, title, text,
+Press **New template** and pick one under **Start from a preset**. It fills the name, title, text,
 card and webhooks in one go, which is quicker than starting empty.
 
 Two further presets for Teams V2 payloads are offered here but never stored as defaults. They lay
@@ -57,6 +58,11 @@ is written for, or leave all unticked for any.
   instead, or the built-in message when there is none, and a warning is logged.
 
 ### Preview it
+
+A template's page shows the rendered preview against a sample event. Press **Edit** to change the
+template: the page switches to the editor without reloading, with the presets, the card palette
+and a live preview. **Cancel** goes back to the page; a save that fails keeps what you typed.
+**Delete** is on the template's page.
 
 The preview renders the template against a sample payload for each webhook, and can show the JSON
 the bot would send for a channel post and for a chat. Every sample but Teams V2 is rendered for a
@@ -155,8 +161,8 @@ and images, but not links whose text and target differ. See
 ## Set the default template per webhook
 
 Each webhook has a default template, used when a route or Teams V2 endpoint names no template that
-handles its events. Choose them under **Default template per webhook** in the templates panel, or
-through the API:
+handles its events. Choose them under **Default template per webhook**, below the templates on the
+Templates page, or through the API:
 
 ```bash
 curl -u <admin-user>:<admin-password> -X PUT http://localhost:8080/api/templates/source-defaults \
