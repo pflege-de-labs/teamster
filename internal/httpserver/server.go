@@ -354,8 +354,9 @@ func NewServer(logger *slog.Logger, cfg config.Config, store store.Store, graphC
 	api.adminAPI = api.authorize(adminMux)
 	mux.Handle("/api/", api.apiAuth(api.adminAPI))
 	// Method-less like /bot/messages, so a wrong method reaches the handler rather than the login redirect.
+	// The SDK guard 403s a loopback hop with a foreign Host (sidecar proxy); /mcp is bearer-only, so rebinding gains nothing.
 	if cfg.MCP.Enabled {
-		mux.Handle("/mcp", api.mcpAuth(mcp.NewStreamableHTTPHandler(api.mcpServerFor, &mcp.StreamableHTTPOptions{Stateless: true})))
+		mux.Handle("/mcp", api.mcpAuth(mcp.NewStreamableHTTPHandler(api.mcpServerFor, &mcp.StreamableHTTPOptions{Stateless: true, DisableLocalhostProtection: true})))
 	}
 	mux.Handle("/admin/login", authMux)
 	mux.Handle("/admin/auth/", authMux)

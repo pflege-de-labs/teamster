@@ -141,7 +141,7 @@ func TestMCPToolDispatch(t *testing.T) {
 		{"preview_template", map[string]any{"body": "{}", "sample": "{}"}, "POST", "/api/templates/preview", map[string]any{"sample": "{}"}},
 		{"match_route", map[string]any{"labels": map[string]any{"a": "b"}}, "POST", "/api/routing/match", map[string]any{"labels": map[string]any{"a": "b"}}},
 		{"list_teams", nil, "GET", "/api/graph/teams", nil},
-		{"list_channels", map[string]any{"id": "t1"}, "GET", "/api/graph/teams/t1", nil},
+		{"list_channels", map[string]any{"id": "t1"}, "GET", "/api/graph/teams/t1/channels", nil},
 		{"list_sampled_labels", nil, "GET", "/api/samples", nil},
 	}
 	for _, tt := range tests {

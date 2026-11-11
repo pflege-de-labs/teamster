@@ -1499,7 +1499,7 @@ apply as in the UI; audit events carry `via` = `mcp`. The tools:
 
 - Read: `list_templates`, `get_template`, `list_destinations`, `get_destination`, `list_routes`,
   `get_route`, `preview_template`, `match_route`, `list_teams`, `list_channels`, and
-  `list_sampled_labels` when sampling is on and the user may complete labels.
+  `list_sampled_labels` when sampling is on and the user may edit templates or routes.
 - Write, offered only to a **write** token while `mcp.read-only` is off: `create_template`,
   `update_template`, `delete_template`, `create_destination`, `update_destination`,
   `delete_destination`, `create_route`, `update_route`, `delete_route`.
@@ -1514,8 +1514,8 @@ a **read** token unless it must change things
 Auditing is off until you configure it. With it on, every change to the configuration is
 recorded: templates, destinations, routes, webhook endpoints, access tokens, MCP tokens, grants,
 the default template and destination, linked chats, and install runs someone asked for. An event
-says who made the change, how they signed in (`session`, `basic` or `cli`), the request id, and the
-record before and after. Credentials are never included.
+says who made the change, how they signed in (`session`, `basic`, `token`, `mcp` or `cli`), the
+request id, and the record before and after. Credentials are never included.
 
 Admins read the trail at **/admin/audit**, or with `GET /api/audit`. Both filter by `actor`,
 `action`, `type` and `id`, and `since`/`until` filter by time (RFC 3339). Results are newest first.
