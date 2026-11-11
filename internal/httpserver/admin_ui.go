@@ -13,12 +13,10 @@ import (
 	"strings"
 
 	"github.com/pflege-de-labs/teamster/internal/authz"
-	"github.com/pflege-de-labs/teamster/internal/cards"
 	"github.com/pflege-de-labs/teamster/internal/httpserver/views"
 	"github.com/pflege-de-labs/teamster/internal/models"
 	"github.com/pflege-de-labs/teamster/internal/routing"
 	"github.com/pflege-de-labs/teamster/internal/store"
-	"github.com/pflege-de-labs/teamster/internal/templates"
 )
 
 // handleAdminPage sends the old /admin?tab= and ?edit= URLs, already in Teams chats, to their pages.
@@ -45,8 +43,8 @@ func (s *Server) handleAdminPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if section == "destinations" && edit != "" {
-		http.Redirect(w, r, destinationEditURL(edit, q), http.StatusMovedPermanently)
+	if pagedRecord(section) && edit != "" {
+		http.Redirect(w, r, recordEditURL(section, edit, q), http.StatusMovedPermanently)
 		return
 	}
 	target := url.URL{Path: adminTabPath(section)}
@@ -63,25 +61,28 @@ func (s *Server) handleAdminPage(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, target.String(), http.StatusMovedPermanently)
 }
 
-// destinationEditURL is the record page in edit mode, carrying a notice or error along.
-func destinationEditURL(id string, q url.Values) string {
+// recordEditURL is the record page in edit mode, carrying a notice or error along.
+func recordEditURL(section, id string, q url.Values) string {
 	carried := url.Values{}
 	for _, key := range []string{"notice", "error"} {
 		if v := q.Get(key); v != "" {
 			carried.Set(key, v)
 		}
 	}
-	target := recordEditPath("destinations", id) + "?edit"
+	target := recordEditPath(section, id) + "?edit"
 	if len(carried) > 0 {
 		target += "&" + carried.Encode()
 	}
 	return target
 }
 
+// pagedRecord says whether a section's records have a page of their own (ADR 0105).
+func pagedRecord(section string) bool { return section == "destinations" || section == "templates" }
+
 // recordEditPath is the page that edits one record.
 func recordEditPath(section, id string) string {
-	if section == "destinations" {
-		return "/admin/destinations/" + url.PathEscape(id)
+	if pagedRecord(section) {
+		return "/admin/" + section + "/" + url.PathEscape(id)
 	}
 	return adminTabPath(section) + "?edit=" + url.QueryEscape(id)
 }
@@ -125,11 +126,6 @@ func (s *Server) adminPage(r *http.Request, notice, errText string) views.Page {
 	page := views.Page{
 		Notice:          notice,
 		Error:           errText,
-		PreviewSamples:  previewSamples(),
-		Snippets:        cards.Snippets(),
-		Starter:         cards.Starter,
-		Presets:         append(cards.Presets(), cards.Variants()...),
-		Vocabulary:      templates.EditorVocabulary(),
 		Viewer:          s.viewerFor(r),
 		CanEdit:         s.allow(r, authz.ActionEdit, authz.Resource{Type: "Template"}),
 		CanManage:       s.allow(r, authz.ActionAdminister, authz.Resource{Type: "Grant"}),
@@ -220,7 +216,7 @@ func (s *Server) loadForEditing(r *http.Request, page *views.Page, section, id s
 		return
 	}
 	typ, ok := map[string]string{
-		"templates": typeTemplate, "routes": typeRoute, "webhooks": typeWebhookEndpoint,
+		"routes": typeRoute, "webhooks": typeWebhookEndpoint,
 	}[section]
 	if !ok {
 		return
@@ -232,11 +228,6 @@ func (s *Server) loadForEditing(r *http.Request, page *views.Page, section, id s
 
 	var err error
 	switch section {
-	case "templates":
-		var template models.Template
-		if template, err = s.store.GetTemplate(ctx, id); err == nil {
-			page.EditTemplate = &template
-		}
 	case "routes":
 		var route models.Route
 		if route, err = s.store.GetRoute(ctx, id); err == nil {
@@ -364,35 +355,6 @@ func writeAction(id string) string {
 		return authz.ActionCreate
 	}
 	return authz.ActionUpdate
-}
-
-func (s *Server) saveTemplate(r *http.Request) (string, error) {
-	ctx := r.Context()
-	if err := s.mayRecord(r, writeAction(r.PostFormValue("id")), typeTemplate, r.PostFormValue("id")); err != nil {
-		return "", err
-	}
-	template := models.Template{
-		ID:    r.PostFormValue("id"),
-		Name:  r.PostFormValue("name"),
-		Title: r.PostFormValue("title"),
-		Text:  r.PostFormValue("message_text"),
-		Body:  r.PostFormValue("body"),
-		// No box ticked is any source (ADR 0053).
-		Sources: r.PostForm["sources"],
-	}
-	if err := templates.Validate(template); err != nil {
-		return "", userError{err}
-	}
-	if template.ID == "" {
-		if _, err := s.createTemplate(r, template); err != nil {
-			return "", err
-		}
-		return "Template created.", nil
-	}
-	if _, err := s.store.UpdateTemplate(ctx, template); err != nil {
-		return "", err
-	}
-	return "Template updated.", nil
 }
 
 // postedDestination is the destination as the form submitted it.

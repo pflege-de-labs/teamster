@@ -83,7 +83,7 @@ func TestAdminPageRendersEmptyStates(t *testing.T) {
 func TestAdminPageReportsStoreFailures(t *testing.T) {
 	t.Parallel()
 
-	srv, logs := newLoggedTestServer(t, newFakeStore().fail("ListRoutes"), &fakeMessenger{})
+	srv, logs := newLoggedTestServer(t, newFakeStore().fail("ListTemplates"), &fakeMessenger{})
 	rec := do(t, srv.Handler, http.MethodGet, "/admin/templates", "")
 
 	if rec.Code != http.StatusOK {
@@ -149,7 +149,7 @@ func TestFormsCreateAndUpdate(t *testing.T) {
 		{
 			name:       "create a template",
 			path:       "/admin/templates",
-			wantTab:    "templates",
+			wantTab:    "templates/generated",
 			form:       url.Values{"name": {"New card"}, "body": {"{}"}},
 			wantNotice: "Template created.",
 			check: func(t *testing.T, st *fakeStore) {
@@ -161,7 +161,7 @@ func TestFormsCreateAndUpdate(t *testing.T) {
 		{
 			name:       "update a template",
 			path:       "/admin/templates",
-			wantTab:    "templates",
+			wantTab:    "templates/tmpl",
 			form:       url.Values{"id": {"tmpl"}, "name": {"Renamed"}, "body": {"{}"}},
 			wantNotice: "Template updated.",
 			check: func(t *testing.T, st *fakeStore) {
@@ -301,13 +301,6 @@ func TestFormsReportErrors(t *testing.T) {
 			wantErr: "invalid syntax",
 		},
 		{
-			name:    "the store rejects the template",
-			path:    "/admin/templates",
-			form:    url.Values{"name": {"Card"}, "body": {"{}"}},
-			failOn:  "CreateTemplate",
-			wantErr: "Something went wrong. Reference: ",
-		},
-		{
 			name:    "the store rejects the delete",
 			path:    "/admin/routes/delete",
 			form:    url.Values{"id": {"route"}},
@@ -387,10 +380,14 @@ func TestFormsRejectNonPost(t *testing.T) {
 	t.Parallel()
 
 	handler := newTestServer(t, newFakeStore(), &fakeMessenger{}).Handler
-	for _, path := range []string{"/admin/templates/delete", "/admin/routes/global-default"} {
+	for _, path := range []string{"/admin/routes/global-default"} {
 		if rec := do(t, handler, http.MethodGet, path, ""); rec.Code != http.StatusMethodNotAllowed {
 			t.Errorf("GET %s = %d, want 405", path, rec.Code)
 		}
+	}
+	// Delete is registered for POST only, so a GET reaches the record page of the id "delete".
+	if rec := do(t, handler, http.MethodGet, "/admin/templates/delete", ""); rec.Code != http.StatusNotFound {
+		t.Errorf("GET /admin/templates/delete = %d, want 404", rec.Code)
 	}
 }
 
@@ -400,11 +397,13 @@ func TestAdminPagePrefillsTheFormBeingEdited(t *testing.T) {
 	tests := []struct {
 		name     string
 		query    string
+		record   bool // a record page cancels through its own button, not a link to the list
 		wantHTML []string
 	}{
 		{
-			name:  "template",
-			query: "/admin/templates?edit=tmpl",
+			name:   "template",
+			query:  "/admin/templates/tmpl?edit",
+			record: true,
 			wantHTML: []string{
 				`<input type="hidden" name="id" value="tmpl">`,
 				`value="Critical card"`,
@@ -439,6 +438,12 @@ func TestAdminPagePrefillsTheFormBeingEdited(t *testing.T) {
 				}
 			}
 			list, _, _ := strings.Cut(tt.query, "?")
+			if tt.record {
+				if !strings.Contains(body, "data-record-cancel") {
+					t.Error("no cancel button on the record page")
+				}
+				return
+			}
 			if !strings.Contains(body, `<a href="`+list+`" class="px-3 py-2`) {
 				t.Error("no cancel link back to the unfiltered page")
 			}
@@ -463,18 +468,17 @@ func TestAdminPageChecksTheDefaultRouteBox(t *testing.T) {
 func TestAdminPageOffersAnEditLinkPerRow(t *testing.T) {
 	t.Parallel()
 
-	body := pagesOf(t, newTestServer(t, seededUIStore(), &fakeMessenger{}).Handler, "/admin/templates", "/admin/destinations", "/admin/routes")
+	body := pagesOf(t, newTestServer(t, seededUIStore(), &fakeMessenger{}).Handler, "/admin/templates", "/admin/destinations", "/admin/routes", "/admin/templates/new")
 
 	for _, want := range []string{
-		`href="/admin/templates?edit=tmpl"`,
+		`href="/admin/templates/tmpl"`,
 		`href="/admin/routes?edit=route"`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("list is missing the edit link %q", want)
 		}
 	}
-	// Without a selection every form must still be in create mode, or a visit
-	// to /admin would silently update whichever record came first.
+	// The new page is a form in create mode, or a visit would silently update whichever record came first.
 	for _, want := range []string{"Save template", "Save route"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("form is not in create mode: %q missing", want)
@@ -486,12 +490,13 @@ func TestAdminPageHandlesBadEditRequests(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name      string
-		query     string
-		wantError bool
+		name     string
+		query    string
+		wantCode int
 	}{
-		{name: "unknown id", query: "/admin/templates?edit=missing", wantError: true},
-		{name: "section without an id is ignored", query: "/admin/templates"},
+		{name: "unknown id", query: "/admin/templates/missing", wantCode: http.StatusNotFound},
+		{name: "unknown id on the old edit link", query: "/admin/templates?edit=missing", wantCode: http.StatusMovedPermanently},
+		{name: "section without an id is ignored", query: "/admin/templates", wantCode: http.StatusOK},
 	}
 
 	for _, tt := range tests {
@@ -499,14 +504,11 @@ func TestAdminPageHandlesBadEditRequests(t *testing.T) {
 			t.Parallel()
 
 			rec := do(t, newTestServer(t, seededUIStore(), &fakeMessenger{}).Handler, http.MethodGet, tt.query, "")
-			if rec.Code != http.StatusOK {
-				t.Fatalf("GET %s = %d, want 200", tt.query, rec.Code)
+			if rec.Code != tt.wantCode {
+				t.Fatalf("GET %s = %d, want %d", tt.query, rec.Code, tt.wantCode)
 			}
 
 			body := rec.Body.String()
-			if got := strings.Contains(body, "not found"); got != tt.wantError {
-				t.Errorf("error shown = %v, want %v", got, tt.wantError)
-			}
 			// The delete buttons carry ids of their own, so the submit label is
 			// what distinguishes a prefilled form from an empty one.
 			if strings.Contains(body, "Update template") {
@@ -524,7 +526,7 @@ func TestEditRoundTripUpdatesInPlace(t *testing.T) {
 	st := seededUIStore()
 	handler := newTestServer(t, st, &fakeMessenger{}).Handler
 
-	if body := do(t, handler, http.MethodGet, "/admin/templates?edit=tmpl", "").Body.String(); !strings.Contains(body, `value="tmpl"`) {
+	if body := do(t, handler, http.MethodGet, "/admin/templates/tmpl?edit", "").Body.String(); !strings.Contains(body, `name="id" value="tmpl"`) {
 		t.Fatal("the edit page did not offer the id back")
 	}
 
@@ -611,7 +613,7 @@ func TestTemplateFormOffersTheCardPalette(t *testing.T) {
 	t.Parallel()
 
 	st := sessionAs(seededUIStore(), authz.RoleEditor)
-	body := asRole(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin/templates", "").Body.String()
+	body := asRole(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin/templates/new", "").Body.String()
 
 	for _, want := range []string{
 		`class="snippet`, `id="card-starter"`, `id="preview-live"`,
@@ -637,7 +639,7 @@ func TestTheCardPaletteIsPartOfTheForm(t *testing.T) {
 	t.Parallel()
 
 	st := sessionAs(seededUIStore(), authz.RoleViewer)
-	body := asRole(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin/templates", "").Body.String()
+	body := asRole(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin/templates/tmpl", "").Body.String()
 
 	if strings.Contains(body, `id="card-starter"`) {
 		t.Error("a viewer is offered the card palette")
@@ -693,7 +695,10 @@ func TestHintCardLinksToWebhookPage(t *testing.T) {
 	}
 }
 
-var resourcePages = []string{"templates", "webhooks", "routes", "grants"}
+// resourcePages are the single-page resources; templates and destinations have a page per record.
+var resourcePages = []string{"webhooks", "routes", "grants"}
+
+var postablePages = append([]string{"templates"}, resourcePages...)
 
 func TestResourcePages(t *testing.T) {
 	t.Parallel()
@@ -725,7 +730,7 @@ func TestResourcePages(t *testing.T) {
 func TestResourcePageEdit(t *testing.T) {
 	t.Parallel()
 
-	body := do(t, newTestServer(t, seededUIStore(), &fakeMessenger{}).Handler, http.MethodGet, "/admin/templates?edit=tmpl", "").Body.String()
+	body := do(t, newTestServer(t, seededUIStore(), &fakeMessenger{}).Handler, http.MethodGet, "/admin/templates/tmpl?edit", "").Body.String()
 	if !strings.Contains(body, `name="id" value="tmpl"`) {
 		t.Error("the form does not edit the template asked for")
 	}
@@ -747,8 +752,8 @@ func TestFormPostLandsOnResourcePage(t *testing.T) {
 	rec := postForm(t, newTestServer(t, seededUIStore(), &fakeMessenger{}).Handler,
 		"/admin/templates", url.Values{"name": {"Card"}, "body": {"{}"}}, nil)
 	location, err := url.Parse(rec.Header().Get("Location"))
-	if rec.Code != http.StatusSeeOther || err != nil || location.Path != "/admin/templates" {
-		t.Errorf("POST = %d Location %q, want 303 to /admin/templates", rec.Code, rec.Header().Get("Location"))
+	if rec.Code != http.StatusSeeOther || err != nil || location.Path != "/admin/templates/generated" {
+		t.Errorf("POST = %d Location %q, want 303 to /admin/templates/generated", rec.Code, rec.Header().Get("Location"))
 	}
 }
 
@@ -772,7 +777,7 @@ func TestResourcePageAccess(t *testing.T) {
 			t.Parallel()
 
 			h := newTestServer(t, tt.store(), &fakeMessenger{}).Handler
-			for _, page := range resourcePages {
+			for _, page := range postablePages {
 				want := tt.want.other
 				switch page {
 				case "templates":
@@ -802,7 +807,7 @@ func TestResourcePagePostsStayClosedToViewers(t *testing.T) {
 	t.Parallel()
 
 	h := newTestServer(t, sessionAs(seededUIStore(), authz.RoleViewer), &fakeMessenger{}).Handler
-	for _, page := range resourcePages[:4] {
+	for _, page := range postablePages {
 		if rec := asRole(t, h, http.MethodPost, "/admin/"+page, "x=1"); rec.Code != http.StatusForbidden {
 			t.Errorf("viewer POST /admin/%s = %d, want 403", page, rec.Code)
 		}

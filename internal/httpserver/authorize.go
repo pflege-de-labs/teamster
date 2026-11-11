@@ -235,7 +235,7 @@ var recordPaths = []string{
 	"/api/templates", "/api/destinations", "/api/routes", "/api/webhooks", "/api/groups", "/api/sharing",
 }
 
-var recordPrefixes = []string{"/admin/destinations/", "/api/templates/", "/api/destinations/", "/api/routes/", "/api/webhooks/", "/api/groups/", "/api/sharing/", "/api/tokens/"}
+var recordPrefixes = []string{"/admin/destinations/", "/admin/templates/", "/api/templates/", "/api/destinations/", "/api/routes/", "/api/webhooks/", "/api/groups/", "/api/sharing/", "/api/tokens/"}
 
 func recordPath(r *http.Request) bool {
 	path := r.URL.Path

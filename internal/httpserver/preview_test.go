@@ -211,7 +211,7 @@ func TestPreviewAssetsAreServed(t *testing.T) {
 func TestAdminPageOffersThePreviewControls(t *testing.T) {
 	t.Parallel()
 
-	body := do(t, newTestServer(t, newFakeStore(), &fakeMessenger{}).Handler, http.MethodGet, "/admin/templates", "").Body.String()
+	body := do(t, newTestServer(t, newFakeStore(), &fakeMessenger{}).Handler, http.MethodGet, "/admin/templates/new", "").Body.String()
 
 	for _, want := range []string{
 		`id="preview-button"`, `id="preview-output"`, `id="template-form"`,

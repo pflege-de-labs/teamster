@@ -46,7 +46,7 @@ type DestinationNew struct {
 templ DestinationListPage(p DestinationList) {
 	@Layout(i18n.T(ctx, "page.destinations"), &p.Viewer) {
 		@notice(p.Error, p.Notice)
-		@listPage(i18n.T(ctx, "page.destinations"), i18n.T(ctx, "destinations.new"), "/admin/destinations/new", p.CanCreate) {
+		@listPage(i18n.T(ctx, "nav.destinations"), i18n.T(ctx, "destinations.new"), "/admin/destinations/new", p.CanCreate) {
 			if len(p.Rows) == 0 {
 				@empty(i18n.T(ctx, "destinations.empty"))
 			} else {

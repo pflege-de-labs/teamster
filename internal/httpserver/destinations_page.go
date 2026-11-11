@@ -18,7 +18,7 @@ func (s *Server) handleDestinationList(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	if id := q.Get("edit"); id != "" { // links already in Teams chats
 		markChecked(r)
-		http.Redirect(w, r, destinationEditURL(id, q), http.StatusMovedPermanently)
+		http.Redirect(w, r, recordEditURL("destinations", id, q), http.StatusMovedPermanently)
 		return
 	}
 	list := views.DestinationList{

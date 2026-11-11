@@ -35,7 +35,7 @@ func TestTheTemplateFormSavesSources(t *testing.T) {
 		t.Errorf("POST unknown source = %d, want 400", rec.Code)
 	}
 
-	page := pagesOf(t, handler, "/admin/templates", "/admin/webhooks", "/admin/routes")
+	page := pagesOf(t, handler, "/admin/templates/new", "/admin/webhooks", "/admin/routes")
 	for _, want := range []string{`name="sources" value="alertmanager"`, `data-sources="alertmanager,teamsv2"`, "any webhook"} {
 		if !strings.Contains(page, want) {
 			t.Errorf("page does not contain %s", want)
