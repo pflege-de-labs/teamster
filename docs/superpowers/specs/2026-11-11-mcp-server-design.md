@@ -92,7 +92,7 @@ with an empty `scope` is a legacy token admitted to both webhooks. An MCP row th
 accepted as a webhook token — by this release and by v0.20.0. A separate table is invisible to the
 previous release and to the webhook path.
 
-A token is `tmcp_` followed by 32 random bytes, base64url. The prefix makes a leaked token
+A token is `tmcp_` followed by 32 random bytes, hex-encoded as webhook tokens are. The prefix makes a leaked token
 recognisable to secret scanners. Only its SHA-256 digest is stored, as for webhook tokens. Tokens
 do not expire, like the existing ones; revoking is the way to end one.
 
