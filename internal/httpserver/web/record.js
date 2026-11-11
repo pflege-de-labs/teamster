@@ -7,6 +7,8 @@
   if (typeof document === "undefined") return;
 
   const record = document.querySelector("[data-record]");
+  // A page that answers a post showing a secret must not post again on reload.
+  if (record && "recordReplace" in record.dataset) history.replaceState(null, "", record.dataset.record);
   if (record) {
     const view = record.querySelector('[data-mode="view"]');
     const edit = record.querySelector('[data-mode="edit"]');

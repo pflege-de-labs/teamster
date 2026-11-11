@@ -249,11 +249,3 @@ func (s *Server) handleTemplateSave(w http.ResponseWriter, r *http.Request) {
 		logError(ctx, "render template record", err)
 	}
 }
-
-// templateTarget is where a delete lands: the list once the record is gone, its page when it is not.
-func templateTarget(r *http.Request, failed bool) string {
-	if id := r.PostFormValue("id"); id != "" && failed {
-		return recordEditPath("templates", id)
-	}
-	return "/admin/templates"
-}

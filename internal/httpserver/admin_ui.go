@@ -77,7 +77,19 @@ func recordEditURL(section, id string, q url.Values) string {
 }
 
 // pagedRecord says whether a section's records have a page of their own (ADR 0105).
-func pagedRecord(section string) bool { return section == "destinations" || section == "templates" }
+func pagedRecord(section string) bool {
+	return section == "destinations" || section == "templates" || section == "webhooks"
+}
+
+// recordTarget is where a record's delete lands: the list once the record is gone, its page when it is not.
+func recordTarget(section string) func(*http.Request, bool) string {
+	return func(r *http.Request, failed bool) string {
+		if id := r.PostFormValue("id"); id != "" && failed {
+			return recordEditPath(section, id)
+		}
+		return adminTabPath(section)
+	}
+}
 
 // recordEditPath is the page that edits one record.
 func recordEditPath(section, id string) string {
@@ -216,7 +228,7 @@ func (s *Server) loadForEditing(r *http.Request, page *views.Page, section, id s
 		return
 	}
 	typ, ok := map[string]string{
-		"routes": typeRoute, "webhooks": typeWebhookEndpoint,
+		"routes": typeRoute,
 	}[section]
 	if !ok {
 		return
@@ -233,11 +245,6 @@ func (s *Server) loadForEditing(r *http.Request, page *views.Page, section, id s
 		if route, err = s.store.GetRoute(ctx, id); err == nil {
 			page.EditRoute = &route
 			page.Recipients = s.keepEditedRecipient(ctx, page.Recipients, route.RecipientID)
-		}
-	case "webhooks":
-		var endpoint models.WebhookEndpoint
-		if endpoint, err = s.store.GetWebhookEndpoint(ctx, id); err == nil {
-			page.EditWebhookEndpoint = &endpoint
 		}
 	default:
 		return

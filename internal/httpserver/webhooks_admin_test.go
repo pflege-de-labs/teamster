@@ -192,6 +192,22 @@ func TestWebhookFormRefusals(t *testing.T) {
 			handler := newTestServer(t, seededUIStore(), &fakeMessenger{}).Handler
 			rec := postForm(t, handler, tt.path, tt.form, map[string]string{"Sec-Fetch-Site": "same-origin"})
 
+			if tt.path == "/admin/webhooks" {
+				// A refused save re-renders the form: the error shown, what was typed kept.
+				if rec.Code != http.StatusUnprocessableEntity {
+					t.Fatalf("status = %d, want 422", rec.Code)
+				}
+				body := rec.Body.String()
+				if !strings.Contains(body, tt.wantError) {
+					t.Errorf("page does not say %q", tt.wantError)
+				}
+				for _, slug := range []string{"team_slug", "channel_slug"} {
+					if want := tt.form.Get(slug); want != "" && !strings.Contains(body, `value="`+want+`"`) {
+						t.Errorf("page lost the typed %s %q", slug, want)
+					}
+				}
+				return
+			}
 			if rec.Code != http.StatusSeeOther {
 				t.Fatalf("status = %d, want a redirect carrying the error", rec.Code)
 			}
@@ -409,9 +425,15 @@ func TestWebhookFormSavesATemplate(t *testing.T) {
 		t.Errorf("TemplateID = %q, want tmpl", saved.TemplateID)
 	}
 
-	body := do(t, handler, http.MethodGet, "/admin/webhooks", "").Body.String()
-	if !strings.Contains(body, `name="template_id"`) || !strings.Contains(body, "· Critical card") {
-		t.Error("page does not offer the template picker or name the endpoint's template")
+	var id string
+	for id = range st.webhooks {
+	}
+	record := do(t, handler, http.MethodGet, "/admin/webhooks/"+id, "").Body.String()
+	if !strings.Contains(record, `name="template_id"`) || !strings.Contains(record, "Critical card") {
+		t.Error("record page does not offer the template picker or name the endpoint's template")
+	}
+	if list := do(t, handler, http.MethodGet, "/admin/webhooks", "").Body.String(); !strings.Contains(list, "· Critical card") {
+		t.Error("list does not name the endpoint's template")
 	}
 }
 

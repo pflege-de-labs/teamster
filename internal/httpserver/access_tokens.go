@@ -202,7 +202,7 @@ func (s *Server) handleTokensPage(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleTokenForm answers by rendering rather than redirecting, for the reason
-// handleWebhookForm gives: a redirect would put the token in a URL.
+// handleWebhookSave gives: a redirect would put the token in a URL.
 func (s *Server) handleTokenForm(w http.ResponseWriter, r *http.Request) {
 	if !formGuard("/admin/tokens", w, r) {
 		return
