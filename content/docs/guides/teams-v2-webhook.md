@@ -20,13 +20,13 @@ The channel the sender posts into must exist as a destination in Teamster. Creat
 
 ### Create the endpoint
 
-Under **Configuration → Webhooks**, in **Teams V2 webhooks**, pick the destination and give the URL
-two readable
-segments for the team and the channel. Segments are lower case letters, digits and hyphens, up to
-64 characters, starting and ending with a letter or digit.
+Under **Configuration → Webhooks**, press **New webhook**, pick the destination and give the URL
+two readable segments for the team and the channel. Segments are lower case letters, digits and
+hyphens, up to 64 characters, starting and ending with a letter or digit.
 
-The page that answers the form shows the full URL, token included, once. Teamster stores only a
-digest of the token and cannot show it again.
+Saving opens the webhook's page, with the full URL, token included, in a banner. It is shown once.
+Teamster stores only a digest of the token and cannot show it again, so copy it now. Reloading the
+page shows the webhook without the token, and does not create a second one.
 
 The URL starts with `server.webhook-url` when it is set, and otherwise with the scheme and host
 you read the admin UI on. If the admin UI sits on its own hostname, set `server.webhook-url` to
@@ -50,8 +50,20 @@ A `200` means the message was delivered. The body is the universal webhook's rep
 
 {{% /steps %}}
 
-If the URL is lost or leaks, use **New token** on the endpoint. It replaces the token, and the old
-URL stops working at once.
+If the URL is lost or leaks, press **New token** on the endpoint's page. It replaces the token, and
+the old URL stops working at once. The page shows the new URL once, as it did on creation.
+
+## Change, share or delete an endpoint
+
+Open the endpoint from the list under **Configuration → Webhooks**. Its page shows the URL path
+without the token, the destination and the template, each linked to its page, and a link to the
+route Teamster keeps for it.
+
+* **Edit** turns the page into the form, in place. Changing the segments changes the URL path; the
+  token stays. If saving fails, the form keeps what you typed.
+* **Delete** removes the endpoint.
+* The page also shows who the endpoint is shared with and lets you change it; see
+  [Ownership and sharing](../../concepts/ownership/).
 
 ## What the sender may post
 
@@ -119,8 +131,8 @@ are in the repository.
 ## Shape the message with a template
 
 By default the payload is posted as it came, followed by a small card saying that no template is
-defined. To shape it, pick a **Template** in the endpoint's form. Only templates that handle Teams
-V2 payloads are offered; see [Write templates](../templates/).
+defined. To shape it, pick a **Template** when you create or edit the endpoint. Only templates that
+handle Teams V2 payloads are offered; see [Write templates](../templates/).
 
 In such a template:
 
@@ -174,7 +186,7 @@ that select the same messages to deliver them somewhere else as well.
 
 Open **Configuration → Routes**. The route named `webhook <team>/<channel>` is marked
 **Managed by webhook `<team>/<channel>`**. Its selector is `teamster_source=teamsv2`,
-`teamster_team=<team>` and `teamster_channel=<channel>`. The endpoint's form links to it as
+`teamster_team=<team>` and `teamster_channel=<channel>`. The endpoint's page links to it as
 **Route of this webhook**.
 
 ### Add a route
