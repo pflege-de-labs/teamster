@@ -62,6 +62,13 @@ func (m *Metrics) instruments() error {
 	)
 	errs = append(errs, err)
 
+	m.toolCalls, err = meter.Int64Counter(
+		"teamster.mcp.tool_calls",
+		metric.WithDescription("MCP tool calls, by tool and outcome."),
+		metric.WithUnit("{call}"),
+	)
+	errs = append(errs, err)
+
 	m.renderFails, err = meter.Int64Counter(
 		"teamster.render.failures",
 		metric.WithDescription("Messages that could not be rendered, by template and stage."),
@@ -242,6 +249,14 @@ func (m *Metrics) WebhookReceived(ctx context.Context, source, state string) {
 	m.receipts.Add(ctx, 1, metric.WithAttributes(
 		attribute.String("source", source),
 		attribute.String("state", state),
+	))
+}
+
+// MCPToolCalled counts one MCP tool call; outcome is ok, refused, invalid or failed.
+func (m *Metrics) MCPToolCalled(ctx context.Context, tool, outcome string) {
+	m.toolCalls.Add(ctx, 1, metric.WithAttributes(
+		attribute.String("tool", tool),
+		attribute.String("outcome", outcome),
 	))
 }
 

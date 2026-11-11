@@ -476,12 +476,60 @@ func (s *Server) deleteTemplate(r *http.Request) (string, error) {
 	if err := s.mayRecord(r, authz.ActionDelete, typeTemplate, id); err != nil {
 		return "", err
 	}
-	if err := s.deleteOwned(r.Context(), typeTemplate, id, func(ctx context.Context, tx store.Store) error {
-		return tx.DeleteTemplate(ctx, id)
-	}); err != nil {
+	if err := s.deleteUnusedTemplate(r, id); err != nil {
 		return "", err
 	}
 	return "Template deleted.", nil
+}
+
+// errTemplateInUse refuses deleting a template routes or webhooks still render with: every delivery of theirs would fail.
+var errTemplateInUse = errors.New("template is still in use")
+
+// deleteUnusedTemplate deletes template id unless a route or a webhook endpoint still names it.
+func (s *Server) deleteUnusedTemplate(r *http.Request, id string) error {
+	return s.deleteOwned(r.Context(), typeTemplate, id, func(ctx context.Context, tx store.Store) error {
+		routes, err := tx.ListRoutes(ctx)
+		if err != nil {
+			return err
+		}
+		endpoints, err := tx.ListWebhookEndpoints(ctx)
+		if err != nil {
+			return err
+		}
+		var usingRoutes []models.Route
+		for _, route := range routes {
+			// A webhook's own route follows its webhook, which is named instead.
+			if route.TemplateID == id && route.WebhookEndpointID == "" {
+				usingRoutes = append(usingRoutes, route)
+			}
+		}
+		var usingEndpoints []models.WebhookEndpoint
+		for _, e := range endpoints {
+			if e.TemplateID == id {
+				usingEndpoints = append(usingEndpoints, e)
+			}
+		}
+		if len(usingRoutes) == 0 && len(usingEndpoints) == 0 {
+			return tx.DeleteTemplate(ctx, id)
+		}
+
+		var names []string
+		for _, route := range readable(s, r, typeRoute, usingRoutes, routeID) {
+			names = append(names, "route "+views.RouteLabel(ctx, route))
+		}
+		visible, err := s.listEndpoints(r, usingEndpoints)
+		if err != nil {
+			return err
+		}
+		for _, e := range visible {
+			names = append(names, "webhook /teamsv2/"+e.TeamSlug+"/"+e.ChannelSlug)
+		}
+		// What the session may not read is counted, never named.
+		if hidden := len(usingRoutes) + len(usingEndpoints) - len(names); hidden > 0 {
+			names = append(names, fmt.Sprintf("%d more you may not read", hidden))
+		}
+		return fmt.Errorf("%w by %s. Choose another template there first", errTemplateInUse, strings.Join(names, ", "))
+	})
 }
 
 func (s *Server) setDefaultDestination(r *http.Request) (string, error) {

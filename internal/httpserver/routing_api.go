@@ -767,6 +767,11 @@ func selectorSummary(selector map[string]string) string {
 	return strings.Join(pairs, ", ")
 }
 
+// matchRequest is the body of POST /api/routing/match; the MCP tool reuses it.
+type matchRequest struct {
+	Labels map[string]string `json:"labels"`
+}
+
 func (s *Server) handleRoutingMatch(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	if r.Method != http.MethodPost {
@@ -777,9 +782,7 @@ func (s *Server) handleRoutingMatch(w http.ResponseWriter, r *http.Request) {
 
 	r.Body = http.MaxBytesReader(w, r.Body, maxMatchBytes)
 
-	var req struct {
-		Labels map[string]string `json:"labels"`
-	}
+	var req matchRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSONError(w, http.StatusBadRequest, "invalid JSON")
 		return

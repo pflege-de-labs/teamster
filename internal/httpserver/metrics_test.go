@@ -25,6 +25,7 @@ type recordingTelemetry struct {
 	delivered [][2]string
 	receipts  [][2]string
 	renders   [][2]string
+	tools     [][2]string
 }
 
 func newRecordingTelemetry() *recordingTelemetry {
@@ -47,6 +48,12 @@ func (r *recordingTelemetry) RenderFailed(_ context.Context, templateID, stage s
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.renders = append(r.renders, [2]string{templateID, stage})
+}
+
+func (r *recordingTelemetry) MCPToolCalled(_ context.Context, tool, outcome string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.tools = append(r.tools, [2]string{tool, outcome})
 }
 
 func (r *recordingTelemetry) calls() (delivered, receipts, renders [][2]string) {

@@ -81,6 +81,7 @@ type Querier interface {
 	// The statements are the SQLite ones with ? replaced by $n. Edit the SQLite
 	// file and run make generate.
 	CreateLoginFlow(ctx context.Context, arg CreateLoginFlowParams) error
+	CreateMCPToken(ctx context.Context, arg CreateMCPTokenParams) error
 	CreateRecipient(ctx context.Context, arg CreateRecipientParams) error
 	CreateRoute(ctx context.Context, arg CreateRouteParams) error
 	// Code generated from ../sqlite by internal/store/queries/gen. DO NOT EDIT.
@@ -136,6 +137,7 @@ type Querier interface {
 	// guess only ever has to beat one live code rather than every one ever handed
 	// out before the hourly sweep catches up.
 	DeleteLinkFlowsForSubject(ctx context.Context, subject string) error
+	DeleteMCPToken(ctx context.Context, id string) (int64, error)
 	DeletePermission(ctx context.Context, id string) (int64, error)
 	DeletePermissionsForPrincipal(ctx context.Context, arg DeletePermissionsForPrincipalParams) error
 	DeletePermissionsForResource(ctx context.Context, arg DeletePermissionsForResourceParams) error
@@ -177,6 +179,7 @@ type Querier interface {
 	GetDirectoryUser(ctx context.Context, aadObjectID string) (DirectoryUser, error)
 	GetDirectoryUserByConversation(ctx context.Context, conversationID string) (DirectoryUser, error)
 	GetGroup(ctx context.Context, id string) (UserGroup, error)
+	GetMCPTokenByHash(ctx context.Context, tokenHash string) (McpToken, error)
 	GetPermission(ctx context.Context, id string) (Permission, error)
 	GetRecipient(ctx context.Context, id string) (Recipient, error)
 	// GetRecipientByConversation resolves the chat an inbound activity came from
@@ -280,6 +283,11 @@ type Querier interface {
 	// The statements are the SQLite ones with ? replaced by $n. Edit the SQLite
 	// file and run make generate.
 	ListGroups(ctx context.Context) ([]UserGroup, error)
+	// Code generated from ../sqlite by internal/store/queries/gen. DO NOT EDIT.
+	//
+	// The statements are the SQLite ones with ? replaced by $n. Edit the SQLite
+	// file and run make generate.
+	ListMCPTokens(ctx context.Context) ([]McpToken, error)
 	// Code generated from ../sqlite by internal/store/queries/gen. DO NOT EDIT.
 	//
 	// The statements are the SQLite ones with ? replaced by $n. Edit the SQLite
@@ -394,6 +402,7 @@ type Querier interface {
 	// ordinary equality, not a NULL comparison, so a card whose send returned no
 	// id is still reachable here.
 	TouchActiveEventRecipient(ctx context.Context, arg TouchActiveEventRecipientParams) error
+	TouchMCPToken(ctx context.Context, arg TouchMCPTokenParams) error
 	UnlinkRoute(ctx context.Context, id string) error
 	UpdateBrokerToken(ctx context.Context, arg UpdateBrokerTokenParams) error
 	UpdateDestination(ctx context.Context, arg UpdateDestinationParams) error

@@ -18,6 +18,7 @@ const (
 	TypeRoute           = "Route"
 	TypeWebhookEndpoint = "WebhookEndpoint"
 	TypeAccessToken     = "AccessToken"
+	TypeMCPToken        = "MCPToken"
 	TypeGrant           = "Grant"
 	TypeRecipient       = "Recipient"
 	TypeSetting         = "Setting"
@@ -360,6 +361,30 @@ func (s *auditedStore) DeleteAccessToken(ctx context.Context, id string) error {
 	err := s.Store.DeleteAccessToken(ctx, id)
 	if err == nil {
 		s.emit(ctx, event("access_token.delete", TypeAccessToken, id, before, nil))
+	}
+	return err
+}
+
+// MCP tokens. The snapshot drops the digest, as for access tokens.
+
+func (s *auditedStore) CreateMCPToken(ctx context.Context, t models.MCPToken) (models.MCPToken, error) {
+	created, err := s.Store.CreateMCPToken(ctx, t)
+	if err == nil {
+		s.emit(ctx, event("mcp_token.create", TypeMCPToken, created.ID, nil, snapshot(created)))
+	}
+	return created, err
+}
+
+func (s *auditedStore) DeleteMCPToken(ctx context.Context, id string) error {
+	var before json.RawMessage
+	if tokens, err := s.ListMCPTokens(ctx); err == nil {
+		if i := slices.IndexFunc(tokens, func(t models.MCPToken) bool { return t.ID == id }); i >= 0 {
+			before = snapshot(tokens[i])
+		}
+	}
+	err := s.Store.DeleteMCPToken(ctx, id)
+	if err == nil {
+		s.emit(ctx, event("mcp_token.delete", TypeMCPToken, id, before, nil))
 	}
 	return err
 }

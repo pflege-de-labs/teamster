@@ -32,6 +32,7 @@ type fakeStore struct {
 	recipients   map[string]models.Recipient
 	webhooks     map[string]models.WebhookEndpoint
 	accessTokens map[string]models.AccessToken
+	mcpTokens    map[string]models.MCPToken
 	botTeams     map[string]models.BotTeam
 	directory    map[string]models.DirectoryUser
 	runs         []models.DirectoryRun
@@ -81,6 +82,7 @@ func newFakeStore() *fakeStore {
 		recipients:     map[string]models.Recipient{},
 		webhooks:       map[string]models.WebhookEndpoint{},
 		accessTokens:   map[string]models.AccessToken{},
+		mcpTokens:      map[string]models.MCPToken{},
 		botTeams:       map[string]models.BotTeam{},
 		directory:      map[string]models.DirectoryUser{},
 		routes:         map[string]models.Route{},
@@ -638,6 +640,79 @@ func (f *fakeStore) DeleteAccessToken(ctx context.Context, id string) error {
 	}
 	delete(f.accessTokens, id)
 	f.authzGen++
+	return nil
+}
+
+func (f *fakeStore) ListMCPTokens(ctx context.Context) ([]models.MCPToken, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("ListMCPTokens"); err != nil {
+		return nil, err
+	}
+	out := []models.MCPToken{}
+	for _, t := range f.mcpTokens {
+		out = append(out, t)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].CreatedAt.Before(out[j].CreatedAt) })
+	return out, nil
+}
+
+func (f *fakeStore) CreateMCPToken(ctx context.Context, t models.MCPToken) (models.MCPToken, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("CreateMCPToken"); err != nil {
+		return models.MCPToken{}, err
+	}
+	for _, existing := range f.mcpTokens {
+		if (existing.Name == t.Name && existing.CreatedBy == t.CreatedBy) || existing.TokenHash == t.TokenHash {
+			return models.MCPToken{}, store.ErrConflict
+		}
+	}
+	if t.ID == "" {
+		t.ID = uuid.NewString()
+	}
+	t.CreatedAt = time.Now().UTC()
+	f.mcpTokens[t.ID] = t
+	return t, nil
+}
+
+func (f *fakeStore) GetMCPTokenByHash(ctx context.Context, tokenHash string) (models.MCPToken, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("GetMCPTokenByHash"); err != nil {
+		return models.MCPToken{}, err
+	}
+	for _, t := range f.mcpTokens {
+		if t.TokenHash == tokenHash {
+			return t, nil
+		}
+	}
+	return models.MCPToken{}, store.ErrNotFound
+}
+
+func (f *fakeStore) TouchMCPToken(ctx context.Context, id string, at time.Time) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("TouchMCPToken"); err != nil {
+		return err
+	}
+	if t, ok := f.mcpTokens[id]; ok {
+		t.LastUsedAt = at
+		f.mcpTokens[id] = t
+	}
+	return nil
+}
+
+func (f *fakeStore) DeleteMCPToken(ctx context.Context, id string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("DeleteMCPToken"); err != nil {
+		return err
+	}
+	if _, ok := f.mcpTokens[id]; !ok {
+		return store.ErrNotFound
+	}
+	delete(f.mcpTokens, id)
 	return nil
 }
 
@@ -2177,6 +2252,7 @@ func (f *fakeStore) snapshot() *fakeStore {
 		recipients:   maps.Clone(f.recipients),
 		webhooks:     maps.Clone(f.webhooks),
 		accessTokens: maps.Clone(f.accessTokens),
+		mcpTokens:    maps.Clone(f.mcpTokens),
 		routes:       maps.Clone(f.routes),
 		grants:       maps.Clone(f.grants),
 		activeEvents: maps.Clone(f.activeEvents),

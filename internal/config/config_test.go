@@ -204,6 +204,18 @@ func TestParseBotConfigFieldsMap(t *testing.T) {
 	}
 }
 
+func TestParseMCP(t *testing.T) {
+	t.Parallel()
+
+	if got := parse(t, nil, writeConfig(t, "webhook:\n  token: t\n")); got.MCP != (MCPConfig{}) {
+		t.Errorf("MCP = %+v, want off by default", got.MCP)
+	}
+	got := parse(t, nil, writeConfig(t, "webhook:\n  token: t\nmcp:\n  enabled: true\n  read-only: true\n"))
+	if want := (MCPConfig{Enabled: true, ReadOnly: true}); got.MCP != want {
+		t.Errorf("MCP = %+v, want %+v", got.MCP, want)
+	}
+}
+
 func TestParseAppliesTagDefaults(t *testing.T) {
 	t.Parallel()
 

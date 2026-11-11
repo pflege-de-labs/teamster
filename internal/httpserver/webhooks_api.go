@@ -87,6 +87,11 @@ func (s *Server) handleWebhookEndpointByID(w http.ResponseWriter, r *http.Reques
 		writeRecordError(w, r, err)
 		return
 	}
+	// Before anything else: a write checks only its new destination, not the one it moves away from.
+	if _, err := s.endpointInScope(r, id); err != nil {
+		writeError(w, r, notFoundOrInternal(err), err)
+		return
+	}
 	if rotate {
 		s.rotateWebhookEndpointToken(w, r, id)
 		return

@@ -932,6 +932,70 @@ func TestConformanceAccessTokens(t *testing.T) {
 	})
 }
 
+func TestConformanceMCPTokens(t *testing.T) {
+	t.Parallel()
+
+	eachBackend(t, func(t *testing.T, open func(t *testing.T) store.Store) {
+		st := open(t)
+		ctx := t.Context()
+
+		created, err := st.CreateMCPToken(ctx, models.MCPToken{Name: "laptop", TokenHash: "m1", CreatedBy: "tester", Access: models.MCPAccessWrite})
+		if err != nil {
+			t.Fatalf("CreateMCPToken: %v", err)
+		}
+		if created.ID == "" || created.CreatedAt.IsZero() {
+			t.Errorf("CreateMCPToken() = %+v, want an id and a creation time", created)
+		}
+		other, err := st.CreateMCPToken(ctx, models.MCPToken{Name: "laptop", TokenHash: "m4", CreatedBy: "someone", Access: models.MCPAccessRead})
+		if err != nil {
+			t.Fatalf("a second creator reusing a name: %v", err)
+		}
+		if err := st.DeleteMCPToken(ctx, other.ID); err != nil {
+			t.Fatalf("DeleteMCPToken: %v", err)
+		}
+		if _, err := st.CreateMCPToken(ctx, models.MCPToken{Name: "laptop", TokenHash: "m2", CreatedBy: "tester", Access: models.MCPAccessRead}); !errors.Is(err, store.ErrConflict) {
+			t.Errorf("a taken name = %v, want ErrConflict", err)
+		}
+		if _, err := st.CreateMCPToken(ctx, models.MCPToken{Name: "bad", TokenHash: "m3", Access: "admin"}); err == nil {
+			t.Error("an access other than read or write was stored")
+		}
+
+		got, err := st.GetMCPTokenByHash(ctx, "m1")
+		if err != nil {
+			t.Fatalf("GetMCPTokenByHash: %v", err)
+		}
+		if got.ID != created.ID || got.CreatedBy != "tester" || !got.Writes() || !got.LastUsedAt.IsZero() {
+			t.Errorf("GetMCPTokenByHash() = %+v, want the token just created, never used", got)
+		}
+		if _, err := st.GetMCPTokenByHash(ctx, "unknown"); !errors.Is(err, store.ErrNotFound) {
+			t.Errorf("an unknown digest = %v, want ErrNotFound", err)
+		}
+		// The two tables never answer for each other.
+		if _, err := st.GetAccessTokenByHash(ctx, "m1"); !errors.Is(err, store.ErrNotFound) {
+			t.Errorf("GetAccessTokenByHash(mcp digest) = %v, want ErrNotFound", err)
+		}
+
+		used := time.Date(2026, 9, 1, 12, 0, 0, 0, time.UTC)
+		if err := st.TouchMCPToken(ctx, created.ID, used); err != nil {
+			t.Fatalf("TouchMCPToken: %v", err)
+		}
+		list, err := st.ListMCPTokens(ctx)
+		if err != nil {
+			t.Fatalf("ListMCPTokens: %v", err)
+		}
+		if len(list) != 1 || !list[0].LastUsedAt.Equal(used) {
+			t.Errorf("ListMCPTokens() = %+v, want one token last used at %v", list, used)
+		}
+
+		if err := st.DeleteMCPToken(ctx, created.ID); err != nil {
+			t.Fatalf("DeleteMCPToken: %v", err)
+		}
+		if err := st.DeleteMCPToken(ctx, created.ID); !errors.Is(err, store.ErrNotFound) {
+			t.Errorf("a second delete = %v, want ErrNotFound", err)
+		}
+	})
+}
+
 // One person, one binding: a second row for the same subject would deliver
 // every alert twice.
 func TestConformanceGetRecipientByConversation(t *testing.T) {

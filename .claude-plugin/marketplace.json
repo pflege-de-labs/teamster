@@ -1,0 +1,12 @@
+{
+  "name": "teamster",
+  "owner": { "name": "pflege.de labs" },
+  "description": "Claude Code plugins for Teamster, the webhook bridge to Microsoft Teams.",
+  "plugins": [
+    {
+      "name": "teamster",
+      "source": "./plugins/teamster",
+      "description": "Connects Claude Code to a Teamster MCP endpoint and teaches the routing workflow."
+    }
+  ]
+}

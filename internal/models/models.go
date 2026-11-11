@@ -253,6 +253,27 @@ type AccessToken struct {
 // Scoped reports whether the token is bound to its scope and its creator.
 func (t AccessToken) Scoped() bool { return len(t.Scope) > 0 }
 
+// What an MCP token may do: read the configuration, or change it too.
+const (
+	MCPAccessRead  = "read"
+	MCPAccessWrite = "write"
+)
+
+// An MCPToken is a credential for the /mcp endpoint, minted by a user and
+// bound to them. TokenHash is a SHA-256 digest; the token is shown once.
+type MCPToken struct {
+	ID         string    `json:"id"`
+	Name       string    `json:"name"`
+	TokenHash  string    `json:"-"`
+	CreatedBy  string    `json:"created_by"`
+	CreatedAt  time.Time `json:"created_at"`
+	LastUsedAt time.Time `json:"last_used_at"`
+	Access     string    `json:"access"`
+}
+
+// Writes reports whether the token may call tools that change things.
+func (t MCPToken) Writes() bool { return t.Access == MCPAccessWrite }
+
 // A Recipient is a person who asked for their alerts as a chat message, and the
 // Bot Framework conversation reference that makes it possible to send one
 // unprompted. Subject is the admin-UI session subject that proved the link, so a
@@ -723,6 +744,7 @@ const (
 	ViaSession = "session"
 	ViaBasic   = "basic"
 	ViaToken   = "token"
+	ViaMCP     = "mcp"
 	ViaCLI     = "cli"
 	ViaSystem  = "system"
 )
