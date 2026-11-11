@@ -125,6 +125,7 @@ Payloads from before events replaced alerts used `status`, `fingerprint`, `annot
 | Label | Set by | Meaning |
 | --- | --- | --- |
 | `teamster_source` | Teamster | The webhook the event arrived at: `alertmanager`, `universal` or `teamsv2`. A sender's own value is overwritten. |
+| `teamster_receiver` | Teamster | The Alertmanager `receiver` after its last `/`. Set only on `/webhook/alertmanager`, absent without a receiver. A sender's own value is overwritten. |
 | `teamster_team`, `teamster_channel` | Teamster | The URL segments of a Teams V2 message. Removed from a sender's labels on every other webhook. |
 | `teamster_recipient` | The sender | People an addressed route delivers to, comma-separated. Used only when the payload has no `recipients`. |
 

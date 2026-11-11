@@ -112,6 +112,9 @@ Die Antwort `200 {"status":"ok"}` bedeutet, dass die Benachrichtigung zugestellt
 * Routen wählen nach `commonLabels` aus, den Labels, die alle Alarme der Gruppe gemeinsam haben.
   Bei einer Gruppe mit einem Alarm sind das die Labels dieses Alarms.
 * Jedes Ereignis trägt das Label `teamster_source: alertmanager`. Eine Route kann danach auswählen.
+* Jedes Ereignis trägt außerdem `teamster_receiver`, den Receiver, über den Alertmanager es
+  gesendet hat. Siehe
+  [Jeden Receiver an einen eigenen Kanal senden](#send-each-receiver-to-its-own-channel).
 * Vorlagen finden die Alarme der Gruppe in `.Event.Alertmanager.Alerts`. Die flachen Felder
   `Annotations`, `StartsAt`, `EndsAt` und `GeneratorURL` sind nur bei einer Gruppe mit einem Alarm
   gesetzt. Siehe [Die Alarme einer Gruppe auflisten](../templates/#list-the-alerts-of-a-group) und
@@ -120,6 +123,26 @@ Die Antwort `200 {"status":"ok"}` bedeutet, dass die Benachrichtigung zugestellt
   `teamster_recipient`. Die Adressen aller Alarme der Gruppe werden zusammengeführt. Jede Person
   erhält nur die Alarme, die sie nennen, und die Alarme, die niemanden nennen. Siehe
   [Nachrichten an einzelne Personen senden](../direct-messages/).
+
+## Jeden Receiver an einen eigenen Kanal senden {#send-each-receiver-to-its-own-channel}
+
+Alertmanager behält Routing, Stummschaltung und Inhibition. Teamster wählt den Kanal anhand des
+Receivers:
+
+1. Richten Sie jeden Alertmanager-Receiver, den Sie in Teams haben möchten, auf
+   `/webhook/alertmanager` aus, jeweils mit demselben Token.
+2. Legen Sie in Teamster je Receiver eine Route an, die `{"teamster_receiver": "<receiver>"}`
+   selektiert und an dessen Kanal zustellt.
+
+Teamster setzt `teamster_receiver` auf den Teil des `receiver` der Benachrichtigung nach dem
+letzten `/`. Der Prometheus Operator benennt Receiver `<namespace>/<config>/<name>`, daher wählen
+Sie nach `<name>` aus. Ein vom Absender gesetzter Wert wird überschrieben. Eine Benachrichtigung
+ohne Receiver erhält kein Label.
+
+Um einen Receiver nach Cluster aufzuteilen, fügen Sie `cluster` zum `group_by` von Alertmanager
+hinzu, damit Alarme verschiedener Cluster sich keine Karte teilen. Legen Sie dann unter der Route
+des Receivers untergeordnete Routen an, die `{"cluster": "<cluster>"}` selektieren. Siehe
+[Verschachtelte Routen](../../concepts/routing/#nested-routes).
 
 ## Nach dem Upgrade von einem Release mit einer Karte je Alarm {#after-upgrading-from-a-release-with-one-card-per-alert}
 

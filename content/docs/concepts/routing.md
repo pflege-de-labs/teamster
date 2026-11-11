@@ -27,6 +27,14 @@ Before routing, Teamster sets the label `teamster_source` to the webhook the eve
 `alertmanager` or `universal`. It overwrites any value the sender set. A route can therefore
 select on the source, for example `{"teamster_source": "alertmanager"}`.
 
+### The `teamster_receiver` label
+
+An Alertmanager event gets the label `teamster_receiver`: the notification's `receiver` after the
+last `/`, because the Prometheus Operator sends `<namespace>/<config>/<name>`. It overwrites any
+value the sender set, and is absent when the notification has no receiver. Other webhooks never
+carry it. A route can select on it to give each Alertmanager receiver its own channel. See
+[Send each receiver to its own channel](../../guides/alertmanager/#send-each-receiver-to-its-own-channel).
+
 ### The `teamster_team` and `teamster_channel` labels
 
 A Teams V2 message arrives with `teamster_source=teamsv2` and the two URL segments it was posted to
