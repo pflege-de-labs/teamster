@@ -323,3 +323,62 @@ func TestACraftedIDCannotBorrowAGrant(t *testing.T) {
 		t.Errorf("POST with a crafted Team id = %d, want 403 (%s)", rec.Code, rec.Body.String())
 	}
 }
+
+// A destination outside the granted Teams is not there for a scoped role, by
+// id as much as in the list: reading, moving it into scope or deleting it.
+func TestGrantsHideOutOfScopeDestinationsByID(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		role       authz.Role
+		method     string
+		path       string
+		body       string
+		wantStatus int
+	}{
+		{name: "viewer reads inside", role: authz.RoleViewer, method: http.MethodGet, path: "/api/destinations/inside", wantStatus: http.StatusOK},
+		{name: "viewer reads outside", role: authz.RoleViewer, method: http.MethodGet, path: "/api/destinations/outside", wantStatus: http.StatusNotFound},
+		{name: "editor reads outside", role: authz.RoleEditor, method: http.MethodGet, path: "/api/destinations/outside", wantStatus: http.StatusNotFound},
+		{
+			name: "editor moves outside into scope", role: authz.RoleEditor, method: http.MethodPut, path: "/api/destinations/outside",
+			body: `{"name":"moved","team_id":"platform","channel_id":"alerts"}`, wantStatus: http.StatusNotFound,
+		},
+		{name: "editor deletes outside", role: authz.RoleEditor, method: http.MethodDelete, path: "/api/destinations/outside", wantStatus: http.StatusNotFound},
+		{name: "editor reads missing", role: authz.RoleEditor, method: http.MethodGet, path: "/api/destinations/nope", wantStatus: http.StatusNotFound},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			st := scopedStore(t, tt.role)
+			rec := asRole(t, newTestServer(t, st, &fakeMessenger{}).Handler, tt.method, tt.path, tt.body)
+			if rec.Code != tt.wantStatus {
+				t.Errorf("%s %s = %d, want %d (%s)", tt.method, tt.path, rec.Code, tt.wantStatus, rec.Body.String())
+			}
+			if strings.Contains(rec.Body.String(), "Payments alerts") {
+				t.Errorf("the answer names the out-of-scope destination: %s", rec.Body.String())
+			}
+			if got := st.destinations["outside"]; got.TeamID != "payments" || got.Name != "Payments alerts" {
+				t.Errorf("outside = %+v, want it untouched", got)
+			}
+		})
+	}
+}
+
+// The form takes the same way round as the API: naming an out-of-scope id and
+// a target inside scope must not move it.
+func TestGrantsKeepTheFormFromMovingOutOfScopeDestinations(t *testing.T) {
+	t.Parallel()
+
+	st := scopedStore(t, authz.RoleEditor)
+	handler := newTestServer(t, st, &fakeMessenger{}).Handler
+
+	form := url.Values{"id": {"outside"}, "name": {"moved"}, "team_id": {"platform"}, "channel_id": {"alerts"}}
+	postForm(t, handler, "/admin/destinations", form, map[string]string{"Sec-Fetch-Site": "same-origin"})
+
+	if got := st.destinations["outside"]; got.TeamID != "payments" || got.Name != "Payments alerts" {
+		t.Errorf("outside = %+v, want it left where it was", got)
+	}
+}
