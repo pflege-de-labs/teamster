@@ -12,6 +12,17 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 ### Added
 
+* MCP tokens: with `mcp.enabled` on, every signed-in user can mint a `tmcp_` token at
+  `/admin/tokens`, read or write, that acts as its creator and never further. Minting and revoking
+  are audited
+  ([ADR 0106](docs/adr/0106-mcp-tokens-answer-to-their-creator.md)).
+* `/mcp`, an MCP endpoint for AI assistants, with 20 tools over templates, destinations, routes,
+  routing dry-runs and Teams lookups. It runs each tool as the token's creator through the admin
+  API, so permissions, grants and audit apply unchanged; `mcp.read-only` withdraws every write tool
+  ([ADR 0107](docs/adr/0107-mcp-endpoint-over-the-admin-api.md)).
+* A Claude Code plugin marketplace in this repository: `/plugin install teamster@teamster` adds the
+  MCP server, asking for the URL and token, and a skill that teaches the routing workflow
+  ([ADR 0108](docs/adr/0108-claude-code-plugin-marketplace.md)).
 * Alertmanager events carry the label `teamster_receiver`, the receiver Alertmanager sent them
   through, so a route can follow the channel an Alertmanager route tree picked
   ([ADR 0104](docs/adr/0104-the-alertmanager-receiver-is-a-label.md)).
@@ -30,18 +41,20 @@ reasoning behind it in the [ADRs](docs/adr/).
   to its form without a reload, and a failed save keeps what you typed. The record shows the Team
   and channel names, where the destination is used and its sharing. Old `?edit=` links redirect
   ([ADR 0105](docs/adr/0105-give-each-record-a-page-of-its-own.md)).
-* Templates have the same list, record and create pages. The record shows the rendered template
-  beside its summary, its source, and the routes, webhooks and defaults that use it; **Edit** opens
-  the editor with the live preview in place. The default template per webhook stays on the list.
 * Notifications moved to the user menu as **My notifications**; "Permissions" is now **Channel
   scopes** and the grants page **Delivery permissions**.
 
 ### Fixed
 
-* The heading of the destination list read "Destinations — Teamster", the browser tab's title.
+* A template that routes or Teams V2 webhooks still use could be deleted, after which every
+  delivery through them failed. Deleting it is now refused with the routes and webhooks that use
+  it, by name where you may read them; `DELETE /api/templates/{id}` answers `409 Conflict`.
 * A role limited to some Teams could read, delete or move into its own Teams a destination outside
   them by its id. `/api/destinations/{id}` now answers 404 for it, as the list already leaves it
   out, and the destination form refuses the move.
+* The same held for Teams V2 webhooks: such a role could read, repoint into its own Teams, replace
+  the token of or delete an endpoint posting outside them by its id, and take over that channel's
+  messages. `/api/webhooks/{id}` now answers 404 for it, and the webhook form refuses the move.
 
 ## [0.20.0] — 2026-11-09
 
