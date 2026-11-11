@@ -35,9 +35,9 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 ### Fixed
 
-* A template that routes still use could be deleted, after which every delivery through those
-  routes failed. Deleting it is now refused with the routes that use it, by name where you may read
-  them; `DELETE /api/templates/{id}` answers `409 Conflict`.
+* A template that routes or Teams V2 webhooks still use could be deleted, after which every
+  delivery through them failed. Deleting it is now refused with the routes and webhooks that use
+  it, by name where you may read them; `DELETE /api/templates/{id}` answers `409 Conflict`.
 * A role limited to some Teams could read, delete or move into its own Teams a destination outside
   them by its id. `/api/destinations/{id}` now answers 404 for it, as the list already leaves it
   out, and the destination form refuses the move.

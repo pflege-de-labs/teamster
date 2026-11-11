@@ -29,7 +29,7 @@ func TestATemplateRoutesStillUseIsNotDeleted(t *testing.T) {
 				return rec.Code, loc.Query().Get("error")
 			},
 			wantStatus: http.StatusSeeOther,
-			want:       []string{"still used by routes", "Critical to ops"},
+			want:       []string{"still in use", "route Critical to ops"},
 		},
 		{
 			name:  "API",
@@ -39,7 +39,24 @@ func TestATemplateRoutesStillUseIsNotDeleted(t *testing.T) {
 				return rec.Code, rec.Body.String()
 			},
 			wantStatus: http.StatusConflict,
-			want:       []string{"still used by routes", "Critical to ops"},
+			want:       []string{"still in use", "route Critical to ops"},
+		},
+		{
+			name: "a webhook is named, not its own route",
+			store: func() *fakeStore {
+				st := seededUIStore()
+				delete(st.routes, "route")
+				st.webhooks["e1"] = models.WebhookEndpoint{ID: "e1", TeamSlug: "ops", ChannelSlug: "alerts", DestinationID: "dest", TemplateID: "tmpl"}
+				st.routes["managed"] = models.Route{ID: "managed", Name: "webhook ops/alerts", TemplateID: "tmpl", WebhookEndpointID: "e1"}
+				return st
+			},
+			delete: func(t *testing.T, h http.Handler) (int, string) {
+				rec := do(t, h, http.MethodDelete, "/api/templates/tmpl", "")
+				return rec.Code, rec.Body.String()
+			},
+			wantStatus: http.StatusConflict,
+			want:       []string{"webhook /teamsv2/ops/alerts"},
+			notWant:    []string{"route webhook"},
 		},
 		{
 			name: "a route the session may not read is counted, not named",

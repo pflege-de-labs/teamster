@@ -867,7 +867,7 @@ and **Teams V2 webhook**. Leave all unticked for any.
 - An event that reaches a template not written for its webhook gets its webhook's default template
   instead, or the built-in message when there is none, and a warning is logged.
 - A template that a route or a Teams V2 endpoint still uses cannot be deleted. The refusal names
-  the routes to point at another template first; routes you may not read are only counted.
+  the routes and webhooks to give another template first; those you may not read are only counted.
   `DELETE /api/templates/{id}` answers `409 Conflict` with the same message.
 
 ### Default templates
