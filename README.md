@@ -1513,6 +1513,21 @@ a write even if one were called. Label values and other users' text reach the as
 a **read** token unless it must change things
 ([ADR 0107](docs/adr/0107-mcp-endpoint-over-the-admin-api.md)).
 
+### Installing the Claude Code plugin
+
+This repository is a Claude Code plugin marketplace. The plugin `teamster` adds the MCP server and
+the skill `teamster-routing`, which walks an assistant through routing alerts: read the sampled
+labels, dry-run with `match_route`, pick a destination, preview the template, write the route and
+confirm ([ADR 0108](docs/adr/0108-claude-code-plugin-marketplace.md)):
+
+```text
+/plugin marketplace add pflege-de-labs/teamster
+/plugin install teamster@teamster
+```
+
+Claude Code asks for the **Teamster URL**, the base URL without `/mcp`, and the **MCP token**
+minted at `/admin/tokens`; the token is kept in Claude Code's secure credential storage.
+
 ## Audit trail
 
 Auditing is off until you configure it. With it on, every change to the configuration is

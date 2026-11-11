@@ -1,0 +1,21 @@
+{
+  "name": "teamster",
+  "version": "0.21.0",
+  "description": "Connects Claude Code to a Teamster MCP endpoint and teaches the workflow for routing alerts to Microsoft Teams.",
+  "author": { "name": "pflege.de labs" },
+  "userConfig": {
+    "base_url": {
+      "type": "string",
+      "title": "Teamster URL",
+      "description": "Base URL of your Teamster server, for example https://teamster.example.com (without /mcp).",
+      "required": true
+    },
+    "api_token": {
+      "type": "string",
+      "title": "MCP token",
+      "description": "A tmcp_ token minted at /admin/tokens on your Teamster server.",
+      "required": true,
+      "sensitive": true
+    }
+  }
+}

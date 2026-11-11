@@ -20,6 +20,9 @@ reasoning behind it in the [ADRs](docs/adr/).
   routing dry-runs and Teams lookups. It runs each tool as the token's creator through the admin
   API, so permissions, grants and audit apply unchanged; `mcp.read-only` withdraws every write tool
   ([ADR 0107](docs/adr/0107-mcp-endpoint-over-the-admin-api.md)).
+* A Claude Code plugin marketplace in this repository: `/plugin install teamster@teamster` adds the
+  MCP server, asking for the URL and token, and a skill that teaches the routing workflow
+  ([ADR 0108](docs/adr/0108-claude-code-plugin-marketplace.md)).
 * Alertmanager events carry the label `teamster_receiver`, the receiver Alertmanager sent them
   through, so a route can follow the channel an Alertmanager route tree picked
   ([ADR 0104](docs/adr/0104-the-alertmanager-receiver-is-a-label.md)).
