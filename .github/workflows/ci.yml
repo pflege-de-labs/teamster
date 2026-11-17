@@ -14,7 +14,7 @@ jobs:
   # need Postgres and NATS, which a called workflow cannot start, so they run in `test` below and
   # the shared job only compiles them.
   checks:
-    uses: pflege-de-labs/github-workflows/.github/workflows/go-checks.yml@cef33cface64a7ac3c33a5a8aea652095de518f7 # v1.1.0
+    uses: pflege-de-labs/github-workflows/.github/workflows/go-checks.yml@2cf5d3bd6cabe68176ae9a62b29177b3aa365ca2 # v1.2.0
     with:
       go-version: stable
       test-command: go test -run '^$' ./...
@@ -43,7 +43,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
         with:
           go-version: stable
       - run: make vendor
@@ -63,7 +63,7 @@ jobs:
     # The suite fails rather than skips when CI is set and the DSN is not.
     services:
       postgres:
-        image: postgres:18-alpine@sha256:123b17998ccaf47e53b502e8c6a1e79afd8f579c6f3eec83c563da026f957395
+        image: postgres:18-alpine@sha256:b6972e1115a4ff8eba5d7f7d19184926d1e16d7d1136ae1e1a7ebf286da0f015
         env:
           POSTGRES_USER: teamster
           POSTGRES_PASSWORD: teamster
@@ -82,7 +82,7 @@ jobs:
       NATS_IMAGE: nats:2.15.2-alpine@sha256:afae2fdbe2e326c65e1246cb83b9d05d319188734f3bd577ac8072daae78a10f
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
         with:
           go-version: stable
       - name: Start NATS with JetStream
@@ -105,7 +105,7 @@ jobs:
       - run: make test-js
 
   chart:
-    uses: pflege-de-labs/github-workflows/.github/workflows/helm-lint.yml@cef33cface64a7ac3c33a5a8aea652095de518f7 # v1.1.0
+    uses: pflege-de-labs/github-workflows/.github/workflows/helm-lint.yml@2cf5d3bd6cabe68176ae9a62b29177b3aa365ca2 # v1.2.0
     with:
       chart: charts/teamster
       # Both deployment shapes render; then assert what comes out and that every unsupported combination is refused.
@@ -115,7 +115,7 @@ jobs:
   # merge, and keeps it out of the main image.
   build:
     needs: checks
-    uses: pflege-de-labs/github-workflows/.github/workflows/image-build.yml@cef33cface64a7ac3c33a5a8aea652095de518f7 # v1.1.0
+    uses: pflege-de-labs/github-workflows/.github/workflows/image-build.yml@2cf5d3bd6cabe68176ae9a62b29177b3aa365ca2 # v1.2.0
     permissions:
       contents: read
       packages: write
@@ -140,7 +140,7 @@ jobs:
   secobserve:
     needs: build
     if: github.event_name != 'pull_request'
-    uses: pflege-de-labs/github-workflows/.github/workflows/secobserve-image.yml@cef33cface64a7ac3c33a5a8aea652095de518f7 # v1.1.0
+    uses: pflege-de-labs/github-workflows/.github/workflows/secobserve-image.yml@2cf5d3bd6cabe68176ae9a62b29177b3aa365ca2 # v1.2.0
     permissions:
       contents: read
       packages: read
