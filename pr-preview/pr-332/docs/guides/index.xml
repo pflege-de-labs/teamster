@@ -3664,13 +3664,13 @@ with yet is not listed: open &lt;strong&gt;Someone not listed&lt;/strong&gt;, pi
 list shows names, with the id beside them.&lt;/p&gt;
 &lt;p&gt;Permissions on records and webhook levels can be granted to a group as well as to a user. Every
 membership change is recorded in the &lt;a href="../audit-trail/"&gt;audit trail&lt;/a&gt; in the same transaction.&lt;/p&gt;
-&lt;p&gt;&lt;strong&gt;What this group may do&lt;/strong&gt; lists the records the group may act on and you may read, with the
-actions and the reason: &lt;strong&gt;direct&lt;/strong&gt; when a grant names the group, or, for access it inherits, the
-group it comes from, such as &lt;strong&gt;group it-admins&lt;/strong&gt;. Admins also see the group&amp;rsquo;s webhook level and
-message level below the records, with their reasons. &lt;strong&gt;Revoke&lt;/strong&gt; appears only on what the group holds
-itself, never on what it inherits; to change the inherited access, change the group it comes from. Where you may share a record, its direct grant is edited in
-place. &lt;strong&gt;Give this group access to more records…&lt;/strong&gt; opens
-&lt;a href="#share-several-records-at-once"&gt;the batch picker&lt;/a&gt; with the group already chosen.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;What this group may do&lt;/strong&gt; lists the records the group may act on and you may read, with the actions
+and the reason: &lt;strong&gt;direct&lt;/strong&gt; when a grant names the group, or, for access it inherits, the group it
+comes from, such as &lt;strong&gt;group it-admins&lt;/strong&gt;. Admins also see the group&amp;rsquo;s webhook level and message level
+below the records, with their reasons. &lt;strong&gt;Revoke&lt;/strong&gt; appears only on what the group holds itself, never
+on what it inherits; to change the inherited access, change the group it comes from. Where you may
+share a record, its direct grant is edited in place. &lt;strong&gt;Give this group access to more records…&lt;/strong&gt;
+opens &lt;a href="#share-several-records-at-once"&gt;the batch picker&lt;/a&gt; with the group already chosen.&lt;/p&gt;
 &lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
 &lt;div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="c1"&gt;# create a group, then add a provider group to it&lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;curl -u &amp;lt;admin-user&amp;gt;:&amp;lt;admin-password&amp;gt; -X POST http://localhost:8080/api/groups -d &lt;span class="s1"&gt;&amp;#39;{&amp;#34;name&amp;#34;: &amp;#34;payments&amp;#34;}&amp;#39;&lt;/span&gt;
@@ -3886,8 +3886,8 @@ data-copied-label="Copied!"
 Destinations, Routes, Webhook endpoints or Groups) and press &lt;strong&gt;Show&lt;/strong&gt;. Only records you may &lt;code&gt;share&lt;/code&gt;
 are listed. If there are none, the page says that there is nothing you may share yet.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="tick-the-records"&gt;Tick the records&lt;span class="hx:absolute hx:-mt-20" id="tick-the-records"&gt;&lt;/span&gt;
-&lt;a href="#tick-the-records" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Tick them under &lt;strong&gt;Records&lt;/strong&gt;. &lt;strong&gt;Who has access&lt;/strong&gt; next to a record opens its &lt;strong&gt;Who may manage this …&lt;/strong&gt; panel
-below the form, where you change or revoke single grants; &lt;strong&gt;Edit&lt;/strong&gt; opens the record.&lt;/p&gt;
+&lt;a href="#tick-the-records" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Tick them under &lt;strong&gt;Records&lt;/strong&gt;. &lt;strong&gt;Who has access&lt;/strong&gt; next to a record opens its &lt;strong&gt;Who may manage this …&lt;/strong&gt;
+panel below the form, where you change or revoke single grants; &lt;strong&gt;Edit&lt;/strong&gt; opens the record.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="choose-who-and-what"&gt;Choose who and what&lt;span class="hx:absolute hx:-mt-20" id="choose-who-and-what"&gt;&lt;/span&gt;
 &lt;a href="#choose-who-and-what" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Choose the principal under &lt;strong&gt;Give to&lt;/strong&gt;, or under &lt;strong&gt;Someone not listed&lt;/strong&gt;, tick what they &lt;strong&gt;May&lt;/strong&gt; do
 and press &lt;strong&gt;Grant on selected&lt;/strong&gt;.&lt;/p&gt;

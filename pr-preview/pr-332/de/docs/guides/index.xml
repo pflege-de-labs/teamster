@@ -3965,9 +3965,9 @@ und
 &lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0083-broadcasts-run-in-the-background.md" target="_blank" rel="noopener"&gt;ADR 0083&lt;/a&gt;.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="share-a-record"&gt;Einen Datensatz teilen&lt;span class="hx:absolute hx:-mt-20" id="share-a-record"&gt;&lt;/span&gt;
 &lt;a href="#share-a-record" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Wer eine Vorlage, ein Ziel, eine Route, einen Webhook-Endpunkt oder eine Gruppe anlegt, ist ihr
-Eigentümer. Um einen Datensatz zu teilen, öffnen Sie ihn. Sein Feld heißt &lt;strong&gt;Wer diese Vorlage verwalten darf&lt;/strong&gt; (oder dieses Ziel, diese
-Route, diesen Webhook, diese Gruppe), und Zugriff geben Sie unter &lt;strong&gt;Jemandem Zugriff geben&lt;/strong&gt;, das
-zunächst eingeklappt ist:&lt;/p&gt;
+Eigentümer. Um einen Datensatz zu teilen, öffnen Sie ihn. Sein Feld heißt &lt;strong&gt;Wer diese Vorlage
+verwalten darf&lt;/strong&gt; (oder dieses Ziel, diese Route, diesen Webhook, diese Gruppe), und Zugriff geben
+Sie unter &lt;strong&gt;Jemandem Zugriff geben&lt;/strong&gt;, das zunächst eingeklappt ist:&lt;/p&gt;
 &lt;ol&gt;
 &lt;li&gt;Wählen Sie unter &lt;strong&gt;Geben an&lt;/strong&gt; einen Benutzer, eine Gruppe, eine Anbietergruppe oder eine Rolle
 aus der Liste; jeder Eintrag trägt ein Kennzeichen für seine Art, und durch Tippen suchen Sie
@@ -4055,8 +4055,8 @@ Aufgeführt sind nur Datensätze, die Sie teilen (&lt;code&gt;share&lt;/code&gt;
 Sie noch nichts freigeben dürfen.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="tick-the-records"&gt;Datensätze anhaken&lt;span class="hx:absolute hx:-mt-20" id="tick-the-records"&gt;&lt;/span&gt;
 &lt;a href="#tick-the-records" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Haken Sie sie unter &lt;strong&gt;Einträge&lt;/strong&gt; an. &lt;strong&gt;Wer hat Zugriff&lt;/strong&gt; neben einem Datensatz öffnet unter dem
-Formular sein Feld &lt;strong&gt;Wer diese … verwalten darf&lt;/strong&gt;, in dem Sie einzelne Berechtigungen ändern oder entziehen;
-&lt;strong&gt;Bearbeiten&lt;/strong&gt; öffnet den Datensatz.&lt;/p&gt;
+Formular sein Feld &lt;strong&gt;Wer diese … verwalten darf&lt;/strong&gt;, in dem Sie einzelne Berechtigungen ändern oder
+entziehen; &lt;strong&gt;Bearbeiten&lt;/strong&gt; öffnet den Datensatz.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="choose-who-and-what"&gt;Wer und was festlegen&lt;span class="hx:absolute hx:-mt-20" id="choose-who-and-what"&gt;&lt;/span&gt;
 &lt;a href="#choose-who-and-what" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Wählen Sie den Empfänger unter &lt;strong&gt;Geben an&lt;/strong&gt; oder unter &lt;strong&gt;Nicht aufgeführte Person&lt;/strong&gt;, haken Sie an,
 was er &lt;strong&gt;Darf&lt;/strong&gt;, und klicken Sie auf &lt;strong&gt;Für Auswahl erteilen&lt;/strong&gt;.&lt;/p&gt;
