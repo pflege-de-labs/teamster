@@ -27,6 +27,7 @@ func TestWebhookLevels(t *testing.T) {
 		t.Run(tt.level, func(t *testing.T) {
 			t.Parallel()
 			st := sessionAs(newFakeStore(), authz.RoleAdmin)
+			st.groups["g-ops"] = models.Group{ID: "g-ops", Name: "Ops"}
 			// Whatever was there before is replaced.
 			grantTo(st, models.PrincipalGroup, "g-ops", "Webhook", "universal", "use")
 			h := newTestServer(t, st, &fakeMessenger{}).Handler
@@ -282,6 +283,58 @@ func TestMessageLevels(t *testing.T) {
 	editor := newTestServer(t, sessionAs(newFakeStore(), authz.RoleEditor), &fakeMessenger{}).Handler
 	if rec := postFormAs(t, editor, "/admin/access/messages", form); rec.Code != http.StatusForbidden {
 		t.Errorf("an editor granting message levels = %d, want 403", rec.Code)
+	}
+}
+
+// TestLevelsRefuseUnknownGroups: a group named by its name rather than its id
+// was saved, matched nobody and still looked granted.
+func TestLevelsRefuseUnknownGroups(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct{ path, level, resource string }{
+		{"/admin/access/webhooks", "all", "Webhook"},
+		{"/admin/access/messages", "everyone", "People"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.path, func(t *testing.T) {
+			t.Parallel()
+			st := sessionAs(newFakeStore(), authz.RoleAdmin)
+			st.groups["g-ops"] = models.Group{ID: "g-ops", Name: "it-admins"}
+			h := newTestServer(t, st, &fakeMessenger{}).Handler
+
+			form := url.Values{"principal_type": {"group"}, "principal_id": {"it-admins"}, "level": {tt.level}}
+			if loc := postFormAs(t, h, tt.path, form).Header().Get("Location"); !strings.Contains(loc, "error=") {
+				t.Errorf("a group by name was accepted, redirected to %s", loc)
+			}
+			body := `{"principal_type":"group","principal_id":"it-admins","level":"` + tt.level + `"}`
+			if rec := call(t, h, http.MethodPut, "/api"+strings.TrimPrefix(tt.path, "/admin"), body); rec.Code != http.StatusBadRequest {
+				t.Errorf("PUT a group by name = %d, want 400", rec.Code)
+			}
+			if len(st.permissions) != 0 {
+				t.Errorf("rows were saved: %v", st.permissions)
+			}
+			form.Set("principal_id", "g-ops")
+			if loc := postFormAs(t, h, tt.path, form).Header().Get("Location"); strings.Contains(loc, "error=") {
+				t.Errorf("the group by id was refused: %s", loc)
+			}
+			// Each row carries its own revoke, so removing it needs no retyped id.
+			if body := call(t, h, http.MethodGet, "/admin/access", "").Body.String(); !strings.Contains(body, `<input type="hidden" name="principal_id" value="g-ops">`) {
+				t.Error("the granted row has no revoke form")
+			}
+
+			// A row saved before the check must still be clearable.
+			grantTo(st, models.PrincipalGroup, "it-admins", "People", "*", "broadcast")
+			grantTo(st, models.PrincipalGroup, "it-admins", "Webhook", "*", "use")
+			form = url.Values{"principal_type": {"group"}, "principal_id": {"it-admins"}, "level": {"none"}}
+			if loc := postFormAs(t, h, tt.path, form).Header().Get("Location"); strings.Contains(loc, "error=") {
+				t.Errorf("clearing a group by name was refused: %s", loc)
+			}
+			for _, p := range st.permissions {
+				if p.PrincipalID == "it-admins" && p.ResourceType == tt.resource {
+					t.Errorf("none left %v", p)
+				}
+			}
+		})
 	}
 }
 
