@@ -3821,10 +3821,11 @@ Mitgliederliste zeigt Namen, daneben die ID.&lt;/p&gt;
 &lt;p&gt;Berechtigungen auf Datensätze und Webhook-Stufen lassen sich einer Gruppe genauso erteilen wie
 einem Benutzer. Jede Änderung einer Mitgliedschaft wird in derselben Transaktion im
 &lt;a href="../audit-trail/"&gt;Änderungsprotokoll&lt;/a&gt; festgehalten.&lt;/p&gt;
-&lt;p&gt;&lt;strong&gt;Was diese Gruppe darf&lt;/strong&gt; listet jeden Datensatz, auf dem die Gruppe handeln darf, mit den Aktionen
-und dem Grund: &lt;strong&gt;direkt&lt;/strong&gt;, wenn eine Berechtigung die Gruppe nennt, oder &lt;strong&gt;Gruppe X&lt;/strong&gt;, wenn sie
-diese über eine Gruppe hat, die sie enthält. Darunter stehen die Webhook-Stufe und die
-Nachrichtenstufe der Gruppe. &lt;strong&gt;Entziehen&lt;/strong&gt; erscheint nur bei dem, was die Gruppe selbst hat, nie bei
+&lt;p&gt;&lt;strong&gt;Was diese Gruppe darf&lt;/strong&gt; listet die Datensätze, auf denen die Gruppe handeln darf und die Sie
+lesen dürfen, mit den Aktionen und dem Grund: &lt;strong&gt;direkt&lt;/strong&gt;, wenn eine Berechtigung die Gruppe nennt,
+oder bei geerbtem Zugriff die Gruppe, von der er kommt, etwa &lt;strong&gt;Gruppe it-admins&lt;/strong&gt;. Administratoren
+sehen darunter außerdem die Webhook-Stufe und die Nachrichtenstufe der Gruppe, mit ihren Gründen.
+&lt;strong&gt;Entziehen&lt;/strong&gt; erscheint nur bei dem, was die Gruppe selbst hat, nie bei
 Geerbtem; um geerbten Zugriff zu ändern, ändern Sie die Gruppe, von der er kommt. Wo Sie einen
 Datensatz teilen dürfen, bearbeiten Sie die direkte Berechtigung an Ort und Stelle. &lt;strong&gt;Dieser Gruppe
 Zugriff auf weitere Einträge geben…&lt;/strong&gt; öffnet &lt;a href="#share-several-records-at-once"&gt;die Mehrfachauswahl&lt;/a&gt;
@@ -4021,7 +4022,7 @@ jemand aus der Anbietergruppe anmeldet.&lt;/p&gt;
 &lt;/table&gt;
 &lt;p&gt;Wer schon etwas hat, steht in einer Zeile, hinter dem Namen fünf Stellen: &lt;code&gt;r w d a s&lt;/code&gt; für lesen,
 ändern, löschen, in Routen und Webhooks verwenden und teilen. Ein &lt;code&gt;-&lt;/code&gt; steht für eine Stelle, die
-er nicht hat; wem der Datensatz gehört, der zeigt stattdessen &lt;strong&gt;owner&lt;/strong&gt;. Die Legende unter dem
+er nicht hat; wem der Datensatz gehört, der zeigt stattdessen &lt;strong&gt;Eigentümer&lt;/strong&gt;. Die Legende unter dem
 Feld schreibt die Buchstaben aus. &lt;strong&gt;bearbeiten&lt;/strong&gt; an einer Zeile öffnet ihre Kästchen. Ändern Sie die
 Häkchen und klicken Sie auf &lt;strong&gt;Speichern&lt;/strong&gt;, um zu ersetzen, was er hat; ohne Häkchen wird ihm alles
 entzogen. &lt;strong&gt;Entziehen&lt;/strong&gt; entfernt die Zeile.&lt;/p&gt;
