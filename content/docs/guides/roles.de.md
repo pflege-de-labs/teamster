@@ -163,9 +163,9 @@ und
 ## Einen Datensatz teilen {#share-a-record}
 
 Wer eine Vorlage, ein Ziel, eine Route, einen Webhook-Endpunkt oder eine Gruppe anlegt, ist ihr
-Eigentümer. Um einen Datensatz zu teilen, öffnen Sie ihn. Sein Feld heißt **Wer diese Vorlage verwalten darf** (oder dieses Ziel, diese
-Route, diesen Webhook, diese Gruppe), und Zugriff geben Sie unter **Jemandem Zugriff geben**, das
-zunächst eingeklappt ist:
+Eigentümer. Um einen Datensatz zu teilen, öffnen Sie ihn. Sein Feld heißt **Wer diese Vorlage
+verwalten darf** (oder dieses Ziel, diese Route, diesen Webhook, diese Gruppe), und Zugriff geben
+Sie unter **Jemandem Zugriff geben**, das zunächst eingeklappt ist:
 
 1. Wählen Sie unter **Geben an** einen Benutzer, eine Gruppe, eine Anbietergruppe oder eine Rolle
    aus der Liste; jeder Eintrag trägt ein Kennzeichen für seine Art, und durch Tippen suchen Sie
@@ -222,8 +222,8 @@ Sie noch nichts freigeben dürfen.
 ### Datensätze anhaken {#tick-the-records}
 
 Haken Sie sie unter **Einträge** an. **Wer hat Zugriff** neben einem Datensatz öffnet unter dem
-Formular sein Feld **Wer diese … verwalten darf**, in dem Sie einzelne Berechtigungen ändern oder entziehen;
-**Bearbeiten** öffnet den Datensatz.
+Formular sein Feld **Wer diese … verwalten darf**, in dem Sie einzelne Berechtigungen ändern oder
+entziehen; **Bearbeiten** öffnet den Datensatz.
 
 ### Wer und was festlegen {#choose-who-and-what}
 
