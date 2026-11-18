@@ -92,8 +92,10 @@ curl -u <admin-user>:<admin-password> -X PUT http://localhost:8080/api/access/we
 ```
 
 `principal_type` is `user`, `group`, `idp_group` or `role`. With a level, they can issue their own
-tokens; see [Authenticate a webhook sender](../webhook-tokens/). Taking the level away revokes those
-tokens at their next use.
+tokens; see [Authenticate a webhook sender](../webhook-tokens/). Taking the level away, with
+**Revoke** on its row or level `none`, revokes those tokens at their next use. A `group` is named by
+the id on its group page, not its name; Teamster refuses a group that does not exist, except for
+`none`, so a stale row can still be cleared.
 
 ## Let someone message people
 
@@ -116,11 +118,11 @@ curl -u <admin-user>:<admin-password> -X PUT http://localhost:8080/api/access/me
   -d '{"principal_type": "idp_group", "principal_id": "<provider group>", "level": "anyone"}'
 ```
 
-`principal_type` is `user`, `group`, `idp_group` or `role`. `none` takes the level back, and their
-**anyone** and **anyone, and broadcast** tokens name only their creator from the next request. In
-Cedar, **anyone** is the action `message` on `People::"*"` and **anyone, and broadcast to
-everyone** is `broadcast`. Each includes
-the levels below it, down to `messageSelf`, the action everyone holds. See
+`principal_type` is `user`, `group`, `idp_group` or `role`. `none` takes the level back, as does
+**Revoke** on its row, and their **anyone** and **anyone, and broadcast** tokens name only their
+creator from the next request. In Cedar, **anyone** is the action `message` on `People::"*"` and
+**anyone, and broadcast to everyone** is `broadcast`. Each includes the levels below it, down to
+`messageSelf`, the action everyone holds. See
 [ADR 0082](https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0082-naming-people-takes-permission.md)
 and
 [ADR 0083](https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0083-broadcasts-run-in-the-background.md).
