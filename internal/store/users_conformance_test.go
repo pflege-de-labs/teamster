@@ -183,3 +183,40 @@ func TestConformanceDisableUserEndsSessions(t *testing.T) {
 		}
 	})
 }
+
+func TestConformanceUsersListPage(t *testing.T) {
+	t.Parallel()
+
+	eachBackend(t, func(t *testing.T, open func(t *testing.T) store.Store) {
+		st := open(t)
+		ctx := t.Context()
+		for _, s := range []string{"s-c", "s-a", "s-b"} {
+			if err := st.RecordSignIn(ctx, models.User{Subject: s, Source: "oidc", Name: "Same"}); err != nil {
+				t.Fatalf("RecordSignIn(%s): %v", s, err)
+			}
+		}
+		tests := []struct {
+			after string
+			limit int
+			want  []string
+		}{
+			{"", 2, []string{"s-a", "s-b"}},
+			{"s-b", 2, []string{"s-c"}},
+			{"s-c", 2, []string{}},
+			{"", 0, []string{"s-a", "s-b", "s-c"}},
+		}
+		for _, tt := range tests {
+			users, err := st.ListUsersPage(ctx, tt.after, tt.limit)
+			if err != nil {
+				t.Fatalf("ListUsersPage(%q): %v", tt.after, err)
+			}
+			got := []string{}
+			for _, u := range users {
+				got = append(got, u.Subject)
+			}
+			if !slices.Equal(got, tt.want) {
+				t.Errorf("ListUsersPage(%q, %d) = %v, want %v", tt.after, tt.limit, got, tt.want)
+			}
+		}
+	})
+}

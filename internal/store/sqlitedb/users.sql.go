@@ -135,6 +135,55 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]User, e
 	return items, nil
 }
 
+const listUsersAfter = `-- name: ListUsersAfter :many
+SELECT subject, source, name, email, roles, idp_groups, first_seen, last_seen, disabled_at, disabled_by, object_id
+FROM users
+WHERE subject > ?1
+ORDER BY subject
+LIMIT CAST(?2 AS BIGINT)
+`
+
+type ListUsersAfterParams struct {
+	After   string
+	MaxRows int64
+}
+
+// Keyset paging by subject, so a caller can walk every user past the page cap.
+func (q *Queries) ListUsersAfter(ctx context.Context, arg ListUsersAfterParams) ([]User, error) {
+	rows, err := q.db.QueryContext(ctx, listUsersAfter, arg.After, arg.MaxRows)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []User
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.Subject,
+			&i.Source,
+			&i.Name,
+			&i.Email,
+			&i.Roles,
+			&i.IdpGroups,
+			&i.FirstSeen,
+			&i.LastSeen,
+			&i.DisabledAt,
+			&i.DisabledBy,
+			&i.ObjectID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const setUserDisabled = `-- name: SetUserDisabled :execrows
 UPDATE users
 SET disabled_at = ?1, disabled_by = ?2

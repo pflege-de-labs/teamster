@@ -317,6 +317,8 @@ type Querier interface {
 	ListUserIdPGroups(ctx context.Context) ([]string, error)
 	// pattern is a lower-cased LIKE pattern; its % and _ stay wildcards.
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
+	// Keyset paging by subject, so a caller can walk every user past the page cap.
+	ListUsersAfter(ctx context.Context, arg ListUsersAfterParams) ([]User, error)
 	// Code generated from ../sqlite by internal/store/queries/gen. DO NOT EDIT.
 	//
 	// The statements are the SQLite ones with ? replaced by $n. Edit the SQLite

@@ -16,6 +16,8 @@
       .sort((a, b) => rank(a.kind) - rank(b.kind) || a.label.localeCompare(b.label))
       .slice(0, limit);
   };
+  // The option an arrow key moves to; from none, down is the first and up the last.
+  global.teamsterStepPrincipal = (active, step, n) => (active < 0 ? (step > 0 ? 0 : n - 1) : (active + step + n) % n);
   if (typeof document === "undefined") return;
 
   let seq = 0;
@@ -78,6 +80,8 @@
       if (li) {
         input.setAttribute("aria-activedescendant", li.id);
         li.scrollIntoView?.({ block: "nearest" });
+      } else {
+        input.removeAttribute("aria-activedescendant");
       }
     };
     const render = () => {
@@ -125,8 +129,7 @@
         ev.preventDefault();
         if (list.hidden) render();
         if (!shown.length) return;
-        const step = ev.key === "ArrowDown" ? 1 : -1;
-        mark((active + step + shown.length) % shown.length);
+        mark(global.teamsterStepPrincipal(active, ev.key === "ArrowDown" ? 1 : -1, shown.length));
       } else if (ev.key === "Enter") {
         if (!list.hidden) ev.preventDefault();
         if (active >= 0) pick(shown[active]);

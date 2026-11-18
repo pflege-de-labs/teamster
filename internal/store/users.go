@@ -81,6 +81,21 @@ func (s queryAdapter) ListUsers(ctx context.Context, search string, limit int) (
 	return out, nil
 }
 
+func (s queryAdapter) ListUsersPage(ctx context.Context, after string, limit int) ([]models.User, error) {
+	if limit <= 0 || limit > usersPageMax {
+		limit = usersPageMax
+	}
+	rows, err := s.q.ListUsersAfter(ctx, sqlitedb.ListUsersAfterParams{After: after, MaxRows: int64(limit)})
+	if err != nil {
+		return nil, fmt.Errorf("list users after %q: %w", after, err)
+	}
+	out := make([]models.User, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, userFromRow(row))
+	}
+	return out, nil
+}
+
 // DisableUser is the transaction-bound half; the stores wrap it in one.
 func (s queryAdapter) DisableUser(ctx context.Context, subject, by string) error {
 	n, err := s.q.SetUserDisabled(ctx, sqlitedb.SetUserDisabledParams{

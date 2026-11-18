@@ -246,9 +246,9 @@ func TestWhoCanAsksAboutWebhooksAndOldLinks(t *testing.T) {
 	tests := []struct {
 		name, query, want string
 	}{
-		{"a webhook", "?subject=s-bob&action=use&resource=Webhook:alertmanager", "Allowed, by these policies:"},
-		{"the other webhook", "?subject=s-bob&action=use&resource=Webhook:universal", "Refused"},
-		{"an old link", "?subject=s-bob&action=use&type=Webhook&id=alertmanager", "Allowed, by these policies:"},
+		{"a webhook", "?subject=s-bob&action=use&resource=Webhook:alertmanager", "Allowed (1)"},
+		{"the other webhook", "?subject=s-bob&action=use&resource=Webhook:universal", "Nobody signed in may."},
+		{"an old link", "?subject=s-bob&action=use&type=Webhook&id=alertmanager", "Allowed (1)"},
 	}
 	for _, tt := range tests {
 		if body := call(t, h, http.MethodGet, "/admin/access"+tt.query, "").Body.String(); !strings.Contains(body, tt.want) {
