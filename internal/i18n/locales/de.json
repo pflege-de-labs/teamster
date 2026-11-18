@@ -480,6 +480,7 @@
   "access.check_who": "Wer darf …?",
   "access.check_what": "Was darf …?",
   "access.show": "Anzeigen",
+  "access.unknown_principal": "Unter diesem Namen ist nichts bekannt.",
   "access.ask": "Fragen",
   "access.unknown_user": "Niemand hat sich mit diesem Subject angemeldet; Antwort ohne Rollen und Gruppen.",
   "access.allowed": "Erlaubt, durch diese Richtlinien:",

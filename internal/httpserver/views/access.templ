@@ -33,6 +33,7 @@ type Access struct {
 	May          *WhatMay
 	MayPrincipal string
 	MayUnknown   bool
+	MayMissing   bool
 	Notice     string
 	Error      string
 }
@@ -198,6 +199,9 @@ templ AccessPage(page Access) {
 					</form>
 					if page.MayUnknown {
 						<p class="text-sm text-amber-800">{ i18n.T(ctx, "access.unknown_user") }</p>
+					}
+					if page.MayMissing {
+						<p class="text-sm text-amber-800">{ i18n.T(ctx, "access.unknown_principal") }</p>
 					}
 					if page.May != nil {
 						@mayList(*page.May, MayListOptions{Principal: page.MayPrincipal})

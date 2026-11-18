@@ -425,36 +425,73 @@ func TestAccessMenuFollowsShare(t *testing.T) {
 	}
 }
 
+// whatPanel is the answer of the "what" tab and nothing else on the page.
+func whatPanel(body string) string {
+	_, after, _ := strings.Cut(body, `id="panel-what"`)
+	panel, _, _ := strings.Cut(after, `id="panel-who"`)
+	return panel
+}
+
 func TestWhatMayCheck(t *testing.T) {
 	t.Parallel()
 
-	st := sessionAs(newFakeStore(), authz.RoleAdmin)
-	st.users["s-bob"] = models.User{Subject: "s-bob", Name: "Bob", Roles: []string{"viewer"}}
-	st.groups["g-ops"] = models.Group{ID: "g-ops", Name: "Ops"}
-	grantTo(st, models.PrincipalGroup, "g-ops", authz.PeopleResource.Type, authz.PeopleResource.ID, authz.ActionBroadcast)
-	h := newTestServer(t, st, &fakeMessenger{}).Handler
+	newStore := func(roles ...authz.Role) *fakeStore {
+		st := sessionAs(newFakeStore(), roles...)
+		st.users["s-bob"] = models.User{Subject: "s-bob", Name: "Bob", Roles: []string{"viewer"}, IdPGroups: []string{"platform"}}
+		st.groups["g-ops"] = models.Group{ID: "g-ops", Name: "Ops"}
+		st.groups["g-dev"] = models.Group{ID: "g-dev", Name: "Dev"}
+		st.templates["t1"] = models.Template{ID: "t1", Name: "Card one", Body: `{"type":"AdaptiveCard"}`}
+		st.templates["t2"] = models.Template{ID: "t2", Name: "Card two", Body: `{"type":"AdaptiveCard"}`}
+		grantTo(st, models.PrincipalGroup, "g-ops", authz.PeopleResource.Type, authz.PeopleResource.ID, authz.ActionBroadcast)
+		grantTo(st, models.PrincipalIdPGroup, "platform", "Template", "t1", "update")
+		return st
+	}
 
 	tests := []struct {
-		name  string
-		query string
-		want  []string
+		name     string
+		store    *fakeStore
+		query    string
+		want     []string
+		unwanted []string
+		whole    bool // the notice sits outside the what panel
 	}{
-		{name: "group", query: "?tab=what&principal=group:g-ops", want: []string{"broadcast to everyone", `id="panel-what"`}},
-		{name: "role", query: "?tab=what&principal=role:viewer", want: []string{"viewer", "read"}},
-		{name: "user", query: "?tab=what&principal=user:s-bob", want: []string{"viewer"}},
-		{name: "unknown user", query: "?tab=what&principal=user:ghost", want: []string{"Nobody has signed in with that subject"}},
-		{name: "provider group", query: "?tab=what&principal=idp_group:platform", want: []string{`id="panel-what"`}},
-		{name: "who by default", query: "", want: []string{`id="panel-who"`, `href="/admin/access?tab=what"`}},
+		{name: "group with a broadcast grant", store: newStore(authz.RoleAdmin), query: "?tab=what&principal=group:g-ops", want: []string{"broadcast to everyone"}},
+		{name: "group without one", store: newStore(authz.RoleAdmin), query: "?tab=what&principal=group:g-dev", unwanted: []string{"broadcast to everyone"}},
+		{name: "role", store: newStore(authz.RoleAdmin), query: "?tab=what&principal=role:viewer", want: []string{"viewer</span>:"}},
+		{name: "user takes stored roles", store: newStore(authz.RoleAdmin), query: "?tab=what&principal=user:s-bob", want: []string{"viewer</span>:"}},
+		{name: "user through a provider group", store: newStore(authz.RoleAdmin), query: "?tab=what&principal=user:s-bob", want: []string{"Card one"}, unwanted: []string{"Card two"}},
+		{name: "provider group", store: newStore(authz.RoleAdmin), query: "?tab=what&principal=idp_group:platform", want: []string{"Card one"}, unwanted: []string{"Card two", "viewer</span>:"}},
+		{name: "unknown user", store: newStore(authz.RoleAdmin), query: "?tab=what&principal=user:ghost", want: []string{"Nobody has signed in with that subject"}},
+		{name: "unknown group", store: newStore(authz.RoleAdmin), query: "?tab=what&principal=group:nope", want: []string{"Nothing is known by that name."}},
+		{name: "unknown role", store: newStore(authz.RoleAdmin), query: "?tab=what&principal=role:nope", want: []string{"Nothing is known by that name."}},
+		{name: "unknown kind", store: newStore(authz.RoleAdmin), query: "?tab=what&principal=robot:r2", want: []string{"Nothing is known by that name."}},
+		{name: "not the what tab", store: newStore(authz.RoleAdmin), query: "?principal=group:g-ops", unwanted: []string{"broadcast to everyone"}},
+		{name: "not an admin", store: newStore(authz.RoleEditor), query: "?tab=what&principal=group:g-ops", unwanted: []string{"broadcast to everyone"}},
+		{name: "a failing store", store: newStore(authz.RoleAdmin).fail("GetGroup"), query: "?tab=what&principal=group:g-ops", want: []string{"Something went wrong"}, whole: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			body := call(t, h, http.MethodGet, "/admin/access"+tt.query, "").Body.String()
+			h := newTestServer(t, tt.store, &fakeMessenger{}).Handler
+			panel := call(t, h, http.MethodGet, "/admin/access"+tt.query, "").Body.String()
+			if !tt.whole {
+				panel = whatPanel(panel)
+			}
 			for _, want := range tt.want {
-				if !strings.Contains(body, want) {
-					t.Errorf("page lacks %q", want)
+				if !strings.Contains(panel, want) {
+					t.Errorf("answer lacks %q", want)
+				}
+			}
+			for _, unwanted := range tt.unwanted {
+				if strings.Contains(panel, unwanted) {
+					t.Errorf("answer shows %q", unwanted)
 				}
 			}
 		})
+	}
+
+	h := newTestServer(t, newStore(authz.RoleAdmin), &fakeMessenger{}).Handler
+	if body := call(t, h, http.MethodGet, "/admin/access", "").Body.String(); !strings.Contains(body, `href="/admin/access?tab=what"`) || !strings.Contains(body, `id="panel-who"`) {
+		t.Error("the default page lacks the tab bar")
 	}
 }

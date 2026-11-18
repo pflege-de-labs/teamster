@@ -480,6 +480,7 @@
   "access.check_who": "Who can …?",
   "access.check_what": "What may … do?",
   "access.show": "Show",
+  "access.unknown_principal": "Nothing is known by that name.",
   "access.ask": "Ask",
   "access.unknown_user": "Nobody has signed in with that subject; answering for no roles and no groups.",
   "access.allowed": "Allowed, by these policies:",

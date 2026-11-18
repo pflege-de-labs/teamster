@@ -339,9 +339,13 @@ func (s *Server) handleAccessPage(w http.ResponseWriter, r *http.Request) {
 	if query.Get("tab") == "what" {
 		page.Tab = "what"
 	}
-	if kind, id, ok := strings.Cut(query.Get("principal"), ":"); admin && ok && id != "" {
+	if kind, id, ok := strings.Cut(query.Get("principal"), ":"); admin && page.Tab == "what" && ok && id != "" {
 		page.MayPrincipal = kind + ":" + id
-		page.May, page.MayUnknown = s.mayFor(r, snapshot, models.PrincipalType(kind), id)
+		var err error
+		page.May, page.MayUnknown, page.MayMissing, err = s.mayFor(r, snapshot, page.Principals.Roles, models.PrincipalType(kind), id)
+		if err != nil && page.Error == "" {
+			page.Error = failureText(ctx, "work out what the principal may do", err)
+		}
 	}
 
 	if subject := strings.TrimSpace(query.Get("subject")); admin && subject != "" {
@@ -360,9 +364,9 @@ func (s *Server) handleAccessPage(w http.ResponseWriter, r *http.Request) {
 }
 
 // mayFor answers "what may this principal do?"; a user is taken as of their last sign-in.
-func (s *Server) mayFor(r *http.Request, snapshot *authz.Authorizer, kind models.PrincipalType, id string) (*views.WhatMay, bool) {
+// missing is a principal that names nothing known here; unknownUser a user who never signed in.
+func (s *Server) mayFor(r *http.Request, snapshot *authz.Authorizer, roles []string, kind models.PrincipalType, id string) (may *views.WhatMay, unknownUser, missing bool, err error) {
 	p := authz.Principal{}
-	unknown := false
 	switch kind {
 	case models.PrincipalUser:
 		p.Subject = id
@@ -370,23 +374,30 @@ func (s *Server) mayFor(r *http.Request, snapshot *authz.Authorizer, kind models
 			p.Roles = authz.Decode(strings.Join(user.Roles, " "))
 			p.IdPGroups = user.IdPGroups
 		} else {
-			unknown = true
+			unknownUser = true
 		}
 	case models.PrincipalGroup:
+		if _, err := s.store.GetGroup(r.Context(), id); errors.Is(err, store.ErrNotFound) {
+			return nil, false, true, nil
+		} else if err != nil {
+			return nil, false, false, err
+		}
 		p.Groups = []string{id}
 	case models.PrincipalIdPGroup:
 		p.IdPGroups = []string{id}
 	case models.PrincipalRole:
+		if !slices.Contains(roles, id) {
+			return nil, false, true, nil
+		}
 		p.Roles = []authz.Role{authz.Role(id)}
 	default:
-		return nil, false
+		return nil, false, true, nil
 	}
-	may, err := s.whatMay(r, snapshot, p, kind, id)
+	answer, err := s.whatMay(r, snapshot, p, kind, id)
 	if err != nil {
-		logError(r.Context(), "what may", err)
-		return nil, unknown
+		return nil, unknownUser, false, err
 	}
-	return &may, unknown
+	return &answer, unknownUser, false, nil
 }
 
 // checkAccess answers for a user as of their last sign-in.
