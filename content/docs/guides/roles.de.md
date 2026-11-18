@@ -52,10 +52,23 @@ oder umbenennt, macht die Verwaltungsoberfläche unbrauchbar.
   Name jedes Datensatzes verlinkt auf ihn.
 * Administratoren sehen dort außerdem, wer an die Webhooks senden darf, wer Personen anschreiben
   darf, jede Berechtigung unter **Alle Berechtigungen**, **Wer darf?** und die **Geltenden
-  Richtlinien**. **Wer darf?** nimmt ein Subject entgegen, dazu eine Aktion und eine Ressource aus
-  Listen, die auch die Webhooks und **Personen** enthalten, und nennt die Richtlinien, die sie
-  erlauben oder verweigern. Den Text einer Richtlinie klappen Sie unter ihrem Namen auf. Ältere
-  Links mit `type=` und `id=` funktionieren weiterhin.
+  Richtlinien**. **Wer darf?** stellt zwei Fragen, je eine pro Reiter, und jede Antwort nennt ihre
+  Gründe.
+  * **Wer darf …?** nimmt eine Aktion und eine Ressource. Die Aktionsliste bietet nur Aktionen an,
+    die zur Ressource passen; `create` gehört nicht dazu. Optional grenzen Sie auf einen Benutzer,
+    eine Gruppe, eine Anbietergruppe oder eine Rolle ein. Die Antwort listet jeden angemeldeten,
+    nicht deaktivierten Benutzer, der darf, jeweils mit den Gründen: **direkt**, **Gruppe X**,
+    **Anbietergruppe X** oder **Rolle X**. Die entscheidenden Richtlinien stehen eingeklappt unter
+    **Richtlinien**, den Text einer Richtlinie klappen Sie unter ihrem Namen auf. Wer sich noch nicht
+    angemeldet hat, steht nicht in der Liste. Ab 5000 Benutzern sagt die Seite, dass sie nur die
+    ersten gefragt hat. Eine Aktion, die nicht zur Ressource passt, wird als solche benannt. Ältere
+    Links mit `subject=`, `type=` und `id=` funktionieren weiterhin.
+  * **Was darf …?** nimmt einen Benutzer, eine Gruppe, eine Anbietergruppe oder eine Rolle, oder
+    **Nicht aufgeführte Person**. Sie zeigt jeden Datensatz, auf dem der Empfänger handeln darf, mit
+    `r w d a s` (oder **Eigentümer**, wie in [der Mehrfachauswahl](#share-several-records-at-once))
+    und den Gründen, danach seine Webhook- und Nachrichtenstufe mit ihren Gründen und was seine
+    Rollen auf ganzen Sammlungen erlauben. Ein Name, den niemand kennt, ergibt **Unter diesem Namen
+    ist nichts bekannt.**
 * **Mein Zugriff** im Kontomenü (**/admin/me**) zeigt jedem die eigenen Rollen, Gruppen, Webhooks
   und **Wen Sie anschreiben dürfen**. **Mit Ihnen geteilt** listet jeden mit ihm geteilten
   Datensatz, mit Link, den Aktionen und **Über** wen: sich selbst, eine Gruppe, eine Anbietergruppe
