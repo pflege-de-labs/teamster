@@ -348,13 +348,27 @@ func (s *Server) handleAccessPage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if subject := strings.TrimSpace(query.Get("subject")); admin && subject != "" {
+	if admin && page.Tab == "who" {
+		page.WhoActions = whoActions()
+		page.ResourceActions, page.RecordActions, page.WhoLimit = resourceActions, recordActions, s.checkUsers
+		page.WhoPrincipal = query.Get("principal")
+		// Links from before the narrowing picker named one user.
+		if subject := strings.TrimSpace(query.Get("subject")); subject != "" && page.WhoPrincipal == "" {
+			page.WhoPrincipal = "user:" + subject
+		}
 		typ, id, _ := strings.Cut(query.Get("resource"), ":")
 		if typ == "" {
 			// Links from before the lists.
 			typ, id = query.Get("type"), query.Get("id")
 		}
-		page.Check = s.checkAccess(r, snapshot, subject, query.Get("action"), typ, id)
+		page.WhoAction, page.WhoResource = query.Get("action"), typ+":"+id
+		if page.WhoAction != "" && typ != "" {
+			who, err := s.whoCan(r, snapshot, page.WhoAction, authz.Resource{Type: typ, ID: id}, page.WhoPrincipal)
+			if err != nil && page.Error == "" {
+				page.Error = failureText(ctx, "work out who may", err)
+			}
+			page.Who = &who
+		}
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -398,19 +412,6 @@ func (s *Server) mayFor(r *http.Request, snapshot *authz.Authorizer, roles []str
 		return nil, unknownUser, false, err
 	}
 	return &answer, unknownUser, false, nil
-}
-
-// checkAccess answers for a user as of their last sign-in.
-func (s *Server) checkAccess(r *http.Request, snapshot *authz.Authorizer, subject, action, typ, id string) *views.AccessCheck {
-	check := &views.AccessCheck{Subject: subject, Action: action, ResourceType: typ, ResourceID: id}
-	principal := authz.Principal{Subject: subject}
-	if user, err := s.store.GetUser(r.Context(), subject); err == nil {
-		check.Known = true
-		principal.Roles = authz.Decode(strings.Join(user.Roles, " "))
-		principal.IdPGroups = user.IdPGroups
-	}
-	check.Result = snapshot.Explain(principal, action, authz.Resource{Type: typ, ID: id})
-	return check
 }
 
 // handleMyAccess is /admin/me, for anyone signed in: it asks the engine

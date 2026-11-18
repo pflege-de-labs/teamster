@@ -45,21 +45,9 @@ func (s *Server) whatMay(r *http.Request, snapshot *authz.Authorizer, p authz.Pr
 					continue
 				}
 				row.Actions = append(row.Actions, action)
-				for _, policy := range snapshot.Explain(p, action, resource).Policies {
-					var via string
-					switch {
-					case policy.Grant != nil:
-						granted = true
-						via = grantReason(ctx, labels, *policy.Grant, self, selfID)
-					case policy.Role != "":
-						via = i18n.T(ctx, "access.via_role", policy.Role)
-					default:
-						continue
-					}
-					if !slices.Contains(row.Via, via) {
-						row.Via = append(row.Via, via)
-					}
-				}
+				var g bool
+				row.Via, g = reasonsFor(ctx, labels, row.Via, snapshot.Explain(p, action, resource), self, selfID)
+				granted = granted || g
 			}
 			// A record only a base role reaches is the role's, shown in Roles.
 			if !granted {
@@ -73,6 +61,27 @@ func (s *Server) whatMay(r *http.Request, snapshot *authz.Authorizer, p authz.Pr
 	}
 	out.Webhooks = webhookLevel(snapshot, p)
 	return out, nil
+}
+
+// reasonsFor adds the reasons an explanation holds to via; granted says a grant, not just a role, decided.
+func reasonsFor(ctx context.Context, labels map[string]string, via []string, exp authz.Explanation, self models.PrincipalType, selfID string) ([]string, bool) {
+	granted := false
+	for _, policy := range exp.Policies {
+		var reason string
+		switch {
+		case policy.Grant != nil:
+			granted = true
+			reason = grantReason(ctx, labels, *policy.Grant, self, selfID)
+		case policy.Role != "":
+			reason = i18n.T(ctx, "access.via_role", policy.Role)
+		default:
+			continue
+		}
+		if !slices.Contains(via, reason) {
+			via = append(via, reason)
+		}
+	}
+	return via, granted
 }
 
 func grantReason(ctx context.Context, labels map[string]string, g authz.Grant, self models.PrincipalType, selfID string) string {

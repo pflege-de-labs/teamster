@@ -200,10 +200,10 @@ func TestAccessPage(t *testing.T) {
 		{name: "filtered", query: "?filter=webhook", want: []string{"Webhook *"}, unwanted: []string{"Template t1"}},
 		{
 			name: "who can, through a provider group", query: "?subject=s-bob&action=update&resource=Template:t1",
-			want: []string{"Allowed, by these policies:", "perm:seed-group-g-ops-Template-t1"},
+			want: []string{"Allowed (1)", "Bob", "group Ops"},
 		},
-		{name: "who cannot", query: "?subject=s-bob&action=delete&resource=Template:t1", want: []string{"Refused"}},
-		{name: "an unknown subject", query: "?subject=ghost&action=read&resource=Template:t1", want: []string{"Nobody has signed in with that subject"}},
+		{name: "who cannot", query: "?subject=s-bob&action=delete&resource=Template:t1", want: []string{"Nobody signed in may."}},
+		{name: "an unknown subject", query: "?subject=ghost&action=read&resource=Template:t1", want: []string{"Nobody signed in may."}},
 	}
 	for _, tt := range tests {
 		body := call(t, h, http.MethodGet, "/admin/access"+tt.query, "").Body.String()
