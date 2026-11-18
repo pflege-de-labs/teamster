@@ -507,6 +507,13 @@ named. `in Group::"x"` therefore walks nesting and provider groups alike. Group 
 generation and write their audit row in the same transaction, and adding a member refuses a cycle
 in a serializable one. See [ADR 0074](adr/0074-local-groups-and-provider-groups.md).
 
+Every admin form that names a principal renders `principalPicker`: one `<select>` of users, groups,
+provider groups and roles whose values are `type:id`, enhanced by `web/principal-picker.js` into a
+search box. The kinds offered are per form; the group form leaves out the group itself and roles.
+A collapsed "Someone not listed" block posts `other_type` and `other_id`. Handlers read all of it
+through `principalFromForm`, which also accepts `principal_type` and `principal_id` for the JSON
+APIs and the revoke buttons. See [ADR 0109](adr/0109-principals-with-one-searchable-picker.md).
+
 Records carry their own permissions. A `permissions` row holds one principal's actions on one
 template, destination, route, webhook endpoint or group, or on the collection, where `create` is
 granted. The snapshot renders each row to a Cedar `permit` with the cedar-go AST, so ids cannot

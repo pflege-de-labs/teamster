@@ -10,6 +10,14 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 ## [Unreleased]
 
+### Changed
+
+* The webhook and message level forms on `/admin/access` and the **Add member** form of a group
+  pick the principal from a searchable list of users, groups, provider groups and roles instead of
+  taking an id typed by hand. Someone who has not signed in yet is entered under **Someone not
+  listed**. The JSON APIs are unchanged
+  ([ADR 0109](docs/adr/0109-principals-with-one-searchable-picker.md)).
+
 ### Fixed
 
 * The webhook and message level forms on `/admin/access`, and `PUT /api/access/webhooks` and

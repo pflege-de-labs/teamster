@@ -426,8 +426,6 @@
   "groups.members": "Members",
   "groups.no_members": "No members yet.",
   "groups.remove": "Remove",
-  "groups.member_type": "Type",
-  "groups.member": "Member",
   "groups.add": "Add member",
   "groups.delete": "Delete group",
   "groups.type.user": "User",

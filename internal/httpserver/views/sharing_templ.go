@@ -880,7 +880,7 @@ func principalPicker(p PickerConfig) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if p.AllowOther {
+		if p.AllowOther && len(p.otherKinds()) > 0 {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 80, "<details class=\"text-sm\"><summary class=\"cursor-pointer text-slate-600\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err

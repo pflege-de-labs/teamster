@@ -1305,7 +1305,9 @@ Admins additionally see:
 **My access** in the user menu (`/admin/me`) shows anyone signed in their roles, groups, webhooks,
 whom they may message, and the records shared with them with links, and through whom.
 
-Webhook permission is set per user, group, provider group or role, at one of five levels:
+Webhook permission is set per user, group, provider group or role, at one of five levels. Pick
+the principal from a searchable list; someone who has not signed in yet goes under **Someone not
+listed**:
 
 | Level | Webhooks |
 | --- | --- |
@@ -1337,7 +1339,7 @@ to the office admins who send notices to colleagues. Admins hold it already. The
 ### Groups
 
 A group at **/admin/groups** collects users, other groups, and the groups your identity provider
-names in `auth.groups-claim`. Editors create and change groups, and everyone can see them. Groups
+names in `auth.groups-claim`. Members are picked from a searchable list, never typed by id. Editors create and change groups, and everyone can see them. Groups
 nest, but a group can never contain itself. Permissions on individual records are granted to
 groups as well as to users. Every membership change is recorded in the [audit trail](#audit-trail)
 in the same transaction: if it cannot be recorded, it does not happen. The API is `/api/groups`,

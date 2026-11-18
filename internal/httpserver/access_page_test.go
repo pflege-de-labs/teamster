@@ -33,7 +33,7 @@ func TestWebhookLevels(t *testing.T) {
 			h := newTestServer(t, st, &fakeMessenger{}).Handler
 
 			loc := postFormAs(t, h, "/admin/access/webhooks", url.Values{
-				"principal_type": {"group"}, "principal_id": {"g-ops"}, "level": {tt.level},
+				"principal": {"group:g-ops"}, "level": {tt.level},
 			}).Header().Get("Location")
 			if strings.Contains(loc, "error=") {
 				t.Fatalf("set level redirected to %s", loc)
@@ -77,6 +77,50 @@ func TestWebhookLevels(t *testing.T) {
 	}
 	if rec := call(t, h, http.MethodGet, "/api/access/webhooks", ""); rec.Code != http.StatusMethodNotAllowed {
 		t.Errorf("GET = %d", rec.Code)
+	}
+}
+
+// TestLevelsByPicker checks the level forms read the picker's "type:id" and its
+// "someone not listed" fields.
+func TestLevelsByPicker(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name, path string
+		form       url.Values
+		wantType   models.PrincipalType
+		wantID     string
+	}{
+		{"webhook other user", "/admin/access/webhooks", url.Values{"other_type": {"user"}, "other_id": {"new@x"}, "level": {"all"}}, models.PrincipalUser, "new@x"},
+		{"message picked idp group", "/admin/access/messages", url.Values{"principal": {"idp_group:office"}, "level": {"anyone"}}, models.PrincipalIdPGroup, "office"},
+		{"message other role", "/admin/access/messages", url.Values{"other_type": {"role"}, "other_id": {"ops"}, "level": {"anyone"}}, models.PrincipalRole, "ops"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			st := sessionAs(newFakeStore(), authz.RoleAdmin)
+			h := newTestServer(t, st, &fakeMessenger{}).Handler
+			if loc := postFormAs(t, h, tt.path, tt.form).Header().Get("Location"); strings.Contains(loc, "error=") {
+				t.Fatalf("redirected to %s", loc)
+			}
+			found := false
+			for _, p := range st.permissions {
+				found = found || (p.PrincipalType == tt.wantType && p.PrincipalID == tt.wantID)
+			}
+			if !found {
+				t.Errorf("no permission for %s:%s in %v", tt.wantType, tt.wantID, st.permissions)
+			}
+		})
+	}
+}
+
+func TestLevelFormsUsePickers(t *testing.T) {
+	t.Parallel()
+
+	h := newTestServer(t, sessionAs(newFakeStore(), authz.RoleAdmin), &fakeMessenger{}).Handler
+	body := call(t, h, http.MethodGet, "/admin/access", "").Body.String()
+	if n := strings.Count(body, "data-principal-picker"); n < 2 {
+		t.Errorf("access page has %d pickers, want at least 2 (webhooks, messages)", n)
 	}
 }
 

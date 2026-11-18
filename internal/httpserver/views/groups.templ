@@ -20,10 +20,8 @@ type Groups struct {
 type GroupDetail struct {
 	Group   models.Group
 	Members []GroupMemberView
-	// Suggestions are user subjects, group ids and provider group names.
-	Users     []models.User
-	Others    []models.Group
-	IdPGroups []string
+	// Principals are what the member picker offers; the group itself is left out.
+	Principals PrincipalOptions
 	CanEdit   bool
 	CanDelete bool
 	Sharing   *Sharing
@@ -119,29 +117,9 @@ templ groupDetail(detail GroupDetail) {
 			if detail.CanEdit {
 				<form method="post" action="/admin/groups/members/add" class="grid gap-3 sm:grid-cols-3 sm:items-end">
 					<input type="hidden" name="group_id" value={ detail.Group.ID }/>
-					<label class="block">
-						<span class="text-sm font-medium">{ i18n.T(ctx, "groups.member_type") }</span>
-						<select name="type" class="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm">
-							<option value="user">{ i18n.T(ctx, "groups.type.user") }</option>
-							<option value="group">{ i18n.T(ctx, "groups.type.group") }</option>
-							<option value="idp_group">{ i18n.T(ctx, "groups.type.idp_group") }</option>
-						</select>
-					</label>
-					<label class="block">
-						<span class="text-sm font-medium">{ i18n.T(ctx, "groups.member") }</span>
-						<input name="member" list="group-member-suggestions" required class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm"/>
-					</label>
-					<datalist id="group-member-suggestions">
-						for _, u := range detail.Users {
-							<option value={ u.Subject }>{ displayName(u) }</option>
-						}
-						for _, g := range detail.Others {
-							<option value={ g.ID }>{ g.Name }</option>
-						}
-						for _, name := range detail.IdPGroups {
-							<option value={ name }>{ name }</option>
-						}
-					</datalist>
+					<div class="grid gap-2 sm:col-span-2">
+						@principalPicker(PickerConfig{Name: "principal", Options: detail.Principals, Kinds: []string{"user", "group", "idp_group"}, AllowOther: true})
+					</div>
 					@submit(i18n.T(ctx, "groups.add"))
 				</form>
 			}
