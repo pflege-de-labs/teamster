@@ -54,10 +54,10 @@ Adding policies is safe. Removing or renaming `admin`, `editor` or `viewer` brea
     An action that does not fit the resource is named as such. Older links with `subject=`, `type=`
     and `id=` still work.
   * **What may … do?** takes a user, a group, a provider group or a role, or **Someone not listed**.
-    It shows every record the principal may act on, with `r w d a s` (or **owner**, as in
-    [the batch picker](#share-several-records-at-once)) and the reasons, then its webhook and message
-    levels with their reasons, and what its roles allow on whole collections. A name nothing knows
-    answers **Nothing is known by that name.**
+    It shows every record the principal may act on, with `r w d a s` (or **owner**, as in [the batch
+    picker](#share-several-records-at-once)) and the reasons, then its webhook and message levels
+    with their reasons, and what its roles allow on whole collections. A name nothing knows answers
+    **Nothing is known by that name.**
 * **My access** in the user menu (**/admin/me**) shows anyone their own roles, groups, webhooks and
   **People you may message**. **Shared with you** lists every record shared with them, with a link,
   the actions, and **Through** whom: themselves, a group, a provider group or a role. Below it, one

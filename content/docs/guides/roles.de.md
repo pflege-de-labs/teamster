@@ -59,10 +59,10 @@ oder umbenennt, macht die Verwaltungsoberfläche unbrauchbar.
     eine Gruppe, eine Anbietergruppe oder eine Rolle ein. Die Antwort listet jeden angemeldeten,
     nicht deaktivierten Benutzer, der darf, jeweils mit den Gründen: **direkt**, **Gruppe X**,
     **Anbietergruppe X** oder **Rolle X**. Die entscheidenden Richtlinien stehen eingeklappt unter
-    **Richtlinien**, den Text einer Richtlinie klappen Sie unter ihrem Namen auf. Wer sich noch nicht
-    angemeldet hat, steht nicht in der Liste. Ab 5000 Benutzern sagt die Seite, dass sie nur die
-    ersten gefragt hat. Eine Aktion, die nicht zur Ressource passt, wird als solche benannt. Ältere
-    Links mit `subject=`, `type=` und `id=` funktionieren weiterhin.
+    **Richtlinien**, den Text einer Richtlinie klappen Sie unter ihrem Namen auf. Wer sich noch
+    nicht angemeldet hat, steht nicht in der Liste. Ab 5000 Benutzern sagt die Seite, dass sie nur
+    die ersten gefragt hat. Eine Aktion, die nicht zur Ressource passt, wird als solche benannt.
+    Ältere Links mit `subject=`, `type=` und `id=` funktionieren weiterhin.
   * **Was darf …?** nimmt einen Benutzer, eine Gruppe, eine Anbietergruppe oder eine Rolle, oder
     **Nicht aufgeführte Person**. Sie zeigt jeden Datensatz, auf dem der Empfänger handeln darf, mit
     `r w d a s` (oder **Eigentümer**, wie in [der Mehrfachauswahl](#share-several-records-at-once))
