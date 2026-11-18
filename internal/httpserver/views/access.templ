@@ -1,6 +1,8 @@
 package views
 
 import (
+	"strconv"
+
 	"github.com/pflege-de-labs/teamster/internal/authz"
 	"github.com/pflege-de-labs/teamster/internal/i18n"
 	"github.com/pflege-de-labs/teamster/internal/models"
@@ -26,6 +28,11 @@ type Access struct {
 	Generated  []authz.GeneratedPolicy
 	Generation int64
 	Check      *AccessCheck
+	// Tab is the open check tab, who or what; May answers "What may ... do?" for MayPrincipal.
+	Tab          string
+	May          *WhatMay
+	MayPrincipal string
+	MayUnknown   bool
 	Notice     string
 	Error      string
 }
@@ -165,7 +172,44 @@ templ AccessPage(page Access) {
 					@submit(i18n.T(ctx, "sharing.grant"))
 				</form>
 			}
-			@accessSection(i18n.T(ctx, "access.check")) {
+			<section class="rounded-lg border border-slate-200 bg-white shadow-sm">
+				<nav role="tablist" aria-label={ i18n.T(ctx, "access.check") } class="flex gap-1 border-b border-slate-200 px-4" data-admin-tabs>
+					for _, name := range []string{"who", "what"} {
+						<a
+							href={ templ.SafeURL("/admin/access?tab=" + name) }
+							role="tab"
+							id={ "tab-" + name }
+							aria-controls={ "panel-" + name }
+							aria-selected={ strconv.FormatBool(name == page.Tab) }
+							data-tab={ name }
+							class="-mb-px border-b-2 border-transparent px-3 py-3 text-sm font-medium text-slate-600 hover:text-sky-700 aria-selected:border-sky-600 aria-selected:text-slate-900"
+						>
+							{ i18n.T(ctx, "access.check_"+name) }
+						</a>
+					}
+				</nav>
+				<div id="panel-what" role="tabpanel" aria-labelledby="tab-what" data-tab-panel="what" hidden?={ page.Tab != "what" } class="space-y-4 px-6 py-6">
+					<form method="get" action="/admin/access" class="grid gap-3 sm:grid-cols-4 sm:items-end">
+						<input type="hidden" name="tab" value="what"/>
+						<div class="grid gap-2 sm:col-span-3">
+							@principalPicker(PickerConfig{Name: "principal", Options: page.Principals, Selected: page.MayPrincipal, AllowOther: true, Required: true})
+						</div>
+						@submit(i18n.T(ctx, "access.show"))
+					</form>
+					if page.MayUnknown {
+						<p class="text-sm text-amber-800">{ i18n.T(ctx, "access.unknown_user") }</p>
+					}
+					if page.May != nil {
+						@mayList(*page.May, MayListOptions{Principal: page.MayPrincipal})
+						for _, role := range page.May.Roles {
+							<p class="text-sm">
+								<span class="font-medium">{ role.Role }</span>:
+								{ i18n.T(ctx, "me.role_summary", actionLabels(ctx, role.Actions), i18n.T(ctx, "hub.class."+role.Type)) }
+							</p>
+						}
+					}
+				</div>
+				<div id="panel-who" role="tabpanel" aria-labelledby="tab-who" data-tab-panel="who" hidden?={ page.Tab != "who" } class="space-y-4 px-6 py-6">
 				<form method="get" action="/admin/access" class="grid gap-3 sm:grid-cols-4 sm:items-end">
 					@textField("subject", i18n.T(ctx, "access.subject"), "", checkValue(page.Check, "subject"))
 					<label class="block">
@@ -203,7 +247,8 @@ templ AccessPage(page Access) {
 						<details><summary class="cursor-pointer text-xs text-slate-500">{ p.ID }</summary><pre class="overflow-x-auto rounded bg-slate-50 p-2 text-xs"><code>{ p.Text }</code></pre></details>
 					}
 				}
-			}
+				</div>
+			</section>
 			}
 			@accessSection(i18n.T(ctx, grantsHeading(page.Admin))) {
 				<form method="get" action="/admin/access" class="flex max-w-xl items-end gap-2">

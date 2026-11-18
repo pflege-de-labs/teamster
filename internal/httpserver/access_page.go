@@ -335,6 +335,15 @@ func (s *Server) handleAccessPage(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
+	page.Tab = "who"
+	if query.Get("tab") == "what" {
+		page.Tab = "what"
+	}
+	if kind, id, ok := strings.Cut(query.Get("principal"), ":"); admin && ok && id != "" {
+		page.MayPrincipal = kind + ":" + id
+		page.May, page.MayUnknown = s.mayFor(r, snapshot, models.PrincipalType(kind), id)
+	}
+
 	if subject := strings.TrimSpace(query.Get("subject")); admin && subject != "" {
 		typ, id, _ := strings.Cut(query.Get("resource"), ":")
 		if typ == "" {
@@ -348,6 +357,36 @@ func (s *Server) handleAccessPage(w http.ResponseWriter, r *http.Request) {
 	if err := views.AccessPage(page).Render(ctx, w); err != nil {
 		logError(ctx, "render access page", err)
 	}
+}
+
+// mayFor answers "what may this principal do?"; a user is taken as of their last sign-in.
+func (s *Server) mayFor(r *http.Request, snapshot *authz.Authorizer, kind models.PrincipalType, id string) (*views.WhatMay, bool) {
+	p := authz.Principal{}
+	unknown := false
+	switch kind {
+	case models.PrincipalUser:
+		p.Subject = id
+		if user, err := s.store.GetUser(r.Context(), id); err == nil {
+			p.Roles = authz.Decode(strings.Join(user.Roles, " "))
+			p.IdPGroups = user.IdPGroups
+		} else {
+			unknown = true
+		}
+	case models.PrincipalGroup:
+		p.Groups = []string{id}
+	case models.PrincipalIdPGroup:
+		p.IdPGroups = []string{id}
+	case models.PrincipalRole:
+		p.Roles = []authz.Role{authz.Role(id)}
+	default:
+		return nil, false
+	}
+	may, err := s.whatMay(r, snapshot, p, kind, id)
+	if err != nil {
+		logError(r.Context(), "what may", err)
+		return nil, unknown
+	}
+	return &may, unknown
 }
 
 // checkAccess answers for a user as of their last sign-in.

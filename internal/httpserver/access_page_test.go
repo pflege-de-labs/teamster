@@ -424,3 +424,37 @@ func TestAccessMenuFollowsShare(t *testing.T) {
 		})
 	}
 }
+
+func TestWhatMayCheck(t *testing.T) {
+	t.Parallel()
+
+	st := sessionAs(newFakeStore(), authz.RoleAdmin)
+	st.users["s-bob"] = models.User{Subject: "s-bob", Name: "Bob", Roles: []string{"viewer"}}
+	st.groups["g-ops"] = models.Group{ID: "g-ops", Name: "Ops"}
+	grantTo(st, models.PrincipalGroup, "g-ops", authz.PeopleResource.Type, authz.PeopleResource.ID, authz.ActionBroadcast)
+	h := newTestServer(t, st, &fakeMessenger{}).Handler
+
+	tests := []struct {
+		name  string
+		query string
+		want  []string
+	}{
+		{name: "group", query: "?tab=what&principal=group:g-ops", want: []string{"broadcast to everyone", `id="panel-what"`}},
+		{name: "role", query: "?tab=what&principal=role:viewer", want: []string{"viewer", "read"}},
+		{name: "user", query: "?tab=what&principal=user:s-bob", want: []string{"viewer"}},
+		{name: "unknown user", query: "?tab=what&principal=user:ghost", want: []string{"Nobody has signed in with that subject"}},
+		{name: "provider group", query: "?tab=what&principal=idp_group:platform", want: []string{`id="panel-what"`}},
+		{name: "who by default", query: "", want: []string{`id="panel-who"`, `href="/admin/access?tab=what"`}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			body := call(t, h, http.MethodGet, "/admin/access"+tt.query, "").Body.String()
+			for _, want := range tt.want {
+				if !strings.Contains(body, want) {
+					t.Errorf("page lacks %q", want)
+				}
+			}
+		})
+	}
+}
