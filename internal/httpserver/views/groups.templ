@@ -125,9 +125,12 @@ templ groupDetail(detail GroupDetail) {
 				<form method="post" action="/admin/groups/members/add" class="grid gap-3 sm:grid-cols-3 sm:items-end">
 					<input type="hidden" name="group_id" value={ detail.Group.ID }/>
 					<div class="grid gap-2 sm:col-span-2">
-						@principalPicker(PickerConfig{Name: "principal", Label: "groups.member", Options: detail.Principals, Kinds: []string{"user", "group", "idp_group"}, AllowOther: true})
+						@principalPicker(PickerConfig{Name: "principal", Label: "groups.member", Options: detail.Principals, Kinds: []string{"user", "group", "idp_group"}})
 					</div>
 					@submit(i18n.T(ctx, "groups.add"))
+					<div class="sm:col-span-3">
+						@notListed(PickerConfig{Kinds: []string{"user", "group", "idp_group"}})
+					</div>
 				</form>
 			}
 			if detail.May != nil {
