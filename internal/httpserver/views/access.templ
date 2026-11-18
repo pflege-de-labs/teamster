@@ -33,7 +33,6 @@ type Access struct {
 	// The who tab: the question, and its answer when asked.
 	WhoActions      []string
 	RecordActions   []string
-	WhoLimit        int
 	ResourceActions map[string][]string
 	WhoAction       string
 	WhoResource     string
@@ -97,7 +96,6 @@ type LabelledGrant struct {
 // WhoCan is everyone who may do something; WrongAction means nobody was asked.
 type WhoCan struct {
 	Allowed     []WhoRow
-	Truncated   bool
 	WrongAction bool
 }
 
@@ -258,7 +256,7 @@ templ AccessPage(page Access) {
 					</form>
 					if page.Who != nil {
 						<div data-who-answer class="space-y-4">
-							@whoAnswer(*page.Who, actionName(ctx, page.WhoActions, page.WhoAction), page.WhoLimit)
+							@whoAnswer(*page.Who, actionName(ctx, page.WhoActions, page.WhoAction))
 						</div>
 					}
 				</div>
@@ -351,13 +349,10 @@ func resourceActionsOf(page Access, typ string) []string {
 	return page.RecordActions
 }
 
-templ whoAnswer(who WhoCan, action string, limit int) {
+templ whoAnswer(who WhoCan, action string) {
 	if who.WrongAction {
 		<p class="text-sm text-amber-800">{ i18n.T(ctx, "access.wrong_action", action) }</p>
 	} else {
-		if who.Truncated {
-			<p class="text-sm text-amber-800">{ i18n.T(ctx, "access.truncated", limit) }</p>
-		}
 		if len(who.Allowed) == 0 {
 			<p class="text-sm font-medium text-red-700">{ i18n.T(ctx, "access.nobody") }</p>
 		} else {

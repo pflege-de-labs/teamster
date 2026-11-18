@@ -74,17 +74,17 @@ type sampler interface {
 }
 
 type Server struct {
-	// checkUsers caps the users "Who can?" asks about.
-	checkUsers int
-	log        *slog.Logger
-	cfg        config.Config
-	store      store.Store
-	graph      messenger
-	bot        botSender
-	channels   ChannelTransport
-	router     *routing.Router
-	draining   atomic.Bool
-	engine     *authz.Engine
+	// whoPageSize is how many users "Who can?" reads at a time.
+	whoPageSize int
+	log         *slog.Logger
+	cfg         config.Config
+	store       store.Store
+	graph       messenger
+	bot         botSender
+	channels    ChannelTransport
+	router      *routing.Router
+	draining    atomic.Bool
+	engine      *authz.Engine
 	// unchecked counts deferred requests answered without a record check.
 	unchecked  atomic.Int64
 	metrics    telemetry
@@ -168,24 +168,24 @@ func NewServer(logger *slog.Logger, cfg config.Config, store store.Store, graphC
 	}
 
 	api := &Server{
-		log:        logger,
-		cfg:        cfg,
-		store:      store,
-		graph:      graphClient,
-		bot:        botClient,
-		channels:   channels,
-		router:     routing.New(store),
-		engine:     engine,
-		metrics:    tel,
-		text:       text,
-		now:        func() time.Time { return time.Now().UTC() },
-		directory:  newDirectoryCache(directoryTTL),
-		installs:   newInstallCache(directoryTTL),
-		oidc:       &oidcProvider{},
-		broker:     brokerClient,
-		sealer:     sealer,
-		samples:    samples,
-		checkUsers: checkUsersLimit,
+		log:         logger,
+		cfg:         cfg,
+		store:       store,
+		graph:       graphClient,
+		bot:         botClient,
+		channels:    channels,
+		router:      routing.New(store),
+		engine:      engine,
+		metrics:     tel,
+		text:        text,
+		now:         func() time.Time { return time.Now().UTC() },
+		directory:   newDirectoryCache(directoryTTL),
+		installs:    newInstallCache(directoryTTL),
+		oidc:        &oidcProvider{},
+		broker:      brokerClient,
+		sealer:      sealer,
+		samples:     samples,
+		whoPageSize: usersPageSize,
 	}
 	for _, opt := range opts {
 		opt(api)

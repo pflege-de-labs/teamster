@@ -241,6 +241,8 @@ type Querier interface {
 	ListUserIdPGroups(ctx context.Context) ([]string, error)
 	// pattern is a lower-cased LIKE pattern; its % and _ stay wildcards.
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
+	// Keyset paging by subject, so a caller can walk every user past the page cap.
+	ListUsersAfter(ctx context.Context, arg ListUsersAfterParams) ([]User, error)
 	ListWebhookEndpoints(ctx context.Context) ([]WebhookEndpoint, error)
 	MarkDefaultDestination(ctx context.Context, id string) (int64, error)
 	// MarkDirectoryUserBlocked and ClearDirectoryUserBlocked are the directory's

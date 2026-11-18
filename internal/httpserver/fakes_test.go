@@ -2018,6 +2018,25 @@ func (f *fakeStore) ListUsers(_ context.Context, search string, limit int) ([]mo
 	return out, nil
 }
 
+func (f *fakeStore) ListUsersPage(_ context.Context, after string, limit int) ([]models.User, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("ListUsersPage"); err != nil {
+		return nil, err
+	}
+	var out []models.User
+	for _, u := range f.users {
+		if u.Subject > after {
+			out = append(out, u)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Subject < out[j].Subject })
+	if limit > 0 && len(out) > limit {
+		out = out[:limit]
+	}
+	return out, nil
+}
+
 func (f *fakeStore) DisableUser(_ context.Context, subject, by string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()

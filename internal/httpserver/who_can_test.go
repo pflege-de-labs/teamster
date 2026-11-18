@@ -38,7 +38,7 @@ func TestWhoCan(t *testing.T) {
 	tests := []struct {
 		name     string
 		query    string
-		limit    int
+		pageSize int // users asked per page; the store holds more than one page
 		want     []string
 		unwanted []string
 	}{
@@ -48,8 +48,7 @@ func TestWhoCan(t *testing.T) {
 		{name: "wrong action", query: "?tab=who&action=broadcast&resource=Webhook:universal", want: []string{"broadcast is not an action on this resource."}, unwanted: []string{"Edith"}},
 		{name: "wrong action by its label", query: "?tab=who&action=use&resource=People:*", want: []string{"send to is not an action on this resource."}},
 		{name: "unknown action as typed", query: "?tab=who&action=frobnicate&resource=Template:t1", want: []string{"frobnicate is not an action on this resource."}},
-		{name: "truncated", query: ask, limit: 2, want: []string{"Only the first 2 users were asked."}},
-		{name: "exactly at the limit", query: ask, limit: len(newStore().users), want: []string{"Edith"}, unwanted: []string{"Only the first"}},
+		{name: "more users than a page", query: ask, pageSize: 1, want: []string{"Allowed (2)", "Edith", "Bob"}, unwanted: []string{"Offa"}},
 		{name: "old subject link", query: "?subject=s-bob&action=update&resource=Template:t1", want: []string{"Bob"}, unwanted: []string{"Edith"}},
 		{name: "nobody", query: "?tab=who&action=delete&resource=Template:t1&principal=user:s-bob", want: []string{"Nobody signed in may."}},
 	}
@@ -57,8 +56,8 @@ func TestWhoCan(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			var opts []Option
-			if tt.limit > 0 {
-				opts = append(opts, func(s *Server) { s.checkUsers = tt.limit })
+			if tt.pageSize > 0 {
+				opts = append(opts, func(s *Server) { s.whoPageSize = tt.pageSize })
 			}
 			srv, err := NewServer(quietLog, config.Config{
 				Server:  config.ServerConfig{Addr: ":0"},

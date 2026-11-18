@@ -356,7 +356,7 @@ func (s *Server) handleAccessPage(w http.ResponseWriter, r *http.Request) {
 	if admin {
 		// tabs.js opens the who tab in place, so its form is filled on either tab.
 		page.WhoActions = whoActions()
-		page.ResourceActions, page.RecordActions, page.WhoLimit = resourceActions, recordActions, s.checkUsers
+		page.ResourceActions, page.RecordActions = resourceActions, recordActions
 	}
 	if admin && page.Tab == "who" {
 		page.WhoPrincipal = query.Get("principal")

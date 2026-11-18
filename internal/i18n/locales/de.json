@@ -490,7 +490,6 @@
   "access.allowed_count": "Erlaubt ({0})",
   "access.nobody": "Niemand, der sich angemeldet hat, darf das.",
   "access.not_signed_in": "Wer sich noch nicht angemeldet hat, fehlt hier.",
-  "access.truncated": "Nur die ersten {0} Benutzer wurden geprüft.",
   "access.wrong_action": "{0} ist keine Aktion auf dieser Ressource.",
   "access.narrow": "Eingrenzen auf",
   "access.policies_short": "Richtlinien",
