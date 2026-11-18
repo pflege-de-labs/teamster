@@ -3811,6 +3811,11 @@ Richtlinien anzeigen&lt;/strong&gt;.&lt;/li&gt;
 Identitätsanbieter in &lt;code&gt;auth.groups-claim&lt;/code&gt; (Standard &lt;code&gt;groups&lt;/code&gt;) nennt. Bearbeiter legen Gruppen an
 und ändern sie, sehen können sie alle. Gruppen lassen sich verschachteln, aber keine Gruppe kann
 sich selbst enthalten.&lt;/p&gt;
+&lt;p&gt;Auf der Seite einer Gruppe bietet &lt;strong&gt;Mitglied hinzufügen&lt;/strong&gt; eine Liste von Benutzern, Gruppen und
+Anbietergruppen, jeweils mit einem Kennzeichen für die Art; durch Tippen suchen Sie nach Name,
+E-Mail oder ID. Eine Anbietergruppe, mit der sich noch niemand angemeldet hat, steht nicht darin:
+Öffnen Sie &lt;strong&gt;Nicht aufgeführte Person&lt;/strong&gt;, wählen Sie die Art und geben Sie ihren Namen ein. Die
+Mitgliederliste zeigt Namen, daneben die ID.&lt;/p&gt;
 &lt;p&gt;Berechtigungen auf Datensätze und Webhook-Stufen lassen sich einer Gruppe genauso erteilen wie
 einem Benutzer. Jede Änderung einer Mitgliedschaft wird in derselben Transaktion im
 &lt;a href="../audit-trail/"&gt;Änderungsprotokoll&lt;/a&gt; festgehalten.&lt;/p&gt;
@@ -3835,7 +3840,8 @@ Konfigurationsbündel.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="let-someone-use-the-webhooks"&gt;Jemanden die Webhooks verwenden lassen&lt;span class="hx:absolute hx:-mt-20" id="let-someone-use-the-webhooks"&gt;&lt;/span&gt;
 &lt;a href="#let-someone-use-the-webhooks" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Bearbeiter und Administratoren dürfen beide Webhooks verwenden. Alle anderen brauchen eine
 Webhook-Stufe, die auf &lt;strong&gt;/admin/access&lt;/strong&gt; je Benutzer, Gruppe, Anbietergruppe oder Rolle gesetzt
-wird:&lt;/p&gt;
+wird. Wählen Sie den Empfänger aus der Liste; wer sich noch nicht angemeldet hat, kommt unter
+&lt;strong&gt;Nicht aufgeführte Person&lt;/strong&gt;:&lt;/p&gt;
 &lt;table&gt;
 &lt;thead&gt;
 &lt;tr&gt;
@@ -3896,11 +3902,11 @@ veraltete Zeile weiter entfernen lässt.&lt;/p&gt;
 &lt;a href="#let-someone-message-people" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Eine Nachricht, die Personen nennt, braucht ein Token, das sie nennen darf; siehe
 &lt;a href="../webhook-tokens/#let-a-token-name-people"&gt;Ein Token Personen nennen lassen&lt;/a&gt;. Jede angemeldete
 Person darf sich selbst nennen. Andere zu nennen erfordert die Stufe &lt;strong&gt;beliebige&lt;/strong&gt;, gesetzt auf
-&lt;strong&gt;/admin/access&lt;/strong&gt; unter &lt;strong&gt;Wer Personen anschreiben darf&lt;/strong&gt;, je Benutzer, Gruppe, Anbietergruppe
-oder Rolle. Administratoren haben sie bereits. Erteilen Sie sie den Personen, die Hinweise an
-Kollegen versenden, etwa Office-Administratoren. Die Stufe &lt;strong&gt;beliebige, und Rundsendung an alle&lt;/strong&gt;
-erlaubt zusätzlich, eine Nachricht an alle zu senden, die der Bot erreichen kann; siehe
-&lt;a href="../broadcasts/"&gt;Eine Nachricht an alle senden&lt;/a&gt;.&lt;/p&gt;
+&lt;strong&gt;/admin/access&lt;/strong&gt; unter &lt;strong&gt;Wer Personen anschreiben darf&lt;/strong&gt;, wobei Sie den Benutzer, die Gruppe,
+Anbietergruppe oder Rolle aus der Liste wählen. Administratoren haben sie bereits. Erteilen Sie sie
+den Personen, die Hinweise an Kollegen versenden, etwa Office-Administratoren. Die Stufe
+&lt;strong&gt;beliebige, und Rundsendung an alle&lt;/strong&gt; erlaubt zusätzlich, eine Nachricht an alle zu senden, die
+der Bot erreichen kann; siehe &lt;a href="../broadcasts/"&gt;Eine Nachricht an alle senden&lt;/a&gt;.&lt;/p&gt;
 &lt;table&gt;
 &lt;thead&gt;
 &lt;tr&gt;
@@ -3954,9 +3960,10 @@ und
 Eigentümer. Um einen Datensatz zu teilen, öffnen Sie ihn und nutzen &lt;strong&gt;Wer was darf&lt;/strong&gt;:&lt;/p&gt;
 &lt;ol&gt;
 &lt;li&gt;Wählen Sie unter &lt;strong&gt;Geben an&lt;/strong&gt; einen Benutzer, eine Gruppe, eine Anbietergruppe oder eine Rolle
-aus der Liste. Wer sich noch nicht angemeldet hat, steht nicht darin: Öffnen Sie &lt;strong&gt;Nicht
-aufgeführte Person&lt;/strong&gt;, wählen Sie die Art und geben Sie stattdessen das Subject, den Namen der
-Anbietergruppe oder der Rolle ein.&lt;/li&gt;
+aus der Liste; jeder Eintrag trägt ein Kennzeichen für seine Art, und durch Tippen suchen Sie
+nach Name, E-Mail oder ID. Wer sich noch nicht angemeldet hat, steht nicht darin: Öffnen Sie
+&lt;strong&gt;Nicht aufgeführte Person&lt;/strong&gt;, wählen Sie die Art und geben Sie stattdessen das Subject, den
+Namen der Anbietergruppe oder der Rolle ein.&lt;/li&gt;
 &lt;li&gt;Haken Sie an, was er &lt;strong&gt;Darf&lt;/strong&gt;, und klicken Sie auf &lt;strong&gt;Speichern&lt;/strong&gt;.&lt;/li&gt;
 &lt;/ol&gt;
 &lt;p&gt;Eine Gruppe muss existieren. Ein Benutzer oder eine Anbietergruppe, die sich noch nicht angemeldet
