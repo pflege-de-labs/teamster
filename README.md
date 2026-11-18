@@ -1339,13 +1339,13 @@ to the office admins who send notices to colleagues. Admins hold it already. The
 ### Groups
 
 A group at **/admin/groups** collects users, other groups, and the groups your identity provider
-names in `auth.groups-claim`. Members are picked from a searchable list, never typed by id.
-Editors create and change groups, and everyone can see them. Groups nest, but a group can never contain itself. Permissions on individual records are granted to
-groups as well as to users. Every membership change is recorded in the [audit trail](#audit-trail)
-in the same transaction: if it cannot be recorded, it does not happen. The API is `/api/groups`,
-`/api/groups/{id}` and `/api/groups/{id}/members` with `{"type": "user|group|idp_group", "id": "…"}`.
-Groups are not part of a configuration bundle. See
-[ADR 0074](docs/adr/0074-local-groups-and-provider-groups.md).
+names in `auth.groups-claim`. Members are picked from a searchable list, never typed by id. Editors
+create and change groups, and everyone can see them. Groups nest, but a group can never contain
+itself. Permissions on individual records are granted to groups as well as to users. Every
+membership change is recorded in the [audit trail](#audit-trail) in the same transaction: if it
+cannot be recorded, it does not happen. The API is `/api/groups`, `/api/groups/{id}` and
+`/api/groups/{id}/members` with `{"type": "user|group|idp_group", "id": "…"}`. Groups are not part
+of a configuration bundle. See [ADR 0074](docs/adr/0074-local-groups-and-provider-groups.md).
 
 ### Users
 
