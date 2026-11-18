@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"regexp"
 	"slices"
-	"strings"
 
 	cedar "github.com/cedar-policy/cedar-go"
 	"github.com/cedar-policy/cedar-go/ast"
@@ -228,13 +227,14 @@ type Explanation struct {
 type ExplainedPolicy struct {
 	ID   string
 	Text string
-	// Grant is set for a generated perm: policy, Role for a base policy that
-	// names one.
+	// Grant is a copy of the grant behind a generated perm: policy. Role is the
+	// role a base policy's principal scope names; the two are never both set.
 	Grant *Grant
 	Role  string
 }
 
-var baseRole = regexp.MustCompile(`principal in Role::"([^"]+)"`)
+// baseRole reads only the principal scope, so a Role in a condition is not one.
+var baseRole = regexp.MustCompile(`(?:permit|forbid)\s*\(\s*principal\s+in\s+Role::"([^"]+)"`)
 
 // Explain is AllowFor, with the policies that decided it.
 func (a *Authorizer) Explain(p Principal, action string, resource Resource) Explanation {
@@ -251,8 +251,9 @@ func (a *Authorizer) Explain(p Principal, action string, resource Resource) Expl
 		if policy := a.policies.Get(reason.PolicyID); policy != nil {
 			ep.Text = string(policy.MarshalCedar())
 		}
-		if i := slices.IndexFunc(a.generated, func(g GeneratedPolicy) bool { return g.ID == ep.ID && strings.HasPrefix(g.ID, "perm:") }); i >= 0 {
-			ep.Grant = &a.generated[i].Grant
+		if i, ok := a.grantIndex[ep.ID]; ok {
+			g := a.generated[i].Grant
+			ep.Grant = &g
 		} else if m := baseRole.FindStringSubmatch(ep.Text); m != nil {
 			ep.Role = m[1]
 		}

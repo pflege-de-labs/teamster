@@ -66,6 +66,7 @@ type Authorizer struct {
 	// userGroups are the local groups each subject is a direct member of.
 	userGroups map[string][]string
 	generated  []GeneratedPolicy
+	grantIndex map[string]int // perm: policy id to its place in generated
 	// holders are the principals some grant names, by principalKey.
 	holders map[string]bool
 }

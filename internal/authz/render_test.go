@@ -191,44 +191,44 @@ func TestGrantsDecide(t *testing.T) {
 func TestExplainReasons(t *testing.T) {
 	t.Parallel()
 
-	a, err := build(1, Model{Grants: []Grant{
+	a := withPolicy(t, Model{Grants: []Grant{
 		{ID: "g1", PrincipalType: "user", PrincipalID: "alice", ResourceType: "Template", ResourceID: "t1", Actions: []string{ActionRead}},
-	}})
-	if err != nil {
-		t.Fatal(err)
-	}
+	}}, `permit (principal, action == Action::"probe", resource) unless { principal in Role::"guest" };`)
 	t1 := Resource{Type: "Template", ID: "t1"}
 
 	tests := []struct {
 		name      string
 		p         Principal
+		action    string
 		wantRole  string
 		wantGrant string
 	}{
-		{"a role's base policy", Principal{Subject: "bob", Roles: []Role{RoleEditor}}, "editor", ""},
-		{"a direct grant", Principal{Subject: "alice"}, "", "alice"},
+		{"a role's base policy", Principal{Subject: "bob", Roles: []Role{RoleEditor}}, ActionRead, "editor", ""},
+		{"a direct grant", Principal{Subject: "alice"}, ActionRead, "", "alice"},
+		{"a role in a condition is not the reason", Principal{Subject: "bob"}, "probe", "", ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			explained := a.Explain(tt.p, ActionRead, t1)
-			if !explained.Allowed {
+			explained := a.Explain(tt.p, tt.action, t1)
+			if !explained.Allowed || len(explained.Policies) == 0 {
 				t.Fatalf("not allowed: %+v", explained)
 			}
-			var roles, grants []string
+			var roles []string
 			for _, policy := range explained.Policies {
 				if policy.Role != "" {
 					roles = append(roles, policy.Role)
+					if policy.Grant != nil {
+						t.Errorf("%s: both Role and Grant set", policy.ID)
+					}
 				}
-				if policy.Grant != nil {
-					grants = append(grants, policy.Grant.PrincipalID)
+				if (policy.Grant != nil) != (tt.wantGrant != "") || policy.Grant != nil && policy.Grant.PrincipalID != tt.wantGrant {
+					t.Errorf("%s: Grant = %+v, want principal %q", policy.ID, policy.Grant, tt.wantGrant)
 				}
 			}
-			if tt.wantRole != "" && !slices.Contains(roles, tt.wantRole) {
-				t.Errorf("roles = %v, want %s", roles, tt.wantRole)
-			}
-			if tt.wantGrant != "" && !slices.Contains(grants, tt.wantGrant) {
-				t.Errorf("grants = %v, want %s", grants, tt.wantGrant)
+			// An editor also satisfies the viewer policies, so only membership is asserted.
+			if (tt.wantRole == "") != (len(roles) == 0) || tt.wantRole != "" && !slices.Contains(roles, tt.wantRole) {
+				t.Errorf("roles = %v, want %q", roles, tt.wantRole)
 			}
 		})
 	}

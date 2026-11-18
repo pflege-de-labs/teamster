@@ -100,10 +100,14 @@ func build(generation int64, model Model) (*Authorizer, error) {
 	addWebhookEntities(entities)
 	userGroups := addGroupEntities(entities, model.Members)
 	generated, holders := addGrants(policies, model.Grants)
+	grantIndex := make(map[string]int, len(generated))
+	for i, g := range generated {
+		grantIndex[g.ID] = i
+	}
 	generated = append(generated, addTokens(policies, model.Tokens)...)
 	return &Authorizer{
 		policies: policies, entities: entities, generation: generation,
-		userGroups: userGroups, generated: generated, holders: holders,
+		userGroups: userGroups, generated: generated, grantIndex: grantIndex, holders: holders,
 	}, nil
 }
 
