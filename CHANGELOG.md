@@ -41,6 +41,7 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 * The webhook and message level lists on `/admin/access` name a group without its id; the id shows
   on hover.
+
 * A webhook or message level could only be removed by retyping the principal's id and saving
   `none`. Each row in those lists now has a **Revoke** button.
 
