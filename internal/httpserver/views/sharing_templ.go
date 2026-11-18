@@ -309,9 +309,9 @@ func sharedRow(s Sharing, p SharedPermission) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var14 string
-		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(ActionRef(p.Permission.Actions))
+		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(actionRef(ctx, p.Permission.Actions))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 90, Col: 132}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 90, Col: 137}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 		if templ_7745c5c3_Err != nil {
@@ -461,14 +461,22 @@ func sharedRow(s Sharing, p SharedPermission) templ.Component {
 }
 
 // PickerConfig is one principal picker. Kinds limits the groups offered, in the
-// order user, group, idp_group, role; empty offers all.
+// order user, group, idp_group, role; empty offers all. Label is an i18n key.
 type PickerConfig struct {
 	Name       string
+	Label      string
 	Options    PrincipalOptions
 	Kinds      []string
 	Selected   string
 	AllowOther bool
 	Required   bool
+}
+
+func (p PickerConfig) label() string {
+	if p.Label == "" {
+		return "sharing.principal_type"
+	}
+	return p.Label
 }
 
 func (p PickerConfig) offers(kind string) bool {
@@ -511,9 +519,9 @@ func principalPicker(p PickerConfig) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var25 string
-		templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "sharing.principal_type"))
+		templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, p.label()))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 147, Col: 75}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 155, Col: 60}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 		if templ_7745c5c3_Err != nil {
@@ -526,7 +534,7 @@ func principalPicker(p PickerConfig) templ.Component {
 		var templ_7745c5c3_Var26 string
 		templ_7745c5c3_Var26, templ_7745c5c3_Err = templruntime.NewAttributeExpression(p.Name).Resolve(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 148, Col: 23}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 156, Col: 23}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var26)
 		if templ_7745c5c3_Err != nil {
@@ -549,7 +557,7 @@ func principalPicker(p PickerConfig) templ.Component {
 		var templ_7745c5c3_Var27 string
 		templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "sharing.choose"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 149, Col: 51}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 157, Col: 51}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 		if templ_7745c5c3_Err != nil {
@@ -567,7 +575,7 @@ func principalPicker(p PickerConfig) templ.Component {
 			var templ_7745c5c3_Var28 string
 			templ_7745c5c3_Var28, templ_7745c5c3_Err = templruntime.NewAttributeExpression(i18n.T(ctx, "sharing.principal.user")).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 151, Col: 59}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 159, Col: 59}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var28)
 			if templ_7745c5c3_Err != nil {
@@ -585,7 +593,7 @@ func principalPicker(p PickerConfig) templ.Component {
 				var templ_7745c5c3_Var29 string
 				templ_7745c5c3_Var29, templ_7745c5c3_Err = templruntime.NewAttributeExpression("user:" + u.Subject).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 153, Col: 41}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 161, Col: 41}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var29)
 				if templ_7745c5c3_Err != nil {
@@ -598,7 +606,7 @@ func principalPicker(p PickerConfig) templ.Component {
 				var templ_7745c5c3_Var30 string
 				templ_7745c5c3_Var30, templ_7745c5c3_Err = templruntime.NewAttributeExpression(strings.TrimSpace(displayName(u) + " " + u.Email + " " + u.Subject)).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 153, Col: 125}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 161, Col: 125}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var30)
 				if templ_7745c5c3_Err != nil {
@@ -611,7 +619,7 @@ func principalPicker(p PickerConfig) templ.Component {
 				var templ_7745c5c3_Var31 string
 				templ_7745c5c3_Var31, templ_7745c5c3_Err = templruntime.NewAttributeExpression(u.Subject).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 153, Col: 145}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 161, Col: 145}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var31)
 				if templ_7745c5c3_Err != nil {
@@ -634,7 +642,7 @@ func principalPicker(p PickerConfig) templ.Component {
 				var templ_7745c5c3_Var32 string
 				templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(displayName(u))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 153, Col: 210}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 161, Col: 210}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
 				if templ_7745c5c3_Err != nil {
@@ -658,7 +666,7 @@ func principalPicker(p PickerConfig) templ.Component {
 			var templ_7745c5c3_Var33 string
 			templ_7745c5c3_Var33, templ_7745c5c3_Err = templruntime.NewAttributeExpression(i18n.T(ctx, "sharing.principal.group")).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 158, Col: 60}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 166, Col: 60}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var33)
 			if templ_7745c5c3_Err != nil {
@@ -676,7 +684,7 @@ func principalPicker(p PickerConfig) templ.Component {
 				var templ_7745c5c3_Var34 string
 				templ_7745c5c3_Var34, templ_7745c5c3_Err = templruntime.NewAttributeExpression("group:" + g.ID).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 160, Col: 37}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 168, Col: 37}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var34)
 				if templ_7745c5c3_Err != nil {
@@ -689,7 +697,7 @@ func principalPicker(p PickerConfig) templ.Component {
 				var templ_7745c5c3_Var35 string
 				templ_7745c5c3_Var35, templ_7745c5c3_Err = templruntime.NewAttributeExpression(g.Name + " " + g.ID).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 160, Col: 73}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 168, Col: 73}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var35)
 				if templ_7745c5c3_Err != nil {
@@ -702,7 +710,7 @@ func principalPicker(p PickerConfig) templ.Component {
 				var templ_7745c5c3_Var36 string
 				templ_7745c5c3_Var36, templ_7745c5c3_Err = templruntime.NewAttributeExpression(g.ID).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 160, Col: 88}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 168, Col: 88}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var36)
 				if templ_7745c5c3_Err != nil {
@@ -725,7 +733,7 @@ func principalPicker(p PickerConfig) templ.Component {
 				var templ_7745c5c3_Var37 string
 				templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.JoinStringErrs(g.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 160, Col: 141}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 168, Col: 141}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var37))
 				if templ_7745c5c3_Err != nil {
@@ -749,7 +757,7 @@ func principalPicker(p PickerConfig) templ.Component {
 			var templ_7745c5c3_Var38 string
 			templ_7745c5c3_Var38, templ_7745c5c3_Err = templruntime.NewAttributeExpression(i18n.T(ctx, "sharing.principal.idp_group")).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 165, Col: 64}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 173, Col: 64}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var38)
 			if templ_7745c5c3_Err != nil {
@@ -767,7 +775,7 @@ func principalPicker(p PickerConfig) templ.Component {
 				var templ_7745c5c3_Var39 string
 				templ_7745c5c3_Var39, templ_7745c5c3_Err = templruntime.NewAttributeExpression("idp_group:" + name).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 167, Col: 41}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 175, Col: 41}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var39)
 				if templ_7745c5c3_Err != nil {
@@ -780,7 +788,7 @@ func principalPicker(p PickerConfig) templ.Component {
 				var templ_7745c5c3_Var40 string
 				templ_7745c5c3_Var40, templ_7745c5c3_Err = templruntime.NewAttributeExpression(name).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 167, Col: 62}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 175, Col: 62}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var40)
 				if templ_7745c5c3_Err != nil {
@@ -793,7 +801,7 @@ func principalPicker(p PickerConfig) templ.Component {
 				var templ_7745c5c3_Var41 string
 				templ_7745c5c3_Var41, templ_7745c5c3_Err = templruntime.NewAttributeExpression(name).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 167, Col: 77}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 175, Col: 77}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var41)
 				if templ_7745c5c3_Err != nil {
@@ -816,7 +824,7 @@ func principalPicker(p PickerConfig) templ.Component {
 				var templ_7745c5c3_Var42 string
 				templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.JoinStringErrs(name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 167, Col: 132}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 175, Col: 132}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var42))
 				if templ_7745c5c3_Err != nil {
@@ -840,7 +848,7 @@ func principalPicker(p PickerConfig) templ.Component {
 			var templ_7745c5c3_Var43 string
 			templ_7745c5c3_Var43, templ_7745c5c3_Err = templruntime.NewAttributeExpression(i18n.T(ctx, "sharing.principal.role")).Resolve(ctx)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 172, Col: 59}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 180, Col: 59}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var43)
 			if templ_7745c5c3_Err != nil {
@@ -858,7 +866,7 @@ func principalPicker(p PickerConfig) templ.Component {
 				var templ_7745c5c3_Var44 string
 				templ_7745c5c3_Var44, templ_7745c5c3_Err = templruntime.NewAttributeExpression("role:" + role).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 174, Col: 36}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 182, Col: 36}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var44)
 				if templ_7745c5c3_Err != nil {
@@ -871,7 +879,7 @@ func principalPicker(p PickerConfig) templ.Component {
 				var templ_7745c5c3_Var45 string
 				templ_7745c5c3_Var45, templ_7745c5c3_Err = templruntime.NewAttributeExpression(role).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 174, Col: 57}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 182, Col: 57}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var45)
 				if templ_7745c5c3_Err != nil {
@@ -884,7 +892,7 @@ func principalPicker(p PickerConfig) templ.Component {
 				var templ_7745c5c3_Var46 string
 				templ_7745c5c3_Var46, templ_7745c5c3_Err = templruntime.NewAttributeExpression(role).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 174, Col: 72}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 182, Col: 72}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var46)
 				if templ_7745c5c3_Err != nil {
@@ -907,7 +915,7 @@ func principalPicker(p PickerConfig) templ.Component {
 				var templ_7745c5c3_Var47 string
 				templ_7745c5c3_Var47, templ_7745c5c3_Err = templ.JoinStringErrs(role)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 174, Col: 122}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 182, Col: 122}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var47))
 				if templ_7745c5c3_Err != nil {
@@ -935,7 +943,7 @@ func principalPicker(p PickerConfig) templ.Component {
 			var templ_7745c5c3_Var48 string
 			templ_7745c5c3_Var48, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "sharing.not_listed"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 182, Col: 85}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 190, Col: 85}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var48))
 			if templ_7745c5c3_Err != nil {
@@ -953,7 +961,7 @@ func principalPicker(p PickerConfig) templ.Component {
 				var templ_7745c5c3_Var49 string
 				templ_7745c5c3_Var49, templ_7745c5c3_Err = templruntime.NewAttributeExpression(t).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 186, Col: 23}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 194, Col: 23}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var49)
 				if templ_7745c5c3_Err != nil {
@@ -966,7 +974,7 @@ func principalPicker(p PickerConfig) templ.Component {
 				var templ_7745c5c3_Var50 string
 				templ_7745c5c3_Var50, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "sharing.principal."+t))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 186, Col: 63}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 194, Col: 63}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var50))
 				if templ_7745c5c3_Err != nil {
@@ -984,7 +992,7 @@ func principalPicker(p PickerConfig) templ.Component {
 			var templ_7745c5c3_Var51 string
 			templ_7745c5c3_Var51, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "sharing.not_listed_hint"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 191, Col: 82}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 199, Col: 82}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var51))
 			if templ_7745c5c3_Err != nil {
@@ -1024,7 +1032,7 @@ func actionBoxes(actions []string, canTransfer bool, held []string) templ.Compon
 		var templ_7745c5c3_Var53 string
 		templ_7745c5c3_Var53, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "sharing.actions"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 199, Col: 70}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 207, Col: 70}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var53))
 		if templ_7745c5c3_Err != nil {
@@ -1043,7 +1051,7 @@ func actionBoxes(actions []string, canTransfer bool, held []string) templ.Compon
 				var templ_7745c5c3_Var54 string
 				templ_7745c5c3_Var54, templ_7745c5c3_Err = templruntime.NewAttributeExpression(action).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 203, Col: 57}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 211, Col: 57}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var54)
 				if templ_7745c5c3_Err != nil {
@@ -1066,7 +1074,7 @@ func actionBoxes(actions []string, canTransfer bool, held []string) templ.Compon
 				var templ_7745c5c3_Var55 string
 				templ_7745c5c3_Var55, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "sharing.action."+action))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 204, Col: 44}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `sharing.templ`, Line: 212, Col: 44}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var55))
 				if templ_7745c5c3_Err != nil {

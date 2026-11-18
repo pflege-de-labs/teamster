@@ -87,7 +87,7 @@ templ sharedRow(s Sharing, p SharedPermission) {
 	<div class="flex flex-wrap items-center gap-3">
 		<span class="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600">{ i18n.T(ctx, "sharing.principal." + string(p.Permission.PrincipalType)) }</span>
 		<span class="min-w-0 flex-1 font-medium">{ p.Label }</span>
-		<code class="font-mono text-xs text-slate-500" title={ actionLabels(ctx, p.Permission.Actions) }>{ ActionRef(p.Permission.Actions) }</code>
+		<code class="font-mono text-xs text-slate-500" title={ actionLabels(ctx, p.Permission.Actions) }>{ actionRef(ctx, p.Permission.Actions) }</code>
 		if mayChange {
 			<details class="w-full text-sm sm:w-auto">
 				<summary class="cursor-pointer text-xs text-slate-600">{ i18n.T(ctx, "sharing.edit") }</summary>
@@ -114,14 +114,22 @@ templ sharedRow(s Sharing, p SharedPermission) {
 }
 
 // PickerConfig is one principal picker. Kinds limits the groups offered, in the
-// order user, group, idp_group, role; empty offers all.
+// order user, group, idp_group, role; empty offers all. Label is an i18n key.
 type PickerConfig struct {
 	Name       string
+	Label      string
 	Options    PrincipalOptions
 	Kinds      []string
 	Selected   string
 	AllowOther bool
 	Required   bool
+}
+
+func (p PickerConfig) label() string {
+	if p.Label == "" {
+		return "sharing.principal_type"
+	}
+	return p.Label
 }
 
 func (p PickerConfig) offers(kind string) bool {
@@ -144,7 +152,7 @@ func (p PickerConfig) otherKinds() []string {
 // not signed in yet is not known, so AllowOther adds fields that take them by name.
 templ principalPicker(p PickerConfig) {
 	<label class="block">
-		<span class="text-sm font-medium">{ i18n.T(ctx, "sharing.principal_type") }</span>
+		<span class="text-sm font-medium">{ i18n.T(ctx, p.label()) }</span>
 		<select name={ p.Name } data-principal-picker required?={ p.Required } class="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm">
 			<option value="">{ i18n.T(ctx, "sharing.choose") }</option>
 			if p.offers("user") && len(p.Options.Users) > 0 {

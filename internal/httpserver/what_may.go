@@ -34,10 +34,17 @@ func (s *Server) whatMay(r *http.Request, snapshot *authz.Authorizer, p authz.Pr
 		}
 	}
 	out := views.WhatMay{Roles: roleSummaries(snapshot, p.Roles), Messages: snapshot.MessageLevel(p)}
+	if action, ok := authz.MessageAction(out.Messages); ok {
+		out.MessagesVia, _ = reasonsFor(ctx, labels, nil, snapshot.Explain(p, action, authz.PeopleResource), self, selfID)
+	}
 
 	for _, class := range index {
 		for _, rec := range class.Records {
-			row := views.MayRow{Type: class.Type, ID: rec.ID, Name: rec.Name, Href: rec.Href, CanShare: rec.CanShare, CanTransfer: s.can(r, authz.ActionTransfer, class.Type, rec.ID)}
+			// The index names records the viewer may not read; the answer must not.
+			if !s.can(r, authz.ActionRead, class.Type, rec.ID) {
+				continue
+			}
+			row := views.MayRow{Type: class.Type, ID: rec.ID, Name: rec.Name, Href: rec.Href, CanShare: rec.CanShare}
 			resource := authz.Resource{Type: class.Type, ID: rec.ID}
 			granted := false
 			for _, action := range recordActions {
@@ -53,13 +60,14 @@ func (s *Server) whatMay(r *http.Request, snapshot *authz.Authorizer, p authz.Pr
 			if !granted {
 				continue
 			}
+			row.CanTransfer = s.can(r, authz.ActionTransfer, class.Type, rec.ID)
 			if perm, ok := own[class.Type+":"+rec.ID]; ok {
 				row.Direct = &perm
 			}
 			out.Records = append(out.Records, row)
 		}
 	}
-	out.Webhooks = webhookLevel(snapshot, p)
+	out.Webhooks, out.WebhooksVia = webhookLevel(ctx, labels, snapshot, p, self, selfID)
 	return out, nil
 }
 
@@ -96,7 +104,7 @@ func grantReason(ctx context.Context, labels map[string]string, g authz.Grant, s
 		}
 		return i18n.T(ctx, "access.via_group", name)
 	case kind == models.PrincipalIdPGroup:
-		return g.PrincipalID
+		return i18n.T(ctx, "access.via_idp_group", g.PrincipalID)
 	case kind == models.PrincipalRole:
 		return i18n.T(ctx, "access.via_role", g.PrincipalID)
 	case kind == models.PrincipalUser:
@@ -106,20 +114,23 @@ func grantReason(ctx context.Context, labels map[string]string, g authz.Grant, s
 }
 
 // webhookLevel asks the authorizer for the rows levelOf reads, so the level
-// follows groups and roles too.
-func webhookLevel(snapshot *authz.Authorizer, p authz.Principal) string {
+// follows groups and roles too, and gathers the reasons for it.
+func webhookLevel(ctx context.Context, labels map[string]string, snapshot *authz.Authorizer, p authz.Principal, self models.PrincipalType, selfID string) (string, []string) {
 	var rows []models.Permission
+	var via []string
 	for _, id := range webhookIDs {
 		res := authz.WebhookResource(id)
 		var actions []string
 		for _, action := range []string{authz.ActionUse, authz.ActionAdminister} {
-			if snapshot.AllowFor(p, action, res) {
+			exp := snapshot.Explain(p, action, res)
+			if exp.Allowed {
 				actions = append(actions, action)
+				via, _ = reasonsFor(ctx, labels, via, exp, self, selfID)
 			}
 		}
 		if len(actions) > 0 {
 			rows = append(rows, models.Permission{ResourceID: id, Actions: actions})
 		}
 	}
-	return levelOf(rows)
+	return levelOf(rows), via
 }

@@ -37,7 +37,8 @@ func (s *Server) whoCan(r *http.Request, snapshot *authz.Authorizer, action stri
 		return views.WhoCan{WrongAction: true}, nil
 	}
 	ctx := r.Context()
-	users, err := s.store.ListUsers(ctx, "", s.checkUsers)
+	// One more than the limit tells a cut list from one that is exactly full.
+	users, err := s.store.ListUsers(ctx, "", s.checkUsers+1)
 	if err != nil {
 		return views.WhoCan{}, err
 	}
@@ -46,7 +47,8 @@ func (s *Server) whoCan(r *http.Request, snapshot *authz.Authorizer, action stri
 		return views.WhoCan{}, err
 	}
 	kind, id, _ := strings.Cut(narrow, ":")
-	out := views.WhoCan{Truncated: len(users) >= s.checkUsers}
+	out := views.WhoCan{Truncated: len(users) > s.checkUsers}
+	users = users[:min(len(users), s.checkUsers)]
 	for _, u := range users {
 		if u.Disabled() {
 			continue
@@ -66,7 +68,7 @@ func (s *Server) whoCan(r *http.Request, snapshot *authz.Authorizer, action stri
 			continue
 		}
 		via, _ := reasonsFor(ctx, labels, nil, exp, models.PrincipalUser, u.Subject)
-		out.Allowed = append(out.Allowed, views.WhoRow{Kind: "user", ID: u.Subject, Label: displayName(u), Via: via, Policies: exp.Policies})
+		out.Allowed = append(out.Allowed, views.WhoRow{ID: u.Subject, Label: displayName(u), Via: via, Policies: exp.Policies})
 	}
 	return out, nil
 }

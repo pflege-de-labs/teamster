@@ -30,7 +30,7 @@ func TestWhatMay(t *testing.T) {
 	tests := []struct {
 		name     string
 		lang     language.Tag
-		admin    bool
+		viewer   authz.Role // the role of whoever asks; none sees no records
 		seed     func(st *fakeStore)
 		p        authz.Principal
 		self     models.PrincipalType
@@ -39,49 +39,60 @@ func TestWhatMay(t *testing.T) {
 		roles    bool
 		webhooks string
 		messages string
+		// The reasons for the levels, compared sorted.
+		webhooksVia, messagesVia []string
 	}{
 		{
-			name: "group with a parent", lang: language.English, p: ops, self: models.PrincipalGroup, selfID: "g-ops",
+			name: "group with a parent", lang: language.English, viewer: authz.RoleViewer, p: ops, self: models.PrincipalGroup, selfID: "g-ops",
 			rows: map[string]wantRow{
 				"Template:t1": {actions: []string{"read"}, via: []string{"direct"}, direct: true},
 				"Template:t2": {actions: []string{"attach"}, via: []string{"group All"}},
 			},
 			webhooks: "alertmanager", messages: authz.MessagesEveryone,
+			webhooksVia: []string{"group All"}, messagesVia: []string{"group All"},
 		},
 		{
-			name: "admin viewer may share", lang: language.English, admin: true, p: ops, self: models.PrincipalGroup, selfID: "g-ops",
+			name: "a viewer who may read nothing sees no records", lang: language.English, p: ops, self: models.PrincipalGroup, selfID: "g-ops",
+			rows: map[string]wantRow{}, webhooks: "alertmanager", messages: authz.MessagesEveryone,
+			webhooksVia: []string{"group All"}, messagesVia: []string{"group All"},
+		},
+		{
+			name: "admin viewer may share", lang: language.English, viewer: authz.RoleAdmin, p: ops, self: models.PrincipalGroup, selfID: "g-ops",
 			rows: map[string]wantRow{
 				"Template:t1": {via: []string{"direct"}, direct: true, share: true},
 				"Template:t2": {via: []string{"group All"}, share: true},
 			},
 			webhooks: "alertmanager", messages: authz.MessagesEveryone,
+			webhooksVia: []string{"group All"}, messagesVia: []string{"group All"},
 		},
 		{
-			name: "german reasons", lang: language.German, p: ops, self: models.PrincipalGroup, selfID: "g-ops",
+			name: "german reasons", lang: language.German, viewer: authz.RoleViewer, p: ops, self: models.PrincipalGroup, selfID: "g-ops",
 			rows: map[string]wantRow{
 				"Template:t1": {via: []string{"direkt"}, direct: true},
 				"Template:t2": {via: []string{"Gruppe All"}},
 			},
 			webhooks: "alertmanager", messages: authz.MessagesEveryone,
+			webhooksVia: []string{"Gruppe All"}, messagesVia: []string{"Gruppe All"},
 		},
 		{
-			name: "role principal has no record rows", lang: language.English,
+			name: "role principal has no record rows", lang: language.English, viewer: authz.RoleViewer,
 			p: authz.Principal{Roles: []authz.Role{authz.RoleEditor}}, self: models.PrincipalRole, selfID: "editor",
 			rows: map[string]wantRow{}, roles: true, webhooks: "all", messages: authz.MessagesSelf,
+			webhooksVia: []string{"role editor"},
 		},
 		{
-			name: "role and direct grant on one record", lang: language.English,
+			name: "role and direct grant on one record", lang: language.English, viewer: authz.RoleViewer,
 			seed: func(st *fakeStore) { grantTo(st, models.PrincipalUser, "u1", "Template", "t1", "read") },
 			p:    authz.Principal{Subject: "u1", Roles: []authz.Role{authz.RoleEditor}}, self: models.PrincipalUser, selfID: "u1",
 			rows:     map[string]wantRow{"Template:t1": {via: []string{"direct", "role editor", "role viewer"}, direct: true}},
 			roles:    true,
-			webhooks: "all", messages: authz.MessagesSelf,
+			webhooks: "all", messages: authz.MessagesSelf, webhooksVia: []string{"role editor"},
 		},
 		{
-			name: "provider group grant", lang: language.English,
+			name: "provider group grant", lang: language.English, viewer: authz.RoleViewer,
 			seed: func(st *fakeStore) { grantTo(st, models.PrincipalIdPGroup, "oncall", "Template", "t1", "read") },
 			p:    authz.Principal{Subject: "u1", IdPGroups: []string{"oncall"}}, self: models.PrincipalUser, selfID: "u1",
-			rows:     map[string]wantRow{"Template:t1": {actions: []string{"read"}, via: []string{"oncall"}}},
+			rows:     map[string]wantRow{"Template:t1": {actions: []string{"read"}, via: []string{"provider group oncall"}}},
 			webhooks: "none", messages: authz.MessagesSelf,
 		},
 	}
@@ -118,8 +129,8 @@ func TestWhatMay(t *testing.T) {
 			}
 			r := httptest.NewRequest("GET", "/admin/access", nil)
 			ctx := i18n.WithLanguage(r.Context(), bundle, tt.lang)
-			if tt.admin {
-				ctx = context.WithValue(ctx, roleKey, []authz.Role{authz.RoleAdmin})
+			if tt.viewer != "" {
+				ctx = context.WithValue(ctx, roleKey, []authz.Role{tt.viewer})
 			}
 			got, err := srv.whatMay(r.WithContext(ctx), snapshot, tt.p, tt.self, tt.selfID)
 			if err != nil {
@@ -165,6 +176,10 @@ func TestWhatMay(t *testing.T) {
 			}
 			if got.Webhooks != tt.webhooks || got.Messages != tt.messages {
 				t.Errorf("webhooks, messages = %q, %q; want %q, %q", got.Webhooks, got.Messages, tt.webhooks, tt.messages)
+			}
+			webhooksVia, messagesVia := slices.Sorted(slices.Values(got.WebhooksVia)), slices.Sorted(slices.Values(got.MessagesVia))
+			if !slices.Equal(webhooksVia, tt.webhooksVia) || !slices.Equal(messagesVia, tt.messagesVia) {
+				t.Errorf("level reasons = %v, %v; want %v, %v", webhooksVia, messagesVia, tt.webhooksVia, tt.messagesVia)
 			}
 		})
 	}

@@ -95,13 +95,13 @@ func (s *Server) handleGroupsPage(w http.ResponseWriter, r *http.Request) {
 		case err != nil && page.Error == "":
 			page.Error = failureText(ctx, "load group", err)
 		case err == nil:
-			if err = s.groupMay(r, &detail); err != nil {
+			if err = s.groupMay(r, &detail); err != nil && page.Error == "" {
 				page.Error = failureText(ctx, "load group rights", err)
 			}
 			page.Selected = &detail
 			page.Selected.CanEdit = s.can(r, authz.ActionUpdate, typeGroup, id)
 			page.Selected.CanDelete = s.can(r, authz.ActionDelete, typeGroup, id)
-			if page.Selected.Sharing, err = s.sharingFor(r, typeGroup, id, "/admin/groups?id="+urlQueryEscape(id)); err != nil {
+			if page.Selected.Sharing, err = s.sharingFor(r, typeGroup, id, "/admin/groups?id="+urlQueryEscape(id)); err != nil && page.Error == "" {
 				page.Error = failureText(ctx, "load sharing", err)
 			}
 		}
@@ -113,23 +113,28 @@ func (s *Server) handleGroupsPage(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// groupMay asks the authorizer what the group may do, as a synthetic principal.
-func (s *Server) groupMay(r *http.Request, d *views.GroupDetail) (err error) {
+// groupMay asks the authorizer what the group may do, as a synthetic principal;
+// on an error d.May stays nil, so the page shows no half answer.
+func (s *Server) groupMay(r *http.Request, d *views.GroupDetail) error {
 	id := d.Group.ID
 	d.Admin = s.can(r, authz.ActionAdminister, "Access", "")
 	d.Grantable = slices.DeleteFunc(slices.Clone(recordActions), func(a string) bool { return a == authz.ActionOwn })
-	d.May, err = s.whatMay(r, s.policies(r), authz.Principal{Groups: []string{id}}, models.PrincipalGroup, id)
+	may, err := s.whatMay(r, s.policies(r), authz.Principal{Groups: []string{id}}, models.PrincipalGroup, id)
 	if err != nil {
 		return err
 	}
 	all, err := s.store.ListPermissions(r.Context())
+	if err != nil {
+		return err
+	}
+	d.May = &may
 	for _, perm := range all {
 		if perm.PrincipalType == models.PrincipalGroup && perm.PrincipalID == id {
 			d.OwnWebhooks = d.OwnWebhooks || perm.ResourceType == "Webhook"
 			d.OwnMessages = d.OwnMessages || perm.ResourceType == authz.PeopleResource.Type
 		}
 	}
-	return err
+	return nil
 }
 
 // groupDetail labels each member and gathers the picker's suggestions.

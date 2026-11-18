@@ -1,6 +1,8 @@
 package views
 
 import (
+	"context"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -69,7 +71,7 @@ type Hub struct {
 	SelectedID string
 	Selected   *Sharing
 	Principals PrincipalOptions
-	// Principal is the "type:id" the picker starts on, from a link on a group page.
+	// Principal is the "type:id" the picker starts on, from ?grant_to= on a group page's link.
 	Principal string
 	// Actions are what a batch may grant; ownership is passed on one record at a time.
 	Actions []string
@@ -101,9 +103,9 @@ type WhoCan struct {
 
 // WhoRow is one user who may, and why.
 type WhoRow struct {
-	Kind, ID, Label string
-	Via             []string
-	Policies        []authz.ExplainedPolicy
+	ID, Label string
+	Via       []string
+	Policies  []authz.ExplainedPolicy
 }
 
 // WebhookLevels are the choices the webhook form offers, weakest first.
@@ -206,7 +208,7 @@ templ AccessPage(page Access) {
 					<form method="get" action="/admin/access" class="grid gap-3 sm:grid-cols-4 sm:items-end">
 						<input type="hidden" name="tab" value="what"/>
 						<div class="grid gap-2 sm:col-span-3">
-							@principalPicker(PickerConfig{Name: "principal", Options: page.Principals, Selected: page.MayPrincipal, AllowOther: true, Required: true})
+							@principalPicker(PickerConfig{Name: "principal", Label: "sharing.principal", Options: page.Principals, Selected: page.MayPrincipal, AllowOther: true})
 						</div>
 						@submit(i18n.T(ctx, "access.show"))
 					</form>
@@ -217,7 +219,7 @@ templ AccessPage(page Access) {
 						<p class="text-sm text-amber-800">{ i18n.T(ctx, "access.unknown_principal") }</p>
 					}
 					if page.May != nil {
-						@mayList(*page.May, MayListOptions{Principal: page.MayPrincipal})
+						@mayList(*page.May, MayListOptions{Principal: page.MayPrincipal, Levels: true})
 						for _, role := range page.May.Roles {
 							<p class="text-sm">
 								<span class="font-medium">{ role.Role }</span>:
@@ -250,14 +252,13 @@ templ AccessPage(page Access) {
 							</select>
 						</label>
 						<div class="grid gap-2">
-							<span class="text-sm font-medium">{ i18n.T(ctx, "access.narrow") }</span>
-							@principalPicker(PickerConfig{Name: "principal", Options: page.Principals, Selected: page.WhoPrincipal})
+							@principalPicker(PickerConfig{Name: "principal", Label: "access.narrow", Options: page.Principals, Selected: page.WhoPrincipal})
 						</div>
 						@submit(i18n.T(ctx, "access.ask"))
 					</form>
 					if page.Who != nil {
 						<div data-who-answer class="space-y-4">
-							@whoAnswer(*page.Who, page.WhoAction, page.WhoLimit)
+							@whoAnswer(*page.Who, actionName(ctx, page.WhoActions, page.WhoAction), page.WhoLimit)
 						</div>
 					}
 				</div>
@@ -381,6 +382,14 @@ templ whoAnswer(who WhoCan, action string, limit int) {
 	}
 }
 
+// actionName is a known action's label, and anything else as it was typed.
+func actionName(ctx context.Context, known []string, action string) string {
+	if slices.Contains(known, action) {
+		return i18n.T(ctx, "sharing.action."+action)
+	}
+	return action
+}
+
 // MyAccess is /admin/me: what the signed-in person may do, and why.
 type MyAccess struct {
 	Viewer    Viewer
@@ -413,6 +422,8 @@ type WhatMay struct {
 	Roles    []RoleSummary
 	Webhooks string
 	Messages string
+	// WebhooksVia and MessagesVia are the reasons for the two levels.
+	WebhooksVia, MessagesVia []string
 }
 
 // MayRow is one record a principal may act on, with the reasons it may.

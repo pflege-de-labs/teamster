@@ -285,7 +285,7 @@ func TestGroupPageSections(t *testing.T) {
 	}
 	may := body[strings.Index(body, ">What this group may do<"):strings.Index(body, ">Who may manage this group<")]
 	for _, want := range []string{
-		"<details", `name="principal" value="group:g-ops"`, "r---s", "group Everyone", `href="/admin/access?principal=group:g-ops"`,
+		"<details", `name="principal" value="group:g-ops"`, "r---s", "group Everyone", `href="/admin/access?grant_to=group:g-ops"`,
 		"anyone, and broadcast to everyone",
 	} {
 		if !strings.Contains(may, want) {
@@ -294,6 +294,12 @@ func TestGroupPageSections(t *testing.T) {
 	}
 	if strings.Contains(may, `action="/admin/access/messages"`) {
 		t.Error("an inherited level has a Remove form")
+	}
+	if _, level, _ := strings.Cut(may, "Who may message people"); !strings.Contains(level, "group Everyone") {
+		t.Error("the inherited message level does not say where it comes from")
+	}
+	if !strings.Contains(body, `<span class="text-sm font-medium">Member</span>`) {
+		t.Error("the member picker is not labelled Member")
 	}
 	if strings.Count(may, "<details") != 1 {
 		t.Errorf("want one editable (direct) row, got %d", strings.Count(may, "<details"))
@@ -313,8 +319,69 @@ func TestGroupPageSections(t *testing.T) {
 		t.Error("a viewer who may transfer cannot edit a row holding own")
 	}
 
-	hub := asRole(t, handler, http.MethodGet, "/admin/access?principal=group:g-ops", "").Body.String()
-	if !strings.Contains(hub, `value="group:g-ops"`) || !regexp.MustCompile(`value="group:g-ops"[^>]* selected`).MatchString(hub) {
+	// Every principal may message themselves, so a group without a grant is at self.
+	plain := asRole(t, handler, http.MethodGet, "/admin/groups?id=g-sre", "").Body.String()
+	if !strings.Contains(plain, "themselves only") || strings.Contains(plain, "access.message_level.") {
+		t.Error("the default message level is not named")
+	}
+
+	preselected := regexp.MustCompile(`value="group:g-ops"[^>]* selected`)
+	hub := hubForm(asRole(t, handler, http.MethodGet, "/admin/access?grant_to=group:g-ops", "").Body.String())
+	if !preselected.MatchString(hub) {
 		t.Error("the hub picker does not preselect the group")
+	}
+	what := hubForm(asRole(t, handler, http.MethodGet, "/admin/access?tab=what&principal=group:g-ops", "").Body.String())
+	if preselected.MatchString(what) {
+		t.Error("the What question preselects the hub's batch form")
+	}
+}
+
+// hubForm is the hub's batch form, empty when the page has none.
+func hubForm(body string) string {
+	_, after, ok := strings.Cut(body, `action="/admin/sharing/batch"`)
+	if !ok {
+		return ""
+	}
+	form, _, _ := strings.Cut(after, "</form>")
+	return form
+}
+
+func TestGroupPageWithoutItsRights(t *testing.T) {
+	t.Parallel()
+
+	st := groupsStore(authz.RoleAdmin).fail("ListTemplates")
+	body := asRole(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin/groups?id=g-sre", "").Body.String()
+	if !strings.Contains(body, "Something went wrong") || !strings.Contains(body, ">Members<") {
+		t.Fatal("the page does not report the failure beside the members")
+	}
+	if strings.Contains(body, ">What this group may do<") || strings.Contains(body, "may not reach any record yet") {
+		t.Error("a failed answer is shown as an empty one")
+	}
+}
+
+func TestGroupPageShowsOnlyWhatTheViewerMayRead(t *testing.T) {
+	t.Parallel()
+
+	st := sessionAs(newFakeStore())
+	st.groups["g-ops"] = models.Group{ID: "g-ops", Name: "Ops"}
+	st.templates["t1"] = models.Template{ID: "t1", Name: "Readable card", Body: "{}"}
+	st.templates["t2"] = models.Template{ID: "t2", Name: "Hidden runbook card", Body: "{}"}
+	grantTo(st, models.PrincipalUser, "tester", "Group", "g-ops", "read")
+	grantTo(st, models.PrincipalUser, "tester", "Template", "t1", "read")
+	grantTo(st, models.PrincipalGroup, "g-ops", "Template", "t1", "read")
+	grantTo(st, models.PrincipalGroup, "g-ops", "Template", "t2", "read")
+	grantTo(st, models.PrincipalGroup, "g-ops", "Webhook", authz.WebhookAlertmanager, "use")
+	handler := newTestServer(t, st, &fakeMessenger{}).Handler
+
+	body := asRole(t, handler, http.MethodGet, "/admin/groups?id=g-ops", "").Body.String()
+	for _, want := range []string{">Ops<", ">What this group may do<", "Readable card"} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("page lacks %q", want)
+		}
+	}
+	for _, unwanted := range []string{"Hidden runbook card", "Who may send to the webhooks", "Who may message people"} {
+		if strings.Contains(body, unwanted) {
+			t.Errorf("a viewer who may only read the group sees %q", unwanted)
+		}
 	}
 }

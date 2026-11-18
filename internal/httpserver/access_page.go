@@ -339,7 +339,12 @@ func (s *Server) handleAccessPage(w http.ResponseWriter, r *http.Request) {
 	if query.Get("tab") == "what" {
 		page.Tab = "what"
 	}
-	if kind, id, ok := strings.Cut(query.Get("principal"), ":"); admin && page.Tab == "what" && ok && id != "" {
+	asked := query.Get("principal")
+	if other := strings.TrimSpace(query.Get("other_id")); asked == "" && other != "" {
+		// "Someone not listed" on the what tab.
+		asked = query.Get("other_type") + ":" + other
+	}
+	if kind, id, ok := strings.Cut(asked, ":"); admin && page.Tab == "what" && ok && id != "" {
 		page.MayPrincipal = kind + ":" + id
 		var err error
 		page.May, page.MayUnknown, page.MayMissing, err = s.mayFor(r, snapshot, page.Principals.Roles, models.PrincipalType(kind), id)
@@ -348,9 +353,12 @@ func (s *Server) handleAccessPage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if admin && page.Tab == "who" {
+	if admin {
+		// tabs.js opens the who tab in place, so its form is filled on either tab.
 		page.WhoActions = whoActions()
 		page.ResourceActions, page.RecordActions, page.WhoLimit = resourceActions, recordActions, s.checkUsers
+	}
+	if admin && page.Tab == "who" {
 		page.WhoPrincipal = query.Get("principal")
 		// Links from before the narrowing picker named one user.
 		if subject := strings.TrimSpace(query.Get("subject")); subject != "" && page.WhoPrincipal == "" {

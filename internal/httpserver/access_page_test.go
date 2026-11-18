@@ -468,6 +468,8 @@ func TestWhatMayCheck(t *testing.T) {
 		{name: "not the what tab", store: newStore(authz.RoleAdmin), query: "?principal=group:g-ops", unwanted: []string{"broadcast to everyone"}},
 		{name: "not an admin", store: newStore(authz.RoleEditor), query: "?tab=what&principal=group:g-ops", unwanted: []string{"broadcast to everyone"}},
 		{name: "a failing store", store: newStore(authz.RoleAdmin).fail("GetGroup"), query: "?tab=what&principal=group:g-ops", want: []string{"Something went wrong"}, whole: true},
+		{name: "someone not listed", store: newStore(authz.RoleAdmin), query: "?tab=what&principal=&other_type=user&other_id=%20s-bob%20", want: []string{"Card one", "viewer</span>:"}},
+		{name: "the picker wins over not listed", store: newStore(authz.RoleAdmin), query: "?tab=what&principal=role:viewer&other_type=user&other_id=s-bob", want: []string{"viewer</span>:"}, unwanted: []string{"Card one"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -493,5 +495,16 @@ func TestWhatMayCheck(t *testing.T) {
 	h := newTestServer(t, newStore(authz.RoleAdmin), &fakeMessenger{}).Handler
 	if body := call(t, h, http.MethodGet, "/admin/access", "").Body.String(); !strings.Contains(body, `href="/admin/access?tab=what"`) || !strings.Contains(body, `id="panel-who"`) {
 		t.Error("the default page lacks the tab bar")
+	}
+	// tabs.js switches to the who tab in place, so its form must be ready.
+	_, who, _ := strings.Cut(call(t, h, http.MethodGet, "/admin/access?tab=what&principal=group:g-ops", "").Body.String(), `id="panel-who"`)
+	if !strings.Contains(who, `<option value="read"`) {
+		t.Error("the who form has no actions after a what question")
+	}
+	if strings.Count(who, ">Narrow to<") != 1 || strings.Contains(who, ">Give to<") {
+		t.Error("the narrowing picker is not labelled once as Narrow to")
+	}
+	if !strings.Contains(whatPanel(call(t, h, http.MethodGet, "/admin/access?tab=what", "").Body.String()), `<span class="text-sm font-medium">Who</span>`) {
+		t.Error("the what picker is not labelled Who")
 	}
 }

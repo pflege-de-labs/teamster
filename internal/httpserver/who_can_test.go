@@ -46,7 +46,10 @@ func TestWhoCan(t *testing.T) {
 		{name: "narrowed to a group", query: ask + "&principal=group:g-ops", want: []string{"Bob"}, unwanted: []string{"Edith"}},
 		{name: "narrowed to a role", query: ask + "&principal=role:editor", want: []string{"Edith"}, unwanted: []string{"Bob"}},
 		{name: "wrong action", query: "?tab=who&action=broadcast&resource=Webhook:universal", want: []string{"broadcast is not an action on this resource."}, unwanted: []string{"Edith"}},
+		{name: "wrong action by its label", query: "?tab=who&action=use&resource=People:*", want: []string{"send to is not an action on this resource."}},
+		{name: "unknown action as typed", query: "?tab=who&action=frobnicate&resource=Template:t1", want: []string{"frobnicate is not an action on this resource."}},
 		{name: "truncated", query: ask, limit: 2, want: []string{"Only the first 2 users were asked."}},
+		{name: "exactly at the limit", query: ask, limit: len(newStore().users), want: []string{"Edith"}, unwanted: []string{"Only the first"}},
 		{name: "old subject link", query: "?subject=s-bob&action=update&resource=Template:t1", want: []string{"Bob"}, unwanted: []string{"Edith"}},
 		{name: "nobody", query: "?tab=who&action=delete&resource=Template:t1&principal=user:s-bob", want: []string{"Nobody signed in may."}},
 	}
