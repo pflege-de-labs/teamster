@@ -23,6 +23,16 @@ func (s *Server) whatMay(r *http.Request, snapshot *authz.Authorizer, p authz.Pr
 	if err != nil {
 		return views.WhatMay{}, err
 	}
+	all, err := s.store.ListPermissions(ctx)
+	if err != nil {
+		return views.WhatMay{}, err
+	}
+	own := map[string]models.Permission{}
+	for _, perm := range all {
+		if perm.PrincipalType == self && perm.PrincipalID == selfID {
+			own[perm.ResourceType+":"+perm.ResourceID] = perm
+		}
+	}
 	out := views.WhatMay{Roles: roleSummaries(snapshot, p.Roles), Messages: snapshot.MessageLevel(p)}
 
 	for _, class := range index {
@@ -42,7 +52,7 @@ func (s *Server) whatMay(r *http.Request, snapshot *authz.Authorizer, p authz.Pr
 						granted = true
 						via = grantReason(ctx, labels, *policy.Grant, self, selfID)
 					case policy.Role != "":
-						via = "role " + policy.Role
+						via = i18n.T(ctx, "access.via_role", policy.Role)
 					default:
 						continue
 					}
@@ -55,15 +65,8 @@ func (s *Server) whatMay(r *http.Request, snapshot *authz.Authorizer, p authz.Pr
 			if !granted {
 				continue
 			}
-			rows, err := s.store.ListPermissionsFor(ctx, class.Type, rec.ID)
-			if err != nil {
-				return views.WhatMay{}, err
-			}
-			for _, perm := range rows {
-				if perm.PrincipalType == self && perm.PrincipalID == selfID {
-					row.Direct = &perm
-					break
-				}
+			if perm, ok := own[class.Type+":"+rec.ID]; ok {
+				row.Direct = &perm
 			}
 			out.Records = append(out.Records, row)
 		}
@@ -78,9 +81,15 @@ func grantReason(ctx context.Context, labels map[string]string, g authz.Grant, s
 	case kind == self && g.PrincipalID == selfID:
 		return i18n.T(ctx, "access.via_direct")
 	case kind == models.PrincipalGroup:
-		return "group " + labelOf(labels, "group", g.PrincipalID)
+		name := g.PrincipalID
+		if label, ok := labels["group:"+name]; ok {
+			name = label
+		}
+		return i18n.T(ctx, "access.via_group", name)
+	case kind == models.PrincipalIdPGroup:
+		return g.PrincipalID
 	case kind == models.PrincipalRole:
-		return "role " + g.PrincipalID
+		return i18n.T(ctx, "access.via_role", g.PrincipalID)
 	case kind == models.PrincipalUser:
 		return labelOf(labels, "user", g.PrincipalID)
 	}

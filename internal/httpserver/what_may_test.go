@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"context"
 	"net/http/httptest"
 	"slices"
 	"testing"
@@ -9,34 +10,79 @@ import (
 
 	"github.com/pflege-de-labs/teamster/internal/authz"
 	"github.com/pflege-de-labs/teamster/internal/config"
+	"github.com/pflege-de-labs/teamster/internal/httpserver/views"
 	"github.com/pflege-de-labs/teamster/internal/i18n"
 	"github.com/pflege-de-labs/teamster/internal/metrics"
 	"github.com/pflege-de-labs/teamster/internal/models"
 )
 
+type wantRow struct {
+	actions []string // compared when set
+	via     []string
+	direct  bool
+	share   bool
+}
+
 func TestWhatMay(t *testing.T) {
 	t.Parallel()
 
+	ops := authz.Principal{Groups: []string{"g-ops"}}
 	tests := []struct {
 		name     string
+		lang     language.Tag
+		admin    bool
+		seed     func(st *fakeStore)
 		p        authz.Principal
 		self     models.PrincipalType
 		selfID   string
-		rows     map[string]string // "type:id" -> "actions|via"
-		roles    map[string][]string
+		rows     map[string]wantRow
+		roles    bool
 		webhooks string
 		messages string
 	}{
 		{
-			name: "group with a parent", p: authz.Principal{Groups: []string{"g-ops"}}, self: models.PrincipalGroup, selfID: "g-ops",
-			rows:     map[string]string{"Template:t1": "read|direct", "Template:t2": "attach|group All (g-all)"},
+			name: "group with a parent", lang: language.English, p: ops, self: models.PrincipalGroup, selfID: "g-ops",
+			rows: map[string]wantRow{
+				"Template:t1": {actions: []string{"read"}, via: []string{"direct"}, direct: true},
+				"Template:t2": {actions: []string{"attach"}, via: []string{"group All"}},
+			},
 			webhooks: "alertmanager", messages: authz.MessagesEveryone,
 		},
 		{
-			name: "role", p: authz.Principal{Roles: []authz.Role{authz.RoleEditor}}, self: models.PrincipalRole, selfID: "editor",
-			rows:     map[string]string{},
-			roles:    map[string][]string{"Template": {"read", "update", "delete", "attach", "create"}},
+			name: "admin viewer may share", lang: language.English, admin: true, p: ops, self: models.PrincipalGroup, selfID: "g-ops",
+			rows: map[string]wantRow{
+				"Template:t1": {via: []string{"direct"}, direct: true, share: true},
+				"Template:t2": {via: []string{"group All"}, share: true},
+			},
+			webhooks: "alertmanager", messages: authz.MessagesEveryone,
+		},
+		{
+			name: "german reasons", lang: language.German, p: ops, self: models.PrincipalGroup, selfID: "g-ops",
+			rows: map[string]wantRow{
+				"Template:t1": {via: []string{"direkt"}, direct: true},
+				"Template:t2": {via: []string{"Gruppe All"}},
+			},
+			webhooks: "alertmanager", messages: authz.MessagesEveryone,
+		},
+		{
+			name: "role principal has no record rows", lang: language.English,
+			p: authz.Principal{Roles: []authz.Role{authz.RoleEditor}}, self: models.PrincipalRole, selfID: "editor",
+			rows: map[string]wantRow{}, roles: true, webhooks: "all", messages: authz.MessagesSelf,
+		},
+		{
+			name: "role and direct grant on one record", lang: language.English,
+			seed: func(st *fakeStore) { grantTo(st, models.PrincipalUser, "u1", "Template", "t1", "read") },
+			p:    authz.Principal{Subject: "u1", Roles: []authz.Role{authz.RoleEditor}}, self: models.PrincipalUser, selfID: "u1",
+			rows:     map[string]wantRow{"Template:t1": {via: []string{"direct", "role editor", "role viewer"}, direct: true}},
+			roles:    true,
 			webhooks: "all", messages: authz.MessagesSelf,
+		},
+		{
+			name: "provider group grant", lang: language.English,
+			seed: func(st *fakeStore) { grantTo(st, models.PrincipalIdPGroup, "oncall", "Template", "t1", "read") },
+			p:    authz.Principal{Subject: "u1", IdPGroups: []string{"oncall"}}, self: models.PrincipalUser, selfID: "u1",
+			rows:     map[string]wantRow{"Template:t1": {actions: []string{"read"}, via: []string{"oncall"}}},
+			webhooks: "none", messages: authz.MessagesSelf,
 		},
 	}
 	for _, tt := range tests {
@@ -49,10 +95,14 @@ func TestWhatMay(t *testing.T) {
 			st.groups["g-ops"] = models.Group{ID: "g-ops", Name: "Ops"}
 			st.groups["g-all"] = models.Group{ID: "g-all", Name: "All"}
 			st.members = append(st.members, models.GroupMember{GroupID: "g-all", Type: models.MemberGroup, ID: "g-ops"})
-			grantTo(st, models.PrincipalGroup, "g-ops", "Template", "t1", "read")
-			grantTo(st, models.PrincipalGroup, "g-all", "Template", "t2", "attach")
-			grantTo(st, models.PrincipalGroup, "g-all", "Webhook", authz.WebhookAlertmanager, "use")
-			grantTo(st, models.PrincipalGroup, "g-all", "People", authz.PeopleResource.ID, "broadcast")
+			if tt.seed != nil {
+				tt.seed(st)
+			} else {
+				grantTo(st, models.PrincipalGroup, "g-ops", "Template", "t1", "read")
+				grantTo(st, models.PrincipalGroup, "g-all", "Template", "t2", "attach")
+				grantTo(st, models.PrincipalGroup, "g-all", "Webhook", authz.WebhookAlertmanager, "use")
+				grantTo(st, models.PrincipalGroup, "g-all", "People", authz.PeopleResource.ID, "broadcast")
+			}
 
 			var srv *Server
 			if _, err := NewServer(quietLog, config.Config{}, st, &fakeMessenger{}, nil, &fakeMessenger{}, metrics.Disabled(), nil, func(s *Server) { srv = s }); err != nil {
@@ -67,36 +117,51 @@ func TestWhatMay(t *testing.T) {
 				t.Fatal(err)
 			}
 			r := httptest.NewRequest("GET", "/admin/access", nil)
-			r = r.WithContext(i18n.WithLanguage(r.Context(), bundle, language.English))
-			got, err := srv.whatMay(r, snapshot, tt.p, tt.self, tt.selfID)
+			ctx := i18n.WithLanguage(r.Context(), bundle, tt.lang)
+			if tt.admin {
+				ctx = context.WithValue(ctx, roleKey, []authz.Role{authz.RoleAdmin})
+			}
+			got, err := srv.whatMay(r.WithContext(ctx), snapshot, tt.p, tt.self, tt.selfID)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			rows := map[string]string{}
+			if len(got.Records) != len(tt.rows) {
+				t.Fatalf("records = %+v, want keys of %v", got.Records, tt.rows)
+			}
 			for _, rec := range got.Records {
-				actions := slices.Clone(rec.Actions)
+				key := rec.Type + ":" + rec.ID
+				want, ok := tt.rows[key]
+				if !ok {
+					t.Errorf("unexpected row %s", key)
+					continue
+				}
+				actions, via := slices.Clone(rec.Actions), slices.Clone(rec.Via)
 				slices.Sort(actions)
-				rows[rec.Type+":"+rec.ID] = actions[0] + "|" + rec.Via[0]
-				if len(rec.Actions) != 1 || len(rec.Via) != 1 {
-					t.Errorf("%s:%s = %v via %v, want one action and one reason", rec.Type, rec.ID, rec.Actions, rec.Via)
+				slices.Sort(via)
+				if want.actions != nil && !slices.Equal(actions, want.actions) {
+					t.Errorf("%s actions = %v, want %v", key, actions, want.actions)
+				}
+				if !slices.Equal(via, want.via) {
+					t.Errorf("%s via = %v, want %v", key, via, want.via)
+				}
+				if (rec.Direct != nil) != want.direct {
+					t.Errorf("%s direct = %v, want set %v", key, rec.Direct, want.direct)
+				}
+				if rec.Direct != nil && (rec.Direct.PrincipalType != tt.self || rec.Direct.PrincipalID != tt.selfID) {
+					t.Errorf("%s direct = %+v, want the grant of %s:%s", key, rec.Direct, tt.self, tt.selfID)
+				}
+				if rec.CanShare != want.share {
+					t.Errorf("%s CanShare = %v, want %v", key, rec.CanShare, want.share)
 				}
 			}
-			for key, want := range tt.rows {
-				if rows[key] != want {
-					t.Errorf("row %s = %q, want %q", key, rows[key], want)
+			if tt.roles {
+				if i := slices.IndexFunc(got.Roles, func(rs views.RoleSummary) bool { return rs.Type == "Template" }); i < 0 ||
+					!slices.Equal(got.Roles[i].Actions, []string{"read", "update", "delete", "attach", "create"}) {
+					t.Errorf("roles = %+v, want Template with read update delete attach create", got.Roles)
 				}
-			}
-			if len(rows) != len(tt.rows) {
-				t.Errorf("rows = %v, want %v", rows, tt.rows)
-			}
-			for _, rs := range got.Roles {
-				if want, ok := tt.roles[rs.Type]; ok && !slices.Equal(rs.Actions, want) {
-					t.Errorf("role summary %s = %v, want %v", rs.Type, rs.Actions, want)
-				}
-			}
-			if (len(got.Roles) > 0) != (len(tt.roles) > 0) {
-				t.Errorf("roles = %+v, want %v", got.Roles, tt.roles)
+			} else if len(got.Roles) > 0 {
+				t.Errorf("roles = %+v, want none", got.Roles)
 			}
 			if got.Webhooks != tt.webhooks || got.Messages != tt.messages {
 				t.Errorf("webhooks, messages = %q, %q; want %q, %q", got.Webhooks, got.Messages, tt.webhooks, tt.messages)
