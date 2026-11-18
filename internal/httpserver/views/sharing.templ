@@ -49,7 +49,7 @@ func (s Sharing) Owned() bool {
 
 templ sharingPanel(s Sharing) {
 	<section class="space-y-3 rounded-md border border-slate-200 p-4" id="sharing">
-		<h3 class="text-sm font-semibold">{ i18n.T(ctx, "sharing.heading") }</h3>
+		<h3 class="text-sm font-semibold">{ i18n.T(ctx, "sharing.heading."+s.ResourceType) }</h3>
 		if !s.Owned() {
 			<p class="text-xs text-slate-500">{ i18n.T(ctx, "sharing.unowned") }</p>
 		}
@@ -61,17 +61,21 @@ templ sharingPanel(s Sharing) {
 					</li>
 				}
 			</ul>
+			<p class="text-xs text-slate-500">{ i18n.T(ctx, "sharing.legend") }</p>
 		}
 		if s.CanShare {
-			<form method="post" action="/admin/sharing/grant" class="space-y-3">
-				<input type="hidden" name="resource_type" value={ s.ResourceType }/>
-				<input type="hidden" name="resource_id" value={ s.ResourceID }/>
-				<input type="hidden" name="return" value={ s.Return }/>
-				@principalPicker(PickerConfig{Name: "principal", Options: s.Principals, AllowOther: true})
-				@actionBoxes(s.Actions, s.CanTransfer, nil)
-				<p class="text-xs text-slate-500">{ i18n.T(ctx, "sharing.replace_hint") }</p>
-				@submit(i18n.T(ctx, "sharing.grant"))
-			</form>
+			<details class="text-sm">
+				<summary class="cursor-pointer font-medium">{ i18n.T(ctx, "sharing.add") }</summary>
+				<form method="post" action="/admin/sharing/grant" class="mt-3 space-y-3">
+					<input type="hidden" name="resource_type" value={ s.ResourceType }/>
+					<input type="hidden" name="resource_id" value={ s.ResourceID }/>
+					<input type="hidden" name="return" value={ s.Return }/>
+					@principalPicker(PickerConfig{Name: "principal", Options: s.Principals, AllowOther: true})
+					@actionBoxes(s.Actions, s.CanTransfer, nil)
+					<p class="text-xs text-slate-500">{ i18n.T(ctx, "sharing.replace_hint") }</p>
+					@submit(i18n.T(ctx, "sharing.grant"))
+				</form>
+			</details>
 		}
 	</section>
 }
@@ -80,29 +84,31 @@ templ sharingPanel(s Sharing) {
 // holds now, and saving replaces them.
 templ sharedRow(s Sharing, p SharedPermission) {
 	{{ mayChange := s.CanShare && (s.CanTransfer || !slices.Contains(p.Permission.Actions, "own")) }}
-	<div class="flex flex-wrap items-center justify-between gap-3">
-		<div class="min-w-0">
-			<span class="mr-2 rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600">{ i18n.T(ctx, "sharing.principal." + string(p.Permission.PrincipalType)) }</span>
-			<span class="font-medium">{ p.Label }</span>
-		</div>
+	<div class="flex flex-wrap items-center gap-3">
+		<span class="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600">{ i18n.T(ctx, "sharing.principal." + string(p.Permission.PrincipalType)) }</span>
+		<span class="min-w-0 flex-1 font-medium">{ p.Label }</span>
+		<code class="font-mono text-xs text-slate-500" title={ joinOrDash(p.Permission.Actions) }>{ ActionRef(p.Permission.Actions) }</code>
 		if mayChange {
-			<form method="post" action="/admin/sharing/grant" class="flex flex-wrap items-center gap-3">
-				<input type="hidden" name="resource_type" value={ s.ResourceType }/>
-				<input type="hidden" name="resource_id" value={ s.ResourceID }/>
-				<input type="hidden" name="return" value={ s.Return }/>
-				<input type="hidden" name="principal" value={ string(p.Permission.PrincipalType) + ":" + p.Permission.PrincipalID }/>
-				@actionBoxes(s.Actions, s.CanTransfer, p.Permission.Actions)
-				<button type="submit" class="rounded-md border border-slate-300 px-3 py-1 text-xs text-slate-700 hover:bg-slate-50">{ i18n.T(ctx, "sharing.grant") }</button>
-			</form>
-			<form method="post" action="/admin/sharing/revoke" class="shrink-0">
-				<input type="hidden" name="id" value={ p.Permission.ID }/>
-				<input type="hidden" name="return" value={ s.Return }/>
-				<button type="submit" class="rounded-md border border-slate-300 px-3 py-1 text-xs text-slate-700 hover:border-red-400 hover:bg-red-50 hover:text-red-700">
-					{ i18n.T(ctx, "sharing.revoke") }
-				</button>
-			</form>
-		} else {
-			<span class="font-mono text-xs text-slate-500">{ joinOrDash(p.Permission.Actions) }</span>
+			<details class="w-full text-sm sm:w-auto">
+				<summary class="cursor-pointer text-xs text-slate-600">{ i18n.T(ctx, "sharing.edit") }</summary>
+				<div class="mt-2 flex flex-wrap items-center gap-3">
+					<form method="post" action="/admin/sharing/grant" class="flex flex-wrap items-center gap-3">
+						<input type="hidden" name="resource_type" value={ s.ResourceType }/>
+						<input type="hidden" name="resource_id" value={ s.ResourceID }/>
+						<input type="hidden" name="return" value={ s.Return }/>
+						<input type="hidden" name="principal" value={ string(p.Permission.PrincipalType) + ":" + p.Permission.PrincipalID }/>
+						@actionBoxes(s.Actions, s.CanTransfer, p.Permission.Actions)
+						<button type="submit" class="rounded-md border border-slate-300 px-3 py-1 text-xs text-slate-700 hover:bg-slate-50">{ i18n.T(ctx, "sharing.grant") }</button>
+					</form>
+					<form method="post" action="/admin/sharing/revoke" class="shrink-0">
+						<input type="hidden" name="id" value={ p.Permission.ID }/>
+						<input type="hidden" name="return" value={ s.Return }/>
+						<button type="submit" class="rounded-md border border-slate-300 px-3 py-1 text-xs text-slate-700 hover:border-red-400 hover:bg-red-50 hover:text-red-700">
+							{ i18n.T(ctx, "sharing.revoke") }
+						</button>
+					</form>
+				</div>
+			</details>
 		}
 	</div>
 }
