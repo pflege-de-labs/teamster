@@ -43,10 +43,21 @@ Adding policies is safe. Removing or renaming `admin`, `editor` or `viewer` brea
   [share several records at once](#share-several-records-at-once), and **Grants you may change**
   lists the grants on the records they may share, with each record's name linking to it.
 * Admins also see there who may send to the webhooks, who may message people, all grants under
-  **Every grant**, **Who can?** and the **Policies in force**. **Who can?** takes a subject, and an
-  action and a resource from lists that include the webhooks and **People**, and names the policies
-  that allow or refuse it. A policy's text unfolds under its name. Older links with `type=` and
-  `id=` still work.
+  **Every grant**, **Who can?** and the **Policies in force**. **Who can?** asks two questions, one
+  per tab, and each answer gives its reasons.
+  * **Who can …?** takes an action and a resource. The action list offers only actions that fit the
+    resource, and `create` is not among them. Optionally narrow it to a user, a group, a provider
+    group or a role. The answer lists every signed-in user who is not disabled and may, each with
+    the reasons: **direct**, **group X**, **provider group X** or **role X**. The policies that
+    decided are collapsed under **Policies**, and a policy's text unfolds under its name. People who
+    have not signed in are not listed. Past 5000 users the page says it asked only the first ones.
+    An action that does not fit the resource is named as such. Older links with `subject=`, `type=`
+    and `id=` still work.
+  * **What may … do?** takes a user, a group, a provider group or a role, or **Someone not listed**.
+    It shows every record the principal may act on, with `r w d a s` (or **owner**, as in [the batch
+    picker](#share-several-records-at-once)) and the reasons, then its webhook and message levels
+    with their reasons, and what its roles allow on whole collections. A name nothing knows answers
+    **Nothing is known by that name.**
 * **My access** in the user menu (**/admin/me**) shows anyone their own roles, groups, webhooks and
   **People you may message**. **Shared with you** lists every record shared with them, with a link,
   the actions, and **Through** whom: themselves, a group, a provider group or a role. Below it, one
@@ -61,6 +72,9 @@ Groups at **/admin/groups** collect users, other groups, and the groups your ide
 names in `auth.groups-claim` (default `groups`). Editors create and change groups, and everyone can
 see them. Groups nest, but a group cannot contain itself.
 
+A group's page has three sections: **Members**, **What this group may do** and **Who may manage
+this group**. The Cedar id of the group is under **Technical details**.
+
 On a group's page, **Add member** offers a list of users, groups and provider groups, each with a
 badge for its kind; type to search by name, email or id. A provider group nobody has signed in
 with yet is not listed: open **Someone not listed**, pick the kind and enter its name. The member
@@ -68,6 +82,14 @@ list shows names, with the id beside them.
 
 Permissions on records and webhook levels can be granted to a group as well as to a user. Every
 membership change is recorded in the [audit trail](../audit-trail/) in the same transaction.
+
+**What this group may do** lists the records the group may act on and you may read, with the actions
+and the reason: **direct** when a grant names the group, or, for access it inherits, the group it
+comes from, such as **group it-admins**. Admins also see the group's webhook level and message level
+below the records, with their reasons. **Revoke** appears only on what the group holds itself, never
+on what it inherits; to change the inherited access, change the group it comes from. Where you may
+share a record, its direct grant is edited in place. **Give this group access to more records…**
+opens [the batch picker](#share-several-records-at-once) with the group already chosen.
 
 ```bash
 # create a group, then add a provider group to it
@@ -136,7 +158,8 @@ and
 ## Share a record
 
 Whoever creates a template, destination, route, webhook endpoint or group owns it. To share one,
-open it and use **Who may do what**:
+open it. Its panel is **Who may manage this template** (or destination, route, webhook, group), and
+you give access from **Give someone access**, which starts collapsed:
 
 1. Under **Give to**, choose a user, a group, a provider group or a role from the list; each has a
    badge for its kind, and typing searches by name, email or id. Someone who has not signed in yet
@@ -156,9 +179,11 @@ says the access applies once they, or someone in that provider group, sign in.
 | `share` | share | Give others what they hold themselves |
 | `own` | own (everything, and pass ownership on) | Everything, including passing ownership on |
 
-Each principal who already holds something is a row with their actions ticked. Change the boxes and
-press **Save** to replace what they hold; with no box ticked, it is all taken away. **Revoke**
-removes the row.
+Each principal who already holds something is one line, with five positions after the name: `r w d
+a s` for read, change, delete, use in routes and webhooks, and share. A `-` marks a position they
+do not hold; a principal who owns the record shows **owner** instead. The legend under the panel
+spells the letters out. **edit** on a line opens its boxes: change them and press **Save** to
+replace what they hold; with no box ticked, it is all taken away. **Revoke** removes the line.
 
 Nobody can give more than they hold. Someone with no role but a shared record lands on
 **Configuration → Templates** and sees just what was shared.
@@ -186,8 +211,8 @@ are listed. If there are none, the page says that there is nothing you may share
 
 ### Tick the records
 
-Tick them under **Records**. **Who has access** next to a record opens its **Who may do what** panel
-below the form, where you change or revoke single grants; **Edit** opens the record.
+Tick them under **Records**. **Who has access** next to a record opens its **Who may manage this …**
+panel below the form, where you change or revoke single grants; **Edit** opens the record.
 
 ### Choose who and what
 

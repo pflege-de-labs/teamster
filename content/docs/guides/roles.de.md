@@ -52,10 +52,23 @@ oder umbenennt, macht die Verwaltungsoberfläche unbrauchbar.
   Name jedes Datensatzes verlinkt auf ihn.
 * Administratoren sehen dort außerdem, wer an die Webhooks senden darf, wer Personen anschreiben
   darf, jede Berechtigung unter **Alle Berechtigungen**, **Wer darf?** und die **Geltenden
-  Richtlinien**. **Wer darf?** nimmt ein Subject entgegen, dazu eine Aktion und eine Ressource aus
-  Listen, die auch die Webhooks und **Personen** enthalten, und nennt die Richtlinien, die sie
-  erlauben oder verweigern. Den Text einer Richtlinie klappen Sie unter ihrem Namen auf. Ältere
-  Links mit `type=` und `id=` funktionieren weiterhin.
+  Richtlinien**. **Wer darf?** stellt zwei Fragen, je eine pro Reiter, und jede Antwort nennt ihre
+  Gründe.
+  * **Wer darf …?** nimmt eine Aktion und eine Ressource. Die Aktionsliste bietet nur Aktionen an,
+    die zur Ressource passen; `create` gehört nicht dazu. Optional grenzen Sie auf einen Benutzer,
+    eine Gruppe, eine Anbietergruppe oder eine Rolle ein. Die Antwort listet jeden angemeldeten,
+    nicht deaktivierten Benutzer, der darf, jeweils mit den Gründen: **direkt**, **Gruppe X**,
+    **Anbietergruppe X** oder **Rolle X**. Die entscheidenden Richtlinien stehen eingeklappt unter
+    **Richtlinien**, den Text einer Richtlinie klappen Sie unter ihrem Namen auf. Wer sich noch
+    nicht angemeldet hat, steht nicht in der Liste. Ab 5000 Benutzern sagt die Seite, dass sie nur
+    die ersten gefragt hat. Eine Aktion, die nicht zur Ressource passt, wird als solche benannt.
+    Ältere Links mit `subject=`, `type=` und `id=` funktionieren weiterhin.
+  * **Was darf …?** nimmt einen Benutzer, eine Gruppe, eine Anbietergruppe oder eine Rolle, oder
+    **Nicht aufgeführte Person**. Sie zeigt jeden Datensatz, auf dem der Empfänger handeln darf, mit
+    `r w d a s` (oder **Eigentümer**, wie in [der Mehrfachauswahl](#share-several-records-at-once))
+    und den Gründen, danach seine Webhook- und Nachrichtenstufe mit ihren Gründen und was seine
+    Rollen auf ganzen Sammlungen erlauben. Ein Name, den niemand kennt, ergibt **Unter diesem Namen
+    ist nichts bekannt.**
 * **Mein Zugriff** im Kontomenü (**/admin/me**) zeigt jedem die eigenen Rollen, Gruppen, Webhooks
   und **Wen Sie anschreiben dürfen**. **Mit Ihnen geteilt** listet jeden mit ihm geteilten
   Datensatz, mit Link, den Aktionen und **Über** wen: sich selbst, eine Gruppe, eine Anbietergruppe
@@ -72,6 +85,9 @@ Identitätsanbieter in `auth.groups-claim` (Standard `groups`) nennt. Bearbeiter
 und ändern sie, sehen können sie alle. Gruppen lassen sich verschachteln, aber keine Gruppe kann
 sich selbst enthalten.
 
+Die Seite einer Gruppe hat drei Abschnitte: **Mitglieder**, **Was diese Gruppe darf** und **Wer
+diese Gruppe verwalten darf**. Die Cedar-ID der Gruppe steht unter **Technische Details**.
+
 Auf der Seite einer Gruppe bietet **Mitglied hinzufügen** eine Liste von Benutzern, Gruppen und
 Anbietergruppen, jeweils mit einem Kennzeichen für die Art; durch Tippen suchen Sie nach Name,
 E-Mail oder ID. Eine Anbietergruppe, mit der sich noch niemand angemeldet hat, steht nicht darin:
@@ -81,6 +97,16 @@ Mitgliederliste zeigt Namen, daneben die ID.
 Berechtigungen auf Datensätze und Webhook-Stufen lassen sich einer Gruppe genauso erteilen wie
 einem Benutzer. Jede Änderung einer Mitgliedschaft wird in derselben Transaktion im
 [Änderungsprotokoll](../audit-trail/) festgehalten.
+
+**Was diese Gruppe darf** listet die Datensätze, auf denen die Gruppe handeln darf und die Sie
+lesen dürfen, mit den Aktionen und dem Grund: **direkt**, wenn eine Berechtigung die Gruppe nennt,
+oder bei geerbtem Zugriff die Gruppe, von der er kommt, etwa **Gruppe it-admins**. Administratoren
+sehen darunter außerdem die Webhook-Stufe und die Nachrichtenstufe der Gruppe, mit ihren Gründen.
+**Entziehen** erscheint nur bei dem, was die Gruppe selbst hat, nie bei
+Geerbtem; um geerbten Zugriff zu ändern, ändern Sie die Gruppe, von der er kommt. Wo Sie einen
+Datensatz teilen dürfen, bearbeiten Sie die direkte Berechtigung an Ort und Stelle. **Dieser Gruppe
+Zugriff auf weitere Einträge geben…** öffnet [die Mehrfachauswahl](#share-several-records-at-once)
+mit der Gruppe bereits gewählt.
 
 ```bash
 # Gruppe anlegen, dann eine Anbietergruppe hinzufügen
@@ -153,7 +179,9 @@ und
 ## Einen Datensatz teilen {#share-a-record}
 
 Wer eine Vorlage, ein Ziel, eine Route, einen Webhook-Endpunkt oder eine Gruppe anlegt, ist ihr
-Eigentümer. Um einen Datensatz zu teilen, öffnen Sie ihn und nutzen **Wer was darf**:
+Eigentümer. Um einen Datensatz zu teilen, öffnen Sie ihn. Sein Feld heißt **Wer diese Vorlage
+verwalten darf** (oder dieses Ziel, diese Route, diesen Webhook, diese Gruppe), und Zugriff geben
+Sie unter **Jemandem Zugriff geben**, das zunächst eingeklappt ist:
 
 1. Wählen Sie unter **Geben an** einen Benutzer, eine Gruppe, eine Anbietergruppe oder eine Rolle
    aus der Liste; jeder Eintrag trägt ein Kennzeichen für seine Art, und durch Tippen suchen Sie
@@ -175,7 +203,10 @@ jemand aus der Anbietergruppe anmeldet.
 | `share` | teilen | Anderen geben, was man selbst hat |
 | `own` | besitzen (alles, auch Eigentum weitergeben) | Alles, auch das Eigentum weitergeben |
 
-Wer schon etwas hat, steht als Zeile mit seinen angehakten Aktionen darunter. Ändern Sie die
+Wer schon etwas hat, steht in einer Zeile, hinter dem Namen fünf Stellen: `r w d a s` für lesen,
+ändern, löschen, in Routen und Webhooks verwenden und teilen. Ein `-` steht für eine Stelle, die
+er nicht hat; wem der Datensatz gehört, der zeigt stattdessen **Eigentümer**. Die Legende unter dem
+Feld schreibt die Buchstaben aus. **bearbeiten** an einer Zeile öffnet ihre Kästchen. Ändern Sie die
 Häkchen und klicken Sie auf **Speichern**, um zu ersetzen, was er hat; ohne Häkchen wird ihm alles
 entzogen. **Entziehen** entfernt die Zeile.
 
@@ -207,8 +238,8 @@ Sie noch nichts freigeben dürfen.
 ### Datensätze anhaken {#tick-the-records}
 
 Haken Sie sie unter **Einträge** an. **Wer hat Zugriff** neben einem Datensatz öffnet unter dem
-Formular sein Feld **Wer was darf**, in dem Sie einzelne Berechtigungen ändern oder entziehen;
-**Bearbeiten** öffnet den Datensatz.
+Formular sein Feld **Wer diese … verwalten darf**, in dem Sie einzelne Berechtigungen ändern oder
+entziehen; **Bearbeiten** öffnet den Datensatz.
 
 ### Wer und was festlegen {#choose-who-and-what}
 
