@@ -514,6 +514,13 @@ A collapsed "Someone not listed" block posts `other_type` and `other_id`. Handle
 through `principalFromForm`, which also accepts `principal_type` and `principal_id` for the JSON
 APIs and the revoke buttons. See [ADR 0109](adr/0109-principals-with-one-searchable-picker.md).
 
+A group's page has three sections: members, what the group may do, and who may manage it.
+`whatMay` answers the middle one from the authorizer, for a synthetic principal whose `Groups`
+holds the group and whose `Subject` is empty, and takes the reasons from `ExplainedPolicy`. It costs
+records times actions `AllowFor` calls and one `ListPermissions` per view. The hub reads
+`?principal=type:id` to preselect its picker. See
+[ADR 0110](adr/0110-answer-access-questions-with-the-authorizer.md).
+
 Records carry their own permissions. A `permissions` row holds one principal's actions on one
 template, destination, route, webhook endpoint or group, or on the collection, where `create` is
 granted. The snapshot renders each row to a Cedar `permit` with the cedar-go AST, so ids cannot

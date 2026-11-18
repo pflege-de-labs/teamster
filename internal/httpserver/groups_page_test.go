@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -256,5 +257,50 @@ func TestTheSnapshotLoadsGroupMemberships(t *testing.T) {
 	req = req.WithContext(withPrincipal(req.Context(), "s-bob", "Bob", models.ViaSession, []authz.Role{authz.RoleViewer}, []string{"platform"}))
 	if p := principalFor(req); p.Subject != "s-bob" || len(p.IdPGroups) != 1 || p.IdPGroups[0] != "platform" {
 		t.Errorf("principal = %+v", p)
+	}
+}
+
+func TestGroupPageSections(t *testing.T) {
+	t.Parallel()
+
+	st := groupsStore(authz.RoleAdmin)
+	st.templates["t1"] = models.Template{ID: "t1", Name: "One", Body: "{}"}
+	st.templates["t2"] = models.Template{ID: "t2", Name: "Two", Body: "{}"}
+	st.groups["g-ops"] = models.Group{ID: "g-ops", Name: "Ops"}
+	st.groups["g-all"] = models.Group{ID: "g-all", Name: "Everyone"}
+	st.members = append(st.members, models.GroupMember{GroupID: "g-all", Type: models.MemberGroup, ID: "g-ops"})
+	grantTo(st, models.PrincipalGroup, "g-ops", "Template", "t1", "read", "share")
+	grantTo(st, models.PrincipalGroup, "g-all", "Template", "t2", "attach")
+	grantTo(st, models.PrincipalGroup, "g-all", "People", authz.PeopleResource.ID, "broadcast")
+	handler := newTestServer(t, st, &fakeMessenger{}).Handler
+
+	body := asRole(t, handler, http.MethodGet, "/admin/groups?id=g-ops", "").Body.String()
+	at := -1
+	for _, heading := range []string{">Members<", ">What this group may do<", ">Who may manage this group<", "Technical details"} {
+		i := strings.Index(body, heading)
+		if i < 0 || i < at {
+			t.Fatalf("heading %q missing or out of order", heading)
+		}
+		at = i
+	}
+	may := body[strings.Index(body, ">What this group may do<"):strings.Index(body, ">Who may manage this group<")]
+	for _, want := range []string{
+		"<details", `name="principal" value="group:g-ops"`, "r---s", "group Everyone", `href="/admin/access?principal=group:g-ops"`,
+		"anyone, and broadcast to everyone", `action="/admin/access/messages"`,
+	} {
+		if !strings.Contains(may, want) {
+			t.Errorf("rights section lacks %q", want)
+		}
+	}
+	if strings.Count(may, "<details") != 1 {
+		t.Errorf("want one editable (direct) row, got %d", strings.Count(may, "<details"))
+	}
+	if strings.Contains(body, `<span class="font-mono text-xs text-slate-500">g-ops</span>`) {
+		t.Error("a raw id is shown beside a resolved name")
+	}
+
+	hub := asRole(t, handler, http.MethodGet, "/admin/access?principal=group:g-ops", "").Body.String()
+	if !strings.Contains(hub, `value="group:g-ops"`) || !regexp.MustCompile(`value="group:g-ops"[^>]* selected`).MatchString(hub) {
+		t.Error("the hub picker does not preselect the group")
 	}
 }

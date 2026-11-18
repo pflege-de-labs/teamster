@@ -87,7 +87,7 @@ templ sharedRow(s Sharing, p SharedPermission) {
 	<div class="flex flex-wrap items-center gap-3">
 		<span class="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600">{ i18n.T(ctx, "sharing.principal." + string(p.Permission.PrincipalType)) }</span>
 		<span class="min-w-0 flex-1 font-medium">{ p.Label }</span>
-		<code class="font-mono text-xs text-slate-500" title={ joinOrDash(p.Permission.Actions) }>{ ActionRef(p.Permission.Actions) }</code>
+		<code class="font-mono text-xs text-slate-500" title={ actionLabels(ctx, p.Permission.Actions) }>{ ActionRef(p.Permission.Actions) }</code>
 		if mayChange {
 			<details class="w-full text-sm sm:w-auto">
 				<summary class="cursor-pointer text-xs text-slate-600">{ i18n.T(ctx, "sharing.edit") }</summary>

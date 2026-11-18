@@ -1281,6 +1281,10 @@ curl -u admin:pw -X POST http://localhost:8080/api/sharing -d '{"principal_type"
 revokes one. Every change is audited in its own transaction. Each permission is a Cedar policy; see
 [ADR 0075](docs/adr/0075-own-and-share-records-through-generated-policies.md).
 
+A group's page in the admin UI shows its members, **What this group may do** — every record it
+reaches, directly or through a parent group or role, with the reason, and its webhook and message
+levels — and **Who may manage this group**. A direct grant is edited in place there.
+
 ### Who may do what
 
 **/admin/access** is where records are shared across a class. Admins and anyone holding a grant,

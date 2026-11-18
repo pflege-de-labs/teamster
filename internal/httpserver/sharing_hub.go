@@ -123,7 +123,11 @@ func shareable(index []views.HubClass) []views.HubClass {
 // hubFor is the picker for /admin/access: the classes and records the viewer
 // may share, and the sharing panel of the one record picked.
 func (s *Server) hubFor(r *http.Request, index []views.HubClass) (*views.Hub, error) {
-	hub := &views.Hub{Classes: shareable(index), Class: r.URL.Query().Get("class")}
+	hub := &views.Hub{Classes: shareable(index), Class: r.URL.Query().Get("class"), Principal: r.URL.Query().Get("principal")}
+	if hub.Class == "" && hub.Principal != "" && len(hub.Classes) > 0 {
+		// A principal without a class would show no form to preselect it in.
+		hub.Class = hub.Classes[0].Type
+	}
 	for _, class := range hub.Classes {
 		if class.Type == hub.Class {
 			hub.Records = class.Records

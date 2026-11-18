@@ -52,6 +52,8 @@ type Hub struct {
 	SelectedID string
 	Selected   *Sharing
 	Principals PrincipalOptions
+	// Principal is the "type:id" the picker starts on, from a link on a group page.
+	Principal string
 	// Actions are what a batch may grant; ownership is passed on one record at a time.
 	Actions []string
 }

@@ -95,6 +95,9 @@ func (s *Server) handleGroupsPage(w http.ResponseWriter, r *http.Request) {
 		case err != nil && page.Error == "":
 			page.Error = failureText(ctx, "load group", err)
 		case err == nil:
+			if err = s.groupMay(r, &detail); err != nil {
+				page.Error = failureText(ctx, "load group rights", err)
+			}
 			page.Selected = &detail
 			page.Selected.CanEdit = s.can(r, authz.ActionUpdate, typeGroup, id)
 			page.Selected.CanDelete = s.can(r, authz.ActionDelete, typeGroup, id)
@@ -108,6 +111,15 @@ func (s *Server) handleGroupsPage(w http.ResponseWriter, r *http.Request) {
 	if err := views.GroupsPage(page).Render(ctx, w); err != nil {
 		logError(ctx, "render groups page", err)
 	}
+}
+
+// groupMay asks the authorizer what the group may do, as a synthetic principal.
+func (s *Server) groupMay(r *http.Request, d *views.GroupDetail) (err error) {
+	id := d.Group.ID
+	d.Admin = s.can(r, authz.ActionAdminister, "Access", "")
+	d.Grantable = slices.DeleteFunc(slices.Clone(recordActions), func(a string) bool { return a == authz.ActionOwn })
+	d.May, err = s.whatMay(r, s.policies(r), authz.Principal{Groups: []string{id}}, models.PrincipalGroup, id)
+	return err
 }
 
 // groupDetail labels each member and gathers the picker's suggestions.

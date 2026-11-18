@@ -1,6 +1,9 @@
 package views
 
 import (
+	"net/url"
+	"strings"
+
 	"github.com/pflege-de-labs/teamster/internal/i18n"
 	"github.com/pflege-de-labs/teamster/internal/models"
 )
@@ -25,6 +28,11 @@ type GroupDetail struct {
 	CanEdit   bool
 	CanDelete bool
 	Sharing   *Sharing
+	// May is what the group may do, as the authorizer decides it; Grantable are the
+	// actions a grant row may edit, and Admin may clear the group's levels.
+	May       WhatMay
+	Grantable []string
+	Admin     bool
 }
 
 // GroupMemberView is a member and the name to show for it.
@@ -75,7 +83,6 @@ templ groupDetail(detail GroupDetail) {
 	<section class="rounded-lg border border-slate-200 bg-white shadow-sm lg:col-span-2">
 		<h2 class="border-b border-slate-200 px-6 py-4 text-lg font-semibold">{ detail.Group.Name }</h2>
 		<div class="space-y-6 px-6 py-6">
-			<p class="font-mono text-xs text-slate-500">{ i18n.T(ctx, "groups.cedar", detail.Group.ID) }</p>
 			if detail.CanEdit {
 				<form method="post" action="/admin/groups/save" class="grid gap-3 sm:grid-cols-3 sm:items-end">
 					<input type="hidden" name="id" value={ detail.Group.ID }/>
@@ -95,9 +102,6 @@ templ groupDetail(detail GroupDetail) {
 								<div class="min-w-0">
 									<span class="mr-2 rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600">{ i18n.T(ctx, "groups.type." + string(m.Member.Type)) }</span>
 									<span class="font-medium">{ m.Label }</span>
-									if m.Label != m.Member.ID {
-										<span class="font-mono text-xs text-slate-500">{ m.Member.ID }</span>
-									}
 								</div>
 								if detail.CanEdit {
 									<form method="post" action="/admin/groups/members/remove" class="shrink-0">
@@ -123,9 +127,20 @@ templ groupDetail(detail GroupDetail) {
 					@submit(i18n.T(ctx, "groups.add"))
 				</form>
 			}
+			<section class="space-y-3 rounded-md border border-slate-200 p-4">
+				<h3 class="text-sm font-semibold">{ i18n.T(ctx, "groups.may") }</h3>
+				@mayList(detail.May, MayListOptions{Principal: "group:" + detail.Group.ID, Return: "/admin/groups?id=" + url.QueryEscape(detail.Group.ID), Edit: true, Levels: detail.Admin, Actions: detail.Grantable})
+				if detail.Admin {
+					<a href={ templ.SafeURL("/admin/access?principal=group:" + url.QueryEscape(detail.Group.ID)) } class="text-sm text-sky-700 hover:underline">{ i18n.T(ctx, "groups.give_more") }</a>
+				}
+			</section>
 			if detail.Sharing != nil {
 				@sharingPanel(*detail.Sharing)
 			}
+			<details class="text-xs text-slate-500">
+				<summary class="cursor-pointer">{ i18n.T(ctx, "groups.technical") }</summary>
+				<p class="mt-1 font-mono">{ i18n.T(ctx, "groups.cedar", detail.Group.ID) }</p>
+			</details>
 			if detail.CanDelete {
 				<form method="post" action="/admin/groups/delete" class="border-t border-slate-200 pt-4">
 					<input type="hidden" name="id" value={ detail.Group.ID }/>
@@ -136,4 +151,73 @@ templ groupDetail(detail GroupDetail) {
 			}
 		</div>
 	</section>
+}
+
+// MayListOptions turn parts of mayList on: Edit shows the editor of a direct grant,
+// Levels the buttons that clear a webhook or message level.
+type MayListOptions struct {
+	Principal, Return string
+	Edit, Levels      bool
+	Actions           []string
+}
+
+// mayList is what a principal may do: records with the reasons, then the levels.
+templ mayList(m WhatMay, o MayListOptions) {
+	{{ kind, id, _ := strings.Cut(o.Principal, ":") }}
+	if len(m.Records) == 0 {
+		@empty(i18n.T(ctx, "groups.may_none"))
+	} else {
+		<ul class="divide-y divide-slate-200">
+			for _, row := range m.Records {
+				<li class="py-2 text-sm">
+					<div class="flex flex-wrap items-center gap-3">
+						<span class="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600">{ i18n.T(ctx, "hub.class."+row.Type) }</span>
+						<a href={ templ.SafeURL(row.Href) } class="min-w-0 flex-1 font-medium text-sky-700 hover:underline">{ row.Name }</a>
+						<code class="font-mono text-xs text-slate-500" title={ actionLabels(ctx, row.Actions) }>{ ActionRef(row.Actions) }</code>
+						<span class="text-xs text-slate-600">{ strings.Join(row.Via, ", ") }</span>
+					</div>
+					if o.Edit && row.Direct != nil && row.CanShare {
+						<details class="mt-1 text-sm">
+							<summary class="cursor-pointer text-xs text-slate-600">{ i18n.T(ctx, "sharing.edit") }</summary>
+							<div class="mt-2 flex flex-wrap items-center gap-3">
+								<form method="post" action="/admin/sharing/grant" class="flex flex-wrap items-center gap-3">
+									<input type="hidden" name="resource_type" value={ row.Type }/>
+									<input type="hidden" name="resource_id" value={ row.ID }/>
+									<input type="hidden" name="return" value={ o.Return }/>
+									<input type="hidden" name="principal" value={ o.Principal }/>
+									@actionBoxes(o.Actions, false, row.Direct.Actions)
+									<button type="submit" class="rounded-md border border-slate-300 px-3 py-1 text-xs text-slate-700 hover:bg-slate-50">{ i18n.T(ctx, "sharing.grant") }</button>
+								</form>
+								<form method="post" action="/admin/sharing/revoke" class="shrink-0">
+									<input type="hidden" name="id" value={ row.Direct.ID }/>
+									<input type="hidden" name="return" value={ o.Return }/>
+									<button type="submit" class="rounded-md border border-slate-300 px-3 py-1 text-xs text-slate-700 hover:border-red-400 hover:bg-red-50 hover:text-red-700">{ i18n.T(ctx, "sharing.revoke") }</button>
+								</form>
+							</div>
+						</details>
+					}
+				</li>
+			}
+		</ul>
+	}
+	<ul class="divide-y divide-slate-200">
+		<li class="flex items-center justify-between gap-3 py-2 text-sm">
+			<span>{ i18n.T(ctx, "access.webhooks") }</span>
+			<span class="flex items-center gap-3">
+				<span class="font-mono text-xs">{ i18n.T(ctx, "access.level."+m.Webhooks) }</span>
+				if o.Levels && m.Webhooks != "none" {
+					@levelRemove("/admin/access/webhooks", WebhookAccess{PrincipalType: kind, PrincipalID: id})
+				}
+			</span>
+		</li>
+		<li class="flex items-center justify-between gap-3 py-2 text-sm">
+			<span>{ i18n.T(ctx, "access.messages") }</span>
+			<span class="flex items-center gap-3">
+				<span class="font-mono text-xs">{ i18n.T(ctx, "access.message_level."+m.Messages) }</span>
+				if o.Levels && m.Messages != "none" {
+					@levelRemove("/admin/access/messages", WebhookAccess{PrincipalType: kind, PrincipalID: id})
+				}
+			</span>
+		</li>
+	</ul>
 }
