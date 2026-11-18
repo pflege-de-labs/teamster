@@ -126,7 +126,7 @@ templ AccessPage(page Access) {
 					<ul class="divide-y divide-slate-200">
 						for _, w := range page.Webhooks {
 							<li class="flex items-center justify-between gap-3 py-2 text-sm">
-								<span>
+								<span title={ w.PrincipalID }>
 									<span class="mr-2 rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600">{ i18n.T(ctx, "sharing.principal."+w.PrincipalType) }</span>
 									{ w.Label }
 								</span>
@@ -159,7 +159,7 @@ templ AccessPage(page Access) {
 					<ul class="divide-y divide-slate-200">
 						for _, m := range page.Messages {
 							<li class="flex items-center justify-between gap-3 py-2 text-sm">
-								<span>
+								<span title={ m.PrincipalID }>
 									<span class="mr-2 rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600">{ i18n.T(ctx, "sharing.principal."+m.PrincipalType) }</span>
 									{ m.Label }
 								</span>
