@@ -38,6 +38,9 @@ reasoning behind it in the [ADRs](docs/adr/).
   `/api/access/messages`, saved a level for a group that does not exist — typically a group typed
   by its name instead of its id. The grant matched nobody but was listed as if it worked. They now
   refuse an unknown group; setting such a row to `none` still clears it.
+
+* The webhook and message level lists on `/admin/access` name a group without its id; the id shows
+  on hover.
 * A webhook or message level could only be removed by retyping the principal's id and saving
   `none`. Each row in those lists now has a **Revoke** button.
 
