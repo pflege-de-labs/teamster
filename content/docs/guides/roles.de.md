@@ -72,6 +72,12 @@ Identitätsanbieter in `auth.groups-claim` (Standard `groups`) nennt. Bearbeiter
 und ändern sie, sehen können sie alle. Gruppen lassen sich verschachteln, aber keine Gruppe kann
 sich selbst enthalten.
 
+Auf der Seite einer Gruppe bietet **Mitglied hinzufügen** eine Liste von Benutzern, Gruppen und
+Anbietergruppen, jeweils mit einem Kennzeichen für die Art; durch Tippen suchen Sie nach Name,
+E-Mail oder ID. Eine Anbietergruppe, mit der sich noch niemand angemeldet hat, steht nicht darin:
+Öffnen Sie **Nicht aufgeführte Person**, wählen Sie die Art und geben Sie ihren Namen ein. Die
+Mitgliederliste zeigt Namen, daneben die ID.
+
 Berechtigungen auf Datensätze und Webhook-Stufen lassen sich einer Gruppe genauso erteilen wie
 einem Benutzer. Jede Änderung einer Mitgliedschaft wird in derselben Transaktion im
 [Änderungsprotokoll](../audit-trail/) festgehalten.
@@ -90,7 +96,8 @@ Konfigurationsbündel.
 
 Bearbeiter und Administratoren dürfen beide Webhooks verwenden. Alle anderen brauchen eine
 Webhook-Stufe, die auf **/admin/access** je Benutzer, Gruppe, Anbietergruppe oder Rolle gesetzt
-wird:
+wird. Wählen Sie den Empfänger aus der Liste; wer sich noch nicht angemeldet hat, kommt unter
+**Nicht aufgeführte Person**:
 
 | Stufe | API-Wert | Webhooks |
 | --- | --- | --- |
@@ -114,11 +121,11 @@ Stufe entzogen, sind diese Token bei ihrer nächsten Verwendung widerrufen.
 Eine Nachricht, die Personen nennt, braucht ein Token, das sie nennen darf; siehe
 [Ein Token Personen nennen lassen](../webhook-tokens/#let-a-token-name-people). Jede angemeldete
 Person darf sich selbst nennen. Andere zu nennen erfordert die Stufe **beliebige**, gesetzt auf
-**/admin/access** unter **Wer Personen anschreiben darf**, je Benutzer, Gruppe, Anbietergruppe
-oder Rolle. Administratoren haben sie bereits. Erteilen Sie sie den Personen, die Hinweise an
-Kollegen versenden, etwa Office-Administratoren. Die Stufe **beliebige, und Rundsendung an alle**
-erlaubt zusätzlich, eine Nachricht an alle zu senden, die der Bot erreichen kann; siehe
-[Eine Nachricht an alle senden](../broadcasts/).
+**/admin/access** unter **Wer Personen anschreiben darf**, wobei Sie den Benutzer, die Gruppe,
+Anbietergruppe oder Rolle aus der Liste wählen. Administratoren haben sie bereits. Erteilen Sie sie
+den Personen, die Hinweise an Kollegen versenden, etwa Office-Administratoren. Die Stufe
+**beliebige, und Rundsendung an alle** erlaubt zusätzlich, eine Nachricht an alle zu senden, die
+der Bot erreichen kann; siehe [Eine Nachricht an alle senden](../broadcasts/).
 
 | Stufe | API-Wert | Sie und ihre Token dürfen nennen |
 | --- | --- | --- |
@@ -146,9 +153,10 @@ Wer eine Vorlage, ein Ziel, eine Route, einen Webhook-Endpunkt oder eine Gruppe 
 Eigentümer. Um einen Datensatz zu teilen, öffnen Sie ihn und nutzen **Wer was darf**:
 
 1. Wählen Sie unter **Geben an** einen Benutzer, eine Gruppe, eine Anbietergruppe oder eine Rolle
-   aus der Liste. Wer sich noch nicht angemeldet hat, steht nicht darin: Öffnen Sie **Nicht
-   aufgeführte Person**, wählen Sie die Art und geben Sie stattdessen das Subject, den Namen der
-   Anbietergruppe oder der Rolle ein.
+   aus der Liste; jeder Eintrag trägt ein Kennzeichen für seine Art, und durch Tippen suchen Sie
+   nach Name, E-Mail oder ID. Wer sich noch nicht angemeldet hat, steht nicht darin: Öffnen Sie
+   **Nicht aufgeführte Person**, wählen Sie die Art und geben Sie stattdessen das Subject, den
+   Namen der Anbietergruppe oder der Rolle ein.
 2. Haken Sie an, was er **Darf**, und klicken Sie auf **Speichern**.
 
 Eine Gruppe muss existieren. Ein Benutzer oder eine Anbietergruppe, die sich noch nicht angemeldet

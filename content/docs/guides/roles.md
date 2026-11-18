@@ -61,6 +61,11 @@ Groups at **/admin/groups** collect users, other groups, and the groups your ide
 names in `auth.groups-claim` (default `groups`). Editors create and change groups, and everyone can
 see them. Groups nest, but a group cannot contain itself.
 
+On a group's page, **Add member** offers a list of users, groups and provider groups, each with a
+badge for its kind; type to search by name, email or id. A provider group nobody has signed in
+with yet is not listed: open **Someone not listed**, pick the kind and enter its name. The member
+list shows names, with the id beside them.
+
 Permissions on records and webhook levels can be granted to a group as well as to a user. Every
 membership change is recorded in the [audit trail](../audit-trail/) in the same transaction.
 
@@ -76,7 +81,8 @@ Member `type` is `user`, `group` or `idp_group`. Groups are not part of a config
 ## Let someone use the webhooks
 
 Editors and admins may use both webhooks. Anyone else needs a webhook level, set on
-**/admin/access** per user, group, provider group or role:
+**/admin/access** per user, group, provider group or role. Pick the principal from the list; one
+who has not signed in yet goes under **Someone not listed**:
 
 | Level | API value | Webhooks |
 | --- | --- | --- |
@@ -100,10 +106,10 @@ tokens at their next use.
 A message that names people needs a token that may name them; see
 [Let a token name people](../webhook-tokens/#let-a-token-name-people). Everyone signed in may name
 themselves. Naming anyone else takes the level **anyone**, set on **/admin/access** under
-**Who may message people** per user, group, provider group or role. Admins hold it already. Grant
-it to the people who send notices to colleagues, such as office admins. The level
-**anyone, and broadcast to everyone** adds sending one message to everyone the bot can reach; see
-[Send a message to everyone](../broadcasts/).
+**Who may message people**, picking the user, group, provider group or role from the list. Admins
+hold it already. Grant it to the people who send notices to colleagues, such as office admins. The
+level **anyone, and broadcast to everyone** adds sending one message to everyone the bot can reach;
+see [Send a message to everyone](../broadcasts/).
 
 | Level | API value | They and their tokens may name |
 | --- | --- | --- |
@@ -130,8 +136,9 @@ and
 Whoever creates a template, destination, route, webhook endpoint or group owns it. To share one,
 open it and use **Who may do what**:
 
-1. Under **Give to**, choose a user, a group, a provider group or a role from the list. Someone who
-   has not signed in yet is not listed: open **Someone not listed**, pick the kind and enter their
+1. Under **Give to**, choose a user, a group, a provider group or a role from the list; each has a
+   badge for its kind, and typing searches by name, email or id. Someone who has not signed in yet
+   is not listed: open **Someone not listed**, pick the kind and enter their
    subject, provider group or role name instead.
 2. Tick what they **May** do, and press **Save**.
 
