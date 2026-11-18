@@ -1,4 +1,4 @@
-// Tests the filter in web/principal-picker.js: word matching, kind order, limit.
+// Tests the pure logic of web/principal-picker.js: the filter and the arrow-key step.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
@@ -30,4 +30,18 @@ test("filterPrincipals", () => {
 test("kind order puts idp_group and role last", () => {
   const list = [e("role:r", "A"), e("idp_group:i", "A"), e("group:g", "A"), e("user:u", "Z")];
   assert.deepEqual(filter(list, "").map((x) => x.kind), ["user", "group", "idp_group", "role"]);
+});
+
+test("stepPrincipal", () => {
+  const step = globalThis.teamsterStepPrincipal;
+  const cases = [
+    { name: "down from none", active: -1, step: 1, want: 0 },
+    { name: "up from none is the last", active: -1, step: -1, want: 2 },
+    { name: "down wraps", active: 2, step: 1, want: 0 },
+    { name: "up wraps", active: 0, step: -1, want: 2 },
+    { name: "down", active: 0, step: 1, want: 1 },
+  ];
+  for (const c of cases) {
+    assert.equal(step(c.active, c.step, 3), c.want, c.name);
+  }
 });
