@@ -61,6 +61,9 @@ Groups at **/admin/groups** collect users, other groups, and the groups your ide
 names in `auth.groups-claim` (default `groups`). Editors create and change groups, and everyone can
 see them. Groups nest, but a group cannot contain itself.
 
+A group's page has three sections: **Members**, **What this group may do** and **Who may manage
+this group**. The Cedar id of the group is under **Technical details**.
+
 On a group's page, **Add member** offers a list of users, groups and provider groups, each with a
 badge for its kind; type to search by name, email or id. A provider group nobody has signed in
 with yet is not listed: open **Someone not listed**, pick the kind and enter its name. The member
@@ -68,6 +71,14 @@ list shows names, with the id beside them.
 
 Permissions on records and webhook levels can be granted to a group as well as to a user. Every
 membership change is recorded in the [audit trail](../audit-trail/) in the same transaction.
+
+**What this group may do** lists every record the group may act on, with the actions and the
+reason: **direct** when a grant names the group, or **group X** when it holds them through a group
+that contains it. Below the records are the group's webhook level and message level. **Revoke**
+appears only on what the group holds itself, never on what it inherits; to change the inherited
+access, change the group it comes from. Where you may share a record, its direct grant is edited in
+place. **Give this group access to more records…** opens
+[the batch picker](#share-several-records-at-once) with the group already chosen.
 
 ```bash
 # create a group, then add a provider group to it
@@ -134,7 +145,8 @@ and
 ## Share a record
 
 Whoever creates a template, destination, route, webhook endpoint or group owns it. To share one,
-open it and use **Who may do what**:
+open it. Its panel is **Who may manage this template** (or destination, route, webhook, group), and
+you give access from **Give someone access**, which starts collapsed:
 
 1. Under **Give to**, choose a user, a group, a provider group or a role from the list; each has a
    badge for its kind, and typing searches by name, email or id. Someone who has not signed in yet
@@ -154,9 +166,11 @@ says the access applies once they, or someone in that provider group, sign in.
 | `share` | share | Give others what they hold themselves |
 | `own` | own (everything, and pass ownership on) | Everything, including passing ownership on |
 
-Each principal who already holds something is a row with their actions ticked. Change the boxes and
-press **Save** to replace what they hold; with no box ticked, it is all taken away. **Revoke**
-removes the row.
+Each principal who already holds something is one line, with five positions after the name: `r w d
+a s` for read, change, delete, use in routes and webhooks, and share. A `-` marks a position they
+do not hold; a principal who owns the record shows **owner** instead. The legend under the panel
+spells the letters out. **edit** on a line opens its boxes: change them and press **Save** to
+replace what they hold; with no box ticked, it is all taken away. **Revoke** removes the line.
 
 Nobody can give more than they hold. Someone with no role but a shared record lands on
 **Configuration → Templates** and sees just what was shared.
@@ -184,7 +198,7 @@ are listed. If there are none, the page says that there is nothing you may share
 
 ### Tick the records
 
-Tick them under **Records**. **Who has access** next to a record opens its **Who may do what** panel
+Tick them under **Records**. **Who has access** next to a record opens its **Who may manage this …** panel
 below the form, where you change or revoke single grants; **Edit** opens the record.
 
 ### Choose who and what
