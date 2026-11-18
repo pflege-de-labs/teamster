@@ -40,7 +40,7 @@
     input.setAttribute("aria-autocomplete", "list");
     input.setAttribute("aria-controls", id);
     input.setAttribute("aria-expanded", "false");
-    const name = select.getAttribute("aria-label") || select.labels?.[0]?.textContent.trim();
+    const name = select.getAttribute("aria-label") || select.closest("label")?.querySelector("span")?.textContent.trim();
     if (name) input.setAttribute("aria-label", name);
     const list = document.createElement("ul");
     list.id = id;
@@ -51,6 +51,15 @@
     wrap.append(input, list);
     select.before(wrap);
     select.hidden = true;
+    // A hidden required select blocks submit without a message; the visible input carries it.
+    input.required = select.required;
+    select.required = false;
+    const chosen = () => entries.find((e) => e.value === select.value);
+    const sync = () => {
+      input.value = chosen()?.label ?? "";
+    };
+    sync();
+    list.addEventListener("mousedown", (ev) => ev.preventDefault());
 
     let shown = [];
     let active = -1;
@@ -102,9 +111,15 @@
       select.dispatchEvent(new Event("change", { bubbles: true }));
     };
 
-    input.addEventListener("input", render);
+    input.addEventListener("input", () => {
+      if (!input.value) select.value = "";
+      render();
+    });
     input.addEventListener("focus", render);
-    input.addEventListener("blur", () => open(false));
+    input.addEventListener("blur", () => {
+      open(false);
+      sync();
+    });
     input.addEventListener("keydown", (ev) => {
       if (ev.key === "ArrowDown" || ev.key === "ArrowUp") {
         ev.preventDefault();
@@ -117,6 +132,7 @@
         if (active >= 0) pick(shown[active]);
       } else if (ev.key === "Escape") {
         open(false);
+        sync();
       }
     });
   });
