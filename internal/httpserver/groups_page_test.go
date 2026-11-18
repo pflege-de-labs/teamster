@@ -286,17 +286,31 @@ func TestGroupPageSections(t *testing.T) {
 	may := body[strings.Index(body, ">What this group may do<"):strings.Index(body, ">Who may manage this group<")]
 	for _, want := range []string{
 		"<details", `name="principal" value="group:g-ops"`, "r---s", "group Everyone", `href="/admin/access?principal=group:g-ops"`,
-		"anyone, and broadcast to everyone", `action="/admin/access/messages"`,
+		"anyone, and broadcast to everyone",
 	} {
 		if !strings.Contains(may, want) {
 			t.Errorf("rights section lacks %q", want)
 		}
+	}
+	if strings.Contains(may, `action="/admin/access/messages"`) {
+		t.Error("an inherited level has a Remove form")
 	}
 	if strings.Count(may, "<details") != 1 {
 		t.Errorf("want one editable (direct) row, got %d", strings.Count(may, "<details"))
 	}
 	if strings.Contains(body, `<span class="font-mono text-xs text-slate-500">g-ops</span>`) {
 		t.Error("a raw id is shown beside a resolved name")
+	}
+
+	st.groups["g-own"] = models.Group{ID: "g-own", Name: "Own"}
+	grantTo(st, models.PrincipalGroup, "g-own", "People", authz.PeopleResource.ID, "broadcast")
+	grantTo(st, models.PrincipalGroup, "g-own", "Template", "t2", "own")
+	own := asRole(t, handler, http.MethodGet, "/admin/groups?id=g-own", "").Body.String()
+	if !strings.Contains(own, `action="/admin/access/messages"`) {
+		t.Error("a level the group holds has no Remove form")
+	}
+	if !strings.Contains(own, `name="actions" value="own"`) {
+		t.Error("a viewer who may transfer cannot edit a row holding own")
 	}
 
 	hub := asRole(t, handler, http.MethodGet, "/admin/access?principal=group:g-ops", "").Body.String()

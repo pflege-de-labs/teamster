@@ -37,7 +37,7 @@ func (s *Server) whatMay(r *http.Request, snapshot *authz.Authorizer, p authz.Pr
 
 	for _, class := range index {
 		for _, rec := range class.Records {
-			row := views.MayRow{Type: class.Type, ID: rec.ID, Name: rec.Name, Href: rec.Href, CanShare: rec.CanShare}
+			row := views.MayRow{Type: class.Type, ID: rec.ID, Name: rec.Name, Href: rec.Href, CanShare: rec.CanShare, CanTransfer: s.can(r, authz.ActionTransfer, class.Type, rec.ID)}
 			resource := authz.Resource{Type: class.Type, ID: rec.ID}
 			granted := false
 			for _, action := range recordActions {

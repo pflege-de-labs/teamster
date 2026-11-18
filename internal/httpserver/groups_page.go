@@ -119,6 +119,16 @@ func (s *Server) groupMay(r *http.Request, d *views.GroupDetail) (err error) {
 	d.Admin = s.can(r, authz.ActionAdminister, "Access", "")
 	d.Grantable = slices.DeleteFunc(slices.Clone(recordActions), func(a string) bool { return a == authz.ActionOwn })
 	d.May, err = s.whatMay(r, s.policies(r), authz.Principal{Groups: []string{id}}, models.PrincipalGroup, id)
+	if err != nil {
+		return err
+	}
+	all, err := s.store.ListPermissions(r.Context())
+	for _, perm := range all {
+		if perm.PrincipalType == models.PrincipalGroup && perm.PrincipalID == id {
+			d.OwnWebhooks = d.OwnWebhooks || perm.ResourceType == "Webhook"
+			d.OwnMessages = d.OwnMessages || perm.ResourceType == authz.PeopleResource.Type
+		}
+	}
 	return err
 }
 

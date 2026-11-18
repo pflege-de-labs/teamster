@@ -2,6 +2,7 @@ package views
 
 import (
 	"net/url"
+	"slices"
 	"strings"
 
 	"github.com/pflege-de-labs/teamster/internal/i18n"
@@ -33,6 +34,8 @@ type GroupDetail struct {
 	May       WhatMay
 	Grantable []string
 	Admin     bool
+	// OwnWebhooks and OwnMessages: the group holds those level rows itself.
+	OwnWebhooks, OwnMessages bool
 }
 
 // GroupMemberView is a member and the name to show for it.
@@ -129,7 +132,7 @@ templ groupDetail(detail GroupDetail) {
 			}
 			<section class="space-y-3 rounded-md border border-slate-200 p-4">
 				<h3 class="text-sm font-semibold">{ i18n.T(ctx, "groups.may") }</h3>
-				@mayList(detail.May, MayListOptions{Principal: "group:" + detail.Group.ID, Return: "/admin/groups?id=" + url.QueryEscape(detail.Group.ID), Edit: true, Levels: detail.Admin, Actions: detail.Grantable})
+				@mayList(detail.May, MayListOptions{Principal: "group:" + detail.Group.ID, Return: "/admin/groups?id=" + url.QueryEscape(detail.Group.ID), Edit: true, Levels: detail.Admin, OwnWebhooks: detail.OwnWebhooks, OwnMessages: detail.OwnMessages, Actions: detail.Grantable})
 				if detail.Admin {
 					<a href={ templ.SafeURL("/admin/access?principal=group:" + url.QueryEscape(detail.Group.ID)) } class="text-sm text-sky-700 hover:underline">{ i18n.T(ctx, "groups.give_more") }</a>
 				}
@@ -158,6 +161,8 @@ templ groupDetail(detail GroupDetail) {
 type MayListOptions struct {
 	Principal, Return string
 	Edit, Levels      bool
+	// OwnWebhooks and OwnMessages say the principal holds the level row itself, not by inheritance.
+	OwnWebhooks, OwnMessages bool
 	Actions           []string
 }
 
@@ -176,7 +181,7 @@ templ mayList(m WhatMay, o MayListOptions) {
 						<code class="font-mono text-xs text-slate-500" title={ actionLabels(ctx, row.Actions) }>{ ActionRef(row.Actions) }</code>
 						<span class="text-xs text-slate-600">{ strings.Join(row.Via, ", ") }</span>
 					</div>
-					if o.Edit && row.Direct != nil && row.CanShare {
+					if o.Edit && row.Direct != nil && row.CanShare && (row.CanTransfer || !slices.Contains(row.Direct.Actions, "own")) {
 						<details class="mt-1 text-sm">
 							<summary class="cursor-pointer text-xs text-slate-600">{ i18n.T(ctx, "sharing.edit") }</summary>
 							<div class="mt-2 flex flex-wrap items-center gap-3">
@@ -185,7 +190,7 @@ templ mayList(m WhatMay, o MayListOptions) {
 									<input type="hidden" name="resource_id" value={ row.ID }/>
 									<input type="hidden" name="return" value={ o.Return }/>
 									<input type="hidden" name="principal" value={ o.Principal }/>
-									@actionBoxes(o.Actions, false, row.Direct.Actions)
+									@actionBoxes(o.Actions, row.CanTransfer, row.Direct.Actions)
 									<button type="submit" class="rounded-md border border-slate-300 px-3 py-1 text-xs text-slate-700 hover:bg-slate-50">{ i18n.T(ctx, "sharing.grant") }</button>
 								</form>
 								<form method="post" action="/admin/sharing/revoke" class="shrink-0">
@@ -205,7 +210,7 @@ templ mayList(m WhatMay, o MayListOptions) {
 			<span>{ i18n.T(ctx, "access.webhooks") }</span>
 			<span class="flex items-center gap-3">
 				<span class="font-mono text-xs">{ i18n.T(ctx, "access.level."+m.Webhooks) }</span>
-				if o.Levels && m.Webhooks != "none" {
+				if o.Levels && o.OwnWebhooks {
 					@levelRemove("/admin/access/webhooks", WebhookAccess{PrincipalType: kind, PrincipalID: id})
 				}
 			</span>
@@ -214,7 +219,7 @@ templ mayList(m WhatMay, o MayListOptions) {
 			<span>{ i18n.T(ctx, "access.messages") }</span>
 			<span class="flex items-center gap-3">
 				<span class="font-mono text-xs">{ i18n.T(ctx, "access.message_level."+m.Messages) }</span>
-				if o.Levels && m.Messages != "none" {
+				if o.Levels && o.OwnMessages {
 					@levelRemove("/admin/access/messages", WebhookAccess{PrincipalType: kind, PrincipalID: id})
 				}
 			</span>
