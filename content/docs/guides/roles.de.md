@@ -85,10 +85,11 @@ Berechtigungen auf Datensätze und Webhook-Stufen lassen sich einer Gruppe genau
 einem Benutzer. Jede Änderung einer Mitgliedschaft wird in derselben Transaktion im
 [Änderungsprotokoll](../audit-trail/) festgehalten.
 
-**Was diese Gruppe darf** listet jeden Datensatz, auf dem die Gruppe handeln darf, mit den Aktionen
-und dem Grund: **direkt**, wenn eine Berechtigung die Gruppe nennt, oder **Gruppe X**, wenn sie
-diese über eine Gruppe hat, die sie enthält. Darunter stehen die Webhook-Stufe und die
-Nachrichtenstufe der Gruppe. **Entziehen** erscheint nur bei dem, was die Gruppe selbst hat, nie bei
+**Was diese Gruppe darf** listet die Datensätze, auf denen die Gruppe handeln darf und die Sie
+lesen dürfen, mit den Aktionen und dem Grund: **direkt**, wenn eine Berechtigung die Gruppe nennt,
+oder bei geerbtem Zugriff die Gruppe, von der er kommt, etwa **Gruppe it-admins**. Administratoren
+sehen darunter außerdem die Webhook-Stufe und die Nachrichtenstufe der Gruppe, mit ihren Gründen.
+**Entziehen** erscheint nur bei dem, was die Gruppe selbst hat, nie bei
 Geerbtem; um geerbten Zugriff zu ändern, ändern Sie die Gruppe, von der er kommt. Wo Sie einen
 Datensatz teilen dürfen, bearbeiten Sie die direkte Berechtigung an Ort und Stelle. **Dieser Gruppe
 Zugriff auf weitere Einträge geben…** öffnet [die Mehrfachauswahl](#share-several-records-at-once)
@@ -188,7 +189,7 @@ jemand aus der Anbietergruppe anmeldet.
 
 Wer schon etwas hat, steht in einer Zeile, hinter dem Namen fünf Stellen: `r w d a s` für lesen,
 ändern, löschen, in Routen und Webhooks verwenden und teilen. Ein `-` steht für eine Stelle, die
-er nicht hat; wem der Datensatz gehört, der zeigt stattdessen **owner**. Die Legende unter dem
+er nicht hat; wem der Datensatz gehört, der zeigt stattdessen **Eigentümer**. Die Legende unter dem
 Feld schreibt die Buchstaben aus. **bearbeiten** an einer Zeile öffnet ihre Kästchen. Ändern Sie die
 Häkchen und klicken Sie auf **Speichern**, um zu ersetzen, was er hat; ohne Häkchen wird ihm alles
 entzogen. **Entziehen** entfernt die Zeile.

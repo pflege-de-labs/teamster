@@ -72,11 +72,11 @@ list shows names, with the id beside them.
 Permissions on records and webhook levels can be granted to a group as well as to a user. Every
 membership change is recorded in the [audit trail](../audit-trail/) in the same transaction.
 
-**What this group may do** lists every record the group may act on, with the actions and the
-reason: **direct** when a grant names the group, or **group X** when it holds them through a group
-that contains it. Below the records are the group's webhook level and message level. **Revoke**
-appears only on what the group holds itself, never on what it inherits; to change the inherited
-access, change the group it comes from. Where you may share a record, its direct grant is edited in
+**What this group may do** lists the records the group may act on and you may read, with the
+actions and the reason: **direct** when a grant names the group, or, for access it inherits, the
+group it comes from, such as **group it-admins**. Admins also see the group's webhook level and
+message level below the records, with their reasons. **Revoke** appears only on what the group holds
+itself, never on what it inherits; to change the inherited access, change the group it comes from. Where you may share a record, its direct grant is edited in
 place. **Give this group access to more records…** opens
 [the batch picker](#share-several-records-at-once) with the group already chosen.
 
