@@ -76,9 +76,10 @@ A group's page has three sections: **Members**, **What this group may do** and *
 this group**. The Cedar id of the group is under **Technical details**.
 
 On a group's page, **Add member** offers a list of users, groups and provider groups, each with a
-badge for its kind; type to search by name, email or id. A provider group nobody has signed in
-with yet is not listed: open **Someone not listed**, pick the kind and enter its name. The member
-list shows names, with the id beside them.
+badge for its kind; type to search by name, email or id. The list starts with the first 200 users
+who signed in; with more users, typing two or more characters searches all of them. A provider group
+nobody has signed in with yet is not listed: open **Someone not listed**, pick the kind and enter
+its name. The member list shows names, with the id beside them.
 
 Permissions on records and webhook levels can be granted to a group as well as to a user. Every
 membership change is recorded in the [audit trail](../audit-trail/) in the same transaction.
@@ -162,9 +163,11 @@ open it. Its panel is **Who may manage this template** (or destination, route, w
 you give access from **Give someone access**, which starts collapsed:
 
 1. Under **Give to**, choose a user, a group, a provider group or a role from the list; each has a
-   badge for its kind, and typing searches by name, email or id. Someone who has not signed in yet
-   is not listed: open **Someone not listed**, pick the kind and enter their
-   subject, provider group or role name instead.
+   badge for its kind, and typing searches by name, email or id. The same holds for every picker:
+   with more than 200 users the list shows the first 200, and typing two or more characters searches
+   all users and adds the matches. Admins, editors and anyone a record was shared with can search.
+   Someone who has not signed in yet is not listed: open **Someone not listed**, pick the kind and
+   enter their subject, provider group or role name instead.
 2. Tick what they **May** do, and press **Save**.
 
 A group must exist. A user or provider group that has not signed in yet is accepted, and the notice

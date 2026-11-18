@@ -90,9 +90,10 @@ diese Gruppe verwalten darf**. Die Cedar-ID der Gruppe steht unter **Technische 
 
 Auf der Seite einer Gruppe bietet **Mitglied hinzufügen** eine Liste von Benutzern, Gruppen und
 Anbietergruppen, jeweils mit einem Kennzeichen für die Art; durch Tippen suchen Sie nach Name,
-E-Mail oder ID. Eine Anbietergruppe, mit der sich noch niemand angemeldet hat, steht nicht darin:
-Öffnen Sie **Nicht aufgeführte Person**, wählen Sie die Art und geben Sie ihren Namen ein. Die
-Mitgliederliste zeigt Namen, daneben die ID.
+E-Mail oder ID. Die Liste beginnt mit den ersten 200 angemeldeten Benutzern; bei mehr Benutzern
+durchsucht die Eingabe von mindestens zwei Zeichen alle. Eine Anbietergruppe, mit der sich noch
+niemand angemeldet hat, steht nicht darin: Öffnen Sie **Nicht aufgeführte Person**, wählen Sie die
+Art und geben Sie ihren Namen ein. Die Mitgliederliste zeigt Namen, daneben die ID.
 
 Berechtigungen auf Datensätze und Webhook-Stufen lassen sich einer Gruppe genauso erteilen wie
 einem Benutzer. Jede Änderung einer Mitgliedschaft wird in derselben Transaktion im
@@ -185,9 +186,12 @@ Sie unter **Jemandem Zugriff geben**, das zunächst eingeklappt ist:
 
 1. Wählen Sie unter **Geben an** einen Benutzer, eine Gruppe, eine Anbietergruppe oder eine Rolle
    aus der Liste; jeder Eintrag trägt ein Kennzeichen für seine Art, und durch Tippen suchen Sie
-   nach Name, E-Mail oder ID. Wer sich noch nicht angemeldet hat, steht nicht darin: Öffnen Sie
-   **Nicht aufgeführte Person**, wählen Sie die Art und geben Sie stattdessen das Subject, den
-   Namen der Anbietergruppe oder der Rolle ein.
+   nach Name, E-Mail oder ID. Das gilt für jede Auswahl: Bei mehr als 200 Benutzern zeigt die Liste
+   die ersten 200, und die Eingabe von mindestens zwei Zeichen durchsucht alle Benutzer und fügt die
+   Treffer hinzu. Suchen dürfen Admins, Editoren und alle, für die ein Datensatz freigegeben wurde.
+   Wer sich noch nicht angemeldet hat, steht nicht darin: Öffnen Sie **Nicht aufgeführte Person**,
+   wählen Sie die Art und geben Sie stattdessen das Subject, den Namen der Anbietergruppe oder der
+   Rolle ein.
 2. Haken Sie an, was er **Darf**, und klicken Sie auf **Speichern**.
 
 Eine Gruppe muss existieren. Ein Benutzer oder eine Anbietergruppe, die sich noch nicht angemeldet
