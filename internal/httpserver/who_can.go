@@ -49,6 +49,7 @@ func (s *Server) whoCan(r *http.Request, snapshot *authz.Authorizer, action stri
 	kind, id, _ := strings.Cut(narrow, ":")
 	out := views.WhoCan{Truncated: len(users) > s.checkUsers}
 	users = users[:min(len(users), s.checkUsers)]
+	canRead := func(id string) bool { return s.can(r, authz.ActionRead, typeGroup, id) }
 	for _, u := range users {
 		if u.Disabled() {
 			continue
@@ -67,7 +68,7 @@ func (s *Server) whoCan(r *http.Request, snapshot *authz.Authorizer, action stri
 		if !exp.Allowed {
 			continue
 		}
-		via, _ := reasonsFor(ctx, labels, nil, exp, models.PrincipalUser, u.Subject)
+		via, _ := reasonsFor(ctx, labels, canRead, nil, exp, models.PrincipalUser, u.Subject)
 		out.Allowed = append(out.Allowed, views.WhoRow{ID: u.Subject, Label: displayName(u), Via: via, Policies: exp.Policies})
 	}
 	return out, nil

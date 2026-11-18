@@ -54,7 +54,7 @@ func TestWhatMay(t *testing.T) {
 		{
 			name: "a viewer who may read nothing sees no records", lang: language.English, p: ops, self: models.PrincipalGroup, selfID: "g-ops",
 			rows: map[string]wantRow{}, webhooks: "alertmanager", messages: authz.MessagesEveryone,
-			webhooksVia: []string{"group All"}, messagesVia: []string{"group All"},
+			webhooksVia: []string{"another group"}, messagesVia: []string{"another group"},
 		},
 		{
 			name: "admin viewer may share", lang: language.English, viewer: authz.RoleAdmin, p: ops, self: models.PrincipalGroup, selfID: "g-ops",

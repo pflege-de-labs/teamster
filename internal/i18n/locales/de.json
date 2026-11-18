@@ -468,6 +468,7 @@
   "page.me": "Mein Zugriff — Teamster",
   "access.via_direct": "direkt",
   "access.via_group": "Gruppe {0}",
+  "access.via_other_group": "eine andere Gruppe",
   "access.via_role": "Rolle {0}",
   "access.via_idp_group": "Anbietergruppe {0}",
   "access.webhooks": "Wer an die Webhooks senden darf",

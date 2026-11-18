@@ -385,3 +385,38 @@ func TestGroupPageShowsOnlyWhatTheViewerMayRead(t *testing.T) {
 		}
 	}
 }
+
+func TestGroupPageNamesAnInheritedGroupOnlyToItsReaders(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		roles    []authz.Role
+		want     string
+		unwanted string
+	}{
+		{name: "a viewer without that group", want: "another group", unwanted: "Secret"},
+		{name: "an admin", roles: []authz.Role{authz.RoleAdmin}, want: "group Secret"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			st := sessionAs(newFakeStore(), tt.roles...)
+			st.groups["g-ops"] = models.Group{ID: "g-ops", Name: "Ops"}
+			st.groups["g-secret"] = models.Group{ID: "g-secret", Name: "Secret"}
+			st.members = append(st.members, models.GroupMember{GroupID: "g-secret", Type: models.MemberGroup, ID: "g-ops"})
+			st.templates["t1"] = models.Template{ID: "t1", Name: "Readable card", Body: "{}"}
+			grantTo(st, models.PrincipalUser, "tester", "Group", "g-ops", "read")
+			grantTo(st, models.PrincipalUser, "tester", "Template", "t1", "read")
+			grantTo(st, models.PrincipalGroup, "g-secret", "Template", "t1", "update")
+			body := asRole(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin/groups?id=g-ops", "").Body.String()
+			if !strings.Contains(body, "Readable card") || !strings.Contains(body, tt.want) {
+				t.Fatalf("page lacks the card or %q", tt.want)
+			}
+			if tt.unwanted != "" && strings.Contains(body, tt.unwanted) {
+				t.Errorf("page names %q to a viewer who may not read that group", tt.unwanted)
+			}
+		})
+	}
+}

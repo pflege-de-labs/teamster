@@ -33,9 +33,11 @@ func (s *Server) whatMay(r *http.Request, snapshot *authz.Authorizer, p authz.Pr
 			own[perm.ResourceType+":"+perm.ResourceID] = perm
 		}
 	}
+	// A group's name is the viewer's to read, not the answer's to tell.
+	canRead := func(id string) bool { return s.can(r, authz.ActionRead, typeGroup, id) }
 	out := views.WhatMay{Roles: roleSummaries(snapshot, p.Roles), Messages: snapshot.MessageLevel(p)}
 	if action, ok := authz.MessageAction(out.Messages); ok {
-		out.MessagesVia, _ = reasonsFor(ctx, labels, nil, snapshot.Explain(p, action, authz.PeopleResource), self, selfID)
+		out.MessagesVia, _ = reasonsFor(ctx, labels, canRead, nil, snapshot.Explain(p, action, authz.PeopleResource), self, selfID)
 	}
 
 	for _, class := range index {
@@ -53,7 +55,7 @@ func (s *Server) whatMay(r *http.Request, snapshot *authz.Authorizer, p authz.Pr
 				}
 				row.Actions = append(row.Actions, action)
 				var g bool
-				row.Via, g = reasonsFor(ctx, labels, row.Via, snapshot.Explain(p, action, resource), self, selfID)
+				row.Via, g = reasonsFor(ctx, labels, canRead, row.Via, snapshot.Explain(p, action, resource), self, selfID)
 				granted = granted || g
 			}
 			// A record only a base role reaches is the role's, shown in Roles.
@@ -67,19 +69,19 @@ func (s *Server) whatMay(r *http.Request, snapshot *authz.Authorizer, p authz.Pr
 			out.Records = append(out.Records, row)
 		}
 	}
-	out.Webhooks, out.WebhooksVia = webhookLevel(ctx, labels, snapshot, p, self, selfID)
+	out.Webhooks, out.WebhooksVia = webhookLevel(ctx, labels, canRead, snapshot, p, self, selfID)
 	return out, nil
 }
 
 // reasonsFor adds the reasons an explanation holds to via; granted says a grant, not just a role, decided.
-func reasonsFor(ctx context.Context, labels map[string]string, via []string, exp authz.Explanation, self models.PrincipalType, selfID string) ([]string, bool) {
+func reasonsFor(ctx context.Context, labels map[string]string, canRead func(string) bool, via []string, exp authz.Explanation, self models.PrincipalType, selfID string) ([]string, bool) {
 	granted := false
 	for _, policy := range exp.Policies {
 		var reason string
 		switch {
 		case policy.Grant != nil:
 			granted = true
-			reason = grantReason(ctx, labels, *policy.Grant, self, selfID)
+			reason = grantReason(ctx, labels, canRead, *policy.Grant, self, selfID)
 		case policy.Role != "":
 			reason = i18n.T(ctx, "access.via_role", policy.Role)
 		default:
@@ -92,12 +94,15 @@ func reasonsFor(ctx context.Context, labels map[string]string, via []string, exp
 	return via, granted
 }
 
-func grantReason(ctx context.Context, labels map[string]string, g authz.Grant, self models.PrincipalType, selfID string) string {
+func grantReason(ctx context.Context, labels map[string]string, canRead func(string) bool, g authz.Grant, self models.PrincipalType, selfID string) string {
 	kind := models.PrincipalType(g.PrincipalType)
 	switch {
 	case kind == self && g.PrincipalID == selfID:
 		return i18n.T(ctx, "access.via_direct")
 	case kind == models.PrincipalGroup:
+		if !canRead(g.PrincipalID) {
+			return i18n.T(ctx, "access.via_other_group")
+		}
 		name := g.PrincipalID
 		if label, ok := labels["group:"+name]; ok {
 			name = label
@@ -115,7 +120,7 @@ func grantReason(ctx context.Context, labels map[string]string, g authz.Grant, s
 
 // webhookLevel asks the authorizer for the rows levelOf reads, so the level
 // follows groups and roles too, and gathers the reasons for it.
-func webhookLevel(ctx context.Context, labels map[string]string, snapshot *authz.Authorizer, p authz.Principal, self models.PrincipalType, selfID string) (string, []string) {
+func webhookLevel(ctx context.Context, labels map[string]string, canRead func(string) bool, snapshot *authz.Authorizer, p authz.Principal, self models.PrincipalType, selfID string) (string, []string) {
 	var rows []models.Permission
 	var via []string
 	for _, id := range webhookIDs {
@@ -125,7 +130,7 @@ func webhookLevel(ctx context.Context, labels map[string]string, snapshot *authz
 			exp := snapshot.Explain(p, action, res)
 			if exp.Allowed {
 				actions = append(actions, action)
-				via, _ = reasonsFor(ctx, labels, via, exp, self, selfID)
+				via, _ = reasonsFor(ctx, labels, canRead, via, exp, self, selfID)
 			}
 		}
 		if len(actions) > 0 {
