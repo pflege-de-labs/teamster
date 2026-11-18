@@ -1,6 +1,11 @@
 package views
 
 import (
+	"context"
+	"slices"
+	"strconv"
+	"strings"
+
 	"github.com/pflege-de-labs/teamster/internal/authz"
 	"github.com/pflege-de-labs/teamster/internal/i18n"
 	"github.com/pflege-de-labs/teamster/internal/models"
@@ -25,7 +30,20 @@ type Access struct {
 	BaseText   string
 	Generated  []authz.GeneratedPolicy
 	Generation int64
-	Check      *AccessCheck
+	// The who tab: the question, and its answer when asked.
+	WhoActions      []string
+	RecordActions   []string
+	ResourceActions map[string][]string
+	WhoAction       string
+	WhoResource     string
+	WhoPrincipal    string
+	Who             *WhoCan
+	// Tab is the open check tab, who or what; May answers "What may ... do?" for MayPrincipal.
+	Tab          string
+	May          *WhatMay
+	MayPrincipal string
+	MayUnknown   bool
+	MayMissing   bool
 	Notice     string
 	Error      string
 }
@@ -52,6 +70,8 @@ type Hub struct {
 	SelectedID string
 	Selected   *Sharing
 	Principals PrincipalOptions
+	// Principal is the "type:id" the picker starts on, from ?grant_to= on a group page's link.
+	Principal string
 	// Actions are what a batch may grant; ownership is passed on one record at a time.
 	Actions []string
 }
@@ -73,14 +93,17 @@ type LabelledGrant struct {
 	Href string
 }
 
-// AccessCheck is the question asked in "Who can?" and its answer.
-type AccessCheck struct {
-	Subject      string
-	Action       string
-	ResourceType string
-	ResourceID   string
-	Known        bool
-	Result       authz.Explanation
+// WhoCan is everyone who may do something; WrongAction means nobody was asked.
+type WhoCan struct {
+	Allowed     []WhoRow
+	WrongAction bool
+}
+
+// WhoRow is one user who may, and why.
+type WhoRow struct {
+	ID, Label string
+	Via       []string
+	Policies  []authz.ExplainedPolicy
 }
 
 // WebhookLevels are the choices the webhook form offers, weakest first.
@@ -163,45 +186,81 @@ templ AccessPage(page Access) {
 					@submit(i18n.T(ctx, "sharing.grant"))
 				</form>
 			}
-			@accessSection(i18n.T(ctx, "access.check")) {
-				<form method="get" action="/admin/access" class="grid gap-3 sm:grid-cols-4 sm:items-end">
-					@textField("subject", i18n.T(ctx, "access.subject"), "", checkValue(page.Check, "subject"))
-					<label class="block">
-						<span class="text-sm font-medium">{ i18n.T(ctx, "audit.action") }</span>
-						<select name="action" class="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm">
-							for _, a := range checkActions {
-								<option value={ a } selected?={ a == checkValue(page.Check, "action") }>{ i18n.T(ctx, "sharing.action."+a) }</option>
-							}
-						</select>
-					</label>
-					<label class="block">
-						<span class="text-sm font-medium">{ i18n.T(ctx, "access.resource") }</span>
-						<select name="resource" class="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm">
-							for _, class := range page.Records {
-								<optgroup label={ i18n.T(ctx, "hub.class."+class.Type) }>
-									for _, rec := range class.Records {
-										<option value={ class.Type + ":" + rec.ID } selected?={ class.Type+":"+rec.ID == checkValue(page.Check, "resource") }>{ rec.Name }</option>
-									}
-								</optgroup>
-							}
-						</select>
-					</label>
-					@submit(i18n.T(ctx, "access.ask"))
-				</form>
-				if page.Check != nil {
-					if !page.Check.Known {
+			<section class="rounded-lg border border-slate-200 bg-white shadow-sm">
+				<nav role="tablist" aria-label={ i18n.T(ctx, "access.check") } class="flex gap-1 border-b border-slate-200 px-4" data-admin-tabs>
+					for _, name := range []string{"who", "what"} {
+						<a
+							href={ templ.SafeURL("/admin/access?tab=" + name) }
+							role="tab"
+							id={ "tab-" + name }
+							aria-controls={ "panel-" + name }
+							aria-selected={ strconv.FormatBool(name == page.Tab) }
+							data-tab={ name }
+							class="-mb-px border-b-2 border-transparent px-3 py-3 text-sm font-medium text-slate-600 hover:text-sky-700 aria-selected:border-sky-600 aria-selected:text-slate-900"
+						>
+							{ i18n.T(ctx, "access.check_"+name) }
+						</a>
+					}
+				</nav>
+				<div id="panel-what" role="tabpanel" aria-labelledby="tab-what" data-tab-panel="what" hidden?={ page.Tab != "what" } class="space-y-4 px-6 py-6">
+					<form method="get" action="/admin/access" class="grid gap-3 sm:grid-cols-4 sm:items-end">
+						<input type="hidden" name="tab" value="what"/>
+						<div class="grid gap-2 sm:col-span-3">
+							@principalPicker(PickerConfig{Name: "principal", Label: "sharing.principal", Options: page.Principals, Selected: page.MayPrincipal, AllowOther: true})
+						</div>
+						@submit(i18n.T(ctx, "access.show"))
+					</form>
+					if page.MayUnknown {
 						<p class="text-sm text-amber-800">{ i18n.T(ctx, "access.unknown_user") }</p>
 					}
-					if page.Check.Result.Allowed {
-						<p class="text-sm font-medium text-emerald-700">{ i18n.T(ctx, "access.allowed") }</p>
-					} else {
-						<p class="text-sm font-medium text-red-700">{ i18n.T(ctx, "access.refused") }</p>
+					if page.MayMissing {
+						<p class="text-sm text-amber-800">{ i18n.T(ctx, "access.unknown_principal") }</p>
 					}
-					for _, p := range page.Check.Result.Policies {
-						<details><summary class="cursor-pointer text-xs text-slate-500">{ p.ID }</summary><pre class="overflow-x-auto rounded bg-slate-50 p-2 text-xs"><code>{ p.Text }</code></pre></details>
+					if page.May != nil {
+						@mayList(*page.May, MayListOptions{Principal: page.MayPrincipal, Levels: true})
+						for _, role := range page.May.Roles {
+							<p class="text-sm">
+								<span class="font-medium">{ role.Role }</span>:
+								{ i18n.T(ctx, "me.role_summary", actionLabels(ctx, role.Actions), i18n.T(ctx, "hub.class."+role.Type)) }
+							</p>
+						}
 					}
-				}
-			}
+				</div>
+				<div id="panel-who" role="tabpanel" aria-labelledby="tab-who" data-tab-panel="who" hidden?={ page.Tab != "who" } class="space-y-4 px-6 py-6">
+					<form method="get" action="/admin/access" class="grid gap-3 sm:grid-cols-4 sm:items-end" data-access-check>
+						<input type="hidden" name="tab" value="who"/>
+						<label class="block">
+							<span class="text-sm font-medium">{ i18n.T(ctx, "audit.action") }</span>
+							<select name="action" class="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm">
+								for _, a := range page.WhoActions {
+									<option value={ a } selected?={ a == page.WhoAction }>{ i18n.T(ctx, "sharing.action."+a) }</option>
+								}
+							</select>
+						</label>
+						<label class="block">
+							<span class="text-sm font-medium">{ i18n.T(ctx, "access.resource") }</span>
+							<select name="resource" class="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm">
+								for _, class := range page.Records {
+									<optgroup label={ i18n.T(ctx, "hub.class."+class.Type) }>
+										for _, rec := range class.Records {
+											<option value={ class.Type + ":" + rec.ID } data-actions={ strings.Join(resourceActionsOf(page, class.Type), " ") } selected?={ class.Type+":"+rec.ID == page.WhoResource }>{ rec.Name }</option>
+										}
+									</optgroup>
+								}
+							</select>
+						</label>
+						<div class="grid gap-2">
+							@principalPicker(PickerConfig{Name: "principal", Label: "access.narrow", Options: page.Principals, Selected: page.WhoPrincipal})
+						</div>
+						@submit(i18n.T(ctx, "access.ask"))
+					</form>
+					if page.Who != nil {
+						<div data-who-answer class="space-y-4">
+							@whoAnswer(*page.Who, actionName(ctx, page.WhoActions, page.WhoAction))
+						</div>
+					}
+				</div>
+			</section>
 			}
 			@accessSection(i18n.T(ctx, grantsHeading(page.Admin))) {
 				<form method="get" action="/admin/access" class="flex max-w-xl items-end gap-2">
@@ -282,24 +341,49 @@ func grantsHeading(admin bool) string {
 	return "access.grants_mine"
 }
 
-func checkValue(check *AccessCheck, field string) string {
-	if check == nil {
-		return ""
+// resourceActionsOf is what the form may ask about a class of records.
+func resourceActionsOf(page Access, typ string) []string {
+	if a, ok := page.ResourceActions[typ]; ok {
+		return a
 	}
-	switch field {
-	case "subject":
-		return check.Subject
-	case "action":
-		return check.Action
-	case "type":
-		return check.ResourceType
-	default:
-		return check.ResourceType + ":" + check.ResourceID
+	return page.RecordActions
+}
+
+templ whoAnswer(who WhoCan, action string) {
+	if who.WrongAction {
+		<p class="text-sm text-amber-800">{ i18n.T(ctx, "access.wrong_action", action) }</p>
+	} else {
+		if len(who.Allowed) == 0 {
+			<p class="text-sm font-medium text-red-700">{ i18n.T(ctx, "access.nobody") }</p>
+		} else {
+			<p class="text-sm font-medium text-emerald-700">{ i18n.T(ctx, "access.allowed_count", len(who.Allowed)) }</p>
+			<ul class="divide-y divide-slate-100 text-sm">
+				for _, row := range who.Allowed {
+					<li class="py-2">
+						<span class="font-medium">{ row.Label }</span>
+						<span class="font-mono text-xs text-slate-500">{ row.ID }</span>
+						<span class="text-slate-600">{ strings.Join(row.Via, ", ") }</span>
+						<details>
+							<summary class="cursor-pointer text-xs text-slate-500">{ i18n.T(ctx, "access.policies_short") }</summary>
+							for _, p := range row.Policies {
+								<pre class="mt-1 overflow-x-auto rounded bg-slate-50 p-2 text-xs"><code>{ p.Text }</code></pre>
+							}
+						</details>
+					</li>
+				}
+			</ul>
+		}
+		<p class="text-xs text-slate-500">{ i18n.T(ctx, "access.not_signed_in") }</p>
 	}
 }
 
-// checkActions are what "Who can?" asks about.
-var checkActions = []string{"read", "update", "delete", "attach", "share", "own", "create", "use", "administer", "message", "broadcast"}
+// actionName is a known action's label, and anything else as it was typed.
+func actionName(ctx context.Context, known []string, action string) string {
+	if slices.Contains(known, action) {
+		return i18n.T(ctx, "sharing.action."+action)
+	}
+	return action
+}
 
 // MyAccess is /admin/me: what the signed-in person may do, and why.
 type MyAccess struct {
@@ -325,6 +409,26 @@ type MyGrant struct {
 	Href    string
 	Actions []string
 	Via     []string
+}
+
+// WhatMay is what a principal may do, as the authorizer decides it.
+type WhatMay struct {
+	Records  []MayRow
+	Roles    []RoleSummary
+	Webhooks string
+	Messages string
+	// WebhooksVia and MessagesVia are the reasons for the two levels.
+	WebhooksVia, MessagesVia []string
+}
+
+// MayRow is one record a principal may act on, with the reasons it may.
+type MayRow struct {
+	Type, ID, Name, Href string
+	Actions              []string
+	Via                  []string
+	Direct               *models.Permission
+	CanShare             bool
+	CanTransfer          bool
 }
 
 // RoleSummary is what one role allows on every record of a type.

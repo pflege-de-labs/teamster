@@ -514,6 +514,14 @@ A collapsed "Someone not listed" block posts `other_type` and `other_id`. Handle
 through `principalFromForm`, which also accepts `principal_type` and `principal_id` for the JSON
 APIs and the revoke buttons. See [ADR 0109](adr/0109-principals-with-one-searchable-picker.md).
 
+A group's page has three sections: members, what the group may do, and who may manage it.
+`whatMay` answers the middle one from the authorizer, for a synthetic principal whose `Groups`
+holds the group and whose `Subject` is empty, and takes the reasons from `ExplainedPolicy`. It costs
+records times actions `AllowFor` calls and one `ListPermissions` per view. It lists only records
+the viewer may read, and the levels only to admins. The hub reads `?grant_to=type:id` to preselect
+its picker; `principal` belongs to the check tabs' pickers. See
+[ADR 0110](adr/0110-answer-access-questions-with-the-authorizer.md).
+
 Records carry their own permissions. A `permissions` row holds one principal's actions on one
 template, destination, route, webhook endpoint or group, or on the collection, where `create` is
 granted. The snapshot renders each row to a Cedar `permit` with the cedar-go AST, so ids cannot
@@ -536,9 +544,12 @@ included, naming the user, one of their groups or provider groups, or their role
 to share records across a class: a picker of what they may `share`, a batch grant that is all or
 nothing in one transaction, and the grants on those records
 ([ADR 0088](adr/0088-open-the-access-page-to-whoever-may-share.md)). Its admin sections are webhook
-levels, every grant, the policies in force, and "Who can?", which answers with Cedar's deciding
-policies. `/admin/me` shows anyone signed in their own roles, groups, webhooks and
-the records shared with them. See [ADR 0076](adr/0076-webhook-permissions-and-access-overviews.md).
+levels, every grant, the policies in force, and the access check, which answers with Cedar's
+deciding policies. Its two tabs are "Who can ...?" (`whoCan`: every signed-in, non-disabled user,
+read page by page, optionally narrowed to one principal) and "What may ... do?" (`whatMay`
+for a user, group, provider group or role); both build reasons with `reasonsFor`. `/admin/me`
+shows anyone signed in their own roles, groups, webhooks and the records shared with them. See
+[ADR 0076](adr/0076-webhook-permissions-and-access-overviews.md).
 
 The policies and entities are an immutable snapshot that `authz.Engine` hands out, versioned by the
 single row in `authz_generation`. `authorize` reads the generation once per request. When it has

@@ -379,6 +379,8 @@ type Store interface {
 	IdPGroupSeen(ctx context.Context, name string) (bool, error)
 	// ListUsers matches search against subject, name and email, ignoring case.
 	ListUsers(ctx context.Context, search string, limit int) ([]models.User, error)
+	// ListUsersPage returns users whose subject sorts after the given one, in subject order.
+	ListUsersPage(ctx context.Context, after string, limit int) ([]models.User, error)
 	// DisableUser refuses the user's next sign-in and ends their sessions,
 	// together, so a disabled user keeps no way in.
 	DisableUser(ctx context.Context, subject, by string) error

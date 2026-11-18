@@ -246,9 +246,9 @@ func TestWhoCanAsksAboutWebhooksAndOldLinks(t *testing.T) {
 	tests := []struct {
 		name, query, want string
 	}{
-		{"a webhook", "?subject=s-bob&action=use&resource=Webhook:alertmanager", "Allowed, by these policies:"},
-		{"the other webhook", "?subject=s-bob&action=use&resource=Webhook:universal", "Refused"},
-		{"an old link", "?subject=s-bob&action=use&type=Webhook&id=alertmanager", "Allowed, by these policies:"},
+		{"a webhook", "?subject=s-bob&action=use&resource=Webhook:alertmanager", "Allowed (1)"},
+		{"the other webhook", "?subject=s-bob&action=use&resource=Webhook:universal", "Nobody signed in may."},
+		{"an old link", "?subject=s-bob&action=use&type=Webhook&id=alertmanager", "Allowed (1)"},
 	}
 	for _, tt := range tests {
 		if body := call(t, h, http.MethodGet, "/admin/access"+tt.query, "").Body.String(); !strings.Contains(body, tt.want) {
@@ -303,4 +303,43 @@ func TestPrincipalPickerRendersKinds(t *testing.T) {
 		}
 	}
 	t.Errorf("no idp_group grant with id a:b stored: %v", st.permissions)
+}
+
+func TestSharingPanelCompact(t *testing.T) {
+	t.Parallel()
+
+	st := sharedStore()
+	grantTo(st, models.PrincipalUser, "tester", "Template", "t1", "own")
+	grantTo(st, models.PrincipalGroup, "gone", "Template", "t1", "read", "attach")
+	h := newTestServer(t, st, &fakeMessenger{}).Handler
+
+	page := call(t, h, http.MethodGet, "/admin/templates/t1?edit", "").Body.String()
+	for _, want := range []string{"r--a-", "owner", "gone", "Who may manage this template", "r read"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("page lacks %q", want)
+		}
+	}
+	section := page[strings.Index(page, `id="sharing"`):]
+	// two changeable rows plus the new-grant form, and the picker's own "not listed" block
+	if got := strings.Count(section, "<details"); got < 3 {
+		t.Errorf("sharing panel has %d <details>, want at least 3", got)
+	}
+
+	var rowID string
+	rows, _ := st.ListPermissionsFor(t.Context(), "Template", "t1")
+	for _, p := range rows {
+		if p.PrincipalID == "gone" {
+			rowID = p.ID
+		}
+	}
+	loc := postFormAs(t, h, "/admin/sharing/revoke", url.Values{"id": {rowID}, "return": {"/admin/templates/t1"}}).Header().Get("Location")
+	if strings.Contains(loc, "error=") {
+		t.Fatalf("revoke redirected to %s", loc)
+	}
+	rows, _ = st.ListPermissionsFor(t.Context(), "Template", "t1")
+	for _, p := range rows {
+		if p.PrincipalID == "gone" {
+			t.Errorf("row for gone survived revoke")
+		}
+	}
 }

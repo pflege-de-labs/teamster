@@ -74,15 +74,17 @@ type sampler interface {
 }
 
 type Server struct {
-	log      *slog.Logger
-	cfg      config.Config
-	store    store.Store
-	graph    messenger
-	bot      botSender
-	channels ChannelTransport
-	router   *routing.Router
-	draining atomic.Bool
-	engine   *authz.Engine
+	// whoPageSize is how many users "Who can?" reads at a time.
+	whoPageSize int
+	log         *slog.Logger
+	cfg         config.Config
+	store       store.Store
+	graph       messenger
+	bot         botSender
+	channels    ChannelTransport
+	router      *routing.Router
+	draining    atomic.Bool
+	engine      *authz.Engine
 	// unchecked counts deferred requests answered without a record check.
 	unchecked  atomic.Int64
 	metrics    telemetry
@@ -166,23 +168,24 @@ func NewServer(logger *slog.Logger, cfg config.Config, store store.Store, graphC
 	}
 
 	api := &Server{
-		log:       logger,
-		cfg:       cfg,
-		store:     store,
-		graph:     graphClient,
-		bot:       botClient,
-		channels:  channels,
-		router:    routing.New(store),
-		engine:    engine,
-		metrics:   tel,
-		text:      text,
-		now:       func() time.Time { return time.Now().UTC() },
-		directory: newDirectoryCache(directoryTTL),
-		installs:  newInstallCache(directoryTTL),
-		oidc:      &oidcProvider{},
-		broker:    brokerClient,
-		sealer:    sealer,
-		samples:   samples,
+		log:         logger,
+		cfg:         cfg,
+		store:       store,
+		graph:       graphClient,
+		bot:         botClient,
+		channels:    channels,
+		router:      routing.New(store),
+		engine:      engine,
+		metrics:     tel,
+		text:        text,
+		now:         func() time.Time { return time.Now().UTC() },
+		directory:   newDirectoryCache(directoryTTL),
+		installs:    newInstallCache(directoryTTL),
+		oidc:        &oidcProvider{},
+		broker:      brokerClient,
+		sealer:      sealer,
+		samples:     samples,
+		whoPageSize: usersPageSize,
 	}
 	for _, opt := range opts {
 		opt(api)
@@ -349,7 +352,7 @@ func NewServer(logger *slog.Logger, cfg config.Config, store store.Store, graphC
 	// before anyone has a session, and none of them is sensitive.
 	for _, asset := range []string{
 		"/favicon.ico", "/site.webmanifest", "/styles.css",
-		"/preview.js", "/sources.js", "/pickers.js", "/principal-picker.js", "/tangle.js", "/routing.js", "/language.js", "/timezone.js", "/nav.js", "/record.js", "/tabs.js", "/permissions.js", "/editor.js", "/flags/", "/icons/", "/vendor/",
+		"/preview.js", "/sources.js", "/pickers.js", "/principal-picker.js", "/tangle.js", "/routing.js", "/language.js", "/timezone.js", "/nav.js", "/record.js", "/tabs.js", "/permissions.js", "/access-check.js", "/editor.js", "/flags/", "/icons/", "/vendor/",
 	} {
 		mux.HandleFunc(asset, api.handleAssets)
 	}

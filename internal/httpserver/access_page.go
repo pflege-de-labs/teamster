@@ -335,13 +335,48 @@ func (s *Server) handleAccessPage(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	if subject := strings.TrimSpace(query.Get("subject")); admin && subject != "" {
+	page.Tab = "who"
+	if query.Get("tab") == "what" {
+		page.Tab = "what"
+	}
+	asked := query.Get("principal")
+	if other := strings.TrimSpace(query.Get("other_id")); asked == "" && other != "" {
+		// "Someone not listed" on the what tab.
+		asked = query.Get("other_type") + ":" + other
+	}
+	if kind, id, ok := strings.Cut(asked, ":"); admin && page.Tab == "what" && ok && id != "" {
+		page.MayPrincipal = kind + ":" + id
+		var err error
+		page.May, page.MayUnknown, page.MayMissing, err = s.mayFor(r, snapshot, page.Principals.Roles, models.PrincipalType(kind), id)
+		if err != nil && page.Error == "" {
+			page.Error = failureText(ctx, "work out what the principal may do", err)
+		}
+	}
+
+	if admin {
+		// tabs.js opens the who tab in place, so its form is filled on either tab.
+		page.WhoActions = whoActions()
+		page.ResourceActions, page.RecordActions = resourceActions, recordActions
+	}
+	if admin && page.Tab == "who" {
+		page.WhoPrincipal = query.Get("principal")
+		// Links from before the narrowing picker named one user.
+		if subject := strings.TrimSpace(query.Get("subject")); subject != "" && page.WhoPrincipal == "" {
+			page.WhoPrincipal = "user:" + subject
+		}
 		typ, id, _ := strings.Cut(query.Get("resource"), ":")
 		if typ == "" {
 			// Links from before the lists.
 			typ, id = query.Get("type"), query.Get("id")
 		}
-		page.Check = s.checkAccess(r, snapshot, subject, query.Get("action"), typ, id)
+		page.WhoAction, page.WhoResource = query.Get("action"), typ+":"+id
+		if page.WhoAction != "" && typ != "" {
+			who, err := s.whoCan(r, snapshot, page.WhoAction, authz.Resource{Type: typ, ID: id}, page.WhoPrincipal)
+			if err != nil && page.Error == "" {
+				page.Error = failureText(ctx, "work out who may", err)
+			}
+			page.Who = &who
+		}
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -350,17 +385,41 @@ func (s *Server) handleAccessPage(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// checkAccess answers for a user as of their last sign-in.
-func (s *Server) checkAccess(r *http.Request, snapshot *authz.Authorizer, subject, action, typ, id string) *views.AccessCheck {
-	check := &views.AccessCheck{Subject: subject, Action: action, ResourceType: typ, ResourceID: id}
-	principal := authz.Principal{Subject: subject}
-	if user, err := s.store.GetUser(r.Context(), subject); err == nil {
-		check.Known = true
-		principal.Roles = authz.Decode(strings.Join(user.Roles, " "))
-		principal.IdPGroups = user.IdPGroups
+// mayFor answers "what may this principal do?"; a user is taken as of their last sign-in.
+// missing is a principal that names nothing known here; unknownUser a user who never signed in.
+func (s *Server) mayFor(r *http.Request, snapshot *authz.Authorizer, roles []string, kind models.PrincipalType, id string) (may *views.WhatMay, unknownUser, missing bool, err error) {
+	p := authz.Principal{}
+	switch kind {
+	case models.PrincipalUser:
+		p.Subject = id
+		if user, err := s.store.GetUser(r.Context(), id); err == nil {
+			p.Roles = authz.Decode(strings.Join(user.Roles, " "))
+			p.IdPGroups = user.IdPGroups
+		} else {
+			unknownUser = true
+		}
+	case models.PrincipalGroup:
+		if _, err := s.store.GetGroup(r.Context(), id); errors.Is(err, store.ErrNotFound) {
+			return nil, false, true, nil
+		} else if err != nil {
+			return nil, false, false, err
+		}
+		p.Groups = []string{id}
+	case models.PrincipalIdPGroup:
+		p.IdPGroups = []string{id}
+	case models.PrincipalRole:
+		if !slices.Contains(roles, id) {
+			return nil, false, true, nil
+		}
+		p.Roles = []authz.Role{authz.Role(id)}
+	default:
+		return nil, false, true, nil
 	}
-	check.Result = snapshot.Explain(principal, action, authz.Resource{Type: typ, ID: id})
-	return check
+	answer, err := s.whatMay(r, snapshot, p, kind, id)
+	if err != nil {
+		return nil, unknownUser, false, err
+	}
+	return &answer, unknownUser, false, nil
 }
 
 // handleMyAccess is /admin/me, for anyone signed in: it asks the engine
@@ -476,8 +535,14 @@ func (s *Server) grantedTo(r *http.Request, snapshot *authz.Authorizer, p authz.
 		granted = append(granted, *g)
 	}
 
-	var roles []views.RoleSummary
-	for _, role := range p.Roles {
+	roles := roleSummaries(snapshot, p.Roles)
+	return granted, roles, nil
+}
+
+// roleSummaries is what each role allows on every record of a type.
+func roleSummaries(snapshot *authz.Authorizer, roles []authz.Role) []views.RoleSummary {
+	var out []views.RoleSummary
+	for _, role := range roles {
 		for _, typ := range authz.PermissionedTypes {
 			var allowed []string
 			for _, action := range append(slices.Clone(recordActions), authz.ActionCreate) {
@@ -486,9 +551,9 @@ func (s *Server) grantedTo(r *http.Request, snapshot *authz.Authorizer, p authz.
 				}
 			}
 			if len(allowed) > 0 {
-				roles = append(roles, views.RoleSummary{Role: string(role), Type: typ, Actions: allowed})
+				out = append(out, views.RoleSummary{Role: string(role), Type: typ, Actions: allowed})
 			}
 		}
 	}
-	return granted, roles, nil
+	return out
 }

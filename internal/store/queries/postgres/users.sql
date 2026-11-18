@@ -39,6 +39,14 @@ WHERE CAST(sqlc.arg(pattern) AS TEXT) = ''
 ORDER BY lower(name), subject
 LIMIT CAST(sqlc.arg(max_rows) AS BIGINT);
 
+-- name: ListUsersAfter :many
+-- Keyset paging by subject, so a caller can walk every user past the page cap.
+SELECT subject, source, name, email, roles, idp_groups, first_seen, last_seen, disabled_at, disabled_by, object_id
+FROM users
+WHERE subject > sqlc.arg(after)
+ORDER BY subject
+LIMIT CAST(sqlc.arg(max_rows) AS BIGINT);
+
 -- name: SetUserDisabled :execrows
 UPDATE users
 SET disabled_at = sqlc.narg(disabled_at), disabled_by = sqlc.arg(disabled_by)

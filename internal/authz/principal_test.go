@@ -1,6 +1,7 @@
 package authz
 
 import (
+	"strings"
 	"testing"
 
 	cedar "github.com/cedar-policy/cedar-go"
@@ -66,5 +67,91 @@ func TestGroupsDoNotChangeTheRoles(t *testing.T) {
 	}
 	if !a.AllowFor(Principal{Subject: "bob", Roles: []Role{RoleViewer}}, ActionView, Resource{Type: "Template"}) {
 		t.Error("a viewer in a group lost their role")
+	}
+}
+
+func TestSyntheticGroupPrincipal(t *testing.T) {
+	t.Parallel()
+
+	t1 := Resource{Type: "Template", ID: "t1"}
+	a, err := build(1, Model{
+		Members: []Membership{{Group: "b", Kind: "group", ID: "a"}},
+		Grants:  []Grant{{ID: "1", PrincipalType: "group", PrincipalID: "b", ResourceType: "Template", ResourceID: "t1", Actions: []string{ActionRead}}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cyclic, err := build(1, Model{Members: []Membership{{Group: "b", Kind: "group", ID: "a"}, {Group: "a", Kind: "group", ID: "b"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		name   string
+		a      *Authorizer
+		p      Principal
+		allow  bool
+		groups string
+	}{
+		{"a member of a group that is granted", a, Principal{Groups: []string{"a"}}, true, "a,b"},
+		{"a group nothing grants", a, Principal{Groups: []string{"c"}}, false, "c"},
+		{"cyclic parents terminate", cyclic, Principal{Groups: []string{"a"}}, false, "a,b"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := tt.a.AllowFor(tt.p, ActionRead, t1); got != tt.allow {
+				t.Errorf("AllowFor = %v, want %v", got, tt.allow)
+			}
+			if got := strings.Join(tt.a.GroupsOf(tt.p), ","); got != tt.groups {
+				t.Errorf("GroupsOf = %q, want %q", got, tt.groups)
+			}
+		})
+	}
+}
+
+func TestEmptySubjectPrincipals(t *testing.T) {
+	t.Parallel()
+
+	a, err := build(1, Model{
+		Members: []Membership{{Group: "sre", Kind: "idp_group", ID: "platform"}, {Group: "oncall", Kind: "group", ID: "sre"}},
+		Grants: []Grant{
+			{ID: "1", PrincipalType: "group", PrincipalID: "sre", ResourceType: "Template", ResourceID: "t1", Actions: []string{ActionRead}},
+			{ID: "2", PrincipalType: "group", PrincipalID: "oncall", ResourceType: "Route", ResourceID: "r1", Actions: []string{ActionRead}},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t1 := Resource{Type: "Template", ID: "t1"}
+
+	tests := []struct {
+		name      string
+		p         Principal
+		action    string
+		allow     bool
+		groups    string
+		hasGrants bool
+	}{
+		{"a provider group in a granted group", Principal{IdPGroups: []string{"platform"}}, ActionRead, true, "oncall,sre", true},
+		{"a provider group is not an editor", Principal{IdPGroups: []string{"platform"}}, ActionUpdate, false, "oncall,sre", true},
+		{"a viewer role reads", Principal{Roles: []Role{RoleViewer}}, ActionRead, true, "", false},
+		{"a viewer role does not update", Principal{Roles: []Role{RoleViewer}}, ActionUpdate, false, "", false},
+		{"a group is a holder through its parent", Principal{Groups: []string{"sre"}}, ActionRead, true, "oncall,sre", true},
+		{"a group nobody holds", Principal{Groups: []string{"other"}}, ActionRead, false, "other", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := a.AllowFor(tt.p, tt.action, t1); got != tt.allow {
+				t.Errorf("AllowFor = %v, want %v", got, tt.allow)
+			}
+			if got := strings.Join(a.GroupsOf(tt.p), ","); got != tt.groups {
+				t.Errorf("GroupsOf = %q, want %q", got, tt.groups)
+			}
+			if got := a.HasGrants(tt.p); got != tt.hasGrants {
+				t.Errorf("HasGrants = %v, want %v", got, tt.hasGrants)
+			}
+		})
 	}
 }

@@ -200,10 +200,10 @@ func TestAccessPage(t *testing.T) {
 		{name: "filtered", query: "?filter=webhook", want: []string{"Webhook *"}, unwanted: []string{"Template t1"}},
 		{
 			name: "who can, through a provider group", query: "?subject=s-bob&action=update&resource=Template:t1",
-			want: []string{"Allowed, by these policies:", "perm:seed-group-g-ops-Template-t1"},
+			want: []string{"Allowed (1)", "Bob", "group Ops"},
 		},
-		{name: "who cannot", query: "?subject=s-bob&action=delete&resource=Template:t1", want: []string{"Refused"}},
-		{name: "an unknown subject", query: "?subject=ghost&action=read&resource=Template:t1", want: []string{"Nobody has signed in with that subject"}},
+		{name: "who cannot", query: "?subject=s-bob&action=delete&resource=Template:t1", want: []string{"Nobody signed in may."}},
+		{name: "an unknown subject", query: "?subject=ghost&action=read&resource=Template:t1", want: []string{"Nobody signed in may."}},
 	}
 	for _, tt := range tests {
 		body := call(t, h, http.MethodGet, "/admin/access"+tt.query, "").Body.String()
@@ -422,5 +422,89 @@ func TestAccessMenuFollowsShare(t *testing.T) {
 				t.Errorf("access page opens = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+// whatPanel is the answer of the "what" tab and nothing else on the page.
+func whatPanel(body string) string {
+	_, after, _ := strings.Cut(body, `id="panel-what"`)
+	panel, _, _ := strings.Cut(after, `id="panel-who"`)
+	return panel
+}
+
+func TestWhatMayCheck(t *testing.T) {
+	t.Parallel()
+
+	newStore := func(roles ...authz.Role) *fakeStore {
+		st := sessionAs(newFakeStore(), roles...)
+		st.users["s-bob"] = models.User{Subject: "s-bob", Name: "Bob", Roles: []string{"viewer"}, IdPGroups: []string{"platform"}}
+		st.groups["g-ops"] = models.Group{ID: "g-ops", Name: "Ops"}
+		st.groups["g-dev"] = models.Group{ID: "g-dev", Name: "Dev"}
+		st.templates["t1"] = models.Template{ID: "t1", Name: "Card one", Body: `{"type":"AdaptiveCard"}`}
+		st.templates["t2"] = models.Template{ID: "t2", Name: "Card two", Body: `{"type":"AdaptiveCard"}`}
+		grantTo(st, models.PrincipalGroup, "g-ops", authz.PeopleResource.Type, authz.PeopleResource.ID, authz.ActionBroadcast)
+		grantTo(st, models.PrincipalIdPGroup, "platform", "Template", "t1", "update")
+		return st
+	}
+
+	tests := []struct {
+		name     string
+		store    *fakeStore
+		query    string
+		want     []string
+		unwanted []string
+		whole    bool // the notice sits outside the what panel
+	}{
+		{name: "group with a broadcast grant", store: newStore(authz.RoleAdmin), query: "?tab=what&principal=group:g-ops", want: []string{"broadcast to everyone"}},
+		{name: "group without one", store: newStore(authz.RoleAdmin), query: "?tab=what&principal=group:g-dev", unwanted: []string{"broadcast to everyone"}},
+		{name: "role", store: newStore(authz.RoleAdmin), query: "?tab=what&principal=role:viewer", want: []string{"viewer</span>:"}},
+		{name: "user takes stored roles", store: newStore(authz.RoleAdmin), query: "?tab=what&principal=user:s-bob", want: []string{"viewer</span>:"}},
+		{name: "user through a provider group", store: newStore(authz.RoleAdmin), query: "?tab=what&principal=user:s-bob", want: []string{"Card one"}, unwanted: []string{"Card two"}},
+		{name: "provider group", store: newStore(authz.RoleAdmin), query: "?tab=what&principal=idp_group:platform", want: []string{"Card one"}, unwanted: []string{"Card two", "viewer</span>:"}},
+		{name: "unknown user", store: newStore(authz.RoleAdmin), query: "?tab=what&principal=user:ghost", want: []string{"Nobody has signed in with that subject"}},
+		{name: "unknown group", store: newStore(authz.RoleAdmin), query: "?tab=what&principal=group:nope", want: []string{"Nothing is known by that name."}},
+		{name: "unknown role", store: newStore(authz.RoleAdmin), query: "?tab=what&principal=role:nope", want: []string{"Nothing is known by that name."}},
+		{name: "unknown kind", store: newStore(authz.RoleAdmin), query: "?tab=what&principal=robot:r2", want: []string{"Nothing is known by that name."}},
+		{name: "not the what tab", store: newStore(authz.RoleAdmin), query: "?principal=group:g-ops", unwanted: []string{"broadcast to everyone"}},
+		{name: "not an admin", store: newStore(authz.RoleEditor), query: "?tab=what&principal=group:g-ops", unwanted: []string{"broadcast to everyone"}},
+		{name: "a failing store", store: newStore(authz.RoleAdmin).fail("GetGroup"), query: "?tab=what&principal=group:g-ops", want: []string{"Something went wrong"}, whole: true},
+		{name: "someone not listed", store: newStore(authz.RoleAdmin), query: "?tab=what&principal=&other_type=user&other_id=%20s-bob%20", want: []string{"Card one", "viewer</span>:"}},
+		{name: "the picker wins over not listed", store: newStore(authz.RoleAdmin), query: "?tab=what&principal=role:viewer&other_type=user&other_id=s-bob", want: []string{"viewer</span>:"}, unwanted: []string{"Card one"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			h := newTestServer(t, tt.store, &fakeMessenger{}).Handler
+			panel := call(t, h, http.MethodGet, "/admin/access"+tt.query, "").Body.String()
+			if !tt.whole {
+				panel = whatPanel(panel)
+			}
+			for _, want := range tt.want {
+				if !strings.Contains(panel, want) {
+					t.Errorf("answer lacks %q", want)
+				}
+			}
+			for _, unwanted := range tt.unwanted {
+				if strings.Contains(panel, unwanted) {
+					t.Errorf("answer shows %q", unwanted)
+				}
+			}
+		})
+	}
+
+	h := newTestServer(t, newStore(authz.RoleAdmin), &fakeMessenger{}).Handler
+	if body := call(t, h, http.MethodGet, "/admin/access", "").Body.String(); !strings.Contains(body, `href="/admin/access?tab=what"`) || !strings.Contains(body, `id="panel-who"`) {
+		t.Error("the default page lacks the tab bar")
+	}
+	// tabs.js switches to the who tab in place, so its form must be ready.
+	_, who, _ := strings.Cut(call(t, h, http.MethodGet, "/admin/access?tab=what&principal=group:g-ops", "").Body.String(), `id="panel-who"`)
+	if !strings.Contains(who, `<option value="read"`) {
+		t.Error("the who form has no actions after a what question")
+	}
+	if strings.Count(who, ">Narrow to<") != 1 || strings.Contains(who, ">Give to<") {
+		t.Error("the narrowing picker is not labelled once as Narrow to")
+	}
+	if !strings.Contains(whatPanel(call(t, h, http.MethodGet, "/admin/access?tab=what", "").Body.String()), `<span class="text-sm font-medium">Who</span>`) {
+		t.Error("the what picker is not labelled Who")
 	}
 }

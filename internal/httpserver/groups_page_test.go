@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -256,5 +257,166 @@ func TestTheSnapshotLoadsGroupMemberships(t *testing.T) {
 	req = req.WithContext(withPrincipal(req.Context(), "s-bob", "Bob", models.ViaSession, []authz.Role{authz.RoleViewer}, []string{"platform"}))
 	if p := principalFor(req); p.Subject != "s-bob" || len(p.IdPGroups) != 1 || p.IdPGroups[0] != "platform" {
 		t.Errorf("principal = %+v", p)
+	}
+}
+
+func TestGroupPageSections(t *testing.T) {
+	t.Parallel()
+
+	st := groupsStore(authz.RoleAdmin)
+	st.templates["t1"] = models.Template{ID: "t1", Name: "One", Body: "{}"}
+	st.templates["t2"] = models.Template{ID: "t2", Name: "Two", Body: "{}"}
+	st.groups["g-ops"] = models.Group{ID: "g-ops", Name: "Ops"}
+	st.groups["g-all"] = models.Group{ID: "g-all", Name: "Everyone"}
+	st.members = append(st.members, models.GroupMember{GroupID: "g-all", Type: models.MemberGroup, ID: "g-ops"})
+	grantTo(st, models.PrincipalGroup, "g-ops", "Template", "t1", "read", "share")
+	grantTo(st, models.PrincipalGroup, "g-all", "Template", "t2", "attach")
+	grantTo(st, models.PrincipalGroup, "g-all", "People", authz.PeopleResource.ID, "broadcast")
+	handler := newTestServer(t, st, &fakeMessenger{}).Handler
+
+	body := asRole(t, handler, http.MethodGet, "/admin/groups?id=g-ops", "").Body.String()
+	at := -1
+	for _, heading := range []string{">Members<", ">What this group may do<", ">Who may manage this group<", "Technical details"} {
+		i := strings.Index(body, heading)
+		if i < 0 || i < at {
+			t.Fatalf("heading %q missing or out of order", heading)
+		}
+		at = i
+	}
+	may := body[strings.Index(body, ">What this group may do<"):strings.Index(body, ">Who may manage this group<")]
+	for _, want := range []string{
+		"<details", `name="principal" value="group:g-ops"`, "r---s", "group Everyone", `href="/admin/access?grant_to=group:g-ops"`,
+		"anyone, and broadcast to everyone",
+	} {
+		if !strings.Contains(may, want) {
+			t.Errorf("rights section lacks %q", want)
+		}
+	}
+	if strings.Contains(may, `action="/admin/access/messages"`) {
+		t.Error("an inherited level has a Remove form")
+	}
+	if _, level, _ := strings.Cut(may, "Who may message people"); !strings.Contains(level, "group Everyone") {
+		t.Error("the inherited message level does not say where it comes from")
+	}
+	if !strings.Contains(body, `<span class="text-sm font-medium">Member</span>`) {
+		t.Error("the member picker is not labelled Member")
+	}
+	if strings.Count(may, "<details") != 1 {
+		t.Errorf("want one editable (direct) row, got %d", strings.Count(may, "<details"))
+	}
+	if strings.Contains(body, `<span class="font-mono text-xs text-slate-500">g-ops</span>`) {
+		t.Error("a raw id is shown beside a resolved name")
+	}
+
+	st.groups["g-own"] = models.Group{ID: "g-own", Name: "Own"}
+	grantTo(st, models.PrincipalGroup, "g-own", "People", authz.PeopleResource.ID, "broadcast")
+	grantTo(st, models.PrincipalGroup, "g-own", "Template", "t2", "own")
+	own := asRole(t, handler, http.MethodGet, "/admin/groups?id=g-own", "").Body.String()
+	if !strings.Contains(own, `action="/admin/access/messages"`) {
+		t.Error("a level the group holds has no Remove form")
+	}
+	if !strings.Contains(own, `name="actions" value="own"`) {
+		t.Error("a viewer who may transfer cannot edit a row holding own")
+	}
+
+	// Every principal may message themselves, so a group without a grant is at self.
+	plain := asRole(t, handler, http.MethodGet, "/admin/groups?id=g-sre", "").Body.String()
+	if !strings.Contains(plain, "themselves only") || strings.Contains(plain, "access.message_level.") {
+		t.Error("the default message level is not named")
+	}
+
+	preselected := regexp.MustCompile(`value="group:g-ops"[^>]* selected`)
+	hub := hubForm(asRole(t, handler, http.MethodGet, "/admin/access?grant_to=group:g-ops", "").Body.String())
+	if !preselected.MatchString(hub) {
+		t.Error("the hub picker does not preselect the group")
+	}
+	what := hubForm(asRole(t, handler, http.MethodGet, "/admin/access?tab=what&principal=group:g-ops", "").Body.String())
+	if preselected.MatchString(what) {
+		t.Error("the What question preselects the hub's batch form")
+	}
+}
+
+// hubForm is the hub's batch form, empty when the page has none.
+func hubForm(body string) string {
+	_, after, ok := strings.Cut(body, `action="/admin/sharing/batch"`)
+	if !ok {
+		return ""
+	}
+	form, _, _ := strings.Cut(after, "</form>")
+	return form
+}
+
+func TestGroupPageWithoutItsRights(t *testing.T) {
+	t.Parallel()
+
+	st := groupsStore(authz.RoleAdmin).fail("ListTemplates")
+	body := asRole(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin/groups?id=g-sre", "").Body.String()
+	if !strings.Contains(body, "Something went wrong") || !strings.Contains(body, ">Members<") {
+		t.Fatal("the page does not report the failure beside the members")
+	}
+	if strings.Contains(body, ">What this group may do<") || strings.Contains(body, "may not reach any record yet") {
+		t.Error("a failed answer is shown as an empty one")
+	}
+}
+
+func TestGroupPageShowsOnlyWhatTheViewerMayRead(t *testing.T) {
+	t.Parallel()
+
+	st := sessionAs(newFakeStore())
+	st.groups["g-ops"] = models.Group{ID: "g-ops", Name: "Ops"}
+	st.templates["t1"] = models.Template{ID: "t1", Name: "Readable card", Body: "{}"}
+	st.templates["t2"] = models.Template{ID: "t2", Name: "Hidden runbook card", Body: "{}"}
+	grantTo(st, models.PrincipalUser, "tester", "Group", "g-ops", "read")
+	grantTo(st, models.PrincipalUser, "tester", "Template", "t1", "read")
+	grantTo(st, models.PrincipalGroup, "g-ops", "Template", "t1", "read")
+	grantTo(st, models.PrincipalGroup, "g-ops", "Template", "t2", "read")
+	grantTo(st, models.PrincipalGroup, "g-ops", "Webhook", authz.WebhookAlertmanager, "use")
+	handler := newTestServer(t, st, &fakeMessenger{}).Handler
+
+	body := asRole(t, handler, http.MethodGet, "/admin/groups?id=g-ops", "").Body.String()
+	for _, want := range []string{">Ops<", ">What this group may do<", "Readable card"} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("page lacks %q", want)
+		}
+	}
+	for _, unwanted := range []string{"Hidden runbook card", "Who may send to the webhooks", "Who may message people"} {
+		if strings.Contains(body, unwanted) {
+			t.Errorf("a viewer who may only read the group sees %q", unwanted)
+		}
+	}
+}
+
+func TestGroupPageNamesAnInheritedGroupOnlyToItsReaders(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		roles    []authz.Role
+		want     string
+		unwanted string
+	}{
+		{name: "a viewer without that group", want: "another group", unwanted: "Secret"},
+		{name: "an admin", roles: []authz.Role{authz.RoleAdmin}, want: "group Secret"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			st := sessionAs(newFakeStore(), tt.roles...)
+			st.groups["g-ops"] = models.Group{ID: "g-ops", Name: "Ops"}
+			st.groups["g-secret"] = models.Group{ID: "g-secret", Name: "Secret"}
+			st.members = append(st.members, models.GroupMember{GroupID: "g-secret", Type: models.MemberGroup, ID: "g-ops"})
+			st.templates["t1"] = models.Template{ID: "t1", Name: "Readable card", Body: "{}"}
+			grantTo(st, models.PrincipalUser, "tester", "Group", "g-ops", "read")
+			grantTo(st, models.PrincipalUser, "tester", "Template", "t1", "read")
+			grantTo(st, models.PrincipalGroup, "g-secret", "Template", "t1", "update")
+			body := asRole(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin/groups?id=g-ops", "").Body.String()
+			if !strings.Contains(body, "Readable card") || !strings.Contains(body, tt.want) {
+				t.Fatalf("page lacks the card or %q", tt.want)
+			}
+			if tt.unwanted != "" && strings.Contains(body, tt.unwanted) {
+				t.Errorf("page names %q to a viewer who may not read that group", tt.unwanted)
+			}
+		})
 	}
 }
