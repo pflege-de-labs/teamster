@@ -100,12 +100,15 @@ templ AccessPage(page Access) {
 				if len(page.Webhooks) > 0 {
 					<ul class="divide-y divide-slate-200">
 						for _, w := range page.Webhooks {
-							<li class="flex justify-between py-2 text-sm">
+							<li class="flex items-center justify-between gap-3 py-2 text-sm">
 								<span>
 									<span class="mr-2 rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600">{ i18n.T(ctx, "sharing.principal."+w.PrincipalType) }</span>
 									{ w.Label }
 								</span>
-								<span class="font-mono text-xs">{ i18n.T(ctx, "access.level."+w.Level) }</span>
+								<span class="flex items-center gap-3">
+									<span class="font-mono text-xs">{ i18n.T(ctx, "access.level."+w.Level) }</span>
+									@levelRemove("/admin/access/webhooks", w)
+								</span>
 							</li>
 						}
 					</ul>
@@ -136,12 +139,15 @@ templ AccessPage(page Access) {
 				if len(page.Messages) > 0 {
 					<ul class="divide-y divide-slate-200">
 						for _, m := range page.Messages {
-							<li class="flex justify-between py-2 text-sm">
+							<li class="flex items-center justify-between gap-3 py-2 text-sm">
 								<span>
 									<span class="mr-2 rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600">{ i18n.T(ctx, "sharing.principal."+m.PrincipalType) }</span>
 									{ m.Label }
 								</span>
-								<span class="font-mono text-xs">{ i18n.T(ctx, "access.message_level."+m.Level) }</span>
+								<span class="flex items-center gap-3">
+									<span class="font-mono text-xs">{ i18n.T(ctx, "access.message_level."+m.Level) }</span>
+									@levelRemove("/admin/access/messages", m)
+								</span>
 							</li>
 						}
 					</ul>
@@ -257,6 +263,16 @@ templ AccessPage(page Access) {
 			}
 		</div>
 	}
+}
+
+// levelRemove clears a principal's level; without it a row could only be removed by retyping its id.
+templ levelRemove(action string, row WebhookAccess) {
+	<form method="post" action={ templ.SafeURL(action) }>
+		<input type="hidden" name="principal_type" value={ row.PrincipalType }/>
+		<input type="hidden" name="principal_id" value={ row.PrincipalID }/>
+		<input type="hidden" name="level" value="none"/>
+		<button type="submit" class="rounded-md border border-slate-300 px-3 py-1 text-xs text-slate-700 hover:border-red-400 hover:bg-red-50 hover:text-red-700">{ i18n.T(ctx, "sharing.revoke") }</button>
+	</form>
 }
 
 templ accessSection(title string) {

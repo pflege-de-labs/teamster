@@ -10,6 +10,15 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 ## [Unreleased]
 
+### Fixed
+
+* The webhook and message level forms on `/admin/access`, and `PUT /api/access/webhooks` and
+  `/api/access/messages`, saved a level for a group that does not exist — typically a group typed
+  by its name instead of its id. The grant matched nobody but was listed as if it worked. They now
+  refuse an unknown group; setting such a row to `none` still clears it.
+* A webhook or message level could only be removed by retyping the principal's id and saving
+  `none`. Each row in those lists now has a **Revoke** button.
+
 ## [0.21.1] — 2026-11-11
 
 ### Fixed

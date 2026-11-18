@@ -15,6 +15,8 @@ import (
 	"github.com/pflege-de-labs/teamster/internal/store"
 )
 
+var errLevelGroup = errors.New("no such group: name a group by the id shown on its page")
+
 var errLevel = errors.New("a webhook level is none, alertmanager, universal, all or admin, for a user, group, idp_group or role")
 
 // webhookIDs are the resources a webhook grant names.
@@ -70,6 +72,10 @@ func (s *Server) setWebhookLevel(r *http.Request, kind models.PrincipalType, pri
 	if !ok || !kind.Valid() || principal == "" {
 		return userError{errLevel}
 	}
+	// none stays allowed so a grant saved for an unknown group can be cleared.
+	if _, known := s.checkPrincipal(r, kind, principal); !known && level != "none" {
+		return userError{errLevelGroup}
+	}
 	return s.store.WithTx(r.Context(), func(ctx context.Context, tx store.Store) error {
 		for _, webhook := range webhookIDs {
 			if _, err := tx.PutPermission(ctx, models.Permission{
@@ -115,7 +121,7 @@ func (s *Server) handleWebhookLevelAPI(w http.ResponseWriter, r *http.Request) {
 	}
 	err := s.setWebhookLevel(r, models.PrincipalType(body.PrincipalType), body.PrincipalID, body.Level)
 	switch {
-	case errors.Is(err, errLevel):
+	case errors.As(err, new(userError)):
 		writeError(w, r, http.StatusBadRequest, err)
 	case err != nil:
 		writeError(w, r, http.StatusInternalServerError, err)
@@ -151,6 +157,10 @@ func (s *Server) setMessageLevel(r *http.Request, kind models.PrincipalType, pri
 	if !ok || !kind.Valid() || principal == "" {
 		return userError{errMessageLevel}
 	}
+	// none stays allowed so a grant saved for an unknown group can be cleared.
+	if _, known := s.checkPrincipal(r, kind, principal); !known && level != "none" {
+		return userError{errLevelGroup}
+	}
 	_, err := s.store.PutPermission(r.Context(), models.Permission{
 		PrincipalType: kind, PrincipalID: principal,
 		ResourceType: authz.PeopleResource.Type, ResourceID: authz.PeopleResource.ID,
@@ -185,7 +195,7 @@ func (s *Server) handleMessageLevelAPI(w http.ResponseWriter, r *http.Request) {
 	}
 	err := s.setMessageLevel(r, models.PrincipalType(body.PrincipalType), body.PrincipalID, body.Level)
 	switch {
-	case errors.Is(err, errMessageLevel):
+	case errors.As(err, new(userError)):
 		writeError(w, r, http.StatusBadRequest, err)
 	case err != nil:
 		writeError(w, r, http.StatusInternalServerError, err)
