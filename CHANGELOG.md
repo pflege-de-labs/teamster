@@ -24,6 +24,12 @@ reasoning behind it in the [ADRs](docs/adr/).
   in place. `/admin/access?principal=group:ID` starts the batch picker on the group
   ([ADR 0110](docs/adr/0110-answer-access-questions-with-the-authorizer.md)).
 
+* The access check on `/admin/access` answers two questions in tabs. **Who can ...?** takes an
+  action and a record and lists every signed-in user who may, with the deciding policies, optionally
+  narrowed to one principal; it checks at most 5000 users and says when it stops. **What may ...
+  do?** does the same for a user, group, provider group or role. Old `?subject=` links still work
+  ([ADR 0110](docs/adr/0110-answer-access-questions-with-the-authorizer.md)).
+
 ### Fixed
 
 * The webhook and message level forms on `/admin/access`, and `PUT /api/access/webhooks` and

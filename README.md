@@ -1303,8 +1303,9 @@ Admins additionally see:
 - who may send to the webhooks;
 - who may message people;
 - the Cedar policies in force, both the embedded ones and the ones generated from grants;
-- **Who can?**, which takes a subject, an action and a resource and names the policies that allow
-  or refuse it.
+- **Access check**, with two questions: **Who can ...?** takes an action and a record and lists the
+  users who may, with the policies that allow it; **What may ... do?** takes a user, group,
+  provider group or role and lists what it reaches, and why.
 
 **My access** in the user menu (`/admin/me`) shows anyone signed in their roles, groups, webhooks,
 whom they may message, and the records shared with them with links, and through whom.

@@ -543,8 +543,10 @@ included, naming the user, one of their groups or provider groups, or their role
 to share records across a class: a picker of what they may `share`, a batch grant that is all or
 nothing in one transaction, and the grants on those records
 ([ADR 0088](adr/0088-open-the-access-page-to-whoever-may-share.md)). Its admin sections are webhook
-levels, every grant, the policies in force, and "Who can?", which answers with Cedar's deciding
-policies. `/admin/me` shows anyone signed in their own roles, groups, webhooks and
+levels, every grant, the policies in force, and the access check, which answers with Cedar's
+deciding policies. Its two tabs are "Who can ...?" (`whoCan`: every signed-in, non-disabled user,
+up to `checkUsers` = 5000, optionally narrowed to one principal) and "What may ... do?" (`whatMay`
+for a user, group, provider group or role); both build reasons with `reasonsFor`. `/admin/me` shows anyone signed in their own roles, groups, webhooks and
 the records shared with them. See [ADR 0076](adr/0076-webhook-permissions-and-access-overviews.md).
 
 The policies and entities are an immutable snapshot that `authz.Engine` hands out, versioned by the
