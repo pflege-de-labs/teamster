@@ -476,8 +476,14 @@ func (s *Server) grantedTo(r *http.Request, snapshot *authz.Authorizer, p authz.
 		granted = append(granted, *g)
 	}
 
-	var roles []views.RoleSummary
-	for _, role := range p.Roles {
+	roles := roleSummaries(snapshot, p.Roles)
+	return granted, roles, nil
+}
+
+// roleSummaries is what each role allows on every record of a type.
+func roleSummaries(snapshot *authz.Authorizer, roles []authz.Role) []views.RoleSummary {
+	var out []views.RoleSummary
+	for _, role := range roles {
 		for _, typ := range authz.PermissionedTypes {
 			var allowed []string
 			for _, action := range append(slices.Clone(recordActions), authz.ActionCreate) {
@@ -486,9 +492,9 @@ func (s *Server) grantedTo(r *http.Request, snapshot *authz.Authorizer, p authz.
 				}
 			}
 			if len(allowed) > 0 {
-				roles = append(roles, views.RoleSummary{Role: string(role), Type: typ, Actions: allowed})
+				out = append(out, views.RoleSummary{Role: string(role), Type: typ, Actions: allowed})
 			}
 		}
 	}
-	return granted, roles, nil
+	return out
 }

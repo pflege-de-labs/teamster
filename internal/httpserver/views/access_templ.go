@@ -1210,6 +1210,23 @@ type MyGrant struct {
 	Via     []string
 }
 
+// WhatMay is what a principal may do, as the authorizer decides it.
+type WhatMay struct {
+	Records  []MayRow
+	Roles    []RoleSummary
+	Webhooks string
+	Messages string
+}
+
+// MayRow is one record a principal may act on, with the reasons it may.
+type MayRow struct {
+	Type, ID, Name, Href string
+	Actions              []string
+	Via                  []string
+	Direct               *models.Permission
+	CanShare             bool
+}
+
 // RoleSummary is what one role allows on every record of a type.
 type RoleSummary struct {
 	Role    string
@@ -1269,7 +1286,7 @@ func MyAccessPage(page MyAccess) templ.Component {
 				var templ_7745c5c3_Var57 string
 				templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "access.subject"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `access.templ`, Line: 342, Col: 59}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `access.templ`, Line: 359, Col: 59}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var57))
 				if templ_7745c5c3_Err != nil {
@@ -1282,7 +1299,7 @@ func MyAccessPage(page MyAccess) templ.Component {
 				var templ_7745c5c3_Var58 string
 				templ_7745c5c3_Var58, templ_7745c5c3_Err = templ.JoinStringErrs(page.Subject)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `access.templ`, Line: 343, Col: 62}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `access.templ`, Line: 360, Col: 62}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var58))
 				if templ_7745c5c3_Err != nil {
@@ -1295,7 +1312,7 @@ func MyAccessPage(page MyAccess) templ.Component {
 				var templ_7745c5c3_Var59 string
 				templ_7745c5c3_Var59, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "me.roles"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `access.templ`, Line: 344, Col: 53}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `access.templ`, Line: 361, Col: 53}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var59))
 				if templ_7745c5c3_Err != nil {
@@ -1308,7 +1325,7 @@ func MyAccessPage(page MyAccess) templ.Component {
 				var templ_7745c5c3_Var60 string
 				templ_7745c5c3_Var60, templ_7745c5c3_Err = templ.JoinStringErrs(joinOrDash(page.Roles))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `access.templ`, Line: 345, Col: 54}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `access.templ`, Line: 362, Col: 54}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var60))
 				if templ_7745c5c3_Err != nil {
@@ -1321,7 +1338,7 @@ func MyAccessPage(page MyAccess) templ.Component {
 				var templ_7745c5c3_Var61 string
 				templ_7745c5c3_Var61, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "me.idp_groups"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `access.templ`, Line: 346, Col: 58}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `access.templ`, Line: 363, Col: 58}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var61))
 				if templ_7745c5c3_Err != nil {
@@ -1334,7 +1351,7 @@ func MyAccessPage(page MyAccess) templ.Component {
 				var templ_7745c5c3_Var62 string
 				templ_7745c5c3_Var62, templ_7745c5c3_Err = templ.JoinStringErrs(joinOrDash(page.IdPGroups))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `access.templ`, Line: 347, Col: 58}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `access.templ`, Line: 364, Col: 58}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var62))
 				if templ_7745c5c3_Err != nil {
@@ -1347,7 +1364,7 @@ func MyAccessPage(page MyAccess) templ.Component {
 				var templ_7745c5c3_Var63 string
 				templ_7745c5c3_Var63, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "me.groups"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `access.templ`, Line: 348, Col: 54}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `access.templ`, Line: 365, Col: 54}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var63))
 				if templ_7745c5c3_Err != nil {
@@ -1360,7 +1377,7 @@ func MyAccessPage(page MyAccess) templ.Component {
 				var templ_7745c5c3_Var64 string
 				templ_7745c5c3_Var64, templ_7745c5c3_Err = templ.JoinStringErrs(joinOrDash(page.Groups))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `access.templ`, Line: 349, Col: 55}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `access.templ`, Line: 366, Col: 55}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var64))
 				if templ_7745c5c3_Err != nil {
@@ -1373,7 +1390,7 @@ func MyAccessPage(page MyAccess) templ.Component {
 				var templ_7745c5c3_Var65 string
 				templ_7745c5c3_Var65, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "me.webhooks"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `access.templ`, Line: 350, Col: 56}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `access.templ`, Line: 367, Col: 56}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var65))
 				if templ_7745c5c3_Err != nil {
@@ -1386,7 +1403,7 @@ func MyAccessPage(page MyAccess) templ.Component {
 				var templ_7745c5c3_Var66 string
 				templ_7745c5c3_Var66, templ_7745c5c3_Err = templ.JoinStringErrs(joinOrDash(page.Webhooks))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `access.templ`, Line: 351, Col: 57}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `access.templ`, Line: 368, Col: 57}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var66))
 				if templ_7745c5c3_Err != nil {
@@ -1399,7 +1416,7 @@ func MyAccessPage(page MyAccess) templ.Component {
 				var templ_7745c5c3_Var67 string
 				templ_7745c5c3_Var67, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "me.messages"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `access.templ`, Line: 352, Col: 56}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `access.templ`, Line: 369, Col: 56}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var67))
 				if templ_7745c5c3_Err != nil {
@@ -1412,7 +1429,7 @@ func MyAccessPage(page MyAccess) templ.Component {
 				var templ_7745c5c3_Var68 string
 				templ_7745c5c3_Var68, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "me.messages."+messagesOrNone(page.Messages)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `access.templ`, Line: 353, Col: 89}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `access.templ`, Line: 370, Col: 89}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var68))
 				if templ_7745c5c3_Err != nil {
@@ -1457,7 +1474,7 @@ func MyAccessPage(page MyAccess) templ.Component {
 				var templ_7745c5c3_Var70 string
 				templ_7745c5c3_Var70, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "me.show_policies"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `access.templ`, Line: 362, Col: 92}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `access.templ`, Line: 379, Col: 92}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var70))
 				if templ_7745c5c3_Err != nil {
@@ -1475,7 +1492,7 @@ func MyAccessPage(page MyAccess) templ.Component {
 					var templ_7745c5c3_Var71 string
 					templ_7745c5c3_Var71, templ_7745c5c3_Err = templ.JoinStringErrs(p.Text)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `access.templ`, Line: 364, Col: 85}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `access.templ`, Line: 381, Col: 85}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var71))
 					if templ_7745c5c3_Err != nil {

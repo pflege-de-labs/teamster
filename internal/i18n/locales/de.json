@@ -460,6 +460,7 @@
   "header.my_access": "Mein Zugriff",
   "page.access": "Zugriffsübersicht — Teamster",
   "page.me": "Mein Zugriff — Teamster",
+  "access.via_direct": "direkt",
   "access.webhooks": "Wer an die Webhooks senden darf",
   "access.webhooks_explainer": "Ein Token sendet an die Webhooks, die sein Ersteller verwenden darf. Editoren und Admins dürfen beide; alle anderen brauchen hier eine Stufe. Admin verwaltet zusätzlich alle Token.",
   "access.level": "Stufe",

@@ -327,6 +327,23 @@ type MyGrant struct {
 	Via     []string
 }
 
+// WhatMay is what a principal may do, as the authorizer decides it.
+type WhatMay struct {
+	Records  []MayRow
+	Roles    []RoleSummary
+	Webhooks string
+	Messages string
+}
+
+// MayRow is one record a principal may act on, with the reasons it may.
+type MayRow struct {
+	Type, ID, Name, Href string
+	Actions              []string
+	Via                  []string
+	Direct               *models.Permission
+	CanShare             bool
+}
+
 // RoleSummary is what one role allows on every record of a type.
 type RoleSummary struct {
 	Role    string
