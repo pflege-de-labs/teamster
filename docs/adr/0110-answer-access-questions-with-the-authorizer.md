@@ -25,8 +25,8 @@ what its reader could not open.
 The access check on `/admin/access` has two modes on the same footing. "What may ... do?" takes a
 user, group, provider group or role and runs `whatMay`. "Who can ...?" takes an action and a record
 and asks the authorizer (`whoCan`) for every signed-in, non-disabled user, read page by page
-(`ListUsersPage`, keyset on subject); a "Narrow to" picker limits it to one principal. Both modes build
-their reasons with `reasonsFor`, so a row reads the same in either. "create" is not offered: the
+(`ListUsersPage`, keyset on subject); a "Narrow to" picker limits it to one principal. Both modes
+build their reasons with `reasonsFor`, so a row reads the same in either. "create" is not offered: the
 resource list holds records, not collections.
 
 Computing it from the grants table lost: it would re-implement inheritance and drift from Cedar.
