@@ -9102,7 +9102,10 @@ data-copied-label="Kopiert!"
 &lt;/div&gt;
 &lt;p&gt;&lt;code&gt;principal_type&lt;/code&gt; ist &lt;code&gt;user&lt;/code&gt;, &lt;code&gt;group&lt;/code&gt;, &lt;code&gt;idp_group&lt;/code&gt; oder &lt;code&gt;role&lt;/code&gt;. Mit einer Stufe können sie eigene
 Token ausstellen; siehe &lt;a href="../webhook-tokens/"&gt;Webhook-Absender authentifizieren&lt;/a&gt;. Wird ihnen die
-Stufe entzogen, sind diese Token bei ihrer nächsten Verwendung widerrufen.&lt;/p&gt;
+Stufe entzogen, mit &lt;strong&gt;Entziehen&lt;/strong&gt; in ihrer Zeile oder der Stufe &lt;code&gt;none&lt;/code&gt;, sind diese Token bei ihrer
+nächsten Verwendung widerrufen. Eine &lt;code&gt;group&lt;/code&gt; wird mit der ID von ihrer Gruppenseite genannt, nicht
+mit ihrem Namen; Teamster lehnt eine Gruppe ab, die es nicht gibt, außer bei &lt;code&gt;none&lt;/code&gt;, damit sich eine
+veraltete Zeile weiter entfernen lässt.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="let-someone-message-people"&gt;Jemanden Personen anschreiben lassen&lt;span class="hx:absolute hx:-mt-20" id="let-someone-message-people"&gt;&lt;/span&gt;
 &lt;a href="#let-someone-message-people" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Eine Nachricht, die Personen nennt, braucht ein Token, das sie nennen darf; siehe
 &lt;a href="../webhook-tokens/#let-a-token-name-people"&gt;Ein Token Personen nennen lassen&lt;/a&gt;. Jede angemeldete
@@ -9152,11 +9155,11 @@ data-copied-label="Kopiert!"
 &lt;/button&gt;
 &lt;/div&gt;
 &lt;/div&gt;
-&lt;p&gt;&lt;code&gt;principal_type&lt;/code&gt; ist &lt;code&gt;user&lt;/code&gt;, &lt;code&gt;group&lt;/code&gt;, &lt;code&gt;idp_group&lt;/code&gt; oder &lt;code&gt;role&lt;/code&gt;. &lt;code&gt;none&lt;/code&gt; nimmt die Stufe zurück, und
-ihre Token mit &lt;strong&gt;beliebige&lt;/strong&gt; oder &lt;strong&gt;beliebige, und Rundsendung&lt;/strong&gt; nennen ab der nächsten Anfrage nur
-noch ihren Ersteller. In Cedar ist &lt;strong&gt;beliebige&lt;/strong&gt; die Aktion &lt;code&gt;message&lt;/code&gt; auf &lt;code&gt;People::&amp;quot;*&amp;quot;&lt;/code&gt; und
-&lt;strong&gt;beliebige, und Rundsendung an alle&lt;/strong&gt; die Aktion &lt;code&gt;broadcast&lt;/code&gt;. Jede schließt die Stufen darunter
-ein, bis hinab zu &lt;code&gt;messageSelf&lt;/code&gt;, der Aktion, die jeder hat. Siehe
+&lt;p&gt;&lt;code&gt;principal_type&lt;/code&gt; ist &lt;code&gt;user&lt;/code&gt;, &lt;code&gt;group&lt;/code&gt;, &lt;code&gt;idp_group&lt;/code&gt; oder &lt;code&gt;role&lt;/code&gt;. &lt;code&gt;none&lt;/code&gt; nimmt die Stufe zurück, ebenso
+&lt;strong&gt;Entziehen&lt;/strong&gt; in ihrer Zeile, und ihre Token mit &lt;strong&gt;beliebige&lt;/strong&gt; oder &lt;strong&gt;beliebige, und Rundsendung&lt;/strong&gt;
+nennen ab der nächsten Anfrage nur noch ihren Ersteller. In Cedar ist &lt;strong&gt;beliebige&lt;/strong&gt; die Aktion
+&lt;code&gt;message&lt;/code&gt; auf &lt;code&gt;People::&amp;quot;*&amp;quot;&lt;/code&gt; und &lt;strong&gt;beliebige, und Rundsendung an alle&lt;/strong&gt; die Aktion &lt;code&gt;broadcast&lt;/code&gt;. Jede
+schließt die Stufen darunter ein, bis hinab zu &lt;code&gt;messageSelf&lt;/code&gt;, der Aktion, die jeder hat. Siehe
 &lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0082-naming-people-takes-permission.md" target="_blank" rel="noopener"&gt;ADR 0082&lt;/a&gt;
 und
 &lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0083-broadcasts-run-in-the-background.md" target="_blank" rel="noopener"&gt;ADR 0083&lt;/a&gt;.&lt;/p&gt;

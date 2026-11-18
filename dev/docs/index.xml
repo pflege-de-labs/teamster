@@ -8872,8 +8872,10 @@ data-copied-label="Copied!"
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;p&gt;&lt;code&gt;principal_type&lt;/code&gt; is &lt;code&gt;user&lt;/code&gt;, &lt;code&gt;group&lt;/code&gt;, &lt;code&gt;idp_group&lt;/code&gt; or &lt;code&gt;role&lt;/code&gt;. With a level, they can issue their own
-tokens; see &lt;a href="../webhook-tokens/"&gt;Authenticate a webhook sender&lt;/a&gt;. Taking the level away revokes those
-tokens at their next use.&lt;/p&gt;
+tokens; see &lt;a href="../webhook-tokens/"&gt;Authenticate a webhook sender&lt;/a&gt;. Taking the level away, with
+&lt;strong&gt;Revoke&lt;/strong&gt; on its row or level &lt;code&gt;none&lt;/code&gt;, revokes those tokens at their next use. A &lt;code&gt;group&lt;/code&gt; is named by
+the id on its group page, not its name; Teamster refuses a group that does not exist, except for
+&lt;code&gt;none&lt;/code&gt;, so a stale row can still be cleared.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="let-someone-message-people"&gt;Let someone message people&lt;span class="hx:absolute hx:-mt-20" id="let-someone-message-people"&gt;&lt;/span&gt;
 &lt;a href="#let-someone-message-people" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;A message that names people needs a token that may name them; see
 &lt;a href="../webhook-tokens/#let-a-token-name-people"&gt;Let a token name people&lt;/a&gt;. Everyone signed in may name
@@ -8922,11 +8924,11 @@ data-copied-label="Copied!"
 &lt;/button&gt;
 &lt;/div&gt;
 &lt;/div&gt;
-&lt;p&gt;&lt;code&gt;principal_type&lt;/code&gt; is &lt;code&gt;user&lt;/code&gt;, &lt;code&gt;group&lt;/code&gt;, &lt;code&gt;idp_group&lt;/code&gt; or &lt;code&gt;role&lt;/code&gt;. &lt;code&gt;none&lt;/code&gt; takes the level back, and their
-&lt;strong&gt;anyone&lt;/strong&gt; and &lt;strong&gt;anyone, and broadcast&lt;/strong&gt; tokens name only their creator from the next request. In
-Cedar, &lt;strong&gt;anyone&lt;/strong&gt; is the action &lt;code&gt;message&lt;/code&gt; on &lt;code&gt;People::&amp;quot;*&amp;quot;&lt;/code&gt; and &lt;strong&gt;anyone, and broadcast to
-everyone&lt;/strong&gt; is &lt;code&gt;broadcast&lt;/code&gt;. Each includes
-the levels below it, down to &lt;code&gt;messageSelf&lt;/code&gt;, the action everyone holds. See
+&lt;p&gt;&lt;code&gt;principal_type&lt;/code&gt; is &lt;code&gt;user&lt;/code&gt;, &lt;code&gt;group&lt;/code&gt;, &lt;code&gt;idp_group&lt;/code&gt; or &lt;code&gt;role&lt;/code&gt;. &lt;code&gt;none&lt;/code&gt; takes the level back, as does
+&lt;strong&gt;Revoke&lt;/strong&gt; on its row, and their &lt;strong&gt;anyone&lt;/strong&gt; and &lt;strong&gt;anyone, and broadcast&lt;/strong&gt; tokens name only their
+creator from the next request. In Cedar, &lt;strong&gt;anyone&lt;/strong&gt; is the action &lt;code&gt;message&lt;/code&gt; on &lt;code&gt;People::&amp;quot;*&amp;quot;&lt;/code&gt; and
+&lt;strong&gt;anyone, and broadcast to everyone&lt;/strong&gt; is &lt;code&gt;broadcast&lt;/code&gt;. Each includes the levels below it, down to
+&lt;code&gt;messageSelf&lt;/code&gt;, the action everyone holds. See
 &lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0082-naming-people-takes-permission.md" target="_blank" rel="noopener"&gt;ADR 0082&lt;/a&gt;
 and
 &lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0083-broadcasts-run-in-the-background.md" target="_blank" rel="noopener"&gt;ADR 0083&lt;/a&gt;.&lt;/p&gt;
