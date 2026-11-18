@@ -43,10 +43,21 @@ Adding policies is safe. Removing or renaming `admin`, `editor` or `viewer` brea
   [share several records at once](#share-several-records-at-once), and **Grants you may change**
   lists the grants on the records they may share, with each record's name linking to it.
 * Admins also see there who may send to the webhooks, who may message people, all grants under
-  **Every grant**, **Who can?** and the **Policies in force**. **Who can?** takes a subject, and an
-  action and a resource from lists that include the webhooks and **People**, and names the policies
-  that allow or refuse it. A policy's text unfolds under its name. Older links with `type=` and
-  `id=` still work.
+  **Every grant**, **Who can?** and the **Policies in force**. **Who can?** asks two questions, one
+  per tab, and each answer gives its reasons.
+  * **Who can …?** takes an action and a resource. The action list offers only actions that fit the
+    resource, and `create` is not among them. Optionally narrow it to a user, a group, a provider
+    group or a role. The answer lists every signed-in user who is not disabled and may, each with
+    the reasons: **direct**, **group X**, **provider group X** or **role X**. The policies that
+    decided are collapsed under **Policies**, and a policy's text unfolds under its name. People who
+    have not signed in are not listed. Past 5000 users the page says it asked only the first ones.
+    An action that does not fit the resource is named as such. Older links with `subject=`, `type=`
+    and `id=` still work.
+  * **What may … do?** takes a user, a group, a provider group or a role, or **Someone not listed**.
+    It shows every record the principal may act on, with `r w d a s` (or **owner**, as in [the batch
+    picker](#share-several-records-at-once)) and the reasons, then its webhook and message levels
+    with their reasons, and what its roles allow on whole collections. A name nothing knows answers
+    **Nothing is known by that name.**
 * **My access** in the user menu (**/admin/me**) shows anyone their own roles, groups, webhooks and
   **People you may message**. **Shared with you** lists every record shared with them, with a link,
   the actions, and **Through** whom: themselves, a group, a provider group or a role. Below it, one
