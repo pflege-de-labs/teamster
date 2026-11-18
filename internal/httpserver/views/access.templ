@@ -15,6 +15,8 @@ type Access struct {
 	Hub   *Hub
 	// Records name every record for the "Who can?" form.
 	Records []HubClass
+	// Principals are the choices of the level forms' pickers.
+	Principals PrincipalOptions
 	Webhooks   []WebhookAccess
 	// Messages are the principals granted a message level (ADR 0082).
 	Messages   []WebhookAccess
@@ -114,15 +116,9 @@ templ AccessPage(page Access) {
 					</ul>
 				}
 				<form method="post" action="/admin/access/webhooks" class="grid gap-3 sm:grid-cols-4 sm:items-end">
-					<label class="block">
-						<span class="text-sm font-medium">{ i18n.T(ctx, "sharing.principal_type") }</span>
-						<select name="principal_type" class="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm">
-							for _, t := range []string{"user", "group", "idp_group", "role"} {
-								<option value={ t }>{ i18n.T(ctx, "sharing.principal."+t) }</option>
-							}
-						</select>
-					</label>
-					@textField("principal_id", i18n.T(ctx, "sharing.principal"), "", "")
+					<div class="grid gap-2 sm:col-span-2">
+						@principalPicker(PickerConfig{Name: "principal", Options: page.Principals, AllowOther: true})
+					</div>
 					<label class="block">
 						<span class="text-sm font-medium">{ i18n.T(ctx, "access.level") }</span>
 						<select name="level" class="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm">
@@ -153,15 +149,9 @@ templ AccessPage(page Access) {
 					</ul>
 				}
 				<form method="post" action="/admin/access/messages" class="grid gap-3 sm:grid-cols-4 sm:items-end">
-					<label class="block">
-						<span class="text-sm font-medium">{ i18n.T(ctx, "sharing.principal_type") }</span>
-						<select name="principal_type" class="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm">
-							for _, t := range []string{"user", "group", "idp_group", "role"} {
-								<option value={ t }>{ i18n.T(ctx, "sharing.principal."+t) }</option>
-							}
-						</select>
-					</label>
-					@textField("principal_id", i18n.T(ctx, "sharing.principal"), "", "")
+					<div class="grid gap-2 sm:col-span-2">
+						@principalPicker(PickerConfig{Name: "principal", Options: page.Principals, AllowOther: true})
+					</div>
 					<label class="block">
 						<span class="text-sm font-medium">{ i18n.T(ctx, "access.level") }</span>
 						<select name="level" class="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm">

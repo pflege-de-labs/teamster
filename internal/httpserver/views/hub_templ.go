@@ -271,7 +271,7 @@ func hubPicker(h *Hub) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = principalSelect(h.Principals).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = principalPicker(PickerConfig{Name: "principal", Options: h.Principals, AllowOther: true}).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

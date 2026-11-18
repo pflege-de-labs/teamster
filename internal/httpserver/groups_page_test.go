@@ -41,7 +41,7 @@ func TestGroupsPage(t *testing.T) {
 		},
 		{
 			name: "a group with labelled members and suggestions", role: authz.RoleEditor, query: "?id=g-sre",
-			want: []string{`Group::&#34;g-sre&#34;`, "Bob", "s-bob", "platform", `value="devs"`, `value="g-oncall"`, `action="/admin/groups/members/add"`, `action="/admin/groups/delete"`},
+			want: []string{`Group::&#34;g-sre&#34;`, "Bob", "s-bob", "platform", `value="idp_group:devs"`, `value="group:g-oncall"`, `data-principal-picker`, `action="/admin/groups/members/add"`, `action="/admin/groups/delete"`},
 		},
 		{name: "a missing group", role: authz.RoleViewer, query: "?id=nope", want: []string{"No such group."}},
 	}
@@ -112,12 +112,13 @@ func TestGroupForms(t *testing.T) {
 		{"rename", "/admin/groups/save", url.Values{"id": {created.ID}, "name": {"Platform team"}}, ""},
 		{"a taken name", "/admin/groups/save", url.Values{"name": {"SRE"}}, "already+exists"},
 		{"no name", "/admin/groups/save", url.Values{"name": {"  "}}, "needs+a+name"},
-		{"add a group", "/admin/groups/members/add", url.Values{"group_id": {"g-oncall"}, "type": {"group"}, "member": {"g-sre"}}, ""},
-		{"a cycle", "/admin/groups/members/add", url.Values{"group_id": {"g-sre"}, "type": {"group"}, "member": {"g-oncall"}}, "contain+itself"},
-		{"an unknown type", "/admin/groups/members/add", url.Values{"group_id": {"g-sre"}, "type": {"role"}, "member": {"x"}}, "needs+a+type"},
-		{"a missing group", "/admin/groups/members/add", url.Values{"group_id": {"nope"}, "type": {"user"}, "member": {"x"}}, "no+such+group"},
-		{"remove", "/admin/groups/members/remove", url.Values{"group_id": {"g-oncall"}, "type": {"group"}, "member": {"g-sre"}}, ""},
-		{"remove again", "/admin/groups/members/remove", url.Values{"group_id": {"g-oncall"}, "type": {"group"}, "member": {"g-sre"}}, "no+such"},
+		{"add a group", "/admin/groups/members/add", url.Values{"group_id": {"g-oncall"}, "principal": {"group:g-sre"}}, ""},
+		{"a cycle", "/admin/groups/members/add", url.Values{"group_id": {"g-sre"}, "principal": {"group:g-oncall"}}, "contain+itself"},
+		{"an unknown type", "/admin/groups/members/add", url.Values{"group_id": {"g-sre"}, "principal": {"role:x"}}, "needs+a+type"},
+		{"a missing group", "/admin/groups/members/add", url.Values{"group_id": {"nope"}, "principal": {"user:x"}}, "no+such+group"},
+		{"a person not listed", "/admin/groups/members/add", url.Values{"group_id": {"g-oncall"}, "other_type": {"user"}, "other_id": {"new@x"}}, ""},
+		{"remove", "/admin/groups/members/remove", url.Values{"group_id": {"g-oncall"}, "principal_type": {"group"}, "principal_id": {"g-sre"}}, ""},
+		{"remove again", "/admin/groups/members/remove", url.Values{"group_id": {"g-oncall"}, "principal_type": {"group"}, "principal_id": {"g-sre"}}, "no+such"},
 		{"delete", "/admin/groups/delete", url.Values{"id": {created.ID}}, ""},
 		{"delete again", "/admin/groups/delete", url.Values{"id": {created.ID}}, "no+such"},
 	}
@@ -132,6 +133,34 @@ func TestGroupForms(t *testing.T) {
 	}
 	if st.groups[created.ID].Name != "" {
 		t.Error("the deleted group is still there")
+	}
+}
+
+func TestGroupMemberAddByPicker(t *testing.T) {
+	t.Parallel()
+
+	st := groupsStore(authz.RoleEditor)
+	h := newTestServer(t, st, &fakeMessenger{}).Handler
+	if loc := postFormAs(t, h, "/admin/groups/members/add", url.Values{"group_id": {"g-oncall"}, "principal": {"user:s-bob"}}).Header().Get("Location"); strings.Contains(loc, "error=") {
+		t.Fatalf("redirected to %s", loc)
+	}
+	var got bool
+	for _, m := range st.members {
+		got = got || (m.GroupID == "g-oncall" && m.Type == models.MemberUser && m.ID == "s-bob")
+	}
+	if !got {
+		t.Errorf("member not added: %+v", st.members)
+	}
+
+	body := asRole(t, h, http.MethodGet, "/admin/groups?id=g-sre", "").Body.String()
+	if !strings.Contains(body, "data-principal-picker") || strings.Contains(body, "<datalist") {
+		t.Error("the member form must use the picker and no datalist")
+	}
+	if !strings.Contains(body, `<input type="hidden" name="principal_type" value="user">`) || !strings.Contains(body, `<input type="hidden" name="principal_id" value="s-bob">`) {
+		t.Error("a member's remove form does not post principal_type and principal_id")
+	}
+	if strings.Contains(body, `value="group:g-sre"`) || strings.Contains(body, `value="role:`) {
+		t.Error("the member picker offers the group itself or a role")
 	}
 }
 

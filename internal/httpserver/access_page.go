@@ -96,7 +96,8 @@ func (s *Server) setWebhookLevel(r *http.Request, kind models.PrincipalType, pri
 }
 
 func (s *Server) webhookLevelForm(r *http.Request) (string, error) {
-	err := s.setWebhookLevel(r, models.PrincipalType(r.PostFormValue("principal_type")), r.PostFormValue("principal_id"), r.PostFormValue("level"))
+	kind, id := principalFromForm(r)
+	err := s.setWebhookLevel(r, kind, id, r.PostFormValue("level"))
 	if err != nil {
 		return "", err
 	}
@@ -170,7 +171,8 @@ func (s *Server) setMessageLevel(r *http.Request, kind models.PrincipalType, pri
 }
 
 func (s *Server) messageLevelForm(r *http.Request) (string, error) {
-	err := s.setMessageLevel(r, models.PrincipalType(r.PostFormValue("principal_type")), r.PostFormValue("principal_id"), r.PostFormValue("level"))
+	kind, id := principalFromForm(r)
+	err := s.setMessageLevel(r, kind, id, r.PostFormValue("level"))
 	if err != nil {
 		return "", err
 	}
@@ -276,6 +278,18 @@ func (s *Server) handleAccessPage(w http.ResponseWriter, r *http.Request) {
 				records[class.Type+":"+rec.ID] = rec
 			}
 		}
+	}
+
+	if admin {
+		users, err := s.store.ListUsers(ctx, "", usersPageSize)
+		if err != nil && page.Error == "" {
+			page.Error = failureText(ctx, "load principals", err)
+		}
+		groups, err := s.store.ListGroups(ctx)
+		if err != nil && page.Error == "" {
+			page.Error = failureText(ctx, "load principals", err)
+		}
+		page.Principals = principalOptionsFor(users, groups)
 	}
 
 	labels, err := s.principalLabels(ctx)

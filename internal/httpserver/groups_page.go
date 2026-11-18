@@ -130,23 +130,12 @@ func (s *Server) groupDetail(r *http.Request, id string, groups []models.Group) 
 	for _, g := range groups {
 		names["group:"+g.ID] = g.Name
 	}
-	var idpGroups []string
 	for _, u := range users {
 		names["user:"+u.Subject] = displayName(u)
-		for _, name := range u.IdPGroups {
-			if !slices.Contains(idpGroups, name) {
-				idpGroups = append(idpGroups, name)
-			}
-		}
 	}
-	slices.Sort(idpGroups)
 
-	detail := views.GroupDetail{Group: group, Users: users, IdPGroups: idpGroups}
-	for _, g := range groups {
-		if g.ID != id {
-			detail.Others = append(detail.Others, g)
-		}
-	}
+	others := slices.DeleteFunc(slices.Clone(groups), func(g models.Group) bool { return g.ID == id })
+	detail := views.GroupDetail{Group: group, Principals: principalOptionsFor(users, others)}
 	for _, m := range members {
 		label := m.ID
 		if name, ok := names[string(m.Type)+":"+m.ID]; ok {
@@ -203,7 +192,8 @@ func (s *Server) handleGroupMemberForm(add bool) http.HandlerFunc {
 		err := s.mayRecord(r, authz.ActionUpdate, typeGroup, r.PostFormValue("group_id"))
 		var m models.GroupMember
 		if err == nil {
-			m, err = memberFrom(r.PostFormValue("group_id"), r.PostFormValue("type"), r.PostFormValue("member"), principalSubject(r))
+			kind, member := principalFromForm(r)
+			m, err = memberFrom(r.PostFormValue("group_id"), string(kind), member, principalSubject(r))
 		}
 		if err == nil {
 			if add {
