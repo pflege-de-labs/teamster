@@ -102,8 +102,8 @@ templ groupDetail(detail GroupDetail) {
 								if detail.CanEdit {
 									<form method="post" action="/admin/groups/members/remove" class="shrink-0">
 										<input type="hidden" name="group_id" value={ detail.Group.ID }/>
-										<input type="hidden" name="type" value={ string(m.Member.Type) }/>
-										<input type="hidden" name="member" value={ m.Member.ID }/>
+										<input type="hidden" name="principal_type" value={ string(m.Member.Type) }/>
+										<input type="hidden" name="principal_id" value={ m.Member.ID }/>
 										<button type="submit" class="rounded-md border border-slate-300 px-3 py-1 text-sm text-slate-700 hover:border-red-400 hover:bg-red-50 hover:text-red-700">
 											{ i18n.T(ctx, "groups.remove") }
 										</button>

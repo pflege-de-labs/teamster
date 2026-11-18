@@ -117,8 +117,8 @@ func TestGroupForms(t *testing.T) {
 		{"an unknown type", "/admin/groups/members/add", url.Values{"group_id": {"g-sre"}, "principal": {"role:x"}}, "needs+a+type"},
 		{"a missing group", "/admin/groups/members/add", url.Values{"group_id": {"nope"}, "principal": {"user:x"}}, "no+such+group"},
 		{"a person not listed", "/admin/groups/members/add", url.Values{"group_id": {"g-oncall"}, "other_type": {"user"}, "other_id": {"new@x"}}, ""},
-		{"remove", "/admin/groups/members/remove", url.Values{"group_id": {"g-oncall"}, "principal": {"group:g-sre"}}, ""},
-		{"remove again", "/admin/groups/members/remove", url.Values{"group_id": {"g-oncall"}, "principal": {"group:g-sre"}}, "no+such"},
+		{"remove", "/admin/groups/members/remove", url.Values{"group_id": {"g-oncall"}, "principal_type": {"group"}, "principal_id": {"g-sre"}}, ""},
+		{"remove again", "/admin/groups/members/remove", url.Values{"group_id": {"g-oncall"}, "principal_type": {"group"}, "principal_id": {"g-sre"}}, "no+such"},
 		{"delete", "/admin/groups/delete", url.Values{"id": {created.ID}}, ""},
 		{"delete again", "/admin/groups/delete", url.Values{"id": {created.ID}}, "no+such"},
 	}
@@ -155,6 +155,9 @@ func TestGroupMemberAddByPicker(t *testing.T) {
 	body := asRole(t, h, http.MethodGet, "/admin/groups?id=g-sre", "").Body.String()
 	if !strings.Contains(body, "data-principal-picker") || strings.Contains(body, "<datalist") {
 		t.Error("the member form must use the picker and no datalist")
+	}
+	if !strings.Contains(body, `<input type="hidden" name="principal_type" value="user">`) || !strings.Contains(body, `<input type="hidden" name="principal_id" value="s-bob">`) {
+		t.Error("a member's remove form does not post principal_type and principal_id")
 	}
 	if strings.Contains(body, `value="group:g-sre"`) || strings.Contains(body, `value="role:`) {
 		t.Error("the member picker offers the group itself or a role")
