@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/pflege-de-labs/teamster/internal/bot"
+	"github.com/pflege-de-labs/teamster/internal/httpserver/views"
 	"github.com/pflege-de-labs/teamster/internal/models"
 	"github.com/pflege-de-labs/teamster/internal/teamsv2"
 	"github.com/pflege-de-labs/teamster/internal/templates"
@@ -89,9 +90,39 @@ func (s *Server) previewPayloads(msg templates.Message) previewPayloads {
 	return out
 }
 
-func previewSamples() []string {
-	return []string{models.SourceAlertmanager, previewAlertmanagerGroup, "open", "closed", "message", teamsV2Source, previewTeamsV2Card}
+// previewSamples are the events the editor previews on, each with the webhook
+// it comes from, so the editor offers those of the template's webhooks. Their
+// keys are API: POST /api/templates/preview and preview_template take them.
+func previewSamples() []views.PreviewSample {
+	return []views.PreviewSample{
+		{Key: models.SourceAlertmanager, Source: models.SourceAlertmanager},
+		{Key: previewAlertmanagerResolved, Source: models.SourceAlertmanager},
+		{Key: previewAlertmanagerGroup, Source: models.SourceAlertmanager},
+		{Key: "open", Source: models.SourceUniversal},
+		{Key: "closed", Source: models.SourceUniversal},
+		{Key: "message", Source: models.SourceUniversal},
+		{Key: previewPasswordReminder, Source: models.SourceUniversal},
+		{Key: teamsV2Source, Source: teamsV2Source},
+		{Key: previewTeamsV2Card, Source: teamsV2Source},
+	}
 }
+
+// previewSampleKeys are the keys of previewSamples.
+func previewSampleKeys() []string {
+	keys := []string{}
+	for _, sample := range previewSamples() {
+		keys = append(keys, sample.Key)
+	}
+	return keys
+}
+
+// previewAlertmanagerResolved is the single-alert sample once Alertmanager
+// reports it resolved.
+const previewAlertmanagerResolved = "alertmanager-resolved"
+
+// previewPasswordReminder is a one-off message to one person, for a template
+// that addresses its reader through .Recipient (ADR 0063).
+const previewPasswordReminder = "password-reminder"
 
 // previewTeamsV2Card is the sample of a Teams V2 Adaptive Card whose long facts
 // Teams renders badly, for trying a template that takes it apart (ADR 0099).
@@ -174,7 +205,8 @@ func previewEvent(name string) models.Event {
 			},
 		})
 	}
-	if name == models.SourceAlertmanager {
+	if name == models.SourceAlertmanager || name == previewAlertmanagerResolved {
+		resolved := name == previewAlertmanagerResolved
 		// What processEvent makes of a group holding one alert.
 		alert := models.AlertmanagerAlert{
 			Status: "firing",
@@ -187,10 +219,16 @@ func previewEvent(name string) models.Event {
 			GeneratorURL: "http://prometheus.example/rule",
 			Fingerprint:  "9f9f5f4a1f",
 		}
+		state := models.StateOpen
+		if resolved {
+			alert.Status = "resolved"
+			alert.EndsAt = time.Date(2026, 2, 9, 9, 42, 0, 0, time.UTC)
+			state = models.StateClosed
+		}
 		return models.Event{
 			Source: models.SourceAlertmanager,
 			Key:    "9f9f5f4a1f",
-			State:  models.StateOpen,
+			State:  state,
 			Labels: map[string]string{
 				"alertname":          "HighCPU",
 				"severity":           "critical",
@@ -211,34 +249,66 @@ func previewEvent(name string) models.Event {
 		}
 	}
 
+	switch name {
+	case "message":
+		// A general message has no lifecycle: no state, no time, no key --
+		// exactly the fields a one-shot delivery never uses.
+		return models.Event{
+			Source: models.SourceUniversal,
+			Labels: map[string]string{"alertname": "Maintenance", "severity": "info", "service": "teams-delivery", models.SourceLabel: models.SourceUniversal},
+			Universal: &models.UniversalEvent{
+				Attributes: map[string]string{
+					"summary":     "Planned maintenance on Saturday, 22:00 to 23:00",
+					"description": "Messages sent during the window are delivered once it ends.",
+				},
+				URL: "https://status.example.com/maintenance/2026-11-21",
+			},
+		}
+	case previewPasswordReminder:
+		recipient := previewRecipient()
+		return models.Event{
+			Source: models.SourceUniversal,
+			Labels: map[string]string{
+				"alertname": "PasswordExpiry", "severity": "info", "service": "identity",
+				models.SourceLabel: models.SourceUniversal, models.RecipientLabel: recipient.Mail,
+			},
+			Universal: &models.UniversalEvent{
+				Attributes: map[string]string{
+					"summary":     "Your password expires in 7 days",
+					"description": "Change it before 25 November 2026 to keep access to mail, VPN and Teams.",
+					"expires_at":  "2026-11-25",
+					"reset_url":   "https://account.example.com/password",
+				},
+				URL:        "https://account.example.com/password",
+				Recipients: []string{recipient.Mail},
+			},
+		}
+	}
+
 	ev := models.Event{
 		Source: models.SourceUniversal,
 		Key:    "2a6d3b7f1c",
 		State:  models.StateOpen,
 		Labels: map[string]string{
-			"alertname":        "HighMemory",
+			"alertname":        "DiskAlmostFull",
 			"severity":         "warning",
-			"service":          "worker",
+			"service":          "postgres",
+			"instance":         "db-1",
 			models.SourceLabel: models.SourceUniversal,
 		},
 		Universal: &models.UniversalEvent{
 			Attributes: map[string]string{
-				"summary":     "Memory usage is above 80%",
-				"description": "worker service memory is high",
+				"summary":     "Disk /var/lib/postgresql on db-1 is 91% full",
+				"description": "At the current rate it runs out of space in about six hours.",
 			},
 			Time: time.Date(2026, 2, 9, 9, 0, 0, 0, time.UTC),
-			URL:  "https://grafana.example/d/worker",
+			URL:  "https://grafana.example/d/postgres",
 		},
 	}
-	switch name {
-	case "closed":
+	if name == "closed" {
 		ev.State = models.StateClosed
-	case "message":
-		// A general message has no lifecycle: no state, no time, no key --
-		// exactly the fields a one-shot delivery never uses.
-		ev.State = models.StateNone
-		ev.Key = ""
-		ev.Universal.Time = time.Time{}
+		ev.Universal.Attributes["summary"] = "Disk /var/lib/postgresql on db-1 is back to 64%"
+		ev.Universal.Attributes["description"] = "Old WAL segments were removed."
 	}
 	return ev
 }

@@ -1422,12 +1422,14 @@ matching how deleting a destination already works. `GET /api/recipients` and `DE
 response type omits `ConversationID`, `ServiceURL`, `AADObjectID` and `TenantID` — the Bot Framework
 conversation reference is operational plumbing an admin unlinking someone has no use for.
 
-`POST /api/templates/preview` renders a template body against a built-in sample event —
-`alertmanager`, `open`, `closed`, `message` or `teamsv2` — through the
-same `templates.Render` the delivery path uses, and returns the Adaptive Card JSON. The browser
+`POST /api/templates/preview` renders a template body against a built-in sample event — one of
+`previewSamples`, each tagged with the webhook it comes from — through the same `templates.Render`
+the delivery path uses, and returns the Adaptive Card JSON. The browser
 draws it with the vendored renderer in `web/vendor`, in a sticky column beside the editor from the
 `lg` breakpoint up. A template that fails to render comes back as an error field with status 200,
-because a broken template is the answer the operator asked for.
+because a broken template is the answer the operator asked for. The editor offers only the
+samples of the webhooks the template is ticked for (all of them when none is), and a preset ticks
+its webhook, so a preset never previews on another webhook's event.
 The answer also carries `payloads.channel` and `payloads.chat`: the Bot Connector bodies for a
 channel post and a chat message. They are built by `channelMessage`, `botChannelMessage` and
 `chatMessage` with `bot.ChannelPostBody` and `bot.ActivityBody`, the same code delivery uses, with
