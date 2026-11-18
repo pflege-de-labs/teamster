@@ -107,7 +107,10 @@ curl -u <admin-user>:<admin-password> -X PUT http://localhost:8080/api/access/we
 
 `principal_type` ist `user`, `group`, `idp_group` oder `role`. Mit einer Stufe können sie eigene
 Token ausstellen; siehe [Webhook-Absender authentifizieren](../webhook-tokens/). Wird ihnen die
-Stufe entzogen, sind diese Token bei ihrer nächsten Verwendung widerrufen.
+Stufe entzogen, mit **Entziehen** in ihrer Zeile oder der Stufe `none`, sind diese Token bei ihrer
+nächsten Verwendung widerrufen. Eine `group` wird mit der ID von ihrer Gruppenseite genannt, nicht
+mit ihrem Namen; Teamster lehnt eine Gruppe ab, die es nicht gibt, außer bei `none`, damit sich eine
+veraltete Zeile weiter entfernen lässt.
 
 ## Jemanden Personen anschreiben lassen {#let-someone-message-people}
 
@@ -131,11 +134,11 @@ curl -u <admin-user>:<admin-password> -X PUT http://localhost:8080/api/access/me
   -d '{"principal_type": "idp_group", "principal_id": "<provider group>", "level": "anyone"}'
 ```
 
-`principal_type` ist `user`, `group`, `idp_group` oder `role`. `none` nimmt die Stufe zurück, und
-ihre Token mit **beliebige** oder **beliebige, und Rundsendung** nennen ab der nächsten Anfrage nur
-noch ihren Ersteller. In Cedar ist **beliebige** die Aktion `message` auf `People::"*"` und
-**beliebige, und Rundsendung an alle** die Aktion `broadcast`. Jede schließt die Stufen darunter
-ein, bis hinab zu `messageSelf`, der Aktion, die jeder hat. Siehe
+`principal_type` ist `user`, `group`, `idp_group` oder `role`. `none` nimmt die Stufe zurück, ebenso
+**Entziehen** in ihrer Zeile, und ihre Token mit **beliebige** oder **beliebige, und Rundsendung**
+nennen ab der nächsten Anfrage nur noch ihren Ersteller. In Cedar ist **beliebige** die Aktion
+`message` auf `People::"*"` und **beliebige, und Rundsendung an alle** die Aktion `broadcast`. Jede
+schließt die Stufen darunter ein, bis hinab zu `messageSelf`, der Aktion, die jeder hat. Siehe
 [ADR 0082](https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0082-naming-people-takes-permission.md)
 und
 [ADR 0083](https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0083-broadcasts-run-in-the-background.md).
