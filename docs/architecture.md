@@ -517,8 +517,9 @@ APIs and the revoke buttons. See [ADR 0109](adr/0109-principals-with-one-searcha
 A group's page has three sections: members, what the group may do, and who may manage it.
 `whatMay` answers the middle one from the authorizer, for a synthetic principal whose `Groups`
 holds the group and whose `Subject` is empty, and takes the reasons from `ExplainedPolicy`. It costs
-records times actions `AllowFor` calls and one `ListPermissions` per view. The hub reads
-`?principal=type:id` to preselect its picker. See
+records times actions `AllowFor` calls and one `ListPermissions` per view. It lists only records
+the viewer may read, and the levels only to admins. The hub reads `?grant_to=type:id` to preselect
+its picker; `principal` belongs to the check tabs' pickers. See
 [ADR 0110](adr/0110-answer-access-questions-with-the-authorizer.md).
 
 Records carry their own permissions. A `permissions` row holds one principal's actions on one
@@ -546,8 +547,9 @@ nothing in one transaction, and the grants on those records
 levels, every grant, the policies in force, and the access check, which answers with Cedar's
 deciding policies. Its two tabs are "Who can ...?" (`whoCan`: every signed-in, non-disabled user,
 up to `checkUsers` = 5000, optionally narrowed to one principal) and "What may ... do?" (`whatMay`
-for a user, group, provider group or role); both build reasons with `reasonsFor`. `/admin/me` shows anyone signed in their own roles, groups, webhooks and
-the records shared with them. See [ADR 0076](adr/0076-webhook-permissions-and-access-overviews.md).
+for a user, group, provider group or role); both build reasons with `reasonsFor`. `/admin/me`
+shows anyone signed in their own roles, groups, webhooks and the records shared with them. See
+[ADR 0076](adr/0076-webhook-permissions-and-access-overviews.md).
 
 The policies and entities are an immutable snapshot that `authz.Engine` hands out, versioned by the
 single row in `authz_generation`. `authorize` reads the generation once per request. When it has

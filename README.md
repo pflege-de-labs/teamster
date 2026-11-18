@@ -1282,8 +1282,9 @@ revokes one. Every change is audited in its own transaction. Each permission is 
 [ADR 0075](docs/adr/0075-own-and-share-records-through-generated-policies.md).
 
 A group's page in the admin UI shows its members, **What this group may do** — every record it
-reaches, directly or through a parent group or role, with the reason, and its webhook and message
-levels — and **Who may manage this group**. A direct grant is edited in place there.
+reaches that you may read, directly or through a parent group or role, with the reason, and for
+admins its webhook and message levels — and **Who may manage this group**. A direct grant is edited
+in place there.
 
 ### Who may do what
 
@@ -1344,9 +1345,10 @@ to the office admins who send notices to colleagues. Admins hold it already. The
 ### Groups
 
 A group at **/admin/groups** collects users, other groups, and the groups your identity provider
-names in `auth.groups-claim`. Members are picked from a searchable list, never typed by id. Editors
-create and change groups, and everyone can see them. Groups nest, but a group can never contain
-itself. Permissions on individual records are granted to groups as well as to users. Every
+names in `auth.groups-claim`. Members are picked from a searchable list; only someone who has not
+signed in yet, or a provider group nobody has brought in, is typed under **Someone not listed**.
+Editors create and change groups, and everyone can see them. Groups nest, but a group can never
+contain itself. Permissions on individual records are granted to groups as well as to users. Every
 membership change is recorded in the [audit trail](#audit-trail) in the same transaction: if it
 cannot be recorded, it does not happen. The API is `/api/groups`, `/api/groups/{id}` and
 `/api/groups/{id}/members` with `{"type": "user|group|idp_group", "id": "…"}`. Groups are not part
