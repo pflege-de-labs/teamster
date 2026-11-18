@@ -514,6 +514,12 @@ A collapsed "Someone not listed" block posts `other_type` and `other_id`. Handle
 through `principalFromForm`, which also accepts `principal_type` and `principal_id` for the JSON
 APIs and the revoke buttons. See [ADR 0109](adr/0109-principals-with-one-searchable-picker.md).
 
+The options hold the first `usersPageSize` users. When that page is full the select carries
+`data-search-url`, and typing asks `GET /admin/principals?q=` for up to 20 more, which the script
+adds as options; `mayPick` lets in admins, editors and anyone holding a grant. Names in grant, level
+and member lists come from `ListReferencedUsers`, the users a grant or membership names, so they do
+not depend on that page. See [ADR 0111](adr/0111-look-up-principals-past-the-first-page.md).
+
 A group's page has three sections: members, what the group may do, and who may manage it.
 `whatMay` answers the middle one from the authorizer, for a synthetic principal whose `Groups`
 holds the group and whose `Subject` is empty, and takes the reasons from `ExplainedPolicy`. It costs

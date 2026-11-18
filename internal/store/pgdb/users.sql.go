@@ -55,6 +55,50 @@ func (q *Queries) GetUser(ctx context.Context, subject string) (User, error) {
 	return i, err
 }
 
+const listReferencedUsers = `-- name: ListReferencedUsers :many
+SELECT subject, source, name, email, roles, idp_groups, first_seen, last_seen, disabled_at, disabled_by, object_id
+FROM users
+WHERE subject IN (SELECT principal_id FROM permissions WHERE principal_type = 'user')
+	OR subject IN (SELECT member_id FROM user_group_members WHERE member_type = 'user')
+ORDER BY subject
+`
+
+// The users a grant or a group membership names: everyone a page may show by name.
+func (q *Queries) ListReferencedUsers(ctx context.Context) ([]User, error) {
+	rows, err := q.db.QueryContext(ctx, listReferencedUsers)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []User
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.Subject,
+			&i.Source,
+			&i.Name,
+			&i.Email,
+			&i.Roles,
+			&i.IdpGroups,
+			&i.FirstSeen,
+			&i.LastSeen,
+			&i.DisabledAt,
+			&i.DisabledBy,
+			&i.ObjectID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listUserIdPGroups = `-- name: ListUserIdPGroups :many
 SELECT idp_groups FROM users WHERE idp_groups <> '[]'
 `

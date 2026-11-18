@@ -34,6 +34,11 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 ### Fixed
 
+* With more than 200 signed-in users, grants, levels and group members named the users past the
+  first 200 by their subject, and the principal pickers could not offer them. Names now resolve
+  for every user, and typing in a picker searches all users
+  ([ADR 0111](docs/adr/0111-look-up-principals-past-the-first-page.md)).
+
 * The webhook and message level forms on `/admin/access`, and `PUT /api/access/webhooks` and
   `/api/access/messages`, saved a level for a group that does not exist — typically a group typed
   by its name instead of its id. The grant matched nobody but was listed as if it worked. They now

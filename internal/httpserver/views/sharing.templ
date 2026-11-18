@@ -15,6 +15,8 @@ type PrincipalOptions struct {
 	Groups    []models.Group
 	IdPGroups []string
 	Roles     []string
+	// MoreUsers says Users is the first page only; the picker searches the rest.
+	MoreUsers bool
 }
 
 // Sharing is who may do what with one record, and the form to change it (ADR 0075).
@@ -132,6 +134,15 @@ func (p PickerConfig) label() string {
 	return p.Label
 }
 
+// searchURL is where the picker looks for users its page did not list; empty
+// when it listed them all.
+func (p PickerConfig) searchURL() string {
+	if p.Options.MoreUsers && p.offers("user") {
+		return "/admin/principals"
+	}
+	return ""
+}
+
 func (p PickerConfig) offers(kind string) bool {
 	return len(p.Kinds) == 0 || slices.Contains(p.Kinds, kind)
 }
@@ -153,7 +164,7 @@ func (p PickerConfig) otherKinds() []string {
 templ principalPicker(p PickerConfig) {
 	<label class="block">
 		<span class="text-sm font-medium">{ i18n.T(ctx, p.label()) }</span>
-		<select name={ p.Name } data-principal-picker required?={ p.Required } class="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm">
+		<select name={ p.Name } data-principal-picker data-search-url={ p.searchURL() } required?={ p.Required } class="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm">
 			<option value="">{ i18n.T(ctx, "sharing.choose") }</option>
 			if p.offers("user") && len(p.Options.Users) > 0 {
 				<optgroup label={ i18n.T(ctx, "sharing.principal.user") }>

@@ -303,6 +303,8 @@ type Querier interface {
 	// The statements are the SQLite ones with ? replaced by $n. Edit the SQLite
 	// file and run make generate.
 	ListRecipients(ctx context.Context) ([]Recipient, error)
+	// The users a grant or a group membership names: everyone a page may show by name.
+	ListReferencedUsers(ctx context.Context) ([]User, error)
 	// Code generated from ../sqlite by internal/store/queries/gen. DO NOT EDIT.
 	//
 	// The statements are the SQLite ones with ? replaced by $n. Edit the SQLite

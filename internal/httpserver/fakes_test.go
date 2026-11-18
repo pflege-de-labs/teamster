@@ -2037,6 +2037,33 @@ func (f *fakeStore) ListUsersPage(_ context.Context, after string, limit int) ([
 	return out, nil
 }
 
+func (f *fakeStore) ListReferencedUsers(_ context.Context) ([]models.User, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.failing("ListReferencedUsers"); err != nil {
+		return nil, err
+	}
+	named := map[string]bool{}
+	for _, p := range f.permissions {
+		if p.PrincipalType == models.PrincipalUser {
+			named[p.PrincipalID] = true
+		}
+	}
+	for _, m := range f.members {
+		if m.Type == models.MemberUser {
+			named[m.ID] = true
+		}
+	}
+	var out []models.User
+	for _, u := range f.users {
+		if named[u.Subject] {
+			out = append(out, u)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Subject < out[j].Subject })
+	return out, nil
+}
+
 func (f *fakeStore) DisableUser(_ context.Context, subject, by string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
