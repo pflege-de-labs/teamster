@@ -9008,10 +9008,26 @@ die Sie ändern dürfen&lt;/strong&gt; listet die Berechtigungen auf den Datens�
 Name jedes Datensatzes verlinkt auf ihn.&lt;/li&gt;
 &lt;li&gt;Administratoren sehen dort außerdem, wer an die Webhooks senden darf, wer Personen anschreiben
 darf, jede Berechtigung unter &lt;strong&gt;Alle Berechtigungen&lt;/strong&gt;, &lt;strong&gt;Wer darf?&lt;/strong&gt; und die &lt;strong&gt;Geltenden
-Richtlinien&lt;/strong&gt;. &lt;strong&gt;Wer darf?&lt;/strong&gt; nimmt ein Subject entgegen, dazu eine Aktion und eine Ressource aus
-Listen, die auch die Webhooks und &lt;strong&gt;Personen&lt;/strong&gt; enthalten, und nennt die Richtlinien, die sie
-erlauben oder verweigern. Den Text einer Richtlinie klappen Sie unter ihrem Namen auf. Ältere
-Links mit &lt;code&gt;type=&lt;/code&gt; und &lt;code&gt;id=&lt;/code&gt; funktionieren weiterhin.&lt;/li&gt;
+Richtlinien&lt;/strong&gt;. &lt;strong&gt;Wer darf?&lt;/strong&gt; stellt zwei Fragen, je eine pro Reiter, und jede Antwort nennt ihre
+Gründe.
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Wer darf …?&lt;/strong&gt; nimmt eine Aktion und eine Ressource. Die Aktionsliste bietet nur Aktionen an,
+die zur Ressource passen; &lt;code&gt;create&lt;/code&gt; gehört nicht dazu. Optional grenzen Sie auf einen Benutzer,
+eine Gruppe, eine Anbietergruppe oder eine Rolle ein. Die Antwort listet jeden angemeldeten,
+nicht deaktivierten Benutzer, der darf, jeweils mit den Gründen: &lt;strong&gt;direkt&lt;/strong&gt;, &lt;strong&gt;Gruppe X&lt;/strong&gt;,
+&lt;strong&gt;Anbietergruppe X&lt;/strong&gt; oder &lt;strong&gt;Rolle X&lt;/strong&gt;. Die entscheidenden Richtlinien stehen eingeklappt unter
+&lt;strong&gt;Richtlinien&lt;/strong&gt;, den Text einer Richtlinie klappen Sie unter ihrem Namen auf. Wer sich noch
+nicht angemeldet hat, steht nicht in der Liste. Ab 5000 Benutzern sagt die Seite, dass sie nur
+die ersten gefragt hat. Eine Aktion, die nicht zur Ressource passt, wird als solche benannt.
+Ältere Links mit &lt;code&gt;subject=&lt;/code&gt;, &lt;code&gt;type=&lt;/code&gt; und &lt;code&gt;id=&lt;/code&gt; funktionieren weiterhin.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Was darf …?&lt;/strong&gt; nimmt einen Benutzer, eine Gruppe, eine Anbietergruppe oder eine Rolle, oder
+&lt;strong&gt;Nicht aufgeführte Person&lt;/strong&gt;. Sie zeigt jeden Datensatz, auf dem der Empfänger handeln darf, mit
+&lt;code&gt;r w d a s&lt;/code&gt; (oder &lt;strong&gt;Eigentümer&lt;/strong&gt;, wie in &lt;a href="#share-several-records-at-once"&gt;der Mehrfachauswahl&lt;/a&gt;)
+und den Gründen, danach seine Webhook- und Nachrichtenstufe mit ihren Gründen und was seine
+Rollen auf ganzen Sammlungen erlauben. Ein Name, den niemand kennt, ergibt &lt;strong&gt;Unter diesem Namen
+ist nichts bekannt.&lt;/strong&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
 &lt;li&gt;&lt;strong&gt;Mein Zugriff&lt;/strong&gt; im Kontomenü (&lt;strong&gt;/admin/me&lt;/strong&gt;) zeigt jedem die eigenen Rollen, Gruppen, Webhooks
 und &lt;strong&gt;Wen Sie anschreiben dürfen&lt;/strong&gt;. &lt;strong&gt;Mit Ihnen geteilt&lt;/strong&gt; listet jeden mit ihm geteilten
 Datensatz, mit Link, den Aktionen und &lt;strong&gt;Über&lt;/strong&gt; wen: sich selbst, eine Gruppe, eine Anbietergruppe
@@ -9119,7 +9135,10 @@ data-copied-label="Kopiert!"
 &lt;/div&gt;
 &lt;p&gt;&lt;code&gt;principal_type&lt;/code&gt; ist &lt;code&gt;user&lt;/code&gt;, &lt;code&gt;group&lt;/code&gt;, &lt;code&gt;idp_group&lt;/code&gt; oder &lt;code&gt;role&lt;/code&gt;. Mit einer Stufe können sie eigene
 Token ausstellen; siehe &lt;a href="../webhook-tokens/"&gt;Webhook-Absender authentifizieren&lt;/a&gt;. Wird ihnen die
-Stufe entzogen, sind diese Token bei ihrer nächsten Verwendung widerrufen.&lt;/p&gt;
+Stufe entzogen, mit &lt;strong&gt;Entziehen&lt;/strong&gt; in ihrer Zeile oder der Stufe &lt;code&gt;none&lt;/code&gt;, sind diese Token bei ihrer
+nächsten Verwendung widerrufen. Eine &lt;code&gt;group&lt;/code&gt; wird mit der ID von ihrer Gruppenseite genannt, nicht
+mit ihrem Namen; Teamster lehnt eine Gruppe ab, die es nicht gibt, außer bei &lt;code&gt;none&lt;/code&gt;, damit sich eine
+veraltete Zeile weiter entfernen lässt.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="let-someone-message-people"&gt;Jemanden Personen anschreiben lassen&lt;span class="hx:absolute hx:-mt-20" id="let-someone-message-people"&gt;&lt;/span&gt;
 &lt;a href="#let-someone-message-people" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Eine Nachricht, die Personen nennt, braucht ein Token, das sie nennen darf; siehe
 &lt;a href="../webhook-tokens/#let-a-token-name-people"&gt;Ein Token Personen nennen lassen&lt;/a&gt;. Jede angemeldete
@@ -9169,11 +9188,11 @@ data-copied-label="Kopiert!"
 &lt;/button&gt;
 &lt;/div&gt;
 &lt;/div&gt;
-&lt;p&gt;&lt;code&gt;principal_type&lt;/code&gt; ist &lt;code&gt;user&lt;/code&gt;, &lt;code&gt;group&lt;/code&gt;, &lt;code&gt;idp_group&lt;/code&gt; oder &lt;code&gt;role&lt;/code&gt;. &lt;code&gt;none&lt;/code&gt; nimmt die Stufe zurück, und
-ihre Token mit &lt;strong&gt;beliebige&lt;/strong&gt; oder &lt;strong&gt;beliebige, und Rundsendung&lt;/strong&gt; nennen ab der nächsten Anfrage nur
-noch ihren Ersteller. In Cedar ist &lt;strong&gt;beliebige&lt;/strong&gt; die Aktion &lt;code&gt;message&lt;/code&gt; auf &lt;code&gt;People::&amp;quot;*&amp;quot;&lt;/code&gt; und
-&lt;strong&gt;beliebige, und Rundsendung an alle&lt;/strong&gt; die Aktion &lt;code&gt;broadcast&lt;/code&gt;. Jede schließt die Stufen darunter
-ein, bis hinab zu &lt;code&gt;messageSelf&lt;/code&gt;, der Aktion, die jeder hat. Siehe
+&lt;p&gt;&lt;code&gt;principal_type&lt;/code&gt; ist &lt;code&gt;user&lt;/code&gt;, &lt;code&gt;group&lt;/code&gt;, &lt;code&gt;idp_group&lt;/code&gt; oder &lt;code&gt;role&lt;/code&gt;. &lt;code&gt;none&lt;/code&gt; nimmt die Stufe zurück, ebenso
+&lt;strong&gt;Entziehen&lt;/strong&gt; in ihrer Zeile, und ihre Token mit &lt;strong&gt;beliebige&lt;/strong&gt; oder &lt;strong&gt;beliebige, und Rundsendung&lt;/strong&gt;
+nennen ab der nächsten Anfrage nur noch ihren Ersteller. In Cedar ist &lt;strong&gt;beliebige&lt;/strong&gt; die Aktion
+&lt;code&gt;message&lt;/code&gt; auf &lt;code&gt;People::&amp;quot;*&amp;quot;&lt;/code&gt; und &lt;strong&gt;beliebige, und Rundsendung an alle&lt;/strong&gt; die Aktion &lt;code&gt;broadcast&lt;/code&gt;. Jede
+schließt die Stufen darunter ein, bis hinab zu &lt;code&gt;messageSelf&lt;/code&gt;, der Aktion, die jeder hat. Siehe
 &lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0082-naming-people-takes-permission.md" target="_blank" rel="noopener"&gt;ADR 0082&lt;/a&gt;
 und
 &lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0083-broadcasts-run-in-the-background.md" target="_blank" rel="noopener"&gt;ADR 0083&lt;/a&gt;.&lt;/p&gt;

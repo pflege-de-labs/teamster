@@ -8784,10 +8784,24 @@ holds no grant sees neither the entry nor the page. There they
 &lt;a href="#share-several-records-at-once"&gt;share several records at once&lt;/a&gt;, and &lt;strong&gt;Grants you may change&lt;/strong&gt;
 lists the grants on the records they may share, with each record&amp;rsquo;s name linking to it.&lt;/li&gt;
 &lt;li&gt;Admins also see there who may send to the webhooks, who may message people, all grants under
-&lt;strong&gt;Every grant&lt;/strong&gt;, &lt;strong&gt;Who can?&lt;/strong&gt; and the &lt;strong&gt;Policies in force&lt;/strong&gt;. &lt;strong&gt;Who can?&lt;/strong&gt; takes a subject, and an
-action and a resource from lists that include the webhooks and &lt;strong&gt;People&lt;/strong&gt;, and names the policies
-that allow or refuse it. A policy&amp;rsquo;s text unfolds under its name. Older links with &lt;code&gt;type=&lt;/code&gt; and
-&lt;code&gt;id=&lt;/code&gt; still work.&lt;/li&gt;
+&lt;strong&gt;Every grant&lt;/strong&gt;, &lt;strong&gt;Who can?&lt;/strong&gt; and the &lt;strong&gt;Policies in force&lt;/strong&gt;. &lt;strong&gt;Who can?&lt;/strong&gt; asks two questions, one
+per tab, and each answer gives its reasons.
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Who can …?&lt;/strong&gt; takes an action and a resource. The action list offers only actions that fit the
+resource, and &lt;code&gt;create&lt;/code&gt; is not among them. Optionally narrow it to a user, a group, a provider
+group or a role. The answer lists every signed-in user who is not disabled and may, each with
+the reasons: &lt;strong&gt;direct&lt;/strong&gt;, &lt;strong&gt;group X&lt;/strong&gt;, &lt;strong&gt;provider group X&lt;/strong&gt; or &lt;strong&gt;role X&lt;/strong&gt;. The policies that
+decided are collapsed under &lt;strong&gt;Policies&lt;/strong&gt;, and a policy&amp;rsquo;s text unfolds under its name. People who
+have not signed in are not listed. Past 5000 users the page says it asked only the first ones.
+An action that does not fit the resource is named as such. Older links with &lt;code&gt;subject=&lt;/code&gt;, &lt;code&gt;type=&lt;/code&gt;
+and &lt;code&gt;id=&lt;/code&gt; still work.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;What may … do?&lt;/strong&gt; takes a user, a group, a provider group or a role, or &lt;strong&gt;Someone not listed&lt;/strong&gt;.
+It shows every record the principal may act on, with &lt;code&gt;r w d a s&lt;/code&gt; (or &lt;strong&gt;owner&lt;/strong&gt;, as in &lt;a href="#share-several-records-at-once"&gt;the batch
+picker&lt;/a&gt;) and the reasons, then its webhook and message levels
+with their reasons, and what its roles allow on whole collections. A name nothing knows answers
+&lt;strong&gt;Nothing is known by that name.&lt;/strong&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
 &lt;li&gt;&lt;strong&gt;My access&lt;/strong&gt; in the user menu (&lt;strong&gt;/admin/me&lt;/strong&gt;) shows anyone their own roles, groups, webhooks and
 &lt;strong&gt;People you may message&lt;/strong&gt;. &lt;strong&gt;Shared with you&lt;/strong&gt; lists every record shared with them, with a link,
 the actions, and &lt;strong&gt;Through&lt;/strong&gt; whom: themselves, a group, a provider group or a role. Below it, one
@@ -8886,8 +8900,10 @@ data-copied-label="Copied!"
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;p&gt;&lt;code&gt;principal_type&lt;/code&gt; is &lt;code&gt;user&lt;/code&gt;, &lt;code&gt;group&lt;/code&gt;, &lt;code&gt;idp_group&lt;/code&gt; or &lt;code&gt;role&lt;/code&gt;. With a level, they can issue their own
-tokens; see &lt;a href="../webhook-tokens/"&gt;Authenticate a webhook sender&lt;/a&gt;. Taking the level away revokes those
-tokens at their next use.&lt;/p&gt;
+tokens; see &lt;a href="../webhook-tokens/"&gt;Authenticate a webhook sender&lt;/a&gt;. Taking the level away, with
+&lt;strong&gt;Revoke&lt;/strong&gt; on its row or level &lt;code&gt;none&lt;/code&gt;, revokes those tokens at their next use. A &lt;code&gt;group&lt;/code&gt; is named by
+the id on its group page, not its name; Teamster refuses a group that does not exist, except for
+&lt;code&gt;none&lt;/code&gt;, so a stale row can still be cleared.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="let-someone-message-people"&gt;Let someone message people&lt;span class="hx:absolute hx:-mt-20" id="let-someone-message-people"&gt;&lt;/span&gt;
 &lt;a href="#let-someone-message-people" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;A message that names people needs a token that may name them; see
 &lt;a href="../webhook-tokens/#let-a-token-name-people"&gt;Let a token name people&lt;/a&gt;. Everyone signed in may name
@@ -8936,11 +8952,11 @@ data-copied-label="Copied!"
 &lt;/button&gt;
 &lt;/div&gt;
 &lt;/div&gt;
-&lt;p&gt;&lt;code&gt;principal_type&lt;/code&gt; is &lt;code&gt;user&lt;/code&gt;, &lt;code&gt;group&lt;/code&gt;, &lt;code&gt;idp_group&lt;/code&gt; or &lt;code&gt;role&lt;/code&gt;. &lt;code&gt;none&lt;/code&gt; takes the level back, and their
-&lt;strong&gt;anyone&lt;/strong&gt; and &lt;strong&gt;anyone, and broadcast&lt;/strong&gt; tokens name only their creator from the next request. In
-Cedar, &lt;strong&gt;anyone&lt;/strong&gt; is the action &lt;code&gt;message&lt;/code&gt; on &lt;code&gt;People::&amp;quot;*&amp;quot;&lt;/code&gt; and &lt;strong&gt;anyone, and broadcast to
-everyone&lt;/strong&gt; is &lt;code&gt;broadcast&lt;/code&gt;. Each includes
-the levels below it, down to &lt;code&gt;messageSelf&lt;/code&gt;, the action everyone holds. See
+&lt;p&gt;&lt;code&gt;principal_type&lt;/code&gt; is &lt;code&gt;user&lt;/code&gt;, &lt;code&gt;group&lt;/code&gt;, &lt;code&gt;idp_group&lt;/code&gt; or &lt;code&gt;role&lt;/code&gt;. &lt;code&gt;none&lt;/code&gt; takes the level back, as does
+&lt;strong&gt;Revoke&lt;/strong&gt; on its row, and their &lt;strong&gt;anyone&lt;/strong&gt; and &lt;strong&gt;anyone, and broadcast&lt;/strong&gt; tokens name only their
+creator from the next request. In Cedar, &lt;strong&gt;anyone&lt;/strong&gt; is the action &lt;code&gt;message&lt;/code&gt; on &lt;code&gt;People::&amp;quot;*&amp;quot;&lt;/code&gt; and
+&lt;strong&gt;anyone, and broadcast to everyone&lt;/strong&gt; is &lt;code&gt;broadcast&lt;/code&gt;. Each includes the levels below it, down to
+&lt;code&gt;messageSelf&lt;/code&gt;, the action everyone holds. See
 &lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0082-naming-people-takes-permission.md" target="_blank" rel="noopener"&gt;ADR 0082&lt;/a&gt;
 and
 &lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0083-broadcasts-run-in-the-background.md" target="_blank" rel="noopener"&gt;ADR 0083&lt;/a&gt;.&lt;/p&gt;
