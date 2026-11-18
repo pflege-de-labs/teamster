@@ -8784,10 +8784,24 @@ holds no grant sees neither the entry nor the page. There they
 &lt;a href="#share-several-records-at-once"&gt;share several records at once&lt;/a&gt;, and &lt;strong&gt;Grants you may change&lt;/strong&gt;
 lists the grants on the records they may share, with each record&amp;rsquo;s name linking to it.&lt;/li&gt;
 &lt;li&gt;Admins also see there who may send to the webhooks, who may message people, all grants under
-&lt;strong&gt;Every grant&lt;/strong&gt;, &lt;strong&gt;Who can?&lt;/strong&gt; and the &lt;strong&gt;Policies in force&lt;/strong&gt;. &lt;strong&gt;Who can?&lt;/strong&gt; takes a subject, and an
-action and a resource from lists that include the webhooks and &lt;strong&gt;People&lt;/strong&gt;, and names the policies
-that allow or refuse it. A policy&amp;rsquo;s text unfolds under its name. Older links with &lt;code&gt;type=&lt;/code&gt; and
-&lt;code&gt;id=&lt;/code&gt; still work.&lt;/li&gt;
+&lt;strong&gt;Every grant&lt;/strong&gt;, &lt;strong&gt;Who can?&lt;/strong&gt; and the &lt;strong&gt;Policies in force&lt;/strong&gt;. &lt;strong&gt;Who can?&lt;/strong&gt; asks two questions, one
+per tab, and each answer gives its reasons.
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Who can …?&lt;/strong&gt; takes an action and a resource. The action list offers only actions that fit the
+resource, and &lt;code&gt;create&lt;/code&gt; is not among them. Optionally narrow it to a user, a group, a provider
+group or a role. The answer lists every signed-in user who is not disabled and may, each with
+the reasons: &lt;strong&gt;direct&lt;/strong&gt;, &lt;strong&gt;group X&lt;/strong&gt;, &lt;strong&gt;provider group X&lt;/strong&gt; or &lt;strong&gt;role X&lt;/strong&gt;. The policies that
+decided are collapsed under &lt;strong&gt;Policies&lt;/strong&gt;, and a policy&amp;rsquo;s text unfolds under its name. People who
+have not signed in are not listed. Past 5000 users the page says it asked only the first ones.
+An action that does not fit the resource is named as such. Older links with &lt;code&gt;subject=&lt;/code&gt;, &lt;code&gt;type=&lt;/code&gt;
+and &lt;code&gt;id=&lt;/code&gt; still work.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;What may … do?&lt;/strong&gt; takes a user, a group, a provider group or a role, or &lt;strong&gt;Someone not listed&lt;/strong&gt;.
+It shows every record the principal may act on, with &lt;code&gt;r w d a s&lt;/code&gt; (or &lt;strong&gt;owner&lt;/strong&gt;, as in &lt;a href="#share-several-records-at-once"&gt;the batch
+picker&lt;/a&gt;) and the reasons, then its webhook and message levels
+with their reasons, and what its roles allow on whole collections. A name nothing knows answers
+&lt;strong&gt;Nothing is known by that name.&lt;/strong&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
 &lt;li&gt;&lt;strong&gt;My access&lt;/strong&gt; in the user menu (&lt;strong&gt;/admin/me&lt;/strong&gt;) shows anyone their own roles, groups, webhooks and
 &lt;strong&gt;People you may message&lt;/strong&gt;. &lt;strong&gt;Shared with you&lt;/strong&gt; lists every record shared with them, with a link,
 the actions, and &lt;strong&gt;Through&lt;/strong&gt; whom: themselves, a group, a provider group or a role. Below it, one
@@ -8799,12 +8813,21 @@ are under &lt;strong&gt;Show the policies behind this&lt;/strong&gt;.&lt;/li&gt;
 &lt;a href="#collect-people-in-groups" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Groups at &lt;strong&gt;/admin/groups&lt;/strong&gt; collect users, other groups, and the groups your identity provider
 names in &lt;code&gt;auth.groups-claim&lt;/code&gt; (default &lt;code&gt;groups&lt;/code&gt;). Editors create and change groups, and everyone can
 see them. Groups nest, but a group cannot contain itself.&lt;/p&gt;
+&lt;p&gt;A group&amp;rsquo;s page has three sections: &lt;strong&gt;Members&lt;/strong&gt;, &lt;strong&gt;What this group may do&lt;/strong&gt; and &lt;strong&gt;Who may manage
+this group&lt;/strong&gt;. The Cedar id of the group is under &lt;strong&gt;Technical details&lt;/strong&gt;.&lt;/p&gt;
 &lt;p&gt;On a group&amp;rsquo;s page, &lt;strong&gt;Add member&lt;/strong&gt; offers a list of users, groups and provider groups, each with a
 badge for its kind; type to search by name, email or id. A provider group nobody has signed in
 with yet is not listed: open &lt;strong&gt;Someone not listed&lt;/strong&gt;, pick the kind and enter its name. The member
 list shows names, with the id beside them.&lt;/p&gt;
 &lt;p&gt;Permissions on records and webhook levels can be granted to a group as well as to a user. Every
 membership change is recorded in the &lt;a href="../audit-trail/"&gt;audit trail&lt;/a&gt; in the same transaction.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;What this group may do&lt;/strong&gt; lists the records the group may act on and you may read, with the actions
+and the reason: &lt;strong&gt;direct&lt;/strong&gt; when a grant names the group, or, for access it inherits, the group it
+comes from, such as &lt;strong&gt;group it-admins&lt;/strong&gt;. Admins also see the group&amp;rsquo;s webhook level and message level
+below the records, with their reasons. &lt;strong&gt;Revoke&lt;/strong&gt; appears only on what the group holds itself, never
+on what it inherits; to change the inherited access, change the group it comes from. Where you may
+share a record, its direct grant is edited in place. &lt;strong&gt;Give this group access to more records…&lt;/strong&gt;
+opens &lt;a href="#share-several-records-at-once"&gt;the batch picker&lt;/a&gt; with the group already chosen.&lt;/p&gt;
 &lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
 &lt;div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="c1"&gt;# create a group, then add a provider group to it&lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;curl -u &amp;lt;admin-user&amp;gt;:&amp;lt;admin-password&amp;gt; -X POST http://localhost:8080/api/groups -d &lt;span class="s1"&gt;&amp;#39;{&amp;#34;name&amp;#34;: &amp;#34;payments&amp;#34;}&amp;#39;&lt;/span&gt;
@@ -8939,7 +8962,8 @@ and
 &lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0083-broadcasts-run-in-the-background.md" target="_blank" rel="noopener"&gt;ADR 0083&lt;/a&gt;.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="share-a-record"&gt;Share a record&lt;span class="hx:absolute hx:-mt-20" id="share-a-record"&gt;&lt;/span&gt;
 &lt;a href="#share-a-record" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Whoever creates a template, destination, route, webhook endpoint or group owns it. To share one,
-open it and use &lt;strong&gt;Who may do what&lt;/strong&gt;:&lt;/p&gt;
+open it. Its panel is &lt;strong&gt;Who may manage this template&lt;/strong&gt; (or destination, route, webhook, group), and
+you give access from &lt;strong&gt;Give someone access&lt;/strong&gt;, which starts collapsed:&lt;/p&gt;
 &lt;ol&gt;
 &lt;li&gt;Under &lt;strong&gt;Give to&lt;/strong&gt;, choose a user, a group, a provider group or a role from the list; each has a
 badge for its kind, and typing searches by name, email or id. Someone who has not signed in yet
@@ -8990,9 +9014,10 @@ says the access applies once they, or someone in that provider group, sign in.&l
 &lt;/tr&gt;
 &lt;/tbody&gt;
 &lt;/table&gt;
-&lt;p&gt;Each principal who already holds something is a row with their actions ticked. Change the boxes and
-press &lt;strong&gt;Save&lt;/strong&gt; to replace what they hold; with no box ticked, it is all taken away. &lt;strong&gt;Revoke&lt;/strong&gt;
-removes the row.&lt;/p&gt;
+&lt;p&gt;Each principal who already holds something is one line, with five positions after the name: &lt;code&gt;r w d a s&lt;/code&gt; for read, change, delete, use in routes and webhooks, and share. A &lt;code&gt;-&lt;/code&gt; marks a position they
+do not hold; a principal who owns the record shows &lt;strong&gt;owner&lt;/strong&gt; instead. The legend under the panel
+spells the letters out. &lt;strong&gt;edit&lt;/strong&gt; on a line opens its boxes: change them and press &lt;strong&gt;Save&lt;/strong&gt; to
+replace what they hold; with no box ticked, it is all taken away. &lt;strong&gt;Revoke&lt;/strong&gt; removes the line.&lt;/p&gt;
 &lt;p&gt;Nobody can give more than they hold. Someone with no role but a shared record lands on
 &lt;strong&gt;Configuration → Templates&lt;/strong&gt; and sees just what was shared.&lt;/p&gt;
 &lt;p&gt;&lt;code&gt;create&lt;/code&gt; on a whole collection is granted through the API:&lt;/p&gt;
@@ -9020,8 +9045,8 @@ data-copied-label="Copied!"
 Destinations, Routes, Webhook endpoints or Groups) and press &lt;strong&gt;Show&lt;/strong&gt;. Only records you may &lt;code&gt;share&lt;/code&gt;
 are listed. If there are none, the page says that there is nothing you may share yet.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="tick-the-records"&gt;Tick the records&lt;span class="hx:absolute hx:-mt-20" id="tick-the-records"&gt;&lt;/span&gt;
-&lt;a href="#tick-the-records" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Tick them under &lt;strong&gt;Records&lt;/strong&gt;. &lt;strong&gt;Who has access&lt;/strong&gt; next to a record opens its &lt;strong&gt;Who may do what&lt;/strong&gt; panel
-below the form, where you change or revoke single grants; &lt;strong&gt;Edit&lt;/strong&gt; opens the record.&lt;/p&gt;
+&lt;a href="#tick-the-records" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Tick them under &lt;strong&gt;Records&lt;/strong&gt;. &lt;strong&gt;Who has access&lt;/strong&gt; next to a record opens its &lt;strong&gt;Who may manage this …&lt;/strong&gt;
+panel below the form, where you change or revoke single grants; &lt;strong&gt;Edit&lt;/strong&gt; opens the record.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="choose-who-and-what"&gt;Choose who and what&lt;span class="hx:absolute hx:-mt-20" id="choose-who-and-what"&gt;&lt;/span&gt;
 &lt;a href="#choose-who-and-what" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Choose the principal under &lt;strong&gt;Give to&lt;/strong&gt;, or under &lt;strong&gt;Someone not listed&lt;/strong&gt;, tick what they &lt;strong&gt;May&lt;/strong&gt; do
 and press &lt;strong&gt;Grant on selected&lt;/strong&gt;.&lt;/p&gt;

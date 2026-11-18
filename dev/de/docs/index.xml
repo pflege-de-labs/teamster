@@ -9008,10 +9008,26 @@ die Sie ändern dürfen&lt;/strong&gt; listet die Berechtigungen auf den Datens�
 Name jedes Datensatzes verlinkt auf ihn.&lt;/li&gt;
 &lt;li&gt;Administratoren sehen dort außerdem, wer an die Webhooks senden darf, wer Personen anschreiben
 darf, jede Berechtigung unter &lt;strong&gt;Alle Berechtigungen&lt;/strong&gt;, &lt;strong&gt;Wer darf?&lt;/strong&gt; und die &lt;strong&gt;Geltenden
-Richtlinien&lt;/strong&gt;. &lt;strong&gt;Wer darf?&lt;/strong&gt; nimmt ein Subject entgegen, dazu eine Aktion und eine Ressource aus
-Listen, die auch die Webhooks und &lt;strong&gt;Personen&lt;/strong&gt; enthalten, und nennt die Richtlinien, die sie
-erlauben oder verweigern. Den Text einer Richtlinie klappen Sie unter ihrem Namen auf. Ältere
-Links mit &lt;code&gt;type=&lt;/code&gt; und &lt;code&gt;id=&lt;/code&gt; funktionieren weiterhin.&lt;/li&gt;
+Richtlinien&lt;/strong&gt;. &lt;strong&gt;Wer darf?&lt;/strong&gt; stellt zwei Fragen, je eine pro Reiter, und jede Antwort nennt ihre
+Gründe.
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Wer darf …?&lt;/strong&gt; nimmt eine Aktion und eine Ressource. Die Aktionsliste bietet nur Aktionen an,
+die zur Ressource passen; &lt;code&gt;create&lt;/code&gt; gehört nicht dazu. Optional grenzen Sie auf einen Benutzer,
+eine Gruppe, eine Anbietergruppe oder eine Rolle ein. Die Antwort listet jeden angemeldeten,
+nicht deaktivierten Benutzer, der darf, jeweils mit den Gründen: &lt;strong&gt;direkt&lt;/strong&gt;, &lt;strong&gt;Gruppe X&lt;/strong&gt;,
+&lt;strong&gt;Anbietergruppe X&lt;/strong&gt; oder &lt;strong&gt;Rolle X&lt;/strong&gt;. Die entscheidenden Richtlinien stehen eingeklappt unter
+&lt;strong&gt;Richtlinien&lt;/strong&gt;, den Text einer Richtlinie klappen Sie unter ihrem Namen auf. Wer sich noch
+nicht angemeldet hat, steht nicht in der Liste. Ab 5000 Benutzern sagt die Seite, dass sie nur
+die ersten gefragt hat. Eine Aktion, die nicht zur Ressource passt, wird als solche benannt.
+Ältere Links mit &lt;code&gt;subject=&lt;/code&gt;, &lt;code&gt;type=&lt;/code&gt; und &lt;code&gt;id=&lt;/code&gt; funktionieren weiterhin.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Was darf …?&lt;/strong&gt; nimmt einen Benutzer, eine Gruppe, eine Anbietergruppe oder eine Rolle, oder
+&lt;strong&gt;Nicht aufgeführte Person&lt;/strong&gt;. Sie zeigt jeden Datensatz, auf dem der Empfänger handeln darf, mit
+&lt;code&gt;r w d a s&lt;/code&gt; (oder &lt;strong&gt;Eigentümer&lt;/strong&gt;, wie in &lt;a href="#share-several-records-at-once"&gt;der Mehrfachauswahl&lt;/a&gt;)
+und den Gründen, danach seine Webhook- und Nachrichtenstufe mit ihren Gründen und was seine
+Rollen auf ganzen Sammlungen erlauben. Ein Name, den niemand kennt, ergibt &lt;strong&gt;Unter diesem Namen
+ist nichts bekannt.&lt;/strong&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
 &lt;li&gt;&lt;strong&gt;Mein Zugriff&lt;/strong&gt; im Kontomenü (&lt;strong&gt;/admin/me&lt;/strong&gt;) zeigt jedem die eigenen Rollen, Gruppen, Webhooks
 und &lt;strong&gt;Wen Sie anschreiben dürfen&lt;/strong&gt;. &lt;strong&gt;Mit Ihnen geteilt&lt;/strong&gt; listet jeden mit ihm geteilten
 Datensatz, mit Link, den Aktionen und &lt;strong&gt;Über&lt;/strong&gt; wen: sich selbst, eine Gruppe, eine Anbietergruppe
@@ -9025,6 +9041,8 @@ Richtlinien anzeigen&lt;/strong&gt;.&lt;/li&gt;
 Identitätsanbieter in &lt;code&gt;auth.groups-claim&lt;/code&gt; (Standard &lt;code&gt;groups&lt;/code&gt;) nennt. Bearbeiter legen Gruppen an
 und ändern sie, sehen können sie alle. Gruppen lassen sich verschachteln, aber keine Gruppe kann
 sich selbst enthalten.&lt;/p&gt;
+&lt;p&gt;Die Seite einer Gruppe hat drei Abschnitte: &lt;strong&gt;Mitglieder&lt;/strong&gt;, &lt;strong&gt;Was diese Gruppe darf&lt;/strong&gt; und &lt;strong&gt;Wer
+diese Gruppe verwalten darf&lt;/strong&gt;. Die Cedar-ID der Gruppe steht unter &lt;strong&gt;Technische Details&lt;/strong&gt;.&lt;/p&gt;
 &lt;p&gt;Auf der Seite einer Gruppe bietet &lt;strong&gt;Mitglied hinzufügen&lt;/strong&gt; eine Liste von Benutzern, Gruppen und
 Anbietergruppen, jeweils mit einem Kennzeichen für die Art; durch Tippen suchen Sie nach Name,
 E-Mail oder ID. Eine Anbietergruppe, mit der sich noch niemand angemeldet hat, steht nicht darin:
@@ -9033,6 +9051,15 @@ Mitgliederliste zeigt Namen, daneben die ID.&lt;/p&gt;
 &lt;p&gt;Berechtigungen auf Datensätze und Webhook-Stufen lassen sich einer Gruppe genauso erteilen wie
 einem Benutzer. Jede Änderung einer Mitgliedschaft wird in derselben Transaktion im
 &lt;a href="../audit-trail/"&gt;Änderungsprotokoll&lt;/a&gt; festgehalten.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Was diese Gruppe darf&lt;/strong&gt; listet die Datensätze, auf denen die Gruppe handeln darf und die Sie
+lesen dürfen, mit den Aktionen und dem Grund: &lt;strong&gt;direkt&lt;/strong&gt;, wenn eine Berechtigung die Gruppe nennt,
+oder bei geerbtem Zugriff die Gruppe, von der er kommt, etwa &lt;strong&gt;Gruppe it-admins&lt;/strong&gt;. Administratoren
+sehen darunter außerdem die Webhook-Stufe und die Nachrichtenstufe der Gruppe, mit ihren Gründen.
+&lt;strong&gt;Entziehen&lt;/strong&gt; erscheint nur bei dem, was die Gruppe selbst hat, nie bei
+Geerbtem; um geerbten Zugriff zu ändern, ändern Sie die Gruppe, von der er kommt. Wo Sie einen
+Datensatz teilen dürfen, bearbeiten Sie die direkte Berechtigung an Ort und Stelle. &lt;strong&gt;Dieser Gruppe
+Zugriff auf weitere Einträge geben…&lt;/strong&gt; öffnet &lt;a href="#share-several-records-at-once"&gt;die Mehrfachauswahl&lt;/a&gt;
+mit der Gruppe bereits gewählt.&lt;/p&gt;
 &lt;div class="hextra-code-block hx:relative hx:mt-6 hx:first:mt-0 hx:group/code"&gt;
 &lt;div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="c1"&gt;# Gruppe anlegen, dann eine Anbietergruppe hinzufügen&lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;curl -u &amp;lt;admin-user&amp;gt;:&amp;lt;admin-password&amp;gt; -X POST http://localhost:8080/api/groups -d &lt;span class="s1"&gt;&amp;#39;{&amp;#34;name&amp;#34;: &amp;#34;payments&amp;#34;}&amp;#39;&lt;/span&gt;
@@ -9171,7 +9198,9 @@ und
 &lt;a href="https://github.com/pflege-de-labs/teamster/blob/main/docs/adr/0083-broadcasts-run-in-the-background.md" target="_blank" rel="noopener"&gt;ADR 0083&lt;/a&gt;.&lt;/p&gt;
 &lt;h2 data-hextra-search-id="share-a-record"&gt;Einen Datensatz teilen&lt;span class="hx:absolute hx:-mt-20" id="share-a-record"&gt;&lt;/span&gt;
 &lt;a href="#share-a-record" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;Wer eine Vorlage, ein Ziel, eine Route, einen Webhook-Endpunkt oder eine Gruppe anlegt, ist ihr
-Eigentümer. Um einen Datensatz zu teilen, öffnen Sie ihn und nutzen &lt;strong&gt;Wer was darf&lt;/strong&gt;:&lt;/p&gt;
+Eigentümer. Um einen Datensatz zu teilen, öffnen Sie ihn. Sein Feld heißt &lt;strong&gt;Wer diese Vorlage
+verwalten darf&lt;/strong&gt; (oder dieses Ziel, diese Route, diesen Webhook, diese Gruppe), und Zugriff geben
+Sie unter &lt;strong&gt;Jemandem Zugriff geben&lt;/strong&gt;, das zunächst eingeklappt ist:&lt;/p&gt;
 &lt;ol&gt;
 &lt;li&gt;Wählen Sie unter &lt;strong&gt;Geben an&lt;/strong&gt; einen Benutzer, eine Gruppe, eine Anbietergruppe oder eine Rolle
 aus der Liste; jeder Eintrag trägt ein Kennzeichen für seine Art, und durch Tippen suchen Sie
@@ -9224,7 +9253,10 @@ jemand aus der Anbietergruppe anmeldet.&lt;/p&gt;
 &lt;/tr&gt;
 &lt;/tbody&gt;
 &lt;/table&gt;
-&lt;p&gt;Wer schon etwas hat, steht als Zeile mit seinen angehakten Aktionen darunter. Ändern Sie die
+&lt;p&gt;Wer schon etwas hat, steht in einer Zeile, hinter dem Namen fünf Stellen: &lt;code&gt;r w d a s&lt;/code&gt; für lesen,
+ändern, löschen, in Routen und Webhooks verwenden und teilen. Ein &lt;code&gt;-&lt;/code&gt; steht für eine Stelle, die
+er nicht hat; wem der Datensatz gehört, der zeigt stattdessen &lt;strong&gt;Eigentümer&lt;/strong&gt;. Die Legende unter dem
+Feld schreibt die Buchstaben aus. &lt;strong&gt;bearbeiten&lt;/strong&gt; an einer Zeile öffnet ihre Kästchen. Ändern Sie die
 Häkchen und klicken Sie auf &lt;strong&gt;Speichern&lt;/strong&gt;, um zu ersetzen, was er hat; ohne Häkchen wird ihm alles
 entzogen. &lt;strong&gt;Entziehen&lt;/strong&gt; entfernt die Zeile.&lt;/p&gt;
 &lt;p&gt;Niemand kann mehr vergeben, als er selbst hat. Wer keine Rolle, aber einen geteilten Datensatz hat,
@@ -9256,8 +9288,8 @@ Aufgeführt sind nur Datensätze, die Sie teilen (&lt;code&gt;share&lt;/code&gt;
 Sie noch nichts freigeben dürfen.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="tick-the-records"&gt;Datensätze anhaken&lt;span class="hx:absolute hx:-mt-20" id="tick-the-records"&gt;&lt;/span&gt;
 &lt;a href="#tick-the-records" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Haken Sie sie unter &lt;strong&gt;Einträge&lt;/strong&gt; an. &lt;strong&gt;Wer hat Zugriff&lt;/strong&gt; neben einem Datensatz öffnet unter dem
-Formular sein Feld &lt;strong&gt;Wer was darf&lt;/strong&gt;, in dem Sie einzelne Berechtigungen ändern oder entziehen;
-&lt;strong&gt;Bearbeiten&lt;/strong&gt; öffnet den Datensatz.&lt;/p&gt;
+Formular sein Feld &lt;strong&gt;Wer diese … verwalten darf&lt;/strong&gt;, in dem Sie einzelne Berechtigungen ändern oder
+entziehen; &lt;strong&gt;Bearbeiten&lt;/strong&gt; öffnet den Datensatz.&lt;/p&gt;
 &lt;h3 data-hextra-search-id="choose-who-and-what"&gt;Wer und was festlegen&lt;span class="hx:absolute hx:-mt-20" id="choose-who-and-what"&gt;&lt;/span&gt;
 &lt;a href="#choose-who-and-what" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Wählen Sie den Empfänger unter &lt;strong&gt;Geben an&lt;/strong&gt; oder unter &lt;strong&gt;Nicht aufgeführte Person&lt;/strong&gt;, haken Sie an,
 was er &lt;strong&gt;Darf&lt;/strong&gt;, und klicken Sie auf &lt;strong&gt;Für Auswahl erteilen&lt;/strong&gt;.&lt;/p&gt;
