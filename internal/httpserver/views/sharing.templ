@@ -2,6 +2,7 @@ package views
 
 import (
 	"slices"
+	"strings"
 
 	"github.com/pflege-de-labs/teamster/internal/i18n"
 	"github.com/pflege-de-labs/teamster/internal/models"
@@ -66,7 +67,7 @@ templ sharingPanel(s Sharing) {
 				<input type="hidden" name="resource_type" value={ s.ResourceType }/>
 				<input type="hidden" name="resource_id" value={ s.ResourceID }/>
 				<input type="hidden" name="return" value={ s.Return }/>
-				@principalSelect(s.Principals)
+				@principalPicker(PickerConfig{Name: "principal", Options: s.Principals, AllowOther: true})
 				@actionBoxes(s.Actions, s.CanTransfer, nil)
 				<p class="text-xs text-slate-500">{ i18n.T(ctx, "sharing.replace_hint") }</p>
 				@submit(i18n.T(ctx, "sharing.grant"))
@@ -106,55 +107,84 @@ templ sharedRow(s Sharing, p SharedPermission) {
 	</div>
 }
 
-// principalSelect names whom a grant is for from the ones known here. A person
-// who has not signed in yet is not known, so a field below takes them by name.
-templ principalSelect(o PrincipalOptions) {
+// PickerConfig is one principal picker. Kinds limits the groups offered, in the
+// order user, group, idp_group, role; empty offers all.
+type PickerConfig struct {
+	Name       string
+	Options    PrincipalOptions
+	Kinds      []string
+	Selected   string
+	AllowOther bool
+	Required   bool
+}
+
+func (p PickerConfig) offers(kind string) bool {
+	return len(p.Kinds) == 0 || slices.Contains(p.Kinds, kind)
+}
+
+// otherKinds are the kinds the "not listed" block may name; a local group has
+// to exist already, so it is never typed in.
+func (p PickerConfig) otherKinds() []string {
+	var kinds []string
+	for _, k := range []string{"user", "idp_group", "role"} {
+		if p.offers(k) {
+			kinds = append(kinds, k)
+		}
+	}
+	return kinds
+}
+
+// principalPicker names a principal from the ones known here. A person who has
+// not signed in yet is not known, so AllowOther adds fields that take them by name.
+templ principalPicker(p PickerConfig) {
 	<label class="block">
 		<span class="text-sm font-medium">{ i18n.T(ctx, "sharing.principal_type") }</span>
-		<select name="principal" class="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm">
+		<select name={ p.Name } data-principal-picker required?={ p.Required } class="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm">
 			<option value="">{ i18n.T(ctx, "sharing.choose") }</option>
-			if len(o.Users) > 0 {
+			if p.offers("user") && len(p.Options.Users) > 0 {
 				<optgroup label={ i18n.T(ctx, "sharing.principal.user") }>
-					for _, u := range o.Users {
-						<option value={ "user:" + u.Subject }>{ displayName(u) }</option>
+					for _, u := range p.Options.Users {
+						<option value={ "user:" + u.Subject } data-search={ strings.TrimSpace(displayName(u) + " " + u.Email + " " + u.Subject) } title={ u.Subject } selected?={ p.Selected == "user:"+u.Subject }>{ displayName(u) }</option>
 					}
 				</optgroup>
 			}
-			if len(o.Groups) > 0 {
+			if p.offers("group") && len(p.Options.Groups) > 0 {
 				<optgroup label={ i18n.T(ctx, "sharing.principal.group") }>
-					for _, g := range o.Groups {
-						<option value={ "group:" + g.ID }>{ g.Name }</option>
+					for _, g := range p.Options.Groups {
+						<option value={ "group:" + g.ID } data-search={ g.Name + " " + g.ID } title={ g.ID } selected?={ p.Selected == "group:"+g.ID }>{ g.Name }</option>
 					}
 				</optgroup>
 			}
-			if len(o.IdPGroups) > 0 {
+			if p.offers("idp_group") && len(p.Options.IdPGroups) > 0 {
 				<optgroup label={ i18n.T(ctx, "sharing.principal.idp_group") }>
-					for _, name := range o.IdPGroups {
-						<option value={ "idp_group:" + name }>{ name }</option>
+					for _, name := range p.Options.IdPGroups {
+						<option value={ "idp_group:" + name } data-search={ name } title={ name } selected?={ p.Selected == "idp_group:"+name }>{ name }</option>
 					}
 				</optgroup>
 			}
-			if len(o.Roles) > 0 {
+			if p.offers("role") && len(p.Options.Roles) > 0 {
 				<optgroup label={ i18n.T(ctx, "sharing.principal.role") }>
-					for _, role := range o.Roles {
-						<option value={ "role:" + role }>{ role }</option>
+					for _, role := range p.Options.Roles {
+						<option value={ "role:" + role } data-search={ role } title={ role } selected?={ p.Selected == "role:"+role }>{ role }</option>
 					}
 				</optgroup>
 			}
 		</select>
 	</label>
-	<details class="text-sm">
-		<summary class="cursor-pointer text-slate-600">{ i18n.T(ctx, "sharing.not_listed") }</summary>
-		<div class="mt-2 grid gap-3 sm:grid-cols-2">
-			<select name="other_type" class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm">
-				for _, t := range []string{"user", "idp_group", "role"} {
-					<option value={ t }>{ i18n.T(ctx, "sharing.principal."+t) }</option>
-				}
-			</select>
-			<input name="other_id" class="block w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm"/>
-		</div>
-		<p class="mt-1 text-xs text-slate-500">{ i18n.T(ctx, "sharing.not_listed_hint") }</p>
-	</details>
+	if p.AllowOther {
+		<details class="text-sm">
+			<summary class="cursor-pointer text-slate-600">{ i18n.T(ctx, "sharing.not_listed") }</summary>
+			<div class="mt-2 grid gap-3 sm:grid-cols-2">
+				<select name="other_type" class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm">
+					for _, t := range p.otherKinds() {
+						<option value={ t }>{ i18n.T(ctx, "sharing.principal."+t) }</option>
+					}
+				</select>
+				<input name="other_id" class="block w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm"/>
+			</div>
+			<p class="mt-1 text-xs text-slate-500">{ i18n.T(ctx, "sharing.not_listed_hint") }</p>
+		</details>
+	}
 }
 
 // actionBoxes are the actions to grant, with those already held ticked.

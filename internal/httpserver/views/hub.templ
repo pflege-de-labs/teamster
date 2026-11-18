@@ -48,7 +48,7 @@ templ hubPicker(h *Hub) {
 						}
 					</ul>
 				</fieldset>
-				@principalSelect(h.Principals)
+				@principalPicker(PickerConfig{Name: "principal", Options: h.Principals, AllowOther: true})
 				@actionBoxes(h.Actions, false, nil)
 				<p class="text-xs text-slate-500">{ i18n.T(ctx, "hub.batch_hint") }</p>
 				@submit(i18n.T(ctx, "hub.grant_selected"))

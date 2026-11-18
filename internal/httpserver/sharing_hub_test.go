@@ -271,3 +271,36 @@ func TestMyAccessSummarisesRoles(t *testing.T) {
 		t.Error("/admin/me has an unfilled placeholder")
 	}
 }
+
+func TestPrincipalPickerRendersKinds(t *testing.T) {
+	t.Parallel()
+
+	st := sessionAs(newFakeStore(), authz.RoleAdmin)
+	st.templates["t1"] = models.Template{ID: "t1", Name: "Card", Body: "{}"}
+	st.users["s-1"] = models.User{Subject: "s-1", Name: "Bob", Email: "bob@x", IdPGroups: []string{"a:b"}}
+	st.groups["g-1"] = models.Group{ID: "g-1", Name: "Ops"}
+	h := newTestServer(t, st, &fakeMessenger{}).Handler
+
+	body := call(t, h, http.MethodGet, "/admin/access?class=Template&id=t1", "").Body.String()
+	for _, want := range []string{
+		`data-principal-picker`, `value="user:s-1"`, `data-search="Bob bob@x s-1"`,
+		`value="group:g-1"`, `value="idp_group:a:b"`, `value="role:editor"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("sharing panel lacks %s", want)
+		}
+	}
+
+	postFormAs(t, h, "/admin/sharing/grant", url.Values{
+		"resource_type": {"Template"}, "resource_id": {"t1"}, "principal": {"idp_group:a:b"},
+		"actions": {"read"}, "return": {"/admin/access"},
+	})
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	for _, p := range st.permissions {
+		if p.PrincipalType == models.PrincipalIdPGroup && p.PrincipalID == "a:b" {
+			return
+		}
+	}
+	t.Errorf("no idp_group grant with id a:b stored: %v", st.permissions)
+}
