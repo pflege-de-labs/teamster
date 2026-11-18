@@ -11,6 +11,9 @@ type Principal struct {
 	Subject   string
 	Roles     []Role
 	IdPGroups []string
+	// Groups are local groups the principal is a direct member of, beyond the
+	// subject's own; only admin-UI read paths set it, to ask about a group.
+	Groups []string
 }
 
 // GroupResource is a local group, as an entity a principal can be in.
@@ -33,6 +36,9 @@ func (a *Authorizer) principalEntity(p Principal, extra cedar.EntityMap, attribu
 		parents = append(parents, a.ensure(extra, cedar.NewEntityUID("Role", types.String(role))))
 	}
 	for _, group := range a.userGroups[p.Subject] {
+		parents = append(parents, a.ensure(extra, GroupResource(group).uid()))
+	}
+	for _, group := range p.Groups {
 		parents = append(parents, a.ensure(extra, GroupResource(group).uid()))
 	}
 	for _, name := range p.IdPGroups {

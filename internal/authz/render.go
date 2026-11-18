@@ -2,7 +2,9 @@ package authz
 
 import (
 	"fmt"
+	"regexp"
 	"slices"
+	"strings"
 
 	cedar "github.com/cedar-policy/cedar-go"
 	"github.com/cedar-policy/cedar-go/ast"
@@ -183,7 +185,10 @@ func (a *Authorizer) HasGrants(p Principal) bool {
 			return true
 		}
 	}
-	start := make([]cedar.EntityUID, 0, len(p.IdPGroups)+len(a.userGroups[p.Subject]))
+	start := make([]cedar.EntityUID, 0, len(p.IdPGroups)+len(p.Groups)+len(a.userGroups[p.Subject]))
+	for _, group := range p.Groups {
+		start = append(start, GroupResource(group).uid())
+	}
 	for _, name := range p.IdPGroups {
 		if a.holders[principalKey("idp_group", name)] {
 			return true
@@ -223,7 +228,13 @@ type Explanation struct {
 type ExplainedPolicy struct {
 	ID   string
 	Text string
+	// Grant is set for a generated perm: policy, Role for a base policy that
+	// names one.
+	Grant *Grant
+	Role  string
 }
+
+var baseRole = regexp.MustCompile(`principal in Role::"([^"]+)"`)
 
 // Explain is AllowFor, with the policies that decided it.
 func (a *Authorizer) Explain(p Principal, action string, resource Resource) Explanation {
@@ -236,18 +247,26 @@ func (a *Authorizer) Explain(p Principal, action string, resource Resource) Expl
 	})
 	out := Explanation{Allowed: decision == cedar.Allow}
 	for _, reason := range diagnostic.Reasons {
-		text := ""
+		ep := ExplainedPolicy{ID: string(reason.PolicyID)}
 		if policy := a.policies.Get(reason.PolicyID); policy != nil {
-			text = string(policy.MarshalCedar())
+			ep.Text = string(policy.MarshalCedar())
 		}
-		out.Policies = append(out.Policies, ExplainedPolicy{ID: string(reason.PolicyID), Text: text})
+		if i := slices.IndexFunc(a.generated, func(g GeneratedPolicy) bool { return g.ID == ep.ID && strings.HasPrefix(g.ID, "perm:") }); i >= 0 {
+			ep.Grant = &a.generated[i].Grant
+		} else if m := baseRole.FindStringSubmatch(ep.Text); m != nil {
+			ep.Role = m[1]
+		}
+		out.Policies = append(out.Policies, ep)
 	}
 	return out
 }
 
 // GroupsOf is every local group the principal is in, however deep.
 func (a *Authorizer) GroupsOf(p Principal) []string {
-	start := make([]cedar.EntityUID, 0, len(p.IdPGroups)+len(a.userGroups[p.Subject]))
+	start := make([]cedar.EntityUID, 0, len(p.IdPGroups)+len(p.Groups)+len(a.userGroups[p.Subject]))
+	for _, group := range p.Groups {
+		start = append(start, GroupResource(group).uid())
+	}
 	for _, name := range p.IdPGroups {
 		start = append(start, IdPGroupResource(name).uid())
 	}

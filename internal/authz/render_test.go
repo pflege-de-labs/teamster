@@ -1,6 +1,7 @@
 package authz
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -184,5 +185,51 @@ func TestGrantsDecide(t *testing.T) {
 	empty, _ := build(0, Model{})
 	if empty.HasGrants(alice) {
 		t.Error("an empty snapshot has grants")
+	}
+}
+
+func TestExplainReasons(t *testing.T) {
+	t.Parallel()
+
+	a, err := build(1, Model{Grants: []Grant{
+		{ID: "g1", PrincipalType: "user", PrincipalID: "alice", ResourceType: "Template", ResourceID: "t1", Actions: []string{ActionRead}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t1 := Resource{Type: "Template", ID: "t1"}
+
+	tests := []struct {
+		name      string
+		p         Principal
+		wantRole  string
+		wantGrant string
+	}{
+		{"a role's base policy", Principal{Subject: "bob", Roles: []Role{RoleEditor}}, "editor", ""},
+		{"a direct grant", Principal{Subject: "alice"}, "", "alice"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			explained := a.Explain(tt.p, ActionRead, t1)
+			if !explained.Allowed {
+				t.Fatalf("not allowed: %+v", explained)
+			}
+			var roles, grants []string
+			for _, policy := range explained.Policies {
+				if policy.Role != "" {
+					roles = append(roles, policy.Role)
+				}
+				if policy.Grant != nil {
+					grants = append(grants, policy.Grant.PrincipalID)
+				}
+			}
+			if tt.wantRole != "" && !slices.Contains(roles, tt.wantRole) {
+				t.Errorf("roles = %v, want %s", roles, tt.wantRole)
+			}
+			if tt.wantGrant != "" && !slices.Contains(grants, tt.wantGrant) {
+				t.Errorf("grants = %v, want %s", grants, tt.wantGrant)
+			}
+		})
 	}
 }

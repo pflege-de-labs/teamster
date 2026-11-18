@@ -1,6 +1,7 @@
 package authz
 
 import (
+	"strings"
 	"testing"
 
 	cedar "github.com/cedar-policy/cedar-go"
@@ -66,5 +67,45 @@ func TestGroupsDoNotChangeTheRoles(t *testing.T) {
 	}
 	if !a.AllowFor(Principal{Subject: "bob", Roles: []Role{RoleViewer}}, ActionView, Resource{Type: "Template"}) {
 		t.Error("a viewer in a group lost their role")
+	}
+}
+
+func TestSyntheticGroupPrincipal(t *testing.T) {
+	t.Parallel()
+
+	t1 := Resource{Type: "Template", ID: "t1"}
+	a, err := build(1, Model{
+		Members: []Membership{{Group: "b", Kind: "group", ID: "a"}},
+		Grants:  []Grant{{ID: "1", PrincipalType: "group", PrincipalID: "b", ResourceType: "Template", ResourceID: "t1", Actions: []string{ActionRead}}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cyclic, err := build(1, Model{Members: []Membership{{Group: "b", Kind: "group", ID: "a"}, {Group: "a", Kind: "group", ID: "b"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		name   string
+		a      *Authorizer
+		p      Principal
+		allow  bool
+		groups string
+	}{
+		{"a member of a group that is granted", a, Principal{Groups: []string{"a"}}, true, "a,b"},
+		{"a group nothing grants", a, Principal{Groups: []string{"c"}}, false, "c"},
+		{"cyclic parents terminate", cyclic, Principal{Groups: []string{"a"}}, false, "a,b"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := tt.a.AllowFor(tt.p, ActionRead, t1); got != tt.allow {
+				t.Errorf("AllowFor = %v, want %v", got, tt.allow)
+			}
+			if got := strings.Join(tt.a.GroupsOf(tt.p), ","); got != tt.groups {
+				t.Errorf("GroupsOf = %q, want %q", got, tt.groups)
+			}
+		})
 	}
 }
