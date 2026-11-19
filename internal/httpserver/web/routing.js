@@ -520,11 +520,12 @@
           view.onSelect(d.id);
         }
       })
-      .on("focus", function (event, d) {
-        d3.select(this).select("text").attr("text-decoration", "underline");
+      // A ring on the hit area: an underline would be painted with the label's halo stroke and smear.
+      .on("focus", function () {
+        d3.select(this).select("rect").attr("stroke", lineLit).attr("rx", 4);
       })
       .on("blur", function () {
-        d3.select(this).select("text").attr("text-decoration", null);
+        d3.select(this).select("rect").attr("stroke", null);
       });
 
     svg.on("click", () => (view.focus ? view.onReset() : reset()));

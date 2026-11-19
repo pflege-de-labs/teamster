@@ -34,6 +34,9 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 ### Fixed
 
+* A route label in the routing graph that has keyboard focus, or was clicked, was drawn with a
+  garbled second line under it. The focus is now a ring around the node instead of an underline.
+
 * Choosing the **Universal webhook** preset in the template editor left the preview on the
   Alertmanager sample, so it failed with `nil pointer evaluating *models.UniversalEvent.Attributes`.
   It now switches to the open-event sample.
