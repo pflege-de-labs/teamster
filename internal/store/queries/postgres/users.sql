@@ -47,6 +47,14 @@ WHERE subject > sqlc.arg(after)
 ORDER BY subject
 LIMIT CAST(sqlc.arg(max_rows) AS BIGINT);
 
+-- name: ListReferencedUsers :many
+-- The users a grant or a group membership names: everyone a page may show by name.
+SELECT subject, source, name, email, roles, idp_groups, first_seen, last_seen, disabled_at, disabled_by, object_id
+FROM users
+WHERE subject IN (SELECT principal_id FROM permissions WHERE principal_type = 'user')
+	OR subject IN (SELECT member_id FROM user_group_members WHERE member_type = 'user')
+ORDER BY subject;
+
 -- name: SetUserDisabled :execrows
 UPDATE users
 SET disabled_at = sqlc.narg(disabled_at), disabled_by = sqlc.arg(disabled_by)

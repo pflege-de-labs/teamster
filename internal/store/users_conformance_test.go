@@ -220,3 +220,48 @@ func TestConformanceUsersListPage(t *testing.T) {
 		}
 	})
 }
+
+func TestConformanceUsersReferenced(t *testing.T) {
+	t.Parallel()
+
+	eachBackend(t, func(t *testing.T, open func(t *testing.T) store.Store) {
+		st := open(t)
+		ctx := t.Context()
+		for _, s := range []string{"s-granted", "s-member", "s-both", "s-neither"} {
+			if err := st.RecordSignIn(ctx, models.User{Subject: s, Source: "oidc", Name: s}); err != nil {
+				t.Fatalf("RecordSignIn(%s): %v", s, err)
+			}
+		}
+		group, err := st.CreateGroup(ctx, models.Group{Name: "ops"})
+		if err != nil {
+			t.Fatalf("CreateGroup: %v", err)
+		}
+		for _, s := range []string{"s-member", "s-both"} {
+			if err := st.AddGroupMember(ctx, models.GroupMember{GroupID: group.ID, Type: models.MemberUser, ID: s}); err != nil {
+				t.Fatalf("AddGroupMember(%s): %v", s, err)
+			}
+		}
+		for _, s := range []string{"s-granted", "s-both"} {
+			p := models.Permission{PrincipalType: models.PrincipalUser, PrincipalID: s, ResourceType: "Template", ResourceID: "t1", Actions: []string{"read"}}
+			if _, err := st.PutPermission(ctx, p); err != nil {
+				t.Fatalf("PutPermission(%s): %v", s, err)
+			}
+		}
+		// A group member that is a group, and a grant to a role, name no user.
+		if _, err := st.PutPermission(ctx, models.Permission{PrincipalType: models.PrincipalRole, PrincipalID: "s-neither", ResourceType: "Template", ResourceID: "t1", Actions: []string{"read"}}); err != nil {
+			t.Fatalf("PutPermission(role): %v", err)
+		}
+
+		users, err := st.ListReferencedUsers(ctx)
+		if err != nil {
+			t.Fatalf("ListReferencedUsers: %v", err)
+		}
+		got := []string{}
+		for _, u := range users {
+			got = append(got, u.Subject)
+		}
+		if want := []string{"s-both", "s-granted", "s-member"}; !slices.Equal(got, want) {
+			t.Errorf("ListReferencedUsers = %v, want %v", got, want)
+		}
+	})
+}

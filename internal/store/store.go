@@ -381,6 +381,8 @@ type Store interface {
 	ListUsers(ctx context.Context, search string, limit int) ([]models.User, error)
 	// ListUsersPage returns users whose subject sorts after the given one, in subject order.
 	ListUsersPage(ctx context.Context, after string, limit int) ([]models.User, error)
+	// ListReferencedUsers returns every user a grant or a group membership names.
+	ListReferencedUsers(ctx context.Context) ([]models.User, error)
 	// DisableUser refuses the user's next sign-in and ends their sessions,
 	// together, so a disabled user keeps no way in.
 	DisableUser(ctx context.Context, subject, by string) error

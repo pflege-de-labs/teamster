@@ -119,3 +119,6 @@ Architectural decisions are recorded here, one file per decision, in
 | [0106](0106-mcp-tokens-answer-to-their-creator.md) | MCP tokens answer to their creator, in a table of their own | Accepted |
 | [0107](0107-mcp-endpoint-over-the-admin-api.md) | Serve MCP as an in-process adapter over the admin API | Accepted |
 | [0108](0108-claude-code-plugin-marketplace.md) | Ship a Claude Code plugin marketplace from this repository | Accepted |
+| [0109](0109-principals-with-one-searchable-picker.md) | Name principals with one searchable picker | Accepted |
+| [0110](0110-answer-access-questions-with-the-authorizer.md) | Answer access questions with the authorizer | Accepted |
+| [0111](0111-look-up-principals-past-the-first-page.md) | Look up principals past the first page of users | Accepted |
