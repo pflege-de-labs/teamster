@@ -7685,9 +7685,19 @@ template: the page switches to the editor without reloading, with the presets, t
 and a live preview. &lt;strong&gt;Cancel&lt;/strong&gt; goes back to the page; a save that fails keeps what you typed.
 &lt;strong&gt;Delete&lt;/strong&gt; is on the template&amp;rsquo;s page.&lt;/p&gt;
 &lt;p&gt;The preview renders the template against a sample payload for each webhook, and can show the JSON
-the bot would send for a channel post and for a chat. Every sample but Teams V2 is rendered for a
-sample person, Alex Example, with every &lt;code&gt;.Recipient&lt;/code&gt; field filled. For Alertmanager it has two
-samples: an &lt;strong&gt;Alertmanager alert&lt;/strong&gt;, a group of one, and an &lt;strong&gt;Alertmanager alert group&lt;/strong&gt; of two.&lt;/p&gt;
+the bot would send for a channel post and for a chat. Every sample is rendered for the same sample
+person, so a template that greets its reader shows what they would read.&lt;/p&gt;
+&lt;p&gt;The sample list offers only the samples of the webhooks the template is ticked for, and all of them
+when none is ticked. Choosing a preset ticks its webhook and switches to one of its samples. The
+samples are:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Alertmanager: &lt;strong&gt;Alertmanager: alert firing&lt;/strong&gt;, &lt;strong&gt;Alertmanager: alert resolved&lt;/strong&gt; and
+&lt;strong&gt;Alertmanager: several alerts in one notification&lt;/strong&gt;.&lt;/li&gt;
+&lt;li&gt;Universal: &lt;strong&gt;Universal: disk almost full, open&lt;/strong&gt;, &lt;strong&gt;Universal: disk almost full, closed&lt;/strong&gt;,
+&lt;strong&gt;Universal: maintenance notice (one-off)&lt;/strong&gt; and &lt;strong&gt;Universal: password reminder to one person&lt;/strong&gt;, a
+one-off message to one recipient with the attributes &lt;code&gt;expires_at&lt;/code&gt; and &lt;code&gt;reset_url&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;Teams V2: &lt;strong&gt;Teams V2: build failed&lt;/strong&gt; and &lt;strong&gt;Teams V2: card with long facts&lt;/strong&gt;.&lt;/li&gt;
+&lt;/ul&gt;
 &lt;h3 data-hextra-search-id="attach-it"&gt;Attach it&lt;span class="hx:absolute hx:-mt-20" id="attach-it"&gt;&lt;/span&gt;
 &lt;a href="#attach-it" class="subheading-anchor" aria-label="Permalink for this section"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Pick the template on a route, the global default route, or a Teams V2 endpoint. See
 &lt;a href="../../concepts/routing/"&gt;How routing works&lt;/a&gt;.&lt;/p&gt;

@@ -7867,10 +7867,21 @@ Vorlagen, der Kartenpalette und einer Live-Vorschau. &lt;strong&gt;Abbrechen&lt;
 fehlgeschlagenes Speichern behält, was Sie getippt haben. &lt;strong&gt;Löschen&lt;/strong&gt; steht auf der Seite der
 Vorlage.&lt;/p&gt;
 &lt;p&gt;Die Vorschau rendert die Vorlage gegen Beispielnutzdaten für jeden Webhook und kann das JSON
-zeigen, das der Bot für einen Kanalbeitrag und für einen Chat senden würde. Jedes Beispiel außer
-Teams V2 wird für eine Beispielperson, Alex Example, gerendert, bei der jedes Feld von &lt;code&gt;.Recipient&lt;/code&gt;
-gefüllt ist. Für Alertmanager gibt es zwei Beispiele: &lt;strong&gt;Alertmanager-Alarm&lt;/strong&gt;, eine Gruppe mit einem
-Alarm, und &lt;strong&gt;Alertmanager-Alarmgruppe&lt;/strong&gt; mit zwei Alarmen.&lt;/p&gt;
+zeigen, das der Bot für einen Kanalbeitrag und für einen Chat senden würde. Jedes Beispiel wird für
+dieselbe Beispielperson gerendert, sodass eine Vorlage, die ihre Leserin oder ihren Leser anspricht,
+zeigt, was diese lesen würden.&lt;/p&gt;
+&lt;p&gt;Die Beispielliste bietet nur die Beispiele der Webhooks an, für die die Vorlage angehakt ist, und
+alle, wenn keiner angehakt ist. Wählen Sie eine vorgefertigte Vorlage, wird ihr Webhook angehakt und
+auf eines seiner Beispiele gewechselt. Die Beispiele sind:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Alertmanager: &lt;strong&gt;Alertmanager: Alarm ausgelöst&lt;/strong&gt;, &lt;strong&gt;Alertmanager: Alarm behoben&lt;/strong&gt; und
+&lt;strong&gt;Alertmanager: mehrere Alarme in einer Benachrichtigung&lt;/strong&gt;.&lt;/li&gt;
+&lt;li&gt;Universal: &lt;strong&gt;Universal: Festplatte fast voll, offen&lt;/strong&gt;, &lt;strong&gt;Universal: Festplatte fast voll,
+geschlossen&lt;/strong&gt;, &lt;strong&gt;Universal: Wartungshinweis (einmalig)&lt;/strong&gt; und &lt;strong&gt;Universal: Passworterinnerung an
+eine Person&lt;/strong&gt;, eine einmalige Nachricht an eine Empfängerin oder einen Empfänger mit den
+Attributen &lt;code&gt;expires_at&lt;/code&gt; und &lt;code&gt;reset_url&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;Teams V2: &lt;strong&gt;Teams V2: Build fehlgeschlagen&lt;/strong&gt; und &lt;strong&gt;Teams V2: Karte mit langen Fakten&lt;/strong&gt;.&lt;/li&gt;
+&lt;/ul&gt;
 &lt;h3 data-hextra-search-id="attach-it"&gt;Die Vorlage zuweisen&lt;span class="hx:absolute hx:-mt-20" id="attach-it"&gt;&lt;/span&gt;
 &lt;a href="#attach-it" class="subheading-anchor" aria-label="Permalink für diesen Abschnitt"&gt;&lt;/a&gt;&lt;/h3&gt;&lt;p&gt;Wählen Sie die Vorlage an einer Route, an der globalen Standardroute oder an einem
 Teams-V2-Endpunkt. Siehe &lt;a href="../../concepts/routing/"&gt;Wie das Routing funktioniert&lt;/a&gt;.&lt;/p&gt;
