@@ -196,7 +196,15 @@ templ principalPicker(p PickerConfig) {
 			}
 		</select>
 	</label>
-	if p.AllowOther && len(p.otherKinds()) > 0 {
+	if p.AllowOther {
+		@notListed(p)
+	}
+}
+
+// notListed takes a principal by name; a form laid out in one row renders it
+// as a row of its own so the controls beside the picker stay level with it.
+templ notListed(p PickerConfig) {
+	if len(p.otherKinds()) > 0 {
 		<details class="text-sm">
 			<summary class="cursor-pointer text-slate-600">{ i18n.T(ctx, "sharing.not_listed") }</summary>
 			<div class="mt-2 grid gap-3 sm:grid-cols-2">

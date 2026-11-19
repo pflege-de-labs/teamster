@@ -40,6 +40,7 @@
 
     const id = "principal-picker-" + ++seq;
     const wrap = document.createElement("div");
+    wrap.className = "mt-1";
     wrap.style.position = "relative";
     const input = document.createElement("input");
     input.type = "text";

@@ -41,6 +41,8 @@ func Presets() []Preset {
 			Text:     `{{ .Event.Text }}`,
 			Body:     universalBody,
 			Sources:  []string{models.SourceUniversal},
+			// The preview names its universal samples by state, not "universal".
+			Sample: "open",
 		},
 		{
 			Key:      models.SourceTeamsV2,
