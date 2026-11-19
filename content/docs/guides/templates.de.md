@@ -69,10 +69,21 @@ fehlgeschlagenes Speichern behält, was Sie getippt haben. **Löschen** steht au
 Vorlage.
 
 Die Vorschau rendert die Vorlage gegen Beispielnutzdaten für jeden Webhook und kann das JSON
-zeigen, das der Bot für einen Kanalbeitrag und für einen Chat senden würde. Jedes Beispiel außer
-Teams V2 wird für eine Beispielperson, Alex Example, gerendert, bei der jedes Feld von `.Recipient`
-gefüllt ist. Für Alertmanager gibt es zwei Beispiele: **Alertmanager-Alarm**, eine Gruppe mit einem
-Alarm, und **Alertmanager-Alarmgruppe** mit zwei Alarmen.
+zeigen, das der Bot für einen Kanalbeitrag und für einen Chat senden würde. Jedes Beispiel wird für
+dieselbe Beispielperson gerendert, sodass eine Vorlage, die ihre Leserin oder ihren Leser anspricht,
+zeigt, was diese lesen würden.
+
+Die Beispielliste bietet nur die Beispiele der Webhooks an, für die die Vorlage angehakt ist, und
+alle, wenn keiner angehakt ist. Wählen Sie eine vorgefertigte Vorlage, wird ihr Webhook angehakt und
+auf eines seiner Beispiele gewechselt. Die Beispiele sind:
+
+* Alertmanager: **Alertmanager: Alarm ausgelöst**, **Alertmanager: Alarm behoben** und
+  **Alertmanager: mehrere Alarme in einer Benachrichtigung**.
+* Universal: **Universal: Festplatte fast voll, offen**, **Universal: Festplatte fast voll,
+  geschlossen**, **Universal: Wartungshinweis (einmalig)** und **Universal: Passworterinnerung an
+  eine Person**, eine einmalige Nachricht an eine Empfängerin oder einen Empfänger mit den
+  Attributen `expires_at` und `reset_url`.
+* Teams V2: **Teams V2: Build fehlgeschlagen** und **Teams V2: Karte mit langen Fakten**.
 
 ### Die Vorlage zuweisen {#attach-it}
 

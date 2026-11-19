@@ -65,9 +65,19 @@ and a live preview. **Cancel** goes back to the page; a save that fails keeps wh
 **Delete** is on the template's page.
 
 The preview renders the template against a sample payload for each webhook, and can show the JSON
-the bot would send for a channel post and for a chat. Every sample but Teams V2 is rendered for a
-sample person, Alex Example, with every `.Recipient` field filled. For Alertmanager it has two
-samples: an **Alertmanager alert**, a group of one, and an **Alertmanager alert group** of two.
+the bot would send for a channel post and for a chat. Every sample is rendered for the same sample
+person, so a template that greets its reader shows what they would read.
+
+The sample list offers only the samples of the webhooks the template is ticked for, and all of them
+when none is ticked. Choosing a preset ticks its webhook and switches to one of its samples. The
+samples are:
+
+* Alertmanager: **Alertmanager: alert firing**, **Alertmanager: alert resolved** and
+  **Alertmanager: several alerts in one notification**.
+* Universal: **Universal: disk almost full, open**, **Universal: disk almost full, closed**,
+  **Universal: maintenance notice (one-off)** and **Universal: password reminder to one person**, a
+  one-off message to one recipient with the attributes `expires_at` and `reset_url`.
+* Teams V2: **Teams V2: build failed** and **Teams V2: card with long facts**.
 
 ### Attach it
 
