@@ -508,3 +508,24 @@ func TestWhatMayCheck(t *testing.T) {
 		t.Error("the what picker is not labelled Who")
 	}
 }
+
+func TestLevelRowsNameWithoutID(t *testing.T) {
+	t.Parallel()
+
+	st := sessionAs(newFakeStore(), authz.RoleAdmin)
+	st.groups["g-ops"] = models.Group{ID: "g-ops", Name: "Ops"}
+	grantTo(st, models.PrincipalGroup, "g-ops", authz.PeopleResource.Type, authz.PeopleResource.ID, authz.ActionBroadcast)
+	grantTo(st, models.PrincipalGroup, "g-ops", "Webhook", authz.WebhookUniversal, authz.ActionUse)
+	body := call(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin/access", "").Body.String()
+
+	rows := strings.Split(body, `<span title="g-ops">`)[1:]
+	if len(rows) != 2 {
+		t.Fatalf("level rows with the id on hover = %d, want 2", len(rows))
+	}
+	for _, row := range rows {
+		label, _, _ := strings.Cut(row, "</li>")
+		if !strings.Contains(label, "Ops") || strings.Contains(label, "(g-ops)") {
+			t.Errorf("level row = %q, want the name without the id", label)
+		}
+	}
+}
