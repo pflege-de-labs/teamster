@@ -842,8 +842,8 @@ the message:
 - `.Payload` is the body as it was sent, for fields the parsed form flattens, such as
   `{{ .Payload.themeColor }}` or `{{ range .Payload.sections }}`.
 
-The template preview has a **Teams V2 webhook** sample to try this against, and a **Teams V2
-webhook card with long facts** sample.
+The template preview has a **Teams V2: build failed** sample to try this against, and a **Teams
+V2: card with long facts** sample.
 
 Some cards render badly in Teams — a FactSet with long values squeezes its titles to a letter a
 line. To change the layout and keep the content, take the card apart with `cardParts` in a
@@ -1892,9 +1892,11 @@ templates use — text, facts, columns, a link action, all labels, a conditional
 and **Start from an example** replaces the card with a complete one to edit down. The preview sits in
 a column beside the editor on a wide screen and below it on a narrow one. It renders on the server
 against a sample event and the browser draws the result, as you type or on demand, so a template
-can be checked before any event arrives. The samples are an Alertmanager alert, an open event,
-a closed event, a general message, a Teams V2 webhook payload and a Teams V2 Adaptive Card with
-long facts.
+can be checked before any event arrives. The sample list shows the samples of the webhooks the
+template is ticked for: an Alertmanager alert firing, the same alert resolved and a group of
+alerts; a universal disk alert open and closed, a maintenance notice and a password reminder to one
+person; a Teams V2 build failure and a Teams V2 Adaptive Card with long facts. Every sample renders
+with the same `.Recipient`, so a template that greets its reader shows what they would read.
 
 The preview switches between **Rendered**, **Channel JSON** and **Chat JSON**. The two JSON views
 are the exact bodies the bot would send to the Bot Connector for a channel post and for a personal
