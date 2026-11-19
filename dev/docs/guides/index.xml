@@ -3673,9 +3673,10 @@ see them. Groups nest, but a group cannot contain itself.&lt;/p&gt;
 &lt;p&gt;A group&amp;rsquo;s page has three sections: &lt;strong&gt;Members&lt;/strong&gt;, &lt;strong&gt;What this group may do&lt;/strong&gt; and &lt;strong&gt;Who may manage
 this group&lt;/strong&gt;. The Cedar id of the group is under &lt;strong&gt;Technical details&lt;/strong&gt;.&lt;/p&gt;
 &lt;p&gt;On a group&amp;rsquo;s page, &lt;strong&gt;Add member&lt;/strong&gt; offers a list of users, groups and provider groups, each with a
-badge for its kind; type to search by name, email or id. A provider group nobody has signed in
-with yet is not listed: open &lt;strong&gt;Someone not listed&lt;/strong&gt;, pick the kind and enter its name. The member
-list shows names, with the id beside them.&lt;/p&gt;
+badge for its kind; type to search by name, email or id. The list starts with the first 200 users
+who signed in; with more users, typing two or more characters searches all of them. A provider group
+nobody has signed in with yet is not listed: open &lt;strong&gt;Someone not listed&lt;/strong&gt;, pick the kind and enter
+its name. The member list shows names, with the id beside them.&lt;/p&gt;
 &lt;p&gt;Permissions on records and webhook levels can be granted to a group as well as to a user. Every
 membership change is recorded in the &lt;a href="../audit-trail/"&gt;audit trail&lt;/a&gt; in the same transaction.&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;What this group may do&lt;/strong&gt; lists the records the group may act on and you may read, with the actions
@@ -3823,9 +3824,11 @@ open it. Its panel is &lt;strong&gt;Who may manage this template&lt;/strong&gt; 
 you give access from &lt;strong&gt;Give someone access&lt;/strong&gt;, which starts collapsed:&lt;/p&gt;
 &lt;ol&gt;
 &lt;li&gt;Under &lt;strong&gt;Give to&lt;/strong&gt;, choose a user, a group, a provider group or a role from the list; each has a
-badge for its kind, and typing searches by name, email or id. Someone who has not signed in yet
-is not listed: open &lt;strong&gt;Someone not listed&lt;/strong&gt;, pick the kind and enter their
-subject, provider group or role name instead.&lt;/li&gt;
+badge for its kind, and typing searches by name, email or id. The same holds for every picker:
+with more than 200 users the list shows the first 200, and typing two or more characters searches
+all users and adds the matches. Admins, editors and anyone a record was shared with can search.
+Someone who has not signed in yet is not listed: open &lt;strong&gt;Someone not listed&lt;/strong&gt;, pick the kind and
+enter their subject, provider group or role name instead.&lt;/li&gt;
 &lt;li&gt;Tick what they &lt;strong&gt;May&lt;/strong&gt; do, and press &lt;strong&gt;Save&lt;/strong&gt;.&lt;/li&gt;
 &lt;/ol&gt;
 &lt;p&gt;A group must exist. A user or provider group that has not signed in yet is accepted, and the notice

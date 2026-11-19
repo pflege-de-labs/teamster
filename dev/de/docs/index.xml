@@ -9045,9 +9045,10 @@ sich selbst enthalten.&lt;/p&gt;
 diese Gruppe verwalten darf&lt;/strong&gt;. Die Cedar-ID der Gruppe steht unter &lt;strong&gt;Technische Details&lt;/strong&gt;.&lt;/p&gt;
 &lt;p&gt;Auf der Seite einer Gruppe bietet &lt;strong&gt;Mitglied hinzufügen&lt;/strong&gt; eine Liste von Benutzern, Gruppen und
 Anbietergruppen, jeweils mit einem Kennzeichen für die Art; durch Tippen suchen Sie nach Name,
-E-Mail oder ID. Eine Anbietergruppe, mit der sich noch niemand angemeldet hat, steht nicht darin:
-Öffnen Sie &lt;strong&gt;Nicht aufgeführte Person&lt;/strong&gt;, wählen Sie die Art und geben Sie ihren Namen ein. Die
-Mitgliederliste zeigt Namen, daneben die ID.&lt;/p&gt;
+E-Mail oder ID. Die Liste beginnt mit den ersten 200 angemeldeten Benutzern; bei mehr Benutzern
+durchsucht die Eingabe von mindestens zwei Zeichen alle. Eine Anbietergruppe, mit der sich noch
+niemand angemeldet hat, steht nicht darin: Öffnen Sie &lt;strong&gt;Nicht aufgeführte Person&lt;/strong&gt;, wählen Sie die
+Art und geben Sie ihren Namen ein. Die Mitgliederliste zeigt Namen, daneben die ID.&lt;/p&gt;
 &lt;p&gt;Berechtigungen auf Datensätze und Webhook-Stufen lassen sich einer Gruppe genauso erteilen wie
 einem Benutzer. Jede Änderung einer Mitgliedschaft wird in derselben Transaktion im
 &lt;a href="../audit-trail/"&gt;Änderungsprotokoll&lt;/a&gt; festgehalten.&lt;/p&gt;
@@ -9204,9 +9205,12 @@ Sie unter &lt;strong&gt;Jemandem Zugriff geben&lt;/strong&gt;, das zunächst ein
 &lt;ol&gt;
 &lt;li&gt;Wählen Sie unter &lt;strong&gt;Geben an&lt;/strong&gt; einen Benutzer, eine Gruppe, eine Anbietergruppe oder eine Rolle
 aus der Liste; jeder Eintrag trägt ein Kennzeichen für seine Art, und durch Tippen suchen Sie
-nach Name, E-Mail oder ID. Wer sich noch nicht angemeldet hat, steht nicht darin: Öffnen Sie
-&lt;strong&gt;Nicht aufgeführte Person&lt;/strong&gt;, wählen Sie die Art und geben Sie stattdessen das Subject, den
-Namen der Anbietergruppe oder der Rolle ein.&lt;/li&gt;
+nach Name, E-Mail oder ID. Das gilt für jede Auswahl: Bei mehr als 200 Benutzern zeigt die Liste
+die ersten 200, und die Eingabe von mindestens zwei Zeichen durchsucht alle Benutzer und fügt die
+Treffer hinzu. Suchen dürfen Admins, Editoren und alle, für die ein Datensatz freigegeben wurde.
+Wer sich noch nicht angemeldet hat, steht nicht darin: Öffnen Sie &lt;strong&gt;Nicht aufgeführte Person&lt;/strong&gt;,
+wählen Sie die Art und geben Sie stattdessen das Subject, den Namen der Anbietergruppe oder der
+Rolle ein.&lt;/li&gt;
 &lt;li&gt;Haken Sie an, was er &lt;strong&gt;Darf&lt;/strong&gt;, und klicken Sie auf &lt;strong&gt;Speichern&lt;/strong&gt;.&lt;/li&gt;
 &lt;/ol&gt;
 &lt;p&gt;Eine Gruppe muss existieren. Ein Benutzer oder eine Anbietergruppe, die sich noch nicht angemeldet
