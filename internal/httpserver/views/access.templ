@@ -140,7 +140,7 @@ templ AccessPage(page Access) {
 				}
 				<form method="post" action="/admin/access/webhooks" class="grid gap-3 sm:grid-cols-4 sm:items-end">
 					<div class="grid gap-2 sm:col-span-2">
-						@principalPicker(PickerConfig{Name: "principal", Options: page.Principals, AllowOther: true})
+						@principalPicker(PickerConfig{Name: "principal", Options: page.Principals})
 					</div>
 					<label class="block">
 						<span class="text-sm font-medium">{ i18n.T(ctx, "access.level") }</span>
@@ -151,6 +151,9 @@ templ AccessPage(page Access) {
 						</select>
 					</label>
 					@submit(i18n.T(ctx, "sharing.grant"))
+					<div class="sm:col-span-4">
+						@notListed(PickerConfig{})
+					</div>
 				</form>
 			}
 			@accessSection(i18n.T(ctx, "access.messages")) {
@@ -173,7 +176,7 @@ templ AccessPage(page Access) {
 				}
 				<form method="post" action="/admin/access/messages" class="grid gap-3 sm:grid-cols-4 sm:items-end">
 					<div class="grid gap-2 sm:col-span-2">
-						@principalPicker(PickerConfig{Name: "principal", Options: page.Principals, AllowOther: true})
+						@principalPicker(PickerConfig{Name: "principal", Options: page.Principals})
 					</div>
 					<label class="block">
 						<span class="text-sm font-medium">{ i18n.T(ctx, "access.level") }</span>
@@ -184,6 +187,9 @@ templ AccessPage(page Access) {
 						</select>
 					</label>
 					@submit(i18n.T(ctx, "sharing.grant"))
+					<div class="sm:col-span-4">
+						@notListed(PickerConfig{})
+					</div>
 				</form>
 			}
 			<section class="rounded-lg border border-slate-200 bg-white shadow-sm">
@@ -206,9 +212,12 @@ templ AccessPage(page Access) {
 					<form method="get" action="/admin/access" class="grid gap-3 sm:grid-cols-4 sm:items-end">
 						<input type="hidden" name="tab" value="what"/>
 						<div class="grid gap-2 sm:col-span-3">
-							@principalPicker(PickerConfig{Name: "principal", Label: "sharing.principal", Options: page.Principals, Selected: page.MayPrincipal, AllowOther: true})
+							@principalPicker(PickerConfig{Name: "principal", Label: "sharing.principal", Options: page.Principals, Selected: page.MayPrincipal})
 						</div>
 						@submit(i18n.T(ctx, "access.show"))
+						<div class="sm:col-span-4">
+							@notListed(PickerConfig{})
+						</div>
 					</form>
 					if page.MayUnknown {
 						<p class="text-sm text-amber-800">{ i18n.T(ctx, "access.unknown_user") }</p>
