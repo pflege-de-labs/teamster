@@ -37,6 +37,10 @@ reasoning behind it in the [ADRs](docs/adr/).
 * A route label in the routing graph that has keyboard focus, or was clicked, was drawn with a
   garbled second line under it. The focus is now a ring around the node instead of an underline.
 
+* Choosing the **Universal webhook** preset in the template editor left the preview on the
+  Alertmanager sample, so it failed with `nil pointer evaluating *models.UniversalEvent.Attributes`.
+  It now switches to the open-event sample.
+
 * The webhook and message level forms on `/admin/access`, and `PUT /api/access/webhooks` and
   `/api/access/messages`, saved a level for a group that does not exist — typically a group typed
   by its name instead of its id. The grant matched nobody but was listed as if it worked. They now

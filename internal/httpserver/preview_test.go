@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"cmp"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -9,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/pflege-de-labs/teamster/internal/cards"
+	"github.com/pflege-de-labs/teamster/internal/templates"
 )
 
 func postPreview(t *testing.T, handler http.Handler, body string) *httptest.ResponseRecorder {
@@ -303,14 +305,20 @@ func TestPreviewRendersTheTeamsV2CardSample(t *testing.T) {
 	}
 }
 
-// A preset that names its sample must name one the preview has, or the editor
-// leaves the preview on whatever sample was shown before.
+// A preset's sample (its key unless it names one) must be one the preview has,
+// or the editor leaves the preview on whatever sample was shown before and the
+// preset renders against another webhook's event.
 func TestPresetSamplesExist(t *testing.T) {
 	t.Parallel()
 
 	for _, p := range append(cards.Presets(), cards.Variants()...) {
-		if p.Sample != "" && !slices.Contains(previewSamples(), p.Sample) {
-			t.Errorf("preset %q names sample %q, which the preview does not have", p.Key, p.Sample)
+		sample := cmp.Or(p.Sample, p.Key)
+		if !slices.Contains(previewSamples(), sample) {
+			t.Errorf("preset %q previews on sample %q, which the preview does not have", p.Key, sample)
+			continue
+		}
+		if _, err := templates.RenderMessage(p.Template(), previewData(sample)); err != nil {
+			t.Errorf("preset %q on sample %q: %v", p.Key, sample, err)
 		}
 	}
 }
