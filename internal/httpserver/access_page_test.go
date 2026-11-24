@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -527,5 +528,23 @@ func TestLevelRowsNameWithoutID(t *testing.T) {
 		if !strings.Contains(label, "Ops") || strings.Contains(label, "(g-ops)") {
 			t.Errorf("level row = %q, want the name without the id", label)
 		}
+	}
+}
+
+// A grant names its user however far down the user list they sort.
+func TestLabelsNameUsersPastTheFirstPage(t *testing.T) {
+	t.Parallel()
+
+	st := sessionAs(newFakeStore(), authz.RoleAdmin)
+	for i := range usersPageSize {
+		subject := fmt.Sprintf("s-%03d", i)
+		st.users[subject] = models.User{Subject: subject, Name: fmt.Sprintf("Anna %03d", i)}
+	}
+	st.users["s-last"] = models.User{Subject: "s-last", Name: "Zoe Last"}
+	grantTo(st, models.PrincipalUser, "s-last", authz.PeopleResource.Type, authz.PeopleResource.ID, authz.ActionMessage)
+
+	body := call(t, newTestServer(t, st, &fakeMessenger{}).Handler, http.MethodGet, "/admin/access", "").Body.String()
+	if !strings.Contains(body, "Zoe Last") {
+		t.Error("the access page names the user past the first page by subject only")
 	}
 }

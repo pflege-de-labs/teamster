@@ -235,6 +235,8 @@ type Querier interface {
 	// included: blocked is self-healing, never a delivery gate (ADR 0026).
 	ListReachableDirectoryUsers(ctx context.Context, arg ListReachableDirectoryUsersParams) ([]DirectoryUser, error)
 	ListRecipients(ctx context.Context) ([]Recipient, error)
+	// The users a grant or a group membership names: everyone a page may show by name.
+	ListReferencedUsers(ctx context.Context) ([]User, error)
 	ListRoutes(ctx context.Context) ([]Route, error)
 	ListTemplates(ctx context.Context) ([]Template, error)
 	// The provider groups each user signed in with; matched in Go, as the column is JSON.

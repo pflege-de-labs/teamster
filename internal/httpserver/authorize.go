@@ -192,7 +192,9 @@ func (s *Server) authorize(next http.Handler) http.Handler {
 		}
 
 		// Samples complete both editors, so editing routes admits as well.
-		if s.allow(r, action, resource) || (r.URL.Path == "/api/samples" && s.mayComplete(r)) {
+		// Pickers search users past the ones their page lists.
+		if s.allow(r, action, resource) || (r.URL.Path == "/api/samples" && s.mayComplete(r)) ||
+			(r.URL.Path == "/admin/principals" && s.mayPick(r)) {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -309,8 +311,10 @@ func requestAuthorization(r *http.Request) (string, authz.Resource) {
 	case path == "/admin/broadcasts", path == "/api/broadcasts":
 		resource.Type = "Broadcast"
 	// Who has signed in, and switching them off, is the admin's (ADR 0072).
+	// Searching users for a picker is the admins' here; authorize lets in
+	// whoever is shown a picker (mayPick).
 	case path == "/admin/users", strings.HasPrefix(path, "/admin/users/"),
-		path == "/api/users", strings.HasPrefix(path, "/api/users/"):
+		path == "/api/users", strings.HasPrefix(path, "/api/users/"), path == "/admin/principals":
 		return authz.ActionAdminister, authz.Resource{Type: "User"}
 	// Who may send to the webhooks is the webhook admins' (ADR 0076); the
 	// overview of everyone's access is the admins'.

@@ -153,12 +153,9 @@ func (s *Server) groupDetail(r *http.Request, id string, groups []models.Group) 
 		return views.GroupDetail{}, err
 	}
 
-	names := map[string]string{}
-	for _, g := range groups {
-		names["group:"+g.ID] = g.Name
-	}
-	for _, u := range users {
-		names["user:"+u.Subject] = displayName(u)
+	names, err := s.principalLabels(ctx)
+	if err != nil {
+		return views.GroupDetail{}, err
 	}
 
 	others := slices.DeleteFunc(slices.Clone(groups), func(g models.Group) bool { return g.ID == id })

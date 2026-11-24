@@ -21,7 +21,8 @@ import (
 func principalOptionsFor(users []models.User, groups []models.Group) views.PrincipalOptions {
 	options := views.PrincipalOptions{
 		Users: users, Groups: groups,
-		Roles: []string{string(authz.RoleEditor), string(authz.RoleViewer), string(authz.RoleAdmin)},
+		Roles:     []string{string(authz.RoleEditor), string(authz.RoleViewer), string(authz.RoleAdmin)},
+		MoreUsers: len(users) >= usersPageSize,
 	}
 	for _, u := range users {
 		for _, name := range u.IdPGroups {
@@ -357,12 +358,9 @@ func (s *Server) sharingFor(r *http.Request, typ, id, returnTo string) (*views.S
 		return nil, err
 	}
 
-	labels := map[string]string{}
-	for _, u := range users {
-		labels["user:"+u.Subject] = displayName(u)
-	}
-	for _, g := range groups {
-		labels["group:"+g.ID] = g.Name
+	labels, err := s.principalLabels(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	sharing := &views.Sharing{
