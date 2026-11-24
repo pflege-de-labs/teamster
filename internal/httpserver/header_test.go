@@ -231,6 +231,52 @@ func TestSidebarShowsTheVersion(t *testing.T) {
 	}
 }
 
+// Every page that shows the gopher in its header credits it, as CC BY 4.0 asks.
+func TestPagesCreditTheGopher(t *testing.T) {
+	t.Parallel()
+
+	cfg := config.Config{
+		Server:  config.ServerConfig{Addr: ":0"},
+		Webhook: config.WebhookConfig{Token: "token"},
+		Admin:   config.AdminConfig{Username: "admin", Password: "pass"},
+	}
+	signedIn := mustServer(t, cfg, signedInAs(seededUIStore(), "jens", authz.RoleEditor), &fakeMessenger{}).Handler
+	signedOut := mustServer(t, cfg, newFakeStore(), &fakeMessenger{}).Handler
+
+	tests := []struct {
+		name    string
+		handler http.Handler
+		path    string
+		session bool
+	}{
+		{name: "signed in, in the sidebar", handler: signedIn, path: "/admin/templates", session: true},
+		{name: "signed out, under the page", handler: signedOut, path: "/admin/login"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			req := httptest.NewRequest(http.MethodGet, tt.path, nil)
+			if tt.session {
+				req.AddCookie(&http.Cookie{Name: sessionCookie, Value: testSessionID})
+			}
+			rec := httptest.NewRecorder()
+			tt.handler.ServeHTTP(rec, req)
+			body := rec.Body.String()
+
+			for _, want := range []string{
+				`Go gopher by <a href="https://reneefrench.blogspot.com/"`,
+				`>Renée French</a>, licensed under <a href="https://creativecommons.org/licenses/by/4.0/"`,
+			} {
+				if !strings.Contains(body, want) {
+					t.Errorf("GET %s lacks %q", tt.path, want)
+				}
+			}
+		})
+	}
+}
+
 // botServer is a server with the bot configured and installed for everyone.
 func botServer(t *testing.T, st *fakeStore) *http.Server {
 	t.Helper()

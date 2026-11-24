@@ -243,19 +243,19 @@ func sidebar(viewer Viewer) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</nav><script>\n\t\t\t// Runs here, once the groups exist, so a closed group never paints open.\n\t\t\ttry {\n\t\t\t\tdocument.querySelectorAll(\"#sidebar details[data-group]:not([data-current])\").forEach((d) => {\n\t\t\t\t\td.open = localStorage.getItem(\"teamster.nav.\" + d.dataset.group) !== \"closed\";\n\t\t\t\t});\n\t\t\t} catch (e) {}\n\t\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</nav><script>\n\t\t\t// Runs here, once the groups exist, so a closed group never paints open.\n\t\t\ttry {\n\t\t\t\tdocument.querySelectorAll(\"#sidebar details[data-group]:not([data-current])\").forEach((d) => {\n\t\t\t\t\td.open = localStorage.getItem(\"teamster.nav.\" + d.dataset.group) !== \"closed\";\n\t\t\t\t});\n\t\t\t} catch (e) {}\n\t\t</script><div class=\"space-y-2 px-7 py-4 text-xs text-slate-400\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if version := versionOf(ctx); version != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<div class=\"px-7 py-4 text-xs text-slate-400\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var13 string
 			templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "app.version", version))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `usermenu.templ`, Line: 91, Col: 86}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `usermenu.templ`, Line: 92, Col: 46}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 			if templ_7745c5c3_Err != nil {
@@ -266,7 +266,11 @@ func sidebar(viewer Viewer) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "</aside>")
+		templ_7745c5c3_Err = gopherCredit().Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "</div></aside>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -298,7 +302,7 @@ func navLink(href, key string, current bool) templ.Component {
 		var templ_7745c5c3_Var15 string
 		templ_7745c5c3_Var15, templ_7745c5c3_Err = templruntime.NewAttributeExpression(templ.SafeURL(href)).ResolveURL(ctx)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `usermenu.templ`, Line: 98, Col: 28}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `usermenu.templ`, Line: 101, Col: 28}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var15)
 		if templ_7745c5c3_Err != nil {
@@ -321,7 +325,7 @@ func navLink(href, key string, current bool) templ.Component {
 		var templ_7745c5c3_Var16 string
 		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, key))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `usermenu.templ`, Line: 104, Col: 20}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `usermenu.templ`, Line: 107, Col: 20}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 		if templ_7745c5c3_Err != nil {
