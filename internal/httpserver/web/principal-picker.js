@@ -18,6 +18,13 @@
   };
   // The option an arrow key moves to; from none, down is the first and up the last.
   global.teamsterStepPrincipal = (active, step, n) => (active < 0 ? (step > 0 ? 0 : n - 1) : (active + step + n) % n);
+  // The users a search found that the picker does not list yet.
+  global.teamsterNewPrincipals = (entries, hits) => {
+    const known = new Set(entries.map((e) => e.value));
+    return (hits || [])
+      .filter((h) => h && typeof h.value === "string" && h.value.startsWith("user:") && !known.has(h.value))
+      .map((h) => ({ value: h.value, label: h.label || h.value, kind: "user", search: h.search || "", title: h.title || "" }));
+  };
   if (typeof document === "undefined") return;
 
   let seq = 0;
@@ -116,9 +123,45 @@
       select.dispatchEvent(new Event("change", { bubbles: true }));
     };
 
+    // A page lists the first users only; past them, typing asks the server.
+    const searchURL = select.dataset.searchUrl;
+    let searching = null;
+    let pending = null;
+    const search = () => {
+      const q = input.value.trim();
+      if (!searchURL || q.length < 2) return;
+      window.clearTimeout(pending);
+      pending = window.setTimeout(async () => {
+        searching?.abort();
+        searching = new AbortController();
+        try {
+          const res = await fetch(searchURL + "?q=" + encodeURIComponent(q), {
+            headers: { Accept: "application/json" },
+            signal: searching.signal,
+          });
+          if (!res.ok) return;
+          const added = global.teamsterNewPrincipals(entries, await res.json());
+          if (!added.length) return;
+          const group = select.querySelector('option[value^="user:"]')?.parentElement || select;
+          added.forEach((e) => {
+            const option = new Option(e.label, e.value);
+            option.dataset.search = e.search;
+            option.title = e.title;
+            group.append(option);
+            entries.push(e);
+          });
+          badges.user = badges.user || (group.label ?? "user");
+          if (document.activeElement === input && input.value.trim() === q) render();
+        } catch {
+          // An aborted or failed search leaves the listed users.
+        }
+      }, 250);
+    };
+
     input.addEventListener("input", () => {
       if (!input.value) select.value = "";
       render();
+      search();
     });
     input.addEventListener("focus", render);
     input.addEventListener("blur", () => {

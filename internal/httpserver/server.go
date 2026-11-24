@@ -243,6 +243,7 @@ func NewServer(logger *slog.Logger, cfg config.Config, store store.Store, graphC
 	adminMux.HandleFunc("/api/routing/templates", api.handleTemplateGraph)
 	adminMux.HandleFunc("/api/routing/match", api.handleRoutingMatch)
 	adminMux.HandleFunc("/api/samples", api.handleSamples)
+	adminMux.HandleFunc("/admin/principals", api.handlePrincipalSearch)
 	adminMux.HandleFunc("/api/config/export", api.handleExport)
 	adminMux.HandleFunc("/api/config/import", api.handleImport)
 	adminMux.HandleFunc("/api/recipients/link", api.handleLinkRecipient)

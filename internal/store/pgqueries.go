@@ -687,6 +687,18 @@ func (p pgQueries) ListUsersAfter(ctx context.Context, arg sqlitedb.ListUsersAft
 	return out, nil
 }
 
+func (p pgQueries) ListReferencedUsers(ctx context.Context) ([]sqlitedb.User, error) {
+	rows, err := p.q.ListReferencedUsers(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]sqlitedb.User, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, sqlitedb.User(row))
+	}
+	return out, nil
+}
+
 func (p pgQueries) SetUserDisabled(ctx context.Context, arg sqlitedb.SetUserDisabledParams) (int64, error) {
 	return p.q.SetUserDisabled(ctx, pgdb.SetUserDisabledParams(arg))
 }

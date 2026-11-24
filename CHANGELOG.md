@@ -37,6 +37,11 @@ reasoning behind it in the [ADRs](docs/adr/).
 * A route label in the routing graph that has keyboard focus, or was clicked, was drawn with a
   garbled second line under it. The focus is now a ring around the node instead of an underline.
 
+* With more than 200 signed-in users, grants, levels and group members named the users past the
+  first 200 by their subject, and the principal pickers could not offer them. Names now resolve
+  for every user, and typing in a picker searches all users
+  ([ADR 0111](docs/adr/0111-look-up-principals-past-the-first-page.md)).
+
 * Choosing the **Universal webhook** preset in the template editor left the preview on the
   Alertmanager sample, so it failed with `nil pointer evaluating *models.UniversalEvent.Attributes`.
   It now switches to the open-event sample.

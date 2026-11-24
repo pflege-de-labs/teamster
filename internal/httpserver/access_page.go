@@ -206,10 +206,11 @@ func (s *Server) handleMessageLevelAPI(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// principalLabels names users and groups for the overviews.
+// principalLabels names users and groups for the overviews: every user a grant
+// or a membership names, however many have signed in.
 func (s *Server) principalLabels(ctx context.Context) (map[string]string, error) {
 	labels := map[string]string{}
-	users, err := s.store.ListUsers(ctx, "", usersPageSize)
+	users, err := s.store.ListReferencedUsers(ctx)
 	if err != nil {
 		return nil, err
 	}
