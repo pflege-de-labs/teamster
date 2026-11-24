@@ -5,3 +5,4 @@ versionBannerDev: This documents the unreleased development version.
 versionBannerPreview: This is a preview of a pull request.
 versionBannerOld: "This documents %s, which is not the latest release."
 versionBannerGoTo: "Go to %s"
+copyright: "Gopher image adapted from the original Go gopher by [Renée French](https://reneefrench.blogspot.com/), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)."

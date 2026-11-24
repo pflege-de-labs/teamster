@@ -5,3 +5,4 @@ versionBannerDev: Diese Seite beschreibt die noch nicht veröffentlichte Entwick
 versionBannerPreview: Dies ist die Vorschau eines Pull Requests.
 versionBannerOld: "Diese Seite beschreibt %s, nicht die neueste Version."
 versionBannerGoTo: "Zu %s wechseln"
+copyright: "Gopher-Bild nach dem ursprünglichen Go-Gopher von [Renée French](https://reneefrench.blogspot.com/), lizenziert unter [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.de)."
