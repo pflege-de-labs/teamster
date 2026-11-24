@@ -1978,3 +1978,7 @@ stay in UTC. API responses and logs are always in UTC
 ## License
 
 [Apache License 2.0](LICENSE).
+
+Gopher image adapted from the original Go gopher by
+[Renée French](https://reneefrench.blogspot.com/), licensed under
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).

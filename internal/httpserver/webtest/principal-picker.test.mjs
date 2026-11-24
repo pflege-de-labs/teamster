@@ -45,3 +45,16 @@ test("stepPrincipal", () => {
     assert.equal(step(c.active, c.step, 3), c.want, c.name);
   }
 });
+
+test("newPrincipals adds only users not listed", () => {
+  const add = globalThis.teamsterNewPrincipals;
+  const hits = [
+    { value: "user:u1", label: "Alice" },
+    { value: "user:u9", label: "Zoe", search: "zoe@z.de u9", title: "u9" },
+    { value: "group:g1", label: "Ops" },
+    { value: 7 },
+    null,
+  ];
+  assert.deepEqual(add(all, hits), [{ value: "user:u9", label: "Zoe", kind: "user", search: "zoe@z.de u9", title: "u9" }]);
+  assert.deepEqual(add(all, null), []);
+});
