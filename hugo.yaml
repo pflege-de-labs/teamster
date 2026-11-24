@@ -77,7 +77,8 @@ params:
     default: system
     displayToggle: true
   footer:
-    displayCopyright: false
+    # Text comes from the copyright key in i18n/<lang>.yaml.
+    displayCopyright: true
     displayPoweredBy: true
   editURL:
     enable: true
