@@ -87,9 +87,12 @@ templ sidebar(viewer Viewer) {
 				});
 			} catch (e) {}
 		</script>
-		if version := versionOf(ctx); version != "" {
-			<div class="px-7 py-4 text-xs text-slate-400">{ i18n.T(ctx, "app.version", version) }</div>
-		}
+		<div class="space-y-2 px-7 py-4 text-xs text-slate-400">
+			if version := versionOf(ctx); version != "" {
+				<div>{ i18n.T(ctx, "app.version", version) }</div>
+			}
+			@gopherCredit()
+		</div>
 	</aside>
 }
 

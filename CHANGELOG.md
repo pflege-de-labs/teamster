@@ -38,6 +38,9 @@ reasoning behind it in the [ADRs](docs/adr/).
   who may read it, and says "another group" otherwise. Old `?subject=` links
   still work ([ADR 0110](docs/adr/0110-answer-access-questions-with-the-authorizer.md)).
 
+* The admin UI credits the gopher image to Renée French under CC BY 4.0, at the foot of the
+  sidebar and below the sign-in page.
+
 ### Fixed
 
 * A route label in the routing graph that has keyboard focus, or was clicked, was drawn with a

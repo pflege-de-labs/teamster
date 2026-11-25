@@ -110,6 +110,9 @@ templ page(title string, viewer *Viewer, full bool) {
 				<main class="mx-auto max-w-6xl space-y-8 px-6 py-8">
 					{ children... }
 				</main>
+				<footer class="mx-auto max-w-6xl px-6 pb-8 text-center text-xs text-slate-400">
+					@gopherCredit()
+				</footer>
 			}
 			<script src="/vendor/adaptivecards.min.js"></script>
 			<script src="/preview.js"></script>
@@ -129,6 +132,15 @@ templ page(title string, viewer *Viewer, full bool) {
 			<script type="module" src="/editor.js"></script>
 		</body>
 	</html>
+}
+
+// gopherCredit is the attribution CC BY 4.0 asks for wherever the header shows the gopher.
+templ gopherCredit() {
+	<p>
+		{ i18n.T(ctx, "app.gopher_credit") }
+		<a href="https://reneefrench.blogspot.com/" class="underline hover:text-slate-600">Renée French</a>{ i18n.T(ctx, "app.gopher_license") }
+		<a href="https://creativecommons.org/licenses/by/4.0/" class="underline hover:text-slate-600">CC BY 4.0</a>.
+	</p>
 }
 
 // notice takes the two strings rather than a Page, so a page of its own --

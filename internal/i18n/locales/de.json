@@ -6,6 +6,8 @@
   "action.unlink": "Verknüpfung aufheben",
   "action.update": "{0} aktualisieren",
   "admin.read_only": "Angemeldet mit der Rolle {0}, die nur lesen und nichts ändern darf.",
+  "app.gopher_credit": "Gopher-Bild nach dem ursprünglichen Go-Gopher von",
+  "app.gopher_license": ", lizenziert unter",
   "app.subtitle": "Vorlagen, Ziele und Routen",
   "app.title": "Teamster-Verwaltung",
   "app.version": "Version {0}",

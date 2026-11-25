@@ -6,6 +6,8 @@
   "action.unlink": "Unlink",
   "action.update": "Update {0}",
   "admin.read_only": "Signed in with the {0} role, which may look but not change anything.",
+  "app.gopher_credit": "Gopher image adapted from the original Go gopher by",
+  "app.gopher_license": ", licensed under",
   "app.subtitle": "Templates, destinations and routes",
   "app.title": "Teamster Admin",
   "app.version": "Version {0}",
