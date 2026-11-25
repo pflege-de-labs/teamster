@@ -234,6 +234,14 @@ func labelOf(labels map[string]string, kind, id string) string {
 	return id
 }
 
+// nameOf is labelOf without the id, for rows that show it on hover.
+func nameOf(labels map[string]string, kind, id string) string {
+	if name, ok := labels[kind+":"+id]; ok {
+		return name
+	}
+	return id
+}
+
 func (s *Server) handleAccessPage(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.Header().Set("Allow", http.MethodGet)
@@ -315,7 +323,7 @@ func (s *Server) handleAccessPage(w http.ResponseWriter, r *http.Request) {
 		}
 		if admin && p.ResourceType == authz.PeopleResource.Type {
 			page.Messages = append(page.Messages, views.WebhookAccess{
-				PrincipalType: string(p.PrincipalType), PrincipalID: p.PrincipalID, Label: label, Level: messageLevelOf(p),
+				PrincipalType: string(p.PrincipalType), PrincipalID: p.PrincipalID, Label: nameOf(labels, string(p.PrincipalType), p.PrincipalID), Level: messageLevelOf(p),
 			})
 		}
 		resource := p.ResourceType + " " + p.ResourceID
@@ -332,7 +340,7 @@ func (s *Server) handleAccessPage(w http.ResponseWriter, r *http.Request) {
 	}
 	for _, key := range order {
 		page.Webhooks = append(page.Webhooks, views.WebhookAccess{
-			PrincipalType: key[0], PrincipalID: key[1], Label: labelOf(labels, key[0], key[1]), Level: levelOf(byPrincipal[key]),
+			PrincipalType: key[0], PrincipalID: key[1], Label: nameOf(labels, key[0], key[1]), Level: levelOf(byPrincipal[key]),
 		})
 	}
 
