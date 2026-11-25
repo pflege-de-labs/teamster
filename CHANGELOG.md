@@ -12,6 +12,12 @@ reasoning behind it in the [ADRs](docs/adr/).
 
 ### Changed
 
+* The template preview offers only the samples of the webhooks a template is ticked for, and has
+  new ones that read differently: an Alertmanager alert resolved, a universal disk alert in place
+  of the memory alert, a maintenance notice as the general message, and a password reminder to one
+  person. The sample keys the preview API takes are unchanged; `alertmanager-resolved` and
+  `password-reminder` are new.
+
 * The webhook and message level forms on `/admin/access` and the **Add member** form of a group
   pick the principal from a searchable list of users, groups, provider groups and roles instead of
   taking an id typed by hand. Someone who has not signed in yet is entered under **Someone not

@@ -59,10 +59,10 @@ func TestPreviewRendersTheWholeMessage(t *testing.T) {
 	}
 
 	payload := decodePreview(t, rec)
-	if got := decodeString(t, payload["title"]); got != "HighMemory is open" {
+	if got := decodeString(t, payload["title"]); got != "DiskAlmostFull is open" {
 		t.Errorf("title = %q, want the rendered feed line", got)
 	}
-	if got := decodeString(t, payload["text"]); got != "<p>Memory usage is above 80%</p>" {
+	if got := decodeString(t, payload["text"]); got != "<p>Disk /var/lib/postgresql on db-1 is 91% full</p>" {
 		t.Errorf("text = %q, want the sanitized text without the script", got)
 	}
 	if _, ok := payload["card"]; ok {
@@ -94,7 +94,7 @@ func TestPreviewRendersTheTemplate(t *testing.T) {
 		t.Fatalf("preview = %d, want 200 (%s)", rec.Code, rec.Body.String())
 	}
 	card := string(decodePreview(t, rec)["card"])
-	if !strings.Contains(card, "open HighMemory") {
+	if !strings.Contains(card, "open DiskAlmostFull") {
 		t.Errorf("card = %s, want the sample event rendered into it", card)
 	}
 }
@@ -217,7 +217,8 @@ func TestAdminPageOffersThePreviewControls(t *testing.T) {
 
 	for _, want := range []string{
 		`id="preview-button"`, `id="preview-output"`, `id="template-form"`,
-		`<option value="open">`, `<option value="closed">`,
+		`<option value="open" data-source="universal">`, `<option value="closed" data-source="universal">`,
+		`<option value="alertmanager-resolved" data-source="alertmanager">`, `<option value="password-reminder" data-source="universal">`,
 		`src="/vendor/adaptivecards.min.js"`, `src="/preview.js"`, `src="/tabs.js"`,
 		`id="preview-views"`, `data-preview-view="rendered" aria-pressed="true"`,
 		`data-preview-view="channel" aria-pressed="false"`, `data-preview-view="chat" aria-pressed="false"`,
@@ -313,7 +314,7 @@ func TestPresetSamplesExist(t *testing.T) {
 
 	for _, p := range append(cards.Presets(), cards.Variants()...) {
 		sample := cmp.Or(p.Sample, p.Key)
-		if !slices.Contains(previewSamples(), sample) {
+		if !slices.Contains(previewSampleKeys(), sample) {
 			t.Errorf("preset %q previews on sample %q, which the preview does not have", p.Key, sample)
 			continue
 		}

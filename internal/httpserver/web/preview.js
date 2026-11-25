@@ -1,6 +1,12 @@
 // Renders a template against a sample alert. The template is Go text/template,
 // so the server does the templating and the browser only draws the result.
 (function () {
+  // The samples a template's webhooks send; a template for no webhook in
+  // particular previews on all of them.
+  globalThis.teamsterSamplesFor = (samples, sources) =>
+    samples.filter((s) => !sources.length || sources.includes(s.source)).map((s) => s.key);
+  if (typeof document === "undefined") return;
+
   const form = document.getElementById("template-form");
   const button = document.getElementById("preview-button");
   const sample = document.getElementById("preview-sample");
@@ -134,6 +140,7 @@
       form.querySelectorAll('input[name="sources"]').forEach((box) => {
         box.checked = (chosen.sources || []).includes(box.value);
       });
+      offerSamples();
       const shown = chosen.sample || chosen.key;
       if (sample && [...sample.options].some((o) => o.value === shown)) {
         sample.value = shown;
@@ -158,6 +165,28 @@
     if (field) field.addEventListener("input", schedulePreview);
   });
   if (sample) sample.addEventListener("change", schedulePreview);
+
+  // The sample list follows the webhooks ticked, so a template never previews
+  // on another webhook's event.
+  function offerSamples() {
+    if (!sample) return;
+    const sources = [...form.querySelectorAll('input[name="sources"]:checked')].map((box) => box.value);
+    const options = [...sample.options];
+    const offered = globalThis.teamsterSamplesFor(
+      options.map((o) => ({ key: o.value, source: o.dataset.source })),
+      sources,
+    );
+    options.forEach((o) => {
+      o.hidden = !offered.includes(o.value);
+      o.disabled = o.hidden;
+    });
+    if (!offered.includes(sample.value) && offered.length) {
+      sample.value = offered[0];
+      sample.dispatchEvent(new Event("change"));
+    }
+  }
+  form.querySelectorAll('input[name="sources"]').forEach((box) => box.addEventListener("change", offerSamples));
+  offerSamples();
 
   button.addEventListener("click", async () => {
     let payload;
